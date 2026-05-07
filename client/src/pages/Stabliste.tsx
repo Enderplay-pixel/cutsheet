@@ -1,0 +1,235 @@
+import { useState, useRef } from 'react'
+import { useParams } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useToast } from '@/components/ui/use-toast'
+import { formatCurrency, debounce, cn } from '@/lib/utils'
+import { Plus, Trash2, Mail, Phone, Copy, Check, ChevronDown, ChevronUp, Users, Download } from 'lucide-react'
+
+const DEPARTMENTS = [
+  'Regie', 'Produktion', 'Aufnahmeleitung', 'Kamera', 'Licht', 'Ton',
+  'Maske', 'Kostüm', 'Requisite', 'Ausstattung', 'Schnitt', 'VFX', 'Musik', 'Fahrer', 'Sonstiges'
+]
+
+function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
+  const [form, setForm] = useState(member)
+  const [copied, setCopied] = useState(false)
+  const queryClient = useQueryClient()
+  const { projectId } = useParams()
+  const pid = Number(projectId)
+
+  const mutation = useMutation({
+    mutationFn: (data: any) => api.crew.update(member.id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crew', pid] }),
+  })
+  const debouncedUpdate = useRef(debounce((data: any) => mutation.mutate(data), 500)).current
+  const update = (key: string, value: any) => {
+    const next = { ...form, [key]: value }
+    setForm(next)
+    debouncedUpdate(next)
+  }
+  const copyEmail = () => {
+    if (form.email) {
+      navigator.clipboard.writeText(form.email)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-3 py-2.5 border-b border-border/30 last:border-0 group">
+      {/* Avatar */}
+      <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0">
+        {member.name?.[0] || '?'}
+      </div>
+
+      {/* Name + Role */}
+      <Input value={form.name || ''} onChange={e => update('name', e.target.value)}
+        className="h-7 text-sm font-medium flex-1 min-w-0 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Name" />
+      <Input value={form.role || ''} onChange={e => update('role', e.target.value)}
+        className="h-7 text-xs text-muted-foreground w-40 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Position" />
+
+      {/* Contact */}
+      <div className="flex items-center gap-1 shrink-0">
+        <Mail className="w-3 h-3 text-muted-foreground/50" />
+        <Input value={form.email || ''} onChange={e => update('email', e.target.value)}
+          className="h-7 text-xs w-40 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" type="email" placeholder="email@…" />
+      </div>
+      <div className="flex items-center gap-1 shrink-0">
+        <Phone className="w-3 h-3 text-muted-foreground/50" />
+        <Input value={form.phone || ''} onChange={e => update('phone', e.target.value)}
+          className="h-7 text-xs w-28 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="+49…" />
+      </div>
+
+      {/* Fee */}
+      <div className="flex items-center gap-1 shrink-0">
+        <Input type="number" value={(form.fee_per_day || 0) / 100}
+          onChange={e => update('fee_per_day', Math.round(Number(e.target.value) * 100))}
+          className="h-7 text-xs w-20 bg-transparent border-transparent hover:border-border focus:border-border transition-colors text-right" />
+        <span className="text-xs text-muted-foreground/50">€</span>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={copyEmail} className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-primary transition-colors" title="E-Mail kopieren">
+          {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+        </button>
+        <button onClick={onDelete} className="w-6 h-6 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+          <Trash2 className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function DepartmentSection({ dept, members, onAdd, onDelete, onCopyEmails }: {
+  dept: string; members: any[]; onAdd: () => void; onDelete: (id: number) => void; onCopyEmails: () => void
+}) {
+  const [open, setOpen] = useState(true)
+  const deptTotal = members.reduce((s, m) => s + (m.fee_per_day || 0), 0)
+
+  return (
+    <div className="border border-border/60 rounded-xl overflow-hidden bg-card">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left"
+      >
+        <span className="text-sm font-semibold flex-1">{dept}</span>
+        <span className="text-xs text-muted-foreground tabular-nums">{members.length} Personen</span>
+        {deptTotal > 0 && (
+          <span className="text-xs text-muted-foreground tabular-nums">{formatCurrency(deptTotal)}/Tag</span>
+        )}
+        <button
+          onClick={e => { e.stopPropagation(); onCopyEmails() }}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary px-2 py-0.5 rounded hover:bg-primary/10 transition-colors"
+          title="Alle E-Mails kopieren"
+        >
+          <Mail className="w-3 h-3" />
+        </button>
+        {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+      </button>
+
+      {open && (
+        <div className="border-t border-border/40 px-4 py-1 bg-card">
+          {/* Column headers */}
+          <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground/60 font-medium uppercase tracking-wide border-b border-border/30 mb-1">
+            <div className="w-7" />
+            <div className="flex-1">Name</div>
+            <div className="w-40">Position</div>
+            <div className="flex items-center gap-1 w-[188px]"><Mail className="w-3 h-3" />E-Mail</div>
+            <div className="flex items-center gap-1 w-[118px]"><Phone className="w-3 h-3" />Telefon</div>
+            <div className="w-24 text-right">Gage/Tag</div>
+            <div className="w-[52px]" />
+          </div>
+
+          {members.map(m => (
+            <CrewRow key={m.id} member={m} onDelete={() => onDelete(m.id)} />
+          ))}
+
+          <button
+            onClick={onAdd}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-2 w-full"
+          >
+            <Plus className="w-3 h-3" /> Mitglied hinzufügen
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function Component() {
+  const { projectId } = useParams()
+  const pid = Number(projectId)
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const [newDept, setNewDept] = useState('Kamera')
+
+  const { data: crew, isLoading } = useQuery({
+    queryKey: ['crew', pid],
+    queryFn: () => api.crew.list(pid),
+  })
+
+  const createMutation = useMutation({
+    mutationFn: (dept: string) => api.crew.create(pid, { name: 'Neues Mitglied', department: dept, role: '' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crew', pid] }),
+  })
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.crew.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crew', pid] }),
+  })
+
+  const grouped = (crew || []).reduce((acc: Record<string, any[]>, m: any) => {
+    const dept = m.department || 'Sonstiges'
+    if (!acc[dept]) acc[dept] = []
+    acc[dept].push(m)
+    return acc
+  }, {} as Record<string, any[]>)
+
+  const copyAllEmails = (dept: string) => {
+    const emails = (grouped[dept] || []).map((m: any) => m.email).filter(Boolean).join(', ')
+    if (emails) {
+      navigator.clipboard.writeText(emails)
+      toast({ title: `${dept}-E-Mails kopiert` })
+    } else {
+      toast({ title: 'Keine E-Mail-Adressen', variant: 'destructive' })
+    }
+  }
+
+  const totalGage = (crew || []).reduce((sum: number, m: any) => sum + (m.fee_per_day || 0), 0)
+  const activeDepts = DEPARTMENTS.filter(d => grouped[d]?.length > 0)
+
+  return (
+    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+      <div className="flex items-start justify-between mb-7">
+        <div>
+          <h1 className="text-xl font-semibold">Stabliste</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {crew?.length || 0} Mitarbeiter
+            {totalGage > 0 && ` · ${formatCurrency(totalGage)} Gesamtgage/Tag`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <a href={api.pdf.stabliste(pid)} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm">
+              <Download className="w-3.5 h-3.5 mr-1.5" />PDF
+            </Button>
+          </a>
+          <Select value={newDept} onValueChange={setNewDept}>
+            <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d} className="text-xs">{d}</SelectItem>)}</SelectContent>
+          </Select>
+          <Button size="sm" onClick={() => createMutation.mutate(newDept)} disabled={createMutation.isPending}>
+            <Plus className="w-3.5 h-3.5 mr-1.5" />Hinzufügen
+          </Button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
+      ) : activeDepts.length === 0 ? (
+        <div className="text-center py-20 text-muted-foreground">
+          <Users className="w-10 h-10 mx-auto mb-3 opacity-20" />
+          <p className="text-sm">Noch kein Stab angelegt.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {activeDepts.map(dept => (
+            <DepartmentSection
+              key={dept}
+              dept={dept}
+              members={grouped[dept]}
+              onAdd={() => createMutation.mutate(dept)}
+              onDelete={(id) => deleteMutation.mutate(id)}
+              onCopyEmails={() => copyAllEmails(dept)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

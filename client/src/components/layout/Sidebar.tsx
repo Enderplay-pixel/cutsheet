@@ -1,0 +1,166 @@
+import { NavLink, useParams, useNavigate } from 'react-router-dom'
+import { cn } from '@/lib/utils'
+import { useProjectStore } from '@/store/useProjectStore'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import {
+  Film, LayoutDashboard, FileText, Users, Briefcase, MapPin, Calendar,
+  Camera, ClipboardList, FileCheck, DollarSign, Package, Mail, AlertTriangle,
+  Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight
+} from 'lucide-react'
+
+const navGroups = [
+  {
+    label: 'Übersicht',
+    items: [
+      { label: 'Dashboard', icon: LayoutDashboard, path: '' },
+      { label: 'Stammdaten', icon: Film, path: 'stammdaten' },
+    ]
+  },
+  {
+    label: 'Vorbereitung',
+    items: [
+      { label: 'Szenen', icon: FileText, path: 'drehbuch' },
+      { label: 'Besetzung', icon: Users, path: 'besetzung' },
+      { label: 'Stab', icon: Briefcase, path: 'stabliste' },
+      { label: 'Motive', icon: MapPin, path: 'motive' },
+      { label: 'Equipment', icon: Package, path: 'equipment' },
+    ]
+  },
+  {
+    label: 'Produktion',
+    items: [
+      { label: 'Drehplan', icon: Clapperboard, path: 'drehplan' },
+      { label: 'Shotlist', icon: Camera, path: 'shotlist' },
+      { label: 'Tagesdispo', icon: ClipboardList, path: 'tagesdispo' },
+      { label: 'Tagesbericht', icon: FileCheck, path: 'tagesbericht' },
+    ]
+  },
+  {
+    label: 'Verwaltung',
+    items: [
+      { label: 'Budget', icon: DollarSign, path: 'budget' },
+      { label: 'Kalender', icon: Calendar, path: 'kalender' },
+      { label: 'E-Mail', icon: Mail, path: 'email' },
+      { label: 'Konflikte', icon: AlertTriangle, path: 'konfliktradar' },
+    ]
+  },
+]
+
+export function Sidebar() {
+  const { projectId } = useParams()
+  const navigate = useNavigate()
+  const { sidebarCollapsed, toggleSidebar } = useProjectStore()
+
+  const { data: project } = useQuery({
+    queryKey: ['project', projectId],
+    queryFn: () => api.projects.get(Number(projectId)),
+    enabled: !!projectId,
+  })
+
+  const pid = projectId
+
+  return (
+    <aside className={cn(
+      'flex flex-col h-screen bg-card border-r border-border/60 transition-all duration-300 ease-in-out shrink-0 relative',
+      sidebarCollapsed ? 'w-14' : 'w-[224px]'
+    )}>
+      {/* Logo / Brand */}
+      <div
+        className="flex items-center h-[52px] px-3.5 border-b border-border/60 gap-3 shrink-0 cursor-pointer"
+        onClick={() => navigate('/')}
+      >
+        <div className="w-7 h-7 bg-primary rounded-md flex items-center justify-center shrink-0 shadow-sm">
+          <Clapperboard className="w-3.5 h-3.5 text-primary-foreground" />
+        </div>
+        {!sidebarCollapsed && (
+          <div className="flex-1 min-w-0">
+            <span className="font-semibold text-[13px] tracking-tight leading-none block">CutSheet</span>
+            {project && (
+              <span className="text-[11px] text-muted-foreground truncate block mt-0.5">{project.title}</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+        {pid ? (
+          navGroups.map((group) => (
+            <div key={group.label} className="mb-1">
+              {!sidebarCollapsed && (
+                <div className="px-2 pb-1 pt-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                    {group.label}
+                  </span>
+                </div>
+              )}
+              {sidebarCollapsed && group.label !== 'Übersicht' && (
+                <div className="my-2 mx-2 h-px bg-border/60" />
+              )}
+              {group.items.map(item => (
+                <NavLink
+                  key={item.path}
+                  to={item.path === '' ? `/projects/${pid}` : `/projects/${pid}/${item.path}`}
+                  end={item.path === ''}
+                  title={sidebarCollapsed ? item.label : undefined}
+                  className={({ isActive }) => cn(
+                    'flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-all duration-150 group relative',
+                    isActive
+                      ? 'bg-primary/12 text-primary font-medium'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                  )}
+                >
+                  {({ isActive }) => (
+                    <>
+                      {isActive && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-primary rounded-full" />
+                      )}
+                      <item.icon className={cn(
+                        'shrink-0 transition-colors',
+                        sidebarCollapsed ? 'w-4 h-4' : 'w-3.5 h-3.5',
+                        isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                      )} />
+                      {!sidebarCollapsed && (
+                        <span className="flex-1 truncate">{item.label}</span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          ))
+        ) : (
+          <div className="px-3 py-6 text-center">
+            {!sidebarCollapsed && (
+              <div>
+                <Clapperboard className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">Kein Projekt geöffnet</p>
+                <button
+                  onClick={() => navigate('/')}
+                  className="mt-2 text-xs text-primary hover:underline flex items-center gap-1 mx-auto"
+                >
+                  Projekt wählen <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </nav>
+
+      {/* Collapse toggle */}
+      <div className="p-2 border-t border-border/60 shrink-0">
+        <button
+          onClick={toggleSidebar}
+          className="w-full flex items-center justify-center h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          title={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
+        >
+          {sidebarCollapsed
+            ? <PanelLeftOpen className="w-4 h-4" />
+            : <PanelLeftClose className="w-4 h-4" />
+          }
+        </button>
+      </div>
+    </aside>
+  )
+}
