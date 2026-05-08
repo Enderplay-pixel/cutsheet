@@ -13,6 +13,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, name: string) => Promise<void>
   logout: () => void
+  updateUser: (partial: Partial<User>) => void
   isLoading: boolean
   justRegistered: boolean
   clearJustRegistered: () => void
@@ -26,6 +27,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const [justRegistered, setJustRegistered] = useState(false)
   const clearJustRegistered = () => setJustRegistered(false)
+
+  const updateUser = useCallback((partial: Partial<User>) => {
+    setUser(prev => prev ? { ...prev, ...partial } : prev)
+  }, [])
 
   const logout = useCallback(() => {
     setUser(null)
@@ -73,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading, justRegistered, clearJustRegistered }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, updateUser, isLoading, justRegistered, clearJustRegistered }}>
       {children}
     </AuthContext.Provider>
   )

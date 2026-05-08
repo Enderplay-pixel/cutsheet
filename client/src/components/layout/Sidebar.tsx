@@ -8,7 +8,7 @@ import {
   Film, LayoutDashboard, FileText, Users, Briefcase, MapPin, Calendar,
   Camera, ClipboardList, FileCheck, DollarSign, Package, Mail, AlertTriangle,
   Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight,
-  StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle, ShieldCheck, BookUser
+  StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle, ShieldCheck, BookUser, Settings
 } from 'lucide-react'
 import { useT } from '@/lib/useT'
 import { navT } from '@/lib/i18n'
@@ -255,6 +255,14 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
           <p className="text-[10px] text-muted-foreground truncate">{roleLabel[user.role] ?? user.role}</p>
         </div>
       )}
+      <button
+        onClick={() => navigate('/settings')}
+        className="shrink-0 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+        title={tt(navT.settings)}
+        aria-label={tt(navT.settings)}
+      >
+        <Settings className="w-3.5 h-3.5" />
+      </button>
       <button
         onClick={() => { logout(); navigate('/login') }}
         className="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"

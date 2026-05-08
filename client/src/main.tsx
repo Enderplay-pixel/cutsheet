@@ -31,6 +31,7 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, lazy: () => import('./pages/ProjectList') },
+      { path: 'settings', lazy: () => import('./pages/Settings') },
       {
         path: 'projects/:projectId',
         children: [

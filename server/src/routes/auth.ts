@@ -99,6 +99,30 @@ router.put('/me', requireAuth, async (req: Request, res: Response) => {
   }
 })
 
+// PUT /me/password
+router.put('/me/password', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { current_password, new_password } = req.body as { current_password?: string; new_password?: string }
+    if (!current_password || !new_password) {
+      return res.status(400).json({ data: null, error: 'Felder fehlen' })
+    }
+    if (new_password.length < 6) {
+      return res.status(400).json({ data: null, error: 'Passwort muss mindestens 6 Zeichen haben' })
+    }
+    if (!req.user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id) as UserRow | undefined
+    if (!user) return res.status(404).json({ data: null, error: 'Benutzer nicht gefunden' })
+    const valid = await bcrypt.compare(current_password, user.password_hash)
+    if (!valid) return res.status(400).json({ data: null, error: 'Aktuelles Passwort falsch' })
+    const hash = await bcrypt.hash(new_password, 12)
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, req.user.id)
+    return res.json({ data: { success: true }, error: null })
+  } catch (err) {
+    console.error('[auth/me/password]', err)
+    return res.status(500).json({ data: null, error: 'Interner Serverfehler' })
+  }
+})
+
 // GET /users (admin only)
 router.get('/users', requireAuth, requireRole('admin'), (req: Request, res: Response) => {
   const users = db.prepare('SELECT id, email, name, role, created_at FROM users ORDER BY created_at ASC').all()

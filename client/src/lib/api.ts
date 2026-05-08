@@ -212,6 +212,9 @@ export const api = {
     login: (email: string, password: string) => req<{ token: string; user: any }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
     register: (email: string, password: string, name: string) => req<{ token: string; user: any }>('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, name }) }),
     me: () => req<any>('/auth/me'),
+    updateMe: (data: { name?: string }) => req<any>('/auth/me', { method: 'PUT', body: JSON.stringify(data) }),
+    changePassword: (data: { current_password: string; new_password: string }) =>
+      req<any>('/auth/me/password', { method: 'PUT', body: JSON.stringify(data) }),
     users: () => req<any[]>('/auth/users'),
     updateRole: (id: number, role: string) => req<any>(`/auth/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
     deleteUser: (id: number) => req<void>(`/auth/users/${id}`, { method: 'DELETE' }),
