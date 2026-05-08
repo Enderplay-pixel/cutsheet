@@ -22,9 +22,14 @@ const router = createBrowserRouter([
     lazy: () => import('./pages/Invite'),
   },
   {
+    path: '/admin',
+    element: <App />,
+    children: [{ index: true, lazy: () => import('./pages/AdminPanel') }],
+  },
+  {
     path: '/admin/benutzer',
     element: <App />,
-    children: [{ index: true, lazy: () => import('./pages/Benutzerverwaltung') }],
+    children: [{ index: true, lazy: () => import('./pages/AdminPanel') }],
   },
   {
     path: '/',

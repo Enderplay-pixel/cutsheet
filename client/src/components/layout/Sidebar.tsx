@@ -67,7 +67,7 @@ export function Sidebar() {
   ]
 
   const ADMIN_ITEMS = [
-    { label: tt(navT.userMgmt), icon: ShieldCheck, path: '/admin/benutzer' },
+    { label: tt(navT.userMgmt), icon: ShieldCheck, path: '/admin' },
   ]
 
   const { data: project } = useQuery({
