@@ -6,6 +6,13 @@ import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
 import './index.css'
 
+// After a new deployment the browser may try to load stale chunk hashes that
+// no longer exist on the server. Vite 5 fires this event in that case.
+// Reloading once fetches the fresh index.html and correct chunk URLs.
+window.addEventListener('vite:preloadError', () => {
+  window.location.reload()
+})
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 30000, retry: 1 },
