@@ -639,6 +639,15 @@ export function addMigrations() {
       WHERE owner_id IS NULL AND (SELECT COUNT(*) FROM users) > 0
     `)
   } catch { /* ignore */ }
+
+  // Fix roles: only the first registered user (lowest id) keeps 'admin'.
+  // All others become 'user' — per-project access is via project_members.
+  try {
+    db.exec(`
+      UPDATE users SET role = 'user'
+      WHERE id != (SELECT MIN(id) FROM users) AND role = 'admin'
+    `)
+  } catch { /* ignore */ }
 }
 
 function seedDemoData() {

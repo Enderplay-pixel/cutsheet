@@ -37,8 +37,10 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
       return res.status(409).json({ data: null, error: 'E-Mail bereits registriert' })
     }
 
-    // Every user is admin of their own projects — global role is always 'admin'
-    const role = 'admin'
+    // First registered user becomes site admin; everyone else is a regular user.
+    // Per-project roles are managed separately via project_members.
+    const userCount = (db.prepare('SELECT COUNT(*) as c FROM users').get() as any).c
+    const role = userCount === 0 ? 'admin' : 'user'
 
     const password_hash = await bcrypt.hash(password, 12)
     const result = db.prepare(

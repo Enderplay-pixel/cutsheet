@@ -5,7 +5,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Users, Trash2, ShieldCheck, UserPlus, Crown } from 'lucide-react'
+import { Users, ShieldCheck, UserPlus, Crown } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 
 const ROLES: { value: string; label: string; color: string }[] = [
@@ -50,12 +50,6 @@ export function Component() {
     mutationFn: ({ id, role }: { id: number; role: string }) =>
       apiFetch(`/api/auth/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); toast({ title: 'Rolle geändert' }) },
-    onError: (e: any) => toast({ variant: 'destructive', title: 'Fehler', description: e.message }),
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiFetch(`/api/auth/users/${id}`, { method: 'DELETE' }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); toast({ title: 'Benutzer gelöscht' }) },
     onError: (e: any) => toast({ variant: 'destructive', title: 'Fehler', description: e.message }),
   })
 
@@ -164,20 +158,7 @@ export function Component() {
                     <td className="py-3 px-4 text-sm text-muted-foreground">
                       {new Date(u.created_at).toLocaleDateString('de-DE')}
                     </td>
-                    <td className="py-3 px-4 text-right">
-                      {u.id !== me?.id && (
-                        <button
-                          onClick={() => {
-                            if (confirm(`${u.name || u.email} wirklich löschen?`)) deleteMutation.mutate(u.id)
-                          }}
-                          disabled={deleteMutation.isPending}
-                          className="w-7 h-7 inline-flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"
-                          title="Benutzer löschen"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" aria-hidden />
-                        </button>
-                      )}
-                    </td>
+                    <td className="py-3 px-4 text-right" />
                   </tr>
                 ))
               )}
