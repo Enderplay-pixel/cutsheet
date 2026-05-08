@@ -55,7 +55,19 @@ app.use('/uploads', express.static(uploadsDir))
 if (isProd) {
   const distPath = path.join(__dirname, '../../client/dist')
   if (fs.existsSync(distPath)) {
-    app.use(express.static(distPath))
+    // Hashed assets: long-term cache (1 year)
+    app.use('/assets', express.static(path.join(distPath, 'assets'), {
+      maxAge: '1y',
+      immutable: true,
+    }))
+    // index.html: never cache (ensures fresh chunk references after deploy)
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+        }
+      }
+    }))
   }
 }
 
@@ -92,6 +104,7 @@ if (isProd) {
   app.get('*', (req, res) => {
     const indexPath = path.join(distPath, 'index.html')
     if (fs.existsSync(indexPath)) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
       res.sendFile(indexPath)
     } else {
       res.status(404).send('Frontend build not found. Run `npm run build` first.')

@@ -3,11 +3,12 @@ import { cn } from '@/lib/utils'
 import { useProjectStore } from '@/store/useProjectStore'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   Film, LayoutDashboard, FileText, Users, Briefcase, MapPin, Calendar,
   Camera, ClipboardList, FileCheck, DollarSign, Package, Mail, AlertTriangle,
   Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight,
-  StickyNote, Car, History, Search, FileEdit
+  StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle
 } from 'lucide-react'
 
 const navGroups = [
@@ -159,21 +160,55 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* Collapse toggle */}
-      <div className="p-2 border-t border-border/60 shrink-0">
-        <button
-          onClick={toggleSidebar}
-          className="w-full flex items-center justify-center h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-          title={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
-          aria-label={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
-          aria-expanded={!sidebarCollapsed}
-        >
-          {sidebarCollapsed
-            ? <PanelLeftOpen className="w-4 h-4" />
-            : <PanelLeftClose className="w-4 h-4" />
-          }
-        </button>
+      {/* User menu + Collapse toggle */}
+      <div className="border-t border-border/60 shrink-0">
+        <UserMenu collapsed={sidebarCollapsed} />
+        <div className="p-2">
+          <button
+            onClick={toggleSidebar}
+            className="w-full flex items-center justify-center h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+            title={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
+            aria-label={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
+            aria-expanded={!sidebarCollapsed}
+          >
+            {sidebarCollapsed
+              ? <PanelLeftOpen className="w-4 h-4" />
+              : <PanelLeftClose className="w-4 h-4" />
+            }
+          </button>
+        </div>
       </div>
     </aside>
+  )
+}
+
+function UserMenu({ collapsed }: { collapsed: boolean }) {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+  if (!user) return null
+  const roleLabel: Record<string, string> = {
+    admin: 'Admin', producer: 'Produzent', director: 'Regie',
+    dept_head: 'Abteilungsleitung', read_only: 'Lesezugriff'
+  }
+  return (
+    <div className="px-2 py-2 flex items-center gap-2">
+      <div className="shrink-0 w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+        <UserCircle className="w-4 h-4 text-primary" />
+      </div>
+      {!collapsed && (
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium truncate">{user.name || user.email}</p>
+          <p className="text-[10px] text-muted-foreground truncate">{roleLabel[user.role] ?? user.role}</p>
+        </div>
+      )}
+      <button
+        onClick={() => { logout(); navigate('/login') }}
+        className="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+        title="Abmelden"
+        aria-label="Abmelden"
+      >
+        <LogOut className="w-3.5 h-3.5" />
+      </button>
+    </div>
   )
 }

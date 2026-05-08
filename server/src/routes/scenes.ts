@@ -37,6 +37,9 @@ router.post('/projects/:projectId/scenes', (req, res) => {
   `).run(req.params.projectId, scene_number, maxSort + 1, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes)
 
   const scene = db.prepare('SELECT *, null as location_name FROM scenes WHERE id = ?').get(result.lastInsertRowid)
+  // Auto-create an empty action block so the scene shows up in the screenplay editor
+  db.prepare(`INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content) VALUES (?, ?, 0, 'action', '')`)
+    .run(result.lastInsertRowid, req.params.projectId)
   res.status(201).json({ data: { ...scene as object, characters: [], inventory: [] }, error: null })
 })
 
