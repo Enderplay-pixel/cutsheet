@@ -116,6 +116,7 @@ export const api = {
     create: (sceneId: number, data: any) => req<any>(`/scenes/${sceneId}/shots`, { method: 'POST', body: JSON.stringify(data) }),
     update: (id: number, data: any) => req<any>(`/shots/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: number) => req<any>(`/shots/${id}`, { method: 'DELETE' }),
+    toggleDone: (id: number) => req<any>(`/shots/${id}/done`, { method: 'PATCH' }),
   },
 
   // ─── Budget ────────────────────────────────────────────────────────────────

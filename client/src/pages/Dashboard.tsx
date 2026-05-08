@@ -12,6 +12,20 @@ import { differenceInDays, parseISO } from 'date-fns'
 import { useT } from '@/lib/useT'
 import { dashT } from '@/lib/i18n'
 
+function DonutRing({ value, color, size = 80 }: { value: number; color: string; size?: number }) {
+  const r = (size - 10) / 2
+  const circ = 2 * Math.PI * r
+  const offset = circ - (value / 100) * circ
+  return (
+    <svg width={size} height={size} className="shrink-0 -rotate-90">
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="currentColor" strokeWidth={5} className="text-muted/60" />
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={5}
+        strokeDasharray={circ} strokeDashoffset={offset}
+        strokeLinecap="round" className="transition-all duration-700" />
+    </svg>
+  )
+}
+
 function StatCard({ label, value, sub, icon: Icon, accent }: {
   label: string; value: number | string; sub?: string; icon: any; accent?: boolean
 }) {
@@ -128,52 +142,28 @@ export function Component() {
             <h2 className="text-sm font-medium">{tt(dashT.progress)}</h2>
           </div>
           <div className="space-y-5">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">{tt(dashT.scheduleDone)}</span>
-                <span className="text-sm font-semibold tabular-nums">{scheduleProgress}%</span>
-              </div>
-              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-700"
-                  style={{ width: `${scheduleProgress}%` }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                {tt(dashT.scenesScheduled).replace('{n}', stats?.scheduled_scenes).replace('{total}', stats?.total_scenes)}
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">{tt(dashT.shootDaysDone)}</span>
-                <span className="text-sm font-semibold tabular-nums">{shootProgress}%</span>
-              </div>
-              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 rounded-full transition-all duration-700"
-                  style={{ width: `${shootProgress}%` }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                {tt(dashT.daysCompleted).replace('{n}', stats?.completed_shoot_days).replace('{total}', stats?.total_shoot_days)}
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">{tt(dashT.scenesShot)}</span>
-                <span className="text-sm font-semibold tabular-nums">{shotScenesProgress}%</span>
-              </div>
-              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-green-500 rounded-full transition-all duration-700"
-                  style={{ width: `${shotScenesProgress}%` }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                {tt(dashT.scenesShootOf).replace('{n}', String(stats?.shot_scenes || 0)).replace('{total}', String(stats?.total_scenes))}
-              </p>
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { label: tt(dashT.scheduleDone), pct: scheduleProgress, color: 'hsl(var(--primary))',
+                  sub: tt(dashT.scenesScheduled).replace('{n}', stats?.scheduled_scenes).replace('{total}', stats?.total_scenes) },
+                { label: tt(dashT.shootDaysDone), pct: shootProgress, color: '#3b82f6',
+                  sub: tt(dashT.daysCompleted).replace('{n}', stats?.completed_shoot_days).replace('{total}', stats?.total_shoot_days) },
+                { label: tt(dashT.scenesShot), pct: shotScenesProgress, color: '#22c55e',
+                  sub: tt(dashT.scenesShootOf).replace('{n}', String(stats?.shot_scenes || 0)).replace('{total}', String(stats?.total_scenes)) },
+              ].map(item => (
+                <div key={item.label} className="flex flex-col items-center gap-3 p-4 rounded-xl bg-muted/20">
+                  <div className="relative">
+                    <DonutRing value={item.pct} color={item.color} size={80} />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-sm font-bold tabular-nums">{item.pct}%</span>
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-medium text-foreground">{item.label}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{item.sub}</p>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {stats?.budget_total_cents > 0 && (

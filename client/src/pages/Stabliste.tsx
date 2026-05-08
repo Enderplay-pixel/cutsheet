@@ -160,6 +160,7 @@ export function Component() {
   const { toast } = useToast()
   const { canEdit } = useProjectPerms()
   const [newDept, setNewDept] = useState('Kamera')
+  const [deptFilter, setDeptFilter] = useState<string>('all')
 
   const tt = useT()
 
@@ -242,6 +243,34 @@ export function Component() {
         </div>
       </div>
 
+      {!isLoading && activeDepts.length > 1 && (
+        <div className="flex items-center gap-1.5 flex-wrap mb-4">
+          <button
+            onClick={() => setDeptFilter('all')}
+            className={cn(
+              'flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border transition-colors',
+              deptFilter === 'all'
+                ? 'bg-primary/12 border-primary/30 text-primary'
+                : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground'
+            )}
+          >
+            Alle <span className="tabular-nums">{crew?.length || 0}</span>
+          </button>
+          {activeDepts.map(dept => (
+            <button key={dept} onClick={() => setDeptFilter(dept)}
+              className={cn(
+                'flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border transition-colors',
+                deptFilter === dept
+                  ? 'bg-primary/12 border-primary/30 text-primary'
+                  : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground'
+              )}
+            >
+              {dept} <span className="tabular-nums">{grouped[dept]?.length || 0}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
       ) : activeDepts.length === 0 ? (
@@ -251,7 +280,7 @@ export function Component() {
         </div>
       ) : (
         <div className="space-y-3">
-          {activeDepts.map(dept => (
+          {(deptFilter === 'all' ? activeDepts : activeDepts.filter(d => d === deptFilter)).map(dept => (
             <DepartmentSection
               key={dept}
               dept={dept}

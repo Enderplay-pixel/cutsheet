@@ -20,6 +20,24 @@ export function Sidebar() {
   const { user } = useAuth()
   const tt = useT()
 
+  const ADMIN_ITEMS = [
+    { label: tt(navT.userMgmt), icon: ShieldCheck, path: '/admin' },
+  ]
+
+  const { data: project } = useQuery({
+    queryKey: ['project', projectId],
+    queryFn: () => api.projects.get(Number(projectId)),
+    enabled: !!projectId,
+  })
+
+  const { data: conflicts } = useQuery({
+    queryKey: ['conflicts', projectId],
+    queryFn: () => api.conflicts(Number(projectId)),
+    enabled: !!projectId,
+    refetchInterval: 60_000,
+  })
+  const conflictCount = (conflicts || []).filter((c: any) => c.severity === 'error' || c.severity === 'warning').length
+
   const navGroups = [
     {
       label: tt(navT.overview),
@@ -58,23 +76,13 @@ export function Sidebar() {
         { label: tt(navT.budget), icon: DollarSign, path: 'budget' },
         { label: tt(navT.calendar), icon: Calendar, path: 'kalender' },
         { label: tt(navT.email), icon: Mail, path: 'email' },
-        { label: tt(navT.conflicts), icon: AlertTriangle, path: 'konfliktradar' },
+        { label: tt(navT.conflicts), icon: AlertTriangle, path: 'konfliktradar', badge: conflictCount > 0 ? conflictCount : undefined },
         { label: tt(navT.pinboard), icon: StickyNote, path: 'pinboard' },
         { label: tt(navT.auditLog), icon: History, path: 'audit' },
         { label: tt(navT.search), icon: Search, path: 'suche' },
       ]
     },
   ]
-
-  const ADMIN_ITEMS = [
-    { label: tt(navT.userMgmt), icon: ShieldCheck, path: '/admin' },
-  ]
-
-  const { data: project } = useQuery({
-    queryKey: ['project', projectId],
-    queryFn: () => api.projects.get(Number(projectId)),
-    enabled: !!projectId,
-  })
 
   const pid = projectId
 
@@ -144,7 +152,14 @@ export function Sidebar() {
                         isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
                       )} />
                       {!sidebarCollapsed && (
-                        <span className="flex-1 truncate">{item.label}</span>
+                        <>
+                          <span className="flex-1 truncate">{item.label}</span>
+                          {(item as any).badge != null && (
+                            <span className="ml-1 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold flex items-center justify-center tabular-nums">
+                              {(item as any).badge}
+                            </span>
+                          )}
+                        </>
                       )}
                     </>
                   )}

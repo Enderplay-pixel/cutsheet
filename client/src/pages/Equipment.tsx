@@ -113,6 +113,10 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
   const totalCost = (items || []).reduce((sum: number, item: any) =>
     sum + (item.rental_per_day_cents || 0) * (item.total_days || 1), 0)
 
+  const checkedCount = (items || []).filter((item: any) => item.checked).length
+  const totalCount = (items || []).length
+  const checkPct = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0
+
   return (
     <AccordionItem value={String(list.id)} className="border rounded-lg overflow-hidden">
       <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/20">
@@ -121,6 +125,14 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
           <span className="font-semibold text-sm">{list.name}</span>
           <Badge variant="secondary" className="text-xs">{list.department}</Badge>
           <div className="flex-1" />
+          {items && items.length > 0 && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${checkPct}%` }} />
+              </div>
+              <span className="text-xs text-muted-foreground tabular-nums">{checkedCount}/{totalCount}</span>
+            </div>
+          )}
           <span className="text-sm font-mono">{formatCurrency(totalCost)}</span>
           {items && <Badge variant="outline" className="text-xs">{items.length} Positionen</Badge>}
         </div>

@@ -13,14 +13,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
-import { debounce, getStripClass, eighthsToString } from '@/lib/utils'
-import { Plus, Trash2, Camera, Film, Clock, Download } from 'lucide-react'
+import { debounce, getStripClass, eighthsToString, cn } from '@/lib/utils'
+import { Plus, Trash2, Camera, Film, Clock, Download, Check } from 'lucide-react'
 
 const SHOT_SIZES = ['ECU', 'CU', 'MCU', 'MS', 'MWS', 'WS', 'EWS', 'Totale', 'Vogelperspektive', 'Froschperspektive']
 const MOVEMENTS = ['Statisch', 'Pan', 'Tilt', 'Pan + Tilt', 'Dolly', 'Fahrt', 'Gimbal', 'Handheld', 'Kran', 'Drohne', 'Zoom']
 
 function ShotRow({ shot, onDelete }: { shot: any; onDelete: () => void }) {
   const [form, setForm] = useState(shot)
+  const [isDone, setIsDone] = useState(!!shot.done)
   const queryClient = useQueryClient()
   const { projectId } = useParams()
   const pid = Number(projectId)
@@ -28,6 +29,14 @@ function ShotRow({ shot, onDelete }: { shot: any; onDelete: () => void }) {
   const mutation = useMutation({
     mutationFn: (data: any) => api.shots.update(shot.id, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shots', pid] }),
+  })
+
+  const toggleDone = useMutation({
+    mutationFn: () => api.shots.toggleDone(shot.id),
+    onSuccess: (data: any) => {
+      setIsDone(!!data.done)
+      queryClient.invalidateQueries({ queryKey: ['shots', pid] })
+    },
   })
 
   const debouncedUpdate = useRef(debounce((data: any) => mutation.mutate(data), 500)).current
@@ -66,6 +75,16 @@ function ShotRow({ shot, onDelete }: { shot: any; onDelete: () => void }) {
         <Clock className="w-3 h-3 text-muted-foreground" />
       </div>
 
+      <button
+        onClick={() => toggleDone.mutate()}
+        className={cn(
+          'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0',
+          isDone ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground/40 hover:border-green-500/60'
+        )}
+        title={isDone ? 'Als offen markieren' : 'Als erledigt markieren'}
+      >
+        {isDone && <Check className="w-3 h-3" />}
+      </button>
       <button onClick={onDelete} className="text-muted-foreground hover:text-destructive shrink-0">
         <Trash2 className="w-3.5 h-3.5" />
       </button>
@@ -123,13 +142,14 @@ export function Component() {
 
   const totalShots = shots?.length || 0
   const totalDuration = (shots || []).reduce((sum: number, s: any) => sum + (s.duration_seconds || 0), 0)
+  const totalDone = (shots || []).filter((s: any) => s.done).length
   const scenesWithNoShots = (scenes || []).filter((s: any) => !shotsByScene[s.id]?.length)
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-4">
       <PageHeader
         title="Auflösung & Shotlist"
-        subtitle={`${totalShots} Einstellungen · ${Math.round(totalDuration / 60)} Min. geplante Drehdauer`}
+        subtitle={`${totalShots} Einstellungen · ${totalDone} erledigt · ${Math.round(totalDuration / 60)} Min.`}
         actions={
           <a href={api.pdf.shotlist(pid)} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm">
@@ -153,6 +173,7 @@ export function Component() {
           {(scenes || []).map((scene: any) => {
             const sceneShots = shotsByScene[scene.id] || []
             const sceneDuration = sceneShots.reduce((s: number, sh: any) => s + (sh.duration_seconds || 0), 0)
+            const doneCount = sceneShots.filter((sh: any) => sh.done).length
 
             return (
               <AccordionItem key={scene.id} value={String(scene.id)} className="border rounded-lg overflow-hidden">
@@ -170,7 +191,10 @@ export function Component() {
                     </div>
                     <span className="font-medium text-sm flex-1 text-left truncate">{scene.title}</span>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1"><Camera className="w-3 h-3" />{sceneShots.length}</span>
+                      <span className="flex items-center gap-1">
+                        <Camera className="w-3 h-3" />
+                        {sceneShots.filter((sh: any) => sh.done).length}/{sceneShots.length}
+                      </span>
                       {sceneDuration > 0 && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{sceneDuration}s</span>}
                     </div>
                   </div>
