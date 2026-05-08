@@ -8,7 +8,7 @@ import {
   Film, LayoutDashboard, FileText, Users, Briefcase, MapPin, Calendar,
   Camera, ClipboardList, FileCheck, DollarSign, Package, Mail, AlertTriangle,
   Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight,
-  StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle
+  StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle, ShieldCheck
 } from 'lucide-react'
 
 const navGroups = [
@@ -55,10 +55,15 @@ const navGroups = [
   },
 ]
 
+const ADMIN_ITEMS = [
+  { label: 'Benutzerverwaltung', icon: ShieldCheck, path: '/admin/benutzer' },
+]
+
 export function Sidebar() {
   const { projectId } = useParams()
   const navigate = useNavigate()
   const { sidebarCollapsed, toggleSidebar } = useProjectStore()
+  const { user } = useAuth()
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -156,6 +161,46 @@ export function Sidebar() {
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Admin section */}
+        {user?.role === 'admin' && (
+          <div className="mb-1 mt-1">
+            {!sidebarCollapsed && (
+              <div className="px-2 pb-1 pt-2">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">Admin</span>
+              </div>
+            )}
+            {sidebarCollapsed && <div className="my-2 mx-2 h-px bg-border/60" />}
+            {ADMIN_ITEMS.map(item => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                title={item.label}
+                aria-label={item.label}
+                className={({ isActive }) => cn(
+                  'flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-all duration-150 group relative',
+                  isActive
+                    ? 'bg-primary/12 text-primary font-medium'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                )}
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-primary rounded-full" aria-current="page" />
+                    )}
+                    <item.icon className={cn(
+                      'shrink-0 transition-colors',
+                      sidebarCollapsed ? 'w-4 h-4' : 'w-3.5 h-3.5',
+                      isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                    )} />
+                    {!sidebarCollapsed && <span className="flex-1 truncate">{item.label}</span>}
+                  </>
+                )}
+              </NavLink>
+            ))}
           </div>
         )}
       </nav>

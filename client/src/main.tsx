@@ -18,6 +18,11 @@ const router = createBrowserRouter([
     lazy: () => import('./pages/Login'),
   },
   {
+    path: '/admin/benutzer',
+    element: <App />,
+    children: [{ index: true, lazy: () => import('./pages/Benutzerverwaltung') }],
+  },
+  {
     path: '/',
     element: <App />,
     children: [

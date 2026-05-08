@@ -108,7 +108,7 @@ router.put('/users/:id/role', requireAuth, requireRole('admin'), (req: Request, 
   try {
     const id = Number(req.params.id)
     const { role } = req.body as { role?: string }
-    const validRoles = ['admin', 'editor', 'read_only']
+    const validRoles = ['admin', 'producer', 'director', 'dept_head', 'read_only']
     if (!role || !validRoles.includes(role)) {
       return res.status(400).json({ data: null, error: 'Ungültige Rolle' })
     }
