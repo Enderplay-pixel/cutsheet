@@ -574,6 +574,22 @@ const SCHEMA = `
   );
 `
 
+// ─── Test admin seeder ────────────────────────────────────────────────────────
+async function ensureTestAdmin() {
+  const bcrypt = await import('bcryptjs')
+  const existing = db.prepare("SELECT id FROM users WHERE email = 'admin@cutsheet.dev'").get()
+  if (!existing) {
+    const hash = await bcrypt.hash('admin1234', 12)
+    db.prepare("INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)").run(
+      'admin@cutsheet.dev', hash, 'Test Admin', 'admin'
+    )
+    console.log('[DB] Test-Admin erstellt: admin@cutsheet.dev / admin1234')
+  } else {
+    // Always ensure the role stays admin (e.g. if DB was tampered)
+    db.prepare("UPDATE users SET role = 'admin' WHERE email = 'admin@cutsheet.dev'").run()
+  }
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 export async function initDatabase() {
   const SQL = await initSqlJs()
@@ -601,6 +617,9 @@ export async function initDatabase() {
 
   // Run addMigrations
   addMigrations()
+
+  // Ensure test admin account exists (idempotent)
+  await ensureTestAdmin()
 
   // Flush to disk
   db._flush()
