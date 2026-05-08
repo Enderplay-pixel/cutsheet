@@ -6,29 +6,29 @@
 
 @layer base {
   :root {
-    /* ── Dark mode: deep navy-slate + electric indigo ── */
-    --background: 228 28% 7%;
-    --foreground: 220 18% 92%;
-    --card: 228 24% 10%;
-    --card-foreground: 220 18% 92%;
-    --popover: 228 24% 12%;
-    --popover-foreground: 220 18% 92%;
+    /* ── Dark mode: Kino-Saal — reines Schwarz + Projektor-Rot ── */
+    --background: 0 0% 4%;           /* #0a0a0a */
+    --foreground: 38 33% 93%;        /* #f5f0e8 warmes Off-White */
+    --card: 0 0% 8%;                 /* #141414 */
+    --card-foreground: 38 33% 93%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 38 33% 93%;
 
-    /* Electric indigo — vibrant but not neon */
-    --primary: 248 82% 68%;
+    /* Projektor-Rot als Primary */
+    --primary: 0 72% 51%;            /* #dc2626 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 228 22% 16%;
-    --secondary-foreground: 220 15% 82%;
-    --muted: 228 22% 14%;
-    --muted-foreground: 220 12% 46%;
-    --accent: 248 82% 68%;
+    --secondary: 0 0% 11%;
+    --secondary-foreground: 38 20% 80%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 44%;
+    --accent: 25 95% 53%;            /* #f97316 Orange als Accent */
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 68% 58%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 228 20% 17%;
-    --input: 228 20% 15%;
-    --ring: 248 82% 68%;
+    --border: 0 0% 14%;
+    --input: 0 0% 12%;
+    --ring: 0 72% 51%;
     --radius: 0.5rem;
 
     /* Custom tokens */
@@ -38,29 +38,29 @@
   }
 
   .light {
-    /* ── Light mode: airy lavender-white + soft indigo ── */
-    --background: 240 30% 98%;
-    --foreground: 240 18% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 18% 12%;
+    /* ── Light mode: Pergament — warmes Papier + Terrakotta ── */
+    --background: 37 40% 97%;        /* #faf7f2 Pergament */
+    --foreground: 25 18% 11%;        /* warmes dunkles Braun */
+    --card: 0 0% 100%;               /* #ffffff */
+    --card-foreground: 25 18% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 18% 12%;
+    --popover-foreground: 25 18% 11%;
 
-    /* Soft indigo — pastel, refined */
-    --primary: 248 68% 58%;
+    /* Terrakotta/Dunkelorange als Primary — genug Kontrast auf hellem BG */
+    --primary: 17 83% 40%;           /* #c2410c */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 22% 94%;
-    --secondary-foreground: 240 15% 22%;
-    --muted: 240 22% 95%;
-    --muted-foreground: 240 10% 46%;
-    --accent: 248 68% 58%;
+    --secondary: 37 28% 91%;         /* #f0ece3 Sidebar-Ton */
+    --secondary-foreground: 25 15% 22%;
+    --muted: 37 28% 93%;
+    --muted-foreground: 25 10% 46%;
+    --accent: 17 83% 40%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 68% 52%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 18% 88%;
-    --input: 240 22% 93%;
-    --ring: 248 68% 58%;
+    --border: 37 20% 84%;
+    --input: 37 25% 90%;
+    --ring: 17 83% 40%;
   }
 }
 
@@ -132,14 +132,14 @@
 }
 
 /* ─── Drehplan strip colors ─────────────────────────── */
-/* INT/TAG – indigo (matches primary) */
-.strip-int-tag   { background: hsl(248 82% 68% / 0.09); border-left: 2px solid hsl(248 82% 68% / 0.65); }
-/* EXT/TAG – emerald green */
-.strip-ext-tag   { background: hsl(158 70% 45% / 0.09); border-left: 2px solid hsl(158 70% 45% / 0.65); }
-/* INT/NACHT – deep violet */
-.strip-int-nacht { background: hsl(270 75% 60% / 0.10); border-left: 2px solid hsl(270 75% 60% / 0.65); }
-/* EXT/NACHT – cyan-teal */
-.strip-ext-nacht { background: hsl(198 80% 48% / 0.10); border-left: 2px solid hsl(198 80% 48% / 0.65); }
+/* INT TAG  — Terrakotta */
+.strip-int-tag   { background: hsl(15 75% 50% / 0.10); border-left: 2px solid hsl(15 75% 50% / 0.70); }
+/* EXT TAG  — Waldgrün */
+.strip-ext-tag   { background: hsl(138 45% 35% / 0.10); border-left: 2px solid hsl(138 45% 35% / 0.70); }
+/* INT NACHT — Nachtblau */
+.strip-int-nacht { background: hsl(222 68% 46% / 0.10); border-left: 2px solid hsl(222 68% 46% / 0.70); }
+/* EXT NACHT — Tiefgrün */
+.strip-ext-nacht { background: hsl(168 58% 30% / 0.10); border-left: 2px solid hsl(168 58% 30% / 0.70); }
 
 /* ─── Animations ─────────────────────────────────────── */
 @keyframes fade-up {
@@ -193,7 +193,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* ─── Progress bar custom color ─────────────────────── */
-.progress-amber [data-slot="progress-indicator"] {
+.progress-amber [data-slot="progress-indicator"],
+.progress-primary [data-slot="progress-indicator"] {
   background: hsl(var(--primary));
 }
 
