@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -36,6 +36,9 @@ function getColor(int_ext: string, day_night: string) {
 function SceneRow({ scene, locations, characters, projectId }: { scene: any; locations: any[]; characters: any[]; projectId: number }) {
   const [expanded, setExpanded] = useState(false)
   const [form, setForm] = useState(scene)
+  // Sync form when scene data refreshes from server (e.g. after creation)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setForm((prev: any) => ({ ...scene, ...prev, id: scene.id })) }, [scene.id])
   const [newItem, setNewItem] = useState('')
   const [newItemCat, setNewItemCat] = useState('Requisite')
   const queryClient = useQueryClient()
@@ -322,7 +325,10 @@ export function Component() {
       scene_number: String((scenes?.length || 0) + 1),
       title: 'Neue Szene', int_ext: 'INT', day_night: 'TAG', eighths: 8,
     }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenes', pid] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scenes', pid] })
+      queryClient.invalidateQueries({ queryKey: ['screenplay', pid] })
+    },
     onError: () => toast({ title: 'Fehler', variant: 'destructive' }),
   })
 

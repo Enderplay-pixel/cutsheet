@@ -15,18 +15,24 @@ function fmtMoney(cents: number, currency = 'EUR'): string {
   return (cents / 100).toLocaleString('de-DE', { style: 'currency', currency })
 }
 
-// Resolve chromium executable — try env var, then common Linux paths
+// Resolve chromium executable — check all candidates for existence
 function resolveChromium(): string | undefined {
-  if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH
   const fs = require('fs')
+  const exists = (p: string) => { try { return fs.existsSync(p) } catch { return false } }
   const candidates = [
-    '/run/current-system/sw/bin/chromium',
-    '/usr/bin/chromium',
+    process.env.PUPPETEER_EXECUTABLE_PATH,
     '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
     '/usr/bin/google-chrome',
     '/usr/bin/google-chrome-stable',
-  ]
-  return candidates.find(p => { try { return fs.existsSync(p) } catch { return false } })
+    '/root/.nix-profile/bin/chromium',
+    '/nix/var/nix/profiles/default/bin/chromium',
+    '/run/current-system/sw/bin/chromium',
+  ].filter(Boolean) as string[]
+  const found = candidates.find(exists)
+  console.log('[PDF] Chromium candidates checked:', candidates)
+  console.log('[PDF] Chromium resolved to:', found ?? 'NONE (Puppeteer will use bundled)')
+  return found
 }
 
 // Generic PDF generator using puppeteer (lazily loaded)
