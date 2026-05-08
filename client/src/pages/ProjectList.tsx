@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { Plus, Film, Copy, ArrowRight, Clapperboard } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { OnboardingWizard } from '@/components/OnboardingWizard'
 
 const STATUS_COLORS: Record<string, string> = {
   'Entwicklung':    'text-zinc-400 bg-zinc-400/10',
@@ -210,6 +211,7 @@ export function Component() {
         )}
       </div>
       <NewProjectDialog open={showNew} onClose={() => setShowNew(false)} />
+      <OnboardingWizard />
     </div>
   )
 }

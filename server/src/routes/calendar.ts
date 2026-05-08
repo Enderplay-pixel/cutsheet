@@ -1,7 +1,16 @@
 import { Router } from 'express'
 import { db } from '../db'
+import { getHolidays } from '../services/holidays'
 
 const router = Router()
+
+// GET /api/projects/:projectId/holidays?year=2026&state=NW
+router.get('/projects/:projectId/holidays', (req, res) => {
+  const year = parseInt(String(req.query.year)) || new Date().getFullYear()
+  const state = String(req.query.state || 'NRW')
+  const holidays = getHolidays(year, state)
+  res.json({ data: holidays, error: null })
+})
 
 // GET /api/projects/:projectId/events
 router.get('/projects/:projectId/events', (req, res) => {

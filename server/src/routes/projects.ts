@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import { db } from '../db'
+import { validate } from '../middleware/validate'
+import { ProjectSchema } from '../schemas'
 
 const router = Router()
 
@@ -10,7 +12,7 @@ router.get('/', (req, res) => {
 })
 
 // POST /api/projects
-router.post('/', (req, res) => {
+router.post('/', validate(ProjectSchema), (req, res) => {
   const { title = 'Neues Projekt', genre = '', format = 'Kurzfilm', length_minutes = 0, status = 'Vorproduktion',
     synopsis = '', director = '', producer = '', dop = '', production_company = '', shoot_start = null, shoot_end = null } = req.body
 

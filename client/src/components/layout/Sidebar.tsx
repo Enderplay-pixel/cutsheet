@@ -6,7 +6,8 @@ import { api } from '@/lib/api'
 import {
   Film, LayoutDashboard, FileText, Users, Briefcase, MapPin, Calendar,
   Camera, ClipboardList, FileCheck, DollarSign, Package, Mail, AlertTriangle,
-  Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight
+  Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight,
+  StickyNote, Car, History
 } from 'lucide-react'
 
 const navGroups = [
@@ -25,6 +26,8 @@ const navGroups = [
       { label: 'Stab', icon: Briefcase, path: 'stabliste' },
       { label: 'Motive', icon: MapPin, path: 'motive' },
       { label: 'Equipment', icon: Package, path: 'equipment' },
+      { label: 'Fahrzeuge', icon: Car, path: 'fahrzeuge' },
+      { label: 'Komparsen', icon: Users, path: 'komparsen' },
     ]
   },
   {
@@ -43,6 +46,8 @@ const navGroups = [
       { label: 'Kalender', icon: Calendar, path: 'kalender' },
       { label: 'E-Mail', icon: Mail, path: 'email' },
       { label: 'Konflikte', icon: AlertTriangle, path: 'konfliktradar' },
+      { label: 'Pinboard', icon: StickyNote, path: 'pinboard' },
+      { label: 'Audit-Log', icon: History, path: 'audit' },
     ]
   },
 ]

@@ -6,6 +6,8 @@ import { Toaster } from '@/components/ui/toaster'
 import { GlobalSearch } from '@/components/shared/GlobalSearch'
 import { useProjectStore } from '@/store/useProjectStore'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
 
 function AppShell() {
   const { projectId } = useParams()
@@ -57,7 +59,9 @@ function AppShell() {
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <TopBar onSearchOpen={() => setSearchVisible(true)} />
           <main className="flex-1 overflow-auto">
-            <Outlet />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </main>
         </div>
       </div>
@@ -68,5 +72,9 @@ function AppShell() {
 }
 
 export default function App() {
-  return <AppShell />
+  return (
+    <ProtectedRoute>
+      <AppShell />
+    </ProtectedRoute>
+  )
 }

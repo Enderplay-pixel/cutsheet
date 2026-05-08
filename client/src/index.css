@@ -163,3 +163,35 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .progress-amber [data-slot="progress-indicator"] {
   background: hsl(var(--primary));
 }
+
+/* ─── Print styles ───────────────────────────────────── */
+@media print {
+  /* Hide navigation, buttons, sidebars */
+  nav, aside, .no-print, button:not(.print-keep), [role="navigation"] {
+    display: none !important;
+  }
+
+  /* Full width content */
+  main, .main-content {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Page breaks */
+  .page-break-before { page-break-before: always; }
+  .page-break-after  { page-break-after: always; }
+  .no-page-break     { page-break-inside: avoid; }
+
+  /* Black on white */
+  body { background: white !important; color: black !important; }
+
+  /* Tables */
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #ccc; padding: 4px 8px; font-size: 10pt; }
+
+  /* Headings */
+  h1 { font-size: 18pt; }
+  h2 { font-size: 14pt; }
+  h3 { font-size: 12pt; }
+}

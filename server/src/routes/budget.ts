@@ -9,6 +9,68 @@ function recalcBudgetTotal(versionId: number) {
   return total
 }
 
+// GET /api/projects/:projectId/budget-alerts
+router.get('/projects/:projectId/budget-alerts', (req, res) => {
+  const pid = req.params.projectId
+  const row = db.prepare('SELECT * FROM budget_alerts WHERE project_id = ?').get(pid) as any
+  if (!row) {
+    return res.json({ data: { project_id: Number(pid), threshold_percent: 80, enabled: false }, error: null })
+  }
+  res.json({ data: { ...row, enabled: !!row.enabled }, error: null })
+})
+
+// PUT /api/projects/:projectId/budget-alerts
+router.put('/projects/:projectId/budget-alerts', (req, res) => {
+  const pid = req.params.projectId
+  const { threshold_percent = 80, enabled = true } = req.body
+
+  const existing = db.prepare('SELECT id FROM budget_alerts WHERE project_id = ?').get(pid)
+  if (existing) {
+    db.prepare('UPDATE budget_alerts SET threshold_percent = ?, enabled = ? WHERE project_id = ?')
+      .run(threshold_percent, enabled ? 1 : 0, pid)
+  } else {
+    db.prepare('INSERT INTO budget_alerts (project_id, threshold_percent, enabled) VALUES (?, ?, ?)')
+      .run(pid, threshold_percent, enabled ? 1 : 0)
+  }
+
+  const row = db.prepare('SELECT * FROM budget_alerts WHERE project_id = ?').get(pid) as any
+  res.json({ data: { ...row, enabled: !!row.enabled }, error: null })
+})
+
+// GET /api/projects/:projectId/budget-summary
+router.get('/projects/:projectId/budget-summary', (req, res) => {
+  const pid = req.params.projectId
+
+  const budgetRow = db.prepare('SELECT COALESCE(MAX(total_cents), 0) as total FROM budget_versions WHERE project_id = ? AND status = "Aktiv"').get(pid) as any
+  const spentRow = db.prepare(`
+    SELECT COALESCE(SUM(bl.total_cents), 0) as spent
+    FROM budget_lines bl
+    JOIN budget_versions bv ON bl.budget_version_id = bv.id
+    WHERE bv.project_id = ? AND bv.status = 'Aktiv'
+  `).get(pid) as any
+
+  const budget_total = budgetRow.total
+  const total_spent = spentRow.spent
+  const current_percent = budget_total > 0 ? Math.round((total_spent / budget_total) * 100) : 0
+
+  const alertConfig = db.prepare('SELECT * FROM budget_alerts WHERE project_id = ?').get(pid) as any
+  const threshold = alertConfig?.threshold_percent ?? 80
+  const alertEnabled = alertConfig ? !!alertConfig.enabled : false
+  const triggered = alertEnabled && budget_total > 0 && current_percent >= threshold
+
+  const result: any = {
+    budget_total_cents: budget_total,
+    total_spent_cents: total_spent,
+    current_percent,
+  }
+
+  if (triggered) {
+    result.alert = { triggered: true, threshold, current_percent }
+  }
+
+  res.json({ data: result, error: null })
+})
+
 // GET /api/projects/:projectId/budget-versions
 router.get('/projects/:projectId/budget-versions', (req, res) => {
   const versions = db.prepare('SELECT * FROM budget_versions WHERE project_id = ? ORDER BY created_at DESC').all(req.params.projectId)

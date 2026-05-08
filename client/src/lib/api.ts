@@ -1,8 +1,12 @@
 const API_BASE = '/api'
 
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = localStorage.getItem('token')
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { ...headers, ...options?.headers },
     ...options,
   })
   const json = await res.json()
@@ -169,5 +173,72 @@ export const api = {
     create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/events`, { method: 'POST', body: JSON.stringify(data) }),
     update: (id: number, data: any) => req<any>(`/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: number) => req<any>(`/events/${id}`, { method: 'DELETE' }),
+    holidays: (projectId: number, year: number, state?: string) => {
+      const qs = new URLSearchParams({ year: String(year) })
+      if (state) qs.set('state', state)
+      return req<any[]>(`/projects/${projectId}/holidays?${qs}`)
+    },
+  },
+
+  // ─── Budget Alerts ─────────────────────────────────────────────────────────
+  budgetAlerts: {
+    get: (projectId: number) => req<any>(`/projects/${projectId}/budget-alerts`),
+    update: (projectId: number, data: any) => req<any>(`/projects/${projectId}/budget-alerts`, { method: 'PUT', body: JSON.stringify(data) }),
+  },
+
+  // ─── Time Analysis ─────────────────────────────────────────────────────────
+  timeAnalysis: (projectId: number) => req<any[]>(`/projects/${projectId}/time-analysis`),
+
+  // ─── Auth ──────────────────────────────────────────────────────────────────
+  auth: {
+    login: (email: string, password: string) => req<{ token: string; user: any }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    register: (email: string, password: string, name: string) => req<{ token: string; user: any }>('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, name }) }),
+    me: () => req<any>('/auth/me'),
+    users: () => req<any[]>('/auth/users'),
+    updateRole: (id: number, role: string) => req<any>(`/auth/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
+    deleteUser: (id: number) => req<void>(`/auth/users/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Sticky Notes ──────────────────────────────────────────────────────────
+  stickyNotes: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/sticky-notes`),
+    create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/sticky-notes`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (projectId: number, id: number, data: any) => req<any>(`/projects/${projectId}/sticky-notes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (projectId: number, id: number) => req<void>(`/projects/${projectId}/sticky-notes/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Vehicles ──────────────────────────────────────────────────────────────
+  vehicles: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/vehicles`),
+    create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/vehicles`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (projectId: number, id: number, data: any) => req<any>(`/projects/${projectId}/vehicles/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (projectId: number, id: number) => req<void>(`/projects/${projectId}/vehicles/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Extras / Komparsen ────────────────────────────────────────────────────
+  extras: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/extras`),
+    create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/extras`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (projectId: number, id: number, data: any) => req<any>(`/projects/${projectId}/extras/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (projectId: number, id: number) => req<void>(`/projects/${projectId}/extras/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Camera Presets ────────────────────────────────────────────────────────
+  cameraPresets: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/camera-presets`),
+    create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/camera-presets`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (projectId: number, id: number, data: any) => req<any>(`/projects/${projectId}/camera-presets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (projectId: number, id: number) => req<void>(`/projects/${projectId}/camera-presets/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Backup ────────────────────────────────────────────────────────────────
+  backup: {
+    export: (projectId: number) => `/api/projects/${projectId}/backup`,
+    import: (data: any) => req<any>('/projects/import', { method: 'POST', body: JSON.stringify(data) }),
+  },
+
+  // ─── Audit Log ─────────────────────────────────────────────────────────────
+  audit: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/audit`),
   },
 }

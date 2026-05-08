@@ -462,6 +462,97 @@ const SCHEMA = `
     body TEXT NOT NULL DEFAULT '',
     sent_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    role TEXT NOT NULL DEFAULT 'read_only',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS project_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'read_only',
+    UNIQUE(project_id, user_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    user_name TEXT NOT NULL DEFAULT '',
+    action TEXT NOT NULL DEFAULT '',
+    entity_type TEXT NOT NULL DEFAULT '',
+    entity_id INTEGER,
+    old_value TEXT,
+    new_value TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS guest_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT NOT NULL UNIQUE,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    shoot_day_id INTEGER REFERENCES shoot_days(id) ON DELETE CASCADE,
+    expires_at TEXT,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS sticky_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    content TEXT NOT NULL DEFAULT '',
+    color TEXT NOT NULL DEFAULT '#fef08a',
+    position_x INTEGER NOT NULL DEFAULT 0,
+    position_y INTEGER NOT NULL DEFAULT 0,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS vehicles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name TEXT NOT NULL DEFAULT '',
+    license_plate TEXT NOT NULL DEFAULT '',
+    type TEXT NOT NULL DEFAULT 'PKW',
+    capacity INTEGER NOT NULL DEFAULT 4,
+    driver_name TEXT NOT NULL DEFAULT '',
+    driver_phone TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT ''
+  );
+
+  CREATE TABLE IF NOT EXISTS extras (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name TEXT NOT NULL DEFAULT '',
+    phone TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    tariff_group TEXT NOT NULL DEFAULT 'Standard',
+    notes TEXT NOT NULL DEFAULT ''
+  );
+
+  CREATE TABLE IF NOT EXISTS camera_presets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name TEXT NOT NULL DEFAULT '',
+    camera TEXT NOT NULL DEFAULT '',
+    lenses TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT ''
+  );
+
+  CREATE TABLE IF NOT EXISTS budget_alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
+    threshold_percent INTEGER NOT NULL DEFAULT 80,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -483,23 +574,33 @@ export async function initDatabase() {
   // Run schema
   sqlDb.run(SCHEMA)
 
-  // Migrations for existing databases
-  const cols = db.prepare("PRAGMA table_info(projects)").all() as any[]
-  const colNames = cols.map((c: any) => c.name)
-  if (!colNames.includes('synopsis')) {
-    db.exec("ALTER TABLE projects ADD COLUMN synopsis TEXT NOT NULL DEFAULT ''")
-    console.log('[DB] Migration: added projects.synopsis')
-  }
-
   // Seed if empty
   const count = db.prepare('SELECT COUNT(*) as c FROM projects').get() as { c: number }
   if (!count || count.c === 0) {
     seedDemoData()
   }
 
+  // Run addMigrations
+  addMigrations()
+
   // Flush to disk
   db._flush()
   console.log('[DB] Datenbank initialisiert:', DB_PATH)
+}
+
+export function addMigrations() {
+  const migrations: Array<{ sql: string; label: string }> = [
+    { sql: "ALTER TABLE projects ADD COLUMN synopsis TEXT NOT NULL DEFAULT ''", label: 'projects.synopsis' },
+  ]
+
+  for (const m of migrations) {
+    try {
+      db.exec(m.sql)
+      console.log(`[DB] Migration: added ${m.label}`)
+    } catch {
+      // Column already exists — ignore
+    }
+  }
 }
 
 function seedDemoData() {

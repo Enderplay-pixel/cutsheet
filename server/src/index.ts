@@ -4,6 +4,7 @@ import cors from 'cors'
 import path from 'path'
 import fs from 'fs'
 import { initDatabase } from './db'
+import { optionalAuth } from './middleware/auth'
 
 // Route imports
 import projectsRouter from './routes/projects'
@@ -21,6 +22,15 @@ import searchRouter from './routes/search'
 import conflictsRouter from './routes/conflicts'
 import calendarRouter from './routes/calendar'
 import pdfRouter from './routes/pdf'
+import authRouter from './routes/auth'
+import auditRouter from './routes/audit'
+import stickyNotesRouter from './routes/stickyNotes'
+import vehiclesRouter from './routes/vehicles'
+import extrasRouter from './routes/extras'
+import cameraPresetsRouter from './routes/cameraPresets'
+import backupRouter from './routes/backup'
+import guestTokensRouter from './routes/guestTokens'
+import sseRouter from './routes/sse'
 
 const app = express()
 const PORT = Number(process.env.PORT) || 3001
@@ -32,6 +42,9 @@ if (!isProd) {
 }
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
+
+// Apply optional auth globally so req.user is populated when token is present
+app.use(optionalAuth)
 
 // Serve uploads
 const uploadsDir = path.join(__dirname, '../uploads')
@@ -61,6 +74,15 @@ app.use('/api', searchRouter)
 app.use('/api', conflictsRouter)
 app.use('/api', calendarRouter)
 app.use('/api', pdfRouter)
+app.use('/api/auth', authRouter)
+app.use('/api', auditRouter)
+app.use('/api', stickyNotesRouter)
+app.use('/api', vehiclesRouter)
+app.use('/api', extrasRouter)
+app.use('/api', cameraPresetsRouter)
+app.use('/api', backupRouter)
+app.use('/api', guestTokensRouter)
+app.use(sseRouter)
 
 // In production: serve index.html for all non-API routes (SPA fallback)
 if (isProd) {
