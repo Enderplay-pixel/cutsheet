@@ -77,6 +77,9 @@ if (isProd) {
   }
 }
 
+// Public health check — no auth required, used by Railway
+app.get('/api/health', (_req, res) => res.json({ ok: true }))
+
 // Mount routes
 app.use('/api/projects', projectsRouter)
 app.use('/api', scenesRouter)
