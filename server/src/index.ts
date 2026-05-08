@@ -30,6 +30,7 @@ import extrasRouter from './routes/extras'
 import cameraPresetsRouter from './routes/cameraPresets'
 import backupRouter from './routes/backup'
 import guestTokensRouter from './routes/guestTokens'
+import invitesRouter from './routes/invites'
 import sseRouter from './routes/sse'
 import screenplayRouter from './routes/screenplay'
 
@@ -95,6 +96,7 @@ app.use('/api', extrasRouter)
 app.use('/api', cameraPresetsRouter)
 app.use('/api', backupRouter)
 app.use('/api', guestTokensRouter)
+app.use('/api', invitesRouter)
 app.use('/api', screenplayRouter)
 app.use(sseRouter)
 

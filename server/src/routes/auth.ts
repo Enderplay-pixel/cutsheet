@@ -37,8 +37,8 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
       return res.status(409).json({ data: null, error: 'E-Mail bereits registriert' })
     }
 
-    const userCount = db.prepare('SELECT COUNT(*) as c FROM users').get() as { c: number }
-    const role = (!userCount || userCount.c === 0) ? 'admin' : 'read_only'
+    // Every user is admin of their own projects — global role is always 'admin'
+    const role = 'admin'
 
     const password_hash = await bcrypt.hash(password, 12)
     const result = db.prepare(

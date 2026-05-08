@@ -18,6 +18,10 @@ const router = createBrowserRouter([
     lazy: () => import('./pages/Login'),
   },
   {
+    path: '/invite/:token',
+    lazy: () => import('./pages/Invite'),
+  },
+  {
     path: '/admin/benutzer',
     element: <App />,
     children: [{ index: true, lazy: () => import('./pages/Benutzerverwaltung') }],

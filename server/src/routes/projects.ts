@@ -5,24 +5,41 @@ import { ProjectSchema } from '../schemas'
 
 const router = Router()
 
-// GET /api/projects
+// GET /api/projects — only show own projects + projects user is member of
 router.get('/', (req, res) => {
-  const projects = db.prepare('SELECT * FROM projects ORDER BY updated_at DESC').all()
+  const userId = (req as any).user?.id
+  if (!userId) return res.json({ data: [], error: null })
+
+  const projects = db.prepare(`
+    SELECT DISTINCT p.* FROM projects p
+    WHERE p.owner_id = ?
+       OR p.owner_id IS NULL
+       OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)
+    ORDER BY p.updated_at DESC
+  `).all(userId, userId)
   res.json({ data: projects, error: null })
 })
 
-// POST /api/projects
+// POST /api/projects — set owner, add creator as admin member
 router.post('/', validate(ProjectSchema), (req, res) => {
+  const userId = (req as any).user?.id
   const { title = 'Neues Projekt', genre = '', format = 'Kurzfilm', length_minutes = 0, status = 'Vorproduktion',
     synopsis = '', director = '', producer = '', dop = '', production_company = '', shoot_start = null, shoot_end = null } = req.body
 
   const result = db.prepare(`
-    INSERT INTO projects (title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end)
+    INSERT INTO projects (title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, owner_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, userId || null)
 
   const id = result.lastInsertRowid
   db.prepare('INSERT INTO project_settings (project_id) VALUES (?)').run(id)
+
+  // Add creator as project admin
+  if (userId) {
+    try {
+      db.prepare('INSERT OR REPLACE INTO project_members (project_id, user_id, role) VALUES (?, ?, ?)').run(id, userId, 'admin')
+    } catch { /* ignore */ }
+  }
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id)
   res.status(201).json({ data: project, error: null })

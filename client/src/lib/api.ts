@@ -168,6 +168,22 @@ export const api = {
     screenplay:     (projectId: number) => `/api/projects/${projectId}/pdf/screenplay`,
   },
 
+  // ─── Invites & Members ────────────────────────────────────────────────────
+  invites: {
+    list:   (projectId: number)                    => req<any[]>(`/projects/${projectId}/invites`),
+    create: (projectId: number, data: { role: string; label?: string }) =>
+                                                      req<any>(`/projects/${projectId}/invites`, { method: 'POST', body: JSON.stringify(data) }),
+    delete: (projectId: number, inviteId: number)  => req<any>(`/projects/${projectId}/invites/${inviteId}`, { method: 'DELETE' }),
+    getByToken: (token: string)                    => req<any>(`/invites/${token}`),
+    accept: (token: string)                        => req<any>(`/invites/${token}/accept`, { method: 'POST' }),
+  },
+  members: {
+    list:       (projectId: number)                         => req<any[]>(`/projects/${projectId}/members`),
+    updateRole: (projectId: number, userId: number, role: string) =>
+                                                               req<any>(`/projects/${projectId}/members/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
+    remove:     (projectId: number, userId: number)         => req<any>(`/projects/${projectId}/members/${userId}`, { method: 'DELETE' }),
+  },
+
   // ─── Calendar ──────────────────────────────────────────────────────────────
   calendar: {
     list: (projectId: number) => req<any[]>(`/projects/${projectId}/events`),

@@ -8,8 +8,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
 import { debounce, formatDate, cn } from '@/lib/utils'
-import { Film, Calendar, Building2, Check, Settings2 } from 'lucide-react'
+import { Film, Calendar, Building2, Check, Settings2, Link2, Plus, Trash2, Copy, Users } from 'lucide-react'
 import { TimeInput } from '@/components/ui/time-input'
+import { useAuth } from '@/contexts/AuthContext'
+import { Button } from '@/components/ui/button'
 
 const FORMATS = ['Kurzfilm', 'Spielfilm', 'Serie', 'Dokumentarfilm', 'Werbefilm', 'Imagefilm', 'Musikvideo']
 const STATUSES = ['Entwicklung', 'Vorproduktion', 'Produktion', 'Postproduktion', 'Abgeschlossen', 'Archiviert']
@@ -33,6 +35,156 @@ function Field({ label, children, full }: { label: string; children: React.React
     <div className={full ? 'col-span-2' : ''}>
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <div className="mt-1">{children}</div>
+    </div>
+  )
+}
+
+const ROLE_OPTS = [
+  { value: 'read_only', label: 'Lesezugriff' },
+  { value: 'dept_head', label: 'Abteilungsleitung' },
+  { value: 'director',  label: 'Regisseur' },
+  { value: 'producer',  label: 'Produzent' },
+  { value: 'admin',     label: 'Admin' },
+]
+
+function InviteSection({ pid }: { pid: number }) {
+  const qc = useQueryClient()
+  const { toast } = useToast()
+  const { user } = useAuth()
+  const [newRole, setNewRole] = useState('read_only')
+  const [newLabel, setNewLabel] = useState('')
+  const [copied, setCopied] = useState<number | null>(null)
+
+  const { data: invites = [], isLoading: invLoading } = useQuery({
+    queryKey: ['invites', pid],
+    queryFn: () => api.invites.list(pid),
+    retry: false,
+  })
+  const { data: members = [] } = useQuery({
+    queryKey: ['members', pid],
+    queryFn: () => api.members.list(pid),
+    retry: false,
+  })
+
+  const createMutation = useMutation({
+    mutationFn: () => api.invites.create(pid, { role: newRole, label: newLabel }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invites', pid] }); setNewLabel('') },
+    onError: (e: any) => toast({ variant: 'destructive', title: e.message }),
+  })
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.invites.delete(pid, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['invites', pid] }),
+  })
+  const removeMemberMutation = useMutation({
+    mutationFn: (userId: number) => api.members.remove(pid, userId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', pid] }),
+  })
+
+  const inviteUrl = (token: string) => `${window.location.origin}/invite/${token}`
+
+  const copyLink = (id: number, token: string) => {
+    navigator.clipboard.writeText(inviteUrl(token))
+    setCopied(id)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  const roleLabel = (r: string) => ROLE_OPTS.find(o => o.value === r)?.label ?? r
+
+  return (
+    <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+      <div className="flex items-center gap-2 px-5 py-4 border-b border-border/60">
+        <Link2 className="w-4 h-4 text-muted-foreground" />
+        <h2 className="text-sm font-semibold">Mitarbeiter einladen</h2>
+      </div>
+
+      {/* Create new invite */}
+      <div className="p-5 border-b border-border/60">
+        <p className="text-xs text-muted-foreground mb-3">
+          Erstelle einen Einladungslink. Wer ihn öffnet, wird automatisch Mitglied dieses Projekts mit der gewählten Rolle.
+        </p>
+        <div className="flex gap-2 flex-wrap">
+          <Select value={newRole} onValueChange={setNewRole}>
+            <SelectTrigger className="h-8 w-44 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {ROLE_OPTS.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Input
+            className="h-8 text-xs flex-1 min-w-32"
+            placeholder="Beschriftung (optional)"
+            value={newLabel}
+            onChange={e => setNewLabel(e.target.value)}
+          />
+          <Button size="sm" className="h-8 text-xs" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Link erstellen
+          </Button>
+        </div>
+      </div>
+
+      {/* Existing invite links */}
+      {invLoading ? (
+        <div className="p-5 text-xs text-muted-foreground">Laden…</div>
+      ) : (invites as any[]).length === 0 ? (
+        <div className="p-5 text-xs text-muted-foreground text-center py-8">Noch keine Einladungslinks erstellt.</div>
+      ) : (
+        <div className="divide-y divide-border/40">
+          {(invites as any[]).map((inv: any) => (
+            <div key={inv.id} className="flex items-center gap-3 px-5 py-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-xs font-medium">{roleLabel(inv.role)}</span>
+                  {inv.label && <span className="text-xs text-muted-foreground italic">— {inv.label}</span>}
+                </div>
+                <p className="text-[11px] text-muted-foreground font-mono truncate">{inviteUrl(inv.token)}</p>
+              </div>
+              <button
+                onClick={() => copyLink(inv.id, inv.token)}
+                className="shrink-0 w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                title="Link kopieren"
+              >
+                {copied === inv.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate(inv.id)}
+                className="shrink-0 w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"
+                title="Link löschen"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Members */}
+      {(members as any[]).length > 0 && (
+        <div className="border-t border-border/60">
+          <div className="flex items-center gap-2 px-5 py-3 border-b border-border/40">
+            <Users className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Projektmitglieder</span>
+          </div>
+          <div className="divide-y divide-border/40">
+            {(members as any[]).map((m: any) => (
+              <div key={m.id} className="flex items-center gap-3 px-5 py-2.5">
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium">{m.name || m.email}</span>
+                  <span className="text-xs text-muted-foreground ml-2">{m.email}</span>
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0">{roleLabel(m.role)}</span>
+                {m.user_id !== user?.id && (
+                  <button
+                    onClick={() => removeMemberMutation.mutate(m.user_id)}
+                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground/40 hover:text-destructive transition-colors"
+                    title="Mitglied entfernen"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -253,6 +405,9 @@ export function Component() {
           </Field>
         </FormSection>
       )}
+
+      {/* Invite section — always visible */}
+      <InviteSection pid={pid} />
     </div>
   )
 }

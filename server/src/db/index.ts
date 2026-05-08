@@ -610,6 +610,17 @@ export async function initDatabase() {
 export function addMigrations() {
   const migrations: Array<{ sql: string; label: string }> = [
     { sql: "ALTER TABLE projects ADD COLUMN synopsis TEXT NOT NULL DEFAULT ''", label: 'projects.synopsis' },
+    { sql: "ALTER TABLE projects ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL", label: 'projects.owner_id' },
+    { sql: `CREATE TABLE IF NOT EXISTS project_invites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      token TEXT NOT NULL UNIQUE,
+      role TEXT NOT NULL DEFAULT 'read_only',
+      label TEXT NOT NULL DEFAULT '',
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT
+    )`, label: 'project_invites' },
   ]
 
   for (const m of migrations) {
@@ -617,9 +628,17 @@ export function addMigrations() {
       db.exec(m.sql)
       console.log(`[DB] Migration: added ${m.label}`)
     } catch {
-      // Column already exists — ignore
+      // Column/table already exists — ignore
     }
   }
+
+  // Assign unclaimed projects to first registered user (backward compat)
+  try {
+    db.exec(`
+      UPDATE projects SET owner_id = (SELECT id FROM users ORDER BY id ASC LIMIT 1)
+      WHERE owner_id IS NULL AND (SELECT COUNT(*) FROM users) > 0
+    `)
+  } catch { /* ignore */ }
 }
 
 function seedDemoData() {
