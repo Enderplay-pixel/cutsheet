@@ -14,6 +14,8 @@ interface AuthContextValue {
   register: (email: string, password: string, name: string) => Promise<void>
   logout: () => void
   isLoading: boolean
+  justRegistered: boolean
+  clearJustRegistered: () => void
 }
 
 const AuthContext = createContext<AuthContextValue>(null!)
@@ -22,6 +24,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'))
   const [isLoading, setIsLoading] = useState(true)
+  const [justRegistered, setJustRegistered] = useState(false)
+  const clearJustRegistered = () => setJustRegistered(false)
 
   const logout = useCallback(() => {
     setUser(null)
@@ -65,10 +69,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(data.token)
     setUser(data.user)
     localStorage.setItem('token', data.token)
+    setJustRegistered(true)
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading, justRegistered, clearJustRegistered }}>
       {children}
     </AuthContext.Provider>
   )

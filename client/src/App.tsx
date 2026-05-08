@@ -5,6 +5,8 @@ import { TopBar } from '@/components/layout/TopBar'
 import { Toaster } from '@/components/ui/toaster'
 import { GlobalSearch } from '@/components/shared/GlobalSearch'
 import { ShortcutsModal } from '@/components/shared/ShortcutsModal'
+import { TutorialModal } from '@/components/shared/TutorialModal'
+import { useAuth } from '@/contexts/AuthContext'
 import { useProjectStore } from '@/store/useProjectStore'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -20,6 +22,23 @@ function AppShell() {
   const navigate = useNavigate()
   const { darkMode, setActiveProjectId, searchOpen, setSearchOpen } = useProjectStore()
   const [searchVisible, setSearchVisible] = useState(false)
+  const { user, justRegistered, clearJustRegistered } = useAuth()
+  const [tutorialOpen, setTutorialOpen] = useState(false)
+
+  // Show tutorial exactly once per user, right after registration
+  useEffect(() => {
+    if (!user) return
+    const key = `cutsheet-tutorial-seen-${user.id}`
+    if (justRegistered && !localStorage.getItem(key)) {
+      setTutorialOpen(true)
+    }
+  }, [justRegistered, user])
+
+  const handleTutorialClose = () => {
+    if (user) localStorage.setItem(`cutsheet-tutorial-seen-${user.id}`, '1')
+    setTutorialOpen(false)
+    clearJustRegistered()
+  }
 
   // Fetch project to get my_role
   const { data: project } = useQuery({
@@ -90,6 +109,7 @@ function AppShell() {
         </div>
         <GlobalSearch open={searchVisible} onClose={() => setSearchVisible(false)} />
         <ShortcutsModal />
+        <TutorialModal open={tutorialOpen} onClose={handleTutorialClose} />
         <Toaster />
       </TooltipProvider>
     </ProjectRoleProvider>

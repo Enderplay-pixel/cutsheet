@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { Lang } from '@/lib/i18n'
 
 interface ProjectStore {
   activeProjectId: number | null
@@ -13,6 +14,9 @@ interface ProjectStore {
 
   searchOpen: boolean
   setSearchOpen: (open: boolean) => void
+
+  language: Lang
+  setLanguage: (lang: Lang) => void
 
   lastSaved: Date | null
   setLastSaved: (d: Date) => void
@@ -44,6 +48,9 @@ export const useProjectStore = create<ProjectStore>()(
       searchOpen: false,
       setSearchOpen: (open) => set({ searchOpen: open }),
 
+      language: 'en',
+      setLanguage: (lang) => set({ language: lang }),
+
       lastSaved: null,
       setLastSaved: (d) => set({ lastSaved: d }),
 
@@ -67,7 +74,7 @@ export const useProjectStore = create<ProjectStore>()(
     }),
     {
       name: 'cutsheet-ui',
-      partialize: (s) => ({ activeProjectId: s.activeProjectId, darkMode: s.darkMode, sidebarCollapsed: s.sidebarCollapsed }),
+      partialize: (s) => ({ activeProjectId: s.activeProjectId, darkMode: s.darkMode, sidebarCollapsed: s.sidebarCollapsed, language: s.language }),
     }
   )
 )

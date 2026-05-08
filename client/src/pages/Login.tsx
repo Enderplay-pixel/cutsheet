@@ -4,6 +4,9 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Clapperboard } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { LANGS, loginT, t, type Lang } from '@/lib/i18n'
+import { useProjectStore } from '@/store/useProjectStore'
 
 export function Component() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
@@ -14,7 +17,11 @@ export function Component() {
   const [loading, setLoading] = useState(false)
 
   const { login, register } = useAuth()
+  const { language, setLanguage } = useProjectStore()
   const navigate = useNavigate()
+
+  // On the login tab keep the stored language; on register the user can change it
+  const lang = language
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,7 +35,7 @@ export function Component() {
       }
       navigate('/', { replace: true })
     } catch (err: any) {
-      setError(err.message || 'Ein Fehler ist aufgetreten')
+      setError(err.message || 'An error occurred')
     } finally {
       setLoading(false)
     }
@@ -43,7 +50,7 @@ export function Component() {
             <Clapperboard className="w-6 h-6 text-primary-foreground" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">CutSheet</h1>
-          <p className="text-sm text-muted-foreground mt-1">Filmproduktion leicht gemacht</p>
+          <p className="text-sm text-muted-foreground mt-1">{t(loginT.tagline, lang)}</p>
         </div>
 
         {/* Card */}
@@ -59,7 +66,7 @@ export function Component() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Anmelden
+              {t(loginT.tabLogin, lang)}
             </button>
             <button
               type="button"
@@ -70,17 +77,17 @@ export function Component() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Registrieren
+              {t(loginT.tabRegister, lang)}
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">Name</label>
+                <label className="text-sm font-medium text-foreground">{t(loginT.labelName, lang)}</label>
                 <Input
                   type="text"
-                  placeholder="Vorname Nachname"
+                  placeholder={t(loginT.placeholderName, lang)}
                   value={name}
                   onChange={e => setName(e.target.value)}
                   required
@@ -90,10 +97,10 @@ export function Component() {
             )}
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">E-Mail</label>
+              <label className="text-sm font-medium text-foreground">{t(loginT.labelEmail, lang)}</label>
               <Input
                 type="email"
-                placeholder="name@beispiel.de"
+                placeholder={t(loginT.placeholderEmail, lang)}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
@@ -102,16 +109,41 @@ export function Component() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Passwort</label>
+              <label className="text-sm font-medium text-foreground">{t(loginT.labelPassword, lang)}</label>
               <Input
                 type="password"
-                placeholder="••••••••"
+                placeholder={t(loginT.placeholderPw, lang)}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               />
             </div>
+
+            {/* Language picker — only on register */}
+            {mode === 'register' && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-foreground">{t(loginT.labelLanguage, lang)}</label>
+                <div className="flex gap-2">
+                  {LANGS.map(l => (
+                    <button
+                      key={l.code}
+                      type="button"
+                      onClick={() => setLanguage(l.code as Lang)}
+                      className={cn(
+                        'flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg border text-xs font-medium transition-all',
+                        language === l.code
+                          ? 'border-primary bg-primary/8 text-primary shadow-sm'
+                          : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground hover:bg-muted/40'
+                      )}
+                    >
+                      <span className="text-xl leading-none">{l.flag}</span>
+                      <span>{l.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {error && (
               <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">
@@ -121,8 +153,8 @@ export function Component() {
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading
-                ? (mode === 'login' ? 'Anmelden…' : 'Registrieren…')
-                : (mode === 'login' ? 'Anmelden' : 'Registrieren')
+                ? (mode === 'login' ? t(loginT.btnLoginLoading, lang) : t(loginT.btnRegisterLoading, lang))
+                : (mode === 'login' ? t(loginT.tabLogin, lang) : t(loginT.btnRegister, lang))
               }
             </Button>
           </form>
