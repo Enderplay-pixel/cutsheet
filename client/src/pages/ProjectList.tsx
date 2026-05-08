@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, Film, Copy, ArrowRight, Clapperboard } from 'lucide-react'
+import { Plus, Film, Copy, ArrowRight, Clapperboard, Trash2 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { OnboardingWizard } from '@/components/OnboardingWizard'
@@ -101,6 +101,12 @@ export function Component() {
   const duplicateMutation = useMutation({
     mutationFn: (id: number) => api.projects.duplicate(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['projects'] }); toast({ title: 'Projekt dupliziert' }) },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.projects.delete(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['projects'] }); toast({ title: 'Projekt gelöscht' }) },
+    onError: () => toast({ title: 'Fehler beim Löschen', variant: 'destructive' }),
   })
 
   return (
@@ -200,6 +206,18 @@ export function Component() {
                     title="Duplizieren"
                   >
                     <Copy className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={e => {
+                      e.stopPropagation()
+                      if (confirm(`„${project.title}" wirklich löschen? Alle Daten (Szenen, Drehplan, Budget …) werden unwiderruflich gelöscht.`)) {
+                        deleteMutation.mutate(project.id)
+                      }
+                    }}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    title="Projekt löschen"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                   <div className="w-8 h-8 flex items-center justify-center rounded-lg text-primary/40 group-hover:text-primary transition-colors">
                     <ArrowRight className="w-4 h-4" />

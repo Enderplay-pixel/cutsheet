@@ -38,6 +38,7 @@ const router = createBrowserRouter([
           { path: 'motive', lazy: () => import('./pages/Motive') },
           { path: 'equipment', lazy: () => import('./pages/Equipment') },
           { path: 'drehplan', lazy: () => import('./pages/Drehplan') },
+          { path: 'staebchenplan', lazy: () => import('./pages/StaebchenplanNew') },
           { path: 'shotlist', lazy: () => import('./pages/Shotlist') },
           { path: 'tagesdispo', lazy: () => import('./pages/Tagesdispo') },
           { path: 'tagesdispo/:dayId', lazy: () => import('./pages/Tagesdispo') },

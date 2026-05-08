@@ -36,6 +36,7 @@ const navGroups = [
     label: 'Produktion',
     items: [
       { label: 'Drehplan', icon: Clapperboard, path: 'drehplan' },
+      { label: 'Stäbchenplan', icon: LayoutDashboard, path: 'staebchenplan' },
       { label: 'Shotlist', icon: Camera, path: 'shotlist' },
       { label: 'Tagesdispo', icon: ClipboardList, path: 'tagesdispo' },
       { label: 'Tagesbericht', icon: FileCheck, path: 'tagesbericht' },

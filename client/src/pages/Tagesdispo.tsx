@@ -4,24 +4,236 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
-import { formatDate, debounce, cn } from '@/lib/utils'
-import { ChevronLeft, ChevronRight, Sun, Cloud, MapPin, Clock, Users, Plus, Minus, ClipboardList, Save, Download, Trash2 } from 'lucide-react'
+import { formatDate, formatDateLong, debounce, cn, eighthsToString } from '@/lib/utils'
+import {
+  ChevronLeft, ChevronRight, MapPin, Clock, Users,
+  Plus, Minus, ClipboardList, Save, Download, Trash2, Clapperboard,
+  CloudSun, Sunrise, Sunset, Film
+} from 'lucide-react'
 import { TimeInput } from '@/components/ui/time-input'
 
-function CallSheetTable({ callSheet, projectId, onSaveEntries, onRefresh }: {
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+function sceneStripColor(int_ext: string, day_night: string) {
+  const ie = (int_ext || '').toUpperCase()
+  const dn = (day_night || '').toUpperCase()
+  if (ie === 'INT' && dn === 'TAG')   return 'bg-yellow-400'
+  if (ie === 'EXT' && dn === 'TAG')   return 'bg-sky-400'
+  if (ie === 'INT' && dn === 'NACHT') return 'bg-orange-500'
+  return 'bg-indigo-500'  // EXT/NACHT
+}
+
+function sceneRowBg(int_ext: string, day_night: string) {
+  const ie = (int_ext || '').toUpperCase()
+  const dn = (day_night || '').toUpperCase()
+  if (ie === 'INT' && dn === 'TAG')   return 'bg-yellow-500/5'
+  if (ie === 'EXT' && dn === 'TAG')   return 'bg-sky-500/5'
+  if (ie === 'INT' && dn === 'NACHT') return 'bg-orange-500/5'
+  return 'bg-indigo-500/5'
+}
+
+function sceneBadgeColor(int_ext: string, day_night: string) {
+  const ie = (int_ext || '').toUpperCase()
+  const dn = (day_night || '').toUpperCase()
+  if (ie === 'INT' && dn === 'TAG')   return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300'
+  if (ie === 'EXT' && dn === 'TAG')   return 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300'
+  if (ie === 'INT' && dn === 'NACHT') return 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300'
+  return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300'
+}
+
+// ─── Add-person inline panel ─────────────────────────────────────────────────
+
+function AddPersonPanel({
+  callSheet, projectId, onAdded, onClose
+}: {
+  callSheet: any; projectId: number; onAdded: () => void; onClose: () => void
+}) {
+  const { data: crew } = useQuery({
+    queryKey: ['crew', projectId],
+    queryFn: () => api.crew.list(projectId),
+  })
+  const { data: castList } = useQuery({
+    queryKey: ['cast', projectId],
+    queryFn: () => api.cast.list(projectId),
+  })
+
+  const addEntryMutation = useMutation({
+    mutationFn: (data: { person_type: string; person_id: number; call_time: number }) =>
+      api.callSheets.addEntry(callSheet.id, data),
+    onSuccess: () => onAdded(),
+  })
+
+  const assignedIds = new Set((callSheet?.entries || []).map((e: any) => `${e.person_type}:${e.person_id}`))
+  const availableCrew = (crew || []).filter((c: any) => !assignedIds.has(`crew:${c.id}`))
+  const availableCast = (castList || []).filter((c: any) => !assignedIds.has(`cast:${c.id}`))
+  const defaultCall = callSheet?.general_call || 480
+
+  return (
+    <div className="p-4 border border-border/60 rounded-xl bg-muted/20 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Person hinzufügen
+        </span>
+        <button onClick={onClose} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
+      </div>
+
+      {availableCast.length > 0 && (
+        <div>
+          <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide mb-2">
+            Darsteller
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {availableCast.map((c: any) => (
+              <button key={c.id}
+                onClick={() => addEntryMutation.mutate({ person_type: 'cast', person_id: c.id, call_time: defaultCall })}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-primary/30 text-xs hover:border-primary/60 hover:bg-primary/10 transition-colors bg-card"
+              >
+                <Plus className="w-3 h-3" />
+                <span className="font-medium">{c.actor_name}</span>
+                {c.character_name && <span className="text-muted-foreground">· {c.character_name}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {availableCrew.length > 0 && (
+        <div>
+          <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide mb-2">
+            Stab
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {availableCrew.map((c: any) => (
+              <button key={c.id}
+                onClick={() => addEntryMutation.mutate({ person_type: 'crew', person_id: c.id, call_time: defaultCall })}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border/60 text-xs hover:border-primary/40 hover:bg-muted/40 transition-colors bg-card"
+              >
+                <Plus className="w-3 h-3" />
+                <span className="font-medium">{c.name}</span>
+                {c.role && <span className="text-muted-foreground">· {c.role}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {availableCrew.length === 0 && availableCast.length === 0 && (
+        <p className="text-xs text-muted-foreground">Alle Personen sind bereits im Call Sheet.</p>
+      )}
+    </div>
+  )
+}
+
+// ─── Cast / Crew section table ────────────────────────────────────────────────
+
+function PersonSection({
+  title, entries, onUpdate, onDelete, isCast
+}: {
+  title: string
+  entries: any[]
+  onUpdate: (idx: number, key: string, value: any) => void
+  onDelete: (id: number) => void
+  isCast: boolean
+}) {
+  if (entries.length === 0) return null
+
+  return (
+    <div>
+      {/* Section header */}
+      <div className={cn(
+        'flex items-center gap-2 px-4 py-2 rounded-t-lg border-b border-border/40',
+        isCast ? 'bg-primary/8' : 'bg-muted/40'
+      )}>
+        <Users className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          {title}
+        </span>
+        <span className="ml-auto text-xs text-muted-foreground/60">{entries.length} Personen</span>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border/30 bg-muted/20">
+            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 pl-4 pr-2 w-40">
+              Name
+            </th>
+            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-36">
+              {isCast ? 'Rolle' : 'Funktion'}
+            </th>
+            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-28">
+              Call Time
+            </th>
+            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2">
+              Abholort
+            </th>
+            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2">
+              Notiz
+            </th>
+            <th className="py-2 pr-4 w-8" />
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((entry: any) => (
+            <tr key={entry.id} className="border-b border-border/20 last:border-0 hover:bg-muted/10 transition-colors group">
+              <td className="py-2.5 pl-4 pr-2">
+                <span className="font-semibold text-sm">{entry.person_name || '–'}</span>
+              </td>
+              <td className="py-2.5 px-2">
+                <span className="text-sm text-muted-foreground">{entry.role || '–'}</span>
+              </td>
+              <td className="py-2.5 px-2">
+                <TimeInput
+                  value={entry.call_time || 480}
+                  onChange={v => onUpdate(entry._idx, 'call_time', v)}
+                  className="w-20 h-7 text-xs font-mono font-bold"
+                />
+              </td>
+              <td className="py-2.5 px-2">
+                <Input
+                  value={entry.pickup_location || ''}
+                  onChange={e => onUpdate(entry._idx, 'pickup_location', e.target.value)}
+                  className="h-7 text-xs w-36"
+                  placeholder="—"
+                />
+              </td>
+              <td className="py-2.5 px-2">
+                <Input
+                  value={entry.notes || ''}
+                  onChange={e => onUpdate(entry._idx, 'notes', e.target.value)}
+                  className="h-7 text-xs w-44"
+                  placeholder="—"
+                />
+              </td>
+              <td className="py-2.5 pr-4">
+                <button
+                  onClick={() => onDelete(entry.id)}
+                  className="w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ─── Main call sheet entries block ───────────────────────────────────────────
+
+function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
   callSheet: any; projectId: number; onSaveEntries: (entries: any[]) => void; onRefresh: () => void
 }) {
-  const [entries, setEntries] = useState<any[]>(callSheet?.entries || [])
+  const [entries, setEntries] = useState<any[]>([])
   const [showAdd, setShowAdd] = useState(false)
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    setEntries(callSheet?.entries || [])
+    setEntries((callSheet?.entries || []).map((e: any, i: number) => ({ ...e, _idx: i })))
   }, [callSheet?.entries])
 
   const updateEntry = (idx: number, key: string, value: any) => {
@@ -32,48 +244,32 @@ function CallSheetTable({ callSheet, projectId, onSaveEntries, onRefresh }: {
     })
   }
 
-  const hasChanges = JSON.stringify(entries) !== JSON.stringify(callSheet?.entries || [])
-
-  const addEntryMutation = useMutation({
-    mutationFn: (data: { person_type: string; person_id: number; call_time: number }) =>
-      api.callSheets.addEntry(callSheet.id, data),
-    onSuccess: () => { onRefresh(); setShowAdd(false) },
-  })
-
   const deleteEntryMutation = useMutation({
     mutationFn: (entryId: number) => api.callSheets.deleteEntry(callSheet.id, entryId),
     onSuccess: () => onRefresh(),
   })
 
-  const { data: crew } = useQuery({
-    queryKey: ['crew', projectId],
-    queryFn: () => api.crew.list(projectId),
-    enabled: showAdd,
-  })
-  const { data: castList } = useQuery({
-    queryKey: ['cast', projectId],
-    queryFn: () => api.cast.list(projectId),
-    enabled: showAdd,
-  })
+  const rawOriginal = (callSheet?.entries || []).map((e: any, i: number) => ({ ...e, _idx: i }))
+  const hasChanges = JSON.stringify(
+    entries.map(({ _idx, ...rest }) => rest)
+  ) !== JSON.stringify(
+    rawOriginal.map(({ _idx, ...rest }: any) => rest)
+  )
 
-  const assignedIds = new Set(entries.map((e: any) => `${e.person_type}:${e.person_id}`))
-  const availableCrew = (crew || []).filter((c: any) => !assignedIds.has(`crew:${c.id}`))
-  const availableCast = (castList || []).filter((c: any) => !assignedIds.has(`cast:${c.id}`))
-
-  if (!callSheet?.entries || callSheet.entries.length === 0) {
-    return null
-  }
+  const castEntries = entries.filter(e => e.person_type === 'cast')
+  const crewEntries = entries.filter(e => e.person_type === 'crew')
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold flex items-center gap-2">
+    <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+      {/* Block header */}
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border/40 bg-muted/30">
+        <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-muted-foreground" />
-          Call Sheet <span className="text-muted-foreground font-normal">({entries.length} Personen)</span>
-        </h2>
+          <span className="text-sm font-bold uppercase tracking-widest">Disposition</span>
+        </div>
         <div className="flex items-center gap-2">
           {hasChanges && (
-            <Button size="sm" onClick={() => onSaveEntries(entries)}>
+            <Button size="sm" onClick={() => onSaveEntries(entries.map(({ _idx, ...rest }) => rest))}>
               <Save className="w-3.5 h-3.5 mr-1.5" />Speichern
             </Button>
           )}
@@ -83,87 +279,142 @@ function CallSheetTable({ callSheet, projectId, onSaveEntries, onRefresh }: {
         </div>
       </div>
 
-      {showAdd && (
-        <div className="mb-3 p-3 border border-border/60 rounded-xl bg-muted/20 space-y-2">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Person hinzufügen</p>
-          <div className="flex flex-wrap gap-2">
-            {availableCrew.map((c: any) => (
-              <button key={c.id}
-                onClick={() => addEntryMutation.mutate({ person_type: 'crew', person_id: c.id, call_time: callSheet.general_call || 480 })}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border/60 text-xs hover:border-primary/40 hover:text-primary transition-colors bg-card"
-              >
-                <Plus className="w-3 h-3" />{c.name} <span className="text-muted-foreground">{c.role}</span>
-              </button>
-            ))}
-            {availableCast.map((c: any) => (
-              <button key={c.id}
-                onClick={() => addEntryMutation.mutate({ person_type: 'cast', person_id: c.id, call_time: callSheet.general_call || 480 })}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-primary/30 text-xs hover:border-primary/60 hover:text-primary transition-colors bg-primary/5"
-              >
-                <Plus className="w-3 h-3" />{c.actor_name} <span className="text-muted-foreground">Darsteller</span>
-              </button>
-            ))}
-            {availableCrew.length === 0 && availableCast.length === 0 && (
-              <p className="text-xs text-muted-foreground">Alle Personen sind bereits im Call Sheet.</p>
-            )}
-          </div>
+      {showAdd && callSheet && (
+        <div className="p-4 border-b border-border/40">
+          <AddPersonPanel
+            callSheet={callSheet}
+            projectId={projectId}
+            onAdded={() => { onRefresh(); setShowAdd(false) }}
+            onClose={() => setShowAdd(false)}
+          />
         </div>
       )}
 
-      <div className="border border-border/60 rounded-xl overflow-hidden bg-card">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border/40">
-              <th className="text-left text-[11px] text-muted-foreground/60 font-medium uppercase tracking-wide py-2.5 pl-4 pr-2">Name / Rolle</th>
-              <th className="text-left text-[11px] text-muted-foreground/60 font-medium uppercase tracking-wide py-2.5 px-2">Typ</th>
-              <th className="text-left text-[11px] text-muted-foreground/60 font-medium uppercase tracking-wide py-2.5 px-2">Call Time</th>
-              <th className="text-left text-[11px] text-muted-foreground/60 font-medium uppercase tracking-wide py-2.5 px-2">Abholort</th>
-              <th className="text-left text-[11px] text-muted-foreground/60 font-medium uppercase tracking-wide py-2.5 px-2">Notiz</th>
-              <th className="py-2.5 pr-4 w-8" />
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry: any, idx: number) => (
-              <tr key={entry.id} className="border-b border-border/30 last:border-0 hover:bg-muted/10 transition-colors group">
-                <td className="py-2.5 pl-4 pr-2">
-                  <div className="text-sm font-medium">{entry.person_name || '–'}</div>
-                  <div className="text-xs text-muted-foreground">{entry.role || ''}</div>
+      {/* Cast section */}
+      <PersonSection
+        title="Darsteller"
+        entries={castEntries}
+        isCast={true}
+        onUpdate={updateEntry}
+        onDelete={(id) => deleteEntryMutation.mutate(id)}
+      />
+
+      {/* Divider between sections */}
+      {castEntries.length > 0 && crewEntries.length > 0 && (
+        <div className="border-t border-border/40" />
+      )}
+
+      {/* Crew section */}
+      <PersonSection
+        title="Stab"
+        entries={crewEntries}
+        isCast={false}
+        onUpdate={updateEntry}
+        onDelete={(id) => deleteEntryMutation.mutate(id)}
+      />
+
+      {castEntries.length === 0 && crewEntries.length === 0 && (
+        <div className="py-10 text-center text-muted-foreground">
+          <ClipboardList className="w-8 h-8 mx-auto mb-2 opacity-20" />
+          <p className="text-sm">Noch keine Personen eingetragen.</p>
+          <p className="text-xs mt-1 opacity-60">Klicke auf „Person hinzufügen".</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Scenes table ─────────────────────────────────────────────────────────────
+
+function ScenesTable({ scenes }: { scenes: any[] }) {
+  if (!scenes || scenes.length === 0) return null
+
+  return (
+    <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+      {/* Table header */}
+      <div className="flex items-center gap-2 px-5 py-3 border-b border-border/40 bg-muted/30">
+        <Film className="w-4 h-4 text-muted-foreground" />
+        <span className="text-sm font-bold uppercase tracking-widest">Szenen</span>
+        <span className="ml-auto text-xs text-muted-foreground/60">{scenes.length} Szene{scenes.length !== 1 ? 'n' : ''}</span>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border/30 bg-muted/20">
+            <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 pl-4 pr-2 w-14">#</th>
+            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-3">Set & Beschreibung</th>
+            <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-20">INT/EXT</th>
+            <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-16">T/N</th>
+            <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-16">Seiten</th>
+            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2">Motiv</th>
+          </tr>
+        </thead>
+        <tbody>
+          {scenes.map((s: any) => {
+            const stripColor = sceneStripColor(s.int_ext, s.day_night)
+            const rowBg = sceneRowBg(s.int_ext, s.day_night)
+            const badgeColor = sceneBadgeColor(s.int_ext, s.day_night)
+            return (
+              <tr key={s.scene_id} className={cn('border-b border-border/20 last:border-0 group', rowBg)}>
+                {/* Colored left strip + scene number */}
+                <td className="py-3 pl-0 pr-2 text-center">
+                  <div className="flex items-center">
+                    <div className={cn('w-1 self-stretch rounded-r mr-3 flex-shrink-0', stripColor)} style={{ minHeight: '100%' }} />
+                    <span className="font-mono font-bold text-base tabular-nums">{s.scene_number}</span>
+                  </div>
                 </td>
-                <td className="py-2.5 px-2">
-                  <span className={cn(
-                    'text-[11px] px-2 py-0.5 rounded-full font-medium',
-                    entry.person_type === 'cast'
-                      ? 'bg-primary/12 text-primary'
-                      : 'bg-muted text-muted-foreground'
-                  )}>
-                    {entry.person_type === 'cast' ? 'Darsteller' : 'Stab'}
+                <td className="py-3 px-3">
+                  <span className="font-medium">{s.title || '–'}</span>
+                </td>
+                <td className="py-3 px-2 text-center">
+                  <span className={cn('text-[11px] px-2 py-0.5 rounded font-bold uppercase', badgeColor)}>
+                    {s.int_ext || '–'}
                   </span>
                 </td>
-                <td className="py-2.5 px-2">
-                  <TimeInput value={entry.call_time || 480} onChange={v => updateEntry(idx, 'call_time', v)} className="w-20 h-7 text-xs" />
+                <td className="py-3 px-2 text-center">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase">
+                    {s.day_night === 'TAG' ? 'Tag' : s.day_night === 'NACHT' ? 'Nacht' : (s.day_night || '–')}
+                  </span>
                 </td>
-                <td className="py-2.5 px-2">
-                  <Input value={entry.pickup_location || ''} onChange={e => updateEntry(idx, 'pickup_location', e.target.value)} className="h-7 text-xs w-32" placeholder="Abholort" />
+                <td className="py-3 px-2 text-center">
+                  <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                    {s.eighths != null ? eighthsToString(s.eighths) : '–'}
+                  </span>
                 </td>
-                <td className="py-2.5 px-2">
-                  <Input value={entry.notes || ''} onChange={e => updateEntry(idx, 'notes', e.target.value)} className="h-7 text-xs w-40" placeholder="Notiz" />
-                </td>
-                <td className="py-2.5 pr-4">
-                  <button
-                    onClick={() => deleteEntryMutation.mutate(entry.id)}
-                    className="w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+                <td className="py-3 px-2">
+                  {s.location_name ? (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      {s.location_name}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground/40 text-xs">–</span>
+                  )}
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            )
+          })}
+        </tbody>
+      </table>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 flex-wrap px-5 py-2.5 border-t border-border/30 bg-muted/10">
+        {[
+          { label: 'INT/Tag', color: 'bg-yellow-400' },
+          { label: 'EXT/Tag', color: 'bg-sky-400' },
+          { label: 'INT/Nacht', color: 'bg-orange-500' },
+          { label: 'EXT/Nacht', color: 'bg-indigo-500' },
+        ].map(({ label, color }) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <div className={cn('w-2.5 h-2.5 rounded-sm', color)} />
+            <span className="text-[11px] text-muted-foreground">{label}</span>
+          </div>
+        ))}
       </div>
     </div>
   )
 }
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function Component() {
   const { projectId, dayId } = useParams()
@@ -197,8 +448,12 @@ export function Component() {
     if (callSheet !== undefined) {
       const defCall = project?.settings?.default_call_time ?? 480
       setHeaderForm(callSheet || {
-        general_call: defCall, shooting_call: defCall + 30,
-        weather_forecast: '', sunrise: '', sunset: '', notes: '',
+        general_call: defCall,
+        shooting_call: defCall + 30,
+        weather_forecast: '',
+        sunrise: '',
+        sunset: '',
+        notes: '',
       })
     }
   }, [callSheet, selectedDayId])
@@ -236,6 +491,10 @@ export function Component() {
 
   const [shiftAmount, setShiftAmount] = useState(15)
 
+  // First scene location for header display
+  const firstScene = currentDay?.scenes?.[0]
+  const locationName = firstScene?.location_name
+
   if (!allDays || allDays.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full py-20 text-center text-muted-foreground">
@@ -247,9 +506,10 @@ export function Component() {
   }
 
   return (
-    <div className="p-7 max-w-5xl mx-auto animate-fade-up space-y-5">
-      {/* Day nav + title */}
-      <div className="flex items-center gap-4">
+    <div className="p-6 max-w-5xl mx-auto animate-fade-up space-y-5">
+
+      {/* ── Top navigation bar ──────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" className="w-8 h-8"
             disabled={currentIndex <= 0}
@@ -272,150 +532,216 @@ export function Component() {
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
-        <div className="flex-1">
-          <h1 className="text-xl font-semibold leading-tight">Tagesdisposition</h1>
-          {currentDay && (
-            <p className="text-sm text-muted-foreground">
-              Drehtag {currentDay.day_number} · {formatDate(currentDay.date)}
-            </p>
-          )}
-        </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* PDF download */}
         {selectedDayId && (
           <a href={api.pdf.tagesdispo(selectedDayId)} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm">
-              <Download className="w-3.5 h-3.5 mr-1.5" />PDF
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Download className="w-3.5 h-3.5" />PDF
             </Button>
           </a>
         )}
       </div>
 
-      {isLoading || !headerForm ? (
-        <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}</div>
-      ) : (
-        <>
-          {/* Time cards */}
-          <div className="grid grid-cols-4 gap-3">
-            {[
-              { label: 'General Call', key: 'general_call', icon: Clock, isTime: true },
-              { label: 'Shooting Call', key: 'shooting_call', icon: Clock, isTime: true },
-              { label: 'Sonnenaufgang', key: 'sunrise', icon: Sun, isTime: false },
-              { label: 'Sonnenuntergang', key: 'sunset', icon: Cloud, isTime: false },
-            ].map(({ label, key, icon: Icon, isTime }) => (
-              <div key={key} className="bg-card border border-border/60 rounded-xl p-4">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">{label}</span>
-                </div>
-                {isTime ? (
-                  <TimeInput
-                    value={headerForm[key] || 480}
-                    onChange={v => updateHeader(key, v)}
-                    className="h-10 text-xl font-bold text-center"
-                  />
-                ) : (
-                  <Input
-                    value={headerForm[key] || ''}
-                    onChange={e => updateHeader(key, e.target.value)}
-                    className="h-10 font-mono text-lg text-center"
-                    placeholder="–"
-                  />
-                )}
-              </div>
-            ))}
+      {/* ── Call Sheet header card ───────────────────────────────────────────── */}
+      <div className="bg-card border border-border/60 rounded-2xl overflow-hidden shadow-sm">
+        {/* Production title bar */}
+        <div className="flex items-center justify-between px-6 py-3 border-b border-border/40 bg-muted/20">
+          <div className="flex items-center gap-2.5">
+            <Clapperboard className="w-4 h-4 text-muted-foreground" />
+            <span className="font-bold text-sm uppercase tracking-widest">
+              {project?.title || 'Produktion'}
+            </span>
+            {currentDay && (
+              <span className="text-xs text-muted-foreground font-medium ml-1">
+                · Drehtag {currentDay.day_number} von {allDays.length}
+              </span>
+            )}
           </div>
-
-          {/* Scenes today */}
-          {currentDay?.scenes?.length > 0 && (
-            <div className="bg-card border border-border/60 rounded-xl p-4">
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60 mb-3">
-                Szenen heute ({currentDay.scenes.length})
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {currentDay.scenes.map((s: any) => (
-                  <div key={s.scene_id} className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/60 rounded-lg text-xs">
-                    <span className="font-mono font-semibold">Sz. {s.scene_number}</span>
-                    <span className="text-muted-foreground">–</span>
-                    <span>{s.title}</span>
-                    <span className="text-muted-foreground/60">{s.int_ext}/{s.day_night}</span>
-                    {s.location_name && (
-                      <>
-                        <MapPin className="w-3 h-3 text-muted-foreground/50" />
-                        <span className="text-muted-foreground">{s.location_name}</span>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+          {currentDay?.date && (
+            <span className="text-sm font-medium text-muted-foreground">
+              {formatDateLong(currentDay.date)}
+            </span>
           )}
+        </div>
 
-          {/* Time shift */}
-          <div className="bg-card border border-border/60 rounded-xl p-4">
-            <div className="flex items-center gap-4 flex-wrap">
-              <span className="text-sm font-medium">Alle Zeiten verschieben</span>
-              <div className="flex items-center gap-1">
-                <Button variant="outline" size="icon" className="w-7 h-7"
-                  onClick={() => setShiftAmount(Math.max(5, shiftAmount - 5))}>
-                  <Minus className="w-3 h-3" />
-                </Button>
-                <span className="text-sm font-mono w-14 text-center tabular-nums">{shiftAmount} Min</span>
-                <Button variant="outline" size="icon" className="w-7 h-7"
-                  onClick={() => setShiftAmount(shiftAmount + 5)}>
-                  <Plus className="w-3 h-3" />
-                </Button>
+        {isLoading || !headerForm ? (
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-28 rounded-xl" />
+              <Skeleton className="h-28 rounded-xl" />
+            </div>
+            <div className="grid grid-cols-4 gap-3">
+              {[1,2,3,4].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
+            </div>
+          </div>
+        ) : (
+          <div className="p-6 space-y-4">
+            {/* ── Big call time cards ─────────────────────────────────────── */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* General Call */}
+              <div className="bg-foreground/5 border border-border/60 rounded-xl p-5 text-center">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                  General Call
+                </p>
+                <TimeInput
+                  value={headerForm.general_call || 480}
+                  onChange={v => updateHeader('general_call', v)}
+                  className="h-16 text-5xl font-black text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none"
+                />
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="h-7 text-xs"
-                  onClick={() => shiftMutation.mutate(-shiftAmount)} disabled={!callSheet?.id}>
-                  −{shiftAmount} Min
-                </Button>
-                <Button variant="outline" size="sm" className="h-7 text-xs"
-                  onClick={() => shiftMutation.mutate(shiftAmount)} disabled={!callSheet?.id}>
-                  +{shiftAmount} Min
-                </Button>
+              {/* Shooting Call */}
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 text-center">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-primary/60 mb-2">
+                  Shooting Call
+                </p>
+                <TimeInput
+                  value={headerForm.shooting_call || 510}
+                  onChange={v => updateHeader('shooting_call', v)}
+                  className="h-16 text-5xl font-black text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none text-primary"
+                />
+              </div>
+            </div>
+
+            {/* ── Info strip: location, weather, sunrise, sunset ─────────── */}
+            <div className="grid grid-cols-4 gap-3">
+              {/* Location */}
+              <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-2.5">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <MapPin className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Drehort</span>
+                </div>
+                <p className="text-sm font-semibold truncate">
+                  {locationName || <span className="text-muted-foreground font-normal">–</span>}
+                </p>
+              </div>
+
+              {/* Weather */}
+              <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-2.5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <CloudSun className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Wetter</span>
+                </div>
+                <Input
+                  value={headerForm.weather_forecast || ''}
+                  onChange={e => updateHeader('weather_forecast', e.target.value)}
+                  className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-semibold shadow-none"
+                  placeholder="Wetterlage…"
+                />
+              </div>
+
+              {/* Sunrise */}
+              <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-2.5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Sunrise className="w-3 h-3 text-amber-400" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Sonnenaufgang</span>
+                </div>
+                <Input
+                  value={headerForm.sunrise || ''}
+                  onChange={e => updateHeader('sunrise', e.target.value)}
+                  className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono font-semibold shadow-none"
+                  placeholder="05:30"
+                />
+              </div>
+
+              {/* Sunset */}
+              <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-2.5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Sunset className="w-3 h-3 text-orange-400" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Sonnenuntergang</span>
+                </div>
+                <Input
+                  value={headerForm.sunset || ''}
+                  onChange={e => updateHeader('sunset', e.target.value)}
+                  className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono font-semibold shadow-none"
+                  placeholder="20:45"
+                />
               </div>
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Call sheet entries */}
-          {!callSheet?.entries || callSheet.entries.length === 0 ? (
+      {/* ── Scenes table ──────────────────────────────────────────────────────── */}
+      {currentDay?.scenes?.length > 0 && (
+        <ScenesTable scenes={currentDay.scenes} />
+      )}
+
+      {/* ── Cast & Crew disposition ───────────────────────────────────────────── */}
+      {!isLoading && headerForm && (
+        <>
+          {!callSheet?.id ? (
             <div className="bg-card border border-border/60 rounded-xl p-8 text-center">
               <ClipboardList className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
-              <p className="text-sm text-muted-foreground mb-1">Call Sheet noch leer</p>
-              <p className="text-xs text-muted-foreground/60 mb-4">Speichere die Tagesdispo, um die Teilnehmerliste zu generieren.</p>
+              <p className="text-sm text-muted-foreground mb-1">Call Sheet noch nicht angelegt</p>
+              <p className="text-xs text-muted-foreground/60 mb-4">
+                Speichere die Tagesdispo, um die Teilnehmerliste zu aktivieren.
+              </p>
               <Button size="sm" onClick={() => saveMutation.mutate(headerForm)}>
-                Tagesdispo erstellen
+                <Save className="w-3.5 h-3.5 mr-1.5" />Tagesdispo erstellen
               </Button>
             </div>
           ) : (
-            <CallSheetTable
+            <CallSheetBlock
               callSheet={callSheet}
               projectId={pid}
               onSaveEntries={(entries) => saveEntriesMutation.mutate(entries)}
               onRefresh={() => queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })}
             />
           )}
+        </>
+      )}
 
-          {/* Weather + Notes */}
-          <div className="bg-card border border-border/60 rounded-xl p-4 space-y-3">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
-              Allgemeine Informationen
-            </h2>
-            <div>
-              <Label className="text-xs text-muted-foreground">Wetter</Label>
-              <Input value={headerForm.weather_forecast || ''}
-                onChange={e => updateHeader('weather_forecast', e.target.value)}
-                className="mt-1 h-8 text-sm" placeholder="z.B. Bewölkt, 18°C, kein Regen" />
+      {/* ── Time shift + Notes ────────────────────────────────────────────────── */}
+      {!isLoading && headerForm && (
+        <div className="grid grid-cols-5 gap-4">
+          {/* Time shift card */}
+          <div className="col-span-2 bg-card border border-border/60 rounded-xl p-4 h-fit">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
+              Alle Zeiten verschieben
+            </p>
+            <div className="flex items-center gap-2 mb-3">
+              <Button variant="outline" size="icon" className="w-7 h-7"
+                onClick={() => setShiftAmount(Math.max(5, shiftAmount - 5))}>
+                <Minus className="w-3 h-3" />
+              </Button>
+              <span className="text-sm font-mono font-bold w-14 text-center tabular-nums">
+                {shiftAmount} Min
+              </span>
+              <Button variant="outline" size="icon" className="w-7 h-7"
+                onClick={() => setShiftAmount(shiftAmount + 5)}>
+                <Plus className="w-3 h-3" />
+              </Button>
             </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Allgemeine Notizen</Label>
-              <Textarea value={headerForm.notes || ''}
-                onChange={e => updateHeader('notes', e.target.value)}
-                rows={3} className="mt-1 text-sm resize-none"
-                placeholder="Besonderheiten, Sicherheitshinweise, Catering…" />
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1 h-8 text-xs font-bold"
+                onClick={() => shiftMutation.mutate(-shiftAmount)} disabled={!callSheet?.id}>
+                −{shiftAmount} Min
+              </Button>
+              <Button variant="outline" size="sm" className="flex-1 h-8 text-xs font-bold"
+                onClick={() => shiftMutation.mutate(shiftAmount)} disabled={!callSheet?.id}>
+                +{shiftAmount} Min
+              </Button>
             </div>
           </div>
-        </>
+
+          {/* Notes card */}
+          <div className="col-span-3 bg-card border border-border/60 rounded-xl p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
+              Allgemeine Notizen
+            </p>
+            <Textarea
+              value={headerForm?.notes || ''}
+              onChange={e => updateHeader('notes', e.target.value)}
+              rows={4}
+              className="text-sm resize-none"
+              placeholder="Besonderheiten, Sicherheitshinweise, Catering, Parkplätze…"
+            />
+          </div>
+        </div>
       )}
     </div>
   )

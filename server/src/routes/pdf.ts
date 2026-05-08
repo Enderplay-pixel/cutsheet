@@ -532,4 +532,75 @@ router.get('/projects/:projectId/pdf/equipment', async (req, res) => {
   }
 })
 
+// GET /api/projects/:projectId/pdf/screenplay
+router.get('/projects/:projectId/pdf/screenplay', async (req, res) => {
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.projectId) as any
+  if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+
+  const { accentColor } = getProjectSettings(req.params.projectId)
+  const blocks = db.prepare(`
+    SELECT sb.*, s.scene_number, s.title, s.int_ext, s.day_night
+    FROM screenplay_blocks sb
+    JOIN scenes s ON sb.scene_id = s.id
+    WHERE sb.project_id = ?
+    ORDER BY s.sort_order ASC, sb.sort_order ASC
+  `).all(req.params.projectId) as any[]
+
+  // Group blocks by scene
+  const sceneMap: Record<number, { scene_number: string; title: string; int_ext: string; day_night: string; blocks: any[] }> = {}
+  for (const b of blocks) {
+    if (!sceneMap[b.scene_id]) sceneMap[b.scene_id] = { scene_number: b.scene_number, title: b.title, int_ext: b.int_ext, day_night: b.day_night, blocks: [] }
+    sceneMap[b.scene_id].blocks.push(b)
+  }
+
+  const typeStyle: Record<string, string> = {
+    scene_heading: 'font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:20px;',
+    action: 'margin:8px 0;line-height:1.6;',
+    dialogue: 'margin:6px auto;max-width:70%;line-height:1.6;',
+    character: 'font-weight:bold;text-align:center;text-transform:uppercase;margin-top:12px;',
+    parenthetical: 'text-align:center;font-style:italic;color:#555;',
+    transition: 'text-align:right;text-transform:uppercase;font-weight:bold;margin:12px 0;',
+    note: 'color:#888;font-style:italic;border-left:3px solid #ddd;padding-left:8px;',
+  }
+
+  const scenesHtml = Object.values(sceneMap).map(scene => {
+    const blocksHtml = scene.blocks.map(b => {
+      const style = typeStyle[b.block_type] || 'margin:4px 0;'
+      return `<div style="${style}font-family:Courier,monospace;font-size:12px">${b.content || ''}</div>`
+    }).join('')
+    return `
+      <div style="page-break-inside:avoid;margin-bottom:16px;">
+        <div style="font-weight:bold;font-size:11px;color:${accentColor};text-transform:uppercase;letter-spacing:0.08em;padding:4px 0;border-bottom:1px solid #eee;margin-bottom:8px;">
+          ${scene.scene_number}. ${scene.title} — ${scene.int_ext} / ${scene.day_night}
+        </div>
+        ${blocksHtml}
+      </div>`
+  }).join('')
+
+  const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Drehbuch</title>
+    <style>
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { font-family: Courier, monospace; font-size: 12px; color: #111; background: #fff; padding: 20mm; max-width: 210mm; margin: 0 auto; }
+      .header { border-bottom: 3px solid ${accentColor}; margin-bottom: 24px; padding-bottom: 12px; }
+      h1 { font-size: 22px; font-family: Arial, sans-serif; }
+      .meta { color: #555; font-size: 10px; font-family: Arial, sans-serif; margin-top: 4px; }
+    </style>
+  </head><body>
+    <div class="header">
+      <h1>${project.title}</h1>
+      <p class="meta">Regie: ${project.director || '—'} · Produzent: ${project.producer || '—'} · Stand: ${new Date().toLocaleDateString('de-DE')}</p>
+    </div>
+    ${scenesHtml || '<p style="color:#555">Kein Drehbuchinhalt vorhanden.</p>'}
+  </body></html>`
+
+  try {
+    const pdf = await generatePdf(html)
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="drehbuch-${project.title.replace(/\s+/g, '-')}.pdf"`)
+    res.send(pdf)
+  } catch (e: any) {
+    res.status(500).json({ data: null, error: `PDF-Fehler: ${e.message}` })
+  }
+})
+
 export default router

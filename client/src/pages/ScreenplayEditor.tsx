@@ -728,7 +728,7 @@ export function Component() {
             className="h-7 text-xs gap-1.5"
             asChild
           >
-            <a href={api.pdf.drehplan(pid)} target="_blank" rel="noopener noreferrer">
+            <a href={api.pdf.screenplay(pid)} target="_blank" rel="noopener noreferrer">
               <FileText className="w-3 h-3" />
               Als PDF
             </a>
