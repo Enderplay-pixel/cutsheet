@@ -1,20 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Keyboard } from 'lucide-react'
-
-const SHORTCUTS = [
-  { category: 'Navigation', items: [
-    { keys: ['D'], label: 'Drehplan öffnen' },
-    { keys: ['S'], label: 'Szenen öffnen' },
-    { keys: ['B'], label: 'Besetzung öffnen' },
-    { keys: ['T'], label: 'Tagesdispo öffnen' },
-  ]},
-  { category: 'Global', items: [
-    { keys: ['Ctrl', 'K'], label: 'Suche öffnen' },
-    { keys: ['?'], label: 'Shortcuts anzeigen' },
-    { keys: ['Esc'], label: 'Dialog schließen' },
-  ]},
-]
+import { useT } from '@/lib/useT'
+import { shortcutsT } from '@/lib/i18n'
 
 function Key({ k }: { k: string }) {
   return (
@@ -26,6 +14,21 @@ function Key({ k }: { k: string }) {
 
 export function ShortcutsModal() {
   const [open, setOpen] = useState(false)
+  const tt = useT()
+
+  const SHORTCUTS = [
+    { category: tt(shortcutsT.catNav), items: [
+      { keys: ['D'], label: tt(shortcutsT.openDrehplan) },
+      { keys: ['S'], label: tt(shortcutsT.openScenes) },
+      { keys: ['B'], label: tt(shortcutsT.openCasting) },
+      { keys: ['T'], label: tt(shortcutsT.openCallSheet) },
+    ]},
+    { category: tt(shortcutsT.catGlobal), items: [
+      { keys: ['Ctrl', 'K'], label: tt(shortcutsT.openSearch) },
+      { keys: ['?'], label: tt(shortcutsT.showShortcuts) },
+      { keys: ['Esc'], label: tt(shortcutsT.closeDialog) },
+    ]},
+  ]
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -42,7 +45,7 @@ export function ShortcutsModal() {
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Keyboard className="w-4 h-4" /> Tastaturkürzel
+            <Keyboard className="w-4 h-4" /> {tt(shortcutsT.title)}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-5 py-1">
@@ -70,7 +73,7 @@ export function ShortcutsModal() {
           ))}
         </div>
         <p className="text-[11px] text-muted-foreground/50 pt-1">
-          Shortcuts funktionieren nicht in Eingabefeldern.
+          {tt(shortcutsT.noInputs)}
         </p>
       </DialogContent>
     </Dialog>

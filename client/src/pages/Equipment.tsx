@@ -16,6 +16,8 @@ import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency, debounce } from '@/lib/utils'
 import { Plus, Trash2, Package, Check, Download } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
+import { useT } from '@/lib/useT'
+import { equipT, uiT } from '@/lib/i18n'
 
 const DEPARTMENTS = ['Kamera', 'Licht', 'Grip', 'Ton', 'Requisite', 'Kostüm', 'Maske', 'Fahrzeuge', 'Sonstiges']
 
@@ -23,6 +25,7 @@ function EquipmentItemRow({ item, shootDayCount, onDelete }: { item: any; shootD
   const [form, setForm] = useState(item)
   const queryClient = useQueryClient()
   const { canEdit } = useProjectPerms()
+  const tt = useT()
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.equipment.updateItem(item.id, data),
@@ -75,7 +78,7 @@ function EquipmentItemRow({ item, shootDayCount, onDelete }: { item: any; shootD
       </td>
       <td className="py-2 pr-3 w-8">
         {canEdit && (
-          <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
+          <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive" title={tt(uiT.delete)}>
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
@@ -88,6 +91,7 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { canEdit } = useProjectPerms()
+  const tt = useT()
 
   const { data: items, isLoading } = useQuery({
     queryKey: ['equipment-items', list.id],
@@ -127,8 +131,8 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
             <thead>
               <tr className="text-xs text-muted-foreground border-b border-border">
                 <th className="py-1.5 pl-3 w-8" />
-                <th className="text-left py-1.5 px-2">Bezeichnung</th>
-                <th className="text-center py-1.5 px-2 w-16">Menge</th>
+                <th className="text-left py-1.5 px-2">{tt(equipT.labelItem)}</th>
+                <th className="text-center py-1.5 px-2 w-16">{tt(equipT.labelQty)}</th>
                 <th className="text-left py-1.5 px-2 w-36">Verleiher</th>
                 <th className="text-right py-1.5 px-2 w-28">Preis/Tag</th>
                 <th className="text-center py-1.5 px-2 w-16">Tage</th>
@@ -157,7 +161,7 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
         )}
         {canEdit && (
           <Button variant="ghost" size="sm" className="text-xs mt-2 w-full" onClick={() => createItem.mutate()}>
-            <Plus className="w-3 h-3 mr-1" />Position hinzufügen
+            <Plus className="w-3 h-3 mr-1" />{tt(equipT.addItem)}
           </Button>
         )}
       </AccordionContent>
@@ -171,6 +175,7 @@ export function Component() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { canEdit } = useProjectPerms()
+  const tt = useT()
   const [newListName, setNewListName] = useState('')
   const [newListDept, setNewListDept] = useState('Kamera')
 
@@ -194,7 +199,7 @@ export function Component() {
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-4">
       <PageHeader
-        title="Equipmentlisten"
+        title={tt(equipT.title)}
         subtitle={`${lists?.length || 0} Listen · ${shootDayCount} Drehtage geplant`}
         actions={
           <div className="flex gap-2">
@@ -206,13 +211,13 @@ export function Component() {
             {canEdit && (
               <>
                 <Input value={newListName} onChange={e => setNewListName(e.target.value)}
-                  placeholder="Listenname" className="h-8 w-40 text-sm" />
+                  placeholder={tt(equipT.newList)} className="h-8 w-40 text-sm" />
                 <Select value={newListDept} onValueChange={setNewListDept}>
                   <SelectTrigger className="w-32 h-8 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
                 </Select>
                 <Button size="sm" onClick={() => createList.mutate()} disabled={createList.isPending}>
-                  <Plus className="w-4 h-4 mr-1" />Liste
+                  <Plus className="w-4 h-4 mr-1" />{tt(equipT.createList)}
                 </Button>
               </>
             )}
@@ -230,7 +235,7 @@ export function Component() {
           {(!lists || lists.length === 0) && (
             <div className="text-center py-16 text-muted-foreground">
               <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>Noch keine Equipmentlisten. Erstelle eine neue Liste.</p>
+              <p>{tt(equipT.noLists)}</p>
             </div>
           )}
         </Accordion>

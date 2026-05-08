@@ -10,62 +10,65 @@ import {
   Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight,
   StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle, ShieldCheck, BookUser
 } from 'lucide-react'
-
-const navGroups = [
-  {
-    label: 'Übersicht',
-    items: [
-      { label: 'Dashboard', icon: LayoutDashboard, path: '' },
-      { label: 'Stammdaten', icon: Film, path: 'stammdaten' },
-    ]
-  },
-  {
-    label: 'Vorbereitung',
-    items: [
-      { label: 'Szenen', icon: FileText, path: 'drehbuch' },
-      { label: 'Drehbuch Editor', icon: FileEdit, path: 'screenplay-editor' },
-      { label: 'Besetzung', icon: Users, path: 'besetzung' },
-      { label: 'Stab', icon: Briefcase, path: 'stabliste' },
-      { label: 'Kontakte', icon: BookUser, path: 'kontakte' },
-      { label: 'Motive', icon: MapPin, path: 'motive' },
-      { label: 'Equipment', icon: Package, path: 'equipment' },
-      { label: 'Fahrzeuge', icon: Car, path: 'fahrzeuge' },
-      { label: 'Komparsen', icon: Users, path: 'komparsen' },
-    ]
-  },
-  {
-    label: 'Produktion',
-    items: [
-      { label: 'Drehplan', icon: Clapperboard, path: 'drehplan' },
-      { label: 'Stäbchenplan', icon: LayoutDashboard, path: 'staebchenplan' },
-      { label: 'Shotlist', icon: Camera, path: 'shotlist' },
-      { label: 'Tagesdispo', icon: ClipboardList, path: 'tagesdispo' },
-      { label: 'Tagesbericht', icon: FileCheck, path: 'tagesbericht' },
-    ]
-  },
-  {
-    label: 'Verwaltung',
-    items: [
-      { label: 'Budget', icon: DollarSign, path: 'budget' },
-      { label: 'Kalender', icon: Calendar, path: 'kalender' },
-      { label: 'E-Mail', icon: Mail, path: 'email' },
-      { label: 'Konflikte', icon: AlertTriangle, path: 'konfliktradar' },
-      { label: 'Pinboard', icon: StickyNote, path: 'pinboard' },
-      { label: 'Audit-Log', icon: History, path: 'audit' },
-      { label: 'Suche', icon: Search, path: 'suche' },
-    ]
-  },
-]
-
-const ADMIN_ITEMS = [
-  { label: 'Benutzerverwaltung', icon: ShieldCheck, path: '/admin/benutzer' },
-]
+import { useT } from '@/lib/useT'
+import { navT } from '@/lib/i18n'
 
 export function Sidebar() {
   const { projectId } = useParams()
   const navigate = useNavigate()
   const { sidebarCollapsed, toggleSidebar } = useProjectStore()
   const { user } = useAuth()
+  const tt = useT()
+
+  const navGroups = [
+    {
+      label: tt(navT.overview),
+      items: [
+        { label: tt(navT.dashboard), icon: LayoutDashboard, path: '' },
+        { label: tt(navT.masterData), icon: Film, path: 'stammdaten' },
+      ]
+    },
+    {
+      label: tt(navT.preparation),
+      items: [
+        { label: tt(navT.scenes), icon: FileText, path: 'drehbuch' },
+        { label: tt(navT.scriptEditor), icon: FileEdit, path: 'screenplay-editor' },
+        { label: tt(navT.casting), icon: Users, path: 'besetzung' },
+        { label: tt(navT.crew), icon: Briefcase, path: 'stabliste' },
+        { label: tt(navT.contacts), icon: BookUser, path: 'kontakte' },
+        { label: tt(navT.locations), icon: MapPin, path: 'motive' },
+        { label: tt(navT.equipment), icon: Package, path: 'equipment' },
+        { label: tt(navT.vehicles), icon: Car, path: 'fahrzeuge' },
+        { label: tt(navT.extras), icon: Users, path: 'komparsen' },
+      ]
+    },
+    {
+      label: tt(navT.production),
+      items: [
+        { label: tt(navT.shootingPlan), icon: Clapperboard, path: 'drehplan' },
+        { label: tt(navT.stripboard), icon: LayoutDashboard, path: 'staebchenplan' },
+        { label: tt(navT.shotlist), icon: Camera, path: 'shotlist' },
+        { label: tt(navT.callSheet), icon: ClipboardList, path: 'tagesdispo' },
+        { label: tt(navT.dailyReport), icon: FileCheck, path: 'tagesbericht' },
+      ]
+    },
+    {
+      label: tt(navT.management),
+      items: [
+        { label: tt(navT.budget), icon: DollarSign, path: 'budget' },
+        { label: tt(navT.calendar), icon: Calendar, path: 'kalender' },
+        { label: tt(navT.email), icon: Mail, path: 'email' },
+        { label: tt(navT.conflicts), icon: AlertTriangle, path: 'konfliktradar' },
+        { label: tt(navT.pinboard), icon: StickyNote, path: 'pinboard' },
+        { label: tt(navT.auditLog), icon: History, path: 'audit' },
+        { label: tt(navT.search), icon: Search, path: 'suche' },
+      ]
+    },
+  ]
+
+  const ADMIN_ITEMS = [
+    { label: tt(navT.userMgmt), icon: ShieldCheck, path: '/admin/benutzer' },
+  ]
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -110,7 +113,7 @@ export function Sidebar() {
                   </span>
                 </div>
               )}
-              {sidebarCollapsed && group.label !== 'Übersicht' && (
+              {sidebarCollapsed && group.label !== tt(navT.overview) && (
                 <div className="my-2 mx-2 h-px bg-border/60" />
               )}
               {group.items.map(item => (
@@ -154,12 +157,12 @@ export function Sidebar() {
             {!sidebarCollapsed && (
               <div>
                 <Clapperboard className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground">Kein Projekt geöffnet</p>
+                <p className="text-xs text-muted-foreground">{tt(navT.noProject)}</p>
                 <button
                   onClick={() => navigate('/')}
                   className="mt-2 text-xs text-primary hover:underline flex items-center gap-1 mx-auto"
                 >
-                  Projekt wählen <ChevronRight className="w-3 h-3" />
+                  {tt(navT.chooseProject)} <ChevronRight className="w-3 h-3" />
                 </button>
               </div>
             )}
@@ -171,7 +174,7 @@ export function Sidebar() {
           <div className="mb-1 mt-1">
             {!sidebarCollapsed && (
               <div className="px-2 pb-1 pt-2">
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">Admin</span>
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">{tt(navT.admin)}</span>
               </div>
             )}
             {sidebarCollapsed && <div className="my-2 mx-2 h-px bg-border/60" />}
@@ -232,10 +235,14 @@ export function Sidebar() {
 function UserMenu({ collapsed }: { collapsed: boolean }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const tt = useT()
   if (!user) return null
   const roleLabel: Record<string, string> = {
-    admin: 'Admin', producer: 'Produzent', director: 'Regie',
-    dept_head: 'Abteilungsleitung', read_only: 'Lesezugriff'
+    admin: tt(navT.roles.admin),
+    producer: tt(navT.roles.producer),
+    director: tt(navT.roles.director),
+    dept_head: tt(navT.roles.dept_head),
+    read_only: tt(navT.roles.read_only),
   }
   return (
     <div className="px-2 py-2 flex items-center gap-2">
@@ -251,8 +258,8 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
       <button
         onClick={() => { logout(); navigate('/login') }}
         className="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-        title="Abmelden"
-        aria-label="Abmelden"
+        title={tt(navT.logout)}
+        aria-label={tt(navT.logout)}
       >
         <LogOut className="w-3.5 h-3.5" />
       </button>

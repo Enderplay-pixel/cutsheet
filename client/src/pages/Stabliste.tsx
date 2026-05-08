@@ -10,6 +10,8 @@ import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency, debounce, cn } from '@/lib/utils'
 import { Plus, Trash2, Mail, Phone, Copy, Check, ChevronDown, ChevronUp, Users, Download } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
+import { useT } from '@/lib/useT'
+import { crewT, uiT } from '@/lib/i18n'
 
 const DEPARTMENTS = [
   'Regie', 'Produktion', 'Aufnahmeleitung', 'Kamera', 'Licht', 'Ton',
@@ -23,6 +25,7 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
   const { projectId } = useParams()
   const pid = Number(projectId)
   const { canEdit } = useProjectPerms()
+  const tt = useT()
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.crew.update(member.id, data),
@@ -77,7 +80,7 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
 
       {/* Actions */}
       <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={copyEmail} className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-primary transition-colors" title="E-Mail kopieren">
+        <button onClick={copyEmail} className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-primary transition-colors" title={tt(crewT.copyEmail)}>
           {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
         </button>
         {canEdit && (
@@ -96,6 +99,7 @@ function DepartmentSection({ dept, members, onAdd, onDelete, onCopyEmails }: {
   const [open, setOpen] = useState(true)
   const deptTotal = members.reduce((s, m) => s + (m.fee_per_day || 0), 0)
   const { canEdit } = useProjectPerms()
+  const tt = useT()
 
   return (
     <div className="border border-border/60 rounded-xl overflow-hidden bg-card">
@@ -104,14 +108,14 @@ function DepartmentSection({ dept, members, onAdd, onDelete, onCopyEmails }: {
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left"
       >
         <span className="text-sm font-semibold flex-1">{dept}</span>
-        <span className="text-xs text-muted-foreground tabular-nums">{members.length} Personen</span>
+        <span className="text-xs text-muted-foreground tabular-nums">{members.length} {tt(crewT.persons)}</span>
         {deptTotal > 0 && (
-          <span className="text-xs text-muted-foreground tabular-nums">{formatCurrency(deptTotal)}/Tag</span>
+          <span className="text-xs text-muted-foreground tabular-nums">{formatCurrency(deptTotal)}{tt(uiT.perDay)}</span>
         )}
         <button
           onClick={e => { e.stopPropagation(); onCopyEmails() }}
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary px-2 py-0.5 rounded hover:bg-primary/10 transition-colors"
-          title="Alle E-Mails kopieren"
+          title={tt(crewT.copyEmails)}
         >
           <Mail className="w-3 h-3" />
         </button>
@@ -123,11 +127,11 @@ function DepartmentSection({ dept, members, onAdd, onDelete, onCopyEmails }: {
           {/* Column headers */}
           <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground/60 font-medium uppercase tracking-wide border-b border-border/30 mb-1">
             <div className="w-7" />
-            <div className="flex-1">Name</div>
-            <div className="w-40">Position</div>
-            <div className="flex items-center gap-1 w-[188px]"><Mail className="w-3 h-3" />E-Mail</div>
-            <div className="flex items-center gap-1 w-[118px]"><Phone className="w-3 h-3" />Telefon</div>
-            <div className="w-24 text-right">Gage/Tag</div>
+            <div className="flex-1">{tt(uiT.name)}</div>
+            <div className="w-40">{tt(uiT.position)}</div>
+            <div className="flex items-center gap-1 w-[188px]"><Mail className="w-3 h-3" />{tt(uiT.email)}</div>
+            <div className="flex items-center gap-1 w-[118px]"><Phone className="w-3 h-3" />{tt(uiT.phone)}</div>
+            <div className="w-24 text-right">{tt(uiT.feePerDay)}</div>
             <div className="w-[52px]" />
           </div>
 
@@ -140,7 +144,7 @@ function DepartmentSection({ dept, members, onAdd, onDelete, onCopyEmails }: {
               onClick={onAdd}
               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-2 w-full"
             >
-              <Plus className="w-3 h-3" /> Mitglied hinzufügen
+              <Plus className="w-3 h-3" /> {tt(crewT.addMember)}
             </button>
           )}
         </div>
@@ -156,6 +160,8 @@ export function Component() {
   const { toast } = useToast()
   const { canEdit } = useProjectPerms()
   const [newDept, setNewDept] = useState('Kamera')
+
+  const tt = useT()
 
   const { data: crew, isLoading } = useQuery({
     queryKey: ['crew', pid],
@@ -182,9 +188,9 @@ export function Component() {
     const emails = (grouped[dept] || []).map((m: any) => m.email).filter(Boolean).join(', ')
     if (emails) {
       navigator.clipboard.writeText(emails)
-      toast({ title: `${dept}-E-Mails kopiert` })
+      toast({ title: `${dept} ${tt(crewT.emailsCopied)}` })
     } else {
-      toast({ title: 'Keine E-Mail-Adressen', variant: 'destructive' })
+      toast({ title: tt(crewT.noEmails), variant: 'destructive' })
     }
   }
 
@@ -207,10 +213,10 @@ export function Component() {
     <div className="p-7 max-w-6xl mx-auto animate-fade-up">
       <div className="flex items-start justify-between mb-7">
         <div>
-          <h1 className="text-xl font-semibold">Stabliste</h1>
+          <h1 className="text-xl font-semibold">{tt(crewT.title)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {crew?.length || 0} Mitarbeiter
-            {totalGage > 0 && ` · ${formatCurrency(totalGage)} Gesamtgage/Tag`}
+            {tt(crewT.subtitle).replace('{n}', String(crew?.length || 0))}
+            {totalGage > 0 && ` · ${formatCurrency(totalGage)} ${tt(crewT.totalFee)}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -229,7 +235,7 @@ export function Component() {
                 <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d} className="text-xs">{d}</SelectItem>)}</SelectContent>
               </Select>
               <Button size="sm" onClick={() => createMutation.mutate(newDept)} disabled={createMutation.isPending}>
-                <Plus className="w-3.5 h-3.5 mr-1.5" />Hinzufügen
+                <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(crewT.add)}
               </Button>
             </>
           )}
@@ -241,7 +247,7 @@ export function Component() {
       ) : activeDepts.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground">
           <Users className="w-10 h-10 mx-auto mb-3 opacity-20" />
-          <p className="text-sm">Noch kein Stab angelegt.</p>
+          <p className="text-sm">{tt(crewT.noMembers)}</p>
         </div>
       ) : (
         <div className="space-y-3">

@@ -8,6 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { Search, Mail, Phone, Copy, Check, Users, User, Download } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
+import { useT } from '@/lib/useT'
+import { contactsT, uiT } from '@/lib/i18n'
 
 const DEPT_COLORS: Record<string, string> = {
   Regie: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
@@ -21,13 +23,14 @@ const DEPT_COLORS: Record<string, string> = {
 
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
+  const tt = useT()
   const copy = () => {
     navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }
   return (
-    <button onClick={copy} className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground/50 hover:text-primary transition-colors shrink-0">
+    <button onClick={copy} title={tt(uiT.copy)} className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground/50 hover:text-primary transition-colors shrink-0">
       {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
     </button>
   )
@@ -81,6 +84,7 @@ export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
   const { toast } = useToast()
+  const tt = useT()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'crew' | 'cast'>('all')
 
@@ -119,7 +123,7 @@ export function Component() {
     const emails = allContacts.map(c => c.email).filter(Boolean).join(', ')
     if (!emails) { toast({ title: 'Keine E-Mail-Adressen vorhanden', variant: 'destructive' }); return }
     navigator.clipboard.writeText(emails)
-    toast({ title: `${allContacts.filter(c => c.email).length} E-Mails kopiert` })
+    toast({ title: tt(contactsT.copiedToast) })
   }
 
   const exportCsv = () => {
@@ -136,14 +140,14 @@ export function Component() {
     <div className="p-7 max-w-6xl mx-auto animate-fade-up">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold">Kontaktliste</h1>
+          <h1 className="text-xl font-semibold">{tt(contactsT.title)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {crewContacts.length} Crew · {castContacts.length} Darsteller
+            {tt(contactsT.subtitle).replace('{n}', String(crewContacts.length + castContacts.length))}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={copyAllEmails} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
-            <Mail className="w-3.5 h-3.5" /> Alle E-Mails kopieren
+            <Mail className="w-3.5 h-3.5" /> {tt(contactsT.copyAllEmails)}
           </button>
           <button onClick={exportCsv} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
             <Download className="w-3.5 h-3.5" /> CSV Export
@@ -156,7 +160,7 @@ export function Component() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Name, E-Mail, Telefon…" className="pl-8 h-8 text-sm" />
+            placeholder={tt(contactsT.search)} className="pl-8 h-8 text-sm" />
         </div>
         <div className="flex gap-1 bg-muted/40 rounded-lg p-0.5">
           {(['all', 'crew', 'cast'] as const).map(f => (
@@ -164,7 +168,7 @@ export function Component() {
               className={cn('flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md transition-colors font-medium',
                 filter === f ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}>
-              {f === 'all' ? 'Alle' : f === 'crew' ? <><Users className="w-3 h-3" />Crew</> : <><User className="w-3 h-3" />Cast</>}
+              {f === 'all' ? tt(contactsT.filterAll) : f === 'crew' ? <><Users className="w-3 h-3" />{tt(contactsT.filterCrew)}</> : <><User className="w-3 h-3" />{tt(contactsT.filterCast)}</>}
             </button>
           ))}
         </div>
@@ -174,7 +178,7 @@ export function Component() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border/60 bg-muted/30">
-              {['Name', 'Funktion', 'Abteilung', 'E-Mail', 'Telefon'].map(h => (
+              {[tt(contactsT.colName), tt(contactsT.colType), tt(contactsT.colDept), tt(contactsT.colEmail), tt(contactsT.colPhone)].map(h => (
                 <th key={h} className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{h}</th>
               ))}
             </tr>
@@ -187,7 +191,7 @@ export function Component() {
                 </tr>
               ))
             ) : allContacts.length === 0 ? (
-              <tr><td colSpan={5} className="py-16 text-center text-sm text-muted-foreground">Keine Kontakte gefunden.</td></tr>
+              <tr><td colSpan={5} className="py-16 text-center text-sm text-muted-foreground">{tt(contactsT.noContacts)}</td></tr>
             ) : (
               allContacts.map((c, i) => (
                 <ContactRow key={i} name={c.name} role={c.role} dept={c.dept} email={c.email} phone={c.phone} type={c.type} />

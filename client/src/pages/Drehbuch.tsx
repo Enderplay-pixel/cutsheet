@@ -14,6 +14,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn, eighthsToString, debounce } from '@/lib/utils'
 import { Plus, Trash2, Upload, FileText, MapPin, Users, ChevronDown, ChevronUp, Tag, Search, Film } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
+import { useT } from '@/lib/useT'
+import { scenesT, uiT } from '@/lib/i18n'
 
 const INT_EXT_OPTIONS = ['INT', 'EXT', 'INT/EXT']
 const DAY_NIGHT_OPTIONS = ['TAG', 'NACHT', 'DÄMMERUNG', 'MORGEN']
@@ -36,6 +38,7 @@ function getColor(int_ext: string, day_night: string) {
 
 function SceneRow({ scene, locations, characters, projectId }: { scene: any; locations: any[]; characters: any[]; projectId: number }) {
   const { canEdit } = useProjectPerms()
+  const tt = useT()
   const [expanded, setExpanded] = useState(false)
   const [form, setForm] = useState(scene)
   // Sync form when scene data refreshes from server (e.g. after creation)
@@ -154,6 +157,7 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
           {canEdit && (
             <button
               onClick={e => { e.stopPropagation(); deleteMutation.mutate() }}
+              title={tt(uiT.delete)}
               className="w-6 h-6 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
             >
               <Trash2 className="w-3 h-3" />
@@ -173,26 +177,26 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
                 className="mt-1 h-8 text-sm font-mono" />
             </div>
             <div className="col-span-5">
-              <Label className="text-xs text-muted-foreground">Titel / Szenenüberschrift</Label>
+              <Label className="text-xs text-muted-foreground">{tt(scenesT.detailTitle)}</Label>
               <Input value={form.title || ''} onChange={e => updateField('title', e.target.value)}
                 className="mt-1 h-8 text-sm" />
             </div>
             <div className="col-span-2">
-              <Label className="text-xs text-muted-foreground">INT / EXT</Label>
+              <Label className="text-xs text-muted-foreground">{tt(scenesT.detailIntExt)}</Label>
               <Select value={form.int_ext || 'INT'} onValueChange={v => updateField('int_ext', v)}>
                 <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>{INT_EXT_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="col-span-2">
-              <Label className="text-xs text-muted-foreground">Tag / Nacht</Label>
+              <Label className="text-xs text-muted-foreground">{tt(scenesT.detailDayNight)}</Label>
               <Select value={form.day_night || 'TAG'} onValueChange={v => updateField('day_night', v)}>
                 <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>{DAY_NIGHT_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="col-span-2">
-              <Label className="text-xs text-muted-foreground">Seiten (Achtel)</Label>
+              <Label className="text-xs text-muted-foreground">{tt(scenesT.detailPages)}</Label>
               <Input type="number" min="1" max="80" value={form.eighths || 8}
                 onChange={e => updateField('eighths', Number(e.target.value))} className="mt-1 h-8 text-sm" />
             </div>
@@ -200,7 +204,7 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-muted-foreground">Motiv</Label>
+              <Label className="text-xs text-muted-foreground">{tt(scenesT.detailLocation)}</Label>
               <Select value={String(form.location_id || '__none__')} onValueChange={v => updateField('location_id', v === '__none__' ? null : Number(v))}>
                 <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder="Kein Motiv" /></SelectTrigger>
                 <SelectContent>
@@ -217,7 +221,7 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
           </div>
 
           <div>
-            <Label className="text-xs text-muted-foreground">Synopsis / Szenenbeschreibung</Label>
+            <Label className="text-xs text-muted-foreground">{tt(scenesT.detailDescr)}</Label>
             <Textarea value={form.description || ''} onChange={e => updateField('description', e.target.value)}
               rows={2} className="mt-1 text-sm resize-none" />
           </div>
@@ -225,7 +229,7 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
           {/* Characters */}
           <div>
             <Label className="text-xs text-muted-foreground flex items-center gap-1 mb-2">
-              <Users className="w-3 h-3" />Figuren in dieser Szene
+              <Users className="w-3 h-3" />{tt(scenesT.detailChars)}
             </Label>
             <div className="flex flex-wrap gap-1.5">
               {(scene.characters || []).map((c: any) => (
@@ -250,7 +254,7 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
           {/* Inventory */}
           <div>
             <Label className="text-xs text-muted-foreground flex items-center gap-1 mb-2">
-              <Tag className="w-3 h-3" />Requisiten & Besonderheiten
+              <Tag className="w-3 h-3" />{tt(scenesT.detailInventory)}
             </Label>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {(scene.inventory || []).map((item: any) => (
@@ -271,7 +275,7 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
               <Input value={newItem} onChange={e => setNewItem(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && newItem && addInventoryMutation.mutate()}
                 placeholder="Eintrag hinzufügen…" className="h-7 text-xs flex-1" />
-              <Button size="sm" variant="outline" className="h-7 px-2.5" onClick={() => newItem && addInventoryMutation.mutate()} disabled={!newItem}>
+              <Button size="sm" variant="outline" className="h-7 px-2.5" title={tt(scenesT.addInventory)} onClick={() => newItem && addInventoryMutation.mutate()} disabled={!newItem}>
                 <Plus className="w-3 h-3" />
               </Button>
             </div>
@@ -292,6 +296,7 @@ function ImportDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
   const [text, setText] = useState('')
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
   const importMutation = useMutation({
     mutationFn: () => api.scenes.import(projectId, text),
     onSuccess: (scenes: any[]) => {
@@ -304,16 +309,16 @@ function ImportDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>Szenen aus Text importieren</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{tt(scenesT.importTitle)}</DialogTitle></DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Format: <code className="bg-muted px-1.5 py-0.5 rounded text-xs">1 INT. WOHNKÜCHE – TAG</code> (eine Szene pro Zeile)
+          {tt(scenesT.importHint)}
         </p>
         <Textarea value={text} onChange={e => setText(e.target.value)} rows={10}
           placeholder={"1 INT. WOHNKÜCHE – TAG\n2 EXT. PARK – TAG\n3 INT. CAFÉ – NACHT"} className="font-mono text-sm" />
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Abbrechen</Button>
+          <Button variant="outline" onClick={onClose}>{tt(uiT.cancel)}</Button>
           <Button onClick={() => importMutation.mutate()} disabled={!text.trim() || importMutation.isPending}>
-            {importMutation.isPending ? 'Importiere…' : `Importieren`}
+            {importMutation.isPending ? tt(scenesT.importing) : tt(scenesT.importBtn2)}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -327,6 +332,7 @@ export function Component() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { canEdit } = useProjectPerms()
+  const tt = useT()
   const [importOpen, setImportOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState<string>('all')
@@ -379,17 +385,20 @@ export function Component() {
       <div className="px-7 pt-7 pb-4 border-b border-border/40 shrink-0">
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h1 className="text-xl font-semibold">Szenenübersicht</h1>
+            <h1 className="text-xl font-semibold">{tt(scenesT.title)}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {scenes?.length || 0} Szenen · {eighthsToString(totalEighths)} Seiten · ca. {totalMinutes} Min.
+              {tt(scenesT.subtitle)
+                .replace('{n}', String(scenes?.length || 0))
+                .replace('{p}', eighthsToString(totalEighths))
+                .replace('{m}', String(totalMinutes))}
             </p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-              <Upload className="w-3.5 h-3.5 mr-1.5" />Import
+              <Upload className="w-3.5 h-3.5 mr-1.5" />{tt(scenesT.importBtn)}
             </Button>
             <Button size="sm" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-              <Plus className="w-3.5 h-3.5 mr-1.5" />Neue Szene
+              <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(scenesT.newScene)}
             </Button>
           </div>
         </div>
@@ -397,13 +406,13 @@ export function Component() {
         {/* Stats pills */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           {[
-            { label: 'Alle', value: 'all', count: scenes?.length || 0 },
+            { label: tt(scenesT.filterAll), value: 'all', count: scenes?.length || 0 },
             { label: 'INT', value: 'INT', count: intCount },
             { label: 'EXT', value: 'EXT', count: extCount },
-            { label: 'Tag', value: 'TAG', count: dayCount },
-            { label: 'Nacht', value: 'NACHT', count: nightCount },
-            { label: '✓ Abgedreht', value: 'abgedreht', count: shotCount },
-            { label: 'Offen', value: 'offen', count: (scenes?.length || 0) - shotCount },
+            { label: tt(scenesT.filterDay), value: 'TAG', count: dayCount },
+            { label: tt(scenesT.filterNight), value: 'NACHT', count: nightCount },
+            { label: tt(scenesT.filterShot), value: 'abgedreht', count: shotCount },
+            { label: tt(scenesT.filterOpen), value: 'offen', count: (scenes?.length || 0) - shotCount },
           ].map(f => (
             <button key={f.value}
               onClick={() => setFilterType(f.value)}
@@ -421,19 +430,19 @@ export function Component() {
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Szene suchen…" className="pl-8 h-7 text-xs" />
+                placeholder={tt(uiT.search)} className="pl-8 h-7 text-xs" />
             </div>
           </div>
         </div>
 
         {/* Table header */}
         <div className="flex items-center gap-4 px-4 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">
-          <div className="w-14">Nr.</div>
-          <div className="w-24">Typ</div>
-          <div className="flex-1">Titel</div>
-          <div className="w-28 hidden md:block">Motiv</div>
-          <div className="w-8">Fig.</div>
-          <div className="w-12 text-right">Seiten</div>
+          <div className="w-14">{tt(scenesT.colNumber)}</div>
+          <div className="w-24">{tt(scenesT.colType)}</div>
+          <div className="flex-1">{tt(scenesT.colTitle)}</div>
+          <div className="w-28 hidden md:block">{tt(scenesT.colLocation)}</div>
+          <div className="w-8">{tt(scenesT.colChars)}</div>
+          <div className="w-12 text-right">{tt(scenesT.colPages)}</div>
           <div className="w-6" />
         </div>
       </div>
@@ -448,13 +457,13 @@ export function Component() {
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <Film className="w-10 h-10 mb-3 opacity-20" />
             {search || filterType !== 'all' ? (
-              <p className="text-sm">Keine Szenen gefunden</p>
+              <p className="text-sm">{tt(scenesT.noneFound)}</p>
             ) : (
               <>
-                <p className="text-sm font-medium mb-1">Noch keine Szenen</p>
-                <p className="text-xs mb-4">Erstelle die erste Szene oder importiere aus einem Skript.</p>
+                <p className="text-sm font-medium mb-1">{tt(scenesT.noScenes)}</p>
+                <p className="text-xs mb-4">{tt(scenesT.noScenesHint)}</p>
                 <Button size="sm" onClick={() => createMutation.mutate()}>
-                  <Plus className="w-3.5 h-3.5 mr-1.5" />Erste Szene
+                  <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(scenesT.newScene)}
                 </Button>
               </>
             )}

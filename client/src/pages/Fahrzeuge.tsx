@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
 import { Plus, Trash2, Pencil, Check, X, Car } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
+import { useT } from '@/lib/useT'
+import { vehicleT, uiT } from '@/lib/i18n'
 
 interface Vehicle {
   id: number
@@ -27,6 +29,7 @@ function VehicleRow({ vehicle, pid, onEdit }: { vehicle: Vehicle; pid: number; o
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { canEdit } = useProjectPerms()
+  const tt = useT()
   const deleteMutation = useMutation({
     mutationFn: () => api.vehicles.delete(pid, vehicle.id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['vehicles', pid] }); toast({ title: 'Fahrzeug gelöscht' }) },
@@ -44,10 +47,10 @@ function VehicleRow({ vehicle, pid, onEdit }: { vehicle: Vehicle; pid: number; o
         <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
           {canEdit && (
             <>
-              <button onClick={() => onEdit(vehicle)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Bearbeiten">
+              <button onClick={() => onEdit(vehicle)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground" title={tt(uiT.edit)}>
                 <Pencil className="w-3.5 h-3.5" />
               </button>
-              <button onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-destructive" title="Löschen">
+              <button onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-destructive" title={tt(uiT.delete)}>
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </>
@@ -102,6 +105,7 @@ export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
   const { canEdit } = useProjectPerms()
+  const tt = useT()
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
 
@@ -116,13 +120,13 @@ export function Component() {
         <div className="flex items-center gap-3">
           <Car className="w-5 h-5 text-muted-foreground" />
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">Fahrzeuge</h1>
-            <p className="text-sm text-muted-foreground">{vehicles.length} Fahrzeug{vehicles.length !== 1 ? 'e' : ''}</p>
+            <h1 className="text-xl font-semibold tracking-tight">{tt(vehicleT.title)}</h1>
+            <p className="text-sm text-muted-foreground">{tt(vehicleT.subtitle).replace('{n}', String(vehicles?.length || 0))}</p>
           </div>
         </div>
         {canEdit && (
           <Button onClick={() => { setAdding(true); setEditingId(null) }} disabled={adding}>
-            <Plus className="w-4 h-4 mr-2" /> Fahrzeug hinzufügen
+            <Plus className="w-4 h-4 mr-2" /> {tt(vehicleT.addVehicle)}
           </Button>
         )}
       </div>
@@ -132,8 +136,8 @@ export function Component() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/60 bg-muted/30">
-                {['Name', 'Kennzeichen', 'Typ', 'Plätze', 'Fahrer', 'Telefon', ''].map(h => (
-                  <th key={h} className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{h}</th>
+                {['Name', tt(vehicleT.labelPlate), tt(vehicleT.labelType), 'Plätze', tt(vehicleT.labelDriver), 'Telefon', ''].map((h, i) => (
+                  <th key={i} className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -146,7 +150,7 @@ export function Component() {
                   </tr>
                 ))
               ) : vehicles.length === 0 && !adding ? (
-                <tr><td colSpan={7} className="py-16 text-center text-muted-foreground text-sm">Keine Fahrzeuge vorhanden.</td></tr>
+                <tr><td colSpan={7} className="py-16 text-center text-muted-foreground text-sm">{tt(vehicleT.noVehicles)}</td></tr>
               ) : (
                 (vehicles as Vehicle[]).map(v =>
                   editingId === v.id ? (

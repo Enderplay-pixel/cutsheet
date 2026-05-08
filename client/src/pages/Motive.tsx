@@ -12,6 +12,8 @@ import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency, debounce, cn } from '@/lib/utils'
 import { Plus, Trash2, MapPin, Zap, ExternalLink, ChevronDown, ChevronUp, Download } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
+import { useT } from '@/lib/useT'
+import { locT, uiT } from '@/lib/i18n'
 
 function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]; onDelete: () => void }) {
   const [form, setForm] = useState(loc)
@@ -20,6 +22,7 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
   const { projectId } = useParams()
   const pid = Number(projectId)
   const { canEdit } = useProjectPerms()
+  const tt = useT()
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.locations.update(loc.id, data),
@@ -60,7 +63,7 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
         <div className="flex items-center gap-2 shrink-0">
           {daysAtLocation > 0 && (
             <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-              {daysAtLocation} Drehtage
+              {daysAtLocation} {tt(locT.scenesUsed)}
             </span>
           )}
           {form.power_available && (
@@ -75,7 +78,8 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
           )}
           {canEdit && (
             <button onClick={e => { e.stopPropagation(); onDelete() }}
-              className="w-7 h-7 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
+              className="w-7 h-7 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors"
+              title={tt(uiT.delete)}>
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
@@ -87,13 +91,13 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
       {expanded && (
         <div className="border-t border-border/40 p-4 bg-muted/20 space-y-3 animate-fade-up">
           <div>
-            <Label className="text-xs text-muted-foreground">Name des Motivs</Label>
+            <Label className="text-xs text-muted-foreground">{tt(locT.labelName)}</Label>
             <Input value={form.name || ''} onChange={e => update('name', e.target.value)} className="mt-1 h-8 text-sm" />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <Label className="text-xs text-muted-foreground">Straße & Hausnummer</Label>
+              <Label className="text-xs text-muted-foreground">{tt(locT.labelAddress)}</Label>
               <Input value={form.address || ''} onChange={e => update('address', e.target.value)} className="mt-1 h-8 text-xs" />
             </div>
             <div>
@@ -141,7 +145,7 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
           )}
 
           <div>
-            <Label className="text-xs text-muted-foreground">Notizen & Infrastruktur</Label>
+            <Label className="text-xs text-muted-foreground">{tt(locT.labelNotes)}</Label>
             <Textarea value={form.notes || ''} onChange={e => update('notes', e.target.value)}
               rows={2} className="mt-1 text-xs resize-none" placeholder="Parkplätze, WC, Besonderheiten…" />
           </div>
@@ -157,6 +161,7 @@ export function Component() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { canEdit } = useProjectPerms()
+  const tt = useT()
 
   const { data: locations, isLoading } = useQuery({
     queryKey: ['locations', pid],
@@ -186,9 +191,9 @@ export function Component() {
     <div className="p-7 max-w-4xl mx-auto animate-fade-up">
       <div className="flex items-start justify-between mb-7">
         <div>
-          <h1 className="text-xl font-semibold">Motive & Drehorte</h1>
+          <h1 className="text-xl font-semibold">{tt(locT.title)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {locations?.length || 0} Motive
+            {tt(locT.subtitle).replace('{n}', String(locations?.length || 0))}
             {totalCost > 0 && ` · ${formatCurrency(totalCost)} Mietkosten gesamt`}
           </p>
         </div>
@@ -200,7 +205,7 @@ export function Component() {
           </a>
           {canEdit && (
             <Button size="sm" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-              <Plus className="w-3.5 h-3.5 mr-1.5" />Neues Motiv
+              <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(locT.newLocation)}
             </Button>
           )}
         </div>
@@ -216,10 +221,10 @@ export function Component() {
           {(!locations || locations.length === 0) && (
             <div className="text-center py-20 text-muted-foreground">
               <MapPin className="w-10 h-10 mx-auto mb-3 opacity-20" />
-              <p className="text-sm font-medium mb-1">Noch keine Motive angelegt.</p>
+              <p className="text-sm font-medium mb-1">{tt(locT.noLocations)}</p>
               {canEdit && (
                 <Button size="sm" className="mt-3" onClick={() => createMutation.mutate()}>
-                  <Plus className="w-3.5 h-3.5 mr-1.5" />Erstes Motiv
+                  <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(locT.newLocation)}
                 </Button>
               )}
             </div>

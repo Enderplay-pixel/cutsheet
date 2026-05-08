@@ -16,6 +16,8 @@ import { ProjectRoleProvider } from '@/contexts/ProjectRoleContext'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { EyeOff } from 'lucide-react'
+import { useT } from '@/lib/useT'
+import { appT } from '@/lib/i18n'
 
 function AppShell() {
   const { projectId } = useParams()
@@ -47,6 +49,7 @@ function AppShell() {
     enabled: !!projectId,
   })
   const myRole = (project as any)?.my_role ?? 'read_only'
+  const tt = useT()
 
   // Apply dark mode class
   useEffect(() => {
@@ -97,7 +100,7 @@ function AppShell() {
             {projectId && myRole === 'read_only' && (
               <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-600 dark:text-amber-400 shrink-0">
                 <EyeOff className="w-3.5 h-3.5 shrink-0" />
-                <span>Du hast <strong>Lesezugriff</strong> auf dieses Projekt — Bearbeitungen sind nicht möglich.</span>
+                <span>{tt(appT.readOnlyBanner)}</span>
               </div>
             )}
             <main id="main-content" className="flex-1 overflow-auto" role="main">

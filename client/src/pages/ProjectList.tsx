@@ -13,6 +13,8 @@ import { Plus, Film, Copy, ArrowRight, Clapperboard, Trash2, Archive, ArchiveRes
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { OnboardingWizard } from '@/components/OnboardingWizard'
+import { useT } from '@/lib/useT'
+import { projectsT, uiT } from '@/lib/i18n'
 
 const STATUS_COLORS: Record<string, string> = {
   'Entwicklung':    'text-zinc-400 bg-zinc-400/10',
@@ -27,6 +29,7 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { toast } = useToast()
+  const tt = useT()
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.projects.create(data),
@@ -44,20 +47,20 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Neues Projekt erstellen</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{tt(projectsT.modalTitle)}</DialogTitle></DialogHeader>
         <div className="space-y-4 py-2">
           <div>
-            <Label className="text-xs text-muted-foreground">Projekttitel</Label>
+            <Label className="text-xs text-muted-foreground">{tt(projectsT.labelTitle)}</Label>
             <Input value={form.title} onChange={e => f('title', e.target.value)}
               placeholder="Mein Film" className="mt-1 h-9 text-base font-medium" autoFocus />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-muted-foreground">Genre</Label>
+              <Label className="text-xs text-muted-foreground">{tt(projectsT.labelGenre)}</Label>
               <Input value={form.genre} onChange={e => f('genre', e.target.value)} placeholder="Drama" className="mt-1 h-8" />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Format</Label>
+              <Label className="text-xs text-muted-foreground">{tt(projectsT.labelFormat)}</Label>
               <Select value={form.format} onValueChange={v => f('format', v)}>
                 <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -82,7 +85,7 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Abbrechen</Button>
           <Button onClick={() => createMutation.mutate(form)} disabled={!form.title || createMutation.isPending}>
-            {createMutation.isPending ? 'Erstellen…' : 'Projekt erstellen'}
+            {createMutation.isPending ? tt(projectsT.creating) : tt(uiT.create)}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -94,6 +97,7 @@ export function Component() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
   const [showNew, setShowNew] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
 
@@ -111,7 +115,7 @@ export function Component() {
     mutationFn: ({ id, archived }: { id: number; archived: boolean }) => api.projects.archive(id, archived),
     onSuccess: (_, { archived }) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
-      toast({ title: archived ? 'Projekt archiviert' : 'Projekt wiederhergestellt' })
+      toast({ title: archived ? tt(projectsT.archivedToast) : tt(projectsT.restoredToast) })
     },
   })
 
@@ -143,10 +147,10 @@ export function Component() {
               )}
             >
               <Archive className="w-3.5 h-3.5" />
-              {showArchived ? 'Aktive anzeigen' : 'Archiv'}
+              {showArchived ? tt(projectsT.hideArchive) : tt(projectsT.showArchive)}
             </button>
             <Button onClick={() => setShowNew(true)} size="sm">
-              <Plus className="w-3.5 h-3.5 mr-1.5" />Neues Projekt
+              <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(projectsT.newProject)}
             </Button>
           </div>
         </div>
@@ -154,7 +158,7 @@ export function Component() {
         {/* Project section header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
-            {showArchived ? 'Archivierte Projekte' : 'Meine Projekte'}
+            {showArchived ? tt(projectsT.archived) : tt(projectsT.title)}
           </h2>
           {projects && projects.length > 0 && (
             <span className="text-xs text-muted-foreground">{projects.length} Projekt{projects.length !== 1 ? 'e' : ''}</span>
@@ -170,12 +174,12 @@ export function Component() {
             <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-5">
               <Film className="w-8 h-8 text-muted-foreground/40" />
             </div>
-            <h2 className="text-lg font-semibold mb-1.5">Noch keine Projekte</h2>
+            <h2 className="text-lg font-semibold mb-1.5">{tt(projectsT.empty)}</h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs">
               Erstelle dein erstes Filmprojekt, um loszulegen.
             </p>
             <Button onClick={() => setShowNew(true)}>
-              <Plus className="w-4 h-4 mr-2" />Erstes Projekt erstellen
+              <Plus className="w-4 h-4 mr-2" />{tt(projectsT.createFirst)}
             </Button>
           </div>
         ) : (
@@ -235,7 +239,7 @@ export function Component() {
                   <button
                     onClick={e => { e.stopPropagation(); archiveMutation.mutate({ id: project.id, archived: !showArchived }) }}
                     className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/40 hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-                    title={showArchived ? 'Wiederherstellen' : 'Archivieren'}
+                    title={showArchived ? tt(projectsT.restore) : tt(projectsT.archive)}
                   >
                     {showArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
                   </button>

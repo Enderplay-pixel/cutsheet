@@ -9,6 +9,8 @@ import {
   TrendingUp
 } from 'lucide-react'
 import { differenceInDays, parseISO } from 'date-fns'
+import { useT } from '@/lib/useT'
+import { dashT } from '@/lib/i18n'
 
 function StatCard({ label, value, sub, icon: Icon, accent }: {
   label: string; value: number | string; sub?: string; icon: any; accent?: boolean
@@ -35,6 +37,7 @@ function StatCard({ label, value, sub, icon: Icon, accent }: {
 export function Component() {
   const { projectId } = useParams()
   const navigate = useNavigate()
+  const tt = useT()
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -96,7 +99,7 @@ export function Component() {
           {daysUntilShoot !== null && daysUntilShoot >= 0 && (
             <div className="text-right">
               <div className="text-3xl font-bold tabular-nums text-primary">{daysUntilShoot}</div>
-              <div className="text-xs text-muted-foreground">Tage bis Drehtag 1</div>
+              <div className="text-xs text-muted-foreground">{tt(dashT.daysUntil)}</div>
             </div>
           )}
         </div>
@@ -104,15 +107,15 @@ export function Component() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Szenen" value={stats?.total_scenes || 0}
-          sub={`${stats?.scheduled_scenes || 0} im Drehplan`} icon={Film} />
-        <StatCard label="Drehtage" value={stats?.total_shoot_days || 0}
-          sub={`${stats?.completed_shoot_days || 0} abgedreht`} icon={Clapperboard}
+        <StatCard label={tt(dashT.scenes)} value={stats?.total_scenes || 0}
+          sub={`${stats?.scheduled_scenes || 0} ${tt(dashT.inPlan)}`} icon={Film} />
+        <StatCard label={tt(dashT.shootDays)} value={stats?.total_shoot_days || 0}
+          sub={`${stats?.completed_shoot_days || 0} ${tt(dashT.shot)}`} icon={Clapperboard}
           accent={daysUntilShoot !== null && daysUntilShoot <= 14} />
-        <StatCard label="Darsteller" value={stats?.total_cast || 0}
-          sub="Hauptbesetzung" icon={Users} />
-        <StatCard label="Team" value={stats?.total_crew || 0}
-          sub="Stabmitglieder" icon={Briefcase} />
+        <StatCard label={tt(dashT.cast)} value={stats?.total_cast || 0}
+          sub={tt(dashT.mainCast)} icon={Users} />
+        <StatCard label={tt(dashT.team)} value={stats?.total_crew || 0}
+          sub={tt(dashT.crewMembers)} icon={Briefcase} />
       </div>
 
       {/* Main content grid */}
@@ -122,12 +125,12 @@ export function Component() {
         <div className="lg:col-span-2 bg-card border border-border/60 rounded-xl p-6">
           <div className="flex items-center gap-2 mb-5">
             <TrendingUp className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-medium">Produktionsfortschritt</h2>
+            <h2 className="text-sm font-medium">{tt(dashT.progress)}</h2>
           </div>
           <div className="space-y-5">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">Drehplan vollständig</span>
+                <span className="text-sm text-muted-foreground">{tt(dashT.scheduleDone)}</span>
                 <span className="text-sm font-semibold tabular-nums">{scheduleProgress}%</span>
               </div>
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -137,13 +140,13 @@ export function Component() {
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
-                {stats?.scheduled_scenes} von {stats?.total_scenes} Szenen eingeplant
+                {tt(dashT.scenesScheduled).replace('{n}', stats?.scheduled_scenes).replace('{total}', stats?.total_scenes)}
               </p>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">Drehtage abgeschlossen</span>
+                <span className="text-sm text-muted-foreground">{tt(dashT.shootDaysDone)}</span>
                 <span className="text-sm font-semibold tabular-nums">{shootProgress}%</span>
               </div>
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -153,13 +156,13 @@ export function Component() {
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
-                {stats?.completed_shoot_days} von {stats?.total_shoot_days} Drehtagen
+                {tt(dashT.daysCompleted).replace('{n}', stats?.completed_shoot_days).replace('{total}', stats?.total_shoot_days)}
               </p>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">Szenen abgedreht</span>
+                <span className="text-sm text-muted-foreground">{tt(dashT.scenesShot)}</span>
                 <span className="text-sm font-semibold tabular-nums">{shotScenesProgress}%</span>
               </div>
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -169,20 +172,20 @@ export function Component() {
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
-                {stats?.shot_scenes || 0} von {stats?.total_scenes} Szenen abgedreht
+                {tt(dashT.scenesShootOf).replace('{n}', String(stats?.shot_scenes || 0)).replace('{total}', String(stats?.total_scenes))}
               </p>
             </div>
 
             {stats?.budget_total_cents > 0 && (
               <div className="pt-4 border-t border-border/50 grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-xs text-muted-foreground mb-1">Budget</div>
+                  <div className="text-xs text-muted-foreground mb-1">{tt(dashT.budget)}</div>
                   <div className="text-base font-semibold tabular-nums">
                     {formatCurrency(stats.budget_total_cents)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-muted-foreground mb-1">Finanzierung</div>
+                  <div className="text-xs text-muted-foreground mb-1">{tt(dashT.financing)}</div>
                   <div className={cn(
                     'text-base font-semibold tabular-nums',
                     financingOk ? 'text-green-400' : 'text-red-400'
@@ -191,7 +194,7 @@ export function Component() {
                   </div>
                   {!financingOk && (
                     <div className="text-xs text-red-400/80 mt-0.5">
-                      −{formatCurrency(budgetGap)} Lücke
+                      {tt(dashT.gap).replace('{n}', formatCurrency(budgetGap))}
                     </div>
                   )}
                 </div>
@@ -207,23 +210,23 @@ export function Component() {
             <div className="bg-card border border-primary/20 rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Clock className="w-3.5 h-3.5 text-primary" />
-                <span className="text-xs font-medium text-primary uppercase tracking-wide">Nächster Drehtag</span>
+                <span className="text-xs font-medium text-primary uppercase tracking-wide">{tt(dashT.nextShootDay)}</span>
               </div>
-              <div className="text-lg font-semibold">Tag {stats.next_shoot_day.day_number}</div>
+              <div className="text-lg font-semibold">{tt(dashT.day)} {stats.next_shoot_day.day_number}</div>
               <div className="text-sm text-muted-foreground mt-0.5">
                 {formatDateLong(stats.next_shoot_day.date)}
               </div>
               {daysUntilShoot !== null && (
                 <div className="text-xs text-muted-foreground mt-1">
-                  {daysUntilShoot === 0 ? 'Heute!' : daysUntilShoot === 1 ? 'Morgen' : `In ${daysUntilShoot} Tagen`}
+                  {daysUntilShoot === 0 ? tt(dashT.today) : daysUntilShoot === 1 ? tt(dashT.tomorrow) : tt(dashT.inDays).replace('{n}', String(daysUntilShoot))}
                 </div>
               )}
               <button
                 onClick={() => navigate(`/projects/${projectId}/tagesdispo/${stats.next_shoot_day.id}`)}
-                aria-label="Tagesdispo öffnen"
+                aria-label={tt(dashT.openCallSheet)}
                 className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs text-primary hover:text-primary/80 border border-primary/20 hover:border-primary/40 rounded-md py-1.5 transition-colors"
               >
-                Tagesdispo öffnen <ArrowRight className="w-3 h-3" />
+                {tt(dashT.openCallSheet)} <ArrowRight className="w-3 h-3" />
               </button>
             </div>
           )}
@@ -240,29 +243,29 @@ export function Component() {
                   ? <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
                   : <CheckCircle className="w-3.5 h-3.5 text-green-400" />
               }
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Konfliktradar</span>
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{tt(dashT.conflictRadar)}</span>
             </div>
 
             {conflicts?.length === 0 ? (
-              <p className="text-sm text-green-400 font-medium">Keine Konflikte</p>
+              <p className="text-sm text-green-400 font-medium">{tt(dashT.noConflicts)}</p>
             ) : (
               <div className="space-y-1">
                 {errors.length > 0 && (
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-red-400">{errors.length}</span>
-                    <span className="text-xs text-muted-foreground">Fehler</span>
+                    <span className="text-xs text-muted-foreground">{tt(dashT.errors)}</span>
                   </div>
                 )}
                 {warnings.length > 0 && (
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-amber-400">{warnings.length}</span>
-                    <span className="text-xs text-muted-foreground">Warnungen</span>
+                    <span className="text-xs text-muted-foreground">{tt(dashT.warnings)}</span>
                   </div>
                 )}
                 {infos.length > 0 && (
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-blue-400">{infos.length}</span>
-                    <span className="text-xs text-muted-foreground">Hinweise</span>
+                    <span className="text-xs text-muted-foreground">{tt(dashT.hints)}</span>
                   </div>
                 )}
               </div>

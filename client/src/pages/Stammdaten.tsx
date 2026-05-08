@@ -13,6 +13,8 @@ import { QRCodeSVG } from 'qrcode.react'
 import { TimeInput } from '@/components/ui/time-input'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
+import { useT } from '@/lib/useT'
+import { masterT, uiT } from '@/lib/i18n'
 
 const FORMATS = ['Kurzfilm', 'Spielfilm', 'Serie', 'Dokumentarfilm', 'Werbefilm', 'Imagefilm', 'Musikvideo']
 const STATUSES = ['Entwicklung', 'Vorproduktion', 'Produktion', 'Postproduktion', 'Abgeschlossen', 'Archiviert']
@@ -49,6 +51,7 @@ const ROLE_OPTS = [
 ]
 
 function InviteSection({ pid }: { pid: number }) {
+  const tt = useT()
   const qc = useQueryClient()
   const { toast } = useToast()
   const { user } = useAuth()
@@ -118,7 +121,7 @@ function InviteSection({ pid }: { pid: number }) {
             onChange={e => setNewLabel(e.target.value)}
           />
           <Button size="sm" className="h-8 text-xs" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> Link erstellen
+            <Plus className="w-3.5 h-3.5 mr-1" /> {tt(masterT.createInvite)}
           </Button>
         </div>
       </div>
@@ -127,7 +130,7 @@ function InviteSection({ pid }: { pid: number }) {
       {invLoading ? (
         <div className="p-5 text-xs text-muted-foreground">Laden…</div>
       ) : (invites as any[]).length === 0 ? (
-        <div className="p-5 text-xs text-muted-foreground text-center py-8">Noch keine Einladungslinks erstellt.</div>
+        <div className="p-5 text-xs text-muted-foreground text-center py-8">{tt(masterT.noInvites)}</div>
       ) : (
         <div className="divide-y divide-border/40">
           {(invites as any[]).map((inv: any) => (
@@ -142,14 +145,14 @@ function InviteSection({ pid }: { pid: number }) {
               <button
                 onClick={() => copyLink(inv.id, inv.token)}
                 className="shrink-0 w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                title="Link kopieren"
+                title={tt(masterT.copyLink)}
               >
                 {copied === inv.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
               <button
                 onClick={() => setQrOpen(qrOpen === inv.token ? null : inv.token)}
                 className="shrink-0 w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                title="QR-Code anzeigen"
+                title={tt(masterT.showQr)}
               >
                 <QrCode className="w-3.5 h-3.5" />
               </button>
@@ -162,7 +165,7 @@ function InviteSection({ pid }: { pid: number }) {
               <button
                 onClick={() => deleteMutation.mutate(inv.id)}
                 className="shrink-0 w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"
-                title="Link löschen"
+                title={tt(masterT.deleteInvite)}
               >
                 <Trash2 className="w-3 h-3" />
               </button>
@@ -190,7 +193,7 @@ function InviteSection({ pid }: { pid: number }) {
                   <button
                     onClick={() => removeMemberMutation.mutate(m.user_id)}
                     className="shrink-0 w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground/40 hover:text-destructive transition-colors"
-                    title="Mitglied entfernen"
+                    title={tt(masterT.removeMember)}
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -205,6 +208,7 @@ function InviteSection({ pid }: { pid: number }) {
 }
 
 export function Component() {
+  const tt = useT()
   const { projectId } = useParams()
   const pid = Number(projectId)
   const queryClient = useQueryClient()
@@ -275,7 +279,7 @@ export function Component() {
     <div className="p-7 max-w-3xl mx-auto animate-fade-up space-y-4">
       <div className="flex items-start justify-between mb-7">
         <div>
-          <h1 className="text-xl font-semibold">Stammdaten</h1>
+          <h1 className="text-xl font-semibold">{tt(masterT.title)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Grundlegende Projektinformationen</p>
         </div>
         <div className={cn(
@@ -283,16 +287,16 @@ export function Component() {
           saved ? 'text-green-400' : 'text-muted-foreground/40'
         )}>
           <Check className="w-3.5 h-3.5" />
-          {saved ? 'Gespeichert' : 'Wird automatisch gespeichert'}
+          {saved ? tt(uiT.save) : 'Wird automatisch gespeichert'}
         </div>
       </div>
 
       <FormSection icon={Film} title="Basisdaten">
-        <Field label="Projekttitel" full>
+        <Field label={tt(masterT.labelTitle)} full>
           <Input value={formData.title || ''} onChange={e => update('title', e.target.value)}
             placeholder="Projekttitel" className="h-9 text-base font-medium" />
         </Field>
-        <Field label="Format">
+        <Field label={tt(masterT.labelFormat)}>
           <Select value={formData.format || 'Kurzfilm'} onValueChange={v => update('format', v)}>
             <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
             <SelectContent>{FORMATS.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
@@ -304,16 +308,16 @@ export function Component() {
             <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
           </Select>
         </Field>
-        <Field label="Genre">
+        <Field label={tt(masterT.labelGenre)}>
           <Input value={formData.genre || ''} onChange={e => update('genre', e.target.value)}
             placeholder="z.B. Drama, Thriller, Komödie" className="h-9" />
         </Field>
-        <Field label="Filmlänge (Minuten)">
+        <Field label={tt(masterT.labelMinutes)}>
           <Input type="number" value={formData.length_minutes || ''}
             onChange={e => update('length_minutes', Number(e.target.value))}
             placeholder="z.B. 90" className="h-9" />
         </Field>
-        <Field label="Logline / Kurzbeschreibung" full>
+        <Field label={tt(masterT.labelSynopsis)} full>
           <Textarea value={formData.synopsis || ''} onChange={e => update('synopsis', e.target.value)}
             rows={3} className="resize-none text-sm" placeholder="Worum geht es in dem Film? (1–2 Sätze)" />
         </Field>
@@ -358,7 +362,7 @@ export function Component() {
 
       {settingsData && (
         <FormSection icon={Settings2} title="Produktionseinstellungen">
-          <Field label="Standard-Drehbeginn (General Call)">
+          <Field label={tt(masterT.labelDefaultCall)}>
             <TimeInput
               value={settingsData.default_call_time}
               onChange={v => updateSetting('default_call_time', v)}

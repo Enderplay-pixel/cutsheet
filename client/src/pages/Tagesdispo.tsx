@@ -15,6 +15,8 @@ import {
   CloudSun, Sunrise, Sunset, Film
 } from 'lucide-react'
 import { TimeInput } from '@/components/ui/time-input'
+import { useT } from '@/lib/useT'
+import { dispoT, uiT } from '@/lib/i18n'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -52,6 +54,7 @@ function AddPersonPanel({
 }: {
   callSheet: any; projectId: number; onAdded: () => void; onClose: () => void
 }) {
+  const tt = useT()
   const { data: crew } = useQuery({
     queryKey: ['crew', projectId],
     queryFn: () => api.crew.list(projectId),
@@ -76,7 +79,7 @@ function AddPersonPanel({
     <div className="p-4 border border-border/60 rounded-xl bg-muted/20 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Person hinzufügen
+          {tt(dispoT.addPerson)}
         </span>
         <button onClick={onClose} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
       </div>
@@ -84,7 +87,7 @@ function AddPersonPanel({
       {availableCast.length > 0 && (
         <div>
           <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide mb-2">
-            Darsteller
+            {tt(dispoT.castSection)}
           </p>
           <div className="flex flex-wrap gap-2">
             {availableCast.map((c: any) => (
@@ -104,7 +107,7 @@ function AddPersonPanel({
       {availableCrew.length > 0 && (
         <div>
           <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide mb-2">
-            Stab
+            {tt(dispoT.crewSection)}
           </p>
           <div className="flex flex-wrap gap-2">
             {availableCrew.map((c: any) => (
@@ -122,7 +125,7 @@ function AddPersonPanel({
       )}
 
       {availableCrew.length === 0 && availableCast.length === 0 && (
-        <p className="text-xs text-muted-foreground">Alle Personen sind bereits im Call Sheet.</p>
+        <p className="text-xs text-muted-foreground">{tt(dispoT.allPersonsAdded)}</p>
       )}
     </div>
   )
@@ -139,6 +142,7 @@ function PersonSection({
   onDelete: (id: number) => void
   isCast: boolean
 }) {
+  const tt = useT()
   if (entries.length === 0) return null
 
   return (
@@ -152,25 +156,25 @@ function PersonSection({
         <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
           {title}
         </span>
-        <span className="ml-auto text-xs text-muted-foreground/60">{entries.length} Personen</span>
+        <span className="ml-auto text-xs text-muted-foreground/60">{entries.length} {tt(uiT.persons)}</span>
       </div>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border/30 bg-muted/20">
             <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 pl-4 pr-2 w-40">
-              Name
+              {tt(dispoT.colName)}
             </th>
             <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-36">
-              {isCast ? 'Rolle' : 'Funktion'}
+              {isCast ? tt(dispoT.colRole) : tt(dispoT.colFunction)}
             </th>
             <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-28">
-              Call Time
+              {tt(dispoT.colCallTime)}
             </th>
             <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2">
-              Abholort
+              {tt(dispoT.colPickup)}
             </th>
             <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2">
-              Notiz
+              {tt(dispoT.colNotes)}
             </th>
             <th className="py-2 pr-4 w-8" />
           </tr>
@@ -228,6 +232,7 @@ function PersonSection({
 function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
   callSheet: any; projectId: number; onSaveEntries: (entries: any[]) => void; onRefresh: () => void
 }) {
+  const tt = useT()
   const [entries, setEntries] = useState<any[]>([])
   const [showAdd, setShowAdd] = useState(false)
   const queryClient = useQueryClient()
@@ -265,16 +270,16 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
       <div className="flex items-center justify-between px-5 py-3 border-b border-border/40 bg-muted/30">
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-bold uppercase tracking-widest">Disposition</span>
+          <span className="text-sm font-bold uppercase tracking-widest">{tt(dispoT.disposition)}</span>
         </div>
         <div className="flex items-center gap-2">
           {hasChanges && (
             <Button size="sm" onClick={() => onSaveEntries(entries.map(({ _idx, ...rest }) => rest))}>
-              <Save className="w-3.5 h-3.5 mr-1.5" />Speichern
+              <Save className="w-3.5 h-3.5 mr-1.5" />{tt(uiT.save)}
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={() => setShowAdd(v => !v)}>
-            <Plus className="w-3.5 h-3.5 mr-1.5" />Person hinzufügen
+            <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(dispoT.addPerson)}
           </Button>
         </div>
       </div>
@@ -292,7 +297,7 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
 
       {/* Cast section */}
       <PersonSection
-        title="Darsteller"
+        title={tt(dispoT.castSection)}
         entries={castEntries}
         isCast={true}
         onUpdate={updateEntry}
@@ -306,7 +311,7 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
 
       {/* Crew section */}
       <PersonSection
-        title="Stab"
+        title={tt(dispoT.crewSection)}
         entries={crewEntries}
         isCast={false}
         onUpdate={updateEntry}
@@ -316,8 +321,8 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
       {castEntries.length === 0 && crewEntries.length === 0 && (
         <div className="py-10 text-center text-muted-foreground">
           <ClipboardList className="w-8 h-8 mx-auto mb-2 opacity-20" />
-          <p className="text-sm">Noch keine Personen eingetragen.</p>
-          <p className="text-xs mt-1 opacity-60">Klicke auf „Person hinzufügen".</p>
+          <p className="text-sm">{tt(dispoT.noPeople)}</p>
+          <p className="text-xs mt-1 opacity-60">{tt(dispoT.noPeopleHint)}</p>
         </div>
       )}
     </div>
@@ -327,6 +332,7 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
 // ─── Scenes table ─────────────────────────────────────────────────────────────
 
 function ScenesTable({ scenes }: { scenes: any[] }) {
+  const tt = useT()
   if (!scenes || scenes.length === 0) return null
 
   return (
@@ -334,8 +340,8 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
       {/* Table header */}
       <div className="flex items-center gap-2 px-5 py-3 border-b border-border/40 bg-muted/30">
         <Film className="w-4 h-4 text-muted-foreground" />
-        <span className="text-sm font-bold uppercase tracking-widest">Szenen</span>
-        <span className="ml-auto text-xs text-muted-foreground/60">{scenes.length} Szene{scenes.length !== 1 ? 'n' : ''}</span>
+        <span className="text-sm font-bold uppercase tracking-widest">{tt(dispoT.scenesSection)}</span>
+        <span className="ml-auto text-xs text-muted-foreground/60">{scenes.length} {tt(uiT.scenes)}</span>
       </div>
       <table className="w-full text-sm">
         <thead>
@@ -417,6 +423,7 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function Component() {
+  const tt = useT()
   const { projectId, dayId } = useParams()
   const pid = Number(projectId)
   const navigate = useNavigate()
@@ -462,7 +469,7 @@ export function Component() {
     mutationFn: (data: any) => api.callSheets.createOrUpdate(selectedDayId!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })
-      toast({ title: 'Tagesdispo gespeichert' })
+      toast({ title: tt(dispoT.saved) })
     },
   })
 
@@ -470,7 +477,7 @@ export function Component() {
     mutationFn: (entries: any[]) => api.callSheets.updateEntries(callSheet?.id!, entries),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })
-      toast({ title: 'Call Sheet aktualisiert' })
+      toast({ title: tt(dispoT.updated) })
     },
   })
 
@@ -485,7 +492,7 @@ export function Component() {
     mutationFn: (mins: number) => api.callSheets.shiftTimes(callSheet?.id!, mins),
     onSuccess: (_data, mins) => {
       queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })
-      toast({ title: `Alle Zeiten um ${mins > 0 ? '+' : ''}${mins} Min. verschoben` })
+      toast({ title: tt(dispoT.shiftedToast).replace('{n}', mins > 0 ? `+${mins}` : String(mins)) })
     },
   })
 
@@ -536,8 +543,8 @@ export function Component() {
     return (
       <div className="flex flex-col items-center justify-center h-full py-20 text-center text-muted-foreground">
         <Clock className="w-10 h-10 mb-3 opacity-20" />
-        <p className="text-sm">Keine Drehtage geplant.</p>
-        <p className="text-xs mt-1">Lege zuerst Drehtage im Drehplan an.</p>
+        <p className="text-sm">{tt(dispoT.nodays)}</p>
+        <p className="text-xs mt-1">{tt(dispoT.nodaysHint)}</p>
       </div>
     )
   }
@@ -558,7 +565,7 @@ export function Component() {
             <SelectContent>
               {allDays.map((d: any) => (
                 <SelectItem key={d.id} value={String(d.id)} className="text-xs">
-                  Tag {d.day_number} – {formatDate(d.date)}
+                  {tt(dispoT.dayLabel)} {d.day_number} – {formatDate(d.date)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -594,7 +601,7 @@ export function Component() {
             </span>
             {currentDay && (
               <span className="text-xs text-muted-foreground font-medium ml-1">
-                · Drehtag {currentDay.day_number} von {allDays.length}
+                · {tt(dispoT.dayLabel)} {currentDay.day_number} von {allDays.length}
               </span>
             )}
           </div>
@@ -622,7 +629,7 @@ export function Component() {
               {/* General Call */}
               <div className="bg-foreground/5 border border-border/60 rounded-xl p-5 text-center">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                  General Call
+                  {tt(dispoT.generalCall)}
                 </p>
                 <TimeInput
                   value={headerForm.general_call || 480}
@@ -633,7 +640,7 @@ export function Component() {
               {/* Shooting Call */}
               <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 text-center">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-primary/60 mb-2">
-                  Shooting Call
+                  {tt(dispoT.shootingCall)}
                 </p>
                 <TimeInput
                   value={headerForm.shooting_call || 510}
@@ -649,7 +656,7 @@ export function Component() {
               <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-2.5">
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <MapPin className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Drehort</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{tt(dispoT.location)}</span>
                 </div>
                 <p className="text-sm font-semibold truncate">
                   {locationName || <span className="text-muted-foreground font-normal">–</span>}
@@ -660,21 +667,21 @@ export function Component() {
               <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-2.5">
                 <div className="flex items-center gap-1.5 mb-1">
                   <CloudSun className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Wetter</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{tt(dispoT.weather)}</span>
                   <button
                     onClick={fetchWeather}
                     disabled={weatherLoading}
                     className="ml-auto text-[10px] text-primary hover:underline disabled:opacity-50"
-                    title="Wetter abrufen"
+                    title={tt(dispoT.weather)}
                   >
-                    {weatherLoading ? '…' : 'Abrufen'}
+                    {weatherLoading ? tt(dispoT.weatherFetching) : tt(dispoT.weatherFetch)}
                   </button>
                 </div>
                 <Input
                   value={headerForm.weather_forecast || ''}
                   onChange={e => updateHeader('weather_forecast', e.target.value)}
                   className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-semibold shadow-none"
-                  placeholder="Wetterlage…"
+                  placeholder={tt(dispoT.weatherPlaceholder)}
                 />
               </div>
 
@@ -682,7 +689,7 @@ export function Component() {
               <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-2.5">
                 <div className="flex items-center gap-1.5 mb-1">
                   <Sunrise className="w-3 h-3 text-amber-400" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Sonnenaufgang</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{tt(dispoT.sunrise)}</span>
                 </div>
                 <Input
                   value={headerForm.sunrise || ''}
@@ -696,7 +703,7 @@ export function Component() {
               <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-2.5">
                 <div className="flex items-center gap-1.5 mb-1">
                   <Sunset className="w-3 h-3 text-orange-400" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Sonnenuntergang</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{tt(dispoT.sunset)}</span>
                 </div>
                 <Input
                   value={headerForm.sunset || ''}
@@ -721,12 +728,12 @@ export function Component() {
           {!callSheet?.id ? (
             <div className="bg-card border border-border/60 rounded-xl p-8 text-center">
               <ClipboardList className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
-              <p className="text-sm text-muted-foreground mb-1">Call Sheet noch nicht angelegt</p>
+              <p className="text-sm text-muted-foreground mb-1">{tt(dispoT.callSheetNotCreated)}</p>
               <p className="text-xs text-muted-foreground/60 mb-4">
-                Speichere die Tagesdispo, um die Teilnehmerliste zu aktivieren.
+                {tt(dispoT.callSheetHint)}
               </p>
               <Button size="sm" onClick={() => saveMutation.mutate(headerForm)}>
-                <Save className="w-3.5 h-3.5 mr-1.5" />Tagesdispo erstellen
+                <Save className="w-3.5 h-3.5 mr-1.5" />{tt(dispoT.createDispo)}
               </Button>
             </div>
           ) : (
@@ -746,7 +753,7 @@ export function Component() {
           {/* Time shift card */}
           <div className="col-span-2 bg-card border border-border/60 rounded-xl p-4 h-fit">
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
-              Alle Zeiten verschieben
+              {tt(dispoT.shiftTimes)}
             </p>
             <div className="flex items-center gap-2 mb-3">
               <Button variant="outline" size="icon" className="w-7 h-7"
@@ -778,7 +785,7 @@ export function Component() {
             <div className="bg-card border border-border/60 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  Allgemeine Notizen
+                  {tt(dispoT.generalNotes)}
                 </p>
               </div>
               <Textarea
@@ -786,12 +793,12 @@ export function Component() {
                 onChange={e => updateHeader('notes', e.target.value)}
                 rows={3}
                 className="text-sm resize-none"
-                placeholder="Besonderheiten, Sicherheitshinweise, Parkplätze…"
+                placeholder={tt(dispoT.notesPlaceholder)}
               />
             </div>
             <div className="bg-card border border-border/60 rounded-xl p-4">
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
-                🍽 Catering
+                🍽 {tt(dispoT.catering)}
               </p>
               <div className="flex items-center gap-3">
                 <Button variant="outline" size="icon" className="w-8 h-8"
@@ -805,7 +812,7 @@ export function Component() {
                 </Button>
                 <div className="text-center">
                   <div className="text-2xl font-black tabular-nums">{currentDay?.catering_count || 0}</div>
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Personen</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{tt(dispoT.cateringPersons)}</div>
                 </div>
                 <Button variant="outline" size="icon" className="w-8 h-8"
                   onClick={() => {
@@ -817,7 +824,7 @@ export function Component() {
                   <Plus className="w-3.5 h-3.5" />
                 </Button>
                 <span className="text-xs text-muted-foreground ml-2">
-                  {(currentDay?.catering_count || 0) === 0 ? 'Noch nicht angegeben' : 'Mahlzeiten planen'}
+                  {(currentDay?.catering_count || 0) === 0 ? tt(dispoT.cateringEmpty) : tt(dispoT.cateringPlan)}
                 </span>
               </div>
             </div>
