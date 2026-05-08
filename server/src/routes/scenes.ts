@@ -45,11 +45,11 @@ router.post('/projects/:projectId/scenes', (req, res) => {
 
 // PUT /api/scenes/:id
 router.put('/scenes/:id', (req, res) => {
-  const { scene_number, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes, sort_order } = req.body
+  const { scene_number, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes, sort_order, shot_status } = req.body
   db.prepare(`
-    UPDATE scenes SET scene_number=?, title=?, description=?, location_id=?, int_ext=?, day_night=?, eighths=?, estimated_minutes=?, notes=?, sort_order=COALESCE(?,sort_order), updated_at=datetime('now')
+    UPDATE scenes SET scene_number=?, title=?, description=?, location_id=?, int_ext=?, day_night=?, eighths=?, estimated_minutes=?, notes=?, sort_order=COALESCE(?,sort_order), shot_status=COALESCE(?,shot_status), updated_at=datetime('now')
     WHERE id=?
-  `).run(scene_number, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes, sort_order ?? null, req.params.id)
+  `).run(scene_number, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes, sort_order ?? null, shot_status ?? null, req.params.id)
 
   const scene = db.prepare(`
     SELECT s.*, l.name as location_name FROM scenes s LEFT JOIN locations l ON s.location_id = l.id WHERE s.id = ?

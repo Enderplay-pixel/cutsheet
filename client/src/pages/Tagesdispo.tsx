@@ -490,10 +490,47 @@ export function Component() {
   })
 
   const [shiftAmount, setShiftAmount] = useState(15)
+  const [weatherLoading, setWeatherLoading] = useState(false)
 
   // First scene location for header display
   const firstScene = currentDay?.scenes?.[0]
   const locationName = firstScene?.location_name
+
+  const fetchWeather = async () => {
+    const city = locationName || (project as any)?.location || ''
+    if (!city || !currentDay?.date) {
+      toast({ title: 'Kein Drehort oder Datum', variant: 'destructive' }); return
+    }
+    setWeatherLoading(true)
+    try {
+      const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=de&format=json`)
+      const geoData = await geoRes.json()
+      const loc = geoData.results?.[0]
+      if (!loc) { toast({ title: 'Ort nicht gefunden', variant: 'destructive' }); return }
+
+      const dateStr = currentDay.date.slice(0, 10)
+      const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min&start_date=${dateStr}&end_date=${dateStr}&timezone=Europe%2FBerlin`)
+      const wData = await wRes.json()
+      const code = wData.daily?.weathercode?.[0]
+      const max = wData.daily?.temperature_2m_max?.[0]
+      const min = wData.daily?.temperature_2m_min?.[0]
+
+      const WMO: Record<number, string> = {
+        0:'Klar', 1:'Leicht bewölkt', 2:'Bewölkt', 3:'Bedeckt',
+        45:'Nebel', 48:'Raureif', 51:'Leichter Niesel', 53:'Niesel', 55:'Starker Niesel',
+        61:'Leichter Regen', 63:'Regen', 65:'Starker Regen', 71:'Leichter Schnee', 73:'Schnee',
+        75:'Starker Schnee', 80:'Regenschauer', 81:'Schauer', 82:'Starke Schauer', 95:'Gewitter', 99:'Starkes Gewitter'
+      }
+      const condition = WMO[code] ?? `Code ${code}`
+      const forecast = `${condition}, ${Math.round(min)}–${Math.round(max)}°C`
+      updateHeader('weather_forecast', forecast)
+      toast({ title: `Wetter: ${forecast}` })
+    } catch {
+      toast({ title: 'Wetterdaten nicht abrufbar', variant: 'destructive' })
+    } finally {
+      setWeatherLoading(false)
+    }
+  }
 
   if (!allDays || allDays.length === 0) {
     return (
@@ -624,6 +661,14 @@ export function Component() {
                 <div className="flex items-center gap-1.5 mb-1">
                   <CloudSun className="w-3 h-3 text-muted-foreground" />
                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Wetter</span>
+                  <button
+                    onClick={fetchWeather}
+                    disabled={weatherLoading}
+                    className="ml-auto text-[10px] text-primary hover:underline disabled:opacity-50"
+                    title="Wetter abrufen"
+                  >
+                    {weatherLoading ? '…' : 'Abrufen'}
+                  </button>
                 </div>
                 <Input
                   value={headerForm.weather_forecast || ''}
@@ -728,18 +773,54 @@ export function Component() {
             </div>
           </div>
 
-          {/* Notes card */}
-          <div className="col-span-3 bg-card border border-border/60 rounded-xl p-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
-              Allgemeine Notizen
-            </p>
-            <Textarea
-              value={headerForm?.notes || ''}
-              onChange={e => updateHeader('notes', e.target.value)}
-              rows={4}
-              className="text-sm resize-none"
-              placeholder="Besonderheiten, Sicherheitshinweise, Catering, Parkplätze…"
-            />
+          {/* Notes + Catering card */}
+          <div className="col-span-3 space-y-3">
+            <div className="bg-card border border-border/60 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  Allgemeine Notizen
+                </p>
+              </div>
+              <Textarea
+                value={headerForm?.notes || ''}
+                onChange={e => updateHeader('notes', e.target.value)}
+                rows={3}
+                className="text-sm resize-none"
+                placeholder="Besonderheiten, Sicherheitshinweise, Parkplätze…"
+              />
+            </div>
+            <div className="bg-card border border-border/60 rounded-xl p-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                🍽 Catering
+              </p>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="icon" className="w-8 h-8"
+                  onClick={() => {
+                    const n = Math.max(0, (currentDay?.catering_count || 0) - 1)
+                    api.drehplan.updateDay(selectedDayId!, { catering_count: n }).then(() =>
+                      queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] })
+                    )
+                  }}>
+                  <Minus className="w-3.5 h-3.5" />
+                </Button>
+                <div className="text-center">
+                  <div className="text-2xl font-black tabular-nums">{currentDay?.catering_count || 0}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Personen</div>
+                </div>
+                <Button variant="outline" size="icon" className="w-8 h-8"
+                  onClick={() => {
+                    const n = (currentDay?.catering_count || 0) + 1
+                    api.drehplan.updateDay(selectedDayId!, { catering_count: n }).then(() =>
+                      queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] })
+                    )
+                  }}>
+                  <Plus className="w-3.5 h-3.5" />
+                </Button>
+                <span className="text-xs text-muted-foreground ml-2">
+                  {(currentDay?.catering_count || 0) === 0 ? 'Noch nicht angegeben' : 'Mahlzeiten planen'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}

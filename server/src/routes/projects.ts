@@ -10,15 +10,24 @@ const router = Router()
 router.get('/', (req, res) => {
   const userId = (req as any).user?.id
   if (!userId) return res.json({ data: [], error: null })
+  const showArchived = req.query.archived === '1'
 
   const projects = db.prepare(`
     SELECT DISTINCT p.* FROM projects p
-    WHERE p.owner_id = ?
-       OR p.owner_id IS NULL
-       OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)
+    WHERE (p.owner_id = ? OR p.owner_id IS NULL OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?))
+      AND p.archived = ?
     ORDER BY p.updated_at DESC
-  `).all(userId, userId)
+  `).all(userId, userId, showArchived ? 1 : 0)
   res.json({ data: projects, error: null })
+})
+
+// PATCH /api/projects/:id/archive
+router.patch('/:id/archive', (req, res) => {
+  const { archived } = req.body
+  db.prepare("UPDATE projects SET archived=?, updated_at=datetime('now') WHERE id=?")
+    .run(archived ? 1 : 0, req.params.id)
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id)
+  res.json({ data: project, error: null })
 })
 
 // POST /api/projects — set owner, add creator as admin member
@@ -132,6 +141,7 @@ router.get('/:id/stats', (req, res) => {
   const pid = req.params.id
 
   const total_scenes = (db.prepare('SELECT COUNT(*) as c FROM scenes WHERE project_id = ?').get(pid) as any).c
+  const shot_scenes = (db.prepare("SELECT COUNT(*) as c FROM scenes WHERE project_id = ? AND shot_status = 'abgedreht'").get(pid) as any).c
   const scheduled_scenes = (db.prepare(`
     SELECT COUNT(DISTINCT scene_id) as c FROM shoot_day_scenes sds
     JOIN shoot_days sd ON sds.shoot_day_id = sd.id
@@ -153,6 +163,7 @@ router.get('/:id/stats', (req, res) => {
   res.json({
     data: {
       total_scenes,
+      shot_scenes,
       scheduled_scenes,
       unscheduled_scenes: total_scenes - scheduled_scenes,
       total_shoot_days,

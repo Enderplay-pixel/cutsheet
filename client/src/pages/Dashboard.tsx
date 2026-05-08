@@ -64,6 +64,7 @@ export function Component() {
 
   const scheduleProgress = stats ? Math.round((stats.scheduled_scenes / Math.max(stats.total_scenes, 1)) * 100) : 0
   const shootProgress = stats ? Math.round((stats.completed_shoot_days / Math.max(stats.total_shoot_days, 1)) * 100) : 0
+  const shotScenesProgress = stats ? Math.round((stats.shot_scenes / Math.max(stats.total_scenes, 1)) * 100) : 0
 
   // Fix: use severity not type
   const errors   = (conflicts || []).filter((c: any) => c.severity === 'error')
@@ -153,6 +154,22 @@ export function Component() {
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 {stats?.completed_shoot_days} von {stats?.total_shoot_days} Drehtagen
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Szenen abgedreht</span>
+                <span className="text-sm font-semibold tabular-nums">{shotScenesProgress}%</span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-green-500 rounded-full transition-all duration-700"
+                  style={{ width: `${shotScenesProgress}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                {stats?.shot_scenes || 0} von {stats?.total_scenes} Szenen abgedreht
               </p>
             </div>
 

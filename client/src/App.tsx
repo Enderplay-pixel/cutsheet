@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
 import { Toaster } from '@/components/ui/toaster'
 import { GlobalSearch } from '@/components/shared/GlobalSearch'
+import { ShortcutsModal } from '@/components/shared/ShortcutsModal'
 import { useProjectStore } from '@/store/useProjectStore'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -88,6 +89,7 @@ function AppShell() {
           </div>
         </div>
         <GlobalSearch open={searchVisible} onClose={() => setSearchVisible(false)} />
+        <ShortcutsModal />
         <Toaster />
       </TooltipProvider>
     </ProjectRoleProvider>

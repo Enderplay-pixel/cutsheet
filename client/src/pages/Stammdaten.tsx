@@ -8,7 +8,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
 import { debounce, formatDate, cn } from '@/lib/utils'
-import { Film, Calendar, Building2, Check, Settings2, Link2, Plus, Trash2, Copy, Users } from 'lucide-react'
+import { Film, Calendar, Building2, Check, Settings2, Link2, Plus, Trash2, Copy, Users, QrCode } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { TimeInput } from '@/components/ui/time-input'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -54,6 +55,7 @@ function InviteSection({ pid }: { pid: number }) {
   const [newRole, setNewRole] = useState('read_only')
   const [newLabel, setNewLabel] = useState('')
   const [copied, setCopied] = useState<number | null>(null)
+  const [qrOpen, setQrOpen] = useState<string | null>(null)
 
   const { data: invites = [], isLoading: invLoading } = useQuery({
     queryKey: ['invites', pid],
@@ -129,7 +131,7 @@ function InviteSection({ pid }: { pid: number }) {
       ) : (
         <div className="divide-y divide-border/40">
           {(invites as any[]).map((inv: any) => (
-            <div key={inv.id} className="flex items-center gap-3 px-5 py-3">
+            <div key={inv.id} className="relative flex items-center gap-3 px-5 py-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="text-xs font-medium">{roleLabel(inv.role)}</span>
@@ -144,6 +146,19 @@ function InviteSection({ pid }: { pid: number }) {
               >
                 {copied === inv.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
+              <button
+                onClick={() => setQrOpen(qrOpen === inv.token ? null : inv.token)}
+                className="shrink-0 w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                title="QR-Code anzeigen"
+              >
+                <QrCode className="w-3.5 h-3.5" />
+              </button>
+              {qrOpen === inv.token && (
+                <div className="absolute right-0 top-full mt-1 z-10 bg-background border border-border rounded-xl p-3 shadow-lg">
+                  <QRCodeSVG value={inviteUrl(inv.token)} size={140} />
+                  <p className="text-[10px] text-muted-foreground text-center mt-2">{roleLabel(inv.role)}</p>
+                </div>
+              )}
               <button
                 onClick={() => deleteMutation.mutate(inv.id)}
                 className="shrink-0 w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"

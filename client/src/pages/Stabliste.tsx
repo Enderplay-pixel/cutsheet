@@ -191,6 +191,18 @@ export function Component() {
   const totalGage = (crew || []).reduce((sum: number, m: any) => sum + (m.fee_per_day || 0), 0)
   const activeDepts = DEPARTMENTS.filter(d => grouped[d]?.length > 0)
 
+  const exportCsv = () => {
+    const rows = [['Name', 'Abteilung', 'Position', 'E-Mail', 'Telefon', 'Gage/Tag']]
+    ;(crew || []).forEach((m: any) => rows.push([
+      m.name || '', m.department || '', m.role || '', m.email || '', m.phone || '',
+      m.fee_per_day ? String(m.fee_per_day / 100) : '0'
+    ]))
+    const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob); const a = document.createElement('a')
+    a.href = url; a.download = 'stabliste.csv'; a.click(); URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="p-7 max-w-6xl mx-auto animate-fade-up">
       <div className="flex items-start justify-between mb-7">
@@ -202,6 +214,9 @@ export function Component() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={exportCsv}>
+            <Download className="w-3.5 h-3.5 mr-1.5" />CSV
+          </Button>
           <a href={api.pdf.stabliste(pid)} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm">
               <Download className="w-3.5 h-3.5 mr-1.5" />PDF

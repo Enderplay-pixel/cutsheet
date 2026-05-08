@@ -17,7 +17,7 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
 // ─── Projects ────────────────────────────────────────────────────────────────
 export const api = {
   projects: {
-    list: () => req<any[]>('/projects'),
+    list: (archived = false) => req<any[]>(`/projects${archived ? '?archived=1' : ''}`),
     get: (id: number) => req<any>(`/projects/${id}`),
     create: (data: any) => req<any>('/projects', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: number, data: any) => req<any>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -25,6 +25,7 @@ export const api = {
     duplicate: (id: number) => req<any>(`/projects/${id}/duplicate`, { method: 'POST' }),
     stats: (id: number) => req<any>(`/projects/${id}/stats`),
     updateSettings: (id: number, data: any) => req<any>(`/projects/${id}/settings`, { method: 'PUT', body: JSON.stringify(data) }),
+    archive: (id: number, archived: boolean) => req<any>(`/projects/${id}/archive`, { method: 'PATCH', body: JSON.stringify({ archived }) }),
   },
 
   // ─── Scenes ────────────────────────────────────────────────────────────────

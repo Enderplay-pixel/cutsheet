@@ -38,8 +38,9 @@ router.post('/projects/:projectId/shoot-days', (req, res) => {
 
 // PUT /api/shoot-days/:id
 router.put('/shoot-days/:id', (req, res) => {
-  const { date, status, unit, notes } = req.body
-  db.prepare('UPDATE shoot_days SET date=COALESCE(?,date), status=COALESCE(?,status), unit=COALESCE(?,unit), notes=COALESCE(?,notes) WHERE id=?').run(date ?? null, status ?? null, unit ?? null, notes ?? null, req.params.id)
+  const { date, status, unit, notes, catering_count } = req.body
+  db.prepare('UPDATE shoot_days SET date=COALESCE(?,date), status=COALESCE(?,status), unit=COALESCE(?,unit), notes=COALESCE(?,notes), catering_count=COALESCE(?,catering_count) WHERE id=?')
+    .run(date ?? null, status ?? null, unit ?? null, notes ?? null, catering_count ?? null, req.params.id)
   res.json({ data: getShootDayWithScenes(parseInt(req.params.id)), error: null })
 })
 

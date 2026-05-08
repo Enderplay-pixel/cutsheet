@@ -8,7 +8,7 @@ import {
   Film, LayoutDashboard, FileText, Users, Briefcase, MapPin, Calendar,
   Camera, ClipboardList, FileCheck, DollarSign, Package, Mail, AlertTriangle,
   Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight,
-  StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle, ShieldCheck
+  StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle, ShieldCheck, BookUser
 } from 'lucide-react'
 
 const navGroups = [
@@ -26,6 +26,7 @@ const navGroups = [
       { label: 'Drehbuch Editor', icon: FileEdit, path: 'screenplay-editor' },
       { label: 'Besetzung', icon: Users, path: 'besetzung' },
       { label: 'Stab', icon: Briefcase, path: 'stabliste' },
+      { label: 'Kontakte', icon: BookUser, path: 'kontakte' },
       { label: 'Motive', icon: MapPin, path: 'motive' },
       { label: 'Equipment', icon: Package, path: 'equipment' },
       { label: 'Fahrzeuge', icon: Car, path: 'fahrzeuge' },

@@ -621,6 +621,12 @@ export function addMigrations() {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       expires_at TEXT
     )`, label: 'project_invites' },
+    // Feature: scene shot status
+    { sql: "ALTER TABLE scenes ADD COLUMN shot_status TEXT NOT NULL DEFAULT 'offen'", label: 'scenes.shot_status' },
+    // Feature: project archiving
+    { sql: "ALTER TABLE projects ADD COLUMN archived INTEGER NOT NULL DEFAULT 0", label: 'projects.archived' },
+    // Feature: catering count per shoot day
+    { sql: "ALTER TABLE shoot_days ADD COLUMN catering_count INTEGER NOT NULL DEFAULT 0", label: 'shoot_days.catering_count' },
   ]
 
   for (const m of migrations) {

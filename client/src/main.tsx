@@ -58,6 +58,7 @@ const router = createBrowserRouter([
           { path: 'zeitanalyse', lazy: () => import('./pages/ZeitAnalyse') },
           { path: 'suche', lazy: () => import('./pages/Suche') },
           { path: 'screenplay-editor', lazy: () => import('./pages/ScreenplayEditor') },
+          { path: 'kontakte', lazy: () => import('./pages/Kontaktliste') },
         ],
       },
     ],

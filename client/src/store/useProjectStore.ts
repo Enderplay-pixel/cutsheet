@@ -30,7 +30,7 @@ export const useProjectStore = create<ProjectStore>()(
       activeProjectId: null,
       setActiveProjectId: (id) => set({ activeProjectId: id }),
 
-      darkMode: true,
+      darkMode: window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true,
       toggleDarkMode: () => {
         const next = !get().darkMode
         set({ darkMode: next })

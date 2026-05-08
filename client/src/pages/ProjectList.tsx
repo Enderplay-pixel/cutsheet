@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, Film, Copy, ArrowRight, Clapperboard, Trash2 } from 'lucide-react'
+import { Plus, Film, Copy, ArrowRight, Clapperboard, Trash2, Archive, ArchiveRestore } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { OnboardingWizard } from '@/components/OnboardingWizard'
@@ -95,12 +95,24 @@ export function Component() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const [showNew, setShowNew] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
 
-  const { data: projects, isLoading } = useQuery({ queryKey: ['projects'], queryFn: api.projects.list })
+  const { data: projects, isLoading } = useQuery({
+    queryKey: ['projects', showArchived],
+    queryFn: () => api.projects.list(showArchived),
+  })
 
   const duplicateMutation = useMutation({
     mutationFn: (id: number) => api.projects.duplicate(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['projects'] }); toast({ title: 'Projekt dupliziert' }) },
+  })
+
+  const archiveMutation = useMutation({
+    mutationFn: ({ id, archived }: { id: number; archived: boolean }) => api.projects.archive(id, archived),
+    onSuccess: (_, { archived }) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      toast({ title: archived ? 'Projekt archiviert' : 'Projekt wiederhergestellt' })
+    },
   })
 
   const deleteMutation = useMutation({
@@ -123,15 +135,26 @@ export function Component() {
               <p className="text-xs text-muted-foreground mt-0.5">Filmproduktions-Management</p>
             </div>
           </div>
-          <Button onClick={() => setShowNew(true)} size="sm">
-            <Plus className="w-3.5 h-3.5 mr-1.5" />Neues Projekt
-          </Button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowArchived(!showArchived)}
+              className={cn('flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors',
+                showArchived ? 'border-primary/40 bg-primary/5 text-primary' : 'border-border text-muted-foreground hover:bg-muted'
+              )}
+            >
+              <Archive className="w-3.5 h-3.5" />
+              {showArchived ? 'Aktive anzeigen' : 'Archiv'}
+            </button>
+            <Button onClick={() => setShowNew(true)} size="sm">
+              <Plus className="w-3.5 h-3.5 mr-1.5" />Neues Projekt
+            </Button>
+          </div>
         </div>
 
         {/* Project section header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
-            Meine Projekte
+            {showArchived ? 'Archivierte Projekte' : 'Meine Projekte'}
           </h2>
           {projects && projects.length > 0 && (
             <span className="text-xs text-muted-foreground">{projects.length} Projekt{projects.length !== 1 ? 'e' : ''}</span>
@@ -199,13 +222,22 @@ export function Component() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1 shrink-0">
+                  {!showArchived && (
+                    <button
+                      onClick={e => { e.stopPropagation(); duplicateMutation.mutate(project.id) }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted transition-colors"
+                      title="Duplizieren"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <button
-                    onClick={e => { e.stopPropagation(); duplicateMutation.mutate(project.id) }}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted transition-colors"
-                    title="Duplizieren"
+                    onClick={e => { e.stopPropagation(); archiveMutation.mutate({ id: project.id, archived: !showArchived }) }}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/40 hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+                    title={showArchived ? 'Wiederherstellen' : 'Archivieren'}
                   >
-                    <Copy className="w-3.5 h-3.5" />
+                    {showArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
                   </button>
                   <button
                     onClick={e => {
@@ -219,9 +251,11 @@ export function Component() {
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
-                  <div className="w-8 h-8 flex items-center justify-center rounded-lg text-primary/40 group-hover:text-primary transition-colors">
-                    <ArrowRight className="w-4 h-4" />
-                  </div>
+                  {!showArchived && (
+                    <div className="w-8 h-8 flex items-center justify-center rounded-lg text-primary/40 group-hover:text-primary transition-colors">
+                      <ArrowRight className="w-4 h-4" />
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

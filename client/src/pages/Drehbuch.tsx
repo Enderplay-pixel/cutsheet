@@ -132,6 +132,25 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
         </span>
 
         <div className="flex items-center gap-1 shrink-0">
+          {/* Shot status toggle */}
+          <button
+            onClick={e => {
+              e.stopPropagation()
+              if (!canEdit) return
+              const next = scene.shot_status === 'abgedreht' ? 'offen' : 'abgedreht'
+              updateMutation.mutate({ ...form, shot_status: next })
+              setForm((f: any) => ({ ...f, shot_status: next }))
+            }}
+            title={scene.shot_status === 'abgedreht' ? 'Abgedreht ✓' : 'Noch nicht gedreht'}
+            className={cn(
+              'w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold transition-colors shrink-0',
+              scene.shot_status === 'abgedreht'
+                ? 'bg-green-500/15 text-green-500 ring-1 ring-green-500/30'
+                : 'bg-muted/60 text-muted-foreground/40 hover:text-muted-foreground'
+            )}
+          >
+            ✓
+          </button>
           {canEdit && (
             <button
               onClick={e => { e.stopPropagation(); deleteMutation.mutate() }}
@@ -342,11 +361,15 @@ export function Component() {
   const intCount = (scenes || []).filter((s: any) => s.int_ext === 'INT').length
   const extCount = (scenes || []).filter((s: any) => s.int_ext === 'EXT').length
   const nightCount = (scenes || []).filter((s: any) => s.day_night === 'NACHT').length
+  const dayCount = (scenes || []).filter((s: any) => s.day_night === 'TAG').length
+  const shotCount = (scenes || []).filter((s: any) => s.shot_status === 'abgedreht').length
 
   const filtered = (scenes || []).filter((s: any) => {
     const matchSearch = !search || s.title?.toLowerCase().includes(search.toLowerCase()) ||
       s.scene_number?.includes(search) || s.location_name?.toLowerCase().includes(search.toLowerCase())
-    const matchFilter = filterType === 'all' || s.int_ext === filterType || s.day_night === filterType
+    const matchFilter = filterType === 'all' || s.int_ext === filterType || s.day_night === filterType ||
+      (filterType === 'abgedreht' && s.shot_status === 'abgedreht') ||
+      (filterType === 'offen' && s.shot_status !== 'abgedreht')
     return matchSearch && matchFilter
   })
 
@@ -377,7 +400,10 @@ export function Component() {
             { label: 'Alle', value: 'all', count: scenes?.length || 0 },
             { label: 'INT', value: 'INT', count: intCount },
             { label: 'EXT', value: 'EXT', count: extCount },
+            { label: 'Tag', value: 'TAG', count: dayCount },
             { label: 'Nacht', value: 'NACHT', count: nightCount },
+            { label: '✓ Abgedreht', value: 'abgedreht', count: shotCount },
+            { label: 'Offen', value: 'offen', count: (scenes?.length || 0) - shotCount },
           ].map(f => (
             <button key={f.value}
               onClick={() => setFilterType(f.value)}
