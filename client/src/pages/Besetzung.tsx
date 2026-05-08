@@ -166,10 +166,10 @@ function CastCard({ castMember, characters, shootDays, onDelete }: { castMember:
           </div>
           <div>
             <Label className="text-xs text-muted-foreground">Rolle</Label>
-            <Select value={String(form.character_id || '')} onValueChange={v => update('character_id', v ? Number(v) : null)}>
+            <Select value={String(form.character_id || '__none__')} onValueChange={v => update('character_id', v === '__none__' ? null : Number(v))}>
               <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder="Rolle wählen" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="" className="text-xs">– Keine Rolle –</SelectItem>
+                <SelectItem value="__none__" className="text-xs">– Keine Rolle –</SelectItem>
                 {characters.map(c => <SelectItem key={c.id} value={String(c.id)} className="text-xs">{c.name}</SelectItem>)}
               </SelectContent>
             </Select>

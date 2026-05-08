@@ -175,10 +175,10 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs text-muted-foreground">Motiv</Label>
-              <Select value={String(form.location_id || '')} onValueChange={v => updateField('location_id', v ? Number(v) : null)}>
+              <Select value={String(form.location_id || '__none__')} onValueChange={v => updateField('location_id', v === '__none__' ? null : Number(v))}>
                 <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder="Kein Motiv" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Kein Motiv</SelectItem>
+                  <SelectItem value="__none__">Kein Motiv</SelectItem>
                   {locations.map(l => <SelectItem key={l.id} value={String(l.id)}>{l.name}</SelectItem>)}
                 </SelectContent>
               </Select>

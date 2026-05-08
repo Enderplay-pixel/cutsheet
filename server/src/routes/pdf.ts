@@ -15,23 +15,38 @@ function fmtMoney(cents: number, currency = 'EUR'): string {
   return (cents / 100).toLocaleString('de-DE', { style: 'currency', currency })
 }
 
+// Resolve chromium executable — try env var, then common Linux paths
+function resolveChromium(): string | undefined {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH
+  const fs = require('fs')
+  const candidates = [
+    '/run/current-system/sw/bin/chromium',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+  ]
+  return candidates.find(p => { try { return fs.existsSync(p) } catch { return false } })
+}
+
 // Generic PDF generator using puppeteer (lazily loaded)
 async function generatePdf(html: string): Promise<Buffer> {
   const puppeteer = require('puppeteer')
+  const executablePath = resolveChromium()
   const launchOptions: any = {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--single-process'],
   }
-  // Use system Chromium on Railway/Linux (set via PUPPETEER_EXECUTABLE_PATH)
-  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-    launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH
-  }
+  if (executablePath) launchOptions.executablePath = executablePath
   const browser = await puppeteer.launch(launchOptions)
-  const page = await browser.newPage()
-  await page.setContent(html, { waitUntil: 'networkidle0' })
-  const pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } })
-  await browser.close()
-  return pdf
+  try {
+    const page = await browser.newPage()
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 })
+    const pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } })
+    return pdf
+  } finally {
+    await browser.close()
+  }
 }
 
 function buildCss(accentColor: string): string {
