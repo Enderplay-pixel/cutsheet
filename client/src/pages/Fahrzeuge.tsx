@@ -10,59 +10,40 @@ import { Plus, Trash2, Pencil, Check, X, Car } from 'lucide-react'
 interface Vehicle {
   id: number
   name: string
-  kennzeichen: string
-  typ: string
-  kapazitaet: string
-  fahrer: string
-  telefon: string
+  license_plate: string
+  type: string
+  capacity: number | string
+  driver_name: string
+  driver_phone: string
+  notes: string
 }
 
-const EMPTY_VEHICLE = { name: '', kennzeichen: '', typ: '', kapazitaet: '', fahrer: '', telefon: '' }
+const EMPTY: Omit<Vehicle, 'id'> = {
+  name: '', license_plate: '', type: 'PKW', capacity: 4, driver_name: '', driver_phone: '', notes: ''
+}
 
-function VehicleRow({
-  vehicle,
-  pid,
-  onEdit,
-}: {
-  vehicle: Vehicle
-  pid: number
-  onEdit: (v: Vehicle) => void
-}) {
+function VehicleRow({ vehicle, pid, onEdit }: { vehicle: Vehicle; pid: number; onEdit: (v: Vehicle) => void }) {
   const queryClient = useQueryClient()
   const { toast } = useToast()
-
   const deleteMutation = useMutation({
     mutationFn: () => api.vehicles.delete(pid, vehicle.id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vehicles', pid] })
-      toast({ title: 'Fahrzeug gelöscht' })
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['vehicles', pid] }); toast({ title: 'Fahrzeug gelöscht' }) },
     onError: () => toast({ variant: 'destructive', title: 'Fehler beim Löschen' }),
   })
-
   return (
     <tr className="border-b border-border/40 hover:bg-muted/30 transition-colors group">
       <td className="py-2.5 px-4 text-sm font-medium">{vehicle.name || '—'}</td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground font-mono">{vehicle.kennzeichen || '—'}</td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.typ || '—'}</td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.kapazitaet || '—'}</td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.fahrer || '—'}</td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.telefon || '—'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground font-mono">{vehicle.license_plate || '—'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.type || '—'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.capacity ?? '—'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.driver_name || '—'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.driver_phone || '—'}</td>
       <td className="py-2.5 px-3 text-right">
         <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => onEdit(vehicle)}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-            title="Bearbeiten"
-          >
+          <button onClick={() => onEdit(vehicle)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Bearbeiten">
             <Pencil className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={() => deleteMutation.mutate()}
-            disabled={deleteMutation.isPending}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-destructive"
-            title="Löschen"
-          >
+          <button onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-destructive" title="Löschen">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -71,24 +52,14 @@ function VehicleRow({
   )
 }
 
-function VehicleFormRow({
-  initial,
-  pid,
-  onDone,
-}: {
-  initial?: Vehicle
-  pid: number
-  onDone: () => void
-}) {
+function VehicleFormRow({ initial, pid, onDone }: { initial?: Vehicle; pid: number; onDone: () => void }) {
   const queryClient = useQueryClient()
   const { toast } = useToast()
-  const [form, setForm] = useState(initial ? { ...initial } : { ...EMPTY_VEHICLE })
+  const [form, setForm] = useState<Omit<Vehicle, 'id'>>(initial ? { ...initial } : { ...EMPTY })
+  const set = (key: string, value: string | number) => setForm(f => ({ ...f, [key]: value }))
 
   const saveMutation = useMutation({
-    mutationFn: () =>
-      initial
-        ? api.vehicles.update(pid, initial.id, form)
-        : api.vehicles.create(pid, form),
+    mutationFn: () => initial ? api.vehicles.update(pid, initial.id, form) : api.vehicles.create(pid, form),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles', pid] })
       toast({ title: initial ? 'Fahrzeug aktualisiert' : 'Fahrzeug hinzugefügt' })
@@ -97,34 +68,22 @@ function VehicleFormRow({
     onError: () => toast({ variant: 'destructive', title: 'Fehler beim Speichern' }),
   })
 
-  const set = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }))
-
-  const colClass = 'py-1.5 px-3'
-  const inputClass = 'h-7 text-sm'
-
+  const c = 'py-1.5 px-3'
+  const i = 'h-7 text-sm'
   return (
     <tr className="border-b border-primary/20 bg-primary/5">
-      <td className={colClass}><Input className={inputClass} placeholder="Name" value={form.name} onChange={e => set('name', e.target.value)} /></td>
-      <td className={colClass}><Input className={inputClass} placeholder="B-AB 1234" value={form.kennzeichen} onChange={e => set('kennzeichen', e.target.value)} /></td>
-      <td className={colClass}><Input className={inputClass} placeholder="Van, PKW…" value={form.typ} onChange={e => set('typ', e.target.value)} /></td>
-      <td className={colClass}><Input className={inputClass} placeholder="7 Plätze" value={form.kapazitaet} onChange={e => set('kapazitaet', e.target.value)} /></td>
-      <td className={colClass}><Input className={inputClass} placeholder="Fahrername" value={form.fahrer} onChange={e => set('fahrer', e.target.value)} /></td>
-      <td className={colClass}><Input className={inputClass} placeholder="+49…" value={form.telefon} onChange={e => set('telefon', e.target.value)} /></td>
+      <td className={c}><Input className={i} placeholder="Fahrzeugname" value={form.name} onChange={e => set('name', e.target.value)} /></td>
+      <td className={c}><Input className={i} placeholder="B-AB 1234" value={form.license_plate} onChange={e => set('license_plate', e.target.value)} /></td>
+      <td className={c}><Input className={i} placeholder="Van, PKW, LKW…" value={form.type} onChange={e => set('type', e.target.value)} /></td>
+      <td className={c}><Input className={i} type="number" min={1} placeholder="7" value={String(form.capacity)} onChange={e => set('capacity', Number(e.target.value))} /></td>
+      <td className={c}><Input className={i} placeholder="Fahrername" value={form.driver_name} onChange={e => set('driver_name', e.target.value)} /></td>
+      <td className={c}><Input className={i} placeholder="+49 151…" value={form.driver_phone} onChange={e => set('driver_phone', e.target.value)} /></td>
       <td className="py-1.5 px-3">
         <div className="flex items-center gap-1 justify-end">
-          <button
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || !form.name.trim()}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-green-500 disabled:opacity-40"
-            title="Speichern"
-          >
+          <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.name.trim()} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-green-500 disabled:opacity-40" title="Speichern">
             <Check className="w-4 h-4" />
           </button>
-          <button
-            onClick={onDone}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground"
-            title="Abbrechen"
-          >
+          <button onClick={onDone} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground" title="Abbrechen">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -146,7 +105,6 @@ export function Component() {
 
   return (
     <div className="p-7 max-w-5xl mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Car className="w-5 h-5 text-muted-foreground" />
@@ -156,62 +114,36 @@ export function Component() {
           </div>
         </div>
         <Button onClick={() => { setAdding(true); setEditingId(null) }} disabled={adding}>
-          <Plus className="w-4 h-4 mr-2" />
-          Fahrzeug hinzufügen
+          <Plus className="w-4 h-4 mr-2" /> Fahrzeug hinzufügen
         </Button>
       </div>
 
-      {/* Table */}
       <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/60 bg-muted/30">
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name</th>
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kennzeichen</th>
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Typ</th>
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kapazität</th>
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fahrer</th>
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Telefon</th>
-                <th className="w-20" />
+                {['Name', 'Kennzeichen', 'Typ', 'Plätze', 'Fahrer', 'Telefon', ''].map(h => (
+                  <th key={h} className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {adding && (
-                <VehicleFormRow pid={pid} onDone={() => setAdding(false)} />
-              )}
+              {adding && <VehicleFormRow pid={pid} onDone={() => setAdding(false)} />}
               {isLoading ? (
                 [1,2,3].map(i => (
                   <tr key={i} className="border-b border-border/40">
-                    {[1,2,3,4,5,6,7].map(j => (
-                      <td key={j} className="py-2.5 px-4">
-                        <div className="h-4 bg-muted rounded animate-pulse" />
-                      </td>
-                    ))}
+                    {[1,2,3,4,5,6,7].map(j => <td key={j} className="py-2.5 px-4"><div className="h-4 bg-muted rounded animate-pulse" /></td>)}
                   </tr>
                 ))
               ) : vehicles.length === 0 && !adding ? (
-                <tr>
-                  <td colSpan={7} className="py-16 text-center text-muted-foreground text-sm">
-                    Keine Fahrzeuge vorhanden. Füge das erste Fahrzeug hinzu.
-                  </td>
-                </tr>
+                <tr><td colSpan={7} className="py-16 text-center text-muted-foreground text-sm">Keine Fahrzeuge vorhanden.</td></tr>
               ) : (
-                vehicles.map((v: Vehicle) =>
+                (vehicles as Vehicle[]).map(v =>
                   editingId === v.id ? (
-                    <VehicleFormRow
-                      key={v.id}
-                      initial={v}
-                      pid={pid}
-                      onDone={() => setEditingId(null)}
-                    />
+                    <VehicleFormRow key={v.id} initial={v} pid={pid} onDone={() => setEditingId(null)} />
                   ) : (
-                    <VehicleRow
-                      key={v.id}
-                      vehicle={v}
-                      pid={pid}
-                      onEdit={veh => { setEditingId(veh.id); setAdding(false) }}
-                    />
+                    <VehicleRow key={v.id} vehicle={v} pid={pid} onEdit={veh => { setEditingId(veh.id); setAdding(false) }} />
                   )
                 )
               )}
