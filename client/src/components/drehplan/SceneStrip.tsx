@@ -19,11 +19,15 @@ export function SceneStrip({ scene, shootDayId, onRemove, draggable = true }: Sc
 
   const style = { transform: CSS.Transform.toString(transform), transition }
   const stripClass = getStripClass(scene.int_ext, scene.day_night)
+  const sceneLabel = `Szene ${scene.scene_number}: ${scene.title}`
 
   return (
     <div
       ref={setNodeRef}
       style={style}
+      role="listitem"
+      aria-label={sceneLabel}
+      aria-grabbed={isDragging}
       className={cn(
         'group flex items-center gap-1 rounded text-xs mb-1 cursor-grab active:cursor-grabbing select-none',
         stripClass,
@@ -31,8 +35,14 @@ export function SceneStrip({ scene, shootDayId, onRemove, draggable = true }: Sc
       )}
     >
       {draggable && (
-        <div {...attributes} {...listeners} className="px-1 py-2 text-muted-foreground hover:text-foreground">
-          <GripVertical className="w-3 h-3" />
+        <div
+          {...attributes}
+          {...listeners}
+          className="px-1 py-2 text-muted-foreground hover:text-foreground"
+          aria-label={`${sceneLabel} verschieben`}
+          title={`${sceneLabel} verschieben`}
+        >
+          <GripVertical className="w-3 h-3" aria-hidden="true" />
         </div>
       )}
 
@@ -52,9 +62,10 @@ export function SceneStrip({ scene, shootDayId, onRemove, draggable = true }: Sc
       {onRemove && (
         <button
           onClick={() => onRemove(scene.scene_id || scene.id)}
+          aria-label={`${sceneLabel} aus Drehtag entfernen`}
           className="px-1 py-2 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
         >
-          <X className="w-3 h-3" />
+          <X className="w-3 h-3" aria-hidden="true" />
         </button>
       )}
     </div>

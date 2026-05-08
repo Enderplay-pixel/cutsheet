@@ -231,6 +231,17 @@ export const api = {
     delete: (projectId: number, id: number) => req<void>(`/projects/${projectId}/camera-presets/${id}`, { method: 'DELETE' }),
   },
 
+  // ─── Screenplay ────────────────────────────────────────────────────────────
+  screenplay: {
+    full: (projectId: number) => req<any[]>(`/projects/${projectId}/screenplay`),
+    blocks: (sceneId: number) => req<any[]>(`/scenes/${sceneId}/blocks`),
+    createBlock: (sceneId: number, data: any) => req<any>(`/scenes/${sceneId}/blocks`, { method: 'POST', body: JSON.stringify(data) }),
+    updateBlock: (blockId: number, data: any) => req<any>(`/blocks/${blockId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteBlock: (blockId: number) => req<void>(`/blocks/${blockId}`, { method: 'DELETE' }),
+    reorder: (sceneId: number, blocks: any[]) => req<void>(`/scenes/${sceneId}/blocks/reorder`, { method: 'PUT', body: JSON.stringify({ blocks }) }),
+    importFdx: (projectId: number, xml: string, filename: string) => req<any>(`/projects/${projectId}/fdx-import`, { method: 'POST', body: JSON.stringify({ xml, filename }) }),
+  },
+
   // ─── Backup ────────────────────────────────────────────────────────────────
   backup: {
     export: (projectId: number) => `/api/projects/${projectId}/backup`,

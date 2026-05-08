@@ -78,7 +78,7 @@ export function Component() {
   const financingOk = budgetGap <= 0
 
   return (
-    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+    <div className="p-7 max-w-6xl mx-auto animate-fade-up" role="main" aria-label="Dashboard">
       {/* Hero */}
       <div className="mb-8">
         <div className="flex items-start justify-between">
@@ -203,6 +203,7 @@ export function Component() {
               )}
               <button
                 onClick={() => navigate(`/projects/${projectId}/tagesdispo/${stats.next_shoot_day.id}`)}
+                aria-label="Tagesdispo öffnen"
                 className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs text-primary hover:text-primary/80 border border-primary/20 hover:border-primary/40 rounded-md py-1.5 transition-colors"
               >
                 Tagesdispo öffnen <ArrowRight className="w-3 h-3" />
@@ -252,6 +253,7 @@ export function Component() {
 
             <button
               onClick={() => navigate(`/projects/${projectId}/konfliktradar`)}
+              aria-label="Konfliktradar Details anzeigen"
               className="mt-3 w-full text-xs text-muted-foreground hover:text-foreground border border-border/60 hover:border-border rounded-md py-1.5 transition-colors"
             >
               Details anzeigen
@@ -277,6 +279,7 @@ export function Component() {
             <button
               key={item.path}
               onClick={() => navigate(`/projects/${projectId}/${item.path}`)}
+              aria-label={`Zu ${item.label} navigieren`}
               className="flex flex-col items-center gap-2.5 p-4 rounded-xl border border-border/60 hover:border-primary/30 hover:bg-primary/5 transition-all group"
             >
               <item.icon className="w-5 h-5 text-muted-foreground/70 group-hover:text-primary transition-colors" />

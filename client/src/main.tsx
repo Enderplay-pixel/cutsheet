@@ -46,6 +46,8 @@ const router = createBrowserRouter([
           { path: 'komparsen', lazy: () => import('./pages/Komparsen') },
           { path: 'audit', lazy: () => import('./pages/AuditLog') },
           { path: 'zeitanalyse', lazy: () => import('./pages/ZeitAnalyse') },
+          { path: 'suche', lazy: () => import('./pages/Suche') },
+          { path: 'screenplay-editor', lazy: () => import('./pages/ScreenplayEditor') },
         ],
       },
     ],

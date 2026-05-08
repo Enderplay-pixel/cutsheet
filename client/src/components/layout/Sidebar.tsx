@@ -7,7 +7,7 @@ import {
   Film, LayoutDashboard, FileText, Users, Briefcase, MapPin, Calendar,
   Camera, ClipboardList, FileCheck, DollarSign, Package, Mail, AlertTriangle,
   Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight,
-  StickyNote, Car, History
+  StickyNote, Car, History, Search, FileEdit
 } from 'lucide-react'
 
 const navGroups = [
@@ -22,6 +22,7 @@ const navGroups = [
     label: 'Vorbereitung',
     items: [
       { label: 'Szenen', icon: FileText, path: 'drehbuch' },
+      { label: 'Drehbuch Editor', icon: FileEdit, path: 'screenplay-editor' },
       { label: 'Besetzung', icon: Users, path: 'besetzung' },
       { label: 'Stab', icon: Briefcase, path: 'stabliste' },
       { label: 'Motive', icon: MapPin, path: 'motive' },
@@ -48,6 +49,7 @@ const navGroups = [
       { label: 'Konflikte', icon: AlertTriangle, path: 'konfliktradar' },
       { label: 'Pinboard', icon: StickyNote, path: 'pinboard' },
       { label: 'Audit-Log', icon: History, path: 'audit' },
+      { label: 'Suche', icon: Search, path: 'suche' },
     ]
   },
 ]
@@ -89,7 +91,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5" aria-label="Hauptnavigation" role="navigation">
         {pid ? (
           navGroups.map((group) => (
             <div key={group.label} className="mb-1">
@@ -108,7 +110,8 @@ export function Sidebar() {
                   key={item.path}
                   to={item.path === '' ? `/projects/${pid}` : `/projects/${pid}/${item.path}`}
                   end={item.path === ''}
-                  title={sidebarCollapsed ? item.label : undefined}
+                  title={item.label}
+                  aria-label={item.label}
                   className={({ isActive }) => cn(
                     'flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-all duration-150 group relative',
                     isActive
@@ -119,7 +122,10 @@ export function Sidebar() {
                   {({ isActive }) => (
                     <>
                       {isActive && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-primary rounded-full" />
+                        <span
+                          className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-primary rounded-full"
+                          aria-current="page"
+                        />
                       )}
                       <item.icon className={cn(
                         'shrink-0 transition-colors',
@@ -159,6 +165,8 @@ export function Sidebar() {
           onClick={toggleSidebar}
           className="w-full flex items-center justify-center h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           title={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
+          aria-label={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
+          aria-expanded={!sidebarCollapsed}
         >
           {sidebarCollapsed
             ? <PanelLeftOpen className="w-4 h-4" />

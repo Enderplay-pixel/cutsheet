@@ -8,6 +8,7 @@ import { useProjectStore } from '@/store/useProjectStore'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { SkipLink } from '@/components/SkipLink'
 
 function AppShell() {
   const { projectId } = useParams()
@@ -54,11 +55,12 @@ function AppShell() {
 
   return (
     <TooltipProvider delayDuration={300}>
+      <SkipLink />
       <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <TopBar onSearchOpen={() => setSearchVisible(true)} />
-          <main className="flex-1 overflow-auto">
+          <main id="main-content" className="flex-1 overflow-auto" role="main">
             <ErrorBoundary>
               <Outlet />
             </ErrorBoundary>
