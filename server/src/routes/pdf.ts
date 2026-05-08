@@ -1,5 +1,6 @@
-import { Router } from 'express'
+import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
 
 const router = Router()
 
@@ -116,8 +117,11 @@ function getProjectSettings(projectId: number | string): { accentColor: string; 
   }
 }
 
+// All /projects/:projectId/* PDF routes require membership
+router.use('/projects/:projectId', requireMember)
+
 // GET /api/projects/:projectId/pdf/drehplan
-router.get('/projects/:projectId/pdf/drehplan', async (req, res) => {
+router.get('/projects/:projectId/pdf/drehplan', async (req: Request, res: Response) => {
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.projectId) as any
   if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
 
@@ -184,7 +188,14 @@ router.get('/projects/:projectId/pdf/drehplan', async (req, res) => {
 })
 
 // GET /api/shoot-days/:dayId/pdf/tagesdispo
-router.get('/shoot-days/:dayId/pdf/tagesdispo', async (req, res) => {
+router.get('/shoot-days/:dayId/pdf/tagesdispo', async (req: Request, res: Response) => {
+  const user = (req as any).user
+  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+  if (user.role !== 'admin') {
+    const day = db.prepare('SELECT project_id FROM shoot_days WHERE id = ?').get(req.params.dayId) as any
+    if (day && getUserProjectRole(user.id, day.project_id) === null)
+      return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  }
   const day = db.prepare('SELECT sd.*, p.title as project_title, p.id as project_id FROM shoot_days sd JOIN projects p ON sd.project_id = p.id WHERE sd.id = ?').get(req.params.dayId) as any
   if (!day) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
 
@@ -353,9 +364,15 @@ router.get('/projects/:projectId/pdf/kalkulation/:versionId', async (req, res) =
 })
 
 // GET /api/shoot-days/:dayId/pdf/tagesbericht
-router.get('/shoot-days/:dayId/pdf/tagesbericht', async (req, res) => {
+router.get('/shoot-days/:dayId/pdf/tagesbericht', async (req: Request, res: Response) => {
+  const user = (req as any).user
+  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+
   const day = db.prepare('SELECT sd.*, p.title as project_title, p.director, p.id as project_id FROM shoot_days sd JOIN projects p ON sd.project_id = p.id WHERE sd.id = ?').get(req.params.dayId) as any
   if (!day) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+
+  if (user.role !== 'admin' && getUserProjectRole(user.id, day.project_id) === null)
+    return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
 
   const { accentColor } = getProjectSettings(day.project_id)
   const report = db.prepare('SELECT * FROM daily_reports WHERE shoot_day_id = ?').get(req.params.dayId) as any

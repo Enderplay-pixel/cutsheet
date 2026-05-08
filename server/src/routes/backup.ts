@@ -1,11 +1,12 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
+import { requireMember } from '../middleware/projectAuth'
 
 const router = Router()
 
 // GET /api/projects/:projectId/backup — export full project as JSON
-router.get('/projects/:projectId/backup', requireAuth, (req: Request, res: Response) => {
+router.get('/projects/:projectId/backup', requireAuth, requireMember, (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
 
@@ -139,10 +140,10 @@ router.post('/projects/import', requireAuth, (req: Request, res: Response) => {
       return res.status(400).json({ data: null, error: 'Projekt-Daten fehlen im Backup' })
     }
 
-    // Insert new project (strip id, created_at, updated_at)
+    // Insert new project (strip id, created_at, updated_at) — assign to importing user
     const newProjectResult = db.prepare(`
-      INSERT INTO projects (title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO projects (title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, owner_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       `${originalProject['title']} (Import)`,
       originalProject['genre'] || '',
@@ -156,8 +157,11 @@ router.post('/projects/import', requireAuth, (req: Request, res: Response) => {
       originalProject['production_company'] || '',
       originalProject['shoot_start'] || null,
       originalProject['shoot_end'] || null,
+      (req as any).user.id,
     )
     const newProjectId = newProjectResult.lastInsertRowid
+    // Add importer as project admin
+    db.prepare('INSERT OR IGNORE INTO project_members (project_id, user_id, role) VALUES (?, ?, ?)').run(newProjectId, (req as any).user.id, 'admin')
     const oldProjectId = Number(originalProject['id'])
 
     // ID remapping maps: oldId -> newId for each table

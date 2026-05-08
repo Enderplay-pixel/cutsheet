@@ -10,14 +10,40 @@ export const ROLE_RANK: Record<string, number> = {
   read_only: 1,
 }
 
-export function getUserProjectRole(userId: number, projectId: number): string {
+/**
+ * Returns the user's role in the project, or null if they have no access.
+ * null = not a member (must be treated as 403, not read_only).
+ */
+export function getUserProjectRole(userId: number, projectId: number): string | null {
   try {
     const project = db.prepare('SELECT owner_id FROM projects WHERE id = ?').get(projectId) as any
-    if (project?.owner_id === userId) return 'admin'
+    if (!project) return null
+    if (project.owner_id === userId) return 'admin'
     const member = db.prepare('SELECT role FROM project_members WHERE project_id = ? AND user_id = ?')
       .get(projectId, userId) as any
-    return member?.role ?? 'read_only'
-  } catch { return 'read_only' }
+    return member?.role ?? null   // null = not a member
+  } catch { return null }
+}
+
+/**
+ * Express middleware — requires the requesting user to be a member of the project
+ * identified by req.params.projectId. Global admins bypass the check.
+ */
+export function requireMember(req: Request, res: Response, next: NextFunction) {
+  const user = (req as any).user
+  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+
+  // Global site admins can access any project
+  if (user.role === 'admin') return next()
+
+  const projectId = Number(req.params.projectId)
+  const role = getUserProjectRole(user.id, projectId)
+  if (role === null) {
+    return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  }
+
+  ;(req as any).projectRole = role
+  next()
 }
 
 // ─── Project ID extraction from request ───────────────────────────────────────
@@ -113,12 +139,16 @@ export function projectWriteGuard(req: Request, res: Response, next: NextFunctio
   if (path.match(/^\/invites\/[^/]+$/) && req.method === 'GET') return next()
 
   const user = (req as any).user
-  if (!user) return next() // requireAuth will handle 401 where needed
+  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+
+  // Global admins can do anything
+  if (user.role === 'admin') return next()
 
   const projectId = extractProjectId(req.method, path, req.body)
   if (!projectId) return next() // can't determine project → pass through
 
   const role = getUserProjectRole(user.id, projectId)
+  if (role === null) return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   const userRank = ROLE_RANK[role] ?? 0
   const requiredRank = minRankForPath(path)
 

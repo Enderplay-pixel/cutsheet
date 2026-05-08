@@ -1,7 +1,11 @@
-import { Router } from 'express'
+import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
 
 const router = Router()
+
+// All /projects/:projectId/* routes require membership
+router.use('/projects/:projectId', requireMember)
 
 // GET /api/projects/:projectId/equipment-lists
 router.get('/projects/:projectId/equipment-lists', (req, res) => {
@@ -17,7 +21,14 @@ router.post('/projects/:projectId/equipment-lists', (req, res) => {
 })
 
 // GET /api/equipment-lists/:id/items
-router.get('/equipment-lists/:id/items', (req, res) => {
+router.get('/equipment-lists/:id/items', (req: Request, res: Response) => {
+  const user = (req as any).user
+  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+  if (user.role !== 'admin') {
+    const list = db.prepare('SELECT project_id FROM equipment_lists WHERE id = ?').get(req.params.id) as any
+    if (list && getUserProjectRole(user.id, list.project_id) === null)
+      return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  }
   const items = db.prepare('SELECT * FROM equipment_items WHERE equipment_list_id = ? ORDER BY sort_order ASC').all(req.params.id)
   const parsed = (items as any[]).map(i => ({ ...i, checked: !!i.checked }))
   res.json({ data: parsed, error: null })

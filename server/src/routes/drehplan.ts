@@ -1,7 +1,11 @@
 import { Router } from 'express'
 import { db } from '../db'
+import { requireMember } from '../middleware/projectAuth'
 
 const router = Router()
+
+// All /projects/:projectId/* routes require membership
+router.use('/projects/:projectId', requireMember)
 
 function getShootDayWithScenes(dayId: number | bigint) {
   const day = db.prepare('SELECT * FROM shoot_days WHERE id = ?').get(dayId) as any

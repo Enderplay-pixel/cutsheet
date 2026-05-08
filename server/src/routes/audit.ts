@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireAuth, AuthUser } from '../middleware/auth'
+import { requireMember } from '../middleware/projectAuth'
 
 const router = Router()
 
@@ -33,7 +34,7 @@ export function logAudit(
 }
 
 // GET /api/projects/:projectId/audit
-router.get('/projects/:projectId/audit', requireAuth, (req: Request, res: Response) => {
+router.get('/projects/:projectId/audit', requireAuth, requireMember, (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
     const entries = db.prepare(`

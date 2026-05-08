@@ -1,7 +1,11 @@
 import { Router } from 'express'
 import { db } from '../db'
+import { requireMember } from '../middleware/projectAuth'
 
 const router = Router()
+
+// All /projects/:projectId/* routes require membership
+router.use('/projects/:projectId', requireMember)
 
 function snippet(content: string, query: string, radius = 50): string {
   const lower = content.toLowerCase()

@@ -3,8 +3,12 @@ import { db } from '../db'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
+import { requireMember } from '../middleware/projectAuth'
 
 const router = Router()
+
+// All /projects/:projectId/* routes require membership
+router.use('/projects/:projectId', requireMember)
 
 const uploadsDir = path.join(__dirname, '../../uploads/locations')
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })

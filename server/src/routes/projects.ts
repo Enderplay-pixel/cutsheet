@@ -1,28 +1,36 @@
-import { Router } from 'express'
+import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { validate } from '../middleware/validate'
 import { ProjectSchema } from '../schemas'
-import { getUserProjectRole } from '../middleware/projectAuth'
+import { getUserProjectRole, requireMember } from '../middleware/projectAuth'
+import { requireAuth } from '../middleware/auth'
 
 const router = Router()
 
 // GET /api/projects — only show own projects + projects user is member of
-router.get('/', (req, res) => {
-  const userId = (req as any).user?.id
-  if (!userId) return res.json({ data: [], error: null })
+router.get('/', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user
   const showArchived = req.query.archived === '1'
+
+  // Global admins see all projects
+  if (user.role === 'admin') {
+    const projects = db.prepare(`
+      SELECT DISTINCT p.* FROM projects p WHERE p.archived = ? ORDER BY p.updated_at DESC
+    `).all(showArchived ? 1 : 0)
+    return res.json({ data: projects, error: null })
+  }
 
   const projects = db.prepare(`
     SELECT DISTINCT p.* FROM projects p
-    WHERE (p.owner_id = ? OR p.owner_id IS NULL OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?))
+    WHERE (p.owner_id = ? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?))
       AND p.archived = ?
     ORDER BY p.updated_at DESC
-  `).all(userId, userId, showArchived ? 1 : 0)
+  `).all(user.id, user.id, showArchived ? 1 : 0)
   res.json({ data: projects, error: null })
 })
 
 // PATCH /api/projects/:id/archive
-router.patch('/:id/archive', (req, res) => {
+router.patch('/:id/archive', requireAuth, (req, res) => {
   const { archived } = req.body
   db.prepare("UPDATE projects SET archived=?, updated_at=datetime('now') WHERE id=?")
     .run(archived ? 1 : 0, req.params.id)
@@ -56,19 +64,27 @@ router.post('/', validate(ProjectSchema), (req, res) => {
 })
 
 // GET /api/projects/:id
-router.get('/:id', (req, res) => {
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id)
+router.get('/:id', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user
+  const projectId = Number(req.params.id)
+
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as any
   if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
 
-  const settings = db.prepare('SELECT * FROM project_settings WHERE project_id = ?').get(req.params.id)
-  const userId = (req as any).user?.id
-  const my_role = userId ? getUserProjectRole(userId, Number(req.params.id)) : 'read_only'
+  if (user.role !== 'admin') {
+    const role = getUserProjectRole(user.id, projectId)
+    if (role === null) return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+    ;(req as any).projectRole = role
+  }
+
+  const settings = db.prepare('SELECT * FROM project_settings WHERE project_id = ?').get(projectId)
+  const my_role = (req as any).projectRole ?? 'admin'
 
   res.json({ data: { ...project as object, settings, my_role }, error: null })
 })
 
 // PUT /api/projects/:id
-router.put('/:id', (req, res) => {
+router.put('/:id', requireAuth, (req, res) => {
   const { title, genre, format, length_minutes, status, synopsis = '', director, producer, dop, production_company, shoot_start, shoot_end } = req.body
 
   db.prepare(`
@@ -81,7 +97,7 @@ router.put('/:id', (req, res) => {
 })
 
 // PUT /api/projects/:id/settings
-router.put('/:id/settings', (req, res) => {
+router.put('/:id/settings', requireAuth, (req, res) => {
   const {
     default_call_time = 480,
     default_wrap_time = 1200,
@@ -110,34 +126,62 @@ router.put('/:id/settings', (req, res) => {
   res.json({ data: settings, error: null })
 })
 
-// DELETE /api/projects/:id
-router.delete('/:id', (req, res) => {
-  db.prepare('DELETE FROM projects WHERE id = ?').run(req.params.id)
+// DELETE /api/projects/:id — owner or global admin only
+router.delete('/:id', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user
+  const projectId = Number(req.params.id)
+
+  if (user.role !== 'admin') {
+    const project = db.prepare('SELECT owner_id FROM projects WHERE id = ?').get(projectId) as any
+    if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+    if (project.owner_id !== user.id) {
+      return res.status(403).json({ data: null, error: 'Nur der Projektinhaber kann das Projekt löschen' })
+    }
+  }
+
+  db.prepare('DELETE FROM projects WHERE id = ?').run(projectId)
   res.json({ data: { ok: true }, error: null })
 })
 
 // POST /api/projects/:id/duplicate
-router.post('/:id/duplicate', (req, res) => {
-  const original = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id) as any
+router.post('/:id/duplicate', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user
+  const projectId = Number(req.params.id)
+
+  if (user.role !== 'admin') {
+    const role = getUserProjectRole(user.id, projectId)
+    if (role === null) return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  }
+
+  const original = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as any
   if (!original) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
 
   const result = db.prepare(`
-    INSERT INTO projects (title, genre, format, length_minutes, status, director, producer, dop, production_company)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO projects (title, genre, format, length_minutes, status, director, producer, dop, production_company, owner_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     `${original.title} (Kopie)`, original.genre, original.format, original.length_minutes,
-    'Entwicklung', original.director, original.producer, original.dop, original.production_company
+    'Entwicklung', original.director, original.producer, original.dop, original.production_company,
+    user.id
   )
 
   const newId = result.lastInsertRowid
   db.prepare('INSERT INTO project_settings (project_id) VALUES (?)').run(newId)
+  db.prepare('INSERT OR IGNORE INTO project_members (project_id, user_id, role) VALUES (?, ?, ?)').run(newId, user.id, 'admin')
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(newId)
   res.status(201).json({ data: project, error: null })
 })
 
 // GET /api/projects/:id/stats
-router.get('/:id/stats', (req, res) => {
+router.get('/:id/stats', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user
+  const projectId = Number(req.params.id)
+  if (user.role !== 'admin') {
+    const role = getUserProjectRole(user.id, projectId)
+    if (role === null) return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  }
+
   const pid = req.params.id
 
   const total_scenes = (db.prepare('SELECT COUNT(*) as c FROM scenes WHERE project_id = ?').get(pid) as any).c

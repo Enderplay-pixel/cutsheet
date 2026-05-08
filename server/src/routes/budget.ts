@@ -1,7 +1,11 @@
-import { Router } from 'express'
+import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
 
 const router = Router()
+
+// All /projects/:projectId/* routes require membership
+router.use('/projects/:projectId', requireMember)
 
 function recalcBudgetTotal(versionId: number) {
   const total = (db.prepare('SELECT COALESCE(SUM(total_cents), 0) as s FROM budget_lines WHERE budget_version_id = ?').get(versionId) as any).s
@@ -85,7 +89,15 @@ router.post('/projects/:projectId/budget-versions', (req, res) => {
 })
 
 // GET /api/budget-versions/:id/lines
-router.get('/budget-versions/:id/lines', (req, res) => {
+router.get('/budget-versions/:id/lines', (req: Request, res: Response) => {
+  const user = (req as any).user
+  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+  if (user.role !== 'admin') {
+    const version = db.prepare('SELECT project_id FROM budget_versions WHERE id = ?').get(req.params.id) as any
+    if (!version) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
+    if (getUserProjectRole(user.id, version.project_id) === null)
+      return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  }
   const lines = db.prepare('SELECT * FROM budget_lines WHERE budget_version_id = ? ORDER BY sort_order ASC, account_code ASC').all(req.params.id)
   res.json({ data: lines, error: null })
 })
@@ -164,7 +176,15 @@ router.post('/projects/:projectId/financing-versions', (req, res) => {
 })
 
 // GET /api/financing-versions/:id/entries
-router.get('/financing-versions/:id/entries', (req, res) => {
+router.get('/financing-versions/:id/entries', (req: Request, res: Response) => {
+  const user = (req as any).user
+  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+  if (user.role !== 'admin') {
+    const version = db.prepare('SELECT project_id FROM financing_plan_versions WHERE id = ?').get(req.params.id) as any
+    if (!version) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
+    if (getUserProjectRole(user.id, version.project_id) === null)
+      return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  }
   const entries = db.prepare('SELECT * FROM financing_entries WHERE financing_version_id = ? ORDER BY sort_order ASC').all(req.params.id)
   const parsed = (entries as any[]).map(e => ({ ...e, confirmed: !!e.confirmed }))
   res.json({ data: parsed, error: null })

@@ -1,7 +1,11 @@
 import { Router } from 'express'
 import { db } from '../db'
+import { requireMember } from '../middleware/projectAuth'
 
 const router = Router()
+
+// All /projects/:projectId/* routes require membership
+router.use('/projects/:projectId', requireMember)
 
 router.get('/projects/:projectId/conflicts', (req, res) => {
   const pid = req.params.projectId

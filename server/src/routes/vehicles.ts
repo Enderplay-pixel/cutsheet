@@ -1,8 +1,12 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
+import { requireMember } from '../middleware/projectAuth'
 
 const router = Router()
+
+// All /projects/:projectId/* routes require membership
+router.use('/projects/:projectId', requireAuth, requireMember)
 
 // GET /api/projects/:projectId/vehicles
 router.get('/projects/:projectId/vehicles', requireAuth, (req: Request, res: Response) => {

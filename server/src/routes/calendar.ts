@@ -1,8 +1,12 @@
 import { Router } from 'express'
 import { db } from '../db'
 import { getHolidays } from '../services/holidays'
+import { requireMember } from '../middleware/projectAuth'
 
 const router = Router()
+
+// All /projects/:projectId/* routes require membership
+router.use('/projects/:projectId', requireMember)
 
 // GET /api/projects/:projectId/holidays?year=2026&state=NW
 router.get('/projects/:projectId/holidays', (req, res) => {

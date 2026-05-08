@@ -1,7 +1,11 @@
-import { Router } from 'express'
+import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
 
 const router = Router()
+
+// All /projects/:projectId/* routes require membership
+router.use('/projects/:projectId', requireMember)
 
 function getReport(id: number) {
   const report = db.prepare('SELECT * FROM daily_reports WHERE id = ?').get(id) as any
@@ -96,7 +100,14 @@ router.get('/projects/:projectId/time-analysis', (req, res) => {
 })
 
 // GET /api/shoot-days/:dayId/daily-report
-router.get('/shoot-days/:dayId/daily-report', (req, res) => {
+router.get('/shoot-days/:dayId/daily-report', (req: Request, res: Response) => {
+  const user = (req as any).user
+  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+  if (user.role !== 'admin') {
+    const day = db.prepare('SELECT project_id FROM shoot_days WHERE id = ?').get(req.params.dayId) as any
+    if (day && getUserProjectRole(user.id, day.project_id) === null)
+      return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  }
   const report = db.prepare('SELECT * FROM daily_reports WHERE shoot_day_id = ?').get(req.params.dayId) as any
   if (!report) return res.json({ data: null, error: null })
   res.json({ data: getReport(report.id), error: null })

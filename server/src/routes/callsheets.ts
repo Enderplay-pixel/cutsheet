@@ -1,5 +1,6 @@
-import { Router } from 'express'
+import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
 
 const router = Router()
 
@@ -23,7 +24,14 @@ function getCallSheet(id: number) {
 }
 
 // GET /api/shoot-days/:dayId/call-sheet
-router.get('/shoot-days/:dayId/call-sheet', (req, res) => {
+router.get('/shoot-days/:dayId/call-sheet', (req: Request, res: Response) => {
+  const user = (req as any).user
+  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+  if (user.role !== 'admin') {
+    const day = db.prepare('SELECT project_id FROM shoot_days WHERE id = ?').get(req.params.dayId) as any
+    if (day && getUserProjectRole(user.id, day.project_id) === null)
+      return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  }
   const sheet = db.prepare('SELECT * FROM call_sheets WHERE shoot_day_id = ?').get(req.params.dayId) as any
   if (!sheet) return res.json({ data: null, error: null })
   res.json({ data: getCallSheet(sheet.id), error: null })

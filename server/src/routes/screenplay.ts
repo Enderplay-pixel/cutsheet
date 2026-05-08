@@ -1,7 +1,11 @@
-import { Router } from 'express'
+import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
 
 const router = Router()
+
+// All /projects/:projectId/* routes require membership
+router.use('/projects/:projectId', requireMember)
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -33,7 +37,15 @@ router.get('/projects/:projectId/screenplay', (req, res) => {
 })
 
 // ─── GET /api/scenes/:sceneId/blocks ─────────────────────────────────────────
-router.get('/scenes/:sceneId/blocks', (req, res) => {
+router.get('/scenes/:sceneId/blocks', (req: Request, res: Response) => {
+  const user = (req as any).user
+  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+  if (user.role !== 'admin') {
+    const scene = db.prepare('SELECT project_id FROM scenes WHERE id = ?').get(req.params.sceneId) as any
+    if (!scene) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+    if (getUserProjectRole(user.id, scene.project_id) === null)
+      return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  }
   const blocks = db.prepare(`
     SELECT * FROM screenplay_blocks
     WHERE scene_id = ?
