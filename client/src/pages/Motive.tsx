@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency, debounce, cn } from '@/lib/utils'
 import { Plus, Trash2, MapPin, Zap, ExternalLink, ChevronDown, ChevronUp, Download } from 'lucide-react'
+import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 
 function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]; onDelete: () => void }) {
   const [form, setForm] = useState(loc)
@@ -18,6 +19,7 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
   const queryClient = useQueryClient()
   const { projectId } = useParams()
   const pid = Number(projectId)
+  const { canEdit } = useProjectPerms()
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.locations.update(loc.id, data),
@@ -71,10 +73,12 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           )}
-          <button onClick={e => { e.stopPropagation(); onDelete() }}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          {canEdit && (
+            <button onClick={e => { e.stopPropagation(); onDelete() }}
+              className="w-7 h-7 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
           {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </div>
       </div>
@@ -152,6 +156,7 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { canEdit } = useProjectPerms()
 
   const { data: locations, isLoading } = useQuery({
     queryKey: ['locations', pid],
@@ -193,9 +198,11 @@ export function Component() {
               <Download className="w-3.5 h-3.5 mr-1.5" />PDF
             </Button>
           </a>
-          <Button size="sm" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-            <Plus className="w-3.5 h-3.5 mr-1.5" />Neues Motiv
-          </Button>
+          {canEdit && (
+            <Button size="sm" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+              <Plus className="w-3.5 h-3.5 mr-1.5" />Neues Motiv
+            </Button>
+          )}
         </div>
       </div>
 
@@ -210,9 +217,11 @@ export function Component() {
             <div className="text-center py-20 text-muted-foreground">
               <MapPin className="w-10 h-10 mx-auto mb-3 opacity-20" />
               <p className="text-sm font-medium mb-1">Noch keine Motive angelegt.</p>
-              <Button size="sm" className="mt-3" onClick={() => createMutation.mutate()}>
-                <Plus className="w-3.5 h-3.5 mr-1.5" />Erstes Motiv
-              </Button>
+              {canEdit && (
+                <Button size="sm" className="mt-3" onClick={() => createMutation.mutate()}>
+                  <Plus className="w-3.5 h-3.5 mr-1.5" />Erstes Motiv
+                </Button>
+              )}
             </div>
           )}
         </div>

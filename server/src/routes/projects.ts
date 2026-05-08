@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { db } from '../db'
 import { validate } from '../middleware/validate'
 import { ProjectSchema } from '../schemas'
+import { getUserProjectRole } from '../middleware/projectAuth'
 
 const router = Router()
 
@@ -51,7 +52,10 @@ router.get('/:id', (req, res) => {
   if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
 
   const settings = db.prepare('SELECT * FROM project_settings WHERE project_id = ?').get(req.params.id)
-  res.json({ data: { ...project as object, settings }, error: null })
+  const userId = (req as any).user?.id
+  const my_role = userId ? getUserProjectRole(userId, Number(req.params.id)) : 'read_only'
+
+  res.json({ data: { ...project as object, settings, my_role }, error: null })
 })
 
 // PUT /api/projects/:id

@@ -9,12 +9,24 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { SkipLink } from '@/components/SkipLink'
+import { ProjectRoleProvider } from '@/contexts/ProjectRoleContext'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { EyeOff } from 'lucide-react'
 
 function AppShell() {
   const { projectId } = useParams()
   const navigate = useNavigate()
   const { darkMode, setActiveProjectId, searchOpen, setSearchOpen } = useProjectStore()
   const [searchVisible, setSearchVisible] = useState(false)
+
+  // Fetch project to get my_role
+  const { data: project } = useQuery({
+    queryKey: ['project', Number(projectId)],
+    queryFn: () => api.projects.get(Number(projectId)),
+    enabled: !!projectId,
+  })
+  const myRole = (project as any)?.my_role ?? 'read_only'
 
   // Apply dark mode class
   useEffect(() => {
@@ -54,22 +66,31 @@ function AppShell() {
   }, [projectId, navigate, setSearchOpen])
 
   return (
-    <TooltipProvider delayDuration={300}>
-      <SkipLink />
-      <div className="flex h-screen overflow-hidden bg-background">
-        <Sidebar />
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          <TopBar onSearchOpen={() => setSearchVisible(true)} />
-          <main id="main-content" className="flex-1 overflow-auto" role="main">
-            <ErrorBoundary>
-              <Outlet />
-            </ErrorBoundary>
-          </main>
+    <ProjectRoleProvider role={myRole}>
+      <TooltipProvider delayDuration={300}>
+        <SkipLink />
+        <div className="flex h-screen overflow-hidden bg-background">
+          <Sidebar />
+          <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+            <TopBar onSearchOpen={() => setSearchVisible(true)} />
+            {/* Read-only banner */}
+            {projectId && myRole === 'read_only' && (
+              <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-600 dark:text-amber-400 shrink-0">
+                <EyeOff className="w-3.5 h-3.5 shrink-0" />
+                <span>Du hast <strong>Lesezugriff</strong> auf dieses Projekt — Bearbeitungen sind nicht möglich.</span>
+              </div>
+            )}
+            <main id="main-content" className="flex-1 overflow-auto" role="main">
+              <ErrorBoundary>
+                <Outlet />
+              </ErrorBoundary>
+            </main>
+          </div>
         </div>
-      </div>
-      <GlobalSearch open={searchVisible} onClose={() => setSearchVisible(false)} />
-      <Toaster />
-    </TooltipProvider>
+        <GlobalSearch open={searchVisible} onClose={() => setSearchVisible(false)} />
+        <Toaster />
+      </TooltipProvider>
+    </ProjectRoleProvider>
   )
 }
 

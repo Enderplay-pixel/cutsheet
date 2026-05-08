@@ -15,12 +15,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency, debounce } from '@/lib/utils'
 import { Plus, Trash2, Package, Check, Download } from 'lucide-react'
+import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 
 const DEPARTMENTS = ['Kamera', 'Licht', 'Grip', 'Ton', 'Requisite', 'Kostüm', 'Maske', 'Fahrzeuge', 'Sonstiges']
 
 function EquipmentItemRow({ item, shootDayCount, onDelete }: { item: any; shootDayCount: number; onDelete: () => void }) {
   const [form, setForm] = useState(item)
   const queryClient = useQueryClient()
+  const { canEdit } = useProjectPerms()
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.equipment.updateItem(item.id, data),
@@ -72,9 +74,11 @@ function EquipmentItemRow({ item, shootDayCount, onDelete }: { item: any; shootD
         {formatCurrency((form.rental_per_day_cents || 0) * (form.total_days || 1))}
       </td>
       <td className="py-2 pr-3 w-8">
-        <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        {canEdit && (
+          <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </td>
     </tr>
   )
@@ -83,6 +87,7 @@ function EquipmentItemRow({ item, shootDayCount, onDelete }: { item: any; shootD
 function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: number }) {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { canEdit } = useProjectPerms()
 
   const { data: items, isLoading } = useQuery({
     queryKey: ['equipment-items', list.id],
@@ -150,9 +155,11 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
             )}
           </table>
         )}
-        <Button variant="ghost" size="sm" className="text-xs mt-2 w-full" onClick={() => createItem.mutate()}>
-          <Plus className="w-3 h-3 mr-1" />Position hinzufügen
-        </Button>
+        {canEdit && (
+          <Button variant="ghost" size="sm" className="text-xs mt-2 w-full" onClick={() => createItem.mutate()}>
+            <Plus className="w-3 h-3 mr-1" />Position hinzufügen
+          </Button>
+        )}
       </AccordionContent>
     </AccordionItem>
   )
@@ -163,6 +170,7 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { canEdit } = useProjectPerms()
   const [newListName, setNewListName] = useState('')
   const [newListDept, setNewListDept] = useState('Kamera')
 
@@ -195,15 +203,19 @@ export function Component() {
                 <Download className="w-4 h-4 mr-1" />PDF
               </Button>
             </a>
-            <Input value={newListName} onChange={e => setNewListName(e.target.value)}
-              placeholder="Listenname" className="h-8 w-40 text-sm" />
-            <Select value={newListDept} onValueChange={setNewListDept}>
-              <SelectTrigger className="w-32 h-8 text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-            </Select>
-            <Button size="sm" onClick={() => createList.mutate()} disabled={createList.isPending}>
-              <Plus className="w-4 h-4 mr-1" />Liste
-            </Button>
+            {canEdit && (
+              <>
+                <Input value={newListName} onChange={e => setNewListName(e.target.value)}
+                  placeholder="Listenname" className="h-8 w-40 text-sm" />
+                <Select value={newListDept} onValueChange={setNewListDept}>
+                  <SelectTrigger className="w-32 h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                </Select>
+                <Button size="sm" onClick={() => createList.mutate()} disabled={createList.isPending}>
+                  <Plus className="w-4 h-4 mr-1" />Liste
+                </Button>
+              </>
+            )}
           </div>
         }
       />

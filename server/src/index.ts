@@ -5,6 +5,7 @@ import path from 'path'
 import fs from 'fs'
 import { initDatabase } from './db'
 import { optionalAuth } from './middleware/auth'
+import { projectWriteGuard } from './middleware/projectAuth'
 
 // Route imports
 import projectsRouter from './routes/projects'
@@ -47,6 +48,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
 // Apply optional auth globally so req.user is populated when token is present
 app.use(optionalAuth)
+
+// Project-level role enforcement (runs after optionalAuth so req.user is set)
+app.use('/api', projectWriteGuard)
 
 // Serve uploads
 const uploadsDir = path.join(__dirname, '../uploads')

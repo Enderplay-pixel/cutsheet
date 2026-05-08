@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn, eighthsToString, debounce } from '@/lib/utils'
 import { Plus, Trash2, Upload, FileText, MapPin, Users, ChevronDown, ChevronUp, Tag, Search, Film } from 'lucide-react'
+import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 
 const INT_EXT_OPTIONS = ['INT', 'EXT', 'INT/EXT']
 const DAY_NIGHT_OPTIONS = ['TAG', 'NACHT', 'DÄMMERUNG', 'MORGEN']
@@ -34,6 +35,7 @@ function getColor(int_ext: string, day_night: string) {
 }
 
 function SceneRow({ scene, locations, characters, projectId }: { scene: any; locations: any[]; characters: any[]; projectId: number }) {
+  const { canEdit } = useProjectPerms()
   const [expanded, setExpanded] = useState(false)
   const [form, setForm] = useState(scene)
   // Sync form when scene data refreshes from server (e.g. after creation)
@@ -130,12 +132,14 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
         </span>
 
         <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={e => { e.stopPropagation(); deleteMutation.mutate() }}
-            className="w-6 h-6 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
+          {canEdit && (
+            <button
+              onClick={e => { e.stopPropagation(); deleteMutation.mutate() }}
+              className="w-6 h-6 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          )}
           {expanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
         </div>
       </div>
@@ -303,6 +307,7 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { canEdit } = useProjectPerms()
   const [importOpen, setImportOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState<string>('all')

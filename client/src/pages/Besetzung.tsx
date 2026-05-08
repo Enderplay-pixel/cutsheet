@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency, debounce, cn } from '@/lib/utils'
 import { Plus, Trash2, User, Users, Phone, Mail, ChevronDown, ChevronUp, Download } from 'lucide-react'
+import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 
 function Avatar({ name, color = 'primary' }: { name: string; color?: string }) {
   return (
@@ -30,6 +31,7 @@ function CharacterCard({ char, scenes, onDelete }: { char: any; scenes: any[]; o
   const queryClient = useQueryClient()
   const { projectId } = useParams()
   const pid = Number(projectId)
+  const { canEdit } = useProjectPerms()
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.characters.update(char.id, data),
@@ -60,10 +62,12 @@ function CharacterCard({ char, scenes, onDelete }: { char: any; scenes: any[]; o
             {sceneList.length > 0 && ` · ${sceneList.length} Szenen`}
           </p>
         </div>
-        <button onClick={e => { e.stopPropagation(); onDelete() }}
-          className="w-7 h-7 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        {canEdit && (
+          <button onClick={e => { e.stopPropagation(); onDelete() }}
+            className="w-7 h-7 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
         {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
       </div>
 
@@ -119,6 +123,7 @@ function CastCard({ castMember, characters, shootDays, onDelete }: { castMember:
   const queryClient = useQueryClient()
   const { projectId } = useParams()
   const pid = Number(projectId)
+  const { canEdit } = useProjectPerms()
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.cast.update(castMember.id, data),
@@ -151,10 +156,12 @@ function CastCard({ castMember, characters, shootDays, onDelete }: { castMember:
             {totalFee > 0 && ` · ${formatCurrency(totalFee)}`}
           </p>
         </div>
-        <button onClick={e => { e.stopPropagation(); onDelete() }}
-          className="w-7 h-7 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        {canEdit && (
+          <button onClick={e => { e.stopPropagation(); onDelete() }}
+            className="w-7 h-7 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
         {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
       </div>
 
@@ -213,6 +220,7 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { canEdit } = useProjectPerms()
 
   const { data: characters, isLoading: charsLoading } = useQuery({
     queryKey: ['characters', pid],
@@ -286,11 +294,13 @@ export function Component() {
         </TabsList>
 
         <TabsContent value="characters">
-          <div className="flex justify-end mb-4">
-            <Button size="sm" onClick={() => createChar.mutate()} disabled={createChar.isPending}>
-              <Plus className="w-3.5 h-3.5 mr-1.5" />Neue Figur
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="flex justify-end mb-4">
+              <Button size="sm" onClick={() => createChar.mutate()} disabled={createChar.isPending}>
+                <Plus className="w-3.5 h-3.5 mr-1.5" />Neue Figur
+              </Button>
+            </div>
+          )}
           {charsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[1,2,3].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}
@@ -304,9 +314,11 @@ export function Component() {
                 <div className="col-span-2 text-center py-16 text-muted-foreground">
                   <Users className="w-10 h-10 mx-auto mb-3 opacity-20" />
                   <p className="text-sm">Noch keine Figuren angelegt.</p>
-                  <Button size="sm" className="mt-4" onClick={() => createChar.mutate()}>
-                    <Plus className="w-3.5 h-3.5 mr-1.5" />Erste Figur
-                  </Button>
+                  {canEdit && (
+                    <Button size="sm" className="mt-4" onClick={() => createChar.mutate()}>
+                      <Plus className="w-3.5 h-3.5 mr-1.5" />Erste Figur
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -314,11 +326,13 @@ export function Component() {
         </TabsContent>
 
         <TabsContent value="cast">
-          <div className="flex justify-end mb-4">
-            <Button size="sm" onClick={() => createCast.mutate()} disabled={createCast.isPending}>
-              <Plus className="w-3.5 h-3.5 mr-1.5" />Neuer Darsteller
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="flex justify-end mb-4">
+              <Button size="sm" onClick={() => createCast.mutate()} disabled={createCast.isPending}>
+                <Plus className="w-3.5 h-3.5 mr-1.5" />Neuer Darsteller
+              </Button>
+            </div>
+          )}
           {castLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[1,2].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}
@@ -332,9 +346,11 @@ export function Component() {
                 <div className="col-span-2 text-center py-16 text-muted-foreground">
                   <User className="w-10 h-10 mx-auto mb-3 opacity-20" />
                   <p className="text-sm">Noch keine Darsteller angelegt.</p>
-                  <Button size="sm" className="mt-4" onClick={() => createCast.mutate()}>
-                    <Plus className="w-3.5 h-3.5 mr-1.5" />Ersten Darsteller
-                  </Button>
+                  {canEdit && (
+                    <Button size="sm" className="mt-4" onClick={() => createCast.mutate()}>
+                      <Plus className="w-3.5 h-3.5 mr-1.5" />Ersten Darsteller
+                    </Button>
+                  )}
                 </div>
               )}
             </div>

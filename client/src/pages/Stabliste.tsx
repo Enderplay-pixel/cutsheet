@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency, debounce, cn } from '@/lib/utils'
 import { Plus, Trash2, Mail, Phone, Copy, Check, ChevronDown, ChevronUp, Users, Download } from 'lucide-react'
+import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 
 const DEPARTMENTS = [
   'Regie', 'Produktion', 'Aufnahmeleitung', 'Kamera', 'Licht', 'Ton',
@@ -21,6 +22,7 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
   const queryClient = useQueryClient()
   const { projectId } = useParams()
   const pid = Number(projectId)
+  const { canEdit } = useProjectPerms()
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.crew.update(member.id, data),
@@ -78,9 +80,11 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
         <button onClick={copyEmail} className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-primary transition-colors" title="E-Mail kopieren">
           {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
         </button>
-        <button onClick={onDelete} className="w-6 h-6 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
-          <Trash2 className="w-3 h-3" />
-        </button>
+        {canEdit && (
+          <button onClick={onDelete} className="w-6 h-6 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+            <Trash2 className="w-3 h-3" />
+          </button>
+        )}
       </div>
     </div>
   )
@@ -91,6 +95,7 @@ function DepartmentSection({ dept, members, onAdd, onDelete, onCopyEmails }: {
 }) {
   const [open, setOpen] = useState(true)
   const deptTotal = members.reduce((s, m) => s + (m.fee_per_day || 0), 0)
+  const { canEdit } = useProjectPerms()
 
   return (
     <div className="border border-border/60 rounded-xl overflow-hidden bg-card">
@@ -130,12 +135,14 @@ function DepartmentSection({ dept, members, onAdd, onDelete, onCopyEmails }: {
             <CrewRow key={m.id} member={m} onDelete={() => onDelete(m.id)} />
           ))}
 
-          <button
-            onClick={onAdd}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-2 w-full"
-          >
-            <Plus className="w-3 h-3" /> Mitglied hinzufügen
-          </button>
+          {canEdit && (
+            <button
+              onClick={onAdd}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-2 w-full"
+            >
+              <Plus className="w-3 h-3" /> Mitglied hinzufügen
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -147,6 +154,7 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { canEdit } = useProjectPerms()
   const [newDept, setNewDept] = useState('Kamera')
 
   const { data: crew, isLoading } = useQuery({
@@ -199,13 +207,17 @@ export function Component() {
               <Download className="w-3.5 h-3.5 mr-1.5" />PDF
             </Button>
           </a>
-          <Select value={newDept} onValueChange={setNewDept}>
-            <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d} className="text-xs">{d}</SelectItem>)}</SelectContent>
-          </Select>
-          <Button size="sm" onClick={() => createMutation.mutate(newDept)} disabled={createMutation.isPending}>
-            <Plus className="w-3.5 h-3.5 mr-1.5" />Hinzufügen
-          </Button>
+          {canEdit && (
+            <>
+              <Select value={newDept} onValueChange={setNewDept}>
+                <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d} className="text-xs">{d}</SelectItem>)}</SelectContent>
+              </Select>
+              <Button size="sm" onClick={() => createMutation.mutate(newDept)} disabled={createMutation.isPending}>
+                <Plus className="w-3.5 h-3.5 mr-1.5" />Hinzufügen
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
