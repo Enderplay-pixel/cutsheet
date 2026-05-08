@@ -15,23 +15,34 @@ function fmtMoney(cents: number, currency = 'EUR'): string {
   return (cents / 100).toLocaleString('de-DE', { style: 'currency', currency })
 }
 
-// Resolve chromium executable — check all candidates for existence
+// Resolve chromium executable — prefer PATH lookup (works in Nix), fall back to known paths
 function resolveChromium(): string | undefined {
   const fs = require('fs')
+  const { execSync } = require('child_process')
+
+  // 1. Try shell PATH — Nix puts chromium on PATH correctly
+  try {
+    const found = execSync(
+      'which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome-stable 2>/dev/null || which google-chrome 2>/dev/null',
+      { encoding: 'utf8', timeout: 3000 }
+    ).trim().split('\n')[0]
+    if (found) { console.log('[PDF] Chromium via which:', found); return found }
+  } catch { /* shell not available */ }
+
+  // 2. Env var + known static paths
   const exists = (p: string) => { try { return fs.existsSync(p) } catch { return false } }
   const candidates = [
     process.env.PUPPETEER_EXECUTABLE_PATH,
     '/usr/bin/chromium-browser',
     '/usr/bin/chromium',
-    '/usr/bin/google-chrome',
     '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
     '/root/.nix-profile/bin/chromium',
     '/nix/var/nix/profiles/default/bin/chromium',
     '/run/current-system/sw/bin/chromium',
   ].filter(Boolean) as string[]
   const found = candidates.find(exists)
-  console.log('[PDF] Chromium candidates checked:', candidates)
-  console.log('[PDF] Chromium resolved to:', found ?? 'NONE (Puppeteer will use bundled)')
+  console.log('[PDF] Chromium static lookup:', found ?? 'NONE')
   return found
 }
 
@@ -39,12 +50,31 @@ function resolveChromium(): string | undefined {
 async function generatePdf(html: string): Promise<Buffer> {
   const puppeteer = require('puppeteer')
   const executablePath = resolveChromium()
+  console.log('[PDF] Launching puppeteer, executablePath:', executablePath ?? '(bundled)')
   const launchOptions: any = {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--single-process'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--single-process',
+      '--no-zygote',
+      '--disable-software-rasterizer',
+      '--disable-extensions',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--no-first-run',
+    ],
   }
   if (executablePath) launchOptions.executablePath = executablePath
-  const browser = await puppeteer.launch(launchOptions)
+  let browser: any
+  try {
+    browser = await puppeteer.launch(launchOptions)
+  } catch (launchErr: any) {
+    console.error('[PDF] puppeteer.launch failed:', launchErr.message)
+    throw new Error(`Chromium konnte nicht gestartet werden: ${launchErr.message}`)
+  }
   try {
     const page = await browser.newPage()
     await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 })
