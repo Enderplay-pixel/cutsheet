@@ -14,12 +14,12 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { debounce, getStripClass, eighthsToString, cn } from '@/lib/utils'
-import { Plus, Trash2, Camera, Film, Clock, Download, Check } from 'lucide-react'
+import { Plus, Trash2, Camera, Film, Clock, Download, Check, Copy } from 'lucide-react'
 
 const SHOT_SIZES = ['ECU', 'CU', 'MCU', 'MS', 'MWS', 'WS', 'EWS', 'Totale', 'Vogelperspektive', 'Froschperspektive']
 const MOVEMENTS = ['Statisch', 'Pan', 'Tilt', 'Pan + Tilt', 'Dolly', 'Fahrt', 'Gimbal', 'Handheld', 'Kran', 'Drohne', 'Zoom']
 
-function ShotRow({ shot, onDelete }: { shot: any; onDelete: () => void }) {
+function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => void; onDuplicate: () => void }) {
   const [form, setForm] = useState(shot)
   const [isDone, setIsDone] = useState(!!shot.done)
   const queryClient = useQueryClient()
@@ -85,6 +85,9 @@ function ShotRow({ shot, onDelete }: { shot: any; onDelete: () => void }) {
       >
         {isDone && <Check className="w-3 h-3" />}
       </button>
+      <button onClick={onDuplicate} className="text-muted-foreground hover:text-primary shrink-0" title="Einstellung duplizieren">
+        <Copy className="w-3.5 h-3.5" />
+      </button>
       <button onClick={onDelete} className="text-muted-foreground hover:text-destructive shrink-0">
         <Trash2 className="w-3.5 h-3.5" />
       </button>
@@ -128,6 +131,21 @@ export function Component() {
 
   const deleteShot = useMutation({
     mutationFn: (id: number) => api.shots.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shots', pid] }),
+  })
+
+  const duplicateShot = useMutation({
+    mutationFn: (shot: any) => {
+      const sceneShots = (shots || []).filter((s: any) => s.scene_id === shot.scene_id)
+      return api.shots.create(shot.scene_id, {
+        shot_number: String(sceneShots.length + 1),
+        size: shot.size,
+        movement: shot.movement,
+        lens_mm: shot.lens_mm,
+        description: shot.description ? `${shot.description} (Kopie)` : '',
+        duration_seconds: shot.duration_seconds,
+      })
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shots', pid] }),
   })
 
@@ -211,7 +229,7 @@ export function Component() {
                     <span className="w-6" />
                   </div>
                   {sceneShots.map((shot: any) => (
-                    <ShotRow key={shot.id} shot={shot} onDelete={() => deleteShot.mutate(shot.id)} />
+                    <ShotRow key={shot.id} shot={shot} onDelete={() => deleteShot.mutate(shot.id)} onDuplicate={() => duplicateShot.mutate(shot)} />
                   ))}
                   <Button variant="ghost" size="sm" className="text-xs w-full mt-1"
                     onClick={() => createShot.mutate(scene.id)} disabled={createShot.isPending}>

@@ -45,8 +45,17 @@ router.post('/scenes/:sceneId/shots', (req, res) => {
 
 // PUT /api/shots/:id
 router.put('/shots/:id', (req, res) => {
-  const { shot_number, size, movement, lens_mm, description, notes, duration_seconds, sort_order } = req.body
-  db.prepare('UPDATE shots SET shot_number=?, size=?, movement=?, lens_mm=?, description=?, notes=?, duration_seconds=?, sort_order=COALESCE(?,sort_order) WHERE id=?').run(shot_number, size, movement, lens_mm, description, notes, duration_seconds, sort_order ?? null, req.params.id)
+  const { shot_number, size, movement, lens_mm, description, notes, duration_seconds, sort_order, done } = req.body
+  db.prepare('UPDATE shots SET shot_number=?, size=?, movement=?, lens_mm=?, description=?, notes=?, duration_seconds=?, sort_order=COALESCE(?,sort_order), done=COALESCE(?,done) WHERE id=?').run(shot_number, size, movement, lens_mm, description, notes, duration_seconds, sort_order ?? null, done != null ? (done ? 1 : 0) : null, req.params.id)
+  res.json({ data: db.prepare('SELECT * FROM shots WHERE id = ?').get(req.params.id), error: null })
+})
+
+// PATCH /api/shots/:id/done — toggle done status (0↔1)
+router.patch('/shots/:id/done', (req, res) => {
+  const shot = db.prepare('SELECT id, done FROM shots WHERE id = ?').get(req.params.id) as any
+  if (!shot) return res.status(404).json({ data: null, error: 'Shot nicht gefunden' })
+  const newDone = shot.done ? 0 : 1
+  db.prepare('UPDATE shots SET done = ? WHERE id = ?').run(newDone, req.params.id)
   res.json({ data: db.prepare('SELECT * FROM shots WHERE id = ?').get(req.params.id), error: null })
 })
 

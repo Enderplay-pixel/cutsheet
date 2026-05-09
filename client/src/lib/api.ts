@@ -76,6 +76,7 @@ export const api = {
   drehplan: {
     listDays: (projectId: number) => req<any[]>(`/projects/${projectId}/shoot-days`),
     createDay: (projectId: number, data: any) => req<any>(`/projects/${projectId}/shoot-days`, { method: 'POST', body: JSON.stringify(data) }),
+    createDaysBatch: (projectId: number, dates: string[]) => req<any[]>(`/projects/${projectId}/shoot-days/batch`, { method: 'POST', body: JSON.stringify({ dates }) }),
     updateDay: (id: number, data: any) => req<any>(`/shoot-days/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteDay: (id: number) => req<any>(`/shoot-days/${id}`, { method: 'DELETE' }),
     addScene: (dayId: number, data: any) => req<any>(`/shoot-days/${dayId}/scenes`, { method: 'POST', body: JSON.stringify(data) }),

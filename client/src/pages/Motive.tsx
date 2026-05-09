@@ -149,6 +149,38 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
             <Textarea value={form.notes || ''} onChange={e => update('notes', e.target.value)}
               rows={2} className="mt-1 text-xs resize-none" placeholder="Parkplätze, WC, Besonderheiten…" />
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Breitengrad (lat)</Label>
+              <Input type="number" value={form.lat || ''} onChange={e => update('lat', e.target.value ? Number(e.target.value) : null)}
+                className="mt-1 h-8 text-xs font-mono" placeholder="52.520008" step="any" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Längengrad (lng)</Label>
+              <Input type="number" value={form.lng || ''} onChange={e => update('lng', e.target.value ? Number(e.target.value) : null)}
+                className="mt-1 h-8 text-xs font-mono" placeholder="13.404954" step="any" />
+            </div>
+          </div>
+
+          {form.lat && form.lng ? (
+            <div className="rounded-lg overflow-hidden border border-border/60 h-44">
+              <iframe
+                title="Karte"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${form.lng - 0.01},${form.lat - 0.007},${form.lng + 0.01},${form.lat + 0.007}&layer=mapnik&marker=${form.lat},${form.lng}`}
+                className="w-full h-full border-0"
+                loading="lazy"
+              />
+            </div>
+          ) : (form.address || form.city) ? (
+            <a
+              href={`https://www.openstreetmap.org/search?query=${encodeURIComponent([form.address, form.zip, form.city].filter(Boolean).join(', '))}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              <ExternalLink className="w-3 h-3" />Auf OpenStreetMap suchen & Koordinaten eintragen
+            </a>
+          ) : null}
         </div>
       )}
     </div>

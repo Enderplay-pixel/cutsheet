@@ -82,6 +82,11 @@ function AppShell() {
         if (e.key === 's') navigate(`/projects/${projectId}/drehbuch`)
         if (e.key === 'b') navigate(`/projects/${projectId}/besetzung`)
         if (e.key === 't') navigate(`/projects/${projectId}/tagesdispo`)
+        if (e.key === 'c') navigate(`/projects/${projectId}/stabliste`)
+        if (e.key === 'e') navigate(`/projects/${projectId}/equipment`)
+        if (e.key === 'l') navigate(`/projects/${projectId}/shotlist`)
+        if (e.key === 'm') navigate(`/projects/${projectId}/motive`)
+        if (e.key === 'g') navigate(`/projects/${projectId}/budget`)
       }
     }
     window.addEventListener('keydown', handler)

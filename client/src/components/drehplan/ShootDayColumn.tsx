@@ -66,8 +66,12 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
         <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
           <span>{day.scenes?.length || 0} Sz.</span>
           <span>·</span>
-          <Clock className="w-2.5 h-2.5" aria-hidden="true" />
-          <span className="font-mono">{eighthsToString(totalEighths)}</span>
+          <Clock className={cn('w-2.5 h-2.5', totalEighths > 96 ? 'text-red-500' : totalEighths > 80 ? 'text-amber-500' : '')} aria-hidden="true" />
+          <span className={cn(
+            'font-mono',
+            totalEighths > 96 ? 'text-red-500 font-bold' : totalEighths > 80 ? 'text-amber-500' : ''
+          )}>{eighthsToString(totalEighths)}</span>
+          {totalEighths > 80 && <span title={totalEighths > 96 ? 'Überladen! >12 Seiten' : 'Vorsicht: >10 Seiten'}>⚠</span>}
         </div>
       </div>
 

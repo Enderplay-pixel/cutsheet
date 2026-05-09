@@ -40,6 +40,26 @@ router.post('/projects/:projectId/shoot-days', (req, res) => {
   res.status(201).json({ data: getShootDayWithScenes(result.lastInsertRowid), error: null })
 })
 
+// POST /api/projects/:projectId/shoot-days/batch — create multiple days from a date range
+router.post('/projects/:projectId/shoot-days/batch', (req, res) => {
+  const { dates } = req.body   // string[] of 'YYYY-MM-DD'
+  if (!Array.isArray(dates) || dates.length === 0)
+    return res.status(400).json({ data: null, error: 'dates array required' })
+
+  const maxDayRow = db.prepare('SELECT COALESCE(MAX(day_number), 0) as m FROM shoot_days WHERE project_id = ?').get(req.params.projectId) as any
+  let nextDay = (maxDayRow.m as number) + 1
+
+  const created: any[] = []
+  for (const date of dates) {
+    const result = db.prepare(
+      'INSERT INTO shoot_days (project_id, day_number, date, status, unit, notes) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(req.params.projectId, nextDay++, date, 'Geplant', 'Haupteinheit', '')
+    const day = getShootDayWithScenes(result.lastInsertRowid)
+    if (day) created.push(day)
+  }
+  res.status(201).json({ data: created, error: null })
+})
+
 // PUT /api/shoot-days/:id
 router.put('/shoot-days/:id', (req, res) => {
   const { date, status, unit, notes, catering_count } = req.body

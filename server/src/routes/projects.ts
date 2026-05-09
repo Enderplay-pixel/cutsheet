@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { validate } from '../middleware/validate'
 import { ProjectSchema } from '../schemas'
-import { getUserProjectRole, requireMember } from '../middleware/projectAuth'
+import { getUserProjectRole, requireMember, ROLE_RANK } from '../middleware/projectAuth'
 import { requireAuth } from '../middleware/auth'
 
 const router = Router()
@@ -140,6 +140,128 @@ router.delete('/:id', requireAuth, (req: Request, res: Response) => {
   }
 
   db.prepare('DELETE FROM projects WHERE id = ?').run(projectId)
+  res.json({ data: { ok: true }, error: null })
+})
+
+// ─── Member management ────────────────────────────────────────────────────────
+
+// GET /api/projects/:id/members — list members with user info (owner always included)
+router.get('/:id/members', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user
+  const projectId = Number(req.params.id)
+
+  if (user.role !== 'admin') {
+    const role = getUserProjectRole(user.id, projectId)
+    if (role === null) return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  }
+
+  const project = db.prepare('SELECT owner_id FROM projects WHERE id = ?').get(projectId) as any
+  if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+
+  const members = db.prepare(`
+    SELECT pm.user_id, pm.role, u.name, u.email
+    FROM project_members pm
+    JOIN users u ON pm.user_id = u.id
+    WHERE pm.project_id = ?
+  `).all(projectId) as any[]
+
+  // Mark owner
+  const result = members.map((m: any) => ({
+    ...m,
+    is_owner: m.user_id === project.owner_id,
+  }))
+
+  // If owner is not already in members list, add them
+  if (project.owner_id && !members.find((m: any) => m.user_id === project.owner_id)) {
+    const ownerUser = db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(project.owner_id) as any
+    if (ownerUser) {
+      result.unshift({ user_id: ownerUser.id, role: 'admin', name: ownerUser.name, email: ownerUser.email, is_owner: true })
+    }
+  }
+
+  res.json({ data: result, error: null })
+})
+
+// POST /api/projects/:id/members — add member { userId, role }
+router.post('/:id/members', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user
+  const projectId = Number(req.params.id)
+
+  if (user.role !== 'admin') {
+    const role = getUserProjectRole(user.id, projectId)
+    if (role === null) return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+    if ((ROLE_RANK[role] ?? 0) < ROLE_RANK.producer) {
+      return res.status(403).json({ data: null, error: 'Nur Admins/Produzenten können Mitglieder hinzufügen' })
+    }
+  }
+
+  const { userId, role: memberRole = 'read_only' } = req.body
+  if (!userId) return res.status(400).json({ data: null, error: 'userId fehlt' })
+
+  const project = db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)
+  if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+
+  const targetUser = db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(userId) as any
+  if (!targetUser) return res.status(404).json({ data: null, error: 'Benutzer nicht gefunden' })
+
+  db.prepare('INSERT OR REPLACE INTO project_members (project_id, user_id, role) VALUES (?, ?, ?)').run(projectId, userId, memberRole)
+
+  res.status(201).json({ data: { user_id: targetUser.id, name: targetUser.name, email: targetUser.email, role: memberRole }, error: null })
+})
+
+// PUT /api/projects/:id/members/:userId/role — change role
+router.put('/:id/members/:userId/role', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user
+  const projectId = Number(req.params.id)
+
+  if (user.role !== 'admin') {
+    const role = getUserProjectRole(user.id, projectId)
+    if (role === null) return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+    if ((ROLE_RANK[role] ?? 0) < ROLE_RANK.producer) {
+      return res.status(403).json({ data: null, error: 'Nur Admins/Produzenten können Rollen ändern' })
+    }
+  }
+
+  const targetUserId = Number(req.params.userId)
+  const { role: newRole } = req.body
+  if (!newRole) return res.status(400).json({ data: null, error: 'role fehlt' })
+
+  const member = db.prepare('SELECT * FROM project_members WHERE project_id = ? AND user_id = ?').get(projectId, targetUserId)
+  if (!member) return res.status(404).json({ data: null, error: 'Mitglied nicht gefunden' })
+
+  db.prepare('UPDATE project_members SET role = ? WHERE project_id = ? AND user_id = ?').run(newRole, projectId, targetUserId)
+
+  const updated = db.prepare(`
+    SELECT pm.user_id, pm.role, u.name, u.email
+    FROM project_members pm JOIN users u ON pm.user_id = u.id
+    WHERE pm.project_id = ? AND pm.user_id = ?
+  `).get(projectId, targetUserId)
+  res.json({ data: updated, error: null })
+})
+
+// DELETE /api/projects/:id/members/:userId — remove member (can't remove owner)
+router.delete('/:id/members/:userId', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user
+  const projectId = Number(req.params.id)
+
+  if (user.role !== 'admin') {
+    const role = getUserProjectRole(user.id, projectId)
+    if (role === null) return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+    if ((ROLE_RANK[role] ?? 0) < ROLE_RANK.producer) {
+      return res.status(403).json({ data: null, error: 'Nur Admins/Produzenten können Mitglieder entfernen' })
+    }
+  }
+
+  const targetUserId = Number(req.params.userId)
+
+  const project = db.prepare('SELECT owner_id FROM projects WHERE id = ?').get(projectId) as any
+  if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+
+  if (project.owner_id === targetUserId) {
+    return res.status(400).json({ data: null, error: 'Der Projektinhaber kann nicht entfernt werden' })
+  }
+
+  db.prepare('DELETE FROM project_members WHERE project_id = ? AND user_id = ?').run(projectId, targetUserId)
   res.json({ data: { ok: true }, error: null })
 })
 

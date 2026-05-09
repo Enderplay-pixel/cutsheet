@@ -4,6 +4,7 @@ import cors from 'cors'
 import path from 'path'
 import fs from 'fs'
 import { initDatabase } from './db'
+import { db } from './db'
 import { optionalAuth } from './middleware/auth'
 import { projectWriteGuard } from './middleware/projectAuth'
 
@@ -141,6 +142,10 @@ async function main() {
     process.exit(1)
   }
 }
+
+// Flush in-memory SQLite to disk before Railway/Docker kills the process
+process.on('SIGTERM', () => { db._flush(); process.exit(0) })
+process.on('SIGINT',  () => { db._flush(); process.exit(0) })
 
 main()
 

@@ -320,6 +320,15 @@ export function Component() {
                       <tr><td colSpan={7} className="py-8 text-center text-muted-foreground text-sm">Noch keine Positionen. Wähle eine Kategorie und klicke „Position".</td></tr>
                     )}
                   </tbody>
+                  {lines && lines.length > 0 && (
+                    <tfoot className="sticky bottom-0 bg-card border-t-2 border-border shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
+                      <tr>
+                        <td colSpan={5} className="py-2.5 pl-4 text-sm font-bold uppercase tracking-wide">Gesamtbudget</td>
+                        <td className="py-2.5 pr-4 text-right font-mono text-base font-black text-primary">{formatCurrency(totalBudget)}</td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               )}
             </div>

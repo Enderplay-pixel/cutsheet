@@ -19,27 +19,88 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: () => void; projectId: number }) {
+  const [mode, setMode] = useState<'single' | 'range'>('single')
   const [date, setDate] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [loading, setLoading] = useState(false)
   const queryClient = useQueryClient()
   const { toast } = useToast()
 
   const mutation = useMutation({
     mutationFn: (d: string) => api.drehplan.createDay(projectId, { date: d }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['shoot-days', projectId] }); onClose(); setDate('') },
-    onError: (e: any) => toast({ title: 'Fehler', description: e.message, variant: 'destructive' }),
   })
+
+  const getDatesInRange = (start: string, end: string): string[] => {
+    const dates: string[] = []
+    const cur = new Date(start)
+    const last = new Date(end)
+    while (cur <= last) {
+      dates.push(cur.toISOString().slice(0, 10))
+      cur.setDate(cur.getDate() + 1)
+    }
+    return dates
+  }
+
+  const handleAdd = async () => {
+    setLoading(true)
+    try {
+      if (mode === 'single') {
+        if (!date) return
+        await mutation.mutateAsync(date)
+      } else {
+        if (!startDate || !endDate) return
+        const dates = getDatesInRange(startDate, endDate)
+        if (dates.length > 60) { toast({ title: 'Maximal 60 Tage auf einmal', variant: 'destructive' }); return }
+        for (const d of dates) await mutation.mutateAsync(d)
+        toast({ title: `${dates.length} Drehtage hinzugefügt` })
+      }
+      queryClient.invalidateQueries({ queryKey: ['shoot-days', projectId] })
+      onClose(); setDate(''); setStartDate(''); setEndDate('')
+    } catch (e: any) {
+      toast({ title: 'Fehler', description: e.message, variant: 'destructive' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const rangeCount = startDate && endDate ? getDatesInRange(startDate, endDate).length : 0
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Neuen Drehtag hinzufügen</DialogTitle></DialogHeader>
-        <div>
-          <label className="text-sm font-medium block mb-1">Datum</label>
-          <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+        <DialogHeader><DialogTitle>Drehtag(e) hinzufügen</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="flex gap-1 p-0.5 bg-muted rounded-md">
+            <button onClick={() => setMode('single')} className={`flex-1 text-xs py-1 rounded transition-colors ${mode === 'single' ? 'bg-card shadow-sm font-medium' : 'text-muted-foreground'}`}>Einzelner Tag</button>
+            <button onClick={() => setMode('range')} className={`flex-1 text-xs py-1 rounded transition-colors ${mode === 'range' ? 'bg-card shadow-sm font-medium' : 'text-muted-foreground'}`}>Zeitraum</button>
+          </div>
+          {mode === 'single' ? (
+            <div>
+              <label className="text-sm font-medium block mb-1">Datum</label>
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div>
+                <label className="text-sm font-medium block mb-1">Von</label>
+                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Bis</label>
+                <Input type="date" value={endDate} min={startDate} onChange={e => setEndDate(e.target.value)} />
+              </div>
+              {rangeCount > 0 && (
+                <p className="text-xs text-muted-foreground">{rangeCount} Drehtage werden angelegt</p>
+              )}
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Abbrechen</Button>
-          <Button onClick={() => date && mutation.mutate(date)} disabled={!date || mutation.isPending}>Hinzufügen</Button>
+          <Button onClick={handleAdd} disabled={loading || (mode === 'single' ? !date : !startDate || !endDate || rangeCount === 0)}>
+            {loading ? 'Wird angelegt…' : mode === 'range' ? `${rangeCount || 0} Tage anlegen` : 'Hinzufügen'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

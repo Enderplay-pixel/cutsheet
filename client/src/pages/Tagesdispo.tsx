@@ -86,9 +86,17 @@ function AddPersonPanel({
 
       {availableCast.length > 0 && (
         <div>
-          <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide mb-2">
-            {tt(dispoT.castSection)}
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
+              {tt(dispoT.castSection)}
+            </p>
+            <button
+              onClick={() => availableCast.forEach(c => addEntryMutation.mutate({ person_type: 'cast', person_id: c.id, call_time: defaultCall }))}
+              className="text-[11px] text-primary hover:underline"
+            >
+              Alle hinzufügen
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {availableCast.map((c: any) => (
               <button key={c.id}
@@ -106,9 +114,17 @@ function AddPersonPanel({
 
       {availableCrew.length > 0 && (
         <div>
-          <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide mb-2">
-            {tt(dispoT.crewSection)}
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
+              {tt(dispoT.crewSection)}
+            </p>
+            <button
+              onClick={() => availableCrew.forEach(c => addEntryMutation.mutate({ person_type: 'crew', person_id: c.id, call_time: defaultCall }))}
+              className="text-[11px] text-primary hover:underline"
+            >
+              Alle hinzufügen
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {availableCrew.map((c: any) => (
               <button key={c.id}

@@ -646,6 +646,8 @@ export function addMigrations() {
     { sql: "ALTER TABLE projects ADD COLUMN archived INTEGER NOT NULL DEFAULT 0", label: 'projects.archived' },
     // Feature: catering count per shoot day
     { sql: "ALTER TABLE shoot_days ADD COLUMN catering_count INTEGER NOT NULL DEFAULT 0", label: 'shoot_days.catering_count' },
+    // Feature: shot done status
+    { sql: "ALTER TABLE shots ADD COLUMN done INTEGER NOT NULL DEFAULT 0", label: 'shots.done' },
   ]
 
   for (const m of migrations) {
