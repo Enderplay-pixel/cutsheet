@@ -648,6 +648,62 @@ export function addMigrations() {
     { sql: "ALTER TABLE shoot_days ADD COLUMN catering_count INTEGER NOT NULL DEFAULT 0", label: 'shoot_days.catering_count' },
     // Feature: shot done status
     { sql: "ALTER TABLE shots ADD COLUMN done INTEGER NOT NULL DEFAULT 0", label: 'shots.done' },
+    // New tables for VFX, Post, Music, Insurances
+    { sql: `CREATE TABLE IF NOT EXISTS vfx_shots (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  scene_id INTEGER REFERENCES scenes(id) ON DELETE SET NULL,
+  shot_number TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  vfx_type TEXT NOT NULL DEFAULT 'Compositing',
+  status TEXT NOT NULL DEFAULT 'Offen',
+  artist TEXT NOT NULL DEFAULT '',
+  deadline TEXT,
+  complexity TEXT NOT NULL DEFAULT 'Mittel',
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`, label: 'vfx_shots' },
+    { sql: `CREATE TABLE IF NOT EXISTS post_phases (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  phase TEXT NOT NULL DEFAULT 'Rohschnitt',
+  start_date TEXT,
+  end_date TEXT,
+  status TEXT NOT NULL DEFAULT 'Ausstehend',
+  responsible TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0
+)`, label: 'post_phases' },
+    { sql: `CREATE TABLE IF NOT EXISTS music_cues (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  scene_id INTEGER REFERENCES scenes(id) ON DELETE SET NULL,
+  title TEXT NOT NULL DEFAULT '',
+  composer TEXT NOT NULL DEFAULT '',
+  publisher TEXT NOT NULL DEFAULT '',
+  duration_seconds INTEGER NOT NULL DEFAULT 0,
+  cue_type TEXT NOT NULL DEFAULT 'Original',
+  usage_type TEXT NOT NULL DEFAULT 'Unterlegt',
+  lyrics_author TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0
+)`, label: 'music_cues' },
+    { sql: `CREATE TABLE IF NOT EXISTS insurances (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  ins_type TEXT NOT NULL DEFAULT 'Filmversicherung',
+  provider TEXT NOT NULL DEFAULT '',
+  policy_number TEXT NOT NULL DEFAULT '',
+  coverage_amount_cents INTEGER NOT NULL DEFAULT 0,
+  premium_cents INTEGER NOT NULL DEFAULT 0,
+  start_date TEXT,
+  end_date TEXT,
+  notes TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0
+)`, label: 'insurances' },
+    { sql: "ALTER TABLE shoot_days ADD COLUMN risk_notes TEXT NOT NULL DEFAULT ''", label: 'shoot_days.risk_notes' },
+    { sql: "ALTER TABLE call_sheets ADD COLUMN safety_personnel INTEGER NOT NULL DEFAULT 0", label: 'call_sheets.safety_personnel' },
+    { sql: "ALTER TABLE project_settings ADD COLUMN vat_mode TEXT NOT NULL DEFAULT 'netto'", label: 'project_settings.vat_mode' },
   ]
 
   for (const m of migrations) {

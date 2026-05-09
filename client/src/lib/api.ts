@@ -275,4 +275,36 @@ export const api = {
   audit: {
     list: (projectId: number) => req<any[]>(`/projects/${projectId}/audit`),
   },
+
+  // ─── VFX ───────────────────────────────────────────────────────────────────
+  vfx: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/vfx`),
+    create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/vfx`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (projectId: number, id: number, data: any) => req<any>(`/projects/${projectId}/vfx/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (projectId: number, id: number) => req<any>(`/projects/${projectId}/vfx/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Post Plan ─────────────────────────────────────────────────────────────
+  postplan: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/post-phases`),
+    create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/post-phases`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (projectId: number, id: number, data: any) => req<any>(`/projects/${projectId}/post-phases/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (projectId: number, id: number) => req<any>(`/projects/${projectId}/post-phases/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Music Cues ────────────────────────────────────────────────────────────
+  musicCues: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/music-cues`),
+    create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/music-cues`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (projectId: number, id: number, data: any) => req<any>(`/projects/${projectId}/music-cues/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (projectId: number, id: number) => req<any>(`/projects/${projectId}/music-cues/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Insurances ────────────────────────────────────────────────────────────
+  insurances: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/insurances`),
+    create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/insurances`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (projectId: number, id: number, data: any) => req<any>(`/projects/${projectId}/insurances/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (projectId: number, id: number) => req<any>(`/projects/${projectId}/insurances/${id}`, { method: 'DELETE' }),
+  },
 }

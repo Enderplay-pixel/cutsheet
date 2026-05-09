@@ -36,6 +36,10 @@ import invitesRouter from './routes/invites'
 import sseRouter from './routes/sse'
 import screenplayRouter from './routes/screenplay'
 import adminRouter from './routes/admin'
+import vfxRouter from './routes/vfx'
+import postplanRouter from './routes/postplan'
+import musicCuesRouter from './routes/musicCues'
+import insurancesRouter from './routes/insurances'
 
 const app = express()
 const PORT = Number(process.env.PORT) || 3001
@@ -108,6 +112,10 @@ app.use('/api', guestTokensRouter)
 app.use('/api', invitesRouter)
 app.use('/api', screenplayRouter)
 app.use('/api/admin', adminRouter)
+app.use('/api', vfxRouter)
+app.use('/api', postplanRouter)
+app.use('/api', musicCuesRouter)
+app.use('/api', insurancesRouter)
 app.use(sseRouter)
 
 // In production: serve index.html for all non-API routes (SPA fallback)

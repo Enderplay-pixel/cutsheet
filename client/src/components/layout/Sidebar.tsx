@@ -8,7 +8,8 @@ import {
   Film, LayoutDashboard, FileText, Users, Briefcase, MapPin, Calendar,
   Camera, ClipboardList, FileCheck, DollarSign, Package, Mail, AlertTriangle,
   Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight,
-  StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle, ShieldCheck, BookUser, Settings
+  StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle, ShieldCheck, BookUser, Settings,
+  Layers, CalendarClock, Music, Shield
 } from 'lucide-react'
 import { useT } from '@/lib/useT'
 import { navT } from '@/lib/i18n'
@@ -66,8 +67,17 @@ export function Sidebar() {
         { label: tt(navT.shootingPlan), icon: Clapperboard, path: 'drehplan' },
         { label: tt(navT.stripboard), icon: LayoutDashboard, path: 'staebchenplan' },
         { label: tt(navT.shotlist), icon: Camera, path: 'shotlist' },
+        { label: 'VFX-Tracking', icon: Layers, path: 'vfx' },
         { label: tt(navT.callSheet), icon: ClipboardList, path: 'tagesdispo' },
         { label: tt(navT.dailyReport), icon: FileCheck, path: 'tagesbericht' },
+      ]
+    },
+    {
+      label: 'Post-Produktion',
+      items: [
+        { label: 'Postplan', icon: CalendarClock, path: 'postplan' },
+        { label: 'Musikliste', icon: Music, path: 'musikliste' },
+        { label: 'Versicherungen', icon: Shield, path: 'versicherungen' },
       ]
     },
     {
