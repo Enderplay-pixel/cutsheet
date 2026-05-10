@@ -15,6 +15,8 @@ export const pool = new Pool({
 export function toPg(sql: string): string {
   let i = 0
   return sql
+    // Multi-arg datetime: datetime('now', '-7 days') → NOW() - INTERVAL '7 days'
+    .replace(/datetime\('now'\s*,\s*'([+-]?\d+)\s+(\w+)'\)/gi, "NOW() - INTERVAL '$1 $2'")
     .replace(/datetime\('now'\)/gi, 'NOW()')
     .replace(/\bdate\('now'\)/gi, 'CURRENT_DATE')
     // Quote 'cast' — reserved word in PostgreSQL (lowercase only; CAST() function stays untouched)

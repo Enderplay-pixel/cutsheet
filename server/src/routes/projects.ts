@@ -319,7 +319,7 @@ router.get('/:id/stats', requireAuth, async (req: Request, res: Response) => {
   const finRow = await db.get('SELECT COALESCE(MAX(total_cents), 0) as s FROM financing_plan_versions WHERE project_id = ?', [pid]) as any
 
   const next_shoot_day = await db.get(`
-    SELECT * FROM shoot_days WHERE project_id = ? AND date >= date('now') AND status != 'Ausgefallen'
+    SELECT * FROM shoot_days WHERE project_id = ? AND date::date >= CURRENT_DATE AND status != 'Ausgefallen'
     ORDER BY date ASC LIMIT 1
   `, [pid])
 
