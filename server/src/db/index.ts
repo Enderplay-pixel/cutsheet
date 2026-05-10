@@ -970,7 +970,7 @@ export async function seedDemoData() {
     `INSERT INTO daily_reports (shoot_day_id, call_time, first_shot, lunch_in, lunch_out, wrap, pages_shot, total_setups, camera_rolls, sound_rolls, production_notes, notes)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [dayId1, 420, 495, 750, 810, 1110,
-     '2/8', 12, 2, 2,
+     2, 12, 2, 2,
      'Sehr produktiver Drehtag. Szenen 1-4 komplett abgedreht. Felix Wagner hat hervorragende Arbeit geleistet.',
      'Parkplätze waren knapp — für Tag 2 Alternativparkplatz organisieren.']
   )
