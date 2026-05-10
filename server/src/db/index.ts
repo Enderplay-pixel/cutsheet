@@ -19,8 +19,9 @@ export function toPg(sql: string): string {
     .replace(/datetime\('now'\s*,\s*'([+-]?\d+)\s+(\w+)'\)/gi, "NOW() - INTERVAL '$1 $2'")
     .replace(/datetime\('now'\)/gi, 'NOW()')
     .replace(/\bdate\('now'\)/gi, 'CURRENT_DATE')
-    // Quote 'cast' — reserved word in PostgreSQL (lowercase only; CAST() function stays untouched)
-    .replace(/\bcast\b(?!\s*\()/g, '"cast"')
+    // Quote 'cast' table/column references — reserved word in PostgreSQL.
+    // Negative lookbehind skips already-quoted "cast"; negative lookahead skips CAST( function calls.
+    .replace(/(?<!")\bcast\b(?!\()/gi, '"cast"')
     .replace(/\?/g, () => `$${++i}`)
 }
 
@@ -723,11 +724,11 @@ export async function seedDemoData() {
 
   // Cast
   await db.run(
-    'INSERT INTO cast (project_id, character_id, actor_name, email, phone, fee_per_day, contract_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO "cast" (project_id, character_id, actor_name, email, phone, fee_per_day, contract_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [projectId, charId1, 'Felix Wagner', 'felix.wagner@email.de', '0170 1234567', 50000, 'Tagesgage']
   )
   await db.run(
-    'INSERT INTO cast (project_id, character_id, actor_name, email, phone, fee_per_day, contract_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO "cast" (project_id, character_id, actor_name, email, phone, fee_per_day, contract_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [projectId, charId2, 'Anna Schmidt', 'anna.schmidt@email.de', '0171 9876543', 50000, 'Tagesgage']
   )
 
