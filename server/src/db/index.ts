@@ -915,5 +915,202 @@ async function seedDemoData() {
     )
   }
 
+  // Shots (Shotlist)
+  const shotsData: Array<[number, string, string, string, string, number, string, number]> = [
+    [sceneIds[0], 'E1', 'Totale', 'Statisch', '35mm', 0, 'Andi allein am Tisch, Fenster im Hintergrund', 8],
+    [sceneIds[0], 'E2', 'Nahe', 'Statisch', '85mm', 1, 'Close auf leeres Notizbuch', 4],
+    [sceneIds[0], 'E3', 'Groß', 'Statisch', '85mm', 2, 'Andis Gesicht — leerer Blick', 5],
+    [sceneIds[3], 'E1', 'Halbnahe', 'Statisch', '50mm', 0, 'Andi öffnet die Tür', 6],
+    [sceneIds[3], 'E2', 'Schuss-Gegenschuss', 'Statisch', '85mm', 1, 'Blick von Mia auf Andi', 5],
+    [sceneIds[3], 'E3', 'Schuss-Gegenschuss', 'Statisch', '85mm', 2, 'Blick von Andi auf Mia', 5],
+    [sceneIds[4], 'E1', 'Totale', 'Dolly', '35mm', 0, 'Weite Parklandschaft, Bank in Mitte', 10],
+    [sceneIds[4], 'E2', 'Halbnahe', 'Statisch', '50mm', 1, 'Beide auf der Bank', 8],
+    [sceneIds[6], 'E1', 'Totale', 'Statisch', '35mm', 0, 'Café-Überblick', 6],
+    [sceneIds[6], 'E2', 'Nahe', 'Statisch', '85mm', 1, 'Mia bestellt', 5],
+    [sceneIds[6], 'E3', 'Insert', 'Statisch', '85mm', 2, 'Andis Zettel in Großaufnahme', 4],
+  ]
+  for (const [sceneId, shotNum, size, movement, lens, sort, desc, dur] of shotsData) {
+    await db.run(
+      'INSERT INTO shots (project_id, scene_id, shot_number, size, movement, lens_mm, sort_order, description, duration_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [projectId, sceneId, shotNum, size, movement, parseInt(lens), sort, desc, dur]
+    )
+  }
+
+  // Call sheet for Day 1
+  const cs1 = await db.run(
+    'INSERT INTO call_sheets (shoot_day_id, general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [dayId1, 420, 480, locId1, 'Sonnig, 18°C', '05:30', '21:00', 'Bitte pünktlich erscheinen. Parkplätze in der Nebenstraße.']
+  )
+  const castRows = await db.all('SELECT id FROM "cast" WHERE project_id = ?', [projectId])
+  const crewRows = await db.all('SELECT id FROM crew WHERE project_id = ? ORDER BY id ASC', [projectId])
+  const csEntries: Array<[string, number, number, string]> = [
+    ['cast',  castRows[0]?.id, 420, 'Maske um 07:00'],
+    ['cast',  castRows[1]?.id, 450, 'Maske um 07:30'],
+    ['crew',  crewRows[0]?.id, 420, ''],
+    ['crew',  crewRows[1]?.id, 420, ''],
+    ['crew',  crewRows[2]?.id, 420, 'Equipment-Aufbau ab 06:00'],
+    ['crew',  crewRows[4]?.id, 420, 'Ton-Setup ab 06:30'],
+    ['crew',  crewRows[7]?.id, 390, 'Einlass koordinieren'],
+  ]
+  for (let i = 0; i < csEntries.length; i++) {
+    const [type, personId, callTime, notes] = csEntries[i]
+    if (!personId) continue
+    await db.run(
+      'INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, call_time, notes, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+      [cs1.id, type, personId, callTime, notes, i]
+    )
+  }
+
+  // Daily report for Day 1 (completed)
+  await db.run('UPDATE shoot_days SET status = ? WHERE id = ?', ['Abgedreht', dayId1])
+  await db.run(
+    `INSERT INTO daily_reports (shoot_day_id, call_time, first_shot, lunch_in, lunch_out, wrap, pages_shot, total_setups, camera_rolls, sound_rolls, production_notes, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [dayId1, 420, 495, 750, 810, 1110,
+     '2/8', 12, 2, 2,
+     'Sehr produktiver Drehtag. Szenen 1-4 komplett abgedreht. Felix Wagner hat hervorragende Arbeit geleistet.',
+     'Parkplätze waren knapp — für Tag 2 Alternativparkplatz organisieren.']
+  )
+
+  // Screenplay blocks (Drehbuch-Editor)
+  const blocksByScene: Array<[number, string, string]>[] = [
+    [ // Szene 1
+      [sceneIds[0], 'scene_heading', 'INNEN. ANDIS WOHNKÜCHE — TAG'],
+      [sceneIds[0], 'action', 'Die Küche ist klein und ordentlich. Morgenlicht fällt durchs Fenster. ANDI (28) sitzt reglos am Tisch. Vor ihm: eine Tasse Kaffee, die längst kalt ist. Ein leeres Notizbuch.'],
+      [sceneIds[0], 'action', 'Er starrt auf das Notizbuch. Seine Hand liegt daneben, rührt sich nicht.'],
+    ],
+    [ // Szene 4
+      [sceneIds[3], 'scene_heading', 'INNEN. ANDIS WOHNUNGSTÜR — TAG'],
+      [sceneIds[3], 'action', 'Die Tür öffnet sich einen Spalt. Andi schaut durch den Spalt. MIA (30) steht im Treppenhaus, hält eine kleine Pflanze.'],
+      [sceneIds[3], 'character', 'MIA'],
+      [sceneIds[3], 'dialogue', 'Ich dachte, vielleicht... wäre das etwas für dich. Eine Pflanze. Die braucht nicht viel.'],
+      [sceneIds[3], 'action', 'Andi sagt nichts. Schaut auf die Pflanze.'],
+    ],
+    [ // Szene 5
+      [sceneIds[4], 'scene_heading', 'AUSSEN. ENGLISCHER GARTEN, BANK — TAG'],
+      [sceneIds[4], 'action', 'Eine Bank am Teich. Andi schreibt in sein Notizbuch. Mia sitzt daneben, liest ein Buch. Keine Worte nötig.'],
+      [sceneIds[4], 'action', 'Er dreht das Notizbuch, zeigt ihr eine Zeichnung. Sie lächelt.'],
+    ],
+  ]
+  let blockSort = 0
+  for (const sceneBlocks of blocksByScene) {
+    blockSort = 0
+    for (const [sceneId, blockType, content] of sceneBlocks) {
+      await db.run(
+        'INSERT INTO screenplay_blocks (project_id, scene_id, block_type, content, sort_order) VALUES (?, ?, ?, ?, ?)',
+        [projectId, sceneId, blockType, content, blockSort++]
+      )
+    }
+  }
+
+  // Sticky notes (Pinboard) — schema: content, color, position_x, position_y (no title)
+  const stickyData = [
+    ['Englischer Garten Genehmigung noch ausstehend! Lars kümmert sich darum.', '#f59e0b', 0, 0],
+    ['Vegane Option für Anna Schmidt (Hauptdarstellerin) nicht vergessen!', '#3b82f6', 220, 0],
+    ['Sony FX3 Reservierung bestätigt von Movietech München.', '#10b981', 0, 220],
+    ['Café Morgenrot: Sonntag 9-17 Uhr verfügbar. Kontakt: Maria Vogel 089 5556789', '#8b5cf6', 220, 220],
+  ]
+  for (const [content, color, posX, posY] of stickyData) {
+    await db.run(
+      'INSERT INTO sticky_notes (project_id, content, color, position_x, position_y) VALUES (?, ?, ?, ?, ?)',
+      [projectId, content, color, posX, posY]
+    )
+  }
+
+  // VFX shots — schema columns: shot_number, description, vfx_type, status, artist, deadline, complexity, notes
+  const vfxShots = [
+    ['VFX-001', sceneIds[5], 'Regen wird digital hinzugefügt', 'Compositing', 'Offen', '', '2026-07-01', 'Mittel', ''],
+    ['VFX-002', sceneIds[0], 'Außenblick durchs Fenster — digitale Erweiterung', 'Matte Painting', 'Offen', '', '2026-07-15', 'Niedrig', ''],
+  ]
+  for (const [shotNum, sceneId, desc, vfxType, status, artist, deadline, complexity, notesTxt] of vfxShots) {
+    await db.run(
+      'INSERT INTO vfx_shots (project_id, scene_id, shot_number, description, vfx_type, status, artist, deadline, complexity, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [projectId, sceneId, shotNum, desc, vfxType, status, artist, deadline, complexity, notesTxt]
+    )
+  }
+
+  // Post-production phases — schema column is "phase" not "name"
+  const postPhases = [
+    ['Rohschnitt', '2026-06-20', '2026-07-10', 'Maria Sommer', 'Laufend', 'Offline-Schnitt mit DaVinci Resolve'],
+    ['Feinschnitt', '2026-07-11', '2026-07-18', 'Ben Richter', 'Ausstehend', 'Online-Grading nach Schnittabnahme'],
+    ['Tonmischung', '2026-07-11', '2026-07-20', 'Julia Braun', 'Ausstehend', 'Atmos-Mix im Tonstudio München'],
+    ['Farbkorrektur', '2026-07-01', '2026-07-22', 'VFX-Studio Berlin', 'Ausstehend', 'Regen und Matte Painting'],
+    ['Abnahme', '2026-07-25', '2026-07-28', 'Thomas Bauer', 'Ausstehend', 'DCP + Web-Versionen'],
+  ]
+  for (let i = 0; i < postPhases.length; i++) {
+    const [phase, start, end, responsible, status, notesTxt] = postPhases[i]
+    await db.run(
+      'INSERT INTO post_phases (project_id, phase, start_date, end_date, responsible, status, notes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [projectId, phase, start, end, responsible, status, notesTxt, i]
+    )
+  }
+
+  // Music cues — duration_seconds is INTEGER, no sort_order column
+  const musicCues = [
+    ['Andis Morgen', 'Erik Satie', 'Satie Estate', 'Original', 'Unterlegt', 135, 'GEMA-pflichtig — Lizenz klären'],
+    ['Parkszene', '', '', 'Original', 'Atmo', 220, 'Nur Umgebungsgeräusche, keine Musik'],
+    ['Abspann', 'Ben Richter', 'Eigenkomposition', 'Original', 'Unterlegt', 90, 'Auftragskomposition'],
+  ]
+  for (const [title, composer, publisher, cueType, usageType, durSec, notesTxt] of musicCues) {
+    await db.run(
+      'INSERT INTO music_cues (project_id, title, composer, publisher, cue_type, usage_type, duration_seconds, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [projectId, title, composer, publisher, cueType, usageType, durSec, notesTxt]
+    )
+  }
+
+  // Insurances
+  const insurances = [
+    ['Filmversicherung', 'Allianz Film & Entertainment', 'FV-2026-48291', 500000000, 180000, '2026-05-01', '2026-08-31', 'All-Risk Deckung inkl. Produktionsabbruch'],
+    ['Haftpflicht', 'HDI Gerling', 'HP-2026-77412', 1000000000, 90000, '2026-06-01', '2026-06-30', 'Für alle Drehtage. Kopie beim AL.'],
+    ['Equipmentversicherung', 'Ergo', 'EQ-2026-33901', 200000000, 45000, '2026-06-10', '2026-06-20', 'Mietequipment Movietech abgedeckt'],
+  ]
+  for (let i = 0; i < insurances.length; i++) {
+    const [type, provider, policy, coverage, premium, start, end, notesTxt] = insurances[i]
+    await db.run(
+      'INSERT INTO insurances (project_id, ins_type, provider, policy_number, coverage_amount_cents, premium_cents, start_date, end_date, notes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [projectId, type, provider, policy, coverage, premium, start, end, notesTxt, i]
+    )
+  }
+
+  // Vehicles — schema: name, license_plate, type, capacity, driver_name, driver_phone, notes
+  const vehicles = [
+    ['Produktionsbus', 'M-BP-2026', 'Transporter', 9, 'Lars Weber', '0178 8888888', 'Equipment-Transport, Mietwagen Sixt'],
+    ['Regiefahrzeug', 'M-RG-445', 'PKW', 5, 'Sarah Müller', '0172 1111111', 'Privatwagen Regie'],
+    ['Catering-Fahrzeug', 'M-CT-889', 'Transporter', 3, 'Catering Service', '', 'Kommt mit eigenem Fahrzeug'],
+  ]
+  for (const [name, plate, type, capacity, driverName, driverPhone, notesTxt] of vehicles) {
+    await db.run(
+      'INSERT INTO vehicles (project_id, name, license_plate, type, capacity, driver_name, driver_phone, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [projectId, name, plate, type, capacity, driverName, driverPhone, notesTxt]
+    )
+  }
+
+  // Extras — schema: name, phone, email, tariff_group, notes
+  const extras = [
+    ['Thomas Meier', '0160 1112233', 'thomas.meier@gmail.com', 'Standard', 'Café-Gast, 17. Juni'],
+    ['Sabine Koch', '0161 4445566', 'sabine.k@web.de', 'Standard', 'Café-Gast, 17. Juni'],
+    ['Rainer Schmid', '0162 7778899', 'r.schmid@gmx.de', 'Standard', 'Parkbesucher, 16. Juni'],
+    ['Petra Lange', '0163 0001122', 'p.lange@mail.de', 'Standard', 'Parkbesucherin, 16. Juni'],
+  ]
+  for (const [name, phone, email, tariff, notesTxt] of extras) {
+    await db.run(
+      'INSERT INTO extras (project_id, name, phone, email, tariff_group, notes) VALUES (?, ?, ?, ?, ?, ?)',
+      [projectId, name, phone, email, tariff, notesTxt]
+    )
+  }
+
+  // Camera presets — schema: name, camera, lenses, notes
+  const presets = [
+    ['Standard Dialog', 'Sony FX3', '50mm T2.8', 'A-Kamera Dialog-Einstellungen, ISO 800'],
+    ['Totale Außen', 'Sony FX3', '35mm T4', 'Standard für Außentotalen, ISO 400'],
+    ['Close-Up Emotion', 'Sony FX3', '85mm T2', 'Intensive Nahaufnahmen, flache Schärfe, ISO 1600'],
+  ]
+  for (const [name, camera, lenses, notesTxt] of presets) {
+    await db.run(
+      'INSERT INTO camera_presets (project_id, name, camera, lenses, notes) VALUES (?, ?, ?, ?, ?)',
+      [projectId, name, camera, lenses, notesTxt]
+    )
+  }
+
   console.log('[DB] Demo-Daten "Sprachlos" erfolgreich eingefügt.')
 }
