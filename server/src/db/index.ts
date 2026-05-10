@@ -17,6 +17,8 @@ export function toPg(sql: string): string {
   return sql
     .replace(/datetime\('now'\)/gi, 'NOW()')
     .replace(/\bdate\('now'\)/gi, 'CURRENT_DATE')
+    // Quote 'cast' — reserved word in PostgreSQL (lowercase only; CAST() function stays untouched)
+    .replace(/\bcast\b(?!\s*\()/g, '"cast"')
     .replace(/\?/g, () => `$${++i}`)
 }
 
@@ -165,7 +167,7 @@ const SCHEMA = `
     sort_order INTEGER NOT NULL DEFAULT 0
   );
 
-  CREATE TABLE IF NOT EXISTS cast (
+  CREATE TABLE IF NOT EXISTS "cast" (
     id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     character_id INTEGER REFERENCES characters(id) ON DELETE SET NULL,
