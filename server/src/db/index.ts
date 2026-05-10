@@ -305,7 +305,7 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS daily_report_cast (
     id SERIAL PRIMARY KEY,
     daily_report_id INTEGER NOT NULL REFERENCES daily_reports(id) ON DELETE CASCADE,
-    cast_id INTEGER NOT NULL REFERENCES cast(id) ON DELETE CASCADE,
+    cast_id INTEGER NOT NULL REFERENCES "cast"(id) ON DELETE CASCADE,
     call_time INTEGER NOT NULL DEFAULT 480,
     makeup_in INTEGER,
     on_set INTEGER,
