@@ -39,7 +39,7 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
 
     // First registered user becomes site admin; everyone else is a regular user.
     // Per-project roles are managed separately via project_members.
-    const userCount = ((await db.get('SELECT COUNT(*) as c FROM users', [])) as any).c
+    const userCount = Number(((await db.get('SELECT COUNT(*) as c FROM users', [])) as any)?.c ?? 0)
     const role = userCount === 0 ? 'admin' : 'user'
 
     const password_hash = await bcrypt.hash(password, 12)

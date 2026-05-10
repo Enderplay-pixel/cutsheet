@@ -44,6 +44,9 @@ const app = express()
 const PORT = Number(process.env.PORT) || 3001
 const isProd = process.env.NODE_ENV === 'production'
 
+// Set to true once initDatabase() succeeds — guards all API routes
+let dbReady = false
+
 // In dev allow Vite dev server; in prod same-origin (no CORS needed)
 if (!isProd) {
   app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'], credentials: true }))
@@ -81,8 +84,14 @@ if (isProd) {
   }
 }
 
-// Public health check — no auth required, used by Railway
-app.get('/api/health', (_req, res) => res.json({ ok: true }))
+// Public health check — always responds, used by Railway
+app.get('/api/health', (_req, res) => res.json({ ok: true, db: dbReady }))
+
+// Block all other API routes until DB is initialized
+app.use('/api', (req, res, next) => {
+  if (dbReady) return next()
+  res.status(503).json({ data: null, error: 'Server startet noch — bitte kurz warten und erneut versuchen.' })
+})
 
 // Mount routes
 app.use('/api/projects', projectsRouter)
@@ -159,6 +168,7 @@ async function main() {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       await initDatabase()
+      dbReady = true
       console.log('[DB] Datenbankverbindung hergestellt')
       return
     } catch (err: any) {
