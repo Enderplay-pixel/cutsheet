@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
-import { db } from '../db'
+import { db, seedDemoData } from '../db'
 import { requireAuth, requireRole } from '../middleware/auth'
 
 const router = Router()
@@ -179,6 +179,17 @@ router.post('/users', async (req: Request, res: Response) => {
 
   const created = await db.get('SELECT id, email, name, role, created_at FROM users WHERE id = ?', [result.id])
   res.status(201).json({ data: created, error: null })
+})
+
+// ─── POST /api/admin/reseed ───────────────────────────────────────────────────
+// Deletes the "Sprachlos" demo project and re-seeds all demo data fresh.
+router.post('/reseed', async (_req: Request, res: Response) => {
+  const existing = await db.get("SELECT id FROM projects WHERE title = 'Sprachlos'") as any
+  if (existing) {
+    await db.run('DELETE FROM projects WHERE id = ?', [existing.id])
+  }
+  await seedDemoData()
+  res.json({ data: { ok: true }, error: null })
 })
 
 export default router

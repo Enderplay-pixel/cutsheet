@@ -681,7 +681,7 @@ export async function initDatabase() {
 }
 
 // ─── Demo seed data ───────────────────────────────────────────────────────────
-async function seedDemoData() {
+export async function seedDemoData() {
   const projectResult = await db.run(`
     INSERT INTO projects (title, genre, format, length_minutes, status, director, producer, dop, production_company, shoot_start, shoot_end)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
