@@ -139,14 +139,37 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // Initialize DB and start server
 async function main() {
-  try {
-    await initDatabase()
-    app.listen(PORT, () => {
+  // Start HTTP server FIRST so /api/health responds immediately.
+  // Railway marks the deploy as healthy before DB is ready — this prevents
+  // the health-check timeout when PG is still booting alongside the app.
+  const server = await new Promise<import('http').Server>((resolve) => {
+    const s = app.listen(PORT, () => {
       console.log(`[Server] CutSheet läuft auf http://localhost:${PORT}`)
+      resolve(s)
     })
-  } catch (err) {
-    console.error('[FATAL] Server konnte nicht gestartet werden:', err)
-    process.exit(1)
+  })
+
+  if (!process.env.DATABASE_URL) {
+    console.warn('[DB] WARNUNG: DATABASE_URL nicht gesetzt — bitte PostgreSQL-Addon in Railway hinzufügen')
+  }
+
+  // Retry DB init — Railway may start app before PG plugin is ready
+  const MAX_RETRIES = 10
+  const RETRY_DELAY_MS = 3000
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      await initDatabase()
+      console.log('[DB] Datenbankverbindung hergestellt')
+      return
+    } catch (err: any) {
+      if (attempt === MAX_RETRIES) {
+        console.error(`[FATAL] Datenbankverbindung nach ${MAX_RETRIES} Versuchen fehlgeschlagen:`, err.message)
+        server.close()
+        process.exit(1)
+      }
+      console.warn(`[DB] Verbindungsversuch ${attempt}/${MAX_RETRIES} fehlgeschlagen — nächster in ${RETRY_DELAY_MS / 1000}s`)
+      await new Promise(r => setTimeout(r, RETRY_DELAY_MS))
+    }
   }
 }
 
