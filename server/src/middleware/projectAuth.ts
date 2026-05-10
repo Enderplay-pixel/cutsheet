@@ -14,13 +14,15 @@ export const ROLE_RANK: Record<string, number> = {
  * Returns the user's role in the project, or null if they have no access.
  * null = not a member (must be treated as 403, not read_only).
  */
-export function getUserProjectRole(userId: number, projectId: number): string | null {
+export async function getUserProjectRole(userId: number, projectId: number): Promise<string | null> {
   try {
-    const project = db.prepare('SELECT owner_id FROM projects WHERE id = ?').get(projectId) as any
+    const project = await db.get('SELECT owner_id FROM projects WHERE id = ?', [projectId]) as any
     if (!project) return null
     if (project.owner_id === userId) return 'admin'
-    const member = db.prepare('SELECT role FROM project_members WHERE project_id = ? AND user_id = ?')
-      .get(projectId, userId) as any
+    const member = await db.get(
+      'SELECT role FROM project_members WHERE project_id = ? AND user_id = ?',
+      [projectId, userId]
+    ) as any
     return member?.role ?? null   // null = not a member
   } catch { return null }
 }
@@ -29,7 +31,7 @@ export function getUserProjectRole(userId: number, projectId: number): string | 
  * Express middleware — requires the requesting user to be a member of the project
  * identified by req.params.projectId. Global admins bypass the check.
  */
-export function requireMember(req: Request, res: Response, next: NextFunction) {
+export async function requireMember(req: Request, res: Response, next: NextFunction) {
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
 
@@ -37,7 +39,7 @@ export function requireMember(req: Request, res: Response, next: NextFunction) {
   if (user.role === 'admin') return next()
 
   const projectId = Number(req.params.projectId)
-  const role = getUserProjectRole(user.id, projectId)
+  const role = await getUserProjectRole(user.id, projectId)
   if (role === null) {
     return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   }
@@ -47,14 +49,14 @@ export function requireMember(req: Request, res: Response, next: NextFunction) {
 }
 
 // ─── Project ID extraction from request ───────────────────────────────────────
-function lookupOne(sql: string, id: string): number | null {
+async function lookupOne(sql: string, id: string): Promise<number | null> {
   try {
-    const r = db.prepare(sql).get(id) as any
+    const r = await db.get(sql, [id]) as any
     return r?.project_id ?? null
   } catch { return null }
 }
 
-function extractProjectId(method: string, path: string, body: any): number | null {
+async function extractProjectId(method: string, path: string, body: any): Promise<number | null> {
   // /projects/5 or /projects/5/anything
   const projMatch = path.match(/^\/projects\/(\d+)/)
   if (projMatch) return Number(projMatch[1])
@@ -97,7 +99,7 @@ function extractProjectId(method: string, path: string, body: any): number | nul
   for (const [pattern, sql] of entityPatterns) {
     const m = path.match(pattern)
     if (m?.[1]) {
-      const pid = lookupOne(sql, m[1])
+      const pid = await lookupOne(sql, m[1])
       if (pid) return pid
     }
   }
@@ -128,7 +130,7 @@ function minRankForPath(path: string): number {
 }
 
 // ─── The global middleware ─────────────────────────────────────────────────────
-export function projectWriteGuard(req: Request, res: Response, next: NextFunction) {
+export async function projectWriteGuard(req: Request, res: Response, next: NextFunction) {
   // Only intercept mutations
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
 
@@ -144,10 +146,10 @@ export function projectWriteGuard(req: Request, res: Response, next: NextFunctio
   // Global admins can do anything
   if (user.role === 'admin') return next()
 
-  const projectId = extractProjectId(req.method, path, req.body)
+  const projectId = await extractProjectId(req.method, path, req.body)
   if (!projectId) return next() // can't determine project → pass through
 
-  const role = getUserProjectRole(user.id, projectId)
+  const role = await getUserProjectRole(user.id, projectId)
   if (role === null) return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   const userRank = ROLE_RANK[role] ?? 0
   const requiredRank = minRankForPath(path)

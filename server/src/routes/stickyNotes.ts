@@ -9,10 +9,10 @@ const router = Router()
 router.use('/projects/:projectId', requireAuth, requireMember)
 
 // GET /api/projects/:projectId/sticky-notes
-router.get('/projects/:projectId/sticky-notes', requireAuth, (req: Request, res: Response) => {
+router.get('/projects/:projectId/sticky-notes', requireAuth, async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
-    const rows = db.prepare('SELECT * FROM sticky_notes WHERE project_id = ? ORDER BY created_at ASC').all(projectId)
+    const rows = await db.all('SELECT * FROM sticky_notes WHERE project_id = ? ORDER BY created_at ASC', [projectId])
     return res.json({ data: rows, error: null })
   } catch (err) {
     console.error('[sticky-notes GET]', err)
@@ -21,7 +21,7 @@ router.get('/projects/:projectId/sticky-notes', requireAuth, (req: Request, res:
 })
 
 // POST /api/projects/:projectId/sticky-notes
-router.post('/projects/:projectId/sticky-notes', requireAuth, (req: Request, res: Response) => {
+router.post('/projects/:projectId/sticky-notes', requireAuth, async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
     const { content = '', color = '#fef08a', position_x = 0, position_y = 0 } = req.body as {
@@ -30,11 +30,11 @@ router.post('/projects/:projectId/sticky-notes', requireAuth, (req: Request, res
       position_x?: number
       position_y?: number
     }
-    const result = db.prepare(`
+    const result = await db.run(`
       INSERT INTO sticky_notes (project_id, content, color, position_x, position_y, created_by)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(projectId, content, color, position_x, position_y, req.user?.id ?? null)
-    const row = db.prepare('SELECT * FROM sticky_notes WHERE id = ?').get(result.lastInsertRowid)
+    `, [projectId, content, color, position_x, position_y, req.user?.id ?? null])
+    const row = await db.get('SELECT * FROM sticky_notes WHERE id = ?', [result.id])
     return res.status(201).json({ data: row, error: null })
   } catch (err) {
     console.error('[sticky-notes POST]', err)
@@ -43,7 +43,7 @@ router.post('/projects/:projectId/sticky-notes', requireAuth, (req: Request, res
 })
 
 // PUT /api/projects/:projectId/sticky-notes/:id
-router.put('/projects/:projectId/sticky-notes/:id', requireAuth, (req: Request, res: Response) => {
+router.put('/projects/:projectId/sticky-notes/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
     const { content, color, position_x, position_y } = req.body as {
@@ -52,10 +52,10 @@ router.put('/projects/:projectId/sticky-notes/:id', requireAuth, (req: Request, 
       position_x?: number
       position_y?: number
     }
-    const existing = db.prepare('SELECT * FROM sticky_notes WHERE id = ?').get(id)
+    const existing = await db.get('SELECT * FROM sticky_notes WHERE id = ?', [id])
     if (!existing) return res.status(404).json({ data: null, error: 'Notiz nicht gefunden' })
 
-    db.prepare(`
+    await db.run(`
       UPDATE sticky_notes SET
         content = COALESCE(?, content),
         color = COALESCE(?, color),
@@ -63,9 +63,9 @@ router.put('/projects/:projectId/sticky-notes/:id', requireAuth, (req: Request, 
         position_y = COALESCE(?, position_y),
         updated_at = datetime('now')
       WHERE id = ?
-    `).run(content ?? null, color ?? null, position_x ?? null, position_y ?? null, id)
+    `, [content ?? null, color ?? null, position_x ?? null, position_y ?? null, id])
 
-    const row = db.prepare('SELECT * FROM sticky_notes WHERE id = ?').get(id)
+    const row = await db.get('SELECT * FROM sticky_notes WHERE id = ?', [id])
     return res.json({ data: row, error: null })
   } catch (err) {
     console.error('[sticky-notes PUT]', err)
@@ -74,10 +74,10 @@ router.put('/projects/:projectId/sticky-notes/:id', requireAuth, (req: Request, 
 })
 
 // DELETE /api/projects/:projectId/sticky-notes/:id
-router.delete('/projects/:projectId/sticky-notes/:id', requireAuth, (req: Request, res: Response) => {
+router.delete('/projects/:projectId/sticky-notes/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const result = db.prepare('DELETE FROM sticky_notes WHERE id = ?').run(id)
+    const result = await db.run('DELETE FROM sticky_notes WHERE id = ?', [id])
     if (result.changes === 0) return res.status(404).json({ data: null, error: 'Notiz nicht gefunden' })
     return res.json({ data: { id }, error: null })
   } catch (err) {

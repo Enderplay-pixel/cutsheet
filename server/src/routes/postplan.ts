@@ -9,10 +9,10 @@ const router = Router()
 router.use('/projects/:projectId', requireAuth, requireMember)
 
 // GET /api/projects/:projectId/post-phases
-router.get('/projects/:projectId/post-phases', requireAuth, (req: Request, res: Response) => {
+router.get('/projects/:projectId/post-phases', requireAuth, async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
-    const rows = db.prepare('SELECT * FROM post_phases WHERE project_id = ? ORDER BY sort_order ASC, id ASC').all(projectId)
+    const rows = await db.all('SELECT * FROM post_phases WHERE project_id = ? ORDER BY sort_order ASC, id ASC', [projectId])
     return res.json({ data: rows, error: null })
   } catch (err) {
     console.error('[post-phases GET]', err)
@@ -21,7 +21,7 @@ router.get('/projects/:projectId/post-phases', requireAuth, (req: Request, res: 
 })
 
 // POST /api/projects/:projectId/post-phases
-router.post('/projects/:projectId/post-phases', requireAuth, (req: Request, res: Response) => {
+router.post('/projects/:projectId/post-phases', requireAuth, async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
     const {
@@ -41,11 +41,11 @@ router.post('/projects/:projectId/post-phases', requireAuth, (req: Request, res:
       notes?: string
       sort_order?: number
     }
-    const result = db.prepare(`
+    const result = await db.run(`
       INSERT INTO post_phases (project_id, phase, start_date, end_date, status, responsible, notes, sort_order)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(projectId, phase, start_date, end_date, status, responsible, notes, sort_order)
-    const row = db.prepare('SELECT * FROM post_phases WHERE id = ?').get(result.lastInsertRowid)
+    `, [projectId, phase, start_date, end_date, status, responsible, notes, sort_order])
+    const row = await db.get('SELECT * FROM post_phases WHERE id = ?', [result.id])
     return res.status(201).json({ data: row, error: null })
   } catch (err) {
     console.error('[post-phases POST]', err)
@@ -54,10 +54,10 @@ router.post('/projects/:projectId/post-phases', requireAuth, (req: Request, res:
 })
 
 // PUT /api/projects/:projectId/post-phases/:id
-router.put('/projects/:projectId/post-phases/:id', requireAuth, (req: Request, res: Response) => {
+router.put('/projects/:projectId/post-phases/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const existing = db.prepare('SELECT * FROM post_phases WHERE id = ?').get(id)
+    const existing = await db.get('SELECT * FROM post_phases WHERE id = ?', [id])
     if (!existing) return res.status(404).json({ data: null, error: 'Post-Phase nicht gefunden' })
 
     const {
@@ -78,7 +78,7 @@ router.put('/projects/:projectId/post-phases/:id', requireAuth, (req: Request, r
       sort_order?: number
     }
 
-    db.prepare(`
+    await db.run(`
       UPDATE post_phases SET
         phase = COALESCE(?, phase),
         start_date = COALESCE(?, start_date),
@@ -88,7 +88,7 @@ router.put('/projects/:projectId/post-phases/:id', requireAuth, (req: Request, r
         notes = COALESCE(?, notes),
         sort_order = COALESCE(?, sort_order)
       WHERE id = ?
-    `).run(
+    `, [
       phase ?? null,
       start_date ?? null,
       end_date ?? null,
@@ -97,9 +97,9 @@ router.put('/projects/:projectId/post-phases/:id', requireAuth, (req: Request, r
       notes ?? null,
       sort_order ?? null,
       id
-    )
+    ])
 
-    const row = db.prepare('SELECT * FROM post_phases WHERE id = ?').get(id)
+    const row = await db.get('SELECT * FROM post_phases WHERE id = ?', [id])
     return res.json({ data: row, error: null })
   } catch (err) {
     console.error('[post-phases PUT]', err)
@@ -108,10 +108,10 @@ router.put('/projects/:projectId/post-phases/:id', requireAuth, (req: Request, r
 })
 
 // DELETE /api/projects/:projectId/post-phases/:id
-router.delete('/projects/:projectId/post-phases/:id', requireAuth, (req: Request, res: Response) => {
+router.delete('/projects/:projectId/post-phases/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const result = db.prepare('DELETE FROM post_phases WHERE id = ?').run(id)
+    const result = await db.run('DELETE FROM post_phases WHERE id = ?', [id])
     if (result.changes === 0) return res.status(404).json({ data: null, error: 'Post-Phase nicht gefunden' })
     return res.json({ data: { id }, error: null })
   } catch (err) {

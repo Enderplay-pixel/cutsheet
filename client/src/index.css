@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,60 +6,62 @@
 
 @layer base {
   :root {
-    /* ── Dark mode: Kino-Saal — reines Schwarz + Projektor-Rot ── */
-    --background: 0 0% 4%;           /* #0a0a0a */
-    --foreground: 38 33% 93%;        /* #f5f0e8 warmes Off-White */
-    --card: 0 0% 8%;                 /* #141414 */
-    --card-foreground: 38 33% 93%;
-    --popover: 0 0% 9%;
-    --popover-foreground: 38 33% 93%;
+    /* ── Easing ──────────────────────────────────────────── */
+    --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-    /* Projektor-Rot als Primary */
-    --primary: 0 72% 51%;            /* #dc2626 */
+    /* ── Dark mode: Kino-Saal ─────────────────────────── */
+    --background: 0 0% 5%;
+    --foreground: 38 20% 91%;
+    --card: 0 0% 8%;
+    --card-foreground: 38 20% 91%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 38 20% 91%;
+
+    --primary: 0 72% 51%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 11%;
-    --secondary-foreground: 38 20% 80%;
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 44%;
-    --accent: 25 95% 53%;            /* #f97316 Orange als Accent */
+    --secondary: 0 0% 13%;
+    --secondary-foreground: 38 12% 76%;
+    --muted: 0 0% 11%;
+    --muted-foreground: 0 0% 46%;
+    --accent: 25 95% 53%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14%;
-    --input: 0 0% 12%;
+    --border: 0 0% 17%;
+    --input: 0 0% 13%;
     --ring: 0 72% 51%;
-    --radius: 0.5rem;
+    --radius: 0.625rem;
 
-    /* Custom tokens */
-    --sidebar-width: 224px;
-    --sidebar-collapsed-width: 56px;
-    --topbar-height: 52px;
+    --sidebar-width: 220px;
+    --sidebar-collapsed-width: 52px;
+    --topbar-height: 56px;
   }
 
   .light {
-    /* ── Light mode: Pergament — warmes Papier + Terrakotta ── */
-    --background: 37 40% 97%;        /* #faf7f2 Pergament */
-    --foreground: 25 18% 11%;        /* warmes dunkles Braun */
-    --card: 0 0% 100%;               /* #ffffff */
+    /* ── Light mode: Pergament ──────────────────────── */
+    --background: 37 35% 97%;
+    --foreground: 25 18% 11%;
+    --card: 0 0% 100%;
     --card-foreground: 25 18% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 25 18% 11%;
 
-    /* Terrakotta/Dunkelorange als Primary — genug Kontrast auf hellem BG */
-    --primary: 17 83% 40%;           /* #c2410c */
+    --primary: 17 83% 40%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 37 28% 91%;         /* #f0ece3 Sidebar-Ton */
+    --secondary: 37 25% 91%;
     --secondary-foreground: 25 15% 22%;
-    --muted: 37 28% 93%;
+    --muted: 37 22% 93%;
     --muted-foreground: 25 10% 46%;
     --accent: 17 83% 40%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 37 20% 84%;
-    --input: 37 25% 90%;
+    --border: 37 18% 82%;
+    --input: 37 22% 89%;
     --ring: 17 83% 40%;
   }
 }
@@ -84,13 +86,11 @@
     line-height: 1.5;
   }
 
-  /* Better focus styles */
   :focus-visible {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
   }
 
-  /* Numeric tabular figures */
   .font-mono, .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
@@ -121,29 +121,30 @@
 }
 
 /* ─── Scrollbar ─────────────────────────────────────── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.4);
+  background: hsl(var(--muted-foreground) / 0.35);
+}
+
+/* ─── Sidebar collapse transition ───────────────────── */
+.sidebar-transition {
+  transition: width 260ms var(--ease-out);
 }
 
 /* ─── Drehplan strip colors ─────────────────────────── */
-/* INT TAG  — Terrakotta */
 .strip-int-tag   { background: hsl(15 75% 50% / 0.10); border-left: 2px solid hsl(15 75% 50% / 0.70); }
-/* EXT TAG  — Waldgrün */
 .strip-ext-tag   { background: hsl(138 45% 35% / 0.10); border-left: 2px solid hsl(138 45% 35% / 0.70); }
-/* INT NACHT — Nachtblau */
 .strip-int-nacht { background: hsl(222 68% 46% / 0.10); border-left: 2px solid hsl(222 68% 46% / 0.70); }
-/* EXT NACHT — Tiefgrün */
 .strip-ext-nacht { background: hsl(168 58% 30% / 0.10); border-left: 2px solid hsl(168 58% 30% / 0.70); }
 
 /* ─── Animations ─────────────────────────────────────── */
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes fade-in {
@@ -151,13 +152,22 @@
   to   { opacity: 1; }
 }
 @keyframes slide-in-left {
-  from { opacity: 0; transform: translateX(-8px); }
+  from { opacity: 0; transform: translateX(-10px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 
-.animate-fade-up   { animation: fade-up 0.2s ease-out forwards; }
-.animate-fade-in   { animation: fade-in 0.15s ease-out forwards; }
-.animate-slide-in  { animation: slide-in-left 0.2s ease-out forwards; }
+.animate-fade-up  { animation: fade-up 0.22s var(--ease-out) forwards; }
+.animate-fade-in  { animation: fade-in 0.18s var(--ease-out) forwards; }
+.animate-slide-in { animation: slide-in-left 0.22s var(--ease-out) forwards; }
+
+/* ─── Stagger children ───────────────────────────────── */
+.stagger > * { animation: fade-up 0.24s var(--ease-out) both; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 55ms; }
+.stagger > *:nth-child(3) { animation-delay: 110ms; }
+.stagger > *:nth-child(4) { animation-delay: 165ms; }
+.stagger > *:nth-child(5) { animation-delay: 220ms; }
+.stagger > *:nth-child(6) { animation-delay: 275ms; }
 
 /* ─── Page container ─────────────────────────────────── */
 .page-container {
@@ -166,7 +176,7 @@
 
 /* ─── Stat cards ─────────────────────────────────────── */
 .stat-card {
-  @apply rounded-lg bg-card border border-border/60 p-5;
+  @apply rounded-xl bg-card border border-border/70 p-5;
 }
 
 /* ─── Table styles ──────────────────────────────────── */
@@ -180,19 +190,23 @@
   @apply text-left text-xs font-medium text-muted-foreground py-2.5 px-3 first:pl-4 last:pr-4;
 }
 .data-table tbody tr {
-  @apply border-b border-border/30 hover:bg-muted/20 transition-colors;
+  @apply border-b border-border/30;
+  transition: background-color 120ms ease-out;
+}
+.data-table tbody tr:hover {
+  @apply bg-muted/20;
 }
 .data-table tbody td {
   @apply py-2.5 px-3 first:pl-4 last:pr-4;
 }
 
-/* ─── Input overrides for cleaner look ──────────────── */
+/* ─── Input overrides ────────────────────────────────── */
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.6);
   cursor: pointer;
 }
 
-/* ─── Progress bar custom color ─────────────────────── */
+/* ─── Progress bar ───────────────────────────────────── */
 .progress-amber [data-slot="progress-indicator"],
 .progress-primary [data-slot="progress-indicator"] {
   background: hsl(var(--primary));
@@ -200,31 +214,20 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* ─── Print styles ───────────────────────────────────── */
 @media print {
-  /* Hide navigation, buttons, sidebars */
   nav, aside, .no-print, button:not(.print-keep), [role="navigation"] {
     display: none !important;
   }
-
-  /* Full width content */
   main, .main-content {
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
   }
-
-  /* Page breaks */
   .page-break-before { page-break-before: always; }
   .page-break-after  { page-break-after: always; }
   .no-page-break     { page-break-inside: avoid; }
-
-  /* Black on white */
   body { background: white !important; color: black !important; }
-
-  /* Tables */
   table { border-collapse: collapse; width: 100%; }
   th, td { border: 1px solid #ccc; padding: 4px 8px; font-size: 10pt; }
-
-  /* Headings */
   h1 { font-size: 18pt; }
   h2 { font-size: 14pt; }
   h3 { font-size: 12pt; }

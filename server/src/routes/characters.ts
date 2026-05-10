@@ -8,70 +8,71 @@ const router = Router()
 router.use('/projects/:projectId', requireMember)
 
 // GET /api/projects/:projectId/characters
-router.get('/projects/:projectId/characters', (req, res) => {
-  const chars = db.prepare('SELECT * FROM characters WHERE project_id = ? ORDER BY sort_order ASC, name ASC').all(req.params.projectId)
+router.get('/projects/:projectId/characters', async (req, res) => {
+  const chars = await db.all('SELECT * FROM characters WHERE project_id = ? ORDER BY sort_order ASC, name ASC', [req.params.projectId])
   res.json({ data: chars, error: null })
 })
 
 // POST /api/projects/:projectId/characters
-router.post('/projects/:projectId/characters', (req, res) => {
+router.post('/projects/:projectId/characters', async (req, res) => {
   const { name = '', description = '', age_range = '', gender = '' } = req.body
-  const maxSort = (db.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM characters WHERE project_id = ?').get(req.params.projectId) as any).m
-  const result = db.prepare('INSERT INTO characters (project_id, name, description, age_range, gender, sort_order) VALUES (?, ?, ?, ?, ?, ?)').run(req.params.projectId, name, description, age_range, gender, maxSort + 1)
-  res.status(201).json({ data: db.prepare('SELECT * FROM characters WHERE id = ?').get(result.lastInsertRowid), error: null })
+  const maxSortRow = await db.get('SELECT COALESCE(MAX(sort_order), 0) as m FROM characters WHERE project_id = ?', [req.params.projectId])
+  const maxSort = (maxSortRow as any).m
+  const result = await db.run('INSERT INTO characters (project_id, name, description, age_range, gender, sort_order) VALUES (?, ?, ?, ?, ?, ?)', [req.params.projectId, name, description, age_range, gender, maxSort + 1])
+  res.status(201).json({ data: await db.get('SELECT * FROM characters WHERE id = ?', [result.id]), error: null })
 })
 
 // PUT /api/characters/:id
-router.put('/characters/:id', (req, res) => {
+router.put('/characters/:id', async (req, res) => {
   const { name, description, age_range, gender, sort_order } = req.body
-  db.prepare('UPDATE characters SET name=?, description=?, age_range=?, gender=?, sort_order=COALESCE(?,sort_order) WHERE id=?').run(name, description, age_range, gender, sort_order ?? null, req.params.id)
-  res.json({ data: db.prepare('SELECT * FROM characters WHERE id = ?').get(req.params.id), error: null })
+  await db.run('UPDATE characters SET name=?, description=?, age_range=?, gender=?, sort_order=COALESCE(?,sort_order) WHERE id=?', [name, description, age_range, gender, sort_order ?? null, req.params.id])
+  res.json({ data: await db.get('SELECT * FROM characters WHERE id = ?', [req.params.id]), error: null })
 })
 
 // DELETE /api/characters/:id
-router.delete('/characters/:id', (req, res) => {
-  db.prepare('DELETE FROM characters WHERE id = ?').run(req.params.id)
+router.delete('/characters/:id', async (req, res) => {
+  await db.run('DELETE FROM characters WHERE id = ?', [req.params.id])
   res.json({ data: { ok: true }, error: null })
 })
 
 // GET /api/projects/:projectId/cast
-router.get('/projects/:projectId/cast', (req, res) => {
-  const cast = db.prepare(`
+router.get('/projects/:projectId/cast', async (req, res) => {
+  const cast = await db.all(`
     SELECT c.*, ch.name as character_name
     FROM cast c
     LEFT JOIN characters ch ON c.character_id = ch.id
     WHERE c.project_id = ?
     ORDER BY ch.sort_order ASC, c.actor_name ASC
-  `).all(req.params.projectId)
+  `, [req.params.projectId])
   res.json({ data: cast, error: null })
 })
 
 // POST /api/projects/:projectId/cast
-router.post('/projects/:projectId/cast', (req, res) => {
+router.post('/projects/:projectId/cast', async (req, res) => {
   const { character_id = null, actor_name = '', email = '', phone = '', agent = '', agent_email = '', agency = '', fee_per_day = 0, contract_type = 'Tagesgage', availability_notes = '', notes = '' } = req.body
-  const result = db.prepare(`
+  const result = await db.run(`
     INSERT INTO cast (project_id, character_id, actor_name, email, phone, agent, agent_email, agency, fee_per_day, contract_type, availability_notes, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(req.params.projectId, character_id, actor_name, email, phone, agent, agent_email, agency, fee_per_day, contract_type, availability_notes, notes)
+  `, [req.params.projectId, character_id, actor_name, email, phone, agent, agent_email, agency, fee_per_day, contract_type, availability_notes, notes])
 
-  const row = db.prepare('SELECT c.*, ch.name as character_name FROM cast c LEFT JOIN characters ch ON c.character_id = ch.id WHERE c.id = ?').get(result.lastInsertRowid)
+  const row = await db.get('SELECT c.*, ch.name as character_name FROM cast c LEFT JOIN characters ch ON c.character_id = ch.id WHERE c.id = ?', [result.id])
   res.status(201).json({ data: row, error: null })
 })
 
 // PUT /api/cast/:id
-router.put('/cast/:id', (req, res) => {
+router.put('/cast/:id', async (req, res) => {
   const { character_id, actor_name, email, phone, agent, agent_email, agency, fee_per_day, contract_type, availability_notes, notes } = req.body
-  db.prepare(`
+  await db.run(`
     UPDATE cast SET character_id=?, actor_name=?, email=?, phone=?, agent=?, agent_email=?, agency=?, fee_per_day=?, contract_type=?, availability_notes=?, notes=?
     WHERE id=?
-  `).run(character_id, actor_name, email, phone, agent, agent_email, agency, fee_per_day, contract_type, availability_notes, notes, req.params.id)
-  const row = db.prepare('SELECT c.*, ch.name as character_name FROM cast c LEFT JOIN characters ch ON c.character_id = ch.id WHERE c.id = ?').get(req.params.id)
+  `, [character_id, actor_name, email, phone, agent, agent_email, agency, fee_per_day, contract_type, availability_notes, notes, req.params.id])
+  const row = await db.get('SELECT c.*, ch.name as character_name FROM cast c LEFT JOIN characters ch ON c.character_id = ch.id WHERE c.id = ?', [req.params.id])
   res.json({ data: row, error: null })
 })
 
 // DELETE /api/cast/:id
-router.delete('/cast/:id', (req, res) => {
-  db.prepare('DELETE FROM cast WHERE id = ?').run(req.params.id)
+router.delete('/cast/:id', async (req, res) => {
+  await db.run('DELETE FROM cast WHERE id = ?', [req.params.id])
   res.json({ data: { ok: true }, error: null })
 })
 

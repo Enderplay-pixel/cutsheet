@@ -7,13 +7,13 @@ const router = Router()
 // All /projects/:projectId/* routes require membership
 router.use('/projects/:projectId', requireMember)
 
-router.get('/projects/:projectId/conflicts', (req, res) => {
+router.get('/projects/:projectId/conflicts', async (req, res) => {
   const pid = req.params.projectId
   const conflicts: any[] = []
 
   // 1. Scenes in multiple shoot days
   try {
-    const dupScenes = db.prepare(`
+    const dupScenes = await db.all(`
       SELECT s.scene_number, s.title, COUNT(sds.shoot_day_id) as day_count
       FROM shoot_day_scenes sds
       JOIN scenes s ON sds.scene_id = s.id
@@ -21,7 +21,7 @@ router.get('/projects/:projectId/conflicts', (req, res) => {
       WHERE sd.project_id = ?
       GROUP BY sds.scene_id
       HAVING day_count > 1
-    `).all(pid) as any[]
+    `, [pid]) as any[]
 
     dupScenes.forEach(s => {
       conflicts.push({
@@ -35,14 +35,14 @@ router.get('/projects/:projectId/conflicts', (req, res) => {
 
   // 2. Unscheduled scenes
   try {
-    const unscheduled = db.prepare(`
+    const unscheduled = await db.all(`
       SELECT s.scene_number, s.title FROM scenes s
       WHERE s.project_id = ?
       AND s.id NOT IN (
         SELECT sds.scene_id FROM shoot_day_scenes sds
         JOIN shoot_days sd ON sds.shoot_day_id = sd.id WHERE sd.project_id = ?
       )
-    `).all(pid, pid) as any[]
+    `, [pid, pid]) as any[]
 
     if (unscheduled.length > 0) {
       conflicts.push({
@@ -56,12 +56,12 @@ router.get('/projects/:projectId/conflicts', (req, res) => {
 
   // 3. Empty shoot days
   try {
-    const emptyDays = db.prepare(`
+    const emptyDays = await db.all(`
       SELECT sd.day_number, sd.date FROM shoot_days sd
       WHERE sd.project_id = ?
       AND sd.id NOT IN (SELECT DISTINCT shoot_day_id FROM shoot_day_scenes)
       AND sd.status NOT IN ('Sperrtag', 'Drehfrei', 'Reisetag', 'Feiertag')
-    `).all(pid) as any[]
+    `, [pid]) as any[]
 
     emptyDays.forEach(d => {
       conflicts.push({
@@ -74,7 +74,7 @@ router.get('/projects/:projectId/conflicts', (req, res) => {
 
   // 4. Cast without character
   try {
-    const castNoChar = db.prepare(`SELECT actor_name FROM cast WHERE project_id = ? AND character_id IS NULL`).all(pid) as any[]
+    const castNoChar = await db.all(`SELECT actor_name FROM cast WHERE project_id = ? AND character_id IS NULL`, [pid]) as any[]
     castNoChar.forEach(c => {
       conflicts.push({
         severity: 'info', category: 'Besetzung',
@@ -86,7 +86,7 @@ router.get('/projects/:projectId/conflicts', (req, res) => {
 
   // 5. Scenes without location
   try {
-    const scenesNoLoc = db.prepare('SELECT scene_number, title FROM scenes WHERE project_id = ? AND location_id IS NULL').all(pid) as any[]
+    const scenesNoLoc = await db.all('SELECT scene_number, title FROM scenes WHERE project_id = ? AND location_id IS NULL', [pid]) as any[]
     if (scenesNoLoc.length > 0) {
       conflicts.push({
         severity: 'info', category: 'Motive',
@@ -99,7 +99,7 @@ router.get('/projects/:projectId/conflicts', (req, res) => {
 
   // 6. Locations without address
   try {
-    const locNoAddr = db.prepare(`SELECT name FROM locations WHERE project_id = ? AND (address = '' OR address IS NULL)`).all(pid) as any[]
+    const locNoAddr = await db.all(`SELECT name FROM locations WHERE project_id = ? AND (address = '' OR address IS NULL)`, [pid]) as any[]
     locNoAddr.forEach(l => {
       conflicts.push({
         severity: 'info', category: 'Motive',
@@ -111,8 +111,8 @@ router.get('/projects/:projectId/conflicts', (req, res) => {
 
   // 7. Budget vs financing
   try {
-    const budget = db.prepare(`SELECT COALESCE(total_cents, 0) as t FROM budget_versions WHERE project_id = ? ORDER BY created_at DESC LIMIT 1`).get(pid) as any
-    const financing = db.prepare(`SELECT COALESCE(total_cents, 0) as t FROM financing_plan_versions WHERE project_id = ? ORDER BY created_at DESC LIMIT 1`).get(pid) as any
+    const budget = await db.get(`SELECT COALESCE(total_cents, 0) as t FROM budget_versions WHERE project_id = ? ORDER BY created_at DESC LIMIT 1`, [pid]) as any
+    const financing = await db.get(`SELECT COALESCE(total_cents, 0) as t FROM financing_plan_versions WHERE project_id = ? ORDER BY created_at DESC LIMIT 1`, [pid]) as any
     const gap = (budget?.t || 0) - (financing?.t || 0)
     if (gap > 5000) { // >50€ gap
       conflicts.push({
@@ -126,7 +126,7 @@ router.get('/projects/:projectId/conflicts', (req, res) => {
 
   // 8. No budget versions at all
   try {
-    const budgetCount = db.prepare(`SELECT COUNT(*) as c FROM budget_versions WHERE project_id = ?`).get(pid) as any
+    const budgetCount = await db.get(`SELECT COUNT(*) as c FROM budget_versions WHERE project_id = ?`, [pid]) as any
     if (!budgetCount || budgetCount.c === 0) {
       conflicts.push({
         severity: 'info', category: 'Budget',
@@ -138,11 +138,11 @@ router.get('/projects/:projectId/conflicts', (req, res) => {
 
   // 9. Scenes without any characters
   try {
-    const scenesNoChars = db.prepare(`
+    const scenesNoChars = await db.all(`
       SELECT s.scene_number, s.title FROM scenes s
       WHERE s.project_id = ?
       AND s.id NOT IN (SELECT DISTINCT scene_id FROM scene_characters)
-    `).all(pid) as any[]
+    `, [pid]) as any[]
     if (scenesNoChars.length > 0) {
       conflicts.push({
         severity: 'info', category: 'Szenen',
@@ -155,11 +155,11 @@ router.get('/projects/:projectId/conflicts', (req, res) => {
 
   // 10. Turnaround violations — cast called back before minimum rest
   try {
-    const settings = db.prepare('SELECT turnaround_hours FROM project_settings WHERE project_id = ?').get(pid) as any
+    const settings = await db.get('SELECT turnaround_hours FROM project_settings WHERE project_id = ?', [pid]) as any
     const turnaroundMins = (settings?.turnaround_hours ?? 11) * 60
 
     // Get all call sheet entries for this project, joined to shoot day date
-    const entries = db.prepare(`
+    const entries = await db.all(`
       SELECT cse.person_type, cse.person_id, cse.call_time, sd.date, sd.day_number,
              cs.general_call
       FROM call_sheet_entries cse
@@ -167,7 +167,7 @@ router.get('/projects/:projectId/conflicts', (req, res) => {
       JOIN shoot_days sd ON cs.shoot_day_id = sd.id
       WHERE sd.project_id = ?
       ORDER BY cse.person_type, cse.person_id, sd.date ASC
-    `).all(pid) as any[]
+    `, [pid]) as any[]
 
     // Group by person
     const byPerson: Record<string, any[]> = {}
@@ -178,11 +178,11 @@ router.get('/projects/:projectId/conflicts', (req, res) => {
     })
 
     // Also get daily reports for wrap times
-    const reports = db.prepare(`
+    const reports = await db.all(`
       SELECT dr.wrap, sd.date FROM daily_reports dr
       JOIN shoot_days sd ON dr.shoot_day_id = sd.id
       WHERE sd.project_id = ?
-    `).all(pid) as any[]
+    `, [pid]) as any[]
     const wrapByDate: Record<string, number> = {}
     reports.forEach((r: any) => { wrapByDate[r.date] = r.wrap })
 
@@ -201,8 +201,8 @@ router.get('/projects/:projectId/conflicts', (req, res) => {
         if (restMins < turnaroundMins) {
           const [type, idStr] = key.split(':')
           const person = type === 'cast'
-            ? db.prepare('SELECT actor_name as name FROM cast WHERE id = ?').get(idStr) as any
-            : db.prepare('SELECT name FROM crew WHERE id = ?').get(idStr) as any
+            ? await db.get('SELECT actor_name as name FROM cast WHERE id = ?', [idStr]) as any
+            : await db.get('SELECT name FROM crew WHERE id = ?', [idStr]) as any
           conflicts.push({
             severity: 'warning', category: 'Turnaround',
             message: `Turnaround-Verletzung: ${person?.name || 'Unbekannt'}`,
@@ -216,11 +216,11 @@ router.get('/projects/:projectId/conflicts', (req, res) => {
 
   // 11. Shoot days that overlap with each other on same date
   try {
-    const sameDateDays = db.prepare(`
+    const sameDateDays = await db.all(`
       SELECT date, COUNT(*) as c FROM shoot_days
       WHERE project_id = ? AND status NOT IN ('Sperrtag', 'Drehfrei', 'Ausgefallen')
       GROUP BY date HAVING c > 1
-    `).all(pid) as any[]
+    `, [pid]) as any[]
     sameDateDays.forEach(d => {
       conflicts.push({
         severity: 'warning', category: 'Drehplan',

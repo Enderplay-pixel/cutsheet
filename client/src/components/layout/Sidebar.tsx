@@ -98,22 +98,22 @@ export function Sidebar() {
 
   return (
     <aside className={cn(
-      'flex flex-col h-screen bg-card border-r border-border/60 transition-all duration-300 ease-in-out shrink-0 relative',
-      sidebarCollapsed ? 'w-14' : 'w-[224px]'
+      'flex flex-col h-screen bg-card border-r border-border sidebar-transition shrink-0 relative',
+      sidebarCollapsed ? 'w-[52px]' : 'w-[220px]'
     )}>
       {/* Logo / Brand */}
       <div
-        className="flex items-center h-[52px] px-3.5 border-b border-border/60 gap-3 shrink-0 cursor-pointer"
+        className="flex items-center h-[56px] px-3.5 border-b border-border gap-3 shrink-0 cursor-pointer select-none"
         onClick={() => navigate('/')}
       >
-        <div className="w-7 h-7 bg-primary rounded-md flex items-center justify-center shrink-0 shadow-sm">
-          <Clapperboard className="w-3.5 h-3.5 text-primary-foreground" />
+        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0 shadow-[0_0_12px_hsl(0_72%_51%/0.3)]">
+          <Clapperboard className="w-4 h-4 text-primary-foreground" />
         </div>
         {!sidebarCollapsed && (
           <div className="flex-1 min-w-0">
-            <span className="font-semibold text-[13px] tracking-tight leading-none block">CutSheet</span>
+            <span className="font-bold text-sm tracking-tight leading-none block">CutSheet</span>
             {project && (
-              <span className="text-[11px] text-muted-foreground truncate block mt-0.5">{project.title}</span>
+              <span className="text-[11px] text-muted-foreground truncate block mt-0.5 font-normal">{project.title}</span>
             )}
           </div>
         )}
@@ -125,14 +125,14 @@ export function Sidebar() {
           navGroups.map((group) => (
             <div key={group.label} className="mb-1">
               {!sidebarCollapsed && (
-                <div className="px-2 pb-1 pt-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                <div className="px-2 pb-1 pt-2.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/50">
                     {group.label}
                   </span>
                 </div>
               )}
               {sidebarCollapsed && group.label !== tt(navT.overview) && (
-                <div className="my-2 mx-2 h-px bg-border/60" />
+                <div className="my-2 mx-2 h-px bg-border" />
               )}
               {group.items.map(item => (
                 <NavLink
@@ -142,24 +142,25 @@ export function Sidebar() {
                   title={item.label}
                   aria-label={item.label}
                   className={({ isActive }) => cn(
-                    'flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-all duration-150 group relative',
+                    'flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px] group relative',
+                    'transition-[background-color,color] duration-150',
                     isActive
-                      ? 'bg-primary/12 text-primary font-medium'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
                   )}
                 >
                   {({ isActive }) => (
                     <>
                       {isActive && (
                         <span
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-primary rounded-full"
+                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-full"
                           aria-current="page"
                         />
                       )}
                       <item.icon className={cn(
-                        'shrink-0 transition-colors',
-                        sidebarCollapsed ? 'w-4 h-4' : 'w-3.5 h-3.5',
-                        isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                        'shrink-0 transition-colors duration-150',
+                        sidebarCollapsed ? 'w-[15px] h-[15px]' : 'w-[14px] h-[14px]',
+                        isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground'
                       )} />
                       {!sidebarCollapsed && (
                         <>
@@ -181,11 +182,11 @@ export function Sidebar() {
           <div className="px-3 py-6 text-center">
             {!sidebarCollapsed && (
               <div>
-                <Clapperboard className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                <Clapperboard className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
                 <p className="text-xs text-muted-foreground">{tt(navT.noProject)}</p>
                 <button
                   onClick={() => navigate('/')}
-                  className="mt-2 text-xs text-primary hover:underline flex items-center gap-1 mx-auto"
+                  className="mt-2 text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1 mx-auto"
                 >
                   {tt(navT.chooseProject)} <ChevronRight className="w-3 h-3" />
                 </button>
@@ -198,11 +199,11 @@ export function Sidebar() {
         {user?.role === 'admin' && (
           <div className="mb-1 mt-1">
             {!sidebarCollapsed && (
-              <div className="px-2 pb-1 pt-2">
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">{tt(navT.admin)}</span>
+              <div className="px-2 pb-1 pt-2.5">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/50">{tt(navT.admin)}</span>
               </div>
             )}
-            {sidebarCollapsed && <div className="my-2 mx-2 h-px bg-border/60" />}
+            {sidebarCollapsed && <div className="my-2 mx-2 h-px bg-border" />}
             {ADMIN_ITEMS.map(item => (
               <NavLink
                 key={item.path}
@@ -210,21 +211,22 @@ export function Sidebar() {
                 title={item.label}
                 aria-label={item.label}
                 className={({ isActive }) => cn(
-                  'flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-all duration-150 group relative',
+                  'flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px] group relative',
+                  'transition-[background-color,color] duration-150',
                   isActive
-                    ? 'bg-primary/12 text-primary font-medium'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
                 )}
               >
                 {({ isActive }) => (
                   <>
                     {isActive && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-primary rounded-full" aria-current="page" />
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-full" aria-current="page" />
                     )}
                     <item.icon className={cn(
-                      'shrink-0 transition-colors',
-                      sidebarCollapsed ? 'w-4 h-4' : 'w-3.5 h-3.5',
-                      isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                      'shrink-0 transition-colors duration-150',
+                      sidebarCollapsed ? 'w-[15px] h-[15px]' : 'w-[14px] h-[14px]',
+                      isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground'
                     )} />
                     {!sidebarCollapsed && <span className="flex-1 truncate">{item.label}</span>}
                   </>
@@ -236,19 +238,19 @@ export function Sidebar() {
       </nav>
 
       {/* User menu + Collapse toggle */}
-      <div className="border-t border-border/60 shrink-0">
+      <div className="border-t border-border shrink-0">
         <UserMenu collapsed={sidebarCollapsed} />
-        <div className="p-2">
+        <div className="px-2 pb-2">
           <button
             onClick={toggleSidebar}
-            className="w-full flex items-center justify-center h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+            className="w-full flex items-center justify-center h-8 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-[background-color,color] duration-150"
             title={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
             aria-label={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
             aria-expanded={!sidebarCollapsed}
           >
             {sidebarCollapsed
-              ? <PanelLeftOpen className="w-4 h-4" />
-              : <PanelLeftClose className="w-4 h-4" />
+              ? <PanelLeftOpen className="w-3.5 h-3.5" />
+              : <PanelLeftClose className="w-3.5 h-3.5" />
             }
           </button>
         </div>
@@ -270,19 +272,19 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
     read_only: tt(navT.roles.read_only),
   }
   return (
-    <div className="px-2 py-2 flex items-center gap-2">
-      <div className="shrink-0 w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+    <div className="px-2 py-2.5 flex items-center gap-2">
+      <div className="shrink-0 w-7 h-7 rounded-full bg-primary/12 border border-primary/20 flex items-center justify-center">
         <UserCircle className="w-4 h-4 text-primary" />
       </div>
       {!collapsed && (
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium truncate">{user.name || user.email}</p>
-          <p className="text-[10px] text-muted-foreground truncate">{roleLabel[user.role] ?? user.role}</p>
+          <p className="text-xs font-semibold truncate leading-tight">{user.name || user.email}</p>
+          <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5">{roleLabel[user.role] ?? user.role}</p>
         </div>
       )}
       <button
         onClick={() => navigate('/settings')}
-        className="shrink-0 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+        className="shrink-0 p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-[background-color,color] duration-150"
         title={tt(navT.settings)}
         aria-label={tt(navT.settings)}
       >
@@ -290,7 +292,7 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
       </button>
       <button
         onClick={() => { logout(); navigate('/login') }}
-        className="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+        className="shrink-0 p-1.5 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-[background-color,color] duration-150"
         title={tt(navT.logout)}
         aria-label={tt(navT.logout)}
       >

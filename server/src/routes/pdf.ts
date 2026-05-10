@@ -109,8 +109,8 @@ function buildCss(accentColor: string): string {
 }
 
 // Helper: fetch project settings (accent color + currency)
-function getProjectSettings(projectId: number | string): { accentColor: string; currency: string } {
-  const settings = db.prepare('SELECT header_color, currency FROM project_settings WHERE project_id = ?').get(projectId) as any
+async function getProjectSettings(projectId: number | string): Promise<{ accentColor: string; currency: string }> {
+  const settings = await db.get('SELECT header_color, currency FROM project_settings WHERE project_id = ?', [projectId]) as any
   return {
     accentColor: settings?.header_color || '#f59e0b',
     currency: settings?.currency || 'EUR',
@@ -122,22 +122,22 @@ router.use('/projects/:projectId', requireMember)
 
 // GET /api/projects/:projectId/pdf/drehplan
 router.get('/projects/:projectId/pdf/drehplan', async (req: Request, res: Response) => {
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.projectId) as any
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]) as any
   if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
 
-  const { accentColor } = getProjectSettings(req.params.projectId)
-  const days = db.prepare('SELECT * FROM shoot_days WHERE project_id = ? ORDER BY day_number ASC').all(req.params.projectId) as any[]
+  const { accentColor } = await getProjectSettings(req.params.projectId)
+  const days = await db.all('SELECT * FROM shoot_days WHERE project_id = ? ORDER BY day_number ASC', [req.params.projectId]) as any[]
 
   let daysHtml = ''
   for (const day of days) {
-    const scenes = db.prepare(`
+    const scenes = await db.all(`
       SELECT sds.*, s.scene_number, s.title, s.int_ext, s.day_night, s.eighths, s.estimated_minutes, l.name as location_name
       FROM shoot_day_scenes sds
       JOIN scenes s ON sds.scene_id = s.id
       LEFT JOIN locations l ON s.location_id = l.id
       WHERE sds.shoot_day_id = ?
       ORDER BY sds.sort_order ASC
-    `).all(day.id) as any[]
+    `, [day.id]) as any[]
 
     const totalEighths = scenes.reduce((s: number, sc: any) => s + sc.eighths, 0)
     const totalMins = scenes.reduce((s: number, sc: any) => s + sc.estimated_minutes, 0)
@@ -192,28 +192,28 @@ router.get('/shoot-days/:dayId/pdf/tagesdispo', async (req: Request, res: Respon
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
   if (user.role !== 'admin') {
-    const day = db.prepare('SELECT project_id FROM shoot_days WHERE id = ?').get(req.params.dayId) as any
-    if (day && getUserProjectRole(user.id, day.project_id) === null)
+    const dayCheck = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [req.params.dayId]) as any
+    if (dayCheck && await getUserProjectRole(user.id, dayCheck.project_id) === null)
       return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   }
-  const day = db.prepare('SELECT sd.*, p.title as project_title, p.id as project_id FROM shoot_days sd JOIN projects p ON sd.project_id = p.id WHERE sd.id = ?').get(req.params.dayId) as any
+  const day = await db.get('SELECT sd.*, p.title as project_title, p.id as project_id FROM shoot_days sd JOIN projects p ON sd.project_id = p.id WHERE sd.id = ?', [req.params.dayId]) as any
   if (!day) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
 
-  const { accentColor } = getProjectSettings(day.project_id)
-  const sheet = db.prepare('SELECT cs.*, l.name as location_name FROM call_sheets cs LEFT JOIN locations l ON cs.location_id = l.id WHERE cs.shoot_day_id = ?').get(req.params.dayId) as any
-  const entries = sheet ? db.prepare('SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC').all(sheet.id) as any[] : []
+  const { accentColor } = await getProjectSettings(day.project_id)
+  const sheet = await db.get('SELECT cs.*, l.name as location_name FROM call_sheets cs LEFT JOIN locations l ON cs.location_id = l.id WHERE cs.shoot_day_id = ?', [req.params.dayId]) as any
+  const entries = sheet ? await db.all('SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC', [sheet.id]) as any[] : []
 
-  const enrichedEntries = entries.map((e: any) => {
+  const enrichedEntries = await Promise.all(entries.map(async (e: any) => {
     if (e.person_type === 'cast') {
-      const p = db.prepare('SELECT ca.actor_name as name, ch.name as role FROM cast ca LEFT JOIN characters ch ON ca.character_id = ch.id WHERE ca.id = ?').get(e.person_id) as any
+      const p = await db.get('SELECT ca.actor_name as name, ch.name as role FROM cast ca LEFT JOIN characters ch ON ca.character_id = ch.id WHERE ca.id = ?', [e.person_id]) as any
       return { ...e, name: p?.name || '—', role: p?.role || '' }
     } else {
-      const p = db.prepare('SELECT name, role FROM crew WHERE id = ?').get(e.person_id) as any
+      const p = await db.get('SELECT name, role FROM crew WHERE id = ?', [e.person_id]) as any
       return { ...e, name: p?.name || '—', role: p?.role || '' }
     }
-  })
+  }))
 
-  const scenes = db.prepare(`SELECT sds.*, s.scene_number, s.title, s.eighths, l.name as location_name FROM shoot_day_scenes sds JOIN scenes s ON sds.scene_id = s.id LEFT JOIN locations l ON s.location_id = l.id WHERE sds.shoot_day_id = ? ORDER BY sds.sort_order`).all(req.params.dayId) as any[]
+  const scenes = await db.all(`SELECT sds.*, s.scene_number, s.title, s.eighths, l.name as location_name FROM shoot_day_scenes sds JOIN scenes s ON sds.scene_id = s.id LEFT JOIN locations l ON s.location_id = l.id WHERE sds.shoot_day_id = ? ORDER BY sds.sort_order`, [req.params.dayId]) as any[]
 
   const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Tagesdisposition</title>${buildCss(accentColor)}</head><body>
     <div class="header">
@@ -247,11 +247,11 @@ router.get('/shoot-days/:dayId/pdf/tagesdispo', async (req: Request, res: Respon
 
 // GET /api/projects/:projectId/pdf/stabliste
 router.get('/projects/:projectId/pdf/stabliste', async (req, res) => {
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.projectId) as any
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]) as any
   if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
 
-  const { accentColor } = getProjectSettings(req.params.projectId)
-  const crew = db.prepare('SELECT * FROM crew WHERE project_id = ? ORDER BY department ASC, sort_order ASC').all(req.params.projectId) as any[]
+  const { accentColor } = await getProjectSettings(req.params.projectId)
+  const crew = await db.all('SELECT * FROM crew WHERE project_id = ? ORDER BY department ASC, sort_order ASC', [req.params.projectId]) as any[]
   const byDept: Record<string, any[]> = {}
   crew.forEach((c: any) => { if (!byDept[c.department]) byDept[c.department] = []; byDept[c.department].push(c) })
 
@@ -280,9 +280,9 @@ router.get('/projects/:projectId/pdf/stabliste', async (req, res) => {
 
 // GET /api/projects/:projectId/pdf/besetzungsliste
 router.get('/projects/:projectId/pdf/besetzungsliste', async (req, res) => {
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.projectId) as any
-  const { accentColor } = getProjectSettings(req.params.projectId)
-  const cast = db.prepare('SELECT ca.*, ch.name as character_name FROM cast ca LEFT JOIN characters ch ON ca.character_id = ch.id WHERE ca.project_id = ? ORDER BY ch.sort_order ASC').all(req.params.projectId) as any[]
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]) as any
+  const { accentColor } = await getProjectSettings(req.params.projectId)
+  const cast = await db.all('SELECT ca.*, ch.name as character_name FROM cast ca LEFT JOIN characters ch ON ca.character_id = ch.id WHERE ca.project_id = ? ORDER BY ch.sort_order ASC', [req.params.projectId]) as any[]
 
   const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Besetzungsliste</title>${buildCss(accentColor)}</head><body>
     <div class="header"><h1>Besetzungsliste — ${project?.title}</h1><p class="meta">Stand: ${new Date().toLocaleDateString('de-DE')}</p></div>
@@ -304,9 +304,9 @@ router.get('/projects/:projectId/pdf/besetzungsliste', async (req, res) => {
 
 // GET /api/projects/:projectId/pdf/motivliste
 router.get('/projects/:projectId/pdf/motivliste', async (req, res) => {
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.projectId) as any
-  const { accentColor, currency } = getProjectSettings(req.params.projectId)
-  const locs = db.prepare('SELECT * FROM locations WHERE project_id = ? ORDER BY name ASC').all(req.params.projectId) as any[]
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]) as any
+  const { accentColor, currency } = await getProjectSettings(req.params.projectId)
+  const locs = await db.all('SELECT * FROM locations WHERE project_id = ? ORDER BY name ASC', [req.params.projectId]) as any[]
 
   const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Motivliste</title>${buildCss(accentColor)}</head><body>
     <div class="header"><h1>Motivliste — ${project?.title}</h1><p class="meta">Stand: ${new Date().toLocaleDateString('de-DE')}</p></div>
@@ -328,12 +328,14 @@ router.get('/projects/:projectId/pdf/motivliste', async (req, res) => {
 
 // GET /api/projects/:projectId/pdf/kalkulation/:versionId
 router.get('/projects/:projectId/pdf/kalkulation/:versionId', async (req, res) => {
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.projectId) as any
-  const version = db.prepare('SELECT * FROM budget_versions WHERE id = ?').get(req.params.versionId) as any
+  const [project, version] = await Promise.all([
+    db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]),
+    db.get('SELECT * FROM budget_versions WHERE id = ?', [req.params.versionId]),
+  ]) as any[]
   if (!version) return res.status(404).json({ data: null, error: 'Kalkulation nicht gefunden' })
 
-  const { accentColor, currency } = getProjectSettings(req.params.projectId)
-  const lines = db.prepare('SELECT * FROM budget_lines WHERE budget_version_id = ? ORDER BY sort_order ASC, account_code ASC').all(req.params.versionId) as any[]
+  const { accentColor, currency } = await getProjectSettings(req.params.projectId)
+  const lines = await db.all('SELECT * FROM budget_lines WHERE budget_version_id = ? ORDER BY sort_order ASC, account_code ASC', [req.params.versionId]) as any[]
   const byCategory: Record<string, any[]> = {}
   lines.forEach((l: any) => { if (!byCategory[l.category]) byCategory[l.category] = []; byCategory[l.category].push(l) })
 
@@ -368,15 +370,17 @@ router.get('/shoot-days/:dayId/pdf/tagesbericht', async (req: Request, res: Resp
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
 
-  const day = db.prepare('SELECT sd.*, p.title as project_title, p.director, p.id as project_id FROM shoot_days sd JOIN projects p ON sd.project_id = p.id WHERE sd.id = ?').get(req.params.dayId) as any
+  const day = await db.get('SELECT sd.*, p.title as project_title, p.director, p.id as project_id FROM shoot_days sd JOIN projects p ON sd.project_id = p.id WHERE sd.id = ?', [req.params.dayId]) as any
   if (!day) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
 
-  if (user.role !== 'admin' && getUserProjectRole(user.id, day.project_id) === null)
+  if (user.role !== 'admin' && await getUserProjectRole(user.id, day.project_id) === null)
     return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
 
-  const { accentColor } = getProjectSettings(day.project_id)
-  const report = db.prepare('SELECT * FROM daily_reports WHERE shoot_day_id = ?').get(req.params.dayId) as any
-  const scenes = db.prepare(`SELECT sds.*, s.scene_number, s.title, s.eighths, l.name as location_name FROM shoot_day_scenes sds JOIN scenes s ON sds.scene_id = s.id LEFT JOIN locations l ON s.location_id = l.id WHERE sds.shoot_day_id = ? ORDER BY sds.sort_order`).all(req.params.dayId) as any[]
+  const [{ accentColor }, report, scenes] = await Promise.all([
+    getProjectSettings(day.project_id),
+    db.get('SELECT * FROM daily_reports WHERE shoot_day_id = ?', [req.params.dayId]),
+    db.all('SELECT sds.*, s.scene_number, s.title, s.eighths, l.name as location_name FROM shoot_day_scenes sds JOIN scenes s ON sds.scene_id = s.id LEFT JOIN locations l ON s.location_id = l.id WHERE sds.shoot_day_id = ? ORDER BY sds.sort_order', [req.params.dayId]),
+  ]) as any[]
 
   const shootDuration = report ? report.wrap - report.call_time : 0
   const lunchBreak = report?.lunch_in && report?.lunch_out ? report.lunch_out - report.lunch_in : 0
@@ -430,12 +434,14 @@ router.get('/shoot-days/:dayId/pdf/tagesbericht', async (req: Request, res: Resp
 
 // GET /api/projects/:projectId/pdf/shotlist
 router.get('/projects/:projectId/pdf/shotlist', async (req, res) => {
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.projectId) as any
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]) as any
   if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
 
-  const { accentColor } = getProjectSettings(req.params.projectId)
-  const scenes = db.prepare('SELECT * FROM scenes WHERE project_id = ? ORDER BY sort_order ASC').all(req.params.projectId) as any[]
-  const allShots = db.prepare('SELECT * FROM shots WHERE project_id = ? ORDER BY scene_id ASC, sort_order ASC').all(req.params.projectId) as any[]
+  const [{ accentColor }, scenes, allShots] = await Promise.all([
+    getProjectSettings(req.params.projectId),
+    db.all('SELECT * FROM scenes WHERE project_id = ? ORDER BY sort_order ASC', [req.params.projectId]),
+    db.all('SELECT * FROM shots WHERE project_id = ? ORDER BY scene_id ASC, sort_order ASC', [req.params.projectId]),
+  ]) as any[]
 
   const shotsByScene: Record<number, any[]> = {}
   allShots.forEach((s: any) => {
@@ -492,17 +498,19 @@ router.get('/projects/:projectId/pdf/shotlist', async (req, res) => {
 
 // GET /api/projects/:projectId/pdf/equipment
 router.get('/projects/:projectId/pdf/equipment', async (req, res) => {
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.projectId) as any
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]) as any
   if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
 
-  const { accentColor, currency } = getProjectSettings(req.params.projectId)
-  const lists = db.prepare('SELECT * FROM equipment_lists WHERE project_id = ? ORDER BY department ASC, created_at ASC').all(req.params.projectId) as any[]
+  const [{ accentColor, currency }, lists] = await Promise.all([
+    getProjectSettings(req.params.projectId),
+    db.all('SELECT * FROM equipment_lists WHERE project_id = ? ORDER BY department ASC, created_at ASC', [req.params.projectId]),
+  ]) as any[]
 
   let listsHtml = ''
   let projectTotal = 0
 
   for (const list of lists) {
-    const items = db.prepare('SELECT * FROM equipment_items WHERE equipment_list_id = ? ORDER BY sort_order ASC').all(list.id) as any[]
+    const items = await db.all('SELECT * FROM equipment_items WHERE equipment_list_id = ? ORDER BY sort_order ASC', [list.id]) as any[]
     const listTotal = items.reduce((s: number, i: any) => s + i.total_cents, 0)
     projectTotal += listTotal
 
@@ -551,17 +559,19 @@ router.get('/projects/:projectId/pdf/equipment', async (req, res) => {
 
 // GET /api/projects/:projectId/pdf/screenplay
 router.get('/projects/:projectId/pdf/screenplay', async (req, res) => {
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.projectId) as any
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]) as any
   if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
 
-  const { accentColor } = getProjectSettings(req.params.projectId)
-  const blocks = db.prepare(`
-    SELECT sb.*, s.scene_number, s.title, s.int_ext, s.day_night
-    FROM screenplay_blocks sb
-    JOIN scenes s ON sb.scene_id = s.id
-    WHERE sb.project_id = ?
-    ORDER BY s.sort_order ASC, sb.sort_order ASC
-  `).all(req.params.projectId) as any[]
+  const [{ accentColor }, blocks] = await Promise.all([
+    getProjectSettings(req.params.projectId),
+    db.all(`
+      SELECT sb.*, s.scene_number, s.title, s.int_ext, s.day_night
+      FROM screenplay_blocks sb
+      JOIN scenes s ON sb.scene_id = s.id
+      WHERE sb.project_id = ?
+      ORDER BY s.sort_order ASC, sb.sort_order ASC
+    `, [req.params.projectId]),
+  ]) as any[]
 
   // Group blocks by scene
   const sceneMap: Record<number, { scene_number: string; title: string; int_ext: string; day_night: string; blocks: any[] }> = {}

@@ -1,136 +1,108 @@
-import initSqlJs, { Database as SqlJsDatabase } from 'sql.js'
-import path from 'path'
-import fs from 'fs'
+import { Pool, PoolClient } from 'pg'
 
-// DATA_DIR can be overridden via env var — set to Railway persistent volume mount (e.g. /data)
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../../data')
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
+// ─── Connection pool ──────────────────────────────────────────────────────────
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://cutsheet:cutsheet@localhost:5432/cutsheet',
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+})
 
-const DB_PATH = path.join(DATA_DIR, 'cutsheet.db')
+// ─── SQL helpers ──────────────────────────────────────────────────────────────
+// Converts SQLite-style `?` placeholders to PostgreSQL-style `$1, $2, …`
+// and replaces datetime('now') with NOW() for any stray occurrences.
+export function toPg(sql: string): string {
+  let i = 0
+  return sql
+    .replace(/datetime\('now'\)/gi, 'NOW()')
+    .replace(/\bdate\('now'\)/gi, 'CURRENT_DATE')
+    .replace(/\?/g, () => `$${++i}`)
+}
 
-// ─── sql.js compatibility wrapper ────────────────────────────────────────────
-// Provides a synchronous better-sqlite3-compatible API on top of sql.js WASM
+// ─── Transaction client wrapper ───────────────────────────────────────────────
+export class TxClient {
+  constructor(private client: PoolClient) {}
 
-class Statement {
-  constructor(
-    private _db: SqlJsDatabase,
-    private _sql: string,
-    private _save: () => void
-  ) {}
-
-  run(...args: any[]): { lastInsertRowid: number; changes: number } {
-    const params = this._flattenParams(args)
-    const stmt = this._db.prepare(this._sql)
-    try {
-      stmt.run(params)
-    } finally {
-      stmt.free()
-    }
-    this._save()
-    const rowidStmt = this._db.prepare('SELECT last_insert_rowid()')
-    rowidStmt.step()
-    const rowid = rowidStmt.get()[0]
-    rowidStmt.free()
-    const changesStmt = this._db.prepare('SELECT changes()')
-    changesStmt.step()
-    const changes = changesStmt.get()[0]
-    changesStmt.free()
-    return { lastInsertRowid: Number(rowid ?? 0), changes: Number(changes ?? 0) }
+  async all(sql: string, params: any[] = []): Promise<any[]> {
+    const result = await this.client.query(toPg(sql), params)
+    return result.rows
   }
 
-  get(...args: any[]): any | undefined {
-    const params = this._flattenParams(args)
-    const stmt = this._db.prepare(this._sql)
-    try {
-      stmt.bind(params)
-      if (!stmt.step()) return undefined
-      return stmt.getAsObject()
-    } finally {
-      stmt.free()
-    }
+  async get(sql: string, params: any[] = []): Promise<any | undefined> {
+    const result = await this.client.query(toPg(sql), params)
+    return result.rows[0]
   }
 
-  all(...args: any[]): any[] {
-    const params = this._flattenParams(args)
-    const stmt = this._db.prepare(this._sql)
-    const rows: any[] = []
-    try {
-      stmt.bind(params)
-      while (stmt.step()) rows.push(stmt.getAsObject())
-    } finally {
-      stmt.free()
+  async run(sql: string, params: any[] = []): Promise<{ id: number; changes: number }> {
+    const trimmed = sql.trimStart()
+    let pgSql = toPg(sql)
+    if (/^INSERT\s/i.test(trimmed) && !/RETURNING/i.test(trimmed)) {
+      pgSql += ' RETURNING id'
     }
-    return rows
-  }
-
-  private _flattenParams(args: any[]): any[] {
-    if (args.length === 0) return []
-    if (args.length === 1 && Array.isArray(args[0])) return args[0]
-    if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null && !Array.isArray(args[0])) {
-      // Named params: convert to positional by extracting values
-      return Object.values(args[0])
-    }
-    return args
+    const result = await this.client.query(pgSql, params)
+    return { id: result.rows[0]?.id ?? 0, changes: result.rowCount ?? 0 }
   }
 }
 
+// ─── Main DB wrapper ──────────────────────────────────────────────────────────
 class Db {
-  private _db!: SqlJsDatabase
-  private _path: string
-  private _saveTimer: ReturnType<typeof setTimeout> | null = null
-
-  constructor(dbPath: string) {
-    this._path = dbPath
+  /** SELECT → array of rows */
+  async all(sql: string, params: any[] = []): Promise<any[]> {
+    const result = await pool.query(toPg(sql), params)
+    return result.rows
   }
 
-  _setDb(db: SqlJsDatabase) {
-    this._db = db
+  /** SELECT → first row or undefined */
+  async get(sql: string, params: any[] = []): Promise<any | undefined> {
+    const result = await pool.query(toPg(sql), params)
+    return result.rows[0]
   }
 
-  pragma(statement: string): void {
-    this._db.run(`PRAGMA ${statement}`)
-  }
-
-  exec(sql: string): void {
-    this._db.run(sql)
-    this._scheduleSave()
-  }
-
-  prepare(sql: string): Statement {
-    return new Statement(this._db, sql, () => this._scheduleSave())
-  }
-
-  transaction<T>(fn: (arg: T) => void): (arg: T) => void {
-    return (arg: T) => {
-      this._db.run('BEGIN')
-      try {
-        fn(arg)
-        this._db.run('COMMIT')
-        this._scheduleSave()
-      } catch (e) {
-        this._db.run('ROLLBACK')
-        throw e
-      }
+  /**
+   * INSERT / UPDATE / DELETE.
+   * For INSERT statements RETURNING id is appended automatically so that
+   * `result.id` gives the new row's primary key.
+   */
+  async run(sql: string, params: any[] = []): Promise<{ id: number; changes: number }> {
+    const trimmed = sql.trimStart()
+    let pgSql = toPg(sql)
+    if (/^INSERT\s/i.test(trimmed) && !/RETURNING/i.test(trimmed)) {
+      pgSql += ' RETURNING id'
     }
+    const result = await pool.query(pgSql, params)
+    return { id: result.rows[0]?.id ?? 0, changes: result.rowCount ?? 0 }
   }
 
-  _scheduleSave() {
-    if (this._saveTimer) clearTimeout(this._saveTimer)
-    this._saveTimer = setTimeout(() => this._flush(), 200)
+  /** DDL or parameterless statements (supports multi-statement strings via simple query protocol). */
+  async exec(sql: string): Promise<void> {
+    await pool.query(sql)
   }
 
-  _flush() {
-    const data = this._db.export()
-    fs.writeFileSync(this._path, Buffer.from(data))
+  /** Wraps fn in BEGIN / COMMIT / ROLLBACK. Passes a TxClient so helpers stay available. */
+  async transaction<T>(fn: (tx: TxClient) => Promise<T>): Promise<T> {
+    const client = await pool.connect()
+    const tx = new TxClient(client)
+    try {
+      await client.query('BEGIN')
+      const result = await fn(tx)
+      await client.query('COMMIT')
+      return result
+    } catch (e) {
+      await client.query('ROLLBACK')
+      throw e
+    } finally {
+      client.release()
+    }
   }
 }
 
-export const db = new Db(DB_PATH)
+export const db = new Db()
 
-// ─── Schema SQL ──────────────────────────────────────────────────────────────
+// ─── PostgreSQL Schema ────────────────────────────────────────────────────────
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS projects (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     title TEXT NOT NULL DEFAULT 'Neues Projekt',
     genre TEXT NOT NULL DEFAULT '',
     format TEXT NOT NULL DEFAULT 'Kurzfilm',
@@ -143,12 +115,14 @@ const SCHEMA = `
     production_company TEXT NOT NULL DEFAULT '',
     shoot_start TEXT,
     shoot_end TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    owner_id INTEGER,
+    archived INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS project_settings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
     default_call_time INTEGER NOT NULL DEFAULT 480,
     default_wrap_time INTEGER NOT NULL DEFAULT 1200,
@@ -156,11 +130,12 @@ const SCHEMA = `
     currency TEXT NOT NULL DEFAULT 'EUR',
     country TEXT NOT NULL DEFAULT 'Deutschland',
     logo_url TEXT,
-    header_color TEXT NOT NULL DEFAULT '#f59e0b'
+    header_color TEXT NOT NULL DEFAULT '#f59e0b',
+    vat_mode TEXT NOT NULL DEFAULT 'netto'
   );
 
   CREATE TABLE IF NOT EXISTS locations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL DEFAULT '',
     address TEXT NOT NULL DEFAULT '',
@@ -177,11 +152,11 @@ const SCHEMA = `
     power_available INTEGER NOT NULL DEFAULT 0,
     notes TEXT NOT NULL DEFAULT '',
     photos TEXT NOT NULL DEFAULT '[]',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS characters (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
@@ -191,7 +166,7 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS cast (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     character_id INTEGER REFERENCES characters(id) ON DELETE SET NULL,
     actor_name TEXT NOT NULL DEFAULT '',
@@ -208,7 +183,7 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS crew (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL DEFAULT '',
     department TEXT NOT NULL DEFAULT '',
@@ -223,7 +198,7 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS scenes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     scene_number TEXT NOT NULL DEFAULT '',
     sort_order INTEGER NOT NULL DEFAULT 0,
@@ -235,12 +210,13 @@ const SCHEMA = `
     eighths INTEGER NOT NULL DEFAULT 8,
     estimated_minutes INTEGER NOT NULL DEFAULT 60,
     notes TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    shot_status TEXT NOT NULL DEFAULT 'offen',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS scene_characters (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     scene_id INTEGER NOT NULL REFERENCES scenes(id) ON DELETE CASCADE,
     character_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
     role_in_scene TEXT NOT NULL DEFAULT '',
@@ -248,7 +224,7 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS scene_inventory (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     scene_id INTEGER NOT NULL REFERENCES scenes(id) ON DELETE CASCADE,
     item TEXT NOT NULL DEFAULT '',
     category TEXT NOT NULL DEFAULT 'Requisite',
@@ -257,17 +233,19 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS shoot_days (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     day_number INTEGER NOT NULL DEFAULT 1,
     date TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'Geplant',
     unit TEXT NOT NULL DEFAULT 'Haupteinheit',
-    notes TEXT NOT NULL DEFAULT ''
+    notes TEXT NOT NULL DEFAULT '',
+    catering_count INTEGER NOT NULL DEFAULT 0,
+    risk_notes TEXT NOT NULL DEFAULT ''
   );
 
   CREATE TABLE IF NOT EXISTS shoot_day_scenes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     shoot_day_id INTEGER NOT NULL REFERENCES shoot_days(id) ON DELETE CASCADE,
     scene_id INTEGER NOT NULL REFERENCES scenes(id) ON DELETE CASCADE,
     sort_order INTEGER NOT NULL DEFAULT 0,
@@ -276,7 +254,7 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS call_sheets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     shoot_day_id INTEGER NOT NULL UNIQUE REFERENCES shoot_days(id) ON DELETE CASCADE,
     general_call INTEGER NOT NULL DEFAULT 480,
     shooting_call INTEGER NOT NULL DEFAULT 510,
@@ -285,12 +263,13 @@ const SCHEMA = `
     sunrise TEXT NOT NULL DEFAULT '',
     sunset TEXT NOT NULL DEFAULT '',
     notes TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    safety_personnel INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS call_sheet_entries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     call_sheet_id INTEGER NOT NULL REFERENCES call_sheets(id) ON DELETE CASCADE,
     person_type TEXT NOT NULL DEFAULT 'crew',
     person_id INTEGER NOT NULL,
@@ -301,7 +280,7 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS daily_reports (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     shoot_day_id INTEGER NOT NULL UNIQUE REFERENCES shoot_days(id) ON DELETE CASCADE,
     date TEXT NOT NULL DEFAULT '',
     call_time INTEGER NOT NULL DEFAULT 480,
@@ -317,12 +296,12 @@ const SCHEMA = `
     sound_rolls TEXT NOT NULL DEFAULT '',
     notes TEXT NOT NULL DEFAULT '',
     production_notes TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS daily_report_cast (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     daily_report_id INTEGER NOT NULL REFERENCES daily_reports(id) ON DELETE CASCADE,
     cast_id INTEGER NOT NULL REFERENCES cast(id) ON DELETE CASCADE,
     call_time INTEGER NOT NULL DEFAULT 480,
@@ -332,7 +311,7 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS shots (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     scene_id INTEGER REFERENCES scenes(id) ON DELETE SET NULL,
     shoot_day_id INTEGER REFERENCES shoot_days(id) ON DELETE SET NULL,
@@ -345,11 +324,12 @@ const SCHEMA = `
     notes TEXT NOT NULL DEFAULT '',
     storyboard_url TEXT,
     duration_seconds INTEGER,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    done INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS storyboard_frames (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     shot_id INTEGER NOT NULL REFERENCES shots(id) ON DELETE CASCADE,
     frame_number INTEGER NOT NULL DEFAULT 1,
     image_url TEXT NOT NULL DEFAULT '',
@@ -357,17 +337,17 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS budget_versions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL DEFAULT 'Kalkulation',
     status TEXT NOT NULL DEFAULT 'Entwurf',
     total_cents INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS budget_lines (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     budget_version_id INTEGER NOT NULL REFERENCES budget_versions(id) ON DELETE CASCADE,
     category TEXT NOT NULL DEFAULT '',
     account_code TEXT NOT NULL DEFAULT '',
@@ -381,15 +361,15 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS financing_plan_versions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL DEFAULT 'Finanzierungsplan',
     total_cents INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS financing_entries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     financing_version_id INTEGER NOT NULL REFERENCES financing_plan_versions(id) ON DELETE CASCADE,
     source TEXT NOT NULL DEFAULT '',
     type TEXT NOT NULL DEFAULT 'Förderung',
@@ -400,17 +380,17 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS equipment_lists (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL DEFAULT '',
     department TEXT NOT NULL DEFAULT '',
     shoot_day_id INTEGER REFERENCES shoot_days(id) ON DELETE SET NULL,
     notes TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS equipment_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     equipment_list_id INTEGER NOT NULL REFERENCES equipment_lists(id) ON DELETE CASCADE,
     item TEXT NOT NULL DEFAULT '',
     quantity INTEGER NOT NULL DEFAULT 1,
@@ -424,18 +404,18 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS comments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     entity_type TEXT NOT NULL DEFAULT '',
     entity_id INTEGER NOT NULL DEFAULT 0,
     author TEXT NOT NULL DEFAULT '',
     content TEXT NOT NULL DEFAULT '',
     resolved INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS project_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     title TEXT NOT NULL DEFAULT '',
     start_date TEXT NOT NULL DEFAULT '',
@@ -447,33 +427,33 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS drehplan_versions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL DEFAULT '',
     snapshot_json TEXT NOT NULL DEFAULT '{}',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS email_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     subject TEXT NOT NULL DEFAULT '',
     recipients TEXT NOT NULL DEFAULT '[]',
     body TEXT NOT NULL DEFAULT '',
-    sent_at TEXT NOT NULL DEFAULT (datetime('now'))
+    sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     name TEXT NOT NULL DEFAULT '',
     role TEXT NOT NULL DEFAULT 'read_only',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS project_members (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role TEXT NOT NULL DEFAULT 'read_only',
@@ -481,7 +461,7 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS audit_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     user_name TEXT NOT NULL DEFAULT '',
@@ -490,33 +470,33 @@ const SCHEMA = `
     entity_id INTEGER,
     old_value TEXT,
     new_value TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS guest_tokens (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     token TEXT NOT NULL UNIQUE,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     shoot_day_id INTEGER REFERENCES shoot_days(id) ON DELETE CASCADE,
     expires_at TEXT,
     created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS sticky_notes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     content TEXT NOT NULL DEFAULT '',
     color TEXT NOT NULL DEFAULT '#fef08a',
     position_x INTEGER NOT NULL DEFAULT 0,
     position_y INTEGER NOT NULL DEFAULT 0,
     created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS vehicles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL DEFAULT '',
     license_plate TEXT NOT NULL DEFAULT '',
@@ -528,7 +508,7 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS extras (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL DEFAULT '',
     phone TEXT NOT NULL DEFAULT '',
@@ -538,7 +518,7 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS camera_presets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL DEFAULT '',
     camera TEXT NOT NULL DEFAULT '',
@@ -547,234 +527,205 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS budget_alerts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
     threshold_percent INTEGER NOT NULL DEFAULT 80,
     enabled INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS screenplay_blocks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     scene_id INTEGER NOT NULL REFERENCES scenes(id) ON DELETE CASCADE,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     sort_order INTEGER NOT NULL DEFAULT 0,
     block_type TEXT NOT NULL DEFAULT 'action',
     content TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS fdx_imports (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     filename TEXT NOT NULL DEFAULT '',
-    imported_at TEXT NOT NULL DEFAULT (datetime('now')),
+    imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     scene_count INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE TABLE IF NOT EXISTS project_invites (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    role TEXT NOT NULL DEFAULT 'read_only',
+    label TEXT NOT NULL DEFAULT '',
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS vfx_shots (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    scene_id INTEGER REFERENCES scenes(id) ON DELETE SET NULL,
+    shot_number TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    vfx_type TEXT NOT NULL DEFAULT 'Compositing',
+    status TEXT NOT NULL DEFAULT 'Offen',
+    artist TEXT NOT NULL DEFAULT '',
+    deadline TEXT,
+    complexity TEXT NOT NULL DEFAULT 'Mittel',
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  CREATE TABLE IF NOT EXISTS post_phases (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    phase TEXT NOT NULL DEFAULT 'Rohschnitt',
+    start_date TEXT,
+    end_date TEXT,
+    status TEXT NOT NULL DEFAULT 'Ausstehend',
+    responsible TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE TABLE IF NOT EXISTS music_cues (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    scene_id INTEGER REFERENCES scenes(id) ON DELETE SET NULL,
+    title TEXT NOT NULL DEFAULT '',
+    composer TEXT NOT NULL DEFAULT '',
+    publisher TEXT NOT NULL DEFAULT '',
+    duration_seconds INTEGER NOT NULL DEFAULT 0,
+    cue_type TEXT NOT NULL DEFAULT 'Original',
+    usage_type TEXT NOT NULL DEFAULT 'Unterlegt',
+    lyrics_author TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE TABLE IF NOT EXISTS insurances (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    ins_type TEXT NOT NULL DEFAULT 'Filmversicherung',
+    provider TEXT NOT NULL DEFAULT '',
+    policy_number TEXT NOT NULL DEFAULT '',
+    coverage_amount_cents INTEGER NOT NULL DEFAULT 0,
+    premium_cents INTEGER NOT NULL DEFAULT 0,
+    start_date TEXT,
+    end_date TEXT,
+    notes TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0
   );
 `
 
 // ─── Test admin seeder ────────────────────────────────────────────────────────
 async function ensureTestAdmin() {
   const bcrypt = await import('bcryptjs')
-  const existing = db.prepare("SELECT id FROM users WHERE email = 'admin@cutsheet.dev'").get()
+  const existing = await db.get("SELECT id FROM users WHERE email = 'admin@cutsheet.dev'")
   if (!existing) {
     const hash = await bcrypt.hash('admin1234', 12)
-    db.prepare("INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)").run(
-      'admin@cutsheet.dev', hash, 'Test Admin', 'admin'
+    await db.run(
+      "INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)",
+      ['admin@cutsheet.dev', hash, 'Test Admin', 'admin']
     )
     console.log('[DB] Test-Admin erstellt: admin@cutsheet.dev / admin1234')
   } else {
-    // Always ensure the role stays admin (e.g. if DB was tampered)
-    db.prepare("UPDATE users SET role = 'admin' WHERE email = 'admin@cutsheet.dev'").run()
+    await db.run("UPDATE users SET role = 'admin' WHERE email = 'admin@cutsheet.dev'")
   }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 export async function initDatabase() {
-  const SQL = await initSqlJs()
+  // Verify connection
+  await pool.query('SELECT 1')
 
-  let sqlDb: SqlJsDatabase
-  if (fs.existsSync(DB_PATH)) {
-    const fileBuffer = fs.readFileSync(DB_PATH)
-    sqlDb = new SQL.Database(fileBuffer)
-  } else {
-    sqlDb = new SQL.Database()
-  }
+  // Create all tables
+  await db.exec(SCHEMA)
 
-  db._setDb(sqlDb)
-  db.pragma('journal_mode = WAL')
-  db.pragma('foreign_keys = ON')
-
-  // Run schema
-  sqlDb.run(SCHEMA)
-
-  // Seed if empty
-  const count = db.prepare('SELECT COUNT(*) as c FROM projects').get() as { c: number }
-  if (!count || count.c === 0) {
-    seedDemoData()
-  }
-
-  // Run addMigrations
-  addMigrations()
-
-  // Ensure test admin account exists (idempotent)
-  await ensureTestAdmin()
-
-  // Flush to disk
-  db._flush()
-  console.log('[DB] Datenbank initialisiert:', DB_PATH)
-}
-
-export function addMigrations() {
-  const migrations: Array<{ sql: string; label: string }> = [
-    { sql: "ALTER TABLE projects ADD COLUMN synopsis TEXT NOT NULL DEFAULT ''", label: 'projects.synopsis' },
-    { sql: "ALTER TABLE projects ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL", label: 'projects.owner_id' },
-    { sql: `CREATE TABLE IF NOT EXISTS project_invites (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      token TEXT NOT NULL UNIQUE,
-      role TEXT NOT NULL DEFAULT 'read_only',
-      label TEXT NOT NULL DEFAULT '',
-      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      expires_at TEXT
-    )`, label: 'project_invites' },
-    // Feature: scene shot status
-    { sql: "ALTER TABLE scenes ADD COLUMN shot_status TEXT NOT NULL DEFAULT 'offen'", label: 'scenes.shot_status' },
-    // Feature: project archiving
-    { sql: "ALTER TABLE projects ADD COLUMN archived INTEGER NOT NULL DEFAULT 0", label: 'projects.archived' },
-    // Feature: catering count per shoot day
-    { sql: "ALTER TABLE shoot_days ADD COLUMN catering_count INTEGER NOT NULL DEFAULT 0", label: 'shoot_days.catering_count' },
-    // Feature: shot done status
-    { sql: "ALTER TABLE shots ADD COLUMN done INTEGER NOT NULL DEFAULT 0", label: 'shots.done' },
-    // New tables for VFX, Post, Music, Insurances
-    { sql: `CREATE TABLE IF NOT EXISTS vfx_shots (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  scene_id INTEGER REFERENCES scenes(id) ON DELETE SET NULL,
-  shot_number TEXT NOT NULL DEFAULT '',
-  description TEXT NOT NULL DEFAULT '',
-  vfx_type TEXT NOT NULL DEFAULT 'Compositing',
-  status TEXT NOT NULL DEFAULT 'Offen',
-  artist TEXT NOT NULL DEFAULT '',
-  deadline TEXT,
-  complexity TEXT NOT NULL DEFAULT 'Mittel',
-  notes TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-)`, label: 'vfx_shots' },
-    { sql: `CREATE TABLE IF NOT EXISTS post_phases (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  phase TEXT NOT NULL DEFAULT 'Rohschnitt',
-  start_date TEXT,
-  end_date TEXT,
-  status TEXT NOT NULL DEFAULT 'Ausstehend',
-  responsible TEXT NOT NULL DEFAULT '',
-  notes TEXT NOT NULL DEFAULT '',
-  sort_order INTEGER NOT NULL DEFAULT 0
-)`, label: 'post_phases' },
-    { sql: `CREATE TABLE IF NOT EXISTS music_cues (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  scene_id INTEGER REFERENCES scenes(id) ON DELETE SET NULL,
-  title TEXT NOT NULL DEFAULT '',
-  composer TEXT NOT NULL DEFAULT '',
-  publisher TEXT NOT NULL DEFAULT '',
-  duration_seconds INTEGER NOT NULL DEFAULT 0,
-  cue_type TEXT NOT NULL DEFAULT 'Original',
-  usage_type TEXT NOT NULL DEFAULT 'Unterlegt',
-  lyrics_author TEXT NOT NULL DEFAULT '',
-  notes TEXT NOT NULL DEFAULT '',
-  sort_order INTEGER NOT NULL DEFAULT 0
-)`, label: 'music_cues' },
-    { sql: `CREATE TABLE IF NOT EXISTS insurances (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  ins_type TEXT NOT NULL DEFAULT 'Filmversicherung',
-  provider TEXT NOT NULL DEFAULT '',
-  policy_number TEXT NOT NULL DEFAULT '',
-  coverage_amount_cents INTEGER NOT NULL DEFAULT 0,
-  premium_cents INTEGER NOT NULL DEFAULT 0,
-  start_date TEXT,
-  end_date TEXT,
-  notes TEXT NOT NULL DEFAULT '',
-  sort_order INTEGER NOT NULL DEFAULT 0
-)`, label: 'insurances' },
-    { sql: "ALTER TABLE shoot_days ADD COLUMN risk_notes TEXT NOT NULL DEFAULT ''", label: 'shoot_days.risk_notes' },
-    { sql: "ALTER TABLE call_sheets ADD COLUMN safety_personnel INTEGER NOT NULL DEFAULT 0", label: 'call_sheets.safety_personnel' },
-    { sql: "ALTER TABLE project_settings ADD COLUMN vat_mode TEXT NOT NULL DEFAULT 'netto'", label: 'project_settings.vat_mode' },
-  ]
-
-  for (const m of migrations) {
-    try {
-      db.exec(m.sql)
-      console.log(`[DB] Migration: added ${m.label}`)
-    } catch {
-      // Column/table already exists — ignore
-    }
-  }
-
-  // Assign unclaimed projects to first registered user (backward compat)
-  try {
-    db.exec(`
-      UPDATE projects SET owner_id = (SELECT id FROM users ORDER BY id ASC LIMIT 1)
-      WHERE owner_id IS NULL AND (SELECT COUNT(*) FROM users) > 0
-    `)
-  } catch { /* ignore */ }
-
-  // Fix roles: only the first registered user (lowest id) keeps 'admin'.
-  // All others become 'user' — per-project access is via project_members.
-  try {
-    db.exec(`
-      UPDATE users SET role = 'user'
-      WHERE id != (SELECT MIN(id) FROM users) AND role = 'admin'
-    `)
-  } catch { /* ignore */ }
-}
-
-function seedDemoData() {
-  const insertProject = db.prepare(`
-    INSERT INTO projects (title, genre, format, length_minutes, status, director, producer, dop, production_company, shoot_start, shoot_end)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  // Add foreign key from projects.owner_id now that users table exists
+  await db.exec(`
+    DO $$ BEGIN
+      ALTER TABLE projects ADD CONSTRAINT projects_owner_id_fkey
+        FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
   `)
 
-  const projectResult = insertProject.run(
-    'Sprachlos', 'Drama', 'Kurzfilm', 15, 'Vorproduktion',
-    'Sarah Müller', 'Thomas Bauer', 'Lisa Schneider', 'Bauer Film GmbH',
-    '2026-06-15', '2026-06-17'
-  )
-  const projectId = projectResult.lastInsertRowid
+  // Check if empty — seed demo data on first run
+  const count = await db.get('SELECT COUNT(*) as c FROM projects')
+  if (!count || Number(count.c) === 0) {
+    await seedDemoData()
+  }
 
-  db.prepare(`INSERT INTO project_settings (project_id, default_call_time, default_wrap_time) VALUES (?, ?, ?)`)
-    .run(projectId, 480, 1140)
+  // Assign unclaimed projects to first user
+  await db.exec(`
+    UPDATE projects SET owner_id = (SELECT id FROM users ORDER BY id ASC LIMIT 1)
+    WHERE owner_id IS NULL AND (SELECT COUNT(*) FROM users) > 0
+  `)
+
+  // Fix roles: only first user keeps 'admin'
+  await db.exec(`
+    UPDATE users SET role = 'user'
+    WHERE id != (SELECT MIN(id) FROM users) AND role = 'admin'
+  `)
+
+  await ensureTestAdmin()
+
+  console.log('[DB] PostgreSQL-Datenbank initialisiert')
+}
+
+// ─── Demo seed data ───────────────────────────────────────────────────────────
+async function seedDemoData() {
+  const projectResult = await db.run(`
+    INSERT INTO projects (title, genre, format, length_minutes, status, director, producer, dop, production_company, shoot_start, shoot_end)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, ['Sprachlos', 'Drama', 'Kurzfilm', 15, 'Vorproduktion',
+      'Sarah Müller', 'Thomas Bauer', 'Lisa Schneider', 'Bauer Film GmbH',
+      '2026-06-15', '2026-06-17'])
+  const projectId = projectResult.id
+
+  await db.run(
+    'INSERT INTO project_settings (project_id, default_call_time, default_wrap_time) VALUES (?, ?, ?)',
+    [projectId, 480, 1140]
+  )
 
   // Locations
-  const loc1 = db.prepare(`INSERT INTO locations (project_id, name, address, city, zip, contact_name, contact_phone, power_available, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(projectId, 'Wohnküche Andi', 'Musterstraße 12', 'München', '80331', 'Andrea Huber', '089 1234567', 1, 'Ruhige Straße, gute Parkmöglichkeiten')
-  const loc2 = db.prepare(`INSERT INTO locations (project_id, name, address, city, zip, contact_name, contact_phone, power_available, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(projectId, 'Stadtpark Englischer Garten', 'Englischer Garten 1', 'München', '80538', 'Stadtpark Verwaltung', '089 9876543', 0, 'Drehgenehmigung erforderlich')
-  const loc3 = db.prepare(`INSERT INTO locations (project_id, name, address, city, zip, contact_name, contact_phone, power_available, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(projectId, 'Café Morgenrot', 'Leopoldstraße 45', 'München', '80802', 'Maria Vogel', '089 5556789', 1, 'Samstags geschlossen, Sonntags verfügbar')
-
-  const locId1 = loc1.lastInsertRowid
-  const locId2 = loc2.lastInsertRowid
-  const locId3 = loc3.lastInsertRowid
+  const loc1 = await db.run(
+    'INSERT INTO locations (project_id, name, address, city, zip, contact_name, contact_phone, power_available, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [projectId, 'Wohnküche Andi', 'Musterstraße 12', 'München', '80331', 'Andrea Huber', '089 1234567', 1, 'Ruhige Straße, gute Parkmöglichkeiten']
+  )
+  const loc2 = await db.run(
+    'INSERT INTO locations (project_id, name, address, city, zip, contact_name, contact_phone, power_available, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [projectId, 'Stadtpark Englischer Garten', 'Englischer Garten 1', 'München', '80538', 'Stadtpark Verwaltung', '089 9876543', 0, 'Drehgenehmigung erforderlich']
+  )
+  const loc3 = await db.run(
+    'INSERT INTO locations (project_id, name, address, city, zip, contact_name, contact_phone, power_available, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [projectId, 'Café Morgenrot', 'Leopoldstraße 45', 'München', '80802', 'Maria Vogel', '089 5556789', 1, 'Samstags geschlossen, Sonntags verfügbar']
+  )
+  const locId1 = loc1.id, locId2 = loc2.id, locId3 = loc3.id
 
   // Characters
-  const char1 = db.prepare(`INSERT INTO characters (project_id, name, description, age_range, gender, sort_order) VALUES (?, ?, ?, ?, ?, ?)`)
-    .run(projectId, 'Andi', 'Introvertierter junger Mann, kämpft mit Kommunikation nach einem Trauma', '25-30', 'Männlich', 1)
-  const char2 = db.prepare(`INSERT INTO characters (project_id, name, description, age_range, gender, sort_order) VALUES (?, ?, ?, ?, ?, ?)`)
-    .run(projectId, 'Mia', 'Andis Nachbarin, einfühlsam und geduldig', '25-35', 'Weiblich', 2)
-
-  const charId1 = char1.lastInsertRowid
-  const charId2 = char2.lastInsertRowid
+  const char1 = await db.run(
+    'INSERT INTO characters (project_id, name, description, age_range, gender, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+    [projectId, 'Andi', 'Introvertierter junger Mann, kämpft mit Kommunikation nach einem Trauma', '25-30', 'Männlich', 1]
+  )
+  const char2 = await db.run(
+    'INSERT INTO characters (project_id, name, description, age_range, gender, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+    [projectId, 'Mia', 'Andis Nachbarin, einfühlsam und geduldig', '25-35', 'Weiblich', 2]
+  )
+  const charId1 = char1.id, charId2 = char2.id
 
   // Cast
-  db.prepare(`INSERT INTO cast (project_id, character_id, actor_name, email, phone, fee_per_day, contract_type) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-    .run(projectId, charId1, 'Felix Wagner', 'felix.wagner@email.de', '0170 1234567', 50000, 'Tagesgage')
-  db.prepare(`INSERT INTO cast (project_id, character_id, actor_name, email, phone, fee_per_day, contract_type) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-    .run(projectId, charId2, 'Anna Schmidt', 'anna.schmidt@email.de', '0171 9876543', 50000, 'Tagesgage')
+  await db.run(
+    'INSERT INTO cast (project_id, character_id, actor_name, email, phone, fee_per_day, contract_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [projectId, charId1, 'Felix Wagner', 'felix.wagner@email.de', '0170 1234567', 50000, 'Tagesgage']
+  )
+  await db.run(
+    'INSERT INTO cast (project_id, character_id, actor_name, email, phone, fee_per_day, contract_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [projectId, charId2, 'Anna Schmidt', 'anna.schmidt@email.de', '0171 9876543', 50000, 'Tagesgage']
+  )
 
   // Crew
   const crewData = [
@@ -787,10 +738,13 @@ function seedDemoData() {
     ['Nina Fischer', 'Kostüm', 'Kostümbildnerin', 'nina.fischer@email.de', '0177 7777777', 30000, 'Tagesgage'],
     ['Lars Weber', 'Aufnahmeleitung', 'Aufnahmeleiter', 'lars.weber@email.de', '0178 8888888', 45000, 'Tagesgage'],
   ]
-  crewData.forEach(([name, dept, role, email, phone, fee, contract], i) => {
-    db.prepare(`INSERT INTO crew (project_id, name, department, role, email, phone, fee_per_day, contract_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(projectId, name, dept, role, email, phone, fee, contract, i)
-  })
+  for (let i = 0; i < crewData.length; i++) {
+    const [name, dept, role, email, phone, fee, contract] = crewData[i]
+    await db.run(
+      'INSERT INTO crew (project_id, name, department, role, email, phone, fee_per_day, contract_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [projectId, name, dept, role, email, phone, fee, contract, i]
+    )
+  }
 
   // Scenes
   const scenesData: Array<[string, number, string, string, number, string, string, number, number]> = [
@@ -805,11 +759,13 @@ function seedDemoData() {
   ]
 
   const sceneIds: number[] = []
-  scenesData.forEach(([num, sort, title, desc, locId, intExt, dayNight, eighths, mins]) => {
-    const res = db.prepare(`INSERT INTO scenes (project_id, scene_number, sort_order, title, description, location_id, int_ext, day_night, eighths, estimated_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(projectId, num, sort, title, desc, locId, intExt, dayNight, eighths, mins)
-    sceneIds.push(res.lastInsertRowid)
-  })
+  for (const [num, sort, title, desc, locId, intExt, dayNight, eighths, mins] of scenesData) {
+    const res = await db.run(
+      'INSERT INTO scenes (project_id, scene_number, sort_order, title, description, location_id, int_ext, day_night, eighths, estimated_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [projectId, num, sort, title, desc, locId, intExt, dayNight, eighths, mins]
+    )
+    sceneIds.push(res.id)
+  }
 
   // Scene characters
   const sceneCharAssignments: [number, number][] = [
@@ -820,41 +776,46 @@ function seedDemoData() {
     [sceneIds[6], charId1], [sceneIds[6], charId2],
     [sceneIds[7], charId1],
   ]
-  sceneCharAssignments.forEach(([sceneId, charId]) => {
-    try {
-      db.prepare(`INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?)`)
-        .run(sceneId, charId)
-    } catch { /* ignore UNIQUE */ }
-  })
+  for (const [sceneId, charId] of sceneCharAssignments) {
+    await db.run(
+      'INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?) ON CONFLICT DO NOTHING',
+      [sceneId, charId]
+    )
+  }
 
   // Shoot days
-  const day1 = db.prepare(`INSERT INTO shoot_days (project_id, day_number, date, status, notes) VALUES (?, ?, ?, ?, ?)`)
-    .run(projectId, 1, '2026-06-15', 'Geplant', 'Drehtag 1 - Innenaufnahmen Andis Wohnung')
-  const day2 = db.prepare(`INSERT INTO shoot_days (project_id, day_number, date, status, notes) VALUES (?, ?, ?, ?, ?)`)
-    .run(projectId, 2, '2026-06-16', 'Geplant', 'Drehtag 2 - Außenaufnahmen Englischer Garten')
-  const day3 = db.prepare(`INSERT INTO shoot_days (project_id, day_number, date, status, notes) VALUES (?, ?, ?, ?, ?)`)
-    .run(projectId, 3, '2026-06-17', 'Geplant', 'Drehtag 3 - Café und Schlussszene')
-
-  const dayId1 = day1.lastInsertRowid
-  const dayId2 = day2.lastInsertRowid
-  const dayId3 = day3.lastInsertRowid
+  const day1 = await db.run(
+    'INSERT INTO shoot_days (project_id, day_number, date, status, notes) VALUES (?, ?, ?, ?, ?)',
+    [projectId, 1, '2026-06-15', 'Geplant', 'Drehtag 1 - Innenaufnahmen Andis Wohnung']
+  )
+  const day2 = await db.run(
+    'INSERT INTO shoot_days (project_id, day_number, date, status, notes) VALUES (?, ?, ?, ?, ?)',
+    [projectId, 2, '2026-06-16', 'Geplant', 'Drehtag 2 - Außenaufnahmen Englischer Garten']
+  )
+  const day3 = await db.run(
+    'INSERT INTO shoot_days (project_id, day_number, date, status, notes) VALUES (?, ?, ?, ?, ?)',
+    [projectId, 3, '2026-06-17', 'Geplant', 'Drehtag 3 - Café und Schlussszene']
+  )
+  const dayId1 = day1.id, dayId2 = day2.id, dayId3 = day3.id
 
   const dayScenes: [number, number, number][] = [
     [dayId1, sceneIds[0], 0], [dayId1, sceneIds[1], 1], [dayId1, sceneIds[2], 2], [dayId1, sceneIds[3], 3],
     [dayId2, sceneIds[4], 0], [dayId2, sceneIds[5], 1],
     [dayId3, sceneIds[6], 0], [dayId3, sceneIds[7], 1],
   ]
-  dayScenes.forEach(([dayId, sceneId, sort]) => {
-    try {
-      db.prepare(`INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, ?)`)
-        .run(dayId, sceneId, sort)
-    } catch { /* ignore */ }
-  })
+  for (const [dayId, sceneId, sort] of dayScenes) {
+    await db.run(
+      'INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, ?) ON CONFLICT DO NOTHING',
+      [dayId, sceneId, sort]
+    )
+  }
 
   // Budget
-  const budget = db.prepare(`INSERT INTO budget_versions (project_id, name, status) VALUES (?, ?, ?)`)
-    .run(projectId, 'Kalkulation v1', 'Aktiv')
-  const budgetId = budget.lastInsertRowid
+  const budget = await db.run(
+    'INSERT INTO budget_versions (project_id, name, status) VALUES (?, ?, ?)',
+    [projectId, 'Kalkulation v1', 'Aktiv']
+  )
+  const budgetId = budget.id
 
   const budgetLines: Array<[string, string, string, string, number, number]> = [
     ['1000 - Stab', '1100', 'Regisseurin (Pauschal)', 'Pauschal', 1, 200000],
@@ -877,18 +838,23 @@ function seedDemoData() {
   ]
 
   let totalBudget = 0
-  budgetLines.forEach(([category, code, description, unit, qty, unitPrice], i) => {
+  for (let i = 0; i < budgetLines.length; i++) {
+    const [category, code, description, unit, qty, unitPrice] = budgetLines[i]
     const total = qty * unitPrice
     totalBudget += total
-    db.prepare(`INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(budgetId, category, code, description, unit, qty, unitPrice, total, i)
-  })
-  db.prepare(`UPDATE budget_versions SET total_cents = ? WHERE id = ?`).run(totalBudget, budgetId)
+    await db.run(
+      'INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [budgetId, category, code, description, unit, qty, unitPrice, total, i]
+    )
+  }
+  await db.run('UPDATE budget_versions SET total_cents = ? WHERE id = ?', [totalBudget, budgetId])
 
   // Financing
-  const financing = db.prepare(`INSERT INTO financing_plan_versions (project_id, name) VALUES (?, ?)`)
-    .run(projectId, 'Finanzierungsplan v1')
-  const finId = financing.lastInsertRowid
+  const financing = await db.run(
+    'INSERT INTO financing_plan_versions (project_id, name) VALUES (?, ?)',
+    [projectId, 'Finanzierungsplan v1']
+  )
+  const finId = financing.id
 
   const finEntries: Array<[string, string, number, number]> = [
     ['FilmFernsehFonds Bayern', 'Förderung', 800000, 1],
@@ -897,17 +863,22 @@ function seedDemoData() {
     ['DFFF (Bundesförderung)', 'Förderung', 100000, 0],
   ]
   let totalFin = 0
-  finEntries.forEach(([source, type, amount, confirmed], i) => {
+  for (let i = 0; i < finEntries.length; i++) {
+    const [source, type, amount, confirmed] = finEntries[i]
     totalFin += amount
-    db.prepare(`INSERT INTO financing_entries (financing_version_id, source, type, amount_cents, confirmed, sort_order) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(finId, source, type, amount, confirmed, i)
-  })
-  db.prepare(`UPDATE financing_plan_versions SET total_cents = ? WHERE id = ?`).run(totalFin, finId)
+    await db.run(
+      'INSERT INTO financing_entries (financing_version_id, source, type, amount_cents, confirmed, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+      [finId, source, type, amount, confirmed, i]
+    )
+  }
+  await db.run('UPDATE financing_plan_versions SET total_cents = ? WHERE id = ?', [totalFin, finId])
 
   // Equipment
-  const equip = db.prepare(`INSERT INTO equipment_lists (project_id, name, department, notes) VALUES (?, ?, ?, ?)`)
-    .run(projectId, 'Kamera-Equipment Drehtage', 'Kamera', 'Mietanfrage an Movietech München')
-  const equipId = equip.lastInsertRowid
+  const equip = await db.run(
+    'INSERT INTO equipment_lists (project_id, name, department, notes) VALUES (?, ?, ?, ?)',
+    [projectId, 'Kamera-Equipment Drehtage', 'Kamera', 'Mietanfrage an Movietech München']
+  )
+  const equipId = equip.id
 
   const equipItems: Array<[string, number, string, number, number]> = [
     ['Sony FX3 Kamera-Body', 1, 'Movietech München', 15000, 3],
@@ -917,11 +888,14 @@ function seedDemoData() {
     ['V-Mount Akkus (4x)', 4, 'Movietech München', 1500, 3],
     ['Atomos Shogun Recorder', 1, 'Movietech München', 3000, 3],
   ]
-  equipItems.forEach(([item, qty, supplier, rentPerDay, days], i) => {
+  for (let i = 0; i < equipItems.length; i++) {
+    const [item, qty, supplier, rentPerDay, days] = equipItems[i]
     const total = rentPerDay * days
-    db.prepare(`INSERT INTO equipment_items (equipment_list_id, item, quantity, supplier, rental_per_day_cents, total_days, total_cents, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(equipId, item, qty, supplier, rentPerDay, days, total, i)
-  })
+    await db.run(
+      'INSERT INTO equipment_items (equipment_list_id, item, quantity, supplier, rental_per_day_cents, total_days, total_cents, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [equipId, item, qty, supplier, rentPerDay, days, total, i]
+    )
+  }
 
   // Calendar events
   const events = [
@@ -932,10 +906,12 @@ function seedDemoData() {
     ['Locationscout Englischer Garten', '2026-05-28', 'Locationscout', '#10b981', 'Mit Lisa und Lars'],
     ['Produktionsbesprechung', '2026-06-01', 'Meeting', '#8b5cf6', 'Finales Meeting vor Produktion'],
   ]
-  events.forEach(([title, date, type, color, notes]) => {
-    db.prepare(`INSERT INTO project_events (project_id, title, start_date, type, color, notes) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(projectId, title, date, type, color, notes)
-  })
+  for (const [title, date, type, color, notes] of events) {
+    await db.run(
+      'INSERT INTO project_events (project_id, title, start_date, type, color, notes) VALUES (?, ?, ?, ?, ?, ?)',
+      [projectId, title, date, type, color, notes]
+    )
+  }
 
   console.log('[DB] Demo-Daten "Sprachlos" erfolgreich eingefügt.')
 }

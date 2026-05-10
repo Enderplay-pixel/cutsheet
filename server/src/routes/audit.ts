@@ -14,11 +14,11 @@ export function logAudit(
   oldValue?: unknown,
   newValue?: unknown
 ): void {
-  try {
-    db.prepare(`
+  db.run(`
       INSERT INTO audit_log (project_id, user_id, user_name, action, entity_type, entity_id, old_value, new_value)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `,
+    [
       projectId ?? null,
       user?.id ?? null,
       user?.name || user?.email || '',
@@ -26,23 +26,23 @@ export function logAudit(
       entityType,
       entityId ?? null,
       oldValue !== undefined ? JSON.stringify(oldValue) : null,
-      newValue !== undefined ? JSON.stringify(newValue) : null
-    )
-  } catch (err) {
+      newValue !== undefined ? JSON.stringify(newValue) : null,
+    ]
+  ).catch(err => {
     console.error('[audit_log] Failed to write audit entry:', err)
-  }
+  })
 }
 
 // GET /api/projects/:projectId/audit
-router.get('/projects/:projectId/audit', requireAuth, requireMember, (req: Request, res: Response) => {
+router.get('/projects/:projectId/audit', requireAuth, requireMember, async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
-    const entries = db.prepare(`
+    const entries = await db.all(`
       SELECT * FROM audit_log
       WHERE project_id = ?
       ORDER BY created_at DESC
       LIMIT 200
-    `).all(projectId)
+    `, [projectId])
     return res.json({ data: entries, error: null })
   } catch (err) {
     console.error('[audit GET]', err)

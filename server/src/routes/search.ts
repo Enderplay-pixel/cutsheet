@@ -18,7 +18,7 @@ function snippet(content: string, query: string, radius = 50): string {
   return prefix + content.slice(start, end) + suffix
 }
 
-router.get('/projects/:projectId/search', (req, res) => {
+router.get('/projects/:projectId/search', async (req, res) => {
   const rawQ = String(req.query.q || '')
   if (!rawQ.trim()) {
     return res.json({ data: [], error: null })
@@ -26,9 +26,33 @@ router.get('/projects/:projectId/search', (req, res) => {
   const q = `%${rawQ}%`
   const pid = req.params.projectId
 
-  const scenes = (db.prepare(
-    "SELECT id, scene_number, title as name FROM scenes WHERE project_id = ? AND (title LIKE ? OR scene_number LIKE ? OR description LIKE ?)"
-  ).all(pid, q, q, q) as any[]).map(r => ({
+  const [scenesRaw, screenplayRaw, castRaw, crewRaw, locationsRaw] = await Promise.all([
+    db.all(
+      "SELECT id, scene_number, title as name FROM scenes WHERE project_id = ? AND (title LIKE ? OR scene_number LIKE ? OR description LIKE ?)",
+      [pid, q, q, q]
+    ),
+    db.all(
+      `SELECT sb.id, sb.content, sb.block_type, s.id as scene_id, s.scene_number, s.title
+       FROM screenplay_blocks sb
+       JOIN scenes s ON sb.scene_id = s.id
+       WHERE sb.project_id = ? AND sb.content LIKE ?`,
+      [pid, q]
+    ),
+    db.all(
+      "SELECT id, actor_name FROM cast WHERE project_id = ? AND actor_name LIKE ?",
+      [pid, q]
+    ),
+    db.all(
+      "SELECT id, name, role, department FROM crew WHERE project_id = ? AND (name LIKE ? OR role LIKE ?)",
+      [pid, q, q]
+    ),
+    db.all(
+      "SELECT id, name, city FROM locations WHERE project_id = ? AND (name LIKE ? OR city LIKE ? OR address LIKE ?)",
+      [pid, q, q, q]
+    ),
+  ])
+
+  const scenes = (scenesRaw as any[]).map(r => ({
     type: 'scene',
     id: r.id,
     title: `Szene ${r.scene_number}: ${r.name}`,
@@ -36,12 +60,7 @@ router.get('/projects/:projectId/search', (req, res) => {
     url: `/projects/${pid}/drehbuch`,
   }))
 
-  const screenplay = (db.prepare(
-    `SELECT sb.id, sb.content, sb.block_type, s.id as scene_id, s.scene_number, s.title
-     FROM screenplay_blocks sb
-     JOIN scenes s ON sb.scene_id = s.id
-     WHERE sb.project_id = ? AND sb.content LIKE ?`
-  ).all(pid, q) as any[]).map(r => {
+  const screenplay = (screenplayRaw as any[]).map(r => {
     const snip = snippet(r.content, rawQ, 50)
     const label = `Szene ${r.scene_number}: ${snip.slice(0, 60)}${snip.length > 60 ? '…' : ''}`
     return {
@@ -55,9 +74,7 @@ router.get('/projects/:projectId/search', (req, res) => {
     }
   })
 
-  const cast = (db.prepare(
-    "SELECT id, actor_name FROM cast WHERE project_id = ? AND actor_name LIKE ?"
-  ).all(pid, q) as any[]).map(r => ({
+  const cast = (castRaw as any[]).map(r => ({
     type: 'cast',
     id: r.id,
     title: r.actor_name,
@@ -65,9 +82,7 @@ router.get('/projects/:projectId/search', (req, res) => {
     url: `/projects/${pid}/besetzung`,
   }))
 
-  const crew = (db.prepare(
-    "SELECT id, name, role, department FROM crew WHERE project_id = ? AND (name LIKE ? OR role LIKE ?)"
-  ).all(pid, q, q) as any[]).map(r => ({
+  const crew = (crewRaw as any[]).map(r => ({
     type: 'crew',
     id: r.id,
     title: r.name,
@@ -75,9 +90,7 @@ router.get('/projects/:projectId/search', (req, res) => {
     url: `/projects/${pid}/stabliste`,
   }))
 
-  const locations = (db.prepare(
-    "SELECT id, name, city FROM locations WHERE project_id = ? AND (name LIKE ? OR city LIKE ? OR address LIKE ?)"
-  ).all(pid, q, q, q) as any[]).map(r => ({
+  const locations = (locationsRaw as any[]).map(r => ({
     type: 'location',
     id: r.id,
     title: r.name,

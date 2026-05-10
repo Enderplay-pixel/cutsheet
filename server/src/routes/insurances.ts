@@ -9,10 +9,10 @@ const router = Router()
 router.use('/projects/:projectId', requireAuth, requireMember)
 
 // GET /api/projects/:projectId/insurances
-router.get('/projects/:projectId/insurances', requireAuth, (req: Request, res: Response) => {
+router.get('/projects/:projectId/insurances', requireAuth, async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
-    const rows = db.prepare('SELECT * FROM insurances WHERE project_id = ? ORDER BY sort_order ASC, id ASC').all(projectId)
+    const rows = await db.all('SELECT * FROM insurances WHERE project_id = ? ORDER BY sort_order ASC, id ASC', [projectId])
     return res.json({ data: rows, error: null })
   } catch (err) {
     console.error('[insurances GET]', err)
@@ -21,7 +21,7 @@ router.get('/projects/:projectId/insurances', requireAuth, (req: Request, res: R
 })
 
 // POST /api/projects/:projectId/insurances
-router.post('/projects/:projectId/insurances', requireAuth, (req: Request, res: Response) => {
+router.post('/projects/:projectId/insurances', requireAuth, async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
     const {
@@ -45,11 +45,11 @@ router.post('/projects/:projectId/insurances', requireAuth, (req: Request, res: 
       notes?: string
       sort_order?: number
     }
-    const result = db.prepare(`
+    const result = await db.run(`
       INSERT INTO insurances (project_id, ins_type, provider, policy_number, coverage_amount_cents, premium_cents, start_date, end_date, notes, sort_order)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(projectId, ins_type, provider, policy_number, coverage_amount_cents, premium_cents, start_date, end_date, notes, sort_order)
-    const row = db.prepare('SELECT * FROM insurances WHERE id = ?').get(result.lastInsertRowid)
+    `, [projectId, ins_type, provider, policy_number, coverage_amount_cents, premium_cents, start_date, end_date, notes, sort_order])
+    const row = await db.get('SELECT * FROM insurances WHERE id = ?', [result.id])
     return res.status(201).json({ data: row, error: null })
   } catch (err) {
     console.error('[insurances POST]', err)
@@ -58,10 +58,10 @@ router.post('/projects/:projectId/insurances', requireAuth, (req: Request, res: 
 })
 
 // PUT /api/projects/:projectId/insurances/:id
-router.put('/projects/:projectId/insurances/:id', requireAuth, (req: Request, res: Response) => {
+router.put('/projects/:projectId/insurances/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const existing = db.prepare('SELECT * FROM insurances WHERE id = ?').get(id)
+    const existing = await db.get('SELECT * FROM insurances WHERE id = ?', [id])
     if (!existing) return res.status(404).json({ data: null, error: 'Versicherung nicht gefunden' })
 
     const {
@@ -86,7 +86,7 @@ router.put('/projects/:projectId/insurances/:id', requireAuth, (req: Request, re
       sort_order?: number
     }
 
-    db.prepare(`
+    await db.run(`
       UPDATE insurances SET
         ins_type = COALESCE(?, ins_type),
         provider = COALESCE(?, provider),
@@ -98,7 +98,7 @@ router.put('/projects/:projectId/insurances/:id', requireAuth, (req: Request, re
         notes = COALESCE(?, notes),
         sort_order = COALESCE(?, sort_order)
       WHERE id = ?
-    `).run(
+    `, [
       ins_type ?? null,
       provider ?? null,
       policy_number ?? null,
@@ -109,9 +109,9 @@ router.put('/projects/:projectId/insurances/:id', requireAuth, (req: Request, re
       notes ?? null,
       sort_order ?? null,
       id
-    )
+    ])
 
-    const row = db.prepare('SELECT * FROM insurances WHERE id = ?').get(id)
+    const row = await db.get('SELECT * FROM insurances WHERE id = ?', [id])
     return res.json({ data: row, error: null })
   } catch (err) {
     console.error('[insurances PUT]', err)
@@ -120,10 +120,10 @@ router.put('/projects/:projectId/insurances/:id', requireAuth, (req: Request, re
 })
 
 // DELETE /api/projects/:projectId/insurances/:id
-router.delete('/projects/:projectId/insurances/:id', requireAuth, (req: Request, res: Response) => {
+router.delete('/projects/:projectId/insurances/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const result = db.prepare('DELETE FROM insurances WHERE id = ?').run(id)
+    const result = await db.run('DELETE FROM insurances WHERE id = ?', [id])
     if (result.changes === 0) return res.status(404).json({ data: null, error: 'Versicherung nicht gefunden' })
     return res.json({ data: { id }, error: null })
   } catch (err) {

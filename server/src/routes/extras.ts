@@ -9,10 +9,10 @@ const router = Router()
 router.use('/projects/:projectId', requireAuth, requireMember)
 
 // GET /api/projects/:projectId/extras
-router.get('/projects/:projectId/extras', requireAuth, (req: Request, res: Response) => {
+router.get('/projects/:projectId/extras', requireAuth, async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
-    const rows = db.prepare('SELECT * FROM extras WHERE project_id = ? ORDER BY id ASC').all(projectId)
+    const rows = await db.all('SELECT * FROM extras WHERE project_id = ? ORDER BY id ASC', [projectId])
     return res.json({ data: rows, error: null })
   } catch (err) {
     console.error('[extras GET]', err)
@@ -21,7 +21,7 @@ router.get('/projects/:projectId/extras', requireAuth, (req: Request, res: Respo
 })
 
 // POST /api/projects/:projectId/extras
-router.post('/projects/:projectId/extras', requireAuth, (req: Request, res: Response) => {
+router.post('/projects/:projectId/extras', requireAuth, async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
     const {
@@ -37,11 +37,11 @@ router.post('/projects/:projectId/extras', requireAuth, (req: Request, res: Resp
       tariff_group?: string
       notes?: string
     }
-    const result = db.prepare(`
+    const result = await db.run(`
       INSERT INTO extras (project_id, name, phone, email, tariff_group, notes)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(projectId, name, phone, email, tariff_group, notes)
-    const row = db.prepare('SELECT * FROM extras WHERE id = ?').get(result.lastInsertRowid)
+    `, [projectId, name, phone, email, tariff_group, notes])
+    const row = await db.get('SELECT * FROM extras WHERE id = ?', [result.id])
     return res.status(201).json({ data: row, error: null })
   } catch (err) {
     console.error('[extras POST]', err)
@@ -50,10 +50,10 @@ router.post('/projects/:projectId/extras', requireAuth, (req: Request, res: Resp
 })
 
 // PUT /api/projects/:projectId/extras/:id
-router.put('/projects/:projectId/extras/:id', requireAuth, (req: Request, res: Response) => {
+router.put('/projects/:projectId/extras/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const existing = db.prepare('SELECT * FROM extras WHERE id = ?').get(id)
+    const existing = await db.get('SELECT * FROM extras WHERE id = ?', [id])
     if (!existing) return res.status(404).json({ data: null, error: 'Komparse nicht gefunden' })
 
     const { name, phone, email, tariff_group, notes } = req.body as {
@@ -64,7 +64,7 @@ router.put('/projects/:projectId/extras/:id', requireAuth, (req: Request, res: R
       notes?: string
     }
 
-    db.prepare(`
+    await db.run(`
       UPDATE extras SET
         name = COALESCE(?, name),
         phone = COALESCE(?, phone),
@@ -72,9 +72,9 @@ router.put('/projects/:projectId/extras/:id', requireAuth, (req: Request, res: R
         tariff_group = COALESCE(?, tariff_group),
         notes = COALESCE(?, notes)
       WHERE id = ?
-    `).run(name ?? null, phone ?? null, email ?? null, tariff_group ?? null, notes ?? null, id)
+    `, [name ?? null, phone ?? null, email ?? null, tariff_group ?? null, notes ?? null, id])
 
-    const row = db.prepare('SELECT * FROM extras WHERE id = ?').get(id)
+    const row = await db.get('SELECT * FROM extras WHERE id = ?', [id])
     return res.json({ data: row, error: null })
   } catch (err) {
     console.error('[extras PUT]', err)
@@ -83,10 +83,10 @@ router.put('/projects/:projectId/extras/:id', requireAuth, (req: Request, res: R
 })
 
 // DELETE /api/projects/:projectId/extras/:id
-router.delete('/projects/:projectId/extras/:id', requireAuth, (req: Request, res: Response) => {
+router.delete('/projects/:projectId/extras/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const result = db.prepare('DELETE FROM extras WHERE id = ?').run(id)
+    const result = await db.run('DELETE FROM extras WHERE id = ?', [id])
     if (result.changes === 0) return res.status(404).json({ data: null, error: 'Komparse nicht gefunden' })
     return res.json({ data: { id }, error: null })
   } catch (err) {

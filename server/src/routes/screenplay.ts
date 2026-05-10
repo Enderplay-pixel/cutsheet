@@ -13,79 +13,79 @@ type BlockType = 'scene_heading' | 'action' | 'character' | 'dialogue' | 'parent
 
 // ─── GET /api/projects/:projectId/screenplay ──────────────────────────────────
 // Returns all scenes with their blocks, ordered by sort_order
-router.get('/projects/:projectId/screenplay', (req, res) => {
+router.get('/projects/:projectId/screenplay', async (req, res) => {
   const { projectId } = req.params
 
-  const scenes = db.prepare(`
+  const scenes = await db.all(`
     SELECT s.*, l.name as location_name
     FROM scenes s
     LEFT JOIN locations l ON s.location_id = l.id
     WHERE s.project_id = ?
     ORDER BY s.sort_order ASC, s.scene_number ASC
-  `).all(projectId)
+  `, [projectId])
 
-  const result = (scenes as any[]).map(scene => {
-    const blocks = db.prepare(`
+  const result = await Promise.all((scenes as any[]).map(async scene => {
+    const blocks = await db.all(`
       SELECT * FROM screenplay_blocks
       WHERE scene_id = ?
       ORDER BY sort_order ASC
-    `).all(scene.id)
+    `, [scene.id])
     return { scene, blocks }
-  })
+  }))
 
   res.json({ data: result, error: null })
 })
 
 // ─── GET /api/scenes/:sceneId/blocks ─────────────────────────────────────────
-router.get('/scenes/:sceneId/blocks', (req: Request, res: Response) => {
+router.get('/scenes/:sceneId/blocks', async (req: Request, res: Response) => {
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
   if (user.role !== 'admin') {
-    const scene = db.prepare('SELECT project_id FROM scenes WHERE id = ?').get(req.params.sceneId) as any
+    const scene = await db.get('SELECT project_id FROM scenes WHERE id = ?', [req.params.sceneId]) as any
     if (!scene) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
     if (getUserProjectRole(user.id, scene.project_id) === null)
       return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   }
-  const blocks = db.prepare(`
+  const blocks = await db.all(`
     SELECT * FROM screenplay_blocks
     WHERE scene_id = ?
     ORDER BY sort_order ASC
-  `).all(req.params.sceneId)
+  `, [req.params.sceneId])
 
   res.json({ data: blocks, error: null })
 })
 
 // ─── POST /api/scenes/:sceneId/blocks ────────────────────────────────────────
-router.post('/scenes/:sceneId/blocks', (req, res) => {
+router.post('/scenes/:sceneId/blocks', async (req, res) => {
   const { sceneId } = req.params
   const { block_type = 'action', content = '', sort_order = 0 } = req.body
 
   // Get project_id from the scene
-  const scene = db.prepare('SELECT project_id FROM scenes WHERE id = ?').get(sceneId) as { project_id: number } | undefined
+  const scene = await db.get('SELECT project_id FROM scenes WHERE id = ?', [sceneId]) as { project_id: number } | undefined
   if (!scene) {
     return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
   }
 
-  const result = db.prepare(`
+  const result = await db.run(`
     INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
     VALUES (?, ?, ?, ?, ?)
-  `).run(sceneId, scene.project_id, sort_order, block_type, content)
+  `, [sceneId, scene.project_id, sort_order, block_type, content])
 
-  const block = db.prepare('SELECT * FROM screenplay_blocks WHERE id = ?').get(result.lastInsertRowid)
+  const block = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [result.id])
   res.status(201).json({ data: block, error: null })
 })
 
 // ─── PUT /api/blocks/:blockId ─────────────────────────────────────────────────
-router.put('/blocks/:blockId', (req, res) => {
+router.put('/blocks/:blockId', async (req, res) => {
   const { blockId } = req.params
   const { content, sort_order, block_type } = req.body
 
-  const existing = db.prepare('SELECT * FROM screenplay_blocks WHERE id = ?').get(blockId) as any
+  const existing = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [blockId]) as any
   if (!existing) {
     return res.status(404).json({ data: null, error: 'Block nicht gefunden' })
   }
 
-  db.prepare(`
+  await db.run(`
     UPDATE screenplay_blocks
     SET
       content = COALESCE(?, content),
@@ -93,37 +93,35 @@ router.put('/blocks/:blockId', (req, res) => {
       block_type = COALESCE(?, block_type),
       updated_at = datetime('now')
     WHERE id = ?
-  `).run(
+  `, [
     content !== undefined ? content : null,
     sort_order !== undefined ? sort_order : null,
     block_type !== undefined ? block_type : null,
     blockId
-  )
+  ])
 
-  const block = db.prepare('SELECT * FROM screenplay_blocks WHERE id = ?').get(blockId)
+  const block = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [blockId])
   res.json({ data: block, error: null })
 })
 
 // ─── DELETE /api/blocks/:blockId ──────────────────────────────────────────────
-router.delete('/blocks/:blockId', (req, res) => {
-  db.prepare('DELETE FROM screenplay_blocks WHERE id = ?').run(req.params.blockId)
+router.delete('/blocks/:blockId', async (req, res) => {
+  await db.run('DELETE FROM screenplay_blocks WHERE id = ?', [req.params.blockId])
   res.json({ data: { ok: true }, error: null })
 })
 
 // ─── PUT /api/scenes/:sceneId/blocks/reorder ─────────────────────────────────
-router.put('/scenes/:sceneId/blocks/reorder', (req, res) => {
+router.put('/scenes/:sceneId/blocks/reorder', async (req, res) => {
   const { blocks } = req.body as { blocks: Array<{ id: number; sort_order: number }> }
 
   if (!Array.isArray(blocks)) {
     return res.status(400).json({ data: null, error: 'blocks muss ein Array sein' })
   }
 
-  const updateStmt = db.prepare(`
-    UPDATE screenplay_blocks SET sort_order = ?, updated_at = datetime('now') WHERE id = ? AND scene_id = ?
-  `)
-
   for (const b of blocks) {
-    updateStmt.run(b.sort_order, b.id, req.params.sceneId)
+    await db.run(`
+      UPDATE screenplay_blocks SET sort_order = ?, updated_at = datetime('now') WHERE id = ? AND scene_id = ?
+    `, [b.sort_order, b.id, req.params.sceneId])
   }
 
   res.json({ data: { ok: true }, error: null })
@@ -276,7 +274,7 @@ function parseSceneHeading(heading: string): { int_ext: string; title: string; d
 }
 
 // ─── POST /api/projects/:projectId/fdx-import ────────────────────────────────
-router.post('/projects/:projectId/fdx-import', (req, res) => {
+router.post('/projects/:projectId/fdx-import', async (req, res) => {
   const { projectId } = req.params
   const { xml, filename = 'import' } = req.body
 
@@ -301,7 +299,7 @@ router.post('/projects/:projectId/fdx-import', (req, res) => {
   }
 
   // Get current max sort_order
-  const maxSortRow = db.prepare('SELECT COALESCE(MAX(sort_order), -1) as m FROM scenes WHERE project_id = ?').get(projectId) as { m: number }
+  const maxSortRow = await db.get('SELECT COALESCE(MAX(sort_order), -1) as m FROM scenes WHERE project_id = ?', [projectId]) as { m: number }
   let sortCounter = maxSortRow.m + 1
 
   let currentSceneId: number | null = null
@@ -315,50 +313,50 @@ router.post('/projects/:projectId/fdx-import', (req, res) => {
       const { int_ext, title, day_night } = parseSceneHeading(block.content)
       const sceneNumber = String(scenesCreated + 1)
 
-      const sceneResult = db.prepare(`
+      const sceneResult = await db.run(`
         INSERT INTO scenes (project_id, scene_number, sort_order, title, int_ext, day_night, description)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(projectId, sceneNumber, sortCounter, title, int_ext, day_night, '')
+      `, [projectId, sceneNumber, sortCounter, title, int_ext, day_night, ''])
 
-      currentSceneId = sceneResult.lastInsertRowid
+      currentSceneId = sceneResult.id
       sortCounter++
       scenesCreated++
       blockSortOrder = 0
 
       // Also store scene_heading as a block for display in editor
-      db.prepare(`
+      await db.run(`
         INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
         VALUES (?, ?, ?, ?, ?)
-      `).run(currentSceneId, projectId, blockSortOrder, 'scene_heading', block.content)
+      `, [currentSceneId, projectId, blockSortOrder, 'scene_heading', block.content])
       blockSortOrder++
       blocksCreated++
     } else {
       // If no scene exists yet, create a default one
       if (currentSceneId === null) {
-        const sceneResult = db.prepare(`
+        const sceneResult = await db.run(`
           INSERT INTO scenes (project_id, scene_number, sort_order, title, int_ext, day_night)
           VALUES (?, ?, ?, ?, ?, ?)
-        `).run(projectId, '1', sortCounter, 'Import', 'INT', 'TAG')
-        currentSceneId = sceneResult.lastInsertRowid
+        `, [projectId, '1', sortCounter, 'Import', 'INT', 'TAG'])
+        currentSceneId = sceneResult.id
         sortCounter++
         scenesCreated++
         blockSortOrder = 0
       }
 
-      db.prepare(`
+      await db.run(`
         INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
         VALUES (?, ?, ?, ?, ?)
-      `).run(currentSceneId, projectId, blockSortOrder, block.type, block.content)
+      `, [currentSceneId, projectId, blockSortOrder, block.type, block.content])
       blockSortOrder++
       blocksCreated++
     }
   }
 
   // Record the import
-  db.prepare(`
+  await db.run(`
     INSERT INTO fdx_imports (project_id, filename, scene_count)
     VALUES (?, ?, ?)
-  `).run(projectId, filename, scenesCreated)
+  `, [projectId, filename, scenesCreated])
 
   res.json({ data: { scenes_created: scenesCreated, blocks_created: blocksCreated }, error: null })
 })

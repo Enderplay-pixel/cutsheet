@@ -9,10 +9,10 @@ const router = Router()
 router.use('/projects/:projectId', requireAuth, requireMember)
 
 // GET /api/projects/:projectId/vehicles
-router.get('/projects/:projectId/vehicles', requireAuth, (req: Request, res: Response) => {
+router.get('/projects/:projectId/vehicles', requireAuth, async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
-    const rows = db.prepare('SELECT * FROM vehicles WHERE project_id = ? ORDER BY id ASC').all(projectId)
+    const rows = await db.all('SELECT * FROM vehicles WHERE project_id = ? ORDER BY id ASC', [projectId])
     return res.json({ data: rows, error: null })
   } catch (err) {
     console.error('[vehicles GET]', err)
@@ -21,7 +21,7 @@ router.get('/projects/:projectId/vehicles', requireAuth, (req: Request, res: Res
 })
 
 // POST /api/projects/:projectId/vehicles
-router.post('/projects/:projectId/vehicles', requireAuth, (req: Request, res: Response) => {
+router.post('/projects/:projectId/vehicles', requireAuth, async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
     const {
@@ -41,11 +41,11 @@ router.post('/projects/:projectId/vehicles', requireAuth, (req: Request, res: Re
       driver_phone?: string
       notes?: string
     }
-    const result = db.prepare(`
+    const result = await db.run(`
       INSERT INTO vehicles (project_id, name, license_plate, type, capacity, driver_name, driver_phone, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(projectId, name, license_plate, type, capacity, driver_name, driver_phone, notes)
-    const row = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid)
+    `, [projectId, name, license_plate, type, capacity, driver_name, driver_phone, notes])
+    const row = await db.get('SELECT * FROM vehicles WHERE id = ?', [result.id])
     return res.status(201).json({ data: row, error: null })
   } catch (err) {
     console.error('[vehicles POST]', err)
@@ -54,10 +54,10 @@ router.post('/projects/:projectId/vehicles', requireAuth, (req: Request, res: Re
 })
 
 // PUT /api/projects/:projectId/vehicles/:id
-router.put('/projects/:projectId/vehicles/:id', requireAuth, (req: Request, res: Response) => {
+router.put('/projects/:projectId/vehicles/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const existing = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id)
+    const existing = await db.get('SELECT * FROM vehicles WHERE id = ?', [id])
     if (!existing) return res.status(404).json({ data: null, error: 'Fahrzeug nicht gefunden' })
 
     const {
@@ -78,7 +78,7 @@ router.put('/projects/:projectId/vehicles/:id', requireAuth, (req: Request, res:
       notes?: string
     }
 
-    db.prepare(`
+    await db.run(`
       UPDATE vehicles SET
         name = COALESCE(?, name),
         license_plate = COALESCE(?, license_plate),
@@ -88,9 +88,9 @@ router.put('/projects/:projectId/vehicles/:id', requireAuth, (req: Request, res:
         driver_phone = COALESCE(?, driver_phone),
         notes = COALESCE(?, notes)
       WHERE id = ?
-    `).run(name ?? null, license_plate ?? null, type ?? null, capacity ?? null, driver_name ?? null, driver_phone ?? null, notes ?? null, id)
+    `, [name ?? null, license_plate ?? null, type ?? null, capacity ?? null, driver_name ?? null, driver_phone ?? null, notes ?? null, id])
 
-    const row = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id)
+    const row = await db.get('SELECT * FROM vehicles WHERE id = ?', [id])
     return res.json({ data: row, error: null })
   } catch (err) {
     console.error('[vehicles PUT]', err)
@@ -99,10 +99,10 @@ router.put('/projects/:projectId/vehicles/:id', requireAuth, (req: Request, res:
 })
 
 // DELETE /api/projects/:projectId/vehicles/:id
-router.delete('/projects/:projectId/vehicles/:id', requireAuth, (req: Request, res: Response) => {
+router.delete('/projects/:projectId/vehicles/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const result = db.prepare('DELETE FROM vehicles WHERE id = ?').run(id)
+    const result = await db.run('DELETE FROM vehicles WHERE id = ?', [id])
     if (result.changes === 0) return res.status(404).json({ data: null, error: 'Fahrzeug nicht gefunden' })
     return res.json({ data: { id }, error: null })
   } catch (err) {
