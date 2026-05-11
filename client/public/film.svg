@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Background -->
+  <rect width="32" height="32" rx="7" fill="#0f0f0f"/>
+  <!-- Clapperboard body -->
+  <rect x="5" y="12" width="22" height="15" rx="2.5" fill="#1e1e1e" stroke="#333" stroke-width="1"/>
+  <!-- Clapperboard stripes (top bar) -->
+  <rect x="5" y="8" width="22" height="5" rx="1.5" fill="#dc2626"/>
+  <!-- White stripe segments on the bar -->
+  <rect x="8"  y="8" width="3" height="5" fill="#fff" opacity="0.9"/>
+  <rect x="14" y="8" width="3" height="5" fill="#fff" opacity="0.9"/>
+  <rect x="20" y="8" width="3" height="5" fill="#fff" opacity="0.9"/>
+  <!-- Play triangle -->
+  <path d="M13 17.5 L13 23.5 L20 20.5 Z" fill="#dc2626"/>
+</svg>
