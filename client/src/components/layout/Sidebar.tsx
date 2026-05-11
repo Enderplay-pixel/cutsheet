@@ -143,9 +143,10 @@ export function Sidebar() {
                   aria-label={item.label}
                   className={({ isActive }) => cn(
                     'flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px] group relative',
-                    'transition-[background-color,color] duration-150',
+                    'transition-[background-color,color,transform] duration-150',
+                    'active:scale-[0.97]',
                     isActive
-                      ? 'bg-primary/10 text-primary font-medium'
+                      ? 'bg-primary/10 text-primary font-medium shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.12)]'
                       : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
                   )}
                 >
@@ -153,14 +154,14 @@ export function Sidebar() {
                     <>
                       {isActive && (
                         <span
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-full"
+                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-full shadow-[0_0_6px_hsl(var(--primary)/0.6)]"
                           aria-current="page"
                         />
                       )}
                       <item.icon className={cn(
-                        'shrink-0 transition-colors duration-150',
+                        'shrink-0 transition-[color,transform] duration-150',
                         sidebarCollapsed ? 'w-[15px] h-[15px]' : 'w-[14px] h-[14px]',
-                        isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground'
+                        isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground group-hover:scale-110'
                       )} />
                       {!sidebarCollapsed && (
                         <>
@@ -212,21 +213,22 @@ export function Sidebar() {
                 aria-label={item.label}
                 className={({ isActive }) => cn(
                   'flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px] group relative',
-                  'transition-[background-color,color] duration-150',
+                  'transition-[background-color,color,transform] duration-150',
+                  'active:scale-[0.97]',
                   isActive
-                    ? 'bg-primary/10 text-primary font-medium'
+                    ? 'bg-primary/10 text-primary font-medium shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.12)]'
                     : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
                 )}
               >
                 {({ isActive }) => (
                   <>
                     {isActive && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-full" aria-current="page" />
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-full shadow-[0_0_6px_hsl(var(--primary)/0.6)]" aria-current="page" />
                     )}
                     <item.icon className={cn(
-                      'shrink-0 transition-colors duration-150',
+                      'shrink-0 transition-[color,transform] duration-150',
                       sidebarCollapsed ? 'w-[15px] h-[15px]' : 'w-[14px] h-[14px]',
-                      isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground'
+                      isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground group-hover:scale-110'
                     )} />
                     {!sidebarCollapsed && <span className="flex-1 truncate">{item.label}</span>}
                   </>
@@ -243,7 +245,7 @@ export function Sidebar() {
         <div className="px-2 pb-2">
           <button
             onClick={toggleSidebar}
-            className="w-full flex items-center justify-center h-8 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-[background-color,color] duration-150"
+            className="w-full flex items-center justify-center h-8 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-[background-color,color,transform] duration-150 active:scale-[0.92]"
             title={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
             aria-label={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
             aria-expanded={!sidebarCollapsed}
@@ -284,7 +286,7 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
       )}
       <button
         onClick={() => navigate('/settings')}
-        className="shrink-0 p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-[background-color,color] duration-150"
+        className="shrink-0 p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-[background-color,color,transform] duration-150 active:scale-[0.88]"
         title={tt(navT.settings)}
         aria-label={tt(navT.settings)}
       >
@@ -292,7 +294,7 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
       </button>
       <button
         onClick={() => { logout(); navigate('/login') }}
-        className="shrink-0 p-1.5 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-[background-color,color] duration-150"
+        className="shrink-0 p-1.5 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-[background-color,color,transform] duration-150 active:scale-[0.88]"
         title={tt(navT.logout)}
         aria-label={tt(navT.logout)}
       >

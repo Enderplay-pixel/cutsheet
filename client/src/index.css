@@ -136,11 +136,88 @@
   transition: width 260ms var(--ease-out);
 }
 
+/* ─── Card lift hover ────────────────────────────────── */
+.card-lift {
+  transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out), border-color 200ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-lift:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px hsl(0 0% 0% / 0.28);
+  }
+}
+
+/* ─── Status badge ───────────────────────────────────── */
+.badge {
+  @apply inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border;
+}
+
+/* ─── Section label ──────────────────────────────────── */
+.section-label {
+  @apply text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/40;
+}
+
+/* ─── Subtle top separator line ─────────────────────── */
+.top-line {
+  @apply border-t border-border/50 pt-5 mt-5;
+}
+
+/* ─── Hover-only guard ───────────────────────────────── */
+@media (hover: hover) and (pointer: fine) {
+  .hover-lift:hover {
+    transform: translateY(-1px);
+  }
+}
+
 /* ─── Drehplan strip colors ─────────────────────────── */
 .strip-int-tag   { background: hsl(15 75% 50% / 0.10); border-left: 2px solid hsl(15 75% 50% / 0.70); }
 .strip-ext-tag   { background: hsl(138 45% 35% / 0.10); border-left: 2px solid hsl(138 45% 35% / 0.70); }
 .strip-int-nacht { background: hsl(222 68% 46% / 0.10); border-left: 2px solid hsl(222 68% 46% / 0.70); }
 .strip-ext-nacht { background: hsl(168 58% 30% / 0.10); border-left: 2px solid hsl(168 58% 30% / 0.70); }
+
+/* ─── Global Radix animation timing ─────────────────── */
+/* open: fast start (ease-out feel), close: snap away */
+.animate-in  {
+  animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1) !important;
+  animation-duration: 160ms !important;
+}
+.animate-out {
+  animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1) !important;
+  animation-duration: 100ms !important;
+}
+
+/* ─── prefers-reduced-motion ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  /* Replace movement animations with simple opacity fade */
+  .animate-fade-up,
+  .animate-slide-in,
+  .stagger > *,
+  .check-indicator,
+  .badge-pop {
+    animation: fade-in 0.15s ease-out both !important;
+  }
+
+  /* Remove all Radix entry/exit motion — keep opacity */
+  .animate-in  { animation-duration: 120ms !important; }
+  .animate-out { animation-duration: 80ms !important;  }
+  [class*='slide-in-from'],
+  [class*='slide-out-to'],
+  [class*='zoom-in'],
+  [class*='zoom-out'] {
+    transform: none !important;
+  }
+
+  /* No lift/hover transforms */
+  .card-lift:hover,
+  .hover-lift:hover { transform: none !important; box-shadow: none !important; }
+
+  /* Instant sidebar */
+  .sidebar-transition { transition-duration: 0ms !important; }
+
+  /* No button press scale or shine */
+  button:active, [role="button"]:active, a:active { transform: none !important; box-shadow: none !important; }
+  .btn-shine::before { display: none !important; }
+}
 
 /* ─── Animations ─────────────────────────────────────── */
 @keyframes fade-up {
@@ -210,6 +287,48 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .progress-amber [data-slot="progress-indicator"],
 .progress-primary [data-slot="progress-indicator"] {
   background: hsl(var(--primary));
+}
+
+/* ─── Button shine sweep ─────────────────────────────── */
+@keyframes btn-shine {
+  from { left: -60%; }
+  to   { left: 125%; }
+}
+.btn-shine { position: relative; overflow: hidden; }
+.btn-shine::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: -60%;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.14), transparent);
+  transform: skewX(-15deg);
+  pointer-events: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-shine:hover::before {
+    animation: btn-shine 0.55s var(--ease-out) forwards;
+  }
+}
+
+/* ─── Checkbox pop ───────────────────────────────────── */
+@keyframes check-pop {
+  0%   { transform: scale(0.3) rotate(-15deg); opacity: 0; }
+  55%  { transform: scale(1.2) rotate(5deg); }
+  80%  { transform: scale(0.92); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.check-indicator { animation: check-pop 220ms var(--ease-spring) both; }
+
+/* ─── Badge pop-in ───────────────────────────────────── */
+@keyframes badge-pop {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.badge-pop { animation: badge-pop 180ms var(--ease-spring) both; }
+
+/* ─── Table row hover accent ─────────────────────────── */
+.data-table tbody tr:hover {
+  box-shadow: inset 2px 0 0 hsl(var(--primary) / 0.35) !important;
 }
 
 /* ─── Print styles ───────────────────────────────────── */

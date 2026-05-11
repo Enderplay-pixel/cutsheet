@@ -16,13 +16,14 @@ import { OnboardingWizard } from '@/components/OnboardingWizard'
 import { useT } from '@/lib/useT'
 import { projectsT, uiT } from '@/lib/i18n'
 
-const STATUS_COLORS: Record<string, string> = {
-  'Entwicklung':    'text-zinc-400 bg-zinc-400/10',
-  'Vorproduktion':  'text-blue-400 bg-blue-400/10',
-  'Produktion':     'text-amber-400 bg-amber-400/10',
-  'Postproduktion': 'text-violet-400 bg-violet-400/10',
-  'Abgeschlossen':  'text-green-400 bg-green-400/10',
+const STATUS_META: Record<string, { text: string; bg: string; border: string; dot: string }> = {
+  'Entwicklung':    { text: 'text-zinc-400',   bg: 'bg-zinc-400/8',   border: 'border-l-zinc-500/60',   dot: 'bg-zinc-400' },
+  'Vorproduktion':  { text: 'text-blue-400',   bg: 'bg-blue-400/8',   border: 'border-l-blue-500/60',   dot: 'bg-blue-400' },
+  'Produktion':     { text: 'text-amber-400',  bg: 'bg-amber-400/8',  border: 'border-l-amber-500/60',  dot: 'bg-amber-400' },
+  'Postproduktion': { text: 'text-violet-400', bg: 'bg-violet-400/8', border: 'border-l-violet-500/60', dot: 'bg-violet-400' },
+  'Abgeschlossen':  { text: 'text-green-400',  bg: 'bg-green-400/8',  border: 'border-l-green-500/60',  dot: 'bg-green-400' },
 }
+const DEFAULT_META = { text: 'text-muted-foreground', bg: 'bg-muted/40', border: 'border-l-border', dot: 'bg-muted-foreground' }
 
 function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [form, setForm] = useState({ title: '', genre: '', format: 'Kurzfilm', director: '', producer: '' })
@@ -52,17 +53,17 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
           <div>
             <Label className="text-xs text-muted-foreground">{tt(projectsT.labelTitle)}</Label>
             <Input value={form.title} onChange={e => f('title', e.target.value)}
-              placeholder="Mein Film" className="mt-1 h-9 text-base font-medium" autoFocus />
+              placeholder="Mein Film" className="mt-1 h-10 text-base font-medium" autoFocus />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs text-muted-foreground">{tt(projectsT.labelGenre)}</Label>
-              <Input value={form.genre} onChange={e => f('genre', e.target.value)} placeholder="Drama" className="mt-1 h-8" />
+              <Input value={form.genre} onChange={e => f('genre', e.target.value)} placeholder="Drama" className="mt-1" />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">{tt(projectsT.labelFormat)}</Label>
               <Select value={form.format} onValueChange={v => f('format', v)}>
-                <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {['Kurzfilm', 'Spielfilm', 'Dokumentation', 'Serie', 'Werbefilm', 'Imagefilm'].map(v =>
                     <SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>
@@ -74,11 +75,11 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs text-muted-foreground">Regie</Label>
-              <Input value={form.director} onChange={e => f('director', e.target.value)} className="mt-1 h-8" />
+              <Input value={form.director} onChange={e => f('director', e.target.value)} className="mt-1" />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Produzent/in</Label>
-              <Input value={form.producer} onChange={e => f('producer', e.target.value)} className="mt-1 h-8" />
+              <Input value={form.producer} onChange={e => f('producer', e.target.value)} className="mt-1" />
             </div>
           </div>
         </div>
@@ -127,145 +128,166 @@ export function Component() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-8 py-14">
+      {/* Top glow */}
+      <div className="fixed top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-border/60 to-transparent pointer-events-none" />
+
+      <div className="max-w-4xl mx-auto px-8 py-14">
         {/* Header */}
-        <div className="flex items-center justify-between mb-10">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-sm">
-              <Clapperboard className="w-5 h-5 text-primary-foreground" />
+        <div className="flex items-center justify-between mb-12">
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 bg-primary rounded-xl flex items-center justify-center shadow-[0_0_24px_hsl(0_72%_51%/0.35)] shrink-0">
+              <Clapperboard className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight leading-none">CutSheet</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Filmproduktions-Management</p>
+              <h1 className="text-2xl font-bold tracking-tight leading-none">CutSheet</h1>
+              <p className="text-xs text-muted-foreground/70 mt-1 tracking-wide">Film Production Management</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowArchived(!showArchived)}
-              className={cn('flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors',
-                showArchived ? 'border-primary/40 bg-primary/5 text-primary' : 'border-border text-muted-foreground hover:bg-muted'
+              className={cn(
+                'flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border font-medium',
+                'transition-[background-color,border-color,color] duration-150 active:scale-[0.97]',
+                showArchived
+                  ? 'border-primary/40 bg-primary/8 text-primary'
+                  : 'border-border/60 text-muted-foreground hover:bg-foreground/4 hover:border-border'
               )}
             >
               <Archive className="w-3.5 h-3.5" />
               {showArchived ? tt(projectsT.hideArchive) : tt(projectsT.showArchive)}
             </button>
-            <Button onClick={() => setShowNew(true)} size="sm">
-              <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(projectsT.newProject)}
+            <Button onClick={() => setShowNew(true)} size="sm" className="gap-1.5">
+              <Plus className="w-3.5 h-3.5" />{tt(projectsT.newProject)}
             </Button>
           </div>
         </div>
 
-        {/* Project section header */}
+        {/* Section label */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
+          <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/40">
             {showArchived ? tt(projectsT.archived) : tt(projectsT.title)}
-          </h2>
+          </span>
           {projects && projects.length > 0 && (
-            <span className="text-xs text-muted-foreground">{projects.length} Projekt{projects.length !== 1 ? 'e' : ''}</span>
+            <span className="text-[11px] text-muted-foreground/50 tabular-nums">
+              {projects.length} Projekt{projects.length !== 1 ? 'e' : ''}
+            </span>
           )}
         </div>
 
+        {/* Content */}
         {isLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}
+          <div className="space-y-2.5">
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-[72px] rounded-xl" />)}
           </div>
         ) : !projects || projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-28 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-5">
-              <Film className="w-8 h-8 text-muted-foreground/40" />
+          <div className="flex flex-col items-center justify-center py-28 text-center animate-fade-up">
+            <div className="w-20 h-20 rounded-2xl bg-card border border-border/60 flex items-center justify-center mb-6">
+              <Film className="w-9 h-9 text-muted-foreground/25" />
             </div>
-            <h2 className="text-lg font-semibold mb-1.5">{tt(projectsT.empty)}</h2>
-            <p className="text-sm text-muted-foreground mb-6 max-w-xs">
+            <h2 className="text-lg font-bold tracking-tight mb-2">{tt(projectsT.empty)}</h2>
+            <p className="text-sm text-muted-foreground mb-7 max-w-xs leading-relaxed">
               Erstelle dein erstes Filmprojekt, um loszulegen.
             </p>
-            <Button onClick={() => setShowNew(true)}>
-              <Plus className="w-4 h-4 mr-2" />{tt(projectsT.createFirst)}
+            <Button onClick={() => setShowNew(true)} className="gap-2">
+              <Plus className="w-4 h-4" />{tt(projectsT.createFirst)}
             </Button>
           </div>
         ) : (
-          <div className="space-y-2">
-            {(projects || []).map((project: any) => (
-              <div
-                key={project.id}
-                onClick={() => navigate(`/projects/${project.id}`)}
-                className="group flex items-center gap-4 p-4 bg-card border border-border/60 rounded-xl cursor-pointer hover:border-primary/30 hover:bg-primary/3 transition-all"
-              >
-                {/* Icon */}
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <Film className="w-4 h-4 text-muted-foreground" />
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold group-hover:text-primary transition-colors truncate">
-                      {project.title}
-                    </span>
-                    <span className={cn(
-                      'text-[11px] px-2 py-0.5 rounded-full font-medium shrink-0',
-                      STATUS_COLORS[project.status] || 'text-muted-foreground bg-muted'
-                    )}>
-                      {project.status}
-                    </span>
+          <div className="space-y-2 stagger">
+            {(projects || []).map((project: any) => {
+              const meta = STATUS_META[project.status] || DEFAULT_META
+              return (
+                <div
+                  key={project.id}
+                  onClick={() => navigate(`/projects/${project.id}`)}
+                  className={cn(
+                    'group flex items-center gap-4 px-5 py-4 bg-card rounded-xl cursor-pointer',
+                    'border border-l-[3px] border-border/60',
+                    'transition-[transform,box-shadow,border-color,background-color] duration-200',
+                    'hover:-translate-y-[1px] hover:shadow-[0_4px_20px_hsl(0_0%_0%/0.3)] hover:border-border',
+                    meta.border,
+                  )}
+                >
+                  {/* Status dot + icon */}
+                  <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center shrink-0', meta.bg)}>
+                    <Film className={cn('w-4 h-4', meta.text)} />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                    {[project.format, project.genre, project.length_minutes ? `${project.length_minutes} Min.` : null,
-                      project.director ? `Regie: ${project.director}` : null]
-                      .filter(Boolean).join(' · ')}
-                  </p>
-                </div>
 
-                {/* Meta */}
-                <div className="text-right shrink-0 hidden sm:block">
-                  {project.shoot_start && (
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(project.shoot_start)}
-                      {project.shoot_end ? ` – ${formatDate(project.shoot_end)}` : ''}
-                    </p>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1 shrink-0">
-                  {!showArchived && (
-                    <button
-                      onClick={e => { e.stopPropagation(); duplicateMutation.mutate(project.id) }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted transition-colors"
-                      title="Duplizieren"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  <button
-                    onClick={e => { e.stopPropagation(); archiveMutation.mutate({ id: project.id, archived: !showArchived }) }}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/40 hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-                    title={showArchived ? tt(projectsT.restore) : tt(projectsT.archive)}
-                  >
-                    {showArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
-                  </button>
-                  <button
-                    onClick={e => {
-                      e.stopPropagation()
-                      if (confirm(`„${project.title}" wirklich löschen? Alle Daten (Szenen, Drehplan, Budget …) werden unwiderruflich gelöscht.`)) {
-                        deleteMutation.mutate(project.id)
-                      }
-                    }}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    title="Projekt löschen"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                  {!showArchived && (
-                    <div className="w-8 h-8 flex items-center justify-center rounded-lg text-primary/40 group-hover:text-primary transition-colors">
-                      <ArrowRight className="w-4 h-4" />
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5 mb-0.5">
+                      <span className="text-sm font-semibold truncate group-hover:text-primary transition-colors duration-150">
+                        {project.title}
+                      </span>
+                      <span className={cn(
+                        'text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 border',
+                        meta.text, meta.bg,
+                        'border-current/20'
+                      )}>
+                        {project.status}
+                      </span>
                     </div>
-                  )}
+                    <p className="text-xs text-muted-foreground/70 truncate">
+                      {[project.format, project.genre,
+                        project.length_minutes ? `${project.length_minutes} Min.` : null,
+                        project.director ? `Regie: ${project.director}` : null]
+                        .filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+
+                  {/* Date range */}
+                  <div className="text-right shrink-0 hidden sm:block">
+                    {project.shoot_start && (
+                      <p className="text-xs text-muted-foreground/60 tabular-nums">
+                        {formatDate(project.shoot_start)}
+                        {project.shoot_end ? ` – ${formatDate(project.shoot_end)}` : ''}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                    {!showArchived && (
+                      <button
+                        onClick={e => { e.stopPropagation(); duplicateMutation.mutate(project.id) }}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/50 hover:text-foreground hover:bg-foreground/6 transition-[background-color,color] duration-150"
+                        title="Duplizieren"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={e => { e.stopPropagation(); archiveMutation.mutate({ id: project.id, archived: !showArchived }) }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/50 hover:text-amber-400 hover:bg-amber-400/10 transition-[background-color,color] duration-150"
+                      title={showArchived ? tt(projectsT.restore) : tt(projectsT.archive)}
+                    >
+                      {showArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      onClick={e => {
+                        e.stopPropagation()
+                        if (confirm(`„${project.title}" wirklich löschen?`)) {
+                          deleteMutation.mutate(project.id)
+                        }
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-[background-color,color] duration-150"
+                      title="Projekt löschen"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground/20 group-hover:text-primary transition-colors duration-150 shrink-0">
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
+
       <NewProjectDialog open={showNew} onClose={() => setShowNew(false)} />
       <OnboardingWizard />
     </div>
