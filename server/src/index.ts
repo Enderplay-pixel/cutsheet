@@ -39,6 +39,29 @@ import vfxRouter from './routes/vfx'
 import postplanRouter from './routes/postplan'
 import musicCuesRouter from './routes/musicCues'
 import insurancesRouter from './routes/insurances'
+import activityFeedRouter from './routes/activityFeed'
+import sceneCommentsRouter from './routes/sceneComments'
+import equipmentCalendarRouter from './routes/equipmentCalendar'
+import moodboardRouter from './routes/moodboard'
+import blackoutDatesRouter from './routes/blackoutDates'
+import scriptSidesRouter from './routes/scriptSides'
+import aiBreakdownRouter from './routes/aiBreakdown'
+import optimizationSuggestionsRouter from './routes/optimizationSuggestions'
+import checkinRouter from './routes/checkin'
+import timesheetsRouter from './routes/timesheets'
+import cateringRouter from './routes/catering'
+import continuityRouter from './routes/continuity'
+import doodRouter from './routes/dood'
+import sunRouter from './routes/sun'
+import emailRoutesRouter from './routes/emailRoutes'
+import pushRouter from './routes/push'
+import confirmationRouter from './routes/confirmation'
+import icalRouter from './routes/ical'
+import cameraReportsRouter from './routes/cameraReports'
+import payrollRouter from './routes/payroll'
+import locationReleaseRouter from './routes/locationRelease'
+import aiSchedulingRouter from './routes/aiScheduling'
+import foerderantragRouter from './routes/foerderantrag'
 
 const app = express()
 const PORT = Number(process.env.PORT) || 3001
@@ -124,6 +147,29 @@ app.use('/api', vfxRouter)
 app.use('/api', postplanRouter)
 app.use('/api', musicCuesRouter)
 app.use('/api', insurancesRouter)
+app.use('/api', activityFeedRouter)
+app.use('/api', sceneCommentsRouter)
+app.use('/api', equipmentCalendarRouter)
+app.use('/api', moodboardRouter)
+app.use('/api', blackoutDatesRouter)
+app.use('/api', scriptSidesRouter)
+app.use('/api', aiBreakdownRouter)
+app.use('/api', optimizationSuggestionsRouter)
+app.use('/api', checkinRouter)
+app.use('/api', timesheetsRouter)
+app.use('/api', cateringRouter)
+app.use('/api', continuityRouter)
+app.use('/api', doodRouter)
+app.use('/api', sunRouter)
+app.use('/api', emailRoutesRouter)
+app.use('/api', pushRouter)
+app.use('/api', confirmationRouter)
+app.use('/api', icalRouter)
+app.use('/api', cameraReportsRouter)
+app.use('/api', payrollRouter)
+app.use('/api', locationReleaseRouter)
+app.use('/api', aiSchedulingRouter)
+app.use('/api', foerderantragRouter)
 app.use(sseRouter)
 
 // In production: serve index.html for all non-API routes (SPA fallback)

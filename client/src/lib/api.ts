@@ -307,4 +307,171 @@ export const api = {
     update: (projectId: number, id: number, data: any) => req<any>(`/projects/${projectId}/insurances/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (projectId: number, id: number) => req<any>(`/projects/${projectId}/insurances/${id}`, { method: 'DELETE' }),
   },
+
+  // ─── Check-in (A1) ─────────────────────────────────────────────────────────
+  checkin: {
+    checkin: (entryId: number) => req<any>(`/call-sheet-entries/${entryId}/checkin`, { method: 'POST' }),
+    status: (callSheetId: number) => req<any[]>(`/call-sheets/${callSheetId}/checkin-status`),
+  },
+
+  // ─── Timesheets (A2) ───────────────────────────────────────────────────────
+  timesheets: {
+    list: (dayId: number) => req<any[]>(`/shoot-days/${dayId}/timesheets`),
+    create: (dayId: number, data: any) => req<any>(`/shoot-days/${dayId}/timesheets`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: any) => req<any>(`/timesheets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => req<any>(`/timesheets/${id}`, { method: 'DELETE' }),
+    exportCsv: (projectId: number) => `/api/projects/${projectId}/timesheets/export.csv`,
+  },
+
+  // ─── Catering (A4) ─────────────────────────────────────────────────────────
+  catering: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/catering-preferences`),
+    upsert: (projectId: number, data: any) => req<any>(`/projects/${projectId}/catering-preferences`, { method: 'POST', body: JSON.stringify(data) }),
+    delete: (id: number) => req<any>(`/catering-preferences/${id}`, { method: 'DELETE' }),
+    dayList: (dayId: number) => req<any>(`/shoot-days/${dayId}/catering-list`),
+  },
+
+  // ─── Continuity (A5) ───────────────────────────────────────────────────────
+  continuity: {
+    list: (projectId: number, params?: { scene_id?: number; cast_id?: number; category?: string }) => {
+      const qs = new URLSearchParams()
+      if (params?.scene_id) qs.set('scene_id', String(params.scene_id))
+      if (params?.cast_id) qs.set('cast_id', String(params.cast_id))
+      if (params?.category) qs.set('category', params.category)
+      return req<any[]>(`/projects/${projectId}/continuity?${qs}`)
+    },
+    create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/continuity`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: any) => req<any>(`/continuity/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => req<any>(`/continuity/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── DOOD Report (B1) ──────────────────────────────────────────────────────
+  dood: {
+    report: (projectId: number) => req<any>(`/projects/${projectId}/dood-report`),
+  },
+
+  // ─── Sun Calculator (B5) ───────────────────────────────────────────────────
+  sun: {
+    get: (locationId: number, date: string) => req<any>(`/locations/${locationId}/sun?date=${date}`),
+  },
+
+  // ─── Location Release (B3) ─────────────────────────────────────────────────
+  locationRelease: {
+    get: (locationId: number) => req<any>(`/locations/${locationId}/release`),
+    save: (locationId: number, data: any) => req<any>(`/locations/${locationId}/release`, { method: 'POST', body: JSON.stringify(data) }),
+    sign: (locationId: number, data: any) => req<any>(`/locations/${locationId}/release/sign`, { method: 'PATCH', body: JSON.stringify(data) }),
+    pdf: (locationId: number) => `/api/locations/${locationId}/release/pdf`,
+  },
+
+  // ─── AI Breakdown (B2) ─────────────────────────────────────────────────────
+  aiBreakdown: {
+    analyze: (sceneId: number) => req<any>(`/scenes/${sceneId}/ai-breakdown`, { method: 'POST' }),
+  },
+
+  // ─── AI Scheduling (B4) ────────────────────────────────────────────────────
+  aiScheduling: {
+    optimize: (projectId: number) => req<any>(`/projects/${projectId}/drehplan/ai-optimize`, { method: 'POST' }),
+  },
+
+  // ─── Email (C1) ────────────────────────────────────────────────────────────
+  emailSend: {
+    send: (projectId: number, data: any) => req<any>(`/projects/${projectId}/email/send`, { method: 'POST', body: JSON.stringify(data) }),
+    status: (projectId: number) => req<any>(`/projects/${projectId}/email/status`),
+    test: (projectId: number) => req<any>(`/projects/${projectId}/email/test`, { method: 'POST' }),
+  },
+
+  // ─── Push Notifications (C2) ───────────────────────────────────────────────
+  push: {
+    subscribe: (data: any) => req<any>('/push/subscribe', { method: 'POST', body: JSON.stringify(data) }),
+    unsubscribe: (data: any) => req<any>('/push/unsubscribe', { method: 'POST', body: JSON.stringify(data) }),
+    vapidKey: () => req<any>('/push/vapid-public-key'),
+  },
+
+  // ─── Confirmation (C3) ─────────────────────────────────────────────────────
+  confirmation: {
+    confirm: (entryId: number) => req<any>(`/call-sheet-entries/${entryId}/confirm`, { method: 'POST' }),
+  },
+
+  // ─── iCal (C4) ─────────────────────────────────────────────────────────────
+  ical: {
+    export: (projectId: number, from?: string, to?: string) => {
+      const qs = new URLSearchParams()
+      if (from) qs.set('from', from)
+      if (to) qs.set('to', to)
+      return `/api/projects/${projectId}/calendar/export.ics?${qs}`
+    },
+  },
+
+  // ─── Camera Reports (D1) ───────────────────────────────────────────────────
+  cameraReports: {
+    list: (dayId: number) => req<any[]>(`/shoot-days/${dayId}/camera-reports`),
+    create: (dayId: number, data: any) => req<any>(`/shoot-days/${dayId}/camera-reports`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: any) => req<any>(`/camera-reports/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => req<any>(`/camera-reports/${id}`, { method: 'DELETE' }),
+    addTake: (reportId: number, data: any) => req<any>(`/camera-reports/${reportId}/takes`, { method: 'POST', body: JSON.stringify(data) }),
+    updateTake: (id: number, data: any) => req<any>(`/camera-takes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteTake: (id: number) => req<any>(`/camera-takes/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Payroll (D3) ──────────────────────────────────────────────────────────
+  payroll: {
+    export: (projectId: number, type?: string) => `/api/projects/${projectId}/payroll/export.csv${type ? `?type=${type}` : ''}`,
+  },
+
+  // ─── Förderantrag (D5) ─────────────────────────────────────────────────────
+  foerderantrag: {
+    data: (projectId: number) => req<any>(`/projects/${projectId}/foerderantrag/export`),
+    pdf: (projectId: number) => `/api/projects/${projectId}/foerderantrag/export?format=pdf`,
+  },
+
+  // ─── Activity Feed (E1) ────────────────────────────────────────────────────
+  activity: {
+    list: (projectId: number, limit = 100) => req<any[]>(`/projects/${projectId}/activity?limit=${limit}`),
+  },
+
+  // ─── Scene Comments (E2) ───────────────────────────────────────────────────
+  sceneComments: {
+    list: (projectId: number, sceneId: number) => req<any[]>(`/projects/${projectId}/scenes/${sceneId}/comments`),
+    create: (projectId: number, sceneId: number, content: string) => req<any>(`/projects/${projectId}/scenes/${sceneId}/comments`, { method: 'POST', body: JSON.stringify({ content }) }),
+    resolve: (id: number) => req<any>(`/comments/${id}/resolve`, { method: 'PATCH' }),
+    delete: (id: number) => req<any>(`/comments/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Equipment Calendar (E3) ───────────────────────────────────────────────
+  equipmentBookings: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/equipment-bookings`),
+    create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/equipment-bookings`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: any) => req<any>(`/equipment-bookings/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => req<any>(`/equipment-bookings/${id}`, { method: 'DELETE' }),
+    conflicts: (projectId: number) => req<any[]>(`/projects/${projectId}/equipment-bookings/conflicts`),
+  },
+
+  // ─── Moodboard (E4) ────────────────────────────────────────────────────────
+  moodboard: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/moodboard`),
+    create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/moodboard`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: any) => req<any>(`/moodboard/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => req<any>(`/moodboard/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Blackout Dates / Sperrtage (E6) ──────────────────────────────────────
+  blackoutDates: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/blackout-dates`),
+    listForCast: (projectId: number, castId: number) => req<any[]>(`/projects/${projectId}/cast/${castId}/blackout-dates`),
+    create: (projectId: number, castId: number, data: any) => req<any>(`/projects/${projectId}/cast/${castId}/blackout-dates`, { method: 'POST', body: JSON.stringify(data) }),
+    delete: (id: number) => req<any>(`/blackout-dates/${id}`, { method: 'DELETE' }),
+    conflicts: (projectId: number) => req<any[]>(`/projects/${projectId}/blackout-dates/conflicts`),
+  },
+
+  // ─── Scheduling Suggestions (E10) ─────────────────────────────────────────
+  schedulingSuggestions: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/scheduling-suggestions`),
+    generate: (projectId: number) => req<any[]>(`/projects/${projectId}/scheduling-suggestions/generate`, { method: 'POST' }),
+    dismiss: (id: number) => req<any>(`/scheduling-suggestions/${id}/dismiss`, { method: 'PATCH' }),
+  },
+
+  // ─── Script Sides (A3) ─────────────────────────────────────────────────────
+  scriptSides: {
+    pdf: (dayId: number, castId?: number) => `/api/shoot-days/${dayId}/script-sides/pdf${castId ? `?cast_id=${castId}` : ''}`,
+  },
 }

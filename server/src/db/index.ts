@@ -624,6 +624,149 @@ const SCHEMA = `
     notes TEXT NOT NULL DEFAULT '',
     sort_order INTEGER NOT NULL DEFAULT 0
   );
+
+  -- A1: Check-in columns added via ALTER below
+  -- A2: Timesheets
+  CREATE TABLE IF NOT EXISTS timesheets (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    shoot_day_id INTEGER NOT NULL REFERENCES shoot_days(id) ON DELETE CASCADE,
+    person_type TEXT NOT NULL DEFAULT 'crew',
+    person_id INTEGER NOT NULL,
+    call_time INTEGER,
+    wrap_time INTEGER,
+    meal_penalty BOOLEAN NOT NULL DEFAULT false,
+    overtime_hours REAL NOT NULL DEFAULT 0,
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  -- A4: Catering preferences
+  CREATE TABLE IF NOT EXISTS catering_preferences (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    person_type TEXT NOT NULL DEFAULT 'crew',
+    person_id INTEGER NOT NULL,
+    dietary TEXT NOT NULL DEFAULT 'keine',
+    allergies TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    UNIQUE(project_id, person_type, person_id)
+  );
+
+  -- A5: Continuity notes
+  CREATE TABLE IF NOT EXISTS continuity_notes (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    scene_id INTEGER REFERENCES scenes(id) ON DELETE CASCADE,
+    cast_id INTEGER REFERENCES "cast"(id) ON DELETE SET NULL,
+    category TEXT NOT NULL DEFAULT 'kostüm',
+    description TEXT NOT NULL DEFAULT '',
+    photos TEXT NOT NULL DEFAULT '[]',
+    shoot_day_id INTEGER REFERENCES shoot_days(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  -- B3: Location releases
+  CREATE TABLE IF NOT EXISTS location_releases (
+    id SERIAL PRIMARY KEY,
+    location_id INTEGER NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+    owner_name TEXT NOT NULL DEFAULT '',
+    owner_address TEXT NOT NULL DEFAULT '',
+    shoot_dates TEXT NOT NULL DEFAULT '[]',
+    fee_cents INTEGER NOT NULL DEFAULT 0,
+    special_conditions TEXT NOT NULL DEFAULT '',
+    signed_at TIMESTAMPTZ,
+    signed_by TEXT NOT NULL DEFAULT '',
+    signature_data TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'Entwurf',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  -- C2: Push subscriptions
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL DEFAULT '',
+    auth TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  -- D1: Camera reports
+  CREATE TABLE IF NOT EXISTS camera_reports (
+    id SERIAL PRIMARY KEY,
+    shoot_day_id INTEGER NOT NULL REFERENCES shoot_days(id) ON DELETE CASCADE,
+    camera TEXT NOT NULL DEFAULT 'A',
+    magazine TEXT NOT NULL DEFAULT '',
+    format TEXT NOT NULL DEFAULT '4K RAW',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  CREATE TABLE IF NOT EXISTS camera_takes (
+    id SERIAL PRIMARY KEY,
+    camera_report_id INTEGER NOT NULL REFERENCES camera_reports(id) ON DELETE CASCADE,
+    shot_id INTEGER REFERENCES shots(id) ON DELETE SET NULL,
+    scene_number TEXT NOT NULL DEFAULT '',
+    take_number INTEGER NOT NULL DEFAULT 1,
+    timecode_in TEXT NOT NULL DEFAULT '',
+    timecode_out TEXT NOT NULL DEFAULT '',
+    meters REAL,
+    circle BOOLEAN NOT NULL DEFAULT false,
+    false_start BOOLEAN NOT NULL DEFAULT false,
+    mute BOOLEAN NOT NULL DEFAULT false,
+    directors_cut BOOLEAN NOT NULL DEFAULT false,
+    notes TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0
+  );
+
+  -- E3: Equipment bookings (calendar)
+  CREATE TABLE IF NOT EXISTS equipment_bookings (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    equipment_item_id INTEGER REFERENCES equipment_items(id) ON DELETE CASCADE,
+    item_name TEXT NOT NULL DEFAULT '',
+    start_date TEXT NOT NULL DEFAULT '',
+    end_date TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT ''
+  );
+
+  -- E4: Moodboard
+  CREATE TABLE IF NOT EXISTS moodboard_items (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    image_url TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT 'Allgemein',
+    position_x INTEGER NOT NULL DEFAULT 0,
+    position_y INTEGER NOT NULL DEFAULT 0,
+    width INTEGER NOT NULL DEFAULT 300,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  -- E6: Cast blackout dates (Sperrtage)
+  CREATE TABLE IF NOT EXISTS cast_blackout_dates (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    cast_id INTEGER NOT NULL REFERENCES "cast"(id) ON DELETE CASCADE,
+    start_date TEXT NOT NULL DEFAULT '',
+    end_date TEXT NOT NULL DEFAULT '',
+    reason TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  -- E10: Scheduling suggestions
+  CREATE TABLE IF NOT EXISTS scheduling_suggestions (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    suggestion_type TEXT NOT NULL DEFAULT 'location_cluster',
+    title TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    savings_days INTEGER NOT NULL DEFAULT 0,
+    scene_ids TEXT NOT NULL DEFAULT '[]',
+    dismissed BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
 `
 
 // ─── Test admin seeder ────────────────────────────────────────────────────────
@@ -656,6 +799,22 @@ export async function initDatabase() {
       ALTER TABLE projects ADD CONSTRAINT projects_owner_id_fkey
         FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;
     EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+  `)
+
+  // Add new columns to call_sheet_entries (A1 check-in, C3 confirmation tracking)
+  await db.exec(`
+    DO $$ BEGIN
+      ALTER TABLE call_sheet_entries ADD COLUMN checked_in BOOLEAN DEFAULT false;
+    EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+    DO $$ BEGIN
+      ALTER TABLE call_sheet_entries ADD COLUMN checked_in_at TIMESTAMPTZ;
+    EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+    DO $$ BEGIN
+      ALTER TABLE call_sheet_entries ADD COLUMN confirmed_at TIMESTAMPTZ;
+    EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+    DO $$ BEGIN
+      ALTER TABLE call_sheet_entries ADD COLUMN viewed_at TIMESTAMPTZ;
+    EXCEPTION WHEN duplicate_column THEN NULL; END $$;
   `)
 
   // Check if empty — seed demo data on first run

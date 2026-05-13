@@ -9,7 +9,8 @@ import {
   Camera, ClipboardList, FileCheck, DollarSign, Package, Mail, AlertTriangle,
   Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight,
   StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle, ShieldCheck, BookUser, Settings,
-  Layers, CalendarClock, Music, Shield
+  Layers, CalendarClock, Music, Shield, CheckSquare, Clock, UtensilsCrossed, Image, TableProperties,
+  MessageSquare, Activity, Video, CalendarOff, BookOpen
 } from 'lucide-react'
 import { useT } from '@/lib/useT'
 import { navT } from '@/lib/i18n'
@@ -23,6 +24,7 @@ export function Sidebar() {
 
   const ADMIN_ITEMS = [
     { label: tt(navT.userMgmt), icon: ShieldCheck, path: '/admin' },
+    { label: 'Admin-Statistiken', icon: Activity, path: '/admin/stats' },
   ]
 
   const { data: project } = useQuery({
@@ -69,6 +71,11 @@ export function Sidebar() {
         { label: tt(navT.shotlist), icon: Camera, path: 'shotlist' },
         { label: 'VFX-Tracking', icon: Layers, path: 'vfx' },
         { label: tt(navT.callSheet), icon: ClipboardList, path: 'tagesdispo' },
+        { label: 'Check-in Board', icon: CheckSquare, path: 'checkin' },
+        { label: 'Timesheets', icon: Clock, path: 'timesheets' },
+        { label: 'Catering', icon: UtensilsCrossed, path: 'catering' },
+        { label: 'Continuity', icon: Image, path: 'continuity' },
+        { label: 'Kameraberichte', icon: Video, path: 'kameraberichte' },
         { label: tt(navT.dailyReport), icon: FileCheck, path: 'tagesbericht' },
       ]
     },
@@ -78,6 +85,17 @@ export function Sidebar() {
         { label: 'Postplan', icon: CalendarClock, path: 'postplan' },
         { label: 'Musikliste', icon: Music, path: 'musikliste' },
         { label: 'Versicherungen', icon: Shield, path: 'versicherungen' },
+      ]
+    },
+    {
+      label: 'Analyse & Reports',
+      items: [
+        { label: 'DOOD-Report', icon: TableProperties, path: 'dood' },
+        { label: 'Sperrtage Cast', icon: CalendarOff, path: 'sperrtage' },
+        { label: 'Szenen-Kommentare', icon: MessageSquare, path: 'kommentare' },
+        { label: 'Aktivitäts-Feed', icon: Activity, path: 'aktivitaet' },
+        { label: 'Moodboard', icon: Image, path: 'moodboard' },
+        { label: 'Equipment-Kalender', icon: Calendar, path: 'equipment-kalender' },
       ]
     },
     {
