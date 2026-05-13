@@ -142,7 +142,7 @@ export function Sidebar() {
                   title={item.label}
                   aria-label={item.label}
                   className={({ isActive }) => cn(
-                    'flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px] group relative',
+                    'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] group relative',
                     'transition-[background-color,color,transform] duration-150',
                     'active:scale-[0.97]',
                     isActive
@@ -154,7 +154,7 @@ export function Sidebar() {
                     <>
                       {isActive && (
                         <span
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-full shadow-[0_0_6px_hsl(var(--primary)/0.6)]"
+                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-primary rounded-full shadow-[0_0_8px_hsl(var(--primary)/0.65)]"
                           aria-current="page"
                         />
                       )}
@@ -212,7 +212,7 @@ export function Sidebar() {
                 title={item.label}
                 aria-label={item.label}
                 className={({ isActive }) => cn(
-                  'flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px] group relative',
+                  'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] group relative',
                   'transition-[background-color,color,transform] duration-150',
                   'active:scale-[0.97]',
                   isActive
@@ -223,7 +223,7 @@ export function Sidebar() {
                 {({ isActive }) => (
                   <>
                     {isActive && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-full shadow-[0_0_6px_hsl(var(--primary)/0.6)]" aria-current="page" />
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-primary rounded-full shadow-[0_0_8px_hsl(var(--primary)/0.65)]" aria-current="page" />
                     )}
                     <item.icon className={cn(
                       'shrink-0 transition-[color,transform] duration-150',

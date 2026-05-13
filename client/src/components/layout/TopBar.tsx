@@ -26,7 +26,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
     )}>
       {/* Page title */}
       <div className="flex-1 min-w-0">
-        <h1 className="text-sm font-semibold text-foreground truncate tracking-tight">{pageTitle}</h1>
+        <h1 className="text-[15px] font-semibold text-foreground truncate tracking-tight">{pageTitle}</h1>
         {lastSaved && (
           <p className="text-[11px] text-muted-foreground/50 leading-none mt-0.5">
             {tt(topBarT.saved)} {new Date(lastSaved).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}

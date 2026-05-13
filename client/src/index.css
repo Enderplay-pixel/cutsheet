@@ -239,12 +239,30 @@
 
 /* ─── Stagger children ───────────────────────────────── */
 .stagger > * { animation: fade-up 0.24s var(--ease-out) both; }
-.stagger > *:nth-child(1) { animation-delay: 0ms; }
-.stagger > *:nth-child(2) { animation-delay: 55ms; }
-.stagger > *:nth-child(3) { animation-delay: 110ms; }
-.stagger > *:nth-child(4) { animation-delay: 165ms; }
-.stagger > *:nth-child(5) { animation-delay: 220ms; }
-.stagger > *:nth-child(6) { animation-delay: 275ms; }
+.stagger > *:nth-child(1)  { animation-delay: 0ms; }
+.stagger > *:nth-child(2)  { animation-delay: 50ms; }
+.stagger > *:nth-child(3)  { animation-delay: 100ms; }
+.stagger > *:nth-child(4)  { animation-delay: 150ms; }
+.stagger > *:nth-child(5)  { animation-delay: 200ms; }
+.stagger > *:nth-child(6)  { animation-delay: 250ms; }
+.stagger > *:nth-child(7)  { animation-delay: 290ms; }
+.stagger > *:nth-child(8)  { animation-delay: 330ms; }
+.stagger > *:nth-child(9)  { animation-delay: 360ms; }
+.stagger > *:nth-child(10) { animation-delay: 390ms; }
+.stagger > *:nth-child(11) { animation-delay: 420ms; }
+.stagger > *:nth-child(12) { animation-delay: 450ms; }
+
+/* Fast stagger for dense lists (30ms steps) */
+.stagger-sm > * { animation: fade-up 0.2s var(--ease-out) both; }
+.stagger-sm > *:nth-child(1)  { animation-delay: 0ms; }
+.stagger-sm > *:nth-child(2)  { animation-delay: 30ms; }
+.stagger-sm > *:nth-child(3)  { animation-delay: 60ms; }
+.stagger-sm > *:nth-child(4)  { animation-delay: 90ms; }
+.stagger-sm > *:nth-child(5)  { animation-delay: 120ms; }
+.stagger-sm > *:nth-child(6)  { animation-delay: 150ms; }
+.stagger-sm > *:nth-child(7)  { animation-delay: 180ms; }
+.stagger-sm > *:nth-child(8)  { animation-delay: 210ms; }
+.stagger-sm > *:nth-child(n+9){ animation-delay: 240ms; }
 
 /* ─── Page container ─────────────────────────────────── */
 .page-container {
@@ -329,6 +347,43 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* ─── Table row hover accent ─────────────────────────── */
 .data-table tbody tr:hover {
   box-shadow: inset 2px 0 0 hsl(var(--primary) / 0.35) !important;
+}
+
+/* ─── Glow effect on primary elements ───────────────── */
+.glow-primary {
+  box-shadow: 0 0 0 1px hsl(var(--primary)/0.2), 0 4px 20px hsl(var(--primary)/0.15);
+}
+
+/* ─── Number counter animation ───────────────────────── */
+@keyframes count-in {
+  from { transform: scale(0.75) translateY(4px); opacity: 0; }
+  to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+.count-in { animation: count-in 0.3s var(--ease-spring) both; }
+
+/* ─── Subtle gradient overlay for cards ─────────────── */
+.card-glow-top::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 50% 0%, hsl(var(--primary)/0.07) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* ─── Hero chip ──────────────────────────────────────── */
+.chip {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold
+    bg-muted/60 text-muted-foreground border border-border/50;
+}
+.chip-primary {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold
+    bg-primary/10 text-primary border border-primary/20;
+}
+
+/* ─── Highlighted row (for tables) ──────────────────── */
+.row-highlighted {
+  @apply bg-primary/5 border-l-2 border-l-primary/40;
 }
 
 /* ─── Print styles ───────────────────────────────────── */
