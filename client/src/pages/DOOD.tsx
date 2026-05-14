@@ -88,7 +88,7 @@ function downloadCSV(report: DoodReport, pid: number) {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function Component() {
-  const { id } = useParams<{ id: string }>()
+  const { projectId: id } = useParams<{ projectId: string }>()
   const pid = Number(id)
   const { toast } = useToast()
 

@@ -97,7 +97,7 @@ function ActivityItem({ item }: { item: any }) {
 }
 
 export function Component() {
-  const { id } = useParams<{ id: string }>()
+  const { projectId: id } = useParams<{ projectId: string }>()
   const pid = Number(id)
   const [filter, setFilter] = useState('all')
 

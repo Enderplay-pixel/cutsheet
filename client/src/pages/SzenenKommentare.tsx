@@ -70,7 +70,7 @@ function CommentItem({ comment, onResolve, onDelete }: { comment: any; onResolve
 }
 
 export function Component() {
-  const { id } = useParams<{ id: string }>()
+  const { projectId: id } = useParams<{ projectId: string }>()
   const pid = Number(id)
   const queryClient = useQueryClient()
 

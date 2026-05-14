@@ -65,7 +65,7 @@ function blockedInWeek(weekStart: Date, boStart: string, boEnd: string): boolean
 }
 
 export function Component() {
-  const { id } = useParams<{ id: string }>()
+  const { projectId: id } = useParams<{ projectId: string }>()
   const pid = Number(id)
   const queryClient = useQueryClient()
 

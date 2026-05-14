@@ -328,7 +328,7 @@ function EntryDialog({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function Component() {
-  const { id } = useParams<{ id: string }>()
+  const { projectId: id } = useParams<{ projectId: string }>()
   const pid = Number(id)
   const { toast } = useToast()
   const queryClient = useQueryClient()
