@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+﻿import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -93,7 +93,7 @@ function TimesheetRow({ ts, dayId }: { ts: Timesheet; dayId: number }) {
         body: JSON.stringify(data),
       })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['timesheets', dayId] }),
     onError: () => toast({ variant: 'destructive', title: 'Fehler beim Speichern' }),
@@ -214,7 +214,7 @@ function AddTimesheetDialog({
     queryFn: async () => {
       const res = await fetch(`/api/projects/${pid}/cast`, { headers })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
   })
 
@@ -223,7 +223,7 @@ function AddTimesheetDialog({
     queryFn: async () => {
       const res = await fetch(`/api/projects/${pid}/crew`, { headers })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
   })
 
@@ -240,7 +240,7 @@ function AddTimesheetDialog({
         }),
       })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['timesheets', dayId] })
@@ -322,7 +322,7 @@ export function Component() {
     queryFn: async () => {
       const res = await fetch(`/api/projects/${pid}/shoot-days`, { headers })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
   })
 
@@ -332,7 +332,7 @@ export function Component() {
       if (!selectedDayId) return []
       const res = await fetch(`/api/shoot-days/${selectedDayId}/timesheets`, { headers })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
     enabled: !!selectedDayId,
   })

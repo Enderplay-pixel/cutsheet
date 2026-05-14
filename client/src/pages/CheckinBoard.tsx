@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -75,7 +75,7 @@ export function Component() {
     queryFn: async () => {
       const res = await fetch(`/api/projects/${pid}/shoot-days`, { headers })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
   })
 
@@ -87,7 +87,7 @@ export function Component() {
       const res = await fetch(`/api/shoot-days/${selectedDayId}/call-sheet`, { headers })
       if (res.status === 404) return null
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
     enabled: !!selectedDayId,
     refetchInterval: 10000,
@@ -101,7 +101,7 @@ export function Component() {
         headers,
       })
       if (!res.ok) throw new Error('Fehler beim Einchecken')
-      return res.json()
+      return (await res.json()).data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })

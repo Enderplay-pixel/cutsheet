@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+﻿import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -100,7 +100,7 @@ export function Component() {
     queryFn: async () => {
       const res = await fetch(`/api/projects/${pid}/dood-report`, { headers })
       if (!res.ok) throw new Error('Fehler beim Laden')
-      return res.json()
+      return (await res.json()).data
     },
   })
 

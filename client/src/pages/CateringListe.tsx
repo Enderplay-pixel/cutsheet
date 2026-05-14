@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+﻿import { useState, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -99,7 +99,7 @@ function PrefRow({ person, pref, pid }: { person: Person; pref: CateringPref | u
         body: JSON.stringify({ person_id: person.id, person_type: person.person_type, ...data }),
       })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['catering-prefs', pid] }),
     onError: () => toast({ variant: 'destructive', title: 'Fehler beim Speichern' }),
@@ -176,7 +176,7 @@ export function Component() {
     queryFn: async () => {
       const res = await fetch(`/api/projects/${pid}/catering-preferences`, { headers })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
   })
 
@@ -186,7 +186,7 @@ export function Component() {
     queryFn: async () => {
       const res = await fetch(`/api/projects/${pid}/cast`, { headers })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
   })
 
@@ -196,7 +196,7 @@ export function Component() {
     queryFn: async () => {
       const res = await fetch(`/api/projects/${pid}/crew`, { headers })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
   })
 
@@ -206,7 +206,7 @@ export function Component() {
     queryFn: async () => {
       const res = await fetch(`/api/projects/${pid}/shoot-days`, { headers })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
   })
 
@@ -217,7 +217,7 @@ export function Component() {
       if (!selectedDayId) return []
       const res = await fetch(`/api/shoot-days/${selectedDayId}/catering-list`, { headers })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
     enabled: !!selectedDayId,
   })

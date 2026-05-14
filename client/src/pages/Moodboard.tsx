@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+﻿import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -77,7 +77,7 @@ function AddImageDialog({ open, onClose, pid }: { open: boolean; onClose: () => 
         body: JSON.stringify({ title, image_url: finalUrl, category, notes }),
       })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['moodboard', pid] })
@@ -263,7 +263,7 @@ export function Component() {
     queryFn: async () => {
       const res = await fetch(`/api/projects/${pid}/moodboard`, { headers })
       if (!res.ok) throw new Error('Fehler')
-      return res.json()
+      return (await res.json()).data
     },
   })
 
