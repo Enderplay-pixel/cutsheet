@@ -262,7 +262,7 @@ function LoadingCards() {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-export default function SetApp() {
+export function Component() {
   const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'))
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
   const [selectedDayId, setSelectedDayId] = useState<string>('')

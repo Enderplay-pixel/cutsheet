@@ -327,7 +327,7 @@ function EntryDialog({
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function Continuity() {
+export function Component() {
   const { id } = useParams<{ id: string }>()
   const pid = Number(id)
   const { toast } = useToast()

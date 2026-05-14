@@ -59,7 +59,7 @@ function formatDateLong(iso: string) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function CheckinBoard() {
+export function Component() {
   const { id } = useParams<{ id: string }>()
   const pid = Number(id)
   const { toast } = useToast()

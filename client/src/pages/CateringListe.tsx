@@ -162,7 +162,7 @@ function PrefRow({ person, pref, pid }: { person: Person; pref: CateringPref | u
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function CateringListe() {
+export function Component() {
   const { id } = useParams<{ id: string }>()
   const pid = Number(id)
   const [selectedDayId, setSelectedDayId] = useState<number | null>(null)

@@ -45,7 +45,7 @@ function StatCard({ label, value, icon: Icon, sub, accent }: { label: string; va
   )
 }
 
-export default function AdminStats() {
+export function Component() {
   const { data: projects, isLoading: projectsLoading } = useQuery({
     queryKey: ['admin-projects'],
     queryFn: () => req<any[]>('/projects'),

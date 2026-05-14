@@ -308,7 +308,7 @@ function AddTimesheetDialog({
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function Timesheets() {
+export function Component() {
   const { id } = useParams<{ id: string }>()
   const pid = Number(id)
   const [selectedDayId, setSelectedDayId] = useState<number | null>(null)

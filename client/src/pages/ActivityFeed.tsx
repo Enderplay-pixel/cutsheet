@@ -96,7 +96,7 @@ function ActivityItem({ item }: { item: any }) {
   )
 }
 
-export default function ActivityFeed() {
+export function Component() {
   const { id } = useParams<{ id: string }>()
   const pid = Number(id)
   const [filter, setFilter] = useState('all')

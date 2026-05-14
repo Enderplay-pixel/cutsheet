@@ -245,7 +245,7 @@ function MoodboardCard({
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function Moodboard() {
+export function Component() {
   const { id } = useParams<{ id: string }>()
   const pid = Number(id)
   const { toast } = useToast()
