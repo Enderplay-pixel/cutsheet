@@ -59,7 +59,7 @@
 | E2 | Szenen-Kommentare | ✅ | `CRUD /api/projects/:pid/scenes/:sceneId/comments` · `PATCH /comments/:id/resolve` | `/projects/:id/kommentare` |
 | E3 | Equipment-Verfügbarkeits-Kalender | ✅ | `CRUD /api/projects/:pid/equipment-bookings` · `GET .../conflicts` | `/projects/:id/equipment-kalender` |
 | E4 | Moodboard | ✅ | `CRUD /api/projects/:pid/moodboard` | `/projects/:id/moodboard` |
-| E5 | Drehtag-Briefing Dokument | ⚠️ | Script Sides PDF dient als Grundlage (A3). Separater "Morning Brief"-Endpoint noch nicht implementiert. | — |
+| E5 | Drehtag-Briefing Dokument | ✅ | `GET /api/shoot-days/:dayId/morning-brief` (JSON) · `GET .../morning-brief/pdf` (Puppeteer A4) | PDF-Icon in jeder Drehtag-Spalte |
 | E6 | Sperrtag-Management für Cast | ✅ | `CRUD /api/projects/:pid/cast/:castId/blackout-dates` · `GET .../conflicts` | `/projects/:id/sperrtage` |
 | E7 | Projekt-Templates | ✅ | Keine Backend-Logik nötig (Frontend-only Vorausfüllung) | `ProjectTemplates.tsx` Komponente |
 | E8 | Offline-Fähige Set-App | ✅ | Nutzt bestehende Endpoints | `/set` (eigenständige Route ohne AppShell) |
@@ -125,8 +125,8 @@ ANTHROPIC_API_KEY=
 
 | Status | Anzahl | Features |
 |--------|--------|---------|
-| ✅ Vollständig implementiert | 29 | A1-A5, B1-B5, C1-C4, D1-D5, E1-E4, E6-E10 |
-| ⚠️ Teilweise implementiert | 1 | E5 (Morning Brief — Script Sides PDF als Basis, kein dedizierter Endpoint) |
+| ✅ Vollständig implementiert | 30 | A1-A5, B1-B5, C1-C4, D1-D5, E1-E10 |
+| ⚠️ Teilweise implementiert | 0 | — |
 | ❌ Nicht implementiert | 0 | — |
 
-**Gesamtbilanz: 29/30 vollständig ✅ · 1/30 als Basis ⚠️**
+**Gesamtbilanz: 30/30 vollständig ✅**

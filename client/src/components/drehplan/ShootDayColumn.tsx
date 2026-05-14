@@ -2,8 +2,9 @@ import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { cn, formatDate, eighthsToString } from '@/lib/utils'
 import { SceneStrip } from './SceneStrip'
-import { Calendar, Clock, Trash2 } from 'lucide-react'
+import { Calendar, Clock, Trash2, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { api } from '@/lib/api'
 
 interface ShootDayColumnProps {
   day: any
@@ -72,6 +73,16 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
             totalEighths > 96 ? 'text-red-500 font-bold' : totalEighths > 80 ? 'text-amber-500' : ''
           )}>{eighthsToString(totalEighths)}</span>
           {totalEighths > 80 && <span title={totalEighths > 96 ? 'Überladen! >12 Seiten' : 'Vorsicht: >10 Seiten'}>⚠</span>}
+          <a
+            href={api.morningBrief.pdf(day.id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto flex items-center gap-0.5 text-muted-foreground/60 hover:text-primary transition-colors"
+            title="Morning Brief PDF"
+            aria-label={`Morning Brief für Drehtag ${day.day_number} herunterladen`}
+          >
+            <FileText className="w-2.5 h-2.5" aria-hidden="true" />
+          </a>
         </div>
       </div>
 

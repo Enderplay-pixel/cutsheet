@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, Camera, Save, Download, RotateCcw, Trash2, History } from 'lucide-react'
+import { Plus, Camera, Save, Download, RotateCcw, Trash2, History, FileText, Sparkles } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
@@ -115,6 +115,8 @@ export function Component() {
   const [addDayOpen, setAddDayOpen] = useState(false)
   const [activeDrag, setActiveDrag] = useState<any>(null)
   const [showVersions, setShowVersions] = useState(false)
+  const [showAiOptimize, setShowAiOptimize] = useState(false)
+  const [aiOptimizing, setAiOptimizing] = useState(false)
 
   const { data: shootDays, isLoading: daysLoading } = useQuery({
     queryKey: ['shoot-days', pid],
@@ -256,6 +258,9 @@ export function Component() {
                   <Download className="w-4 h-4 mr-2" />PDF
                 </Button>
               </a>
+              <Button variant="outline" size="sm" onClick={() => setShowAiOptimize(true)}>
+                <Sparkles className="w-4 h-4 mr-2" />KI-Optimierung
+              </Button>
               <Button variant="outline" size="sm" onClick={() => { snapshotMutation.mutate(); setShowVersions(true) }}>
                 <Save className="w-4 h-4 mr-2" />Version speichern
               </Button>
@@ -356,6 +361,49 @@ export function Component() {
       )}
 
       <AddDayDialog open={addDayOpen} onClose={() => setAddDayOpen(false)} projectId={pid} />
+
+      {/* AI Optimize confirm dialog */}
+      <Dialog open={showAiOptimize} onOpenChange={v => !v && setShowAiOptimize(false)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              KI-Drehplan-Optimierung
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <p className="text-sm text-muted-foreground">
+              Die KI analysiert alle Szenen und optimiert die Reihenfolge nach Location, Cast-Verfügbarkeit und Tageszeit (Tag/Nacht).
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Der aktuelle Drehplan wird <span className="font-medium text-foreground">automatisch als Version gespeichert</span>, bevor Änderungen vorgenommen werden.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAiOptimize(false)} disabled={aiOptimizing}>Abbrechen</Button>
+            <Button
+              disabled={aiOptimizing}
+              onClick={async () => {
+                setAiOptimizing(true)
+                try {
+                  const result = await api.aiScheduling.optimize(pid)
+                  toast({ title: `Optimierung abgeschlossen`, description: `${result.moved ?? 0} Szenen neu zugewiesen` })
+                  queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] })
+                  queryClient.invalidateQueries({ queryKey: ['drehplan-versions', pid] })
+                  setShowAiOptimize(false)
+                } catch (e: any) {
+                  toast({ title: 'Fehler bei der Optimierung', description: e.message, variant: 'destructive' })
+                } finally {
+                  setAiOptimizing(false)
+                }
+              }}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              {aiOptimizing ? 'Optimiere…' : 'Jetzt optimieren'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

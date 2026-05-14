@@ -474,4 +474,10 @@ export const api = {
   scriptSides: {
     pdf: (dayId: number, castId?: number) => `/api/shoot-days/${dayId}/script-sides/pdf${castId ? `?cast_id=${castId}` : ''}`,
   },
+
+  // ─── Morning Brief (E5) ────────────────────────────────────────────────────
+  morningBrief: {
+    data: (dayId: number) => req<any>(`/shoot-days/${dayId}/morning-brief`),
+    pdf: (dayId: number) => `/api/shoot-days/${dayId}/morning-brief/pdf`,
+  },
 }
