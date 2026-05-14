@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -10,10 +10,215 @@ import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency, debounce, cn } from '@/lib/utils'
-import { Plus, Trash2, MapPin, Zap, ExternalLink, ChevronDown, ChevronUp, Download } from 'lucide-react'
+import { Plus, Trash2, MapPin, Zap, ExternalLink, ChevronDown, ChevronUp, Download, PenLine, FileSignature, RotateCcw } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { useT } from '@/lib/useT'
 import { locT, uiT } from '@/lib/i18n'
+
+// ─── Signature Canvas ────────────────────────────────────────────────────────
+
+function SignatureCanvas({ onSave, disabled }: { onSave: (dataUrl: string) => void; disabled?: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const drawing = useRef(false)
+  const lastPos = useRef<{ x: number; y: number } | null>(null)
+
+  const getPos = (e: MouseEvent | TouchEvent, canvas: HTMLCanvasElement) => {
+    const rect = canvas.getBoundingClientRect()
+    const src = 'touches' in e ? e.touches[0] : e
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top }
+  }
+
+  const startDraw = useCallback((e: MouseEvent | TouchEvent) => {
+    if (disabled) return
+    e.preventDefault()
+    drawing.current = true
+    const canvas = canvasRef.current!
+    lastPos.current = getPos(e, canvas)
+  }, [disabled])
+
+  const draw = useCallback((e: MouseEvent | TouchEvent) => {
+    if (!drawing.current || disabled) return
+    e.preventDefault()
+    const canvas = canvasRef.current!
+    const ctx = canvas.getContext('2d')!
+    const pos = getPos(e, canvas)
+    ctx.beginPath()
+    ctx.moveTo(lastPos.current!.x, lastPos.current!.y)
+    ctx.lineTo(pos.x, pos.y)
+    ctx.strokeStyle = '#e2e8f0'
+    ctx.lineWidth = 2
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.stroke()
+    lastPos.current = pos
+  }, [disabled])
+
+  const stopDraw = useCallback(() => { drawing.current = false }, [])
+
+  useEffect(() => {
+    const canvas = canvasRef.current!
+    canvas.addEventListener('mousedown', startDraw)
+    canvas.addEventListener('mousemove', draw)
+    canvas.addEventListener('mouseup', stopDraw)
+    canvas.addEventListener('mouseleave', stopDraw)
+    canvas.addEventListener('touchstart', startDraw, { passive: false })
+    canvas.addEventListener('touchmove', draw, { passive: false })
+    canvas.addEventListener('touchend', stopDraw)
+    return () => {
+      canvas.removeEventListener('mousedown', startDraw)
+      canvas.removeEventListener('mousemove', draw)
+      canvas.removeEventListener('mouseup', stopDraw)
+      canvas.removeEventListener('mouseleave', stopDraw)
+      canvas.removeEventListener('touchstart', startDraw)
+      canvas.removeEventListener('touchmove', draw)
+      canvas.removeEventListener('touchend', stopDraw)
+    }
+  }, [startDraw, draw, stopDraw])
+
+  const clear = () => {
+    const canvas = canvasRef.current!
+    canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height)
+  }
+
+  const save = () => {
+    const canvas = canvasRef.current!
+    onSave(canvas.toDataURL('image/png'))
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="relative rounded-lg border border-border/60 bg-muted/10 overflow-hidden" style={{ touchAction: 'none' }}>
+        <canvas
+          ref={canvasRef}
+          width={480}
+          height={120}
+          className={cn('w-full block', disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-crosshair')}
+        />
+        {!disabled && (
+          <div className="absolute top-2 right-2 text-[10px] text-muted-foreground/40 select-none pointer-events-none">
+            Hier unterschreiben
+          </div>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={clear} disabled={disabled}>
+          <RotateCcw className="w-3 h-3" />Löschen
+        </Button>
+        <Button type="button" size="sm" className="h-7 text-xs gap-1.5" onClick={save} disabled={disabled}>
+          <PenLine className="w-3 h-3" />Unterschrift speichern
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Location Release Section ────────────────────────────────────────────────
+
+function LocationReleaseSection({ locId, locName }: { locId: number; locName: string }) {
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+  const [ownerName, setOwnerName] = useState('')
+  const [showCanvas, setShowCanvas] = useState(false)
+
+  const { data: release, isLoading } = useQuery({
+    queryKey: ['location-release', locId],
+    queryFn: () => api.locationRelease.get(locId),
+    retry: false,
+  })
+
+  useEffect(() => {
+    if (release?.owner_name) setOwnerName(release.owner_name)
+  }, [release?.owner_name])
+
+  const saveMutation = useMutation({
+    mutationFn: (data: any) => api.locationRelease.save(locId, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['location-release', locId] }),
+  })
+
+  const signMutation = useMutation({
+    mutationFn: (signatureData: string) => api.locationRelease.sign(locId, { signature_data: signatureData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['location-release', locId] })
+      setShowCanvas(false)
+      toast({ title: 'Motivvertrag unterschrieben' })
+    },
+    onError: (e: any) => toast({ title: 'Fehler', description: e.message, variant: 'destructive' }),
+  })
+
+  const isSigned = release?.status === 'Unterschrieben'
+  const statusColors: Record<string, string> = {
+    Entwurf: 'bg-muted text-muted-foreground',
+    Versendet: 'bg-blue-500/15 text-blue-400',
+    Unterschrieben: 'bg-green-500/15 text-green-400',
+  }
+
+  if (isLoading) return <div className="h-6 animate-pulse bg-muted/30 rounded" />
+
+  return (
+    <div className="pt-3 border-t border-border/40 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FileSignature className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium">Motivvertrag</span>
+          {release?.status && (
+            <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', statusColors[release.status] ?? 'bg-muted text-muted-foreground')}>
+              {release.status}
+            </span>
+          )}
+        </div>
+        <a href={api.locationRelease.pdf(locId)} target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-1 text-[10px] text-muted-foreground/60 hover:text-primary transition-colors">
+          <Download className="w-3 h-3" />PDF
+        </a>
+      </div>
+
+      <div className="space-y-2">
+        <div>
+          <Label className="text-xs text-muted-foreground">Eigentümer / Vermieter</Label>
+          <div className="flex gap-2 mt-1">
+            <Input
+              value={ownerName}
+              onChange={e => setOwnerName(e.target.value)}
+              placeholder="Name des Eigentümers"
+              className="h-7 text-xs flex-1"
+              disabled={isSigned}
+            />
+            <Button
+              variant="outline" size="sm" className="h-7 text-xs shrink-0"
+              disabled={isSigned || saveMutation.isPending}
+              onClick={() => saveMutation.mutate({ owner_name: ownerName, location_name: locName, status: release?.status ?? 'Entwurf' })}
+            >
+              Speichern
+            </Button>
+          </div>
+        </div>
+
+        {!isSigned && (
+          <Button
+            variant="outline" size="sm" className="h-7 text-xs w-full gap-1.5"
+            onClick={() => setShowCanvas(v => !v)}
+          >
+            <PenLine className="w-3 h-3" />{showCanvas ? 'Abbrechen' : 'Unterschrift erfassen'}
+          </Button>
+        )}
+
+        {isSigned && (
+          <p className="text-xs text-green-400 flex items-center gap-1.5">
+            <FileSignature className="w-3 h-3" />
+            Unterschrieben am {new Date(release.signed_at).toLocaleDateString('de-DE')}
+          </p>
+        )}
+
+        {showCanvas && !isSigned && (
+          <SignatureCanvas
+            onSave={(dataUrl) => signMutation.mutate(dataUrl)}
+            disabled={signMutation.isPending}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
 
 function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]; onDelete: () => void }) {
   const [form, setForm] = useState(loc)
@@ -149,6 +354,8 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
             <Textarea value={form.notes || ''} onChange={e => update('notes', e.target.value)}
               rows={2} className="mt-1 text-xs resize-none" placeholder="Parkplätze, WC, Besonderheiten…" />
           </div>
+
+          <LocationReleaseSection locId={loc.id} locName={form.name || 'Motiv'} />
 
           <div className="grid grid-cols-2 gap-3">
             <div>
