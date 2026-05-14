@@ -43,71 +43,83 @@ export function Sidebar() {
 
   const navGroups = [
     {
-      label: tt(navT.overview),
+      // First thing you do: create the project and break down the script
+      label: 'Übersicht',
       items: [
         { label: tt(navT.dashboard), icon: LayoutDashboard, path: '' },
         { label: tt(navT.masterData), icon: Film, path: 'stammdaten' },
       ]
     },
     {
-      label: tt(navT.preparation),
+      // Concept & creative development phase
+      label: 'Entwicklung',
       items: [
         { label: tt(navT.scenes), icon: FileText, path: 'drehbuch' },
         { label: tt(navT.scriptEditor), icon: FileEdit, path: 'screenplay-editor' },
+        { label: 'Moodboard', icon: Image, path: 'moodboard' },
+        { label: 'Szenen-Kommentare', icon: MessageSquare, path: 'kommentare' },
+      ]
+    },
+    {
+      // Build your team
+      label: 'Casting & Team',
+      items: [
         { label: tt(navT.casting), icon: Users, path: 'besetzung' },
+        { label: 'Sperrtage Cast', icon: CalendarOff, path: 'sperrtage' },
+        { label: tt(navT.extras), icon: Users, path: 'komparsen' },
         { label: tt(navT.crew), icon: Briefcase, path: 'stabliste' },
         { label: tt(navT.contacts), icon: BookUser, path: 'kontakte' },
-        { label: tt(navT.locations), icon: MapPin, path: 'motive' },
-        { label: tt(navT.equipment), icon: Package, path: 'equipment' },
-        { label: tt(navT.vehicles), icon: Car, path: 'fahrzeuge' },
-        { label: tt(navT.extras), icon: Users, path: 'komparsen' },
       ]
     },
     {
-      label: tt(navT.production),
+      // Pre-production planning: schedule, locations, resources, budget
+      label: 'Planung & Vorbereitung',
       items: [
+        { label: tt(navT.locations), icon: MapPin, path: 'motive' },
         { label: tt(navT.shootingPlan), icon: Clapperboard, path: 'drehplan' },
         { label: tt(navT.stripboard), icon: LayoutDashboard, path: 'staebchenplan' },
-        { label: tt(navT.shotlist), icon: Camera, path: 'shotlist' },
-        { label: 'VFX-Tracking', icon: Layers, path: 'vfx' },
-        { label: tt(navT.callSheet), icon: ClipboardList, path: 'tagesdispo' },
-        { label: 'Check-in Board', icon: CheckSquare, path: 'checkin' },
-        { label: 'Timesheets', icon: Clock, path: 'timesheets' },
+        { label: tt(navT.calendar), icon: Calendar, path: 'kalender' },
+        { label: tt(navT.conflicts), icon: AlertTriangle, path: 'konfliktradar', badge: conflictCount > 0 ? conflictCount : undefined },
+        { label: tt(navT.equipment), icon: Package, path: 'equipment' },
+        { label: 'Equipment-Kalender', icon: CalendarClock, path: 'equipment-kalender' },
+        { label: tt(navT.vehicles), icon: Car, path: 'fahrzeuge' },
         { label: 'Catering', icon: UtensilsCrossed, path: 'catering' },
-        { label: 'Continuity', icon: Image, path: 'continuity' },
-        { label: 'Kameraberichte', icon: Video, path: 'kameraberichte' },
-        { label: tt(navT.dailyReport), icon: FileCheck, path: 'tagesbericht' },
-      ]
-    },
-    {
-      label: 'Post-Produktion',
-      items: [
-        { label: 'Postplan', icon: CalendarClock, path: 'postplan' },
-        { label: 'Musikliste', icon: Music, path: 'musikliste' },
+        { label: tt(navT.budget), icon: DollarSign, path: 'budget' },
         { label: 'Versicherungen', icon: Shield, path: 'versicherungen' },
       ]
     },
     {
-      label: 'Analyse & Reports',
+      // Day-to-day on set
+      label: 'Dreharbeiten',
       items: [
-        { label: 'DOOD-Report', icon: TableProperties, path: 'dood' },
-        { label: 'Sperrtage Cast', icon: CalendarOff, path: 'sperrtage' },
-        { label: 'Szenen-Kommentare', icon: MessageSquare, path: 'kommentare' },
-        { label: 'Aktivitäts-Feed', icon: Activity, path: 'aktivitaet' },
-        { label: 'Moodboard', icon: Image, path: 'moodboard' },
-        { label: 'Equipment-Kalender', icon: Calendar, path: 'equipment-kalender' },
+        { label: tt(navT.callSheet), icon: ClipboardList, path: 'tagesdispo' },
+        { label: 'Check-in Board', icon: CheckSquare, path: 'checkin' },
+        { label: tt(navT.shotlist), icon: Camera, path: 'shotlist' },
+        { label: 'VFX-Tracking', icon: Layers, path: 'vfx' },
+        { label: 'Continuity', icon: Image, path: 'continuity' },
+        { label: 'Kameraberichte', icon: Video, path: 'kameraberichte' },
+        { label: tt(navT.dailyReport), icon: FileCheck, path: 'tagesbericht' },
+        { label: 'Timesheets', icon: Clock, path: 'timesheets' },
       ]
     },
     {
-      label: tt(navT.management),
+      // After wrap
+      label: 'Post-Produktion',
       items: [
-        { label: tt(navT.budget), icon: DollarSign, path: 'budget' },
-        { label: tt(navT.calendar), icon: Calendar, path: 'kalender' },
+        { label: 'DOOD-Report', icon: TableProperties, path: 'dood' },
+        { label: 'Postplan', icon: CalendarClock, path: 'postplan' },
+        { label: 'Musikliste', icon: Music, path: 'musikliste' },
+      ]
+    },
+    {
+      // Communication & tools used throughout
+      label: 'Tools & Kommunikation',
+      items: [
         { label: tt(navT.email), icon: Mail, path: 'email' },
-        { label: tt(navT.conflicts), icon: AlertTriangle, path: 'konfliktradar', badge: conflictCount > 0 ? conflictCount : undefined },
         { label: tt(navT.pinboard), icon: StickyNote, path: 'pinboard' },
-        { label: tt(navT.auditLog), icon: History, path: 'audit' },
+        { label: 'Aktivitäts-Feed', icon: Activity, path: 'aktivitaet' },
         { label: tt(navT.search), icon: Search, path: 'suche' },
+        { label: tt(navT.auditLog), icon: History, path: 'audit' },
       ]
     },
   ]
