@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -7,9 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Card, CardContent } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
-import { Download, UtensilsCrossed } from 'lucide-react'
+import { Download, UtensilsCrossed, Users } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -80,7 +79,7 @@ function useDebounce<T extends (...args: any[]) => any>(fn: T, delay: number) {
 
 // ─── Präferenzen row ─────────────────────────────────────────────────────────
 
-function PrefRow({ person, pref, pid }: { person: Person; pref: CateringPref | undefined; pid: number }) {
+function PrefRow({ person, pref, pid, isEven }: { person: Person; pref: CateringPref | undefined; pid: number; isEven: boolean }) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
@@ -121,14 +120,14 @@ function PrefRow({ person, pref, pid }: { person: Person; pref: CateringPref | u
   }
 
   return (
-    <tr className="border-b border-border hover:bg-muted/20">
-      <td className="px-3 py-2 font-medium">{person.name}</td>
-      <td className="px-3 py-2">
+    <tr className={`border-b border-border/40 hover:bg-muted/20 transition-colors ${isEven ? '' : 'bg-muted/10'}`}>
+      <td className="px-4 py-2.5 font-medium text-sm">{person.name}</td>
+      <td className="px-4 py-2.5">
         <Badge variant={person.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px]">
           {person.person_type === 'cast' ? 'Darsteller' : 'Crew'}
         </Badge>
       </td>
-      <td className="px-3 py-2 min-w-[160px]">
+      <td className="px-4 py-2.5 min-w-[160px]">
         <Select value={dietary} onValueChange={handleDietary}>
           <SelectTrigger className="h-8 text-xs">
             <SelectValue />
@@ -140,7 +139,7 @@ function PrefRow({ person, pref, pid }: { person: Person; pref: CateringPref | u
           </SelectContent>
         </Select>
       </td>
-      <td className="px-3 py-2 min-w-[180px]">
+      <td className="px-4 py-2.5 min-w-[180px]">
         <Input
           value={allergies}
           onChange={e => handleAllergies(e.target.value)}
@@ -148,7 +147,7 @@ function PrefRow({ person, pref, pid }: { person: Person; pref: CateringPref | u
           className="h-8 text-xs"
         />
       </td>
-      <td className="px-3 py-2 min-w-[180px]">
+      <td className="px-4 py-2.5 min-w-[180px]">
         <Input
           value={notes}
           onChange={e => handleNotes(e.target.value)}
@@ -240,144 +239,203 @@ export function Component() {
     return acc
   }, {} as Record<string, number>)
 
+  const totalPersons = allPersons.length
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Catering</h1>
+    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+      {/* Page hero */}
+      <div className="mb-8 pb-7 border-b border-border/40">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Catering</h1>
+            <p className="text-sm text-muted-foreground/60 mt-1.5">Ernährungspräferenzen und Tageslisten verwalten</p>
+          </div>
+          {/* Stat card */}
+          <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group flex items-start gap-4 min-w-[160px]">
+            <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center shrink-0">
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div>
+              <div className="text-[2.25rem] font-bold tabular-nums leading-none">{totalPersons}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] mt-2 text-muted-foreground">Personen</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <Tabs defaultValue="praeferenzen">
-        <TabsList>
-          <TabsTrigger value="praeferenzen">Präferenzen</TabsTrigger>
-          <TabsTrigger value="tagesliste">Tagesliste</TabsTrigger>
+        <TabsList className="mb-6">
+          <TabsTrigger value="praeferenzen" className="active:scale-[0.97]">Präferenzen</TabsTrigger>
+          <TabsTrigger value="tagesliste" className="active:scale-[0.97]">Tagesliste</TabsTrigger>
         </TabsList>
 
         {/* ── Präferenzen ── */}
-        <TabsContent value="praeferenzen" className="mt-4">
+        <TabsContent value="praeferenzen">
+          <div className="mb-4">
+            <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">
+              Alle Personen
+            </span>
+          </div>
+
           {loadingPrefs ? (
             <div className="space-y-2">
-              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-xl" />)}
             </div>
           ) : allPersons.length === 0 ? (
-            <p className="text-muted-foreground">Keine Personen gefunden.</p>
+            <div className="rounded-xl border border-border/60 bg-card p-16 flex flex-col items-center justify-center gap-3">
+              <UtensilsCrossed className="h-10 w-10 opacity-20" />
+              <p className="text-sm text-muted-foreground">Keine Personen gefunden.</p>
+            </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted/50 text-left">
-                    <th className="px-3 py-2 font-semibold">Name</th>
-                    <th className="px-3 py-2 font-semibold">Typ</th>
-                    <th className="px-3 py-2 font-semibold">Diät</th>
-                    <th className="px-3 py-2 font-semibold">Allergien</th>
-                    <th className="px-3 py-2 font-semibold">Notizen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allPersons.map(p => (
-                    <PrefRow
-                      key={`${p.person_type}-${p.id}`}
-                      person={p}
-                      pref={prefMap.get(`${p.person_type}-${p.id}`)}
-                      pid={pid}
-                    />
-                  ))}
-                </tbody>
-              </table>
+            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/30 border-b border-border/40">
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Name</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Typ</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Diät</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Allergien</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Notizen</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allPersons.map((p, i) => (
+                      <PrefRow
+                        key={`${p.person_type}-${p.id}`}
+                        person={p}
+                        pref={prefMap.get(`${p.person_type}-${p.id}`)}
+                        pid={pid}
+                        isEven={i % 2 === 0}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </TabsContent>
 
         {/* ── Tagesliste ── */}
-        <TabsContent value="tagesliste" className="mt-4 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-            <span className="text-sm font-medium text-muted-foreground w-24">Drehtag:</span>
-            <Select
-              value={selectedDayId ? String(selectedDayId) : ''}
-              onValueChange={v => setSelectedDayId(Number(v))}
-            >
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Drehtag auswählen…" />
-              </SelectTrigger>
-              <SelectContent>
-                {(shootDays ?? []).map(d => (
-                  <SelectItem key={d.id} value={String(d.id)}>
-                    DT {d.day_number} – {formatDate(d.date)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm" disabled>
-              <Download className="mr-2 h-4 w-4" />
-              PDF exportieren
-            </Button>
+        <TabsContent value="tagesliste" className="space-y-5">
+          {/* Day selector card */}
+          <div className="rounded-xl border border-border/60 bg-card p-5">
+            <div className="mb-3">
+              <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">Drehtag auswählen</span>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+              <Select
+                value={selectedDayId ? String(selectedDayId) : ''}
+                onValueChange={v => setSelectedDayId(Number(v))}
+              >
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Drehtag auswählen…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(shootDays ?? []).map(d => (
+                    <SelectItem key={d.id} value={String(d.id)}>
+                      DT {d.day_number} – {formatDate(d.date)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" disabled className="active:scale-[0.97]">
+                <Download className="mr-2 h-4 w-4" />
+                PDF exportieren
+              </Button>
+            </div>
           </div>
 
           {!selectedDayId && (
-            <p className="text-muted-foreground">Bitte einen Drehtag auswählen.</p>
+            <div className="rounded-xl border border-border/60 bg-card p-16 flex flex-col items-center justify-center gap-3">
+              <UtensilsCrossed className="h-10 w-10 opacity-20" />
+              <p className="text-sm text-muted-foreground">Bitte einen Drehtag auswählen.</p>
+            </div>
           )}
 
           {selectedDayId && loadingList && (
             <div className="space-y-2">
-              {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+              {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-xl" />)}
             </div>
           )}
 
           {selectedDayId && !loadingList && (
             <>
-              {/* Summary chips */}
+              {/* Dietary summary chips banner */}
               {Object.keys(dietarySummary).length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(dietarySummary).map(([diet, count]) => (
-                    <Badge
-                      key={diet}
-                      variant={(DIETARY_COLORS[diet] as any) ?? 'secondary'}
-                    >
-                      {count}× {diet}
-                    </Badge>
-                  ))}
+                <div className="rounded-xl border border-border/60 bg-card p-4">
+                  <div className="mb-3">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">Ernährungsübersicht</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(dietarySummary).map(([diet, count]) => (
+                      <Badge
+                        key={diet}
+                        variant={(DIETARY_COLORS[diet] as any) ?? 'secondary'}
+                        className="px-3 py-1 text-xs font-semibold"
+                      >
+                        {count}× {diet}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               )}
 
               {/* Table */}
               {(cateringList ?? []).length === 0 ? (
-                <p className="text-muted-foreground">Keine Personen für diesen Drehtag.</p>
-              ) : (
-                <div className="overflow-x-auto rounded-lg border border-border">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-muted/50 text-left">
-                        <th className="px-3 py-2 font-semibold">Name</th>
-                        <th className="px-3 py-2 font-semibold">Typ</th>
-                        <th className="px-3 py-2 font-semibold">Diät</th>
-                        <th className="px-3 py-2 font-semibold">Allergien</th>
-                        <th className="px-3 py-2 font-semibold">Notizen</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(cateringList ?? []).map((e, i) => (
-                        <tr key={`${e.person_type}-${e.person_id}`} className={`border-b border-border ${i % 2 === 0 ? '' : 'bg-muted/20'}`}>
-                          <td className="px-3 py-2 font-medium">{e.name}</td>
-                          <td className="px-3 py-2">
-                            <Badge variant={e.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px]">
-                              {e.person_type === 'cast' ? 'Darsteller' : 'Crew'}
-                            </Badge>
-                          </td>
-                          <td className="px-3 py-2">
-                            {e.dietary && e.dietary !== 'keine' ? (
-                              <Badge variant={(DIETARY_COLORS[e.dietary] as any) ?? 'secondary'}>
-                                {e.dietary}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">–</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground">{e.allergies || '–'}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{e.notes || '–'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="rounded-xl border border-border/60 bg-card p-16 flex flex-col items-center justify-center gap-3">
+                  <UtensilsCrossed className="h-10 w-10 opacity-20" />
+                  <p className="text-sm text-muted-foreground">Keine Personen für diesen Drehtag.</p>
                 </div>
+              ) : (
+                <>
+                  <div className="mb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">
+                      {(cateringList ?? []).length} Personen
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-muted/30 border-b border-border/40">
+                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Name</th>
+                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Typ</th>
+                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Diät</th>
+                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Allergien</th>
+                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Notizen</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(cateringList ?? []).map((e, i) => (
+                            <tr
+                              key={`${e.person_type}-${e.person_id}`}
+                              className={`border-b border-border/40 hover:bg-muted/20 transition-colors ${i % 2 === 0 ? '' : 'bg-muted/10'}`}
+                            >
+                              <td className="px-4 py-2.5 font-medium">{e.name}</td>
+                              <td className="px-4 py-2.5">
+                                <Badge variant={e.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px]">
+                                  {e.person_type === 'cast' ? 'Darsteller' : 'Crew'}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-2.5">
+                                {e.dietary && e.dietary !== 'keine' ? (
+                                  <Badge variant={(DIETARY_COLORS[e.dietary] as any) ?? 'secondary'}>
+                                    {e.dietary}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted-foreground/40">–</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2.5 text-muted-foreground text-sm">{e.allergies || <span className="text-muted-foreground/40">–</span>}</td>
+                              <td className="px-4 py-2.5 text-muted-foreground text-sm">{e.notes || <span className="text-muted-foreground/40">–</span>}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
               )}
             </>
           )}

@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, Pencil, Trash2, Camera, X, ZoomIn } from 'lucide-react'
+import { Plus, Pencil, Trash2, Camera, X, ZoomIn, Film } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -59,10 +59,10 @@ function PhotoThumb({ src, onClick }: { src: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="relative group rounded overflow-hidden border border-border w-16 h-16 shrink-0"
+      className="relative group/thumb rounded-lg overflow-hidden border border-border/60 w-16 h-16 shrink-0 active:scale-[0.97] transition-transform"
     >
       <img src={src} alt="" className="w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity">
         <ZoomIn className="h-4 w-4 text-white" />
       </div>
     </button>
@@ -83,51 +83,61 @@ function ContinuityCard({
   onPhotoClick: (src: string) => void
 }) {
   return (
-    <Card className="group relative">
-      <CardContent className="p-4 space-y-3">
-        {/* Category + scene */}
+    <div className="rounded-xl border border-border/60 bg-card p-4 hover:border-border transition-colors group flex flex-col gap-3">
+      {/* Category + scene/cast */}
+      <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant={categoryVariant(entry.category) as any}>
+          <Badge variant={categoryVariant(entry.category) as any} className="text-[10px] font-bold uppercase tracking-[0.06em]">
             {categoryLabel(entry.category)}
           </Badge>
           {entry.scene_number && (
-            <span className="text-xs text-muted-foreground">Szene {entry.scene_number}</span>
+            <span className="text-xs text-muted-foreground/70">Szene {entry.scene_number}</span>
           )}
           {entry.cast_name && (
-            <span className="text-xs text-muted-foreground">· {entry.cast_name}</span>
+            <span className="text-xs text-muted-foreground/50">· {entry.cast_name}</span>
           )}
         </div>
+      </div>
 
-        {/* Description */}
-        <p className="text-sm">{entry.description}</p>
+      {/* Description */}
+      <p className="text-sm text-foreground/80 leading-relaxed flex-1">{entry.description}</p>
 
-        {/* Photos */}
-        {entry.photos && entry.photos.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {entry.photos.slice(0, 6).map((src, i) => (
-              <PhotoThumb key={i} src={src} onClick={() => onPhotoClick(src)} />
-            ))}
-            {entry.photos.length > 6 && (
-              <div className="w-16 h-16 rounded border border-border flex items-center justify-center text-xs text-muted-foreground">
-                +{entry.photos.length - 6}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Actions (hover) */}
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity pt-1">
-          <Button variant="ghost" size="sm" onClick={onEdit}>
-            <Pencil className="h-3.5 w-3.5 mr-1" />
-            Bearbeiten
-          </Button>
-          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={onDelete}>
-            <Trash2 className="h-3.5 w-3.5 mr-1" />
-            Löschen
-          </Button>
+      {/* Photos */}
+      {entry.photos && entry.photos.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {entry.photos.slice(0, 6).map((src, i) => (
+            <PhotoThumb key={i} src={src} onClick={() => onPhotoClick(src)} />
+          ))}
+          {entry.photos.length > 6 && (
+            <div className="w-16 h-16 rounded-lg border border-border/60 flex items-center justify-center text-xs text-muted-foreground/60 bg-muted/30">
+              +{entry.photos.length - 6}
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      )}
+
+      {/* Actions (hover) */}
+      <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pt-0.5 border-t border-border/30">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onEdit}
+          className="h-7 px-2.5 text-xs active:scale-[0.97]"
+        >
+          <Pencil className="h-3 w-3 mr-1.5" />
+          Bearbeiten
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2.5 text-xs text-destructive hover:text-destructive active:scale-[0.97]"
+          onClick={onDelete}
+        >
+          <Trash2 className="h-3 w-3 mr-1.5" />
+          Löschen
+        </Button>
+      </div>
+    </div>
   )
 }
 
@@ -286,11 +296,11 @@ function EntryDialog({
             <label className="text-sm font-medium">Fotos</label>
             <div className="flex flex-wrap gap-2">
               {form.photos.map((src, i) => (
-                <div key={i} className="relative group">
-                  <img src={src} alt="" className="w-16 h-16 object-cover rounded border border-border" />
+                <div key={i} className="relative group/photo">
+                  <img src={src} alt="" className="w-16 h-16 object-cover rounded-lg border border-border/60" />
                   <button
                     onClick={() => removePhoto(i)}
-                    className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover/photo:opacity-100 transition-opacity"
                   >
                     <X className="h-2.5 w-2.5" />
                   </button>
@@ -298,7 +308,7 @@ function EntryDialog({
               ))}
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-16 h-16 rounded border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                className="w-16 h-16 rounded-lg border-2 border-dashed border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-colors"
               >
                 <Camera className="h-5 w-5" />
               </button>
@@ -316,7 +326,7 @@ function EntryDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Abbrechen</Button>
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="active:scale-[0.97]">
             Speichern
           </Button>
         </DialogFooter>
@@ -391,21 +401,71 @@ export function Component() {
     onError: () => toast({ variant: 'destructive', title: 'Fehler beim Löschen' }),
   })
 
+  const allEntries = entries ?? []
+
+  // Category stats
+  const categoryCounts = CATEGORIES.map(c => ({
+    ...c,
+    count: allEntries.filter(e => e.category === c.value).length,
+  })).filter(c => c.count > 0)
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Continuity</h1>
-        <Button onClick={() => { setEditEntry(undefined); setShowDialog(true) }}>
-          <Plus className="mr-2 h-4 w-4" />
-          Neuer Eintrag
-        </Button>
+    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+      {/* Page hero */}
+      <div className="mb-8 pb-7 border-b border-border/40">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Continuity</h1>
+            <p className="text-sm text-muted-foreground/60 mt-1.5">
+              {allEntries.length === 0
+                ? 'Keine Einträge vorhanden'
+                : `${allEntries.length} ${allEntries.length === 1 ? 'Eintrag' : 'Einträge'}`}
+            </p>
+          </div>
+          <Button
+            onClick={() => { setEditEntry(undefined); setShowDialog(true) }}
+            className="active:scale-[0.97] shrink-0"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Neuer Eintrag
+          </Button>
+        </div>
+
+        {/* Category stats chips */}
+        {categoryCounts.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-5">
+            <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 self-center mr-1">
+              Kategorien
+            </span>
+            {categoryCounts.map(c => (
+              <button
+                key={c.value}
+                onClick={() => setFilterCategory(filterCategory === c.value ? 'all' : c.value)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors border active:scale-[0.97] ${
+                  filterCategory === c.value
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-muted/50 text-muted-foreground border-border/60 hover:border-border hover:text-foreground'
+                }`}
+              >
+                {c.label}
+                <span className={`rounded-full px-1.5 py-px text-[10px] font-bold ${
+                  filterCategory === c.value ? 'bg-primary-foreground/20' : 'bg-muted-foreground/10'
+                }`}>
+                  {c.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      {/* Filter toolbar */}
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mr-1">
+          Filter
+        </span>
         <Select value={filterScene} onValueChange={setFilterScene}>
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="h-8 w-40 text-xs">
             <SelectValue placeholder="Alle Szenen" />
           </SelectTrigger>
           <SelectContent>
@@ -417,7 +477,7 @@ export function Component() {
         </Select>
 
         <Select value={filterCast} onValueChange={setFilterCast}>
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="h-8 w-40 text-xs">
             <SelectValue placeholder="Alle Darsteller" />
           </SelectTrigger>
           <SelectContent>
@@ -429,7 +489,7 @@ export function Component() {
         </Select>
 
         <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="h-8 w-44 text-xs">
             <SelectValue placeholder="Alle Kategorien" />
           </SelectTrigger>
           <SelectContent>
@@ -439,18 +499,38 @@ export function Component() {
             ))}
           </SelectContent>
         </Select>
+
+        {(filterScene !== 'all' || filterCast !== 'all' || filterCategory !== 'all') && (
+          <button
+            onClick={() => { setFilterScene('all'); setFilterCast('all'); setFilterCategory('all') }}
+            className="h-8 px-2.5 text-xs text-muted-foreground/60 hover:text-foreground flex items-center gap-1.5 rounded-lg border border-border/60 hover:border-border transition-colors active:scale-[0.97]"
+          >
+            <X className="h-3 w-3" />
+            Zurücksetzen
+          </button>
+        )}
       </div>
 
       {/* Grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-48" />)}
+          {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} className="h-48 rounded-xl" />
+          ))}
         </div>
-      ) : (entries ?? []).length === 0 ? (
-        <p className="text-muted-foreground">Keine Einträge gefunden.</p>
+      ) : allEntries.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center">
+            <Film className="h-5 w-5 opacity-20" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-muted-foreground/60">Keine Einträge gefunden</p>
+            <p className="text-xs text-muted-foreground/40 mt-1">Erstelle deinen ersten Continuity-Eintrag</p>
+          </div>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(entries ?? []).map(e => (
+          {allEntries.map(e => (
             <ContinuityCard
               key={e.id}
               entry={e}

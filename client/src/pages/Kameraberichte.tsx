@@ -5,11 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, Trash2, Download, Camera, Check, Pencil, X } from 'lucide-react'
+import { Plus, Trash2, Download, Camera, Check, Pencil, X, Film, CircleDot, VolumeX, Clapperboard } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const API_BASE = '/api'
@@ -25,6 +23,28 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
 
 const CAMERA_LETTERS = ['A', 'B', 'C', 'D']
 
+const CAMERA_COLORS: Record<string, { bg: string; text: string; ring: string; badge: string }> = {
+  A: { bg: 'bg-blue-500/15', text: 'text-blue-600 dark:text-blue-400', ring: 'ring-blue-500/30', badge: 'bg-blue-500' },
+  B: { bg: 'bg-violet-500/15', text: 'text-violet-600 dark:text-violet-400', ring: 'ring-violet-500/30', badge: 'bg-violet-500' },
+  C: { bg: 'bg-amber-500/15', text: 'text-amber-600 dark:text-amber-400', ring: 'ring-amber-500/30', badge: 'bg-amber-500' },
+  D: { bg: 'bg-emerald-500/15', text: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-500/30', badge: 'bg-emerald-500' },
+}
+
+function CameraLetterCircle({ letter, size = 'md', selected = false }: { letter: string; size?: 'sm' | 'md' | 'lg'; selected?: boolean }) {
+  const c = CAMERA_COLORS[letter] ?? CAMERA_COLORS['A']
+  const sizeClass = size === 'lg' ? 'w-14 h-14 text-xl' : size === 'sm' ? 'w-7 h-7 text-xs' : 'w-10 h-10 text-sm'
+  return (
+    <div className={cn(
+      'rounded-full flex items-center justify-center font-bold ring-2 transition-all',
+      c.bg, c.text, c.ring,
+      sizeClass,
+      selected && 'ring-4 scale-110 shadow-lg'
+    )}>
+      {letter}
+    </div>
+  )
+}
+
 function TakeRow({ take, onUpdate, onDelete }: { take: any; onUpdate: (data: any) => void; onDelete: () => void }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState(take)
@@ -37,35 +57,39 @@ function TakeRow({ take, onUpdate, onDelete }: { take: any; onUpdate: (data: any
   if (editing) {
     return (
       <tr className="bg-muted/30">
-        <td className="py-1 px-2">
-          <Input value={form.scene_number || ''} onChange={e => setForm((f: any) => ({ ...f, scene_number: e.target.value }))} className="h-7 text-xs w-20" />
+        <td className="py-2 px-3">
+          <Input value={form.scene_number || ''} onChange={e => setForm((f: any) => ({ ...f, scene_number: e.target.value }))} className="h-7 text-xs w-20 bg-background" />
         </td>
-        <td className="py-1 px-2 text-center text-sm font-mono">{form.take_number}</td>
-        <td className="py-1 px-2">
-          <Input value={form.tc_in || ''} onChange={e => setForm((f: any) => ({ ...f, tc_in: e.target.value }))} className="h-7 text-xs w-28 font-mono" placeholder="00:00:00:00" />
+        <td className="py-2 px-3 text-center text-sm font-mono">{form.take_number}</td>
+        <td className="py-2 px-3">
+          <Input value={form.tc_in || ''} onChange={e => setForm((f: any) => ({ ...f, tc_in: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" placeholder="00:00:00:00" />
         </td>
-        <td className="py-1 px-2">
-          <Input value={form.tc_out || ''} onChange={e => setForm((f: any) => ({ ...f, tc_out: e.target.value }))} className="h-7 text-xs w-28 font-mono" placeholder="00:00:00:00" />
+        <td className="py-2 px-3">
+          <Input value={form.tc_out || ''} onChange={e => setForm((f: any) => ({ ...f, tc_out: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" placeholder="00:00:00:00" />
         </td>
-        <td className="py-1 px-2">
-          <Input value={form.meter || ''} onChange={e => setForm((f: any) => ({ ...f, meter: e.target.value }))} className="h-7 text-xs w-16" />
+        <td className="py-2 px-3">
+          <Input value={form.meter || ''} onChange={e => setForm((f: any) => ({ ...f, meter: e.target.value }))} className="h-7 text-xs w-16 bg-background" />
         </td>
-        <td className="py-1 px-2 text-center">
+        <td className="py-2 px-3 text-center">
           <Checkbox checked={!!form.circle} onCheckedChange={v => setForm((f: any) => ({ ...f, circle: !!v }))} />
         </td>
-        <td className="py-1 px-2 text-center">
+        <td className="py-2 px-3 text-center">
           <Checkbox checked={!!form.false_start} onCheckedChange={v => setForm((f: any) => ({ ...f, false_start: !!v }))} />
         </td>
-        <td className="py-1 px-2 text-center">
+        <td className="py-2 px-3 text-center">
           <Checkbox checked={!!form.mute} onCheckedChange={v => setForm((f: any) => ({ ...f, mute: !!v }))} />
         </td>
-        <td className="py-1 px-2">
-          <Input value={form.notes || ''} onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))} className="h-7 text-xs" />
+        <td className="py-2 px-3">
+          <Input value={form.notes || ''} onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))} className="h-7 text-xs bg-background" />
         </td>
-        <td className="py-1 px-2">
+        <td className="py-2 px-3">
           <div className="flex gap-1">
-            <button onClick={save} className="w-6 h-6 flex items-center justify-center rounded hover:bg-green-500/10 text-green-600"><Check className="w-3.5 h-3.5" /></button>
-            <button onClick={() => setEditing(false)} className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground"><X className="w-3.5 h-3.5" /></button>
+            <button onClick={save} className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-green-500/15 text-green-600 transition-colors">
+              <Check className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={() => setEditing(false)} className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         </td>
       </tr>
@@ -74,29 +98,51 @@ function TakeRow({ take, onUpdate, onDelete }: { take: any; onUpdate: (data: any
 
   return (
     <tr className={cn(
-      'border-b border-border/20 hover:bg-muted/10 group text-sm',
-      take.false_start && 'opacity-50',
+      'border-b border-border/20 hover:bg-muted/20 group text-sm transition-colors',
+      take.false_start && 'opacity-40',
       take.circle && 'bg-green-500/5'
     )}>
-      <td className={cn('py-2 px-2 font-mono', take.false_start && 'line-through')}>{take.scene_number}</td>
-      <td className="py-2 px-2 text-center font-mono">{take.take_number}</td>
-      <td className="py-2 px-2 font-mono text-xs">{take.tc_in || '–'}</td>
-      <td className="py-2 px-2 font-mono text-xs">{take.tc_out || '–'}</td>
-      <td className="py-2 px-2 text-center">{take.meter || '–'}</td>
-      <td className="py-2 px-2 text-center">
-        {take.circle ? <span className="inline-flex w-5 h-5 rounded-full bg-green-500 items-center justify-center"><Check className="w-3 h-3 text-white" /></span> : null}
+      <td className={cn('py-2.5 px-3 font-mono text-xs', take.false_start && 'line-through text-muted-foreground')}>{take.scene_number}</td>
+      <td className="py-2.5 px-3 text-center font-mono text-xs font-semibold tabular-nums">{take.take_number}</td>
+      <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">{take.tc_in || '–'}</td>
+      <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">{take.tc_out || '–'}</td>
+      <td className="py-2.5 px-3 text-center text-xs tabular-nums">{take.meter || '–'}</td>
+      <td className="py-2.5 px-3 text-center">
+        {take.circle ? (
+          <span className="inline-flex w-5 h-5 rounded-full bg-green-500 items-center justify-center shadow-sm">
+            <Check className="w-2.5 h-2.5 text-white" />
+          </span>
+        ) : (
+          <span className="text-muted-foreground/20 text-xs">–</span>
+        )}
       </td>
-      <td className="py-2 px-2 text-center">
-        {take.false_start ? <Badge variant="outline" className="text-[10px] h-4 text-destructive border-destructive/30">FS</Badge> : null}
+      <td className="py-2.5 px-3 text-center">
+        {take.false_start ? (
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-destructive/15 text-[9px] font-bold text-destructive">
+            FS
+          </span>
+        ) : (
+          <span className="text-muted-foreground/20 text-xs">–</span>
+        )}
       </td>
-      <td className="py-2 px-2 text-center">
-        {take.mute ? <Badge variant="outline" className="text-[10px] h-4">Stumm</Badge> : null}
+      <td className="py-2.5 px-3 text-center">
+        {take.mute ? (
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-muted text-muted-foreground">
+            <VolumeX className="w-2.5 h-2.5" />
+          </span>
+        ) : (
+          <span className="text-muted-foreground/20 text-xs">–</span>
+        )}
       </td>
-      <td className="py-2 px-2 text-xs text-muted-foreground max-w-[120px] truncate">{take.notes || ''}</td>
-      <td className="py-2 px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      <td className="py-2.5 px-3 text-xs text-muted-foreground max-w-[120px] truncate">{take.notes || ''}</td>
+      <td className="py-2.5 px-3 opacity-0 group-hover:opacity-100 transition-opacity">
         <div className="flex gap-1">
-          <button onClick={() => setEditing(true)} className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground"><Pencil className="w-3 h-3" /></button>
-          <button onClick={onDelete} className="w-6 h-6 flex items-center justify-center rounded hover:bg-destructive/10 text-destructive"><Trash2 className="w-3 h-3" /></button>
+          <button onClick={() => setEditing(true)} className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+            <Pencil className="w-3 h-3" />
+          </button>
+          <button onClick={onDelete} className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
+            <Trash2 className="w-3 h-3" />
+          </button>
         </div>
       </td>
     </tr>
@@ -115,18 +161,27 @@ function AddTakeForm({ reportId, nextTakeNumber, onAdded }: { reportId: number; 
   })
 
   return (
-    <div className="flex items-center gap-2 p-3 bg-muted/20 border-t border-border/40 flex-wrap">
-      <Input placeholder="Szene" value={form.scene_number} onChange={e => setForm(f => ({ ...f, scene_number: e.target.value }))} className="h-7 text-xs w-20" />
-      <span className="text-xs text-muted-foreground font-mono">Take {nextTakeNumber}</span>
-      <Input placeholder="TC In" value={form.tc_in} onChange={e => setForm(f => ({ ...f, tc_in: e.target.value }))} className="h-7 text-xs w-28 font-mono" />
-      <Input placeholder="TC Out" value={form.tc_out} onChange={e => setForm(f => ({ ...f, tc_out: e.target.value }))} className="h-7 text-xs w-28 font-mono" />
-      <Input placeholder="Notiz" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="h-7 text-xs w-32" />
-      <div className="flex items-center gap-1">
-        <Checkbox id={`circle-${reportId}`} checked={form.circle} onCheckedChange={v => setForm(f => ({ ...f, circle: !!v }))} />
-        <Label htmlFor={`circle-${reportId}`} className="text-xs">Circle</Label>
+    <div className="flex items-center gap-2 px-3 py-3 bg-muted/10 border-t border-border/30 flex-wrap">
+      <div className="w-5 h-5 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
+        <Plus className="w-3 h-3 text-muted-foreground" />
       </div>
-      <Button size="sm" className="h-7 text-xs" onClick={() => mutation.mutate({ ...form, take_number: nextTakeNumber })} disabled={mutation.isPending}>
-        <Plus className="w-3 h-3 mr-1" /> Take
+      <Input placeholder="Szene" value={form.scene_number} onChange={e => setForm(f => ({ ...f, scene_number: e.target.value }))} className="h-7 text-xs w-20 bg-background" />
+      <span className="text-xs text-muted-foreground/50 font-mono">Take {nextTakeNumber}</span>
+      <Input placeholder="TC In" value={form.tc_in} onChange={e => setForm(f => ({ ...f, tc_in: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" />
+      <Input placeholder="TC Out" value={form.tc_out} onChange={e => setForm(f => ({ ...f, tc_out: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" />
+      <Input placeholder="Notiz" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="h-7 text-xs w-32 bg-background" />
+      <div className="flex items-center gap-1.5">
+        <Checkbox id={`circle-${reportId}`} checked={form.circle} onCheckedChange={v => setForm(f => ({ ...f, circle: !!v }))} className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500" />
+        <Label htmlFor={`circle-${reportId}`} className="text-xs text-muted-foreground cursor-pointer">Circle</Label>
+      </div>
+      <Button
+        size="sm"
+        className="h-7 text-xs active:scale-[0.97]"
+        onClick={() => mutation.mutate({ ...form, take_number: nextTakeNumber })}
+        disabled={mutation.isPending}
+      >
+        <Plus className="w-3 h-3 mr-1" />
+        Take hinzufügen
       </Button>
     </div>
   )
@@ -134,6 +189,7 @@ function AddTakeForm({ reportId, nextTakeNumber, onAdded }: { reportId: number; 
 
 function CameraReport({ report, onDelete }: { report: any; onDelete: () => void }) {
   const queryClient = useQueryClient()
+  const c = CAMERA_COLORS[report.camera_letter] ?? CAMERA_COLORS['A']
 
   const { data: takes, isLoading } = useQuery({
     queryKey: ['camera-report-takes', report.id],
@@ -151,76 +207,111 @@ function CameraReport({ report, onDelete }: { report: any; onDelete: () => void 
   })
 
   const nextTakeNumber = takes ? Math.max(0, ...takes.map((t: any) => t.take_number)) + 1 : 1
+  const circleTakes = (takes ?? []).filter((t: any) => t.circle).length
+  const totalTakes = (takes ?? []).length
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center text-sm font-bold text-primary">
-              {report.camera_letter}
+    <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+      {/* Reel info header bar */}
+      <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-border/30 bg-muted/20">
+        <div className="flex items-center gap-3">
+          <CameraLetterCircle letter={report.camera_letter} size="md" />
+          <div>
+            <div className="font-semibold text-sm leading-tight">Kamera {report.camera_letter}</div>
+            <div className="text-xs text-muted-foreground/60 mt-0.5 flex items-center gap-2">
+              {report.magazine && <span>Magazin {report.magazine}</span>}
+              {report.magazine && report.format && <span className="text-muted-foreground/30">·</span>}
+              {report.format && <span>{report.format}</span>}
+              {!report.magazine && !report.format && <span>Keine Magazin-Angaben</span>}
             </div>
-            Kamera {report.camera_letter}
-            {report.magazine && <span className="text-sm font-normal text-muted-foreground">· Magazin {report.magazine}</span>}
-            {report.format && <Badge variant="outline" className="text-xs">{report.format}</Badge>}
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <button onClick={() => alert('PDF-Export: Kommt bald!')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-              <Download className="w-3.5 h-3.5" /> PDF
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Mini stats */}
+          {!isLoading && (
+            <div className="hidden sm:flex items-center gap-4 text-center">
+              <div>
+                <div className="text-xs font-bold tabular-nums">{totalTakes}</div>
+                <div className="text-[10px] text-muted-foreground/40 uppercase tracking-wide">Takes</div>
+              </div>
+              <div>
+                <div className="text-xs font-bold tabular-nums text-green-600">{circleTakes}</div>
+                <div className="text-[10px] text-muted-foreground/40 uppercase tracking-wide">Circle</div>
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => alert('PDF-Export: Kommt bald!')}
+              className="h-7 px-2.5 flex items-center gap-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              PDF
             </button>
-            <button onClick={onDelete} className="w-7 h-7 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
+            <button
+              onClick={onDelete}
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors"
+            >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {isLoading ? (
-          <div className="p-4"><Skeleton className="h-20" /></div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-border bg-muted/30 text-muted-foreground">
-                    <th className="text-left py-2 px-2 font-medium w-20">Szene</th>
-                    <th className="text-center py-2 px-2 font-medium w-14">Take</th>
-                    <th className="text-left py-2 px-2 font-medium w-28">TC In</th>
-                    <th className="text-left py-2 px-2 font-medium w-28">TC Out</th>
-                    <th className="text-center py-2 px-2 font-medium w-16">Meter</th>
-                    <th className="text-center py-2 px-2 font-medium w-14">Circle</th>
-                    <th className="text-center py-2 px-2 font-medium w-12">FS</th>
-                    <th className="text-center py-2 px-2 font-medium w-14">Stumm</th>
-                    <th className="text-left py-2 px-2 font-medium">Notizen</th>
-                    <th className="w-14" />
+      </div>
+
+      {/* Takes table */}
+      {isLoading ? (
+        <div className="p-5">
+          <Skeleton className="h-20 rounded-lg" />
+        </div>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border/20 bg-muted/10">
+                  <th className="text-left py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-20">Szene</th>
+                  <th className="text-center py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-14">Take</th>
+                  <th className="text-left py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-28">TC In</th>
+                  <th className="text-left py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-28">TC Out</th>
+                  <th className="text-center py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-16">Meter</th>
+                  <th className="text-center py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-14">
+                    <CircleDot className="w-3.5 h-3.5 mx-auto text-green-600" />
+                  </th>
+                  <th className="text-center py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-12">FS</th>
+                  <th className="text-center py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-14">
+                    <VolumeX className="w-3.5 h-3.5 mx-auto" />
+                  </th>
+                  <th className="text-left py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Notizen</th>
+                  <th className="w-16" />
+                </tr>
+              </thead>
+              <tbody>
+                {(takes || []).length === 0 && (
+                  <tr>
+                    <td colSpan={10} className="text-center py-8 text-muted-foreground/40 text-xs">
+                      Noch keine Takes — füge den ersten hinzu
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {(takes || []).length === 0 && (
-                    <tr>
-                      <td colSpan={10} className="text-center py-6 text-muted-foreground text-xs">Noch keine Takes</td>
-                    </tr>
-                  )}
-                  {(takes || []).map((take: any) => (
-                    <TakeRow
-                      key={take.id}
-                      take={take}
-                      onUpdate={data => updateTake.mutate({ id: take.id, data })}
-                      onDelete={() => deleteTake.mutate(take.id)}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <AddTakeForm
-              reportId={report.id}
-              nextTakeNumber={nextTakeNumber}
-              onAdded={() => queryClient.invalidateQueries({ queryKey: ['camera-report-takes', report.id] })}
-            />
-          </>
-        )}
-      </CardContent>
-    </Card>
+                )}
+                {(takes || []).map((take: any) => (
+                  <TakeRow
+                    key={take.id}
+                    take={take}
+                    onUpdate={data => updateTake.mutate({ id: take.id, data })}
+                    onDelete={() => deleteTake.mutate(take.id)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <AddTakeForm
+            reportId={report.id}
+            nextTakeNumber={nextTakeNumber}
+            onAdded={() => queryClient.invalidateQueries({ queryKey: ['camera-report-takes', report.id] })}
+          />
+        </>
+      )}
+    </div>
   )
 }
 
@@ -259,66 +350,111 @@ export function Component() {
   const usedLetters = new Set((reports || []).map((r: any) => r.camera_letter))
   const availableLetters = CAMERA_LETTERS.filter(l => !usedLetters.has(l))
 
+  // Aggregate stats
+  const totalReports = (reports || []).length
+  const allTakeCounts = (reports || []).map((r: any) => r.take_count ?? 0)
+  const totalTakes = allTakeCounts.reduce((a: number, b: number) => a + b, 0)
+  const circleTakes = (reports || []).map((r: any) => r.circle_count ?? 0).reduce((a: number, b: number) => a + b, 0)
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+      {/* Page hero */}
+      <div className="mb-8 pb-7 border-b border-border/40 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Kameraberichte</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Takes und Kameraaufzeichnungen pro Drehtag</p>
+          <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Kameraberichte</h1>
+          <p className="text-sm text-muted-foreground/60 mt-1.5">Takes und Kameraaufzeichnungen pro Drehtag</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => alert('PDF-Export: Kommt bald!')}>
+        <Button variant="outline" size="sm" className="shrink-0 active:scale-[0.97]" onClick={() => alert('PDF-Export: Kommt bald!')}>
           <Download className="w-4 h-4 mr-1.5" />
           PDF exportieren
         </Button>
       </div>
 
+      {/* Stats row — only when day is selected and reports loaded */}
+      {selectedDayId && !reportsLoading && totalReports > 0 && (
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group">
+            <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center mb-3">
+              <Clapperboard className="w-4 h-4 text-muted-foreground/70" />
+            </div>
+            <div className="text-[2.25rem] font-bold tabular-nums leading-none mb-1">{totalReports}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60">Berichte</div>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group">
+            <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center mb-3">
+              <Film className="w-4 h-4 text-muted-foreground/70" />
+            </div>
+            <div className="text-[2.25rem] font-bold tabular-nums leading-none mb-1">{totalTakes}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60">Takes gesamt</div>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group">
+            <div className="w-9 h-9 rounded-xl bg-green-500/10 flex items-center justify-center mb-3">
+              <CircleDot className="w-4 h-4 text-green-600" />
+            </div>
+            <div className="text-[2.25rem] font-bold tabular-nums leading-none mb-1 text-green-600">{circleTakes}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60">Circle Takes</div>
+          </div>
+        </div>
+      )}
+
       {/* Day selector */}
-      <div className="flex items-center gap-3">
-        <Label className="text-sm shrink-0">Drehtag</Label>
-        {daysLoading ? (
-          <Skeleton className="h-9 w-48" />
-        ) : (
-          <Select value={selectedDayId} onValueChange={setSelectedDayId}>
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="Drehtag wählen" />
-            </SelectTrigger>
-            <SelectContent>
-              {(shootDays || []).map((d: any) => (
-                <SelectItem key={d.id} value={String(d.id)}>
-                  {d.date ? new Date(d.date + 'T00:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : `Tag #${d.id}`}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+      <div className="mb-6">
+        <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">Drehtag</p>
+        <div className="rounded-xl border border-border/60 bg-card p-5">
+          {daysLoading ? (
+            <Skeleton className="h-9 w-56 rounded-lg" />
+          ) : (
+            <Select value={selectedDayId} onValueChange={setSelectedDayId}>
+              <SelectTrigger className="w-full sm:w-64 bg-muted/30 border-border/40">
+                <SelectValue placeholder="Drehtag wählen…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(shootDays || []).map((d: any) => (
+                  <SelectItem key={d.id} value={String(d.id)}>
+                    {d.date
+                      ? new Date(d.date + 'T00:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+                      : `Tag #${d.id}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
-      {/* Add camera */}
+      {/* Camera letter selector + new report button */}
       {selectedDayId && availableLetters.length > 0 && (
-        <div className="flex items-center gap-3">
-          <Camera className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Neue Kamera:</span>
-          <Select value={newCameraLetter} onValueChange={setNewCameraLetter}>
-            <SelectTrigger className="w-20 h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
+        <div className="mb-8">
+          <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">Neuer Bericht</p>
+          <div className="rounded-xl border border-border/60 bg-card p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex items-center gap-3">
               {availableLetters.map(l => (
-                <SelectItem key={l} value={l}>Kamera {l}</SelectItem>
+                <button
+                  key={l}
+                  onClick={() => setNewCameraLetter(l)}
+                  className="transition-transform hover:scale-105 active:scale-95"
+                >
+                  <CameraLetterCircle letter={l} size="lg" selected={newCameraLetter === l} />
+                </button>
               ))}
-            </SelectContent>
-          </Select>
-          <Button size="sm" onClick={() => createReport.mutate()} disabled={createReport.isPending}>
-            <Plus className="w-3.5 h-3.5 mr-1" />
-            Hinzufügen
-          </Button>
+            </div>
+            <div className="flex-1" />
+            <Button
+              onClick={() => createReport.mutate()}
+              disabled={createReport.isPending}
+              className="active:scale-[0.97]"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Kamera {newCameraLetter} hinzufügen
+            </Button>
+          </div>
         </div>
       )}
 
       {/* Reports */}
       {!selectedDayId ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <Camera className="w-10 h-10 mx-auto mb-3 opacity-20" />
+        <div className="text-center py-20 text-muted-foreground/30">
+          <Camera className="w-12 h-12 mx-auto mb-4 opacity-30" />
           <p className="text-sm">Bitte einen Drehtag auswählen</p>
         </div>
       ) : reportsLoading ? (
@@ -326,18 +462,21 @@ export function Component() {
           {[1, 2].map(i => <Skeleton key={i} className="h-48 rounded-xl" />)}
         </div>
       ) : (reports || []).length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <Camera className="w-10 h-10 mx-auto mb-3 opacity-20" />
-          <p className="text-sm">Noch keine Kameraberichte für diesen Tag</p>
+        <div className="text-center py-20 text-muted-foreground/30">
+          <Camera className="w-12 h-12 mx-auto mb-4 opacity-30" />
+          <p className="text-sm mb-4">Noch keine Kameraberichte für diesen Tag</p>
           {availableLetters.length > 0 && (
-            <Button size="sm" className="mt-4" onClick={() => createReport.mutate()}>
-              <Plus className="w-3.5 h-3.5 mr-1.5" />
+            <Button onClick={() => createReport.mutate()} className="active:scale-[0.97]">
+              <Plus className="w-4 h-4 mr-2" />
               Ersten Kamerabericht erstellen
             </Button>
           )}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">
+            Berichte ({totalReports})
+          </p>
           {(reports || []).map((report: any) => (
             <CameraReport
               key={report.id}

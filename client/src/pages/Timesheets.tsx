@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -8,9 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Card, CardContent } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, Download, AlertTriangle, Clock } from 'lucide-react'
+import { Plus, Download, AlertTriangle, Clock, Users, FileText, CalendarDays } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -124,58 +123,62 @@ function TimesheetRow({ ts, dayId }: { ts: Timesheet; dayId: number }) {
   }
 
   return (
-    <tr className="border-b border-border hover:bg-muted/10">
-      <td className="px-3 py-2 font-medium">{ts.person_name}</td>
-      <td className="px-3 py-2">
-        <Badge variant={ts.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px]">
+    <tr className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+      <td className="px-4 py-3 font-medium text-sm">{ts.person_name}</td>
+      <td className="px-4 py-3">
+        <Badge variant={ts.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px] font-semibold uppercase tracking-wide">
           {ts.person_type === 'cast' ? 'Darsteller' : 'Crew'}
         </Badge>
       </td>
-      <td className="px-3 py-2 w-28">
+      <td className="px-4 py-3 w-28">
         <Input
           value={callVal}
           onChange={e => setCallVal(e.target.value)}
           onBlur={saveCall}
           placeholder="08:00"
-          className="h-8 text-xs font-mono w-full"
+          className="h-8 text-xs font-mono w-full bg-muted/30 border-border/40 focus:bg-background"
         />
       </td>
-      <td className="px-3 py-2 w-28">
+      <td className="px-4 py-3 w-28">
         <Input
           value={wrapVal}
           onChange={e => setWrapVal(e.target.value)}
           onBlur={saveWrap}
           placeholder="18:00"
-          className="h-8 text-xs font-mono w-full"
+          className="h-8 text-xs font-mono w-full bg-muted/30 border-border/40 focus:bg-background"
         />
       </td>
-      <td className="px-3 py-2 text-center">
+      <td className="px-4 py-3 text-center">
         {overtime > 0 ? (
-          <span className="text-red-500 font-semibold text-sm">{totalMinutesToH(overtime)}</span>
+          <span className="inline-flex items-center gap-1 text-red-500 font-bold text-sm tabular-nums">
+            <Clock className="w-3 h-3" />
+            {totalMinutesToH(overtime)}
+          </span>
         ) : (
-          <span className="text-muted-foreground text-sm">–</span>
+          <span className="text-muted-foreground/40 text-sm">–</span>
         )}
       </td>
-      <td className="px-3 py-2 text-center">
+      <td className="px-4 py-3 text-center">
         <Checkbox
           checked={mealPenalty}
           onCheckedChange={v => saveMeal(Boolean(v))}
+          className="data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
         />
       </td>
-      <td className="px-3 py-2 min-w-[160px]">
+      <td className="px-4 py-3 min-w-[160px]">
         <Input
           value={notes}
           onChange={e => setNotes(e.target.value)}
           onBlur={saveNotes}
           placeholder="Notizen…"
-          className="h-8 text-xs w-full"
+          className="h-8 text-xs w-full bg-muted/30 border-border/40 focus:bg-background"
         />
       </td>
-      <td className="px-3 py-2">
+      <td className="px-4 py-3">
         <Button
           variant="ghost"
           size="sm"
-          className="text-destructive hover:text-destructive"
+          className="text-destructive/60 hover:text-destructive hover:bg-destructive/10 text-xs active:scale-[0.97]"
           onClick={() => deleteMutation.mutate()}
           disabled={deleteMutation.isPending}
         >
@@ -296,8 +299,8 @@ function AddTimesheetDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Abbrechen</Button>
-          <Button onClick={() => createMutation.mutate()} disabled={!personId || createMutation.isPending}>
+          <Button variant="outline" onClick={onClose} className="active:scale-[0.97]">Abbrechen</Button>
+          <Button onClick={() => createMutation.mutate()} disabled={!personId || createMutation.isPending} className="active:scale-[0.97]">
             Erstellen
           </Button>
         </DialogFooter>
@@ -352,122 +355,181 @@ export function Component() {
     return ts.wrap_minutes >= 22 * 60 // wrap after 22:00 → potential turnaround issue
   })
 
+  const selectedDay = (shootDays ?? []).find(d => d.id === selectedDayId)
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Timesheets</h1>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.location.href = `/api/projects/${pid}/timesheets/export.csv`}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            CSV exportieren
-          </Button>
+    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+      {/* Page hero */}
+      <div className="mb-8 pb-7 border-b border-border/40 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Timesheets</h1>
+          <p className="text-sm text-muted-foreground/60 mt-1.5">Call- & Wrap-Zeiten, Überstunden und Mahlzeit-Penalties</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0 active:scale-[0.97]"
+          onClick={() => window.location.href = `/api/projects/${pid}/timesheets/export.csv`}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          CSV exportieren
+        </Button>
+      </div>
+
+      {/* Day selector card */}
+      <div className="mb-6">
+        <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">Drehtag auswählen</p>
+        <div className="rounded-xl border border-border/60 bg-card p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center shrink-0">
+            <CalendarDays className="w-4 h-4 text-muted-foreground/70" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <Select
+              value={selectedDayId ? String(selectedDayId) : ''}
+              onValueChange={v => setSelectedDayId(Number(v))}
+            >
+              <SelectTrigger className="w-full sm:w-72 bg-muted/30 border-border/40">
+                <SelectValue placeholder="Drehtag auswählen…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(shootDays ?? []).map(d => (
+                  <SelectItem key={d.id} value={String(d.id)}>
+                    DT {d.day_number} – {formatDate(d.date)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {selectedDayId && (
+            <Button size="sm" onClick={() => setShowAdd(true)} className="active:scale-[0.97]">
+              <Plus className="mr-2 h-4 w-4" />
+              Eintrag hinzufügen
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Day selector */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <span className="text-sm font-medium text-muted-foreground w-24">Drehtag:</span>
-        <Select
-          value={selectedDayId ? String(selectedDayId) : ''}
-          onValueChange={v => setSelectedDayId(Number(v))}
-        >
-          <SelectTrigger className="w-64">
-            <SelectValue placeholder="Drehtag auswählen…" />
-          </SelectTrigger>
-          <SelectContent>
-            {(shootDays ?? []).map(d => (
-              <SelectItem key={d.id} value={String(d.id)}>
-                DT {d.day_number} – {formatDate(d.date)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {selectedDayId && (
-          <Button size="sm" onClick={() => setShowAdd(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Eintrag hinzufügen
-          </Button>
-        )}
-      </div>
-
       {!selectedDayId && (
-        <p className="text-muted-foreground">Bitte einen Drehtag auswählen.</p>
+        <div className="text-center py-20 text-muted-foreground/40">
+          <CalendarDays className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm">Bitte einen Drehtag auswählen</p>
+        </div>
       )}
 
       {selectedDayId && isLoading && (
-        <div className="space-y-2">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+        <div className="space-y-3">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-xl" />)}
         </div>
       )}
 
       {selectedDayId && !isLoading && (
-        <>
+        <div className="space-y-6">
+          {/* Stat cards */}
+          {sheets.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">Übersicht</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center">
+                      <Clock className="w-4 h-4 text-red-500" />
+                    </div>
+                  </div>
+                  <div className="text-[2.25rem] font-bold tabular-nums text-red-500 leading-none mb-1">
+                    {totalMinutesToH(totalOvertimeMins)}
+                  </div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60">
+                    Gesamt Überstunden
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-muted-foreground/70" />
+                    </div>
+                  </div>
+                  <div className="text-[2.25rem] font-bold tabular-nums leading-none mb-1">
+                    {countWithOT}
+                  </div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60">
+                    Personen mit Überstunden
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-muted-foreground/70" />
+                    </div>
+                  </div>
+                  <div className="text-[2.25rem] font-bold tabular-nums leading-none mb-1">
+                    {sheets.length}
+                  </div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60">
+                    Einträge gesamt
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Turnaround warnings */}
           {turnaroundWarnings.length > 0 && (
-            <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3">
-              <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-              <div className="text-sm">
+            <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+              </div>
+              <div className="text-sm pt-0.5">
                 <span className="font-semibold text-red-600 dark:text-red-400">Turnaround-Warnung:</span>{' '}
-                {turnaroundWarnings.map(w => w.person_name).join(', ')} — spätes Wrap, bitte 11h Ruhezeit prüfen.
+                <span className="text-muted-foreground">
+                  {turnaroundWarnings.map(w => w.person_name).join(', ')} — spätes Wrap, bitte 11h Ruhezeit prüfen.
+                </span>
               </div>
             </div>
           )}
 
           {/* Table */}
           {sheets.length === 0 ? (
-            <p className="text-muted-foreground">Keine Timesheets für diesen Drehtag.</p>
+            <div className="text-center py-16 text-muted-foreground/40">
+              <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Keine Timesheets für diesen Drehtag</p>
+              <Button size="sm" className="mt-4 active:scale-[0.97]" onClick={() => setShowAdd(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Ersten Eintrag hinzufügen
+              </Button>
+            </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted/50 text-left">
-                    <th className="px-3 py-2 font-semibold">Name</th>
-                    <th className="px-3 py-2 font-semibold">Typ</th>
-                    <th className="px-3 py-2 font-semibold">Call</th>
-                    <th className="px-3 py-2 font-semibold">Wrap</th>
-                    <th className="px-3 py-2 font-semibold text-center">Überstunden</th>
-                    <th className="px-3 py-2 font-semibold text-center">Mahlzeit-Penalty</th>
-                    <th className="px-3 py-2 font-semibold">Notizen</th>
-                    <th className="px-3 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sheets.map(ts => (
-                    <TimesheetRow key={ts.id} ts={ts} dayId={selectedDayId} />
-                  ))}
-                </tbody>
-              </table>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">
+                Einträge{selectedDay ? ` — DT ${selectedDay.day_number} · ${formatDate(selectedDay.date)}` : ''}
+              </p>
+              <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/30 border-b border-border/40">
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Name</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Typ</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Call</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Wrap</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Überstunden</th>
+                        <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Mahlzeit-Penalty</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Notizen</th>
+                        <th className="px-4 py-3 w-20" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sheets.map(ts => (
+                        <TimesheetRow key={ts.id} ts={ts} dayId={selectedDayId} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
-
-          {/* Summary */}
-          {sheets.length > 0 && (
-            <div className="flex flex-wrap gap-4">
-              <Card className="flex-1 min-w-[160px]">
-                <CardContent className="py-4 px-5">
-                  <div className="text-xs text-muted-foreground mb-1">Gesamt Überstunden</div>
-                  <div className="text-2xl font-bold text-red-500">{totalMinutesToH(totalOvertimeMins)}</div>
-                </CardContent>
-              </Card>
-              <Card className="flex-1 min-w-[160px]">
-                <CardContent className="py-4 px-5">
-                  <div className="text-xs text-muted-foreground mb-1">Personen mit Überstunden</div>
-                  <div className="text-2xl font-bold">{countWithOT}</div>
-                </CardContent>
-              </Card>
-              <Card className="flex-1 min-w-[160px]">
-                <CardContent className="py-4 px-5">
-                  <div className="text-xs text-muted-foreground mb-1">Einträge gesamt</div>
-                  <div className="text-2xl font-bold">{sheets.length}</div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </>
+        </div>
       )}
 
       {showAdd && selectedDayId && (

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { AlertTriangle, Plus, Trash2, CalendarOff } from 'lucide-react'
+import { AlertTriangle, Plus, Trash2, CalendarOff, Users } from 'lucide-react'
 
 const API_BASE = '/api'
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
@@ -39,7 +39,6 @@ function isoDate(d: Date): string {
 function buildWeeks(start: Date, end: Date): Date[] {
   const days: Date[] = []
   let cur = new Date(start)
-  // align to Monday
   const dow = cur.getDay()
   const offset = dow === 0 ? -6 : 1 - dow
   cur = addDays(cur, offset)
@@ -110,7 +109,6 @@ export function Component() {
     },
   })
 
-  // Compute timeline range
   const allDates: Date[] = []
   ;(shootDays || []).forEach((d: any) => { if (d.date) allDates.push(parseDate(d.date)) })
   ;(blackouts || []).forEach((b: any) => {
@@ -124,75 +122,122 @@ export function Component() {
   const MONTH_NAMES = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
 
   const isLoading = castLoading || blackoutsLoading
+  const totalBlackouts = (blackouts || []).length
+  const castCount = (cast || []).length
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Sperrtage-Kalender</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Nicht-Verfügbarkeiten der Darsteller</p>
+    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+      {/* Page hero */}
+      <div className="mb-8 pb-7 border-b border-border/40">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Sperrtage-Kalender</h1>
+            <p className="text-sm text-muted-foreground/60 mt-1.5">
+              Nicht-Verfügbarkeiten der Darsteller
+            </p>
+          </div>
+          <div className="flex items-center gap-3 pt-1">
+            <div className="flex items-center gap-5">
+              <div className="text-right">
+                <div className="text-[2.25rem] font-bold tabular-nums tracking-tight leading-none">{castCount}</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mt-1">Darsteller</div>
+              </div>
+              <div className="text-right">
+                <div className="text-[2.25rem] font-bold tabular-nums tracking-tight leading-none">{totalBlackouts}</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mt-1">Sperrtage</div>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setDialogOpen(true)}
+              className="active:scale-[0.97] ml-4"
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              Sperrtag hinzufügen
+            </Button>
+          </div>
         </div>
-        <Button size="sm" onClick={() => setDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-1.5" />
-          Sperrtag hinzufügen
-        </Button>
       </div>
 
       {/* Conflicts panel */}
       {conflicts && conflicts.length > 0 && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-2">
-          <div className="flex items-center gap-2 text-destructive font-semibold text-sm">
-            <AlertTriangle className="w-4 h-4" />
+        <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-5 space-y-2">
+          <div className="flex items-center gap-2.5 text-destructive font-semibold text-sm">
+            <div className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
             {conflicts.length} Konflikt{conflicts.length !== 1 ? 'e' : ''} gefunden
           </div>
           {conflicts.map((c: any, i: number) => (
-            <div key={i} className="text-xs text-destructive/80 pl-6">
+            <div key={i} className="text-xs text-destructive/70 pl-11">
               {c.cast_name || c.actor_name}: Drehtag {c.shoot_date} kollidiert mit Sperrtag ({c.start_date} – {c.end_date})
             </div>
           ))}
         </div>
       )}
 
-      {/* Timeline */}
+      {/* Calendar grid */}
       {isLoading ? (
         <div className="space-y-2">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 rounded-xl" />)}
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-xl" />)}
         </div>
       ) : (
-        <div className="rounded-xl border border-border overflow-x-auto">
+        <div className="rounded-xl border border-border/60 bg-card overflow-x-auto mb-6">
           <table className="w-full text-xs border-collapse min-w-[600px]">
             <thead>
-              <tr className="border-b border-border bg-muted/40">
-                <th className="text-left p-3 font-medium w-40 min-w-[160px]">Darsteller</th>
+              <tr className="border-b border-border/40">
+                <th className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground bg-muted/30 w-44 min-w-[176px] sticky left-0 z-10">
+                  Darsteller
+                </th>
                 {weeks.map((w, i) => (
-                  <th key={i} className="p-1 text-center font-normal text-muted-foreground min-w-[52px]">
-                    <div className="text-[10px] leading-none">{MONTH_NAMES[w.getMonth()]}</div>
-                    <div className="font-semibold">{w.getDate()}.–{addDays(w, 6).getDate()}.</div>
+                  <th key={i} className="p-1.5 text-center text-muted-foreground min-w-[52px] bg-muted/30">
+                    <div className="text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground/50 leading-none mb-0.5">
+                      {MONTH_NAMES[w.getMonth()]}
+                    </div>
+                    <div className="text-[11px] font-semibold tabular-nums">
+                      {w.getDate()}.–{addDays(w, 6).getDate()}.
+                    </div>
                   </th>
                 ))}
-                <th className="p-3 w-20">Aktionen</th>
+                <th className="px-3 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground bg-muted/30 w-24 text-center">
+                  Aktionen
+                </th>
               </tr>
             </thead>
             <tbody>
               {(cast || []).length === 0 && (
                 <tr>
-                  <td colSpan={weeks.length + 2} className="text-center py-12 text-muted-foreground">
-                    <CalendarOff className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                    Keine Darsteller vorhanden
+                  <td colSpan={weeks.length + 2} className="py-16 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <CalendarOff className="w-10 h-10 opacity-20" />
+                      <p className="text-sm text-muted-foreground">Keine Darsteller vorhanden</p>
+                    </div>
                   </td>
                 </tr>
               )}
-              {(cast || []).map((member: any) => {
+              {(cast || []).map((member: any, rowIdx: number) => {
                 const memberBlackouts = (blackouts || []).filter((b: any) => b.cast_id === member.id)
+                const name = member.actor_name || member.name
+                const initials = name.split(' ').map((p: string) => p[0]).join('').slice(0, 2).toUpperCase()
                 return (
-                  <tr key={member.id} className="border-b border-border/40 hover:bg-muted/20">
-                    <td className="p-3 font-medium">
-                      <div>{member.actor_name || member.name}</div>
-                      {memberBlackouts.length > 0 && (
-                        <Badge variant="secondary" className="mt-0.5 text-[10px] h-4">
-                          {memberBlackouts.length} Sperrtag{memberBlackouts.length !== 1 ? 'e' : ''}
-                        </Badge>
-                      )}
+                  <tr
+                    key={member.id}
+                    className={`border-b border-border/30 transition-colors ${rowIdx % 2 === 1 ? 'bg-muted/10' : ''} hover:bg-muted/20`}
+                  >
+                    <td className="px-5 py-3 sticky left-0 z-10 bg-inherit border-r border-border/30">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center shrink-0 text-[11px] font-bold text-muted-foreground/70">
+                          {initials}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium truncate">{name}</div>
+                          {memberBlackouts.length > 0 && (
+                            <div className="text-[10px] text-muted-foreground/50 mt-0.5">
+                              {memberBlackouts.length} Sperrtag{memberBlackouts.length !== 1 ? 'e' : ''}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </td>
                     {weeks.map((w, wi) => {
                       const isBlocked = memberBlackouts.some((b: any) => blockedInWeek(w, b.start_date, b.end_date))
@@ -203,28 +248,35 @@ export function Component() {
                       })
                       return (
                         <td key={wi} className="p-1 text-center">
-                          <div className={`h-7 rounded mx-0.5 ${
-                            isBlocked
-                              ? 'bg-destructive/70 border border-destructive/80'
-                              : isShootDay
-                              ? 'bg-primary/15 border border-primary/25'
-                              : 'bg-muted/20'
-                          }`} title={isBlocked ? 'Gesperrt' : isShootDay ? 'Drehtag' : ''} />
+                          <div
+                            className={`h-7 rounded-lg mx-0.5 transition-colors ${
+                              isBlocked
+                                ? 'bg-destructive/60 border border-destructive/70'
+                                : isShootDay
+                                ? 'bg-primary/15 border border-primary/25'
+                                : 'bg-transparent'
+                            }`}
+                            title={isBlocked ? 'Gesperrt' : isShootDay ? 'Drehtag' : ''}
+                          />
                         </td>
                       )
                     })}
-                    <td className="p-2">
-                      {memberBlackouts.map((b: any) => (
-                        <button
-                          key={b.id}
-                          onClick={() => deleteMutation.mutate(b.id)}
-                          className="block w-full text-left text-[10px] text-muted-foreground hover:text-destructive mb-1 truncate"
-                          title={`${b.start_date} – ${b.end_date}${b.reason ? ': ' + b.reason : ''}`}
-                        >
-                          <Trash2 className="w-3 h-3 inline mr-1" />
-                          {b.start_date}
-                        </button>
-                      ))}
+                    <td className="px-2 py-2">
+                      <div className="flex flex-col gap-1">
+                        {memberBlackouts.map((b: any) => (
+                          <button
+                            key={b.id}
+                            onClick={() => deleteMutation.mutate(b.id)}
+                            className="flex items-center gap-1 text-[10px] text-muted-foreground/50 hover:text-destructive transition-colors active:scale-[0.97] group"
+                            title={`${b.start_date} – ${b.end_date}${b.reason ? ': ' + b.reason : ''}`}
+                          >
+                            <div className="w-5 h-5 rounded-md flex items-center justify-center group-hover:bg-destructive/10 transition-colors">
+                              <Trash2 className="w-3 h-3" />
+                            </div>
+                            <span className="truncate max-w-[56px] tabular-nums">{b.start_date}</span>
+                          </button>
+                        ))}
+                      </div>
                     </td>
                   </tr>
                 )
@@ -233,15 +285,19 @@ export function Component() {
           </table>
 
           {/* Legend */}
-          <div className="flex items-center gap-4 p-3 border-t border-border/40 bg-muted/20 text-xs text-muted-foreground">
+          <div className="flex items-center gap-5 px-5 py-3 border-t border-border/30 bg-muted/20">
+            <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">Legende</p>
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-3 rounded bg-destructive/70" /> Sperrtag
+              <div className="w-4 h-3 rounded bg-destructive/60 border border-destructive/70" />
+              <span className="text-[11px] text-muted-foreground">Sperrtag</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-3 rounded bg-primary/15 border border-primary/25" /> Drehtag
+              <div className="w-4 h-3 rounded bg-primary/15 border border-primary/25" />
+              <span className="text-[11px] text-muted-foreground">Drehtag</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-3 rounded bg-muted/20" /> Frei
+              <div className="w-4 h-3 rounded border border-border/30" />
+              <span className="text-[11px] text-muted-foreground">Frei</span>
             </div>
           </div>
         </div>
@@ -249,26 +305,35 @@ export function Component() {
 
       {/* Blackout list */}
       {(blackouts || []).length > 0 && (
-        <div className="rounded-xl border border-border overflow-hidden">
-          <div className="p-4 border-b border-border bg-muted/30">
-            <h2 className="font-semibold text-sm">Alle Sperrtage</h2>
+        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+          <div className="px-5 py-4 border-b border-border/40">
+            <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-0.5">Übersicht</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold">Alle Sperrtage</h2>
+              <span className="text-[11px] text-muted-foreground/50 tabular-nums">({(blackouts || []).length})</span>
+            </div>
           </div>
-          <div className="divide-y divide-border/40">
+          <div className="divide-y divide-border/30">
             {(blackouts || []).map((b: any) => {
               const castMember = (cast || []).find((c: any) => c.id === b.cast_id)
+              const name = castMember?.actor_name || castMember?.name || `Darsteller #${b.cast_id}`
+              const initials = name.split(' ').map((p: string) => p[0]).join('').slice(0, 2).toUpperCase()
               return (
-                <div key={b.id} className="flex items-center gap-3 p-3 hover:bg-muted/20">
-                  <CalendarOff className="w-4 h-4 text-destructive/60 shrink-0" />
+                <div key={b.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-muted/20 transition-colors">
+                  <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center shrink-0 text-[11px] font-bold text-muted-foreground/70">
+                    {initials}
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium">{castMember?.actor_name || castMember?.name || `Darsteller #${b.cast_id}`}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-sm font-medium">{name}</div>
+                    <div className="text-xs text-muted-foreground/60 mt-0.5 tabular-nums">
                       {b.start_date} – {b.end_date}
-                      {b.reason && <span className="ml-2">· {b.reason}</span>}
+                      {b.reason && <span className="ml-2 not-italic">· {b.reason}</span>}
                     </div>
                   </div>
                   <button
                     onClick={() => deleteMutation.mutate(b.id)}
-                    className="w-7 h-7 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors active:scale-[0.97]"
+                    title="Sperrtag löschen"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -283,41 +348,74 @@ export function Component() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Sperrtag hinzufügen</DialogTitle>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center">
+                <CalendarOff className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <DialogTitle>Sperrtag hinzufügen</DialogTitle>
+            </div>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <Label className="text-sm">Darsteller</Label>
+              <Label className="text-sm font-medium">Darsteller</Label>
               <Select value={form.cast_id} onValueChange={v => setForm(f => ({ ...f, cast_id: v }))}>
-                <SelectTrigger className="mt-1">
+                <SelectTrigger className="mt-1.5">
                   <SelectValue placeholder="Darsteller wählen" />
                 </SelectTrigger>
                 <SelectContent>
                   {(cast || []).map((c: any) => (
-                    <SelectItem key={c.id} value={String(c.id)}>{c.actor_name || c.name}</SelectItem>
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.actor_name || c.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-sm">Von</Label>
-                <Input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className="mt-1" />
+                <Label className="text-sm font-medium">Von</Label>
+                <Input
+                  type="date"
+                  value={form.start_date}
+                  onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
+                  className="mt-1.5"
+                />
               </div>
               <div>
-                <Label className="text-sm">Bis</Label>
-                <Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} className="mt-1" />
+                <Label className="text-sm font-medium">Bis</Label>
+                <Input
+                  type="date"
+                  value={form.end_date}
+                  onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
+                  className="mt-1.5"
+                />
               </div>
             </div>
             <div>
-              <Label className="text-sm">Grund (optional)</Label>
-              <Textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} rows={2} className="mt-1 resize-none" placeholder="z.B. anderes Projekt, Urlaub..." />
+              <Label className="text-sm font-medium">
+                Grund <span className="text-muted-foreground/50 font-normal">(optional)</span>
+              </Label>
+              <Textarea
+                value={form.reason}
+                onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
+                rows={2}
+                className="mt-1.5 resize-none"
+                placeholder="z.B. anderes Projekt, Urlaub..."
+              />
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Abbrechen</Button>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" onClick={() => setDialogOpen(false)} className="active:scale-[0.97]">
+                Abbrechen
+              </Button>
               <Button
-                onClick={() => addMutation.mutate({ cast_id: Number(form.cast_id), start_date: form.start_date, end_date: form.end_date, reason: form.reason })}
+                onClick={() => addMutation.mutate({
+                  cast_id: Number(form.cast_id),
+                  start_date: form.start_date,
+                  end_date: form.end_date,
+                  reason: form.reason,
+                })}
                 disabled={!form.cast_id || !form.start_date || !form.end_date || addMutation.isPending}
+                className="active:scale-[0.97]"
               >
                 Hinzufügen
               </Button>

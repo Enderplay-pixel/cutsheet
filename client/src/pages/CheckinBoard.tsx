@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -6,9 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Card, CardContent } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
-import { CheckCircle2, Circle, QrCode, Clock } from 'lucide-react'
+import { CheckCircle2, Circle, QrCode, Clock, Users } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -55,6 +54,11 @@ function formatDateTime(iso: string | undefined) {
 function formatDateLong(iso: string) {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+}
+
+function formatDateShort(iso: string) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -119,136 +123,194 @@ export function Component() {
 
   const selectedDay = shootDays?.find(d => d.id === selectedDayId)
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Check-in Board</h1>
-      </div>
+  const sortedEntries = entries
+    .slice()
+    .sort((a, b) => (a.call_time ?? '').localeCompare(b.call_time ?? ''))
 
-      {/* Day selector */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <span className="text-sm font-medium text-muted-foreground w-24">Drehtag:</span>
-        {loadingDays ? (
-          <Skeleton className="h-10 w-64" />
-        ) : (
-          <Select
-            value={selectedDayId ? String(selectedDayId) : ''}
-            onValueChange={v => setSelectedDayId(Number(v))}
-          >
-            <SelectTrigger className="w-64">
-              <SelectValue placeholder="Drehtag auswählen…" />
-            </SelectTrigger>
-            <SelectContent>
-              {(shootDays ?? []).map(d => (
-                <SelectItem key={d.id} value={String(d.id)}>
-                  DT {d.day_number} – {formatDateLong(d.date)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+  return (
+    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+      {/* Page hero */}
+      <div className="mb-8 pb-7 border-b border-border/40">
+        <div className="flex items-start justify-between gap-6 flex-wrap">
+          <div>
+            <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Check-in Board</h1>
+            <p className="text-sm text-muted-foreground/60 mt-1.5">Anwesenheit live verfolgen und bestätigen</p>
+          </div>
+
+          {/* Stat card */}
+          <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group flex items-start gap-4 min-w-[180px]">
+            <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center shrink-0">
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div>
+              <div className="text-[2.25rem] font-bold tabular-nums leading-none">
+                {selectedDayId && !loadingSheet && callSheet
+                  ? <><span className="text-green-500">{checkedIn}</span><span className="text-muted-foreground/40 text-2xl"> / {total}</span></>
+                  : <span className="text-muted-foreground/30">–</span>
+                }
+              </div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] mt-2 text-muted-foreground">Eingecheckt</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress bar – full width, below hero text */}
+        {selectedDayId && !loadingSheet && callSheet && (
+          <div className="mt-6 space-y-1.5">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className="font-medium">{progressPct}% anwesend</span>
+              <span>{checkedIn} von {total} Personen</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-muted/40 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-green-500 transition-all duration-500"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+          </div>
         )}
       </div>
 
+      {/* Day selector card */}
+      <div className="rounded-xl border border-border/60 bg-card p-5 mb-6">
+        <div className="mb-3">
+          <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">Drehtag</span>
+        </div>
+        {loadingDays ? (
+          <Skeleton className="h-10 w-64 rounded-lg" />
+        ) : (
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <Select
+              value={selectedDayId ? String(selectedDayId) : ''}
+              onValueChange={v => setSelectedDayId(Number(v))}
+            >
+              <SelectTrigger className="w-72">
+                <SelectValue placeholder="Drehtag auswählen…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(shootDays ?? []).map(d => (
+                  <SelectItem key={d.id} value={String(d.id)}>
+                    DT {d.day_number} – {formatDateShort(d.date)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedDay && (
+              <span className="text-sm text-muted-foreground">{formatDateLong(selectedDay.date)}</span>
+            )}
+          </div>
+        )}
+
+        {/* QR guest link */}
+        {selectedDayId && (
+          <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2 w-fit">
+            <QrCode className="h-3.5 w-3.5 shrink-0" />
+            <span>Gastlink: <code className="font-mono">/guest/checkin/{selectedDayId}</code></span>
+          </div>
+        )}
+      </div>
+
+      {/* Empty / loading states */}
       {!selectedDayId && (
-        <p className="text-muted-foreground">Bitte einen Drehtag auswählen.</p>
+        <div className="rounded-xl border border-border/60 bg-card p-16 flex flex-col items-center justify-center gap-3">
+          <CheckCircle2 className="h-10 w-10 opacity-20" />
+          <p className="text-sm text-muted-foreground">Bitte einen Drehtag auswählen.</p>
+        </div>
       )}
 
       {selectedDayId && loadingSheet && (
         <div className="space-y-3">
-          <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+          ))}
         </div>
       )}
 
       {selectedDayId && !loadingSheet && callSheet === null && (
-        <p className="text-muted-foreground">Keine Tagesdispo für diesen Drehtag.</p>
+        <div className="rounded-xl border border-border/60 bg-card p-16 flex flex-col items-center justify-center gap-3">
+          <Circle className="h-10 w-10 opacity-20" />
+          <p className="text-sm text-muted-foreground">Keine Tagesdispo für diesen Drehtag.</p>
+        </div>
       )}
 
       {selectedDayId && !loadingSheet && callSheet && (
-        <div className="space-y-4">
-          {/* Progress */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">{checkedIn} / {total} eingecheckt</span>
-              <span className="text-muted-foreground">{progressPct}%</span>
+        <div className="space-y-3">
+          {entries.length === 0 && (
+            <div className="rounded-xl border border-border/60 bg-card p-16 flex flex-col items-center justify-center gap-3">
+              <Circle className="h-10 w-10 opacity-20" />
+              <p className="text-sm text-muted-foreground">Keine Einträge in dieser Tagesdispo.</p>
             </div>
-            <Progress value={progressPct} className="h-2" />
-          </div>
+          )}
 
-          {/* QR hint */}
-          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/40 rounded-lg px-4 py-2">
-            <QrCode className="h-4 w-4 shrink-0" />
-            <span>Gastlink für Check-in: <code className="font-mono text-xs">/guest/checkin/{selectedDayId}</code></span>
-          </div>
-
-          {/* Entries */}
-          <div className="space-y-2">
-            {entries.length === 0 && (
-              <p className="text-muted-foreground text-sm">Keine Einträge in dieser Tagesdispo.</p>
-            )}
-            {entries
-              .slice()
-              .sort((a, b) => (a.call_time ?? '').localeCompare(b.call_time ?? ''))
-              .map(entry => (
-                <Card key={entry.id} className={`border ${entry.checked_in ? 'border-green-500/30 bg-green-500/5' : 'border-border'}`}>
-                  <CardContent className="flex items-center gap-4 py-3 px-4">
-                    {/* Status icon */}
-                    <div className="shrink-0">
-                      {entry.checked_in ? (
-                        <CheckCircle2 className="h-6 w-6 text-green-500" />
-                      ) : (
-                        <Circle className="h-6 w-6 text-muted-foreground" />
-                      )}
+          {sortedEntries.map(entry => (
+            <div
+              key={entry.id}
+              className={[
+                'rounded-xl border p-5 transition-all duration-300',
+                entry.checked_in
+                  ? 'border-green-500/30 bg-green-500/5 shadow-[0_0_0_1px_rgba(34,197,94,0.1),0_0_20px_rgba(34,197,94,0.07)]'
+                  : 'border-border/60 bg-card',
+              ].join(' ')}
+            >
+              <div className="flex items-center gap-4">
+                {/* Status icon */}
+                <div className="shrink-0">
+                  {entry.checked_in ? (
+                    <div className="w-9 h-9 rounded-xl bg-green-500/10 flex items-center justify-center">
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
                     </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium">{entry.name}</span>
-                        <Badge variant={entry.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px]">
-                          {entry.person_type === 'cast' ? 'Darsteller' : 'Crew'}
-                        </Badge>
-                        {entry.role && (
-                          <span className="text-xs text-muted-foreground">{entry.role}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                        <Clock className="h-3 w-3" />
-                        <span>Call: {formatTime(entry.call_time)}</span>
-                        {entry.checked_in && entry.checked_in_at && (
-                          <span className="ml-2 text-green-600 dark:text-green-400">
-                            Eingecheckt um {formatDateTime(entry.checked_in_at)}
-                          </span>
-                        )}
-                      </div>
+                  ) : (
+                    <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center">
+                      <Circle className="h-5 w-5 text-muted-foreground/40" />
                     </div>
+                  )}
+                </div>
 
-                    {/* Status pill */}
-                    <div className="shrink-0">
-                      {entry.checked_in ? (
-                        <Badge variant="green">Eingecheckt</Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-muted-foreground">Ausstehend</Badge>
-                      )}
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-[0.95rem]">{entry.name}</span>
+                    <Badge variant={entry.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px]">
+                      {entry.person_type === 'cast' ? 'Darsteller' : 'Crew'}
+                    </Badge>
+                    {entry.role && (
+                      <span className="text-xs text-muted-foreground/60">{entry.role}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      <span>Call: <span className="font-medium tabular-nums">{formatTime(entry.call_time)}</span></span>
                     </div>
+                    {entry.checked_in && entry.checked_in_at && (
+                      <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                        Eingecheckt um {formatDateTime(entry.checked_in_at)}
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-                    {/* Action */}
-                    {!entry.checked_in && (
+                {/* Status pill + action */}
+                <div className="shrink-0 flex items-center gap-3">
+                  {entry.checked_in ? (
+                    <Badge variant="green" className="text-[11px] px-2.5 py-0.5">Eingecheckt</Badge>
+                  ) : (
+                    <>
+                      <Badge variant="secondary" className="text-muted-foreground text-[11px] px-2.5 py-0.5">Ausstehend</Badge>
                       <Button
                         size="sm"
                         onClick={() => checkinMutation.mutate(entry.id)}
                         disabled={checkinMutation.isPending}
-                        className="shrink-0"
+                        className="active:scale-[0.97] shrink-0"
                       >
                         Einchecken
                       </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-          </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

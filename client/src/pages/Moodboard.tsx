@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -124,7 +124,7 @@ function AddImageDialog({ open, onClose, pid }: { open: boolean; onClose: () => 
             <TabsContent value="datei" className="mt-3">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full h-32 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                className="w-full h-32 rounded-xl border-2 border-dashed border-border/60 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground hover:border-border transition-colors"
               >
                 <Image className="h-6 w-6" />
                 <span className="text-sm">Klicken zum Hochladen</span>
@@ -141,11 +141,11 @@ function AddImageDialog({ open, onClose, pid }: { open: boolean; onClose: () => 
 
           {/* Preview */}
           {previewSrc && (
-            <div className="relative">
+            <div className="relative rounded-xl overflow-hidden border border-border/60">
               <img
                 src={previewSrc}
                 alt=""
-                className="w-full max-h-40 object-cover rounded-lg border border-border"
+                className="w-full max-h-40 object-cover block"
                 onError={() => setPreviewSrc('')}
               />
             </div>
@@ -183,7 +183,11 @@ function AddImageDialog({ open, onClose, pid }: { open: boolean; onClose: () => 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Abbrechen</Button>
-          <Button onClick={() => saveMutation.mutate()} disabled={!canSave || saveMutation.isPending}>
+          <Button
+            onClick={() => saveMutation.mutate()}
+            disabled={!canSave || saveMutation.isPending}
+            className="active:scale-[0.97]"
+          >
             Hinzufügen
           </Button>
         </DialogFooter>
@@ -204,40 +208,39 @@ function MoodboardCard({
   onClick: () => void
 }) {
   return (
-    <div className="relative group break-inside-avoid mb-4 rounded-xl overflow-hidden border border-border cursor-pointer" onClick={onClick}>
-      <img
-        src={item.image_url}
-        alt={item.title}
-        className="w-full object-cover block"
-        style={{ minHeight: '80px' }}
-      />
-
-      {/* Category badge always visible */}
-      <div className="absolute top-2 left-2">
-        <Badge variant={catVariant(item.category)} className="text-[10px] shadow">
-          {catLabel(item.category)}
-        </Badge>
+    <div
+      className="rounded-xl border border-border/60 bg-card overflow-hidden group hover:border-border transition-colors cursor-pointer"
+      onClick={onClick}
+    >
+      {/* Image */}
+      <div className="relative overflow-hidden bg-muted/30">
+        <img
+          src={item.image_url}
+          alt={item.title}
+          className="w-full object-cover block group-hover:scale-[1.02] transition-transform duration-300"
+          style={{ minHeight: '140px', maxHeight: '220px' }}
+        />
+        {/* Category badge */}
+        <div className="absolute top-2.5 left-2.5">
+          <Badge variant={catVariant(item.category)} className="text-[10px] font-bold uppercase tracking-[0.06em] shadow-sm">
+            {catLabel(item.category)}
+          </Badge>
+        </div>
+        {/* Delete button overlay */}
+        <button
+          onClick={e => { e.stopPropagation(); onDelete() }}
+          className="absolute top-2.5 right-2.5 w-7 h-7 bg-destructive text-destructive-foreground rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm active:scale-[0.97]"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
 
-      {/* Delete button */}
-      <button
-        onClick={e => { e.stopPropagation(); onDelete() }}
-        className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
-
-      {/* Hover overlay with title + notes */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-3 pb-3 pt-8 translate-y-full group-hover:translate-y-0 transition-transform">
-        <p className="text-white text-sm font-semibold leading-snug">{item.title}</p>
+      {/* Info below image */}
+      <div className="px-3.5 py-3">
+        <p className="text-sm font-medium leading-snug truncate">{item.title}</p>
         {item.notes && (
-          <p className="text-white/70 text-xs mt-0.5 line-clamp-2">{item.notes}</p>
+          <p className="text-xs text-muted-foreground/60 mt-0.5 line-clamp-2 leading-relaxed">{item.notes}</p>
         )}
-      </div>
-
-      {/* Title strip always */}
-      <div className="bg-card px-3 py-2 group-hover:hidden">
-        <p className="text-sm font-medium truncate">{item.title}</p>
       </div>
     </div>
   )
@@ -288,49 +291,96 @@ export function Component() {
     : allItems.filter(i => i.category === filterCategory)
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Moodboard</h1>
-        <Button onClick={() => setShowAdd(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Bild hinzufügen
-        </Button>
+    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+      {/* Page hero */}
+      <div className="mb-8 pb-7 border-b border-border/40">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Moodboard</h1>
+            <p className="text-sm text-muted-foreground/60 mt-1.5">
+              {allItems.length === 0
+                ? 'Keine Bilder vorhanden'
+                : `${allItems.length} ${allItems.length === 1 ? 'Bild' : 'Bilder'}`}
+            </p>
+          </div>
+          <Button
+            onClick={() => setShowAdd(true)}
+            className="active:scale-[0.97] shrink-0"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Bild hinzufügen
+          </Button>
+        </div>
       </div>
 
-      {/* Category filter tabs */}
-      <div className="flex flex-wrap gap-2">
+      {/* Category filter pills */}
+      <div className="flex flex-wrap gap-1.5 mb-6">
+        <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 self-center mr-1">
+          Kategorie
+        </span>
         <button
           onClick={() => setFilterCategory('all')}
-          className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filterCategory === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border active:scale-[0.97] ${
+            filterCategory === 'all'
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-muted/50 text-muted-foreground border-border/60 hover:border-border hover:text-foreground'
+          }`}
         >
           Alle
+          {allItems.length > 0 && (
+            <span className={`ml-1.5 rounded-full px-1.5 py-px text-[10px] font-bold ${
+              filterCategory === 'all' ? 'bg-primary-foreground/20' : 'bg-muted-foreground/10'
+            }`}>
+              {allItems.length}
+            </span>
+          )}
         </button>
-        {CATEGORIES.map(c => (
-          <button
-            key={c.value}
-            onClick={() => setFilterCategory(c.value)}
-            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filterCategory === c.value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
-          >
-            {c.label}
-          </button>
-        ))}
+        {CATEGORIES.filter(c => allItems.some(i => i.category === c.value)).map(c => {
+          const count = allItems.filter(i => i.category === c.value).length
+          return (
+            <button
+              key={c.value}
+              onClick={() => setFilterCategory(filterCategory === c.value ? 'all' : c.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border active:scale-[0.97] ${
+                filterCategory === c.value
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-muted/50 text-muted-foreground border-border/60 hover:border-border hover:text-foreground'
+              }`}
+            >
+              {c.label}
+              <span className={`ml-1.5 rounded-full px-1.5 py-px text-[10px] font-bold ${
+                filterCategory === c.value ? 'bg-primary-foreground/20' : 'bg-muted-foreground/10'
+              }`}>
+                {count}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Grid */}
       {isLoading ? (
-        <div style={{ columns: '1 300px', gap: '1rem' }}>
-          {[...Array(8)].map((_, i) => (
-            <Skeleton key={i} className="mb-4 break-inside-avoid" style={{ height: `${140 + (i % 3) * 60}px` }} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} className="rounded-xl" style={{ height: `${180 + (i % 3) * 40}px` }} />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
-          <Image className="h-12 w-12 opacity-30" />
-          <p>Keine Bilder vorhanden. Füge dein erstes Bild hinzu!</p>
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center">
+            <Image className="h-5 w-5 opacity-20" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-muted-foreground/60">
+              {filterCategory === 'all' ? 'Keine Bilder vorhanden' : 'Keine Bilder in dieser Kategorie'}
+            </p>
+            <p className="text-xs text-muted-foreground/40 mt-1">
+              {filterCategory === 'all' ? 'Füge dein erstes Bild hinzu' : 'Wähle eine andere Kategorie'}
+            </p>
+          </div>
         </div>
       ) : (
-        <div style={{ columns: '1 280px', gap: '1rem' }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(item => (
             <MoodboardCard
               key={item.id}
