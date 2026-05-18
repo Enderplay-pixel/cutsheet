@@ -14,9 +14,6 @@ import {
   Clapperboard, CheckCircle2, Loader2, Download, Type, PenLine,
 } from 'lucide-react'
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
-import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
@@ -911,29 +908,45 @@ export function Component() {
 
           <div className="h-4 w-px bg-border/60" />
 
-          {/* Block type selector — always visible, disabled when no block focused */}
-          <Select
-            value={activeBlock?.block_type ?? ''}
-            onValueChange={(v) => activeBlock && handleTypeChange(activeBlock.id, v as BlockType)}
-            disabled={!activeBlock}
-          >
-            <SelectTrigger className="h-7 w-44 text-xs" disabled={!activeBlock}>
-              <SelectValue placeholder={tt(screenplayT.typeAction)} />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(blockTypeLabels) as BlockType[]).map(type => {
-                const Icon = blockTypeIcons[type]
-                return (
-                  <SelectItem key={type} value={type} className="text-xs">
-                    <span className="flex items-center gap-2">
-                      <Icon className="w-3 h-3 text-muted-foreground" />
-                      {blockTypeLabels[type]}
-                    </span>
-                  </SelectItem>
-                )
-              })}
-            </SelectContent>
-          </Select>
+          {/* Block type selector — DropdownMenu (avoids Radix Select pointerdown/up race) */}
+          {(() => {
+            const ActiveIcon = activeBlock ? blockTypeIcons[activeBlock.block_type] : AlignLeft
+            const activeLabel = activeBlock ? blockTypeLabels[activeBlock.block_type] : tt(screenplayT.typeAction)
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 w-44 text-xs justify-start gap-2 font-normal"
+                    disabled={!activeBlock}
+                  >
+                    <ActiveIcon className="w-3 h-3 text-muted-foreground shrink-0" />
+                    <span className="truncate flex-1 text-left">{activeLabel}</span>
+                    <ChevronDown className="w-3 h-3 opacity-40 shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  {(Object.keys(blockTypeLabels) as BlockType[]).map(type => {
+                    const Icon = blockTypeIcons[type]
+                    return (
+                      <DropdownMenuItem
+                        key={type}
+                        className={cn(
+                          'text-xs gap-2 cursor-pointer',
+                          activeBlock?.block_type === type && 'bg-accent'
+                        )}
+                        onClick={() => activeBlock && handleTypeChange(activeBlock.id, type)}
+                      >
+                        <Icon className="w-3 h-3 text-muted-foreground" />
+                        {blockTypeLabels[type]}
+                      </DropdownMenuItem>
+                    )
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )
+          })()}
 
           {/* Character suffix picker (only when character block is active) */}
           {activeBlock?.block_type === 'character' && (
