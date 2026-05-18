@@ -1,8 +1,12 @@
 import { Router, Request, Response } from 'express'
-import { db } from '../db'
+import { db, pool } from '../db'
 import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
 
 const router = Router()
+
+// Ensure annotation_color column exists (idempotent, safe to call multiple times)
+pool.query(`ALTER TABLE screenplay_blocks ADD COLUMN IF NOT EXISTS annotation_color TEXT NOT NULL DEFAULT '#f59e0b'`)
+  .catch(() => { /* column already exists or table not yet created — ignore */ })
 
 // All /projects/:projectId/* routes require membership
 router.use('/projects/:projectId', requireMember)
@@ -66,10 +70,24 @@ router.post('/scenes/:sceneId/blocks', async (req, res) => {
     return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
   }
 
-  const result = await db.run(`
-    INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content, annotation_color)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `, [sceneId, scene.project_id, sort_order, block_type, content, annotation_color])
+  // Insert without annotation_color first (works even if column not yet migrated)
+  let result: { id: number; changes: number }
+  try {
+    result = await db.run(`
+      INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content, annotation_color)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [sceneId, scene.project_id, sort_order, block_type, content, annotation_color])
+  } catch (err: any) {
+    // Column may not exist yet — fall back to insert without it
+    if (err?.message?.includes('annotation_color') || err?.code === '42703') {
+      result = await db.run(`
+        INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
+        VALUES (?, ?, ?, ?, ?)
+      `, [sceneId, scene.project_id, sort_order, block_type, content])
+    } else {
+      throw err
+    }
+  }
 
   const block = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [result.id])
   res.status(201).json({ data: block, error: null })
