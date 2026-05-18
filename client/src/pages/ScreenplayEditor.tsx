@@ -11,7 +11,7 @@ import { screenplayT } from '@/lib/i18n'
 import {
   ArrowLeft, Plus, Upload, FileText, ChevronRight, Film,
   AlignLeft, User, MessageSquare, Parentheses, CornerUpRight, StickyNote,
-  Clapperboard, CheckCircle2, Loader2, Download, Type,
+  Clapperboard, CheckCircle2, Loader2, Download, Type, PenLine,
 } from 'lucide-react'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -32,6 +32,7 @@ type BlockType =
   | 'note'
   | 'super'
   | 'intercut'
+  | 'annotation'
 
 interface ScreenplayBlock {
   id: number
@@ -40,6 +41,7 @@ interface ScreenplayBlock {
   sort_order: number
   block_type: BlockType
   content: string
+  annotation_color: string
   created_at: string
   updated_at: string
 }
@@ -88,7 +90,11 @@ const ENTER_NEXT_TYPE: Record<BlockType, BlockType> = {
   note: 'action',
   super: 'action',
   intercut: 'action',
+  annotation: 'action',
 }
+
+// Predefined annotation colors
+const ANNOTATION_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#ec4899']
 
 // ─── Block styling ────────────────────────────────────────────────────────────
 
@@ -113,6 +119,8 @@ function getBlockStyle(type: BlockType): string {
       return cn(base, 'uppercase text-center font-bold text-primary/80')
     case 'intercut':
       return cn(base, 'uppercase font-bold text-foreground')
+    case 'annotation':
+      return cn(base, 'text-xs font-sans italic')
   }
 }
 
@@ -136,6 +144,10 @@ function getBlockContainerStyle(type: BlockType): string {
       return 'mt-4 mb-1 py-1 px-[10%] bg-primary/4 rounded'
     case 'intercut':
       return 'mt-6 mb-1 pt-2 border-t-2 border-dashed border-border/50'
+    case 'annotation':
+      return 'py-1 px-3 my-1 rounded-r border-l-2'
+    default:
+      return ''
   }
 }
 
@@ -305,15 +317,23 @@ function BlockEditor({
     : block.block_type === 'dialogue' ? 'Dialogue…'
     : block.block_type === 'super' ? 'SUPER: "TEXT"'
     : block.block_type === 'intercut' ? 'INTERCUT WITH:'
+    : block.block_type === 'annotation' ? 'Anmerkung…'
     : 'Action…'
+
+  const annotationStyle = block.block_type === 'annotation' ? {
+    borderLeftColor: block.annotation_color || '#f59e0b',
+    backgroundColor: `${block.annotation_color || '#f59e0b'}18`,
+    color: block.annotation_color || '#f59e0b',
+  } : undefined
 
   return (
     <div
       className={cn(
         'group relative rounded transition-colors',
         getBlockContainerStyle(block.block_type),
-        isActive && 'bg-primary/3'
+        isActive && block.block_type !== 'annotation' && 'bg-primary/3'
       )}
+      style={annotationStyle}
       onClick={onFocus}
     >
       {/* Block type label on left when active */}
@@ -539,6 +559,7 @@ export function Component() {
     note: tt(screenplayT.typeNote),
     super: tt(screenplayT.typeSuper),
     intercut: tt(screenplayT.typeIntercut),
+    annotation: tt(screenplayT.typeAnnotation),
   }
 
   const blockTypeIcons: Record<BlockType, React.ElementType> = {
@@ -551,6 +572,7 @@ export function Component() {
     note: StickyNote,
     super: Type,
     intercut: Film,
+    annotation: PenLine,
   }
 
   // ─── Data fetching ─────────────────────────────────────────────────────────
@@ -776,6 +798,18 @@ export function Component() {
     URL.revokeObjectURL(url)
   }
 
+  // ─── Annotation color change ──────────────────────────────────────────────
+
+  const handleAnnotationColorChange = useCallback((blockId: number, color: string) => {
+    setLocalScenes(prev =>
+      prev.map(sd => ({
+        ...sd,
+        blocks: sd.blocks.map(b => (b.id === blockId ? { ...b, annotation_color: color } : b)),
+      }))
+    )
+    updateBlockMutation.mutate({ blockId, data: { annotation_color: color } })
+  }, [])
+
   // ─── Character suffix insert ───────────────────────────────────────────────
 
   function insertCharSuffix(suffix: string) {
@@ -947,6 +981,27 @@ export function Component() {
             </DropdownMenu>
           )}
 
+          {/* Annotation color picker (only when annotation block is active) */}
+          {activeBlock?.block_type === 'annotation' && (
+            <div className="flex items-center gap-1.5 pl-1">
+              <PenLine className="w-3 h-3 text-muted-foreground/50" />
+              {ANNOTATION_COLORS.map(color => (
+                <button
+                  key={color}
+                  title={color}
+                  className={cn(
+                    'w-4 h-4 rounded-full border-2 transition-all active:scale-90',
+                    activeBlock.annotation_color === color
+                      ? 'border-foreground scale-110'
+                      : 'border-transparent hover:scale-110'
+                  )}
+                  style={{ backgroundColor: color }}
+                  onClick={() => handleAnnotationColorChange(activeBlock.id, color)}
+                />
+              ))}
+            </div>
+          )}
+
           <div className="flex-1" />
 
           <SaveStatus saving={saving} tt={tt} />
@@ -985,6 +1040,12 @@ export function Component() {
                 <a href={api.pdf.screenplay(pid)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                   <FileText className="w-3 h-3" />
                   {tt(screenplayT.exportPdf)}
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="text-xs cursor-pointer">
+                <a href={api.pdf.screenplayWithNotes(pid)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                  <PenLine className="w-3 h-3" />
+                  {tt(screenplayT.exportPdfNotes)}
                 </a>
               </DropdownMenuItem>
               <DropdownMenuItem className="text-xs cursor-pointer" onClick={handleFountainExport}>

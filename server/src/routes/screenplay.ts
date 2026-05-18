@@ -58,7 +58,7 @@ router.get('/scenes/:sceneId/blocks', async (req: Request, res: Response) => {
 // ─── POST /api/scenes/:sceneId/blocks ────────────────────────────────────────
 router.post('/scenes/:sceneId/blocks', async (req, res) => {
   const { sceneId } = req.params
-  const { block_type = 'action', content = '', sort_order = 0 } = req.body
+  const { block_type = 'action', content = '', sort_order = 0, annotation_color = '#f59e0b' } = req.body
 
   // Get project_id from the scene
   const scene = await db.get('SELECT project_id FROM scenes WHERE id = ?', [sceneId]) as { project_id: number } | undefined
@@ -67,9 +67,9 @@ router.post('/scenes/:sceneId/blocks', async (req, res) => {
   }
 
   const result = await db.run(`
-    INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
-    VALUES (?, ?, ?, ?, ?)
-  `, [sceneId, scene.project_id, sort_order, block_type, content])
+    INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content, annotation_color)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `, [sceneId, scene.project_id, sort_order, block_type, content, annotation_color])
 
   const block = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [result.id])
   res.status(201).json({ data: block, error: null })
@@ -78,7 +78,7 @@ router.post('/scenes/:sceneId/blocks', async (req, res) => {
 // ─── PUT /api/blocks/:blockId ─────────────────────────────────────────────────
 router.put('/blocks/:blockId', async (req, res) => {
   const { blockId } = req.params
-  const { content, sort_order, block_type } = req.body
+  const { content, sort_order, block_type, annotation_color } = req.body
 
   const existing = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [blockId]) as any
   if (!existing) {
@@ -91,12 +91,14 @@ router.put('/blocks/:blockId', async (req, res) => {
       content = COALESCE(?, content),
       sort_order = COALESCE(?, sort_order),
       block_type = COALESCE(?, block_type),
-      updated_at = datetime('now')
+      annotation_color = COALESCE(?, annotation_color),
+      updated_at = NOW()
     WHERE id = ?
   `, [
     content !== undefined ? content : null,
     sort_order !== undefined ? sort_order : null,
     block_type !== undefined ? block_type : null,
+    annotation_color !== undefined ? annotation_color : null,
     blockId
   ])
 

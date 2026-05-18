@@ -546,6 +546,7 @@ const SCHEMA = `
     sort_order INTEGER NOT NULL DEFAULT 0,
     block_type TEXT NOT NULL DEFAULT 'action',
     content TEXT NOT NULL DEFAULT '',
+    annotation_color TEXT NOT NULL DEFAULT '#f59e0b',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
@@ -814,6 +815,9 @@ export async function initDatabase() {
     EXCEPTION WHEN duplicate_column THEN NULL; END $$;
     DO $$ BEGIN
       ALTER TABLE call_sheet_entries ADD COLUMN viewed_at TIMESTAMPTZ;
+    EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+    DO $$ BEGIN
+      ALTER TABLE screenplay_blocks ADD COLUMN annotation_color TEXT NOT NULL DEFAULT '#f59e0b';
     EXCEPTION WHEN duplicate_column THEN NULL; END $$;
   `)
 

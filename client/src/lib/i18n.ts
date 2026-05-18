@@ -550,6 +550,8 @@ export const screenplayT = {
   typeNote:          { en: 'Note',               de: 'Notiz',               fr: 'Note'                 },
   typeSuper:         { en: 'Super / Title Card', de: 'Super / Einblendung', fr: 'Super / Titre'        },
   typeIntercut:      { en: 'Intercut',           de: 'Intercut',            fr: 'Intercut'             },
+  typeAnnotation:    { en: 'Annotation',          de: 'Anmerkung',           fr: 'Annotation'           },
+  exportPdfNotes:    { en: 'PDF with Notes',       de: 'PDF mit Anmerkungen', fr: 'PDF avec annotations' },
   suffixVO:          { en: 'V.O.',               de: 'V.O.',                fr: 'V.O.'                 },
   suffixOS:          { en: 'O.S.',               de: 'O.S.',                fr: 'H.C.'                 },
   suffixOC:          { en: 'O.C.',               de: 'O.C.',                fr: 'H.C.'                 },

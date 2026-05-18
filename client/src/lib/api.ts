@@ -168,7 +168,8 @@ export const api = {
     kalkulation:    (projectId: number, versionId: number) => `/api/projects/${projectId}/pdf/kalkulation/${versionId}`,
     equipment:      (projectId: number) => `/api/projects/${projectId}/pdf/equipment`,
     shotlist:       (projectId: number) => `/api/projects/${projectId}/pdf/shotlist`,
-    screenplay:     (projectId: number) => `/api/projects/${projectId}/pdf/screenplay`,
+    screenplay:          (projectId: number) => `/api/projects/${projectId}/pdf/screenplay`,
+    screenplayWithNotes: (projectId: number) => `/api/projects/${projectId}/pdf/screenplay?notes=1`,
   },
 
   // ─── Invites & Members ────────────────────────────────────────────────────
