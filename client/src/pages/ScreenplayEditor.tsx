@@ -331,7 +331,7 @@ function BlockEditor({
         isActive && block.block_type !== 'annotation' && 'bg-primary/3'
       )}
       style={annotationStyle}
-      onClick={onFocus}
+      onClick={(e) => { e.stopPropagation(); onFocus() }}
     >
       {/* Block type label on left when active */}
       {isActive && (
@@ -417,6 +417,7 @@ interface SceneSectionProps {
   onEnterKey: (blockId: number, atEnd: boolean) => void
   onBackspaceEmpty: (blockId: number) => void
   onTabKey: (blockId: number, shift: boolean) => void
+  onCreateFirstBlock: (sceneId: number) => void
   textareaRefs: React.MutableRefObject<Map<number, HTMLTextAreaElement>>
   sectionRef: (el: HTMLDivElement | null) => void
   blockTypeLabels: Record<BlockType, string>
@@ -432,6 +433,7 @@ function SceneSection({
   onEnterKey,
   onBackspaceEmpty,
   onTabKey,
+  onCreateFirstBlock,
   textareaRefs,
   sectionRef,
   blockTypeLabels,
@@ -448,13 +450,21 @@ function SceneSection({
   return (
     <div ref={sectionRef} className="mb-12" data-scene-id={scene.id}>
       {!headingBlock && (
-        <div className="mt-8 mb-1 pt-3 border-t border-border/30 relative">
+        <div
+          className="mt-8 mb-1 pt-3 border-t border-border/30 relative cursor-text group"
+          onClick={(e) => { e.stopPropagation(); onCreateFirstBlock(scene.id) }}
+        >
           <span className="absolute -left-8 top-3.5 text-[10px] font-mono text-muted-foreground/40 select-none">
             {scene.scene_number}.
           </span>
           <p className="font-mono text-sm font-bold uppercase text-foreground">
             {scene.int_ext}. {scene.title} – {scene.day_night}
           </p>
+          {allBlocks.length === 0 && (
+            <p className="font-mono text-xs text-muted-foreground/30 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              Klicken um Inhalt hinzuzufügen…
+            </p>
+          )}
         </div>
       )}
 
@@ -807,6 +817,15 @@ export function Component() {
     updateBlockMutation.mutate({ blockId, data: { annotation_color: color } })
   }, [])
 
+  // ─── Create first block for empty scene ──────────────────────────────────
+
+  const handleCreateFirstBlock = useCallback((sceneId: number) => {
+    createBlockMutation.mutate({
+      sceneId,
+      data: { block_type: 'action', content: '', sort_order: 0 },
+    })
+  }, [])
+
   // ─── Character suffix insert ───────────────────────────────────────────────
 
   function insertCharSuffix(suffix: string) {
@@ -1119,6 +1138,7 @@ export function Component() {
                   onEnterKey={handleEnterKey}
                   onBackspaceEmpty={handleBackspaceEmpty}
                   onTabKey={handleTabKey}
+                  onCreateFirstBlock={handleCreateFirstBlock}
                   textareaRefs={textareaRefs}
                   sectionRef={el => {
                     if (el) sectionRefs.current.set(sd.scene.id, el)
