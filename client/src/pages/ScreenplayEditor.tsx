@@ -911,30 +911,29 @@ export function Component() {
 
           <div className="h-4 w-px bg-border/60" />
 
-          {/* Block type selector */}
-          {activeBlock && (
-            <Select
-              value={activeBlock.block_type}
-              onValueChange={(v) => handleTypeChange(activeBlock.id, v as BlockType)}
-            >
-              <SelectTrigger className="h-7 w-44 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.keys(blockTypeLabels) as BlockType[]).map(type => {
-                  const Icon = blockTypeIcons[type]
-                  return (
-                    <SelectItem key={type} value={type} className="text-xs">
-                      <span className="flex items-center gap-2">
-                        <Icon className="w-3 h-3 text-muted-foreground" />
-                        {blockTypeLabels[type]}
-                      </span>
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
-          )}
+          {/* Block type selector — always visible, disabled when no block focused */}
+          <Select
+            value={activeBlock?.block_type ?? ''}
+            onValueChange={(v) => activeBlock && handleTypeChange(activeBlock.id, v as BlockType)}
+            disabled={!activeBlock}
+          >
+            <SelectTrigger className="h-7 w-44 text-xs" disabled={!activeBlock}>
+              <SelectValue placeholder={tt(screenplayT.typeAction)} />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(blockTypeLabels) as BlockType[]).map(type => {
+                const Icon = blockTypeIcons[type]
+                return (
+                  <SelectItem key={type} value={type} className="text-xs">
+                    <span className="flex items-center gap-2">
+                      <Icon className="w-3 h-3 text-muted-foreground" />
+                      {blockTypeLabels[type]}
+                    </span>
+                  </SelectItem>
+                )
+              })}
+            </SelectContent>
+          </Select>
 
           {/* Character suffix picker (only when character block is active) */}
           {activeBlock?.block_type === 'character' && (

@@ -802,24 +802,12 @@ export async function initDatabase() {
     EXCEPTION WHEN duplicate_object THEN NULL; END $$;
   `)
 
-  // Add new columns to call_sheet_entries (A1 check-in, C3 confirmation tracking)
-  await db.exec(`
-    DO $$ BEGIN
-      ALTER TABLE call_sheet_entries ADD COLUMN checked_in BOOLEAN DEFAULT false;
-    EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-    DO $$ BEGIN
-      ALTER TABLE call_sheet_entries ADD COLUMN checked_in_at TIMESTAMPTZ;
-    EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-    DO $$ BEGIN
-      ALTER TABLE call_sheet_entries ADD COLUMN confirmed_at TIMESTAMPTZ;
-    EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-    DO $$ BEGIN
-      ALTER TABLE call_sheet_entries ADD COLUMN viewed_at TIMESTAMPTZ;
-    EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-    DO $$ BEGIN
-      ALTER TABLE screenplay_blocks ADD COLUMN annotation_color TEXT NOT NULL DEFAULT '#f59e0b';
-    EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-  `)
+  // Add new columns — each in its own exec() call to avoid multi-statement issues
+  await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS checked_in BOOLEAN DEFAULT false`)
+  await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS checked_in_at TIMESTAMPTZ`)
+  await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ`)
+  await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMPTZ`)
+  await db.exec(`ALTER TABLE screenplay_blocks ADD COLUMN IF NOT EXISTS annotation_color TEXT NOT NULL DEFAULT '#f59e0b'`)
 
   // Check if empty — seed demo data on first run
   const count = await db.get('SELECT COUNT(*) as c FROM projects')
