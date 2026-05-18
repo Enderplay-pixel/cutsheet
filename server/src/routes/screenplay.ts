@@ -62,7 +62,7 @@ router.get('/scenes/:sceneId/blocks', async (req: Request, res: Response) => {
 // ─── POST /api/scenes/:sceneId/blocks ────────────────────────────────────────
 router.post('/scenes/:sceneId/blocks', async (req, res) => {
   const { sceneId } = req.params
-  const { block_type = 'action', content = '', sort_order = 0, annotation_color = '#f59e0b' } = req.body
+  const { block_type = 'action', content = '', sort_order = 0, annotation_color } = req.body
 
   // Get project_id from the scene
   const scene = await db.get('SELECT project_id FROM scenes WHERE id = ?', [sceneId]) as { project_id: number } | undefined
@@ -70,23 +70,16 @@ router.post('/scenes/:sceneId/blocks', async (req, res) => {
     return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
   }
 
-  // Insert without annotation_color first (works even if column not yet migrated)
-  let result: { id: number; changes: number }
-  try {
-    result = await db.run(`
-      INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content, annotation_color)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [sceneId, scene.project_id, sort_order, block_type, content, annotation_color])
-  } catch (err: any) {
-    // Column may not exist yet — fall back to insert without it
-    if (err?.message?.includes('annotation_color') || err?.code === '42703') {
-      result = await db.run(`
-        INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
-        VALUES (?, ?, ?, ?, ?)
-      `, [sceneId, scene.project_id, sort_order, block_type, content])
-    } else {
-      throw err
-    }
+  // Always INSERT without annotation_color — let DB default (#f59e0b) handle it.
+  // Then UPDATE annotation_color separately if a custom one was provided.
+  const result = await db.run(`
+    INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
+    VALUES (?, ?, ?, ?, ?)
+  `, [sceneId, scene.project_id, sort_order, block_type, content])
+
+  // Set custom annotation_color if provided and column exists
+  if (annotation_color && annotation_color !== '#f59e0b') {
+    await db.run(`UPDATE screenplay_blocks SET annotation_color = ? WHERE id = ?`, [annotation_color, result.id]).catch(() => {})
   }
 
   const block = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [result.id])
