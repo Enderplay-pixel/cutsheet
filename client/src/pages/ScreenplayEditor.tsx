@@ -908,10 +908,10 @@ export function Component() {
 
           <div className="h-4 w-px bg-border/60" />
 
-          {/* Block type selector — DropdownMenu (avoids Radix Select pointerdown/up race) */}
+          {/* Block type selector */}
           {(() => {
             const ActiveIcon = activeBlock ? blockTypeIcons[activeBlock.block_type] : AlignLeft
-            const activeLabel = activeBlock ? blockTypeLabels[activeBlock.block_type] : tt(screenplayT.typeAction)
+            const activeLabel = activeBlock ? blockTypeLabels[activeBlock.block_type] : '—'
             return (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -919,31 +919,32 @@ export function Component() {
                     variant="outline"
                     size="sm"
                     className="h-7 w-44 text-xs justify-start gap-2 font-normal"
-                    disabled={!activeBlock}
                   >
                     <ActiveIcon className="w-3 h-3 text-muted-foreground shrink-0" />
                     <span className="truncate flex-1 text-left">{activeLabel}</span>
                     <ChevronDown className="w-3 h-3 opacity-40 shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-44">
-                  {(Object.keys(blockTypeLabels) as BlockType[]).map(type => {
-                    const Icon = blockTypeIcons[type]
-                    return (
-                      <DropdownMenuItem
-                        key={type}
-                        className={cn(
-                          'text-xs gap-2 cursor-pointer',
-                          activeBlock?.block_type === type && 'bg-accent'
-                        )}
-                        onClick={() => activeBlock && handleTypeChange(activeBlock.id, type)}
-                      >
-                        <Icon className="w-3 h-3 text-muted-foreground" />
-                        {blockTypeLabels[type]}
-                      </DropdownMenuItem>
-                    )
-                  })}
-                </DropdownMenuContent>
+                {activeBlock && (
+                  <DropdownMenuContent align="start" className="w-44">
+                    {(Object.keys(blockTypeLabels) as BlockType[]).map(type => {
+                      const Icon = blockTypeIcons[type]
+                      return (
+                        <DropdownMenuItem
+                          key={type}
+                          className={cn(
+                            'text-xs gap-2 cursor-pointer',
+                            activeBlock.block_type === type && 'bg-accent'
+                          )}
+                          onClick={() => handleTypeChange(activeBlock.id, type)}
+                        >
+                          <Icon className="w-3 h-3 text-muted-foreground" />
+                          {blockTypeLabels[type]}
+                        </DropdownMenuItem>
+                      )
+                    })}
+                  </DropdownMenuContent>
+                )}
               </DropdownMenu>
             )
           })()}
