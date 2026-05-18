@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { useT } from '@/lib/useT'
 import { screenplayT } from '@/lib/i18n'
 import {
-  ArrowLeft, Plus, Upload, FileText, ChevronRight, Film,
+  ArrowLeft, Plus, Upload, FileText, ChevronRight, ChevronDown, Film,
   AlignLeft, User, MessageSquare, Parentheses, CornerUpRight, StickyNote,
   Clapperboard, CheckCircle2, Loader2, Download, Type, PenLine,
 } from 'lucide-react'
@@ -1033,6 +1033,7 @@ export function Component() {
               <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
                 <Download className="w-3 h-3" />
                 {tt(screenplayT.exportPdf)}
+                <ChevronDown className="w-3 h-3 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="text-xs">
