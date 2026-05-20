@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
-import { Image, StickyNote, Palette, Trash2, X, Plus, GripVertical, Link } from 'lucide-react'
+import { Image, StickyNote, Palette, X, Upload, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -294,10 +294,10 @@ function AddPanel({
       <div className="flex items-center gap-2 bg-[#1e1e22]/90 backdrop-blur border border-white/10 rounded-2xl px-4 py-2.5 shadow-2xl">
         <span className="text-[11px] text-white/30 font-medium mr-1">Hinzufügen</span>
         {[
-          { icon: Image,      label: 'Bild URL',  m: 'image-url'  as AddMode },
-          { icon: GripVertical, label: 'Bild Datei', m: 'image-file' as AddMode },
-          { icon: StickyNote, label: 'Notiz',     m: 'note'       as AddMode },
-          { icon: Palette,    label: 'Farbe',     m: 'color'      as AddMode },
+          { icon: Image,      label: 'Bild URL',   m: 'image-url'  as AddMode },
+          { icon: Upload,     label: 'Bild Datei', m: 'image-file' as AddMode },
+          { icon: StickyNote, label: 'Notiz',      m: 'note'       as AddMode },
+          { icon: Palette,    label: 'Farbe',      m: 'color'      as AddMode },
         ].map(({ icon: Icon, label, m }) => (
           <button
             key={label}
@@ -330,7 +330,8 @@ function AddPanel({
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="Titel…"
-            className="w-full bg-white/6 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white/80 placeholder:text-white/25 outline-none focus:border-white/20"
+            className="w-full rounded-lg px-3 py-2 text-[13px] outline-none"
+            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.85)' }}
           />
         )}
 
@@ -339,7 +340,8 @@ function AddPanel({
             value={imageUrl}
             onChange={e => setImageUrl(e.target.value)}
             placeholder="https://…"
-            className="w-full bg-white/6 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white/80 placeholder:text-white/25 outline-none focus:border-white/20 font-mono text-[11px]"
+            className="w-full rounded-lg px-3 py-2 text-[11px] font-mono outline-none"
+            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.85)' }}
           />
         )}
 
@@ -347,9 +349,10 @@ function AddPanel({
           <>
             <button
               onClick={() => fileRef.current?.click()}
-              className="w-full h-20 rounded-lg border-2 border-dashed border-white/10 hover:border-white/20 text-white/30 hover:text-white/50 transition-colors flex flex-col items-center justify-center gap-1.5"
+              className="w-full h-20 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-1.5 transition-colors"
+              style={{ borderColor: fileBase64 ? 'rgba(74,222,128,0.4)' : 'rgba(255,255,255,0.12)', color: fileBase64 ? 'rgba(74,222,128,0.8)' : 'rgba(255,255,255,0.35)' }}
             >
-              <Image className="w-5 h-5" />
+              <Upload className="w-5 h-5" />
               <span className="text-[11px]">{fileBase64 ? 'Datei ausgewählt ✓' : 'Klicken zum Auswählen'}</span>
             </button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
@@ -358,12 +361,12 @@ function AddPanel({
 
         {mode === 'note' && (
           <textarea
-            autoFocus
             value={notes}
             onChange={e => setNotes(e.target.value)}
             placeholder="Notizinhalt…"
             rows={3}
-            className="w-full bg-white/6 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white/80 placeholder:text-white/25 outline-none focus:border-white/20 resize-none"
+            className="w-full rounded-lg px-3 py-2 text-[13px] outline-none resize-none"
+            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.85)' }}
           />
         )}
 
@@ -373,13 +376,15 @@ function AddPanel({
               type="color"
               value={color}
               onChange={e => setColor(e.target.value)}
-              className="w-12 h-10 rounded-lg border border-white/10 cursor-pointer bg-transparent"
+              className="w-12 h-10 rounded-lg cursor-pointer"
+              style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'transparent' }}
             />
             <input
               value={color}
               onChange={e => setColor(e.target.value)}
               placeholder="#3b82f6"
-              className="flex-1 bg-white/6 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white/80 font-mono outline-none focus:border-white/20"
+              className="flex-1 rounded-lg px-3 py-2 text-[13px] font-mono outline-none"
+              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.85)' }}
             />
           </div>
         )}
@@ -412,6 +417,14 @@ export function Component() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to item cluster on first load
+  useEffect(() => {
+    if (!items.length || !scrollRef.current) return
+    const minX = Math.min(...items.map(i => i.position_x))
+    const minY = Math.min(...items.map(i => i.position_y))
+    scrollRef.current.scrollTo({ left: Math.max(0, minX - 80), top: Math.max(0, minY - 80), behavior: 'smooth' })
+  }, [items.length > 0])
 
   const { data: items = [], isLoading } = useQuery<MoodItem[]>({
     queryKey: ['moodboard', pid],
@@ -515,6 +528,31 @@ export function Component() {
           ))}
         </div>
       </div>
+
+      {/* Canvas navigation arrows */}
+      {[
+        { dir: 'up',    Icon: ChevronUp,    style: { top: 72, left: '50%', transform: 'translateX(-50%)' } },
+        { dir: 'down',  Icon: ChevronDown,  style: { bottom: 72, left: '50%', transform: 'translateX(-50%)' } },
+        { dir: 'left',  Icon: ChevronLeft,  style: { left: 8, top: '50%', transform: 'translateY(-50%)' } },
+        { dir: 'right', Icon: ChevronRight, style: { right: 8, top: '50%', transform: 'translateY(-50%)' } },
+      ].map(({ dir, Icon, style }) => (
+        <button
+          key={dir}
+          className="absolute z-40 w-8 h-8 rounded-full flex items-center justify-center transition-opacity opacity-30 hover:opacity-80"
+          style={{ ...style, background: 'rgba(255,255,255,0.1)', color: '#fff' }}
+          onClick={() => {
+            const el = scrollRef.current
+            if (!el) return
+            const d = 200
+            if (dir === 'up')    el.scrollBy({ top: -d, behavior: 'smooth' })
+            if (dir === 'down')  el.scrollBy({ top:  d, behavior: 'smooth' })
+            if (dir === 'left')  el.scrollBy({ left: -d, behavior: 'smooth' })
+            if (dir === 'right') el.scrollBy({ left:  d, behavior: 'smooth' })
+          }}
+        >
+          <Icon className="w-4 h-4" />
+        </button>
+      ))}
 
       {/* Floating add panel */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50">
