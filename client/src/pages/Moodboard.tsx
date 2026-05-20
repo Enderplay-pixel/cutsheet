@@ -1,246 +1,404 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, Trash2, X, Image } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Image, StickyNote, Palette, Trash2, X, Plus, GripVertical, Link } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-interface MoodboardItem {
+interface MoodItem {
   id: number
   title: string
   image_url: string
   category: string
   notes: string
+  position_x: number
+  position_y: number
+  width: number
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+type ItemType = 'image' | 'note' | 'color'
 
-const CATEGORIES = [
-  { value: 'allgemein',  label: 'Allgemein' },
-  { value: 'kamera',     label: 'Kamera' },
-  { value: 'licht',      label: 'Licht' },
-  { value: 'kostüm',     label: 'Kostüm' },
-  { value: 'set',        label: 'Set' },
-  { value: 'maske',      label: 'Maske' },
-  { value: 'referenz',   label: 'Referenz' },
+function getType(item: MoodItem): ItemType {
+  if (!item.image_url || item.image_url === '') return 'note'
+  if (item.image_url.startsWith('#') || item.image_url.startsWith('rgb')) return 'color'
+  return 'image'
+}
+
+const NOTE_COLORS = [
+  { bg: '#2a2420', border: '#78350f', text: '#fde68a', label: 'Amber' },
+  { bg: '#1a2535', border: '#1d4ed8', text: '#93c5fd', label: 'Blau' },
+  { bg: '#1a2b1e', border: '#15803d', text: '#86efac', label: 'Grün' },
+  { bg: '#281a2e', border: '#7e22ce', text: '#d8b4fe', label: 'Lila' },
+  { bg: '#2a1a1a', border: '#b91c1c', text: '#fca5a5', label: 'Rot' },
 ]
 
-const CATEGORY_VARIANTS: Record<string, string> = {
-  allgemein: 'secondary',
-  kamera:    'blue',
-  licht:     'amber',
-  kostüm:    'purple',
-  set:       'green',
-  maske:     'cyan',
-  referenz:  'red',
+const CANVAS_W = 3200
+const CANVAS_H = 2400
+
+// ─── API helpers ──────────────────────────────────────────────────────────────
+
+function authHeaders() {
+  const t = localStorage.getItem('token')
+  return { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }
 }
 
-function catLabel(val: string) {
-  return CATEGORIES.find(c => c.value === val)?.label ?? val
-}
-function catVariant(val: string): any {
-  return CATEGORY_VARIANTS[val] ?? 'secondary'
+// ─── Card components ──────────────────────────────────────────────────────────
+
+function ImageCard({ item, onDelete }: { item: MoodItem; onDelete: () => void }) {
+  const [imgError, setImgError] = useState(false)
+  return (
+    <div className="relative group">
+      <button
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); onDelete() }}
+        className="absolute -top-2.5 -right-2.5 z-20 w-6 h-6 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg active:scale-90"
+      >
+        <X className="w-3 h-3" />
+      </button>
+
+      <div className="rounded-xl overflow-hidden border border-white/8 bg-[#1e1e22] shadow-xl" style={{ width: item.width }}>
+        {imgError ? (
+          <div className="flex items-center justify-center bg-white/5 text-white/20" style={{ height: 140 }}>
+            <Image className="w-8 h-8" />
+          </div>
+        ) : (
+          <img
+            src={item.image_url}
+            alt={item.title}
+            className="w-full object-cover block"
+            style={{ maxHeight: 280, minHeight: 80 }}
+            onError={() => setImgError(true)}
+            draggable={false}
+          />
+        )}
+        {(item.title || item.notes) && (
+          <div className="px-3 py-2.5">
+            {item.title && <p className="text-[13px] font-medium text-white/90 leading-snug">{item.title}</p>}
+            {item.notes && <p className="text-[11px] text-white/40 mt-0.5 leading-relaxed line-clamp-2">{item.notes}</p>}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
-// ─── Add image dialog ─────────────────────────────────────────────────────────
+function NoteCard({ item, onDelete }: { item: MoodItem; onDelete: () => void }) {
+  const colorIdx = Math.abs((item.id || 0) * 7) % NOTE_COLORS.length
+  const c = NOTE_COLORS[colorIdx]
+  return (
+    <div className="relative group">
+      <button
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); onDelete() }}
+        className="absolute -top-2.5 -right-2.5 z-20 w-6 h-6 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg active:scale-90"
+      >
+        <X className="w-3 h-3" />
+      </button>
+      <div
+        className="rounded-xl border shadow-xl p-4"
+        style={{ width: item.width, backgroundColor: c.bg, borderColor: c.border }}
+      >
+        {item.title && (
+          <p className="text-[13px] font-semibold mb-1.5 leading-snug" style={{ color: c.text }}>{item.title}</p>
+        )}
+        {item.notes && (
+          <p className="text-[12px] leading-relaxed" style={{ color: c.text, opacity: 0.8 }}>{item.notes}</p>
+        )}
+        {!item.title && !item.notes && (
+          <p className="text-[12px] italic" style={{ color: c.text, opacity: 0.4 }}>Leere Notiz…</p>
+        )}
+      </div>
+    </div>
+  )
+}
 
-function AddImageDialog({ open, onClose, pid }: { open: boolean; onClose: () => void; pid: number }) {
+function ColorCard({ item, onDelete }: { item: MoodItem; onDelete: () => void }) {
+  return (
+    <div className="relative group">
+      <button
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); onDelete() }}
+        className="absolute -top-2.5 -right-2.5 z-20 w-6 h-6 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg active:scale-90"
+      >
+        <X className="w-3 h-3" />
+      </button>
+      <div className="rounded-xl border border-white/10 shadow-xl overflow-hidden" style={{ width: item.width }}>
+        <div className="flex items-center justify-center" style={{ backgroundColor: item.image_url, height: 100 }} />
+        <div className="px-3 py-2 bg-[#1e1e22]">
+          {item.title && <p className="text-[12px] font-medium text-white/80">{item.title}</p>}
+          <p className="text-[11px] text-white/30 font-mono mt-0.5">{item.image_url}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Canvas card (draggable wrapper) ─────────────────────────────────────────
+
+function CanvasCard({
+  item,
+  onDelete,
+  onMoveEnd,
+}: {
+  item: MoodItem
+  onDelete: () => void
+  onMoveEnd: (id: number, x: number, y: number) => void
+}) {
+  const posRef = useRef({ x: item.position_x, y: item.position_y })
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null)
+  const elRef = useRef<HTMLDivElement>(null)
+
+  // Keep pos in sync when server data changes (but not while dragging)
+  useEffect(() => {
+    if (!dragRef.current) {
+      posRef.current = { x: item.position_x, y: item.position_y }
+      if (elRef.current) {
+        elRef.current.style.left = `${item.position_x}px`
+        elRef.current.style.top = `${item.position_y}px`
+      }
+    }
+  }, [item.position_x, item.position_y])
+
+  function handlePointerDown(e: React.PointerEvent) {
+    if ((e.target as HTMLElement).closest('button')) return
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: posRef.current.x,
+      origY: posRef.current.y,
+    }
+  }
+
+  function handlePointerMove(e: React.PointerEvent) {
+    if (!dragRef.current || !elRef.current) return
+    const dx = e.clientX - dragRef.current.startX
+    const dy = e.clientY - dragRef.current.startY
+    const nx = Math.max(0, dragRef.current.origX + dx)
+    const ny = Math.max(0, dragRef.current.origY + dy)
+    posRef.current = { x: nx, y: ny }
+    elRef.current.style.left = `${nx}px`
+    elRef.current.style.top = `${ny}px`
+  }
+
+  function handlePointerUp() {
+    if (!dragRef.current) return
+    const moved = Math.abs(posRef.current.x - dragRef.current.origX) + Math.abs(posRef.current.y - dragRef.current.origY)
+    dragRef.current = null
+    if (moved > 4) {
+      onMoveEnd(item.id, posRef.current.x, posRef.current.y)
+    }
+  }
+
+  const type = getType(item)
+
+  return (
+    <div
+      ref={elRef}
+      className="absolute cursor-grab active:cursor-grabbing select-none"
+      style={{ left: item.position_x, top: item.position_y, zIndex: 10 }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+    >
+      {type === 'image' && <ImageCard item={item} onDelete={onDelete} />}
+      {type === 'note'  && <NoteCard  item={item} onDelete={onDelete} />}
+      {type === 'color' && <ColorCard item={item} onDelete={onDelete} />}
+    </div>
+  )
+}
+
+// ─── Add panel ────────────────────────────────────────────────────────────────
+
+type AddMode = null | 'image-url' | 'image-file' | 'note' | 'color'
+
+function AddPanel({
+  pid,
+  scrollRef,
+  onAdded,
+}: {
+  pid: number
+  scrollRef: React.RefObject<HTMLDivElement>
+  onAdded: () => void
+}) {
   const { toast } = useToast()
-  const queryClient = useQueryClient()
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const [tab, setTab] = useState('url')
+  const [mode, setMode] = useState<AddMode>(null)
   const [imageUrl, setImageUrl] = useState('')
-  const [imageBase64, setImageBase64] = useState('')
-  const [previewSrc, setPreviewSrc] = useState('')
   const [title, setTitle] = useState('')
-  const [category, setCategory] = useState('allgemein')
   const [notes, setNotes] = useState('')
+  const [color, setColor] = useState('#3b82f6')
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [fileBase64, setFileBase64] = useState('')
 
-  const token = localStorage.getItem('token')
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+  function getDropPosition() {
+    const el = scrollRef.current
+    const cx = el ? el.scrollLeft + el.clientWidth / 2 : 400
+    const cy = el ? el.scrollTop + el.clientHeight / 3 : 200
+    return {
+      x: Math.round(cx - 140 + (Math.random() - 0.5) * 120),
+      y: Math.round(cy + (Math.random() - 0.5) * 80),
+    }
+  }
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      const finalUrl = tab === 'url' ? imageUrl : imageBase64
+    mutationFn: async (body: any) => {
       const res = await fetch(`/api/projects/${pid}/moodboard`, {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ title, image_url: finalUrl, category, notes }),
+        headers: authHeaders(),
+        body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error('Fehler')
       return (await res.json()).data
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['moodboard', pid] })
-      toast({ title: 'Bild hinzugefügt' })
-      onClose()
-    },
-    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Speichern' }),
+    onSuccess: () => { onAdded(); reset() },
+    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Hinzufügen' }),
   })
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = ev => {
-      const dataUrl = ev.target?.result as string
-      setImageBase64(dataUrl)
-      setPreviewSrc(dataUrl)
-    }
-    reader.readAsDataURL(file)
+  function reset() {
+    setMode(null); setImageUrl(''); setTitle(''); setNotes(''); setFileBase64('')
+  }
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    const r = new FileReader()
+    r.onload = ev => setFileBase64(ev.target?.result as string)
+    r.readAsDataURL(f)
     e.target.value = ''
   }
 
-  const canSave = title.trim() !== '' && (tab === 'url' ? imageUrl.trim() !== '' : imageBase64 !== '')
+  function submit() {
+    const pos = getDropPosition()
+    if (mode === 'image-url') {
+      saveMutation.mutate({ title, image_url: imageUrl, notes, category: 'allgemein', ...pos, width: 280 })
+    } else if (mode === 'image-file') {
+      saveMutation.mutate({ title, image_url: fileBase64, notes, category: 'allgemein', ...pos, width: 280 })
+    } else if (mode === 'note') {
+      saveMutation.mutate({ title, image_url: '', notes, category: 'notiz', ...pos, width: 240 })
+    } else if (mode === 'color') {
+      saveMutation.mutate({ title: title || color, image_url: color, notes, category: 'farbe', ...pos, width: 160 })
+    }
+  }
 
-  return (
-    <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Bild hinzufügen</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="w-full">
-              <TabsTrigger value="url" className="flex-1">URL eingeben</TabsTrigger>
-              <TabsTrigger value="datei" className="flex-1">Datei hochladen</TabsTrigger>
-            </TabsList>
-            <TabsContent value="url" className="mt-3">
-              <Input
-                value={imageUrl}
-                onChange={e => { setImageUrl(e.target.value); setPreviewSrc(e.target.value) }}
-                placeholder="https://…"
-              />
-            </TabsContent>
-            <TabsContent value="datei" className="mt-3">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full h-32 rounded-xl border-2 border-dashed border-border/60 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground hover:border-border transition-colors"
-              >
-                <Image className="h-6 w-6" />
-                <span className="text-sm">Klicken zum Hochladen</span>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFile}
-              />
-            </TabsContent>
-          </Tabs>
+  const canSubmit = mode === 'image-url' ? imageUrl.trim() !== ''
+    : mode === 'image-file' ? fileBase64 !== ''
+    : mode === 'note' ? (title.trim() !== '' || notes.trim() !== '')
+    : mode === 'color' ? true
+    : false
 
-          {/* Preview */}
-          {previewSrc && (
-            <div className="relative rounded-xl overflow-hidden border border-border/60">
-              <img
-                src={previewSrc}
-                alt=""
-                className="w-full max-h-40 object-cover block"
-                onError={() => setPreviewSrc('')}
-              />
-            </div>
-          )}
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Titel *</label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Titel…" />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Kategorie</label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map(c => (
-                  <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Notizen</label>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Notizen…"
-              rows={2}
-              className="w-full rounded-md border border-input bg-input px-3 py-2 text-sm focus:outline-none focus:border-ring/70 focus:ring-2 focus:ring-ring/20 resize-none"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Abbrechen</Button>
-          <Button
-            onClick={() => saveMutation.mutate()}
-            disabled={!canSave || saveMutation.isPending}
-            className="active:scale-[0.97]"
+  if (mode === null) {
+    return (
+      <div className="flex items-center gap-2 bg-[#1e1e22]/90 backdrop-blur border border-white/10 rounded-2xl px-4 py-2.5 shadow-2xl">
+        <span className="text-[11px] text-white/30 font-medium mr-1">Hinzufügen</span>
+        {[
+          { icon: Image,      label: 'Bild URL',  m: 'image-url'  as AddMode },
+          { icon: GripVertical, label: 'Bild Datei', m: 'image-file' as AddMode },
+          { icon: StickyNote, label: 'Notiz',     m: 'note'       as AddMode },
+          { icon: Palette,    label: 'Farbe',     m: 'color'      as AddMode },
+        ].map(({ icon: Icon, label, m }) => (
+          <button
+            key={label}
+            onClick={() => setMode(m)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] text-white/60 hover:text-white hover:bg-white/8 transition-colors"
           >
-            Hinzufügen
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
+            <Icon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+    )
+  }
 
-// ─── Moodboard card ───────────────────────────────────────────────────────────
-
-function MoodboardCard({
-  item,
-  onDelete,
-  onClick,
-}: {
-  item: MoodboardItem
-  onDelete: () => void
-  onClick: () => void
-}) {
   return (
-    <div
-      className="rounded-xl border border-border/60 bg-card overflow-hidden group hover:border-border transition-colors cursor-pointer"
-      onClick={onClick}
-    >
-      {/* Image */}
-      <div className="relative overflow-hidden bg-muted/30">
-        <img
-          src={item.image_url}
-          alt={item.title}
-          className="w-full object-cover block group-hover:scale-[1.02] transition-transform duration-300"
-          style={{ minHeight: '140px', maxHeight: '220px' }}
-        />
-        {/* Category badge */}
-        <div className="absolute top-2.5 left-2.5">
-          <Badge variant={catVariant(item.category)} className="text-[10px] font-bold uppercase tracking-[0.06em] shadow-sm">
-            {catLabel(item.category)}
-          </Badge>
-        </div>
-        {/* Delete button overlay */}
-        <button
-          onClick={e => { e.stopPropagation(); onDelete() }}
-          className="absolute top-2.5 right-2.5 w-7 h-7 bg-destructive text-destructive-foreground rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm active:scale-[0.97]"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
+    <div className="bg-[#1e1e22]/95 backdrop-blur border border-white/10 rounded-2xl px-5 py-4 shadow-2xl w-[340px]">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[13px] font-medium text-white/80">
+          {mode === 'image-url' ? 'Bild via URL' : mode === 'image-file' ? 'Bild hochladen' : mode === 'note' ? 'Notiz' : 'Farbe'}
+        </p>
+        <button onClick={reset} className="text-white/30 hover:text-white/60 transition-colors">
+          <X className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Info below image */}
-      <div className="px-3.5 py-3">
-        <p className="text-sm font-medium leading-snug truncate">{item.title}</p>
-        {item.notes && (
-          <p className="text-xs text-muted-foreground/60 mt-0.5 line-clamp-2 leading-relaxed">{item.notes}</p>
+      <div className="space-y-2.5">
+        {(mode === 'image-url' || mode === 'image-file' || mode === 'note') && (
+          <input
+            autoFocus
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="Titel…"
+            className="w-full bg-white/6 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white/80 placeholder:text-white/25 outline-none focus:border-white/20"
+          />
         )}
+
+        {mode === 'image-url' && (
+          <input
+            value={imageUrl}
+            onChange={e => setImageUrl(e.target.value)}
+            placeholder="https://…"
+            className="w-full bg-white/6 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white/80 placeholder:text-white/25 outline-none focus:border-white/20 font-mono text-[11px]"
+          />
+        )}
+
+        {mode === 'image-file' && (
+          <>
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="w-full h-20 rounded-lg border-2 border-dashed border-white/10 hover:border-white/20 text-white/30 hover:text-white/50 transition-colors flex flex-col items-center justify-center gap-1.5"
+            >
+              <Image className="w-5 h-5" />
+              <span className="text-[11px]">{fileBase64 ? 'Datei ausgewählt ✓' : 'Klicken zum Auswählen'}</span>
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+          </>
+        )}
+
+        {mode === 'note' && (
+          <textarea
+            autoFocus
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Notizinhalt…"
+            rows={3}
+            className="w-full bg-white/6 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white/80 placeholder:text-white/25 outline-none focus:border-white/20 resize-none"
+          />
+        )}
+
+        {mode === 'color' && (
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              value={color}
+              onChange={e => setColor(e.target.value)}
+              className="w-12 h-10 rounded-lg border border-white/10 cursor-pointer bg-transparent"
+            />
+            <input
+              value={color}
+              onChange={e => setColor(e.target.value)}
+              placeholder="#3b82f6"
+              className="flex-1 bg-white/6 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white/80 font-mono outline-none focus:border-white/20"
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-2 mt-3">
+        <button
+          onClick={reset}
+          className="flex-1 py-1.5 rounded-lg text-[12px] text-white/40 hover:text-white/60 transition-colors border border-white/8 hover:border-white/15"
+        >
+          Abbrechen
+        </button>
+        <button
+          onClick={submit}
+          disabled={!canSubmit || saveMutation.isPending}
+          className="flex-1 py-1.5 rounded-lg text-[12px] font-medium bg-white/10 hover:bg-white/15 disabled:opacity-40 text-white transition-colors active:scale-[0.97]"
+        >
+          Hinzufügen
+        </button>
       </div>
     </div>
   )
@@ -251,181 +409,117 @@ function MoodboardCard({
 export function Component() {
   const { projectId: id } = useParams<{ projectId: string }>()
   const pid = Number(id)
-  const { toast } = useToast()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const scrollRef = useRef<HTMLDivElement>(null)
 
-  const [filterCategory, setFilterCategory] = useState('all')
-  const [showAdd, setShowAdd] = useState(false)
-  const [lightboxItem, setLightboxItem] = useState<MoodboardItem | null>(null)
-
-  const token = localStorage.getItem('token')
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-
-  const { data: items, isLoading } = useQuery<MoodboardItem[]>({
+  const { data: items = [], isLoading } = useQuery<MoodItem[]>({
     queryKey: ['moodboard', pid],
     queryFn: async () => {
-      const res = await fetch(`/api/projects/${pid}/moodboard`, { headers })
+      const res = await fetch(`/api/projects/${pid}/moodboard`, { headers: authHeaders() })
       if (!res.ok) throw new Error('Fehler')
-      return (await res.json()).data
+      return (await res.json()).data ?? []
     },
   })
 
   const deleteMutation = useMutation({
     mutationFn: async (itemId: number) => {
-      const res = await fetch(`/api/projects/${pid}/moodboard/${itemId}`, {
-        method: 'DELETE',
-        headers,
-      })
-      if (!res.ok) throw new Error('Fehler')
+      const res = await fetch(`/api/moodboard/${itemId}`, { method: 'DELETE', headers: authHeaders() })
+      if (!res.ok) throw new Error()
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['moodboard', pid] })
-      toast({ title: 'Bild entfernt' })
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['moodboard', pid] }),
     onError: () => toast({ variant: 'destructive', title: 'Fehler beim Löschen' }),
   })
 
-  const allItems = items ?? []
-  const filtered = filterCategory === 'all'
-    ? allItems
-    : allItems.filter(i => i.category === filterCategory)
+  const moveMutation = useMutation({
+    mutationFn: async ({ id: itemId, x, y }: { id: number; x: number; y: number }) => {
+      const res = await fetch(`/api/moodboard/${itemId}`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ position_x: x, position_y: y }),
+      })
+      if (!res.ok) throw new Error()
+      return (await res.json()).data
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<MoodItem[]>(['moodboard', pid], old =>
+        old?.map(i => i.id === updated.id ? updated : i) ?? []
+      )
+    },
+  })
+
+  const handleMoveEnd = useCallback((itemId: number, x: number, y: number) => {
+    moveMutation.mutate({ id: itemId, x, y })
+  }, [])
+
+  // Count by type for the mini legend
+  const imageCount = items.filter(i => getType(i) === 'image').length
+  const noteCount  = items.filter(i => getType(i) === 'note').length
+  const colorCount = items.filter(i => getType(i) === 'color').length
 
   return (
-    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
-      {/* Page hero */}
-      <div className="mb-8 pb-7 border-b border-border/40">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Moodboard</h1>
-            <p className="text-sm text-muted-foreground/60 mt-1.5">
-              {allItems.length === 0
-                ? 'Keine Bilder vorhanden'
-                : `${allItems.length} ${allItems.length === 1 ? 'Bild' : 'Bilder'}`}
-            </p>
-          </div>
-          <Button
-            onClick={() => setShowAdd(true)}
-            className="active:scale-[0.97] shrink-0"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Bild hinzufügen
-          </Button>
+    <div className="flex flex-col h-full overflow-hidden" style={{ background: '#0f0f11' }}>
+
+      {/* Top bar */}
+      <div className="flex items-center gap-4 px-5 py-3 border-b shrink-0" style={{ borderColor: 'rgba(255,255,255,0.06)', background: '#141416' }}>
+        <p className="text-[13px] font-semibold text-white/80">Moodboard</p>
+        <div className="flex items-center gap-3 text-[11px] text-white/30">
+          {imageCount > 0 && <span className="flex items-center gap-1"><Image className="w-3 h-3" />{imageCount}</span>}
+          {noteCount  > 0 && <span className="flex items-center gap-1"><StickyNote className="w-3 h-3" />{noteCount}</span>}
+          {colorCount > 0 && <span className="flex items-center gap-1"><Palette className="w-3 h-3" />{colorCount}</span>}
         </div>
+        <div className="flex-1" />
+        <span className="text-[11px] text-white/20">Drag zum Verschieben</span>
       </div>
 
-      {/* Category filter pills */}
-      <div className="flex flex-wrap gap-1.5 mb-6">
-        <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 self-center mr-1">
-          Kategorie
-        </span>
-        <button
-          onClick={() => setFilterCategory('all')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border active:scale-[0.97] ${
-            filterCategory === 'all'
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'bg-muted/50 text-muted-foreground border-border/60 hover:border-border hover:text-foreground'
-          }`}
-        >
-          Alle
-          {allItems.length > 0 && (
-            <span className={`ml-1.5 rounded-full px-1.5 py-px text-[10px] font-bold ${
-              filterCategory === 'all' ? 'bg-primary-foreground/20' : 'bg-muted-foreground/10'
-            }`}>
-              {allItems.length}
-            </span>
+      {/* Canvas */}
+      <div ref={scrollRef} className="flex-1 overflow-auto relative" style={{ cursor: 'default' }}>
+        <div className="relative" style={{ width: CANVAS_W, height: CANVAS_H }}>
+
+          {/* Dot grid background */}
+          <svg className="absolute inset-0 pointer-events-none" width={CANVAS_W} height={CANVAS_H} style={{ opacity: 0.15 }}>
+            <defs>
+              <pattern id="dots" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+                <circle cx="1" cy="1" r="1" fill="#ffffff" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#dots)" />
+          </svg>
+
+          {/* Loading */}
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-white/30 text-[13px]">Lädt…</div>
+            </div>
           )}
-        </button>
-        {CATEGORIES.filter(c => allItems.some(i => i.category === c.value)).map(c => {
-          const count = allItems.filter(i => i.category === c.value).length
-          return (
-            <button
-              key={c.value}
-              onClick={() => setFilterCategory(filterCategory === c.value ? 'all' : c.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border active:scale-[0.97] ${
-                filterCategory === c.value
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-muted/50 text-muted-foreground border-border/60 hover:border-border hover:text-foreground'
-              }`}
-            >
-              {c.label}
-              <span className={`ml-1.5 rounded-full px-1.5 py-px text-[10px] font-bold ${
-                filterCategory === c.value ? 'bg-primary-foreground/20' : 'bg-muted-foreground/10'
-              }`}>
-                {count}
-              </span>
-            </button>
-          )
-        })}
-      </div>
 
-      {/* Grid */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="rounded-xl" style={{ height: `${180 + (i % 3) * 40}px` }} />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 gap-4">
-          <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center">
-            <Image className="h-5 w-5 opacity-20" />
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-medium text-muted-foreground/60">
-              {filterCategory === 'all' ? 'Keine Bilder vorhanden' : 'Keine Bilder in dieser Kategorie'}
-            </p>
-            <p className="text-xs text-muted-foreground/40 mt-1">
-              {filterCategory === 'all' ? 'Füge dein erstes Bild hinzu' : 'Wähle eine andere Kategorie'}
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(item => (
-            <MoodboardCard
+          {/* Empty state */}
+          {!isLoading && items.length === 0 && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none">
+              <div className="w-16 h-16 rounded-2xl bg-white/4 flex items-center justify-center">
+                <Image className="w-7 h-7 text-white/20" />
+              </div>
+              <p className="text-[13px] text-white/30">Board ist leer</p>
+              <p className="text-[11px] text-white/20">Füge Bilder, Notizen und Farben hinzu</p>
+            </div>
+          )}
+
+          {/* Cards */}
+          {items.map(item => (
+            <CanvasCard
               key={item.id}
               item={item}
               onDelete={() => deleteMutation.mutate(item.id)}
-              onClick={() => setLightboxItem(item)}
+              onMoveEnd={handleMoveEnd}
             />
           ))}
         </div>
-      )}
+      </div>
 
-      {/* Add dialog */}
-      {showAdd && (
-        <AddImageDialog open={showAdd} onClose={() => setShowAdd(false)} pid={pid} />
-      )}
-
-      {/* Lightbox */}
-      {lightboxItem && (
-        <Dialog open onOpenChange={() => setLightboxItem(null)}>
-          <DialogContent className="max-w-5xl p-0 overflow-hidden border-0 bg-black">
-            <button
-              onClick={() => setLightboxItem(null)}
-              className="absolute top-3 right-3 z-10 text-white bg-black/60 rounded-full p-1.5 hover:bg-black/80 transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <img
-              src={lightboxItem.image_url}
-              alt={lightboxItem.title}
-              className="max-h-[85vh] w-full object-contain"
-            />
-            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-6 py-4">
-              <div className="flex items-center gap-2 mb-1">
-                <Badge variant={catVariant(lightboxItem.category)}>
-                  {catLabel(lightboxItem.category)}
-                </Badge>
-                <span className="text-white font-semibold">{lightboxItem.title}</span>
-              </div>
-              {lightboxItem.notes && (
-                <p className="text-white/70 text-sm">{lightboxItem.notes}</p>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Floating add panel */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50">
+        <AddPanel pid={pid} scrollRef={scrollRef} onAdded={() => queryClient.invalidateQueries({ queryKey: ['moodboard', pid] })} />
+      </div>
     </div>
   )
 }
