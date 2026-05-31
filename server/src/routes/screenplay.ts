@@ -4,9 +4,14 @@ import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
 
 const router = Router()
 
-// Ensure annotation_color column exists (idempotent, safe to call multiple times)
+// Ensure annotation_color column exists with a proper DEFAULT.
+// Run both statements: ADD (if missing) + SET DEFAULT (if column exists without one).
 pool.query(`ALTER TABLE screenplay_blocks ADD COLUMN IF NOT EXISTS annotation_color TEXT NOT NULL DEFAULT '#f59e0b'`)
-  .catch(() => { /* column already exists or table not yet created — ignore */ })
+  .catch(() => {})
+pool.query(`ALTER TABLE screenplay_blocks ALTER COLUMN annotation_color SET DEFAULT '#f59e0b'`)
+  .catch(() => {})
+pool.query(`UPDATE screenplay_blocks SET annotation_color = '#f59e0b' WHERE annotation_color IS NULL`)
+  .catch(() => {})
 
 // All /projects/:projectId/* routes require membership
 router.use('/projects/:projectId', requireMember)
@@ -61,29 +66,36 @@ router.get('/scenes/:sceneId/blocks', async (req: Request, res: Response) => {
 
 // ─── POST /api/scenes/:sceneId/blocks ────────────────────────────────────────
 router.post('/scenes/:sceneId/blocks', async (req, res) => {
-  const { sceneId } = req.params
-  const { block_type = 'action', content = '', sort_order = 0, annotation_color } = req.body
+  try {
+    const { sceneId } = req.params
+    const { block_type = 'action', content = '', sort_order = 0, annotation_color } = req.body
 
-  // Get project_id from the scene
-  const scene = await db.get('SELECT project_id FROM scenes WHERE id = ?', [sceneId]) as { project_id: number } | undefined
-  if (!scene) {
-    return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+    console.log('[blocks POST] sceneId=%s block_type=%s sort_order=%s', sceneId, block_type, sort_order)
+
+    // Get project_id from the scene
+    const scene = await db.get('SELECT project_id FROM scenes WHERE id = ?', [sceneId]) as { project_id: number } | undefined
+    if (!scene) {
+      console.log('[blocks POST] scene not found for sceneId=%s', sceneId)
+      return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+    }
+
+    const result = await db.run(`
+      INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
+      VALUES (?, ?, ?, ?, ?)
+    `, [sceneId, scene.project_id, sort_order, block_type, content])
+
+    console.log('[blocks POST] created block id=%s', result.id)
+
+    if (annotation_color && annotation_color !== '#f59e0b') {
+      await db.run(`UPDATE screenplay_blocks SET annotation_color = ? WHERE id = ?`, [annotation_color, result.id]).catch((e: any) => console.warn('[blocks POST] annotation_color update failed:', e?.message))
+    }
+
+    const block = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [result.id])
+    res.status(201).json({ data: block, error: null })
+  } catch (err: any) {
+    console.error('[blocks POST] ERROR:', err?.message, err?.code, err?.detail)
+    res.status(500).json({ data: null, error: err?.message || 'Interner Fehler beim Erstellen des Blocks' })
   }
-
-  // Always INSERT without annotation_color — let DB default (#f59e0b) handle it.
-  // Then UPDATE annotation_color separately if a custom one was provided.
-  const result = await db.run(`
-    INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
-    VALUES (?, ?, ?, ?, ?)
-  `, [sceneId, scene.project_id, sort_order, block_type, content])
-
-  // Set custom annotation_color if provided and column exists
-  if (annotation_color && annotation_color !== '#f59e0b') {
-    await db.run(`UPDATE screenplay_blocks SET annotation_color = ? WHERE id = ?`, [annotation_color, result.id]).catch(() => {})
-  }
-
-  const block = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [result.id])
-  res.status(201).json({ data: block, error: null })
 })
 
 // ─── PUT /api/blocks/:blockId ─────────────────────────────────────────────────

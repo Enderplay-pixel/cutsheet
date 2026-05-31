@@ -616,7 +616,7 @@ export function Component() {
         if (el) { el.focus(); setActiveBlockId(newBlock.id) }
       }, 50)
     },
-    onError: () => toast({ title: tt(screenplayT.errCreate), variant: 'destructive' }),
+    onError: (err: any) => toast({ title: tt(screenplayT.errCreate), description: err?.message || String(err), variant: 'destructive' }),
   })
 
   const updateBlockMutation = useMutation({
