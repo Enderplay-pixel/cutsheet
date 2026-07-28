@@ -605,11 +605,14 @@ export function Component() {
       api.screenplay.createBlock(sceneId, data),
     onSuccess: (newBlock) => {
       setLocalScenes(prev =>
-        prev.map(sd =>
-          sd.scene.id === newBlock.scene_id
-            ? { ...sd, blocks: [...sd.blocks, newBlock].sort((a, b) => a.sort_order - b.sort_order) }
-            : sd
-        )
+        prev.map(sd => {
+          if (sd.scene.id !== newBlock.scene_id) return sd
+          // Mirror the server-side shift: everything at or below the new slot moves down.
+          const shifted = sd.blocks.map(b =>
+            b.sort_order >= newBlock.sort_order ? { ...b, sort_order: b.sort_order + 1 } : b
+          )
+          return { ...sd, blocks: [...shifted, newBlock].sort((a, b) => a.sort_order - b.sort_order) }
+        })
       )
       setTimeout(() => {
         const el = textareaRefs.current.get(newBlock.id)
@@ -730,10 +733,9 @@ export function Component() {
     if (!foundScene || !foundBlock) return
 
     const nextType = ENTER_NEXT_TYPE[foundBlock.block_type]
-    const newSortOrder = foundBlock.sort_order + 0.5
     createBlockMutation.mutate({
       sceneId: foundScene.scene.id,
-      data: { block_type: nextType, content: '', sort_order: newSortOrder },
+      data: { block_type: nextType, content: '', sort_order: foundBlock.sort_order + 1 },
     })
   }, [localScenes])
 

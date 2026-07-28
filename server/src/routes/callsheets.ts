@@ -1,8 +1,32 @@
 import { Router, Request, Response } from 'express'
+import crypto from 'crypto'
 import { db } from '../db'
 import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
+import { sendEmail, isSmtpConfigured, appBaseUrl } from './emailService'
+import { sendPushToUser } from './push'
 
 const router = Router()
+
+/** Push an alle Projektmitglieder außer dem Auslöser. Fehler werden geschluckt. */
+export async function notifyProjectMembers(projectId: number, actorUserId: number | null, payload: { title: string; body: string; url: string }) {
+  try {
+    const rows = await db.all(
+      `SELECT user_id FROM project_members WHERE project_id = ?
+       UNION SELECT owner_id as user_id FROM projects WHERE id = ? AND owner_id IS NOT NULL`,
+      [projectId, projectId]
+    ) as Array<{ user_id: number }>
+    for (const r of rows) {
+      if (r.user_id && r.user_id !== actorUserId) {
+        sendPushToUser(r.user_id, payload).catch(() => null)
+      }
+    }
+  } catch (err) {
+    console.error('[notifyProjectMembers]', err)
+  }
+}
+
+const fmtCallTime = (mins: number | null) =>
+  mins == null ? '—' : `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')} Uhr`
 
 async function getCallSheet(id: number) {
   const sheet = await db.get('SELECT cs.*, l.name as location_name FROM call_sheets cs LEFT JOIN locations l ON cs.location_id = l.id WHERE cs.id = ?', [id]) as any
@@ -119,8 +143,142 @@ router.delete('/call-sheets/:id/entries/:entryId', async (req, res) => {
 router.post('/call-sheets/:id/shift-times', async (req, res) => {
   const { minutes = 0 } = req.body
   await db.run('UPDATE call_sheet_entries SET call_time = call_time + ? WHERE call_sheet_id = ?', [minutes, req.params.id])
-  await db.run("UPDATE call_sheets SET general_call = general_call + ?, shooting_call = shooting_call + ?, updated_at = datetime('now') WHERE id = ?", [minutes, minutes, req.params.id])
+  await db.run('UPDATE call_sheets SET general_call = general_call + ?, shooting_call = shooting_call + ?, updated_at = NOW() WHERE id = ?', [minutes, minutes, req.params.id])
+
+  // Crew sofort informieren — verschobene Drehbeginne sind die wichtigste Set-Info
+  const ctx = await db.get(
+    'SELECT sd.project_id, sd.day_number, sd.id as day_id FROM call_sheets cs JOIN shoot_days sd ON cs.shoot_day_id = sd.id WHERE cs.id = ?',
+    [req.params.id]
+  ) as any
+  if (ctx && minutes !== 0) {
+    const dir = minutes > 0 ? 'nach hinten' : 'nach vorne'
+    notifyProjectMembers(ctx.project_id, (req as any).user?.id ?? null, {
+      title: `Drehtag ${ctx.day_number}: Zeiten verschoben`,
+      body: `Alle Call Times wurden um ${Math.abs(minutes)} Minuten ${dir} verschoben.`,
+      url: `/projects/${ctx.project_id}/tagesdispo/${ctx.day_id}`,
+    })
+  }
   res.json({ data: await getCallSheet(parseInt(req.params.id)), error: null })
+})
+
+// POST /api/shoot-days/:dayId/call-sheet/send — Dispo per E-Mail an alle Beteiligten.
+// Personalisierte Mail mit Call Time, Public-Link, Tracking-Pixel und PDF-Anhang.
+router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Response) => {
+  const user = (req as any).user
+  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+
+  const day = await db.get(
+    'SELECT sd.*, p.title as project_title, p.id as project_id FROM shoot_days sd JOIN projects p ON sd.project_id = p.id WHERE sd.id = ?',
+    [req.params.dayId]
+  ) as any
+  if (!day) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+  if (user.role !== 'admin' && await getUserProjectRole(user.id, day.project_id) === null) {
+    return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  }
+
+  const smtpConfigured = isSmtpConfigured()
+  if (!smtpConfigured) {
+    return res.status(400).json({
+      data: { smtp_configured: false },
+      error: 'E-Mail-Versand ist nicht konfiguriert (SMTP-Einstellungen fehlen auf dem Server).',
+    })
+  }
+
+  const sheet = await db.get('SELECT * FROM call_sheets WHERE shoot_day_id = ?', [req.params.dayId]) as any
+  if (!sheet) return res.status(404).json({ data: null, error: 'Keine Dispo für diesen Drehtag angelegt' })
+
+  const location = sheet.location_id
+    ? await db.get('SELECT name, address, city FROM locations WHERE id = ?', [sheet.location_id]) as any
+    : null
+
+  // PDF einmal bauen (lazy import vermeidet Zirkularität beim Modul-Load)
+  const { buildTagesdispoHtml, generatePdf } = require('./pdf')
+  const built = await buildTagesdispoHtml(req.params.dayId)
+  if (!built) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+  let pdfBuffer: Buffer | null = null
+  try {
+    pdfBuffer = await generatePdf(built.html)
+  } catch (err: any) {
+    console.error('[callsheet/send] PDF-Generierung fehlgeschlagen, sende ohne Anhang:', err.message)
+  }
+
+  const entries = await db.all(
+    'SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC',
+    [sheet.id]
+  ) as any[]
+
+  // Empfänger auflösen + fehlende Tokens erzeugen
+  const recipients: Array<{ entry: any; name: string; email: string; token: string }> = []
+  const skipped: string[] = []
+  for (const entry of entries) {
+    const person = entry.person_type === 'cast'
+      ? await db.get('SELECT c.actor_name as name, c.email FROM "cast" c WHERE c.id = ?', [entry.person_id]) as any
+      : await db.get('SELECT name, email FROM crew WHERE id = ?', [entry.person_id]) as any
+    const name = person?.name || 'Unbekannt'
+    if (!person?.email) { skipped.push(name); continue }
+
+    let token = entry.public_token
+    if (!token) {
+      token = crypto.randomBytes(20).toString('hex')
+      await db.run('UPDATE call_sheet_entries SET public_token = ? WHERE id = ?', [token, entry.id])
+    }
+    recipients.push({ entry, name, email: person.email, token })
+  }
+
+  const base = appBaseUrl()
+  const dateStr = day.date ? new Date(day.date).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
+
+  // Versand in Batches à 5 — Teilfehler werden gesammelt, nicht verschluckt
+  let sent = 0
+  const failed: string[] = []
+  for (let i = 0; i < recipients.length; i += 5) {
+    const batch = recipients.slice(i, i + 5)
+    const results = await Promise.allSettled(batch.map(async r => {
+      await sendEmail({
+        to: r.email,
+        subject: `Tagesdispo Drehtag ${day.day_number} — ${day.project_title}`,
+        projectId: day.project_id,
+        attachments: pdfBuffer ? [{ filename: `tagesdispo-tag${day.day_number}.pdf`, content: pdfBuffer }] : undefined,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:520px;">
+            <h2 style="color:#111;margin-bottom:4px;">Drehtag ${day.day_number} — ${day.project_title}</h2>
+            <p style="color:#6b7280;margin-top:0;">${dateStr}</p>
+            <p>Hallo ${r.name},</p>
+            <p>hier ist deine Tagesdisposition:</p>
+            <table style="border-collapse:collapse;margin:16px 0;">
+              <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Deine Call Time:</td>
+                  <td style="padding:4px 0;font-weight:bold;font-size:18px;">${fmtCallTime(r.entry.call_time)}</td></tr>
+              ${location ? `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Motiv:</td>
+                  <td style="padding:4px 0;">${location.name}${location.address ? `, ${location.address}` : ''}${location.city ? `, ${location.city}` : ''}</td></tr>` : ''}
+              ${r.entry.notes ? `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Hinweis:</td>
+                  <td style="padding:4px 0;">${r.entry.notes}</td></tr>` : ''}
+            </table>
+            <p style="margin:24px 0;">
+              <a href="${base}/dispo/${r.token}" style="background:#b45309;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Online ansehen &amp; bestätigen</a>
+            </p>
+            <p style="color:#6b7280;font-size:13px;">Die vollständige Dispo findest du im PDF-Anhang.</p>
+            <img src="${base}/api/cse/t/${r.token}/track.png" width="1" height="1" alt="" />
+          </div>`,
+      })
+      await db.run('UPDATE call_sheet_entries SET sent_at = NOW() WHERE id = ?', [r.entry.id])
+    }))
+    results.forEach((result, idx) => {
+      if (result.status === 'fulfilled') sent++
+      else { failed.push(batch[idx].name); console.error('[callsheet/send]', result.reason) }
+    })
+  }
+
+  // In-App-Push an alle Projektmitglieder
+  notifyProjectMembers(day.project_id, user.id, {
+    title: `Neue Tagesdispo: Drehtag ${day.day_number}`,
+    body: `Die Dispo für ${dateStr} wurde versendet.`,
+    url: `/projects/${day.project_id}/tagesdispo/${day.id}`,
+  })
+
+  return res.json({
+    data: { sent, failed, skipped_no_email: skipped, smtp_configured: true },
+    error: null,
+  })
 })
 
 export default router

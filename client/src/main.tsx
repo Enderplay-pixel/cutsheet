@@ -4,7 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createBrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
+import { initAnalytics } from './lib/analytics'
 import './index.css'
+
+initAnalytics()
 
 // After a new deployment the browser may have a cached index.html pointing to
 // old chunk hashes that no longer exist. Wrap every lazy import so that if
@@ -23,6 +26,26 @@ const router = createBrowserRouter([
   {
     path: '/login',
     lazy: lazyPage(() => import('./pages/Login')),
+  },
+  {
+    path: '/forgot-password',
+    lazy: lazyPage(() => import('./pages/ForgotPassword')),
+  },
+  {
+    path: '/reset-password/:token',
+    lazy: lazyPage(() => import('./pages/ResetPassword')),
+  },
+  {
+    path: '/impressum',
+    lazy: lazyPage(() => import('./pages/Impressum')),
+  },
+  {
+    path: '/datenschutz',
+    lazy: lazyPage(() => import('./pages/Datenschutz')),
+  },
+  {
+    path: '/dispo/:token',
+    lazy: lazyPage(() => import('./pages/PublicDispo')),
   },
   {
     path: '/invite/:token',
@@ -96,6 +119,8 @@ const router = createBrowserRouter([
           { path: 'kommentare', lazy: lazyPage(() => import('./pages/SzenenKommentare')) },
           { path: 'aktivitaet', lazy: lazyPage(() => import('./pages/ActivityFeed')) },
           { path: 'kameraberichte', lazy: lazyPage(() => import('./pages/Kameraberichte')) },
+          { path: 'aufgaben', lazy: lazyPage(() => import('./pages/Aufgaben')) },
+          { path: 'kostenstand', lazy: lazyPage(() => import('./pages/Kostenstand')) },
         ],
       },
     ],

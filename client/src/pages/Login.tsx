@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -50,8 +50,8 @@ export function Component() {
 
       {/* ── Left panel — cinematic ─────────────────────── */}
       <div className="hidden lg:flex flex-col items-center justify-center flex-1 bg-[hsl(0_0%_3%)] relative overflow-hidden select-none">
-        {/* Red glow at bottom */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_110%,hsl(0_72%_51%/0.18),transparent_65%)]" />
+        {/* Tungsten glow at bottom */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_110%,hsl(var(--primary)/0.18),transparent_65%)]" />
         {/* Horizontal film-strip lines */}
         <div
           className="absolute inset-0 opacity-[0.04]"
@@ -63,8 +63,8 @@ export function Component() {
         <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(0_0%_3%)_0%,transparent_15%,transparent_85%,hsl(0_0%_3%)_100%)]" />
 
         <div className="relative z-10 text-center max-w-xs px-6">
-          <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-[0_0_48px_hsl(0_72%_51%/0.45)]">
-            <Clapperboard className="w-10 h-10 text-white" />
+          <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-[0_0_48px_hsl(var(--primary)/0.45)]">
+            <Clapperboard className="w-10 h-10 text-primary-foreground" />
           </div>
           <h1 className="text-4xl font-bold tracking-tight mb-3">CutSheet</h1>
           <p className="text-muted-foreground text-sm leading-relaxed">
@@ -96,8 +96,8 @@ export function Component() {
         <div className="w-full max-w-sm">
           {/* Mobile-only logo */}
           <div className="flex flex-col items-center mb-8 lg:hidden">
-            <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center shadow-[0_0_24px_hsl(0_72%_51%/0.35)] mb-4">
-              <Clapperboard className="w-7 h-7 text-white" />
+            <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center shadow-[0_0_24px_hsl(var(--primary)/0.35)] mb-4">
+              <Clapperboard className="w-7 h-7 text-primary-foreground" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight">CutSheet</h1>
           </div>
@@ -176,6 +176,16 @@ export function Component() {
                 required
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               />
+              {mode === 'login' && (
+                <div className="text-right">
+                  <Link
+                    to="/forgot-password"
+                    className="text-[12px] text-muted-foreground hover:text-primary transition-colors duration-150"
+                  >
+                    Passwort vergessen?
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Language picker — register only */}
@@ -221,6 +231,10 @@ export function Component() {
 
           <p className="text-center text-[11px] text-muted-foreground/40 mt-8 tracking-wide">
             CutSheet · Film Production Management
+          </p>
+          <p className="text-center text-[11px] mt-2 space-x-3">
+            <Link to="/impressum" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">Impressum</Link>
+            <Link to="/datenschutz" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">Datenschutz</Link>
           </p>
         </div>
       </div>

@@ -418,14 +418,6 @@ export function Component() {
   const { toast } = useToast()
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to item cluster on first load
-  useEffect(() => {
-    if (!items.length || !scrollRef.current) return
-    const minX = Math.min(...items.map(i => i.position_x))
-    const minY = Math.min(...items.map(i => i.position_y))
-    scrollRef.current.scrollTo({ left: Math.max(0, minX - 80), top: Math.max(0, minY - 80), behavior: 'smooth' })
-  }, [items.length > 0])
-
   const { data: items = [], isLoading } = useQuery<MoodItem[]>({
     queryKey: ['moodboard', pid],
     queryFn: async () => {
@@ -434,6 +426,14 @@ export function Component() {
       return (await res.json()).data ?? []
     },
   })
+
+  // Auto-scroll to item cluster on first load
+  useEffect(() => {
+    if (!items.length || !scrollRef.current) return
+    const minX = Math.min(...items.map(i => i.position_x))
+    const minY = Math.min(...items.map(i => i.position_y))
+    scrollRef.current.scrollTo({ left: Math.max(0, minX - 80), top: Math.max(0, minY - 80), behavior: 'smooth' })
+  }, [items.length > 0])
 
   const deleteMutation = useMutation({
     mutationFn: async (itemId: number) => {

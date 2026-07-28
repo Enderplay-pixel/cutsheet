@@ -48,7 +48,7 @@ function resolveChromium(): string | undefined {
 }
 
 // Generic PDF generator using puppeteer (lazily loaded)
-async function generatePdf(html: string): Promise<Buffer> {
+export async function generatePdf(html: string, opts?: { watermark?: string }): Promise<Buffer> {
   const puppeteer = require('puppeteer')
   const executablePath = resolveChromium()
   console.log('[PDF] Launching puppeteer, executablePath:', executablePath ?? '(bundled)')
@@ -78,8 +78,26 @@ async function generatePdf(html: string): Promise<Buffer> {
   }
   try {
     const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 })
-    const pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } })
+    // Optionales Wasserzeichen: position:fixed wiederholt sich beim Druck auf jeder Seite
+    let content = html
+    if (opts?.watermark) {
+      const wm = String(opts.watermark).slice(0, 60)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      content = html.replace('<body>', `<body>
+        <div style="position:fixed;top:42%;left:4%;width:92%;text-align:center;transform:rotate(-28deg);
+          font-size:56px;font-weight:bold;color:rgba(17,17,17,0.07);z-index:9999;pointer-events:none;
+          font-family:Arial,sans-serif;letter-spacing:4px;">${wm}</div>`)
+    }
+    await page.setContent(content, { waitUntil: 'domcontentloaded', timeout: 30000 })
+    const pdf = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      displayHeaderFooter: true,
+      headerTemplate: '<span></span>',
+      footerTemplate: `<div style="width:100%;text-align:center;font-size:7px;color:#9ca3af;font-family:Arial,sans-serif;">
+        Erstellt mit CutSheet &middot; cutsheet.app &nbsp;&nbsp;|&nbsp;&nbsp; Seite <span class="pageNumber"></span> / <span class="totalPages"></span></div>`,
+      margin: { top: '15mm', bottom: '18mm', left: '15mm', right: '15mm' },
+    })
     return pdf
   } finally {
     await browser.close()
@@ -178,7 +196,7 @@ router.get('/projects/:projectId/pdf/drehplan', async (req: Request, res: Respon
   </body></html>`
 
   try {
-    const pdf = await generatePdf(html)
+    const pdf = await generatePdf(html, { watermark: req.query.watermark ? String(req.query.watermark) : undefined })
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="drehplan-${project.title.replace(/\s+/g, '-')}.pdf"`)
     res.send(pdf)
@@ -187,20 +205,13 @@ router.get('/projects/:projectId/pdf/drehplan', async (req: Request, res: Respon
   }
 })
 
-// GET /api/shoot-days/:dayId/pdf/tagesdispo
-router.get('/shoot-days/:dayId/pdf/tagesdispo', async (req: Request, res: Response) => {
-  const user = (req as any).user
-  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
-  if (user.role !== 'admin') {
-    const dayCheck = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [req.params.dayId]) as any
-    if (dayCheck && await getUserProjectRole(user.id, dayCheck.project_id) === null)
-      return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
-  }
-  const day = await db.get('SELECT sd.*, p.title as project_title, p.id as project_id FROM shoot_days sd JOIN projects p ON sd.project_id = p.id WHERE sd.id = ?', [req.params.dayId]) as any
-  if (!day) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+// Tagesdispo-HTML — geteilt zwischen PDF-Download-Route und Dispo-Versand
+export async function buildTagesdispoHtml(dayId: number | string): Promise<{ html: string; day: any; sheet: any } | null> {
+  const day = await db.get('SELECT sd.*, p.title as project_title, p.id as project_id FROM shoot_days sd JOIN projects p ON sd.project_id = p.id WHERE sd.id = ?', [dayId]) as any
+  if (!day) return null
 
   const { accentColor } = await getProjectSettings(day.project_id)
-  const sheet = await db.get('SELECT cs.*, l.name as location_name FROM call_sheets cs LEFT JOIN locations l ON cs.location_id = l.id WHERE cs.shoot_day_id = ?', [req.params.dayId]) as any
+  const sheet = await db.get('SELECT cs.*, l.name as location_name FROM call_sheets cs LEFT JOIN locations l ON cs.location_id = l.id WHERE cs.shoot_day_id = ?', [dayId]) as any
   const entries = sheet ? await db.all('SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC', [sheet.id]) as any[] : []
 
   const enrichedEntries = await Promise.all(entries.map(async (e: any) => {
@@ -213,7 +224,7 @@ router.get('/shoot-days/:dayId/pdf/tagesdispo', async (req: Request, res: Respon
     }
   }))
 
-  const scenes = await db.all(`SELECT sds.*, s.scene_number, s.title, s.eighths, l.name as location_name FROM shoot_day_scenes sds JOIN scenes s ON sds.scene_id = s.id LEFT JOIN locations l ON s.location_id = l.id WHERE sds.shoot_day_id = ? ORDER BY sds.sort_order`, [req.params.dayId]) as any[]
+  const scenes = await db.all(`SELECT sds.*, s.scene_number, s.title, s.eighths, l.name as location_name FROM shoot_day_scenes sds JOIN scenes s ON sds.scene_id = s.id LEFT JOIN locations l ON s.location_id = l.id WHERE sds.shoot_day_id = ? ORDER BY sds.sort_order`, [dayId]) as any[]
 
   const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Tagesdisposition</title>${buildCss(accentColor)}</head><body>
     <div class="header">
@@ -235,8 +246,24 @@ router.get('/shoot-days/:dayId/pdf/tagesdispo', async (req: Request, res: Respon
     ${sheet?.notes ? `<h2>Notizen</h2><p>${sheet.notes}</p>` : ''}
   </body></html>`
 
+  return { html, day, sheet }
+}
+
+// GET /api/shoot-days/:dayId/pdf/tagesdispo
+router.get('/shoot-days/:dayId/pdf/tagesdispo', async (req: Request, res: Response) => {
+  const user = (req as any).user
+  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+  if (user.role !== 'admin') {
+    const dayCheck = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [req.params.dayId]) as any
+    if (dayCheck && await getUserProjectRole(user.id, dayCheck.project_id) === null)
+      return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  }
+  const built = await buildTagesdispoHtml(req.params.dayId)
+  if (!built) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+  const { html, day } = built
+
   try {
-    const pdf = await generatePdf(html)
+    const pdf = await generatePdf(html, { watermark: req.query.watermark ? String(req.query.watermark) : undefined })
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="tagesdispo-tag${day.day_number}.pdf"`)
     res.send(pdf)

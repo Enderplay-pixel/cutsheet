@@ -7,6 +7,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // injectManifest statt generateSW: eigener SW mit Push-Handlern (src/sw.ts).
+      // Auto-Update bleibt erhalten via skipWaiting/clientsClaim im SW.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['film.svg', 'icons/*.png'],
       manifest: {
@@ -25,24 +30,9 @@ export default defineConfig({
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
-      workbox: {
+      // Runtime-Caching lebt jetzt in src/sw.ts (workbox-routing/-strategies)
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^\/api\//,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 }, // 1 hour
-              networkTimeoutSeconds: 10,
-            },
-          },
-          {
-            urlPattern: /\/assets\//,
-            handler: 'CacheFirst',
-            options: { cacheName: 'static-assets', expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 } },
-          },
-        ],
       },
     }),
   ],

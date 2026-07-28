@@ -45,6 +45,77 @@ router.get('/projects/:projectId/screenplay', async (req, res) => {
   res.json({ data: result, error: null })
 })
 
+// ─── GET /api/projects/:projectId/screenplay/export.fountain ─────────────────
+// Drehbuch-Export im Fountain-Format (PreProducer-Parität: Export, nicht nur Import)
+router.get('/projects/:projectId/screenplay/export.fountain', async (req, res) => {
+  const project = await db.get('SELECT title, director FROM projects WHERE id = ?', [req.params.projectId]) as any
+  if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+
+  const scenes = await db.all(
+    'SELECT * FROM scenes WHERE project_id = ? ORDER BY sort_order ASC, scene_number ASC',
+    [req.params.projectId]
+  ) as any[]
+
+  const lines: string[] = [
+    `Title: ${project.title}`,
+    project.director ? `Author: ${project.director}` : '',
+    `Draft date: ${new Date().toLocaleDateString('de-DE')}`,
+    '',
+  ].filter(l => l !== '')
+  lines.push('')
+
+  for (const scene of scenes) {
+    const blocks = await db.all(
+      'SELECT * FROM screenplay_blocks WHERE scene_id = ? ORDER BY sort_order ASC',
+      [scene.id]
+    ) as Array<{ block_type: BlockType; content: string }>
+
+    if (blocks.length === 0) {
+      // Szene ohne Blöcke: Heading aus den Szenen-Metadaten synthetisieren
+      const intExt = scene.int_ext === 'INT' ? 'INT.' : 'EXT.'
+      const dayNight = scene.day_night ? ` — ${scene.day_night}` : ''
+      lines.push(`${intExt} ${String(scene.title || 'SZENE ' + scene.scene_number).toUpperCase()}${dayNight}`, '')
+      if (scene.description) lines.push(scene.description, '')
+      continue
+    }
+
+    for (const b of blocks) {
+      const content = (b.content || '').trim()
+      if (!content) continue
+      switch (b.block_type) {
+        case 'scene_heading': {
+          // Fountain erkennt INT./EXT. automatisch; erzwungene Headings mit Punkt-Präfix
+          const isStandard = /^(INT|EXT|INNEN|AUSSEN|AUßEN|I\/E)[.\s]/i.test(content)
+          lines.push(isStandard ? content.toUpperCase() : `.${content.toUpperCase()}`, '')
+          break
+        }
+        case 'character':
+          lines.push(content.toUpperCase())
+          break
+        case 'parenthetical':
+          lines.push(content.startsWith('(') ? content : `(${content})`)
+          break
+        case 'dialogue':
+          lines.push(content, '')
+          break
+        case 'transition':
+          lines.push(`> ${content.toUpperCase()}`, '')
+          break
+        case 'note':
+          lines.push(`[[${content}]]`, '')
+          break
+        default: // action
+          lines.push(content, '')
+      }
+    }
+  }
+
+  const filename = `${(project.title || 'drehbuch').replace(/[^\w\säöüÄÖÜß-]/g, '').replace(/\s+/g, '-').toLowerCase()}.fountain`
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+  return res.send(lines.join('\n'))
+})
+
 // ─── GET /api/scenes/:sceneId/blocks ─────────────────────────────────────────
 router.get('/scenes/:sceneId/blocks', async (req: Request, res: Response) => {
   const user = (req as any).user
@@ -79,10 +150,20 @@ router.post('/scenes/:sceneId/blocks', async (req, res) => {
       return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
     }
 
+    // sort_order is an INTEGER column, so fractional "insert between" values would
+    // blow up in Postgres. Round up to the target slot and push the rest down.
+    const requested = Number(sort_order)
+    const targetSort = Math.max(0, Number.isFinite(requested) ? Math.ceil(requested) : 0)
+
+    await db.run(`
+      UPDATE screenplay_blocks SET sort_order = sort_order + 1
+      WHERE scene_id = ? AND sort_order >= ?
+    `, [sceneId, targetSort])
+
     const result = await db.run(`
       INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
       VALUES (?, ?, ?, ?, ?)
-    `, [sceneId, scene.project_id, sort_order, block_type, content])
+    `, [sceneId, scene.project_id, targetSort, block_type, content])
 
     console.log('[blocks POST] created block id=%s', result.id)
 

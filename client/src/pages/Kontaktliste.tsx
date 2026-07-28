@@ -152,6 +152,22 @@ export function Component() {
           <button onClick={exportCsv} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
             <Download className="w-3.5 h-3.5" /> CSV Export
           </button>
+          <button
+            onClick={async () => {
+              // vCard-Export: alle Kontakte (Stab, Besetzung, Motiv-Kontakte) fürs Adressbuch
+              const token = localStorage.getItem('token')
+              const res = await fetch(api.contactsExport.vcfUrl(pid), { headers: { Authorization: `Bearer ${token}` } })
+              if (!res.ok) return
+              const blob = await res.blob()
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a'); a.href = url; a.download = 'cutsheet-kontakte.vcf'; a.click()
+              URL.revokeObjectURL(url)
+            }}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+            title="Alle Kontakte als vCard fürs Adressbuch (iOS/Android/Outlook)"
+          >
+            <Download className="w-3.5 h-3.5" /> vCard
+          </button>
         </div>
       </div>
 

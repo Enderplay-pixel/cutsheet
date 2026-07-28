@@ -94,6 +94,10 @@ async function extractProjectId(method: string, path: string, body: any): Promis
      'SELECT project_id FROM financing_plan_versions WHERE id = ?'],
     [/^\/events\/(\d+)/,
      'SELECT project_id FROM project_events WHERE id = ?'],
+    [/^\/tasks\/(\d+)/,
+     'SELECT project_id FROM project_tasks WHERE id = ?'],
+    [/^\/expenses\/(\d+)/,
+     'SELECT project_id FROM expenses WHERE id = ?'],
   ]
 
   for (const [pattern, sql] of entityPatterns) {
@@ -139,6 +143,8 @@ export async function projectWriteGuard(req: Request, res: Response, next: NextF
   // Bypass: auth routes, public invite info, invite accept is protected via requireAuth
   if (path.startsWith('/auth/')) return next()
   if (path.match(/^\/invites\/[^/]+$/) && req.method === 'GET') return next()
+  // Public Dispo-Links: Token-basiert (160-bit random), kein User nötig
+  if (path.startsWith('/cse/t/')) return next()
 
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })

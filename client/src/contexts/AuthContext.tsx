@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { identifyUser, resetAnalytics, track } from '@/lib/analytics'
 
 interface User {
   id: number
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
     setToken(null)
     localStorage.removeItem('token')
+    resetAnalytics()
   }, [])
 
   useEffect(() => {
@@ -44,7 +46,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(r => r.json())
       .then(({ data, error }) => {
         if (error) logout()
-        else setUser(data)
+        else {
+          setUser(data)
+          if (data) identifyUser(data)
+        }
       })
       .catch(logout)
       .finally(() => setIsLoading(false))
@@ -61,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(data.token)
     setUser(data.user)
     localStorage.setItem('token', data.token)
+    identifyUser(data.user)
   }
 
   const register = async (email: string, password: string, name: string) => {
@@ -75,6 +81,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(data.user)
     localStorage.setItem('token', data.token)
     setJustRegistered(true)
+    identifyUser(data.user)
+    track('signup')
   }
 
   return (

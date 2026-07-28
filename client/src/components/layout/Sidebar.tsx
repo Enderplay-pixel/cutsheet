@@ -1,4 +1,5 @@
-import { NavLink, useParams, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useProjectStore } from '@/store/useProjectStore'
 import { useQuery } from '@tanstack/react-query'
@@ -10,14 +11,38 @@ import {
   Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight,
   StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle, ShieldCheck, BookUser, Settings,
   Layers, CalendarClock, Music, Shield, CheckSquare, Clock, UtensilsCrossed, Image, TableProperties,
-  MessageSquare, Activity, Video, CalendarOff, BookOpen
+  MessageSquare, Activity, Video, CalendarOff, Wallet
 } from 'lucide-react'
+import { FeedbackWidget } from '@/components/shared/FeedbackWidget'
 import { useT } from '@/lib/useT'
 import { navT } from '@/lib/i18n'
+
+type NavItemDef = {
+  label: string
+  icon: any
+  path: string
+  badge?: number
+}
+
+type NavGroupDef = {
+  label: string
+  items: NavItemDef[]
+}
+
+const OPEN_GROUPS_KEY = 'cutsheet-nav-open-groups'
+
+function loadOpenGroups(): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(OPEN_GROUPS_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
 
 export function Sidebar() {
   const { projectId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { sidebarCollapsed, toggleSidebar } = useProjectStore()
   const { user } = useAuth()
   const tt = useT()
@@ -41,13 +66,14 @@ export function Sidebar() {
   })
   const conflictCount = (conflicts || []).filter((c: any) => c.severity === 'error' || c.severity === 'warning').length
 
-  const navGroups = [
+  const navGroups: NavGroupDef[] = [
     {
       // First thing you do: create the project and break down the script
       label: 'Übersicht',
       items: [
         { label: tt(navT.dashboard), icon: LayoutDashboard, path: '' },
         { label: tt(navT.masterData), icon: Film, path: 'stammdaten' },
+        { label: 'Aufgaben', icon: CheckSquare, path: 'aufgaben' },
       ]
     },
     {
@@ -85,6 +111,7 @@ export function Sidebar() {
         { label: tt(navT.vehicles), icon: Car, path: 'fahrzeuge' },
         { label: 'Catering', icon: UtensilsCrossed, path: 'catering' },
         { label: tt(navT.budget), icon: DollarSign, path: 'budget' },
+        { label: 'Kostenstand', icon: Wallet, path: 'kostenstand' },
         { label: 'Versicherungen', icon: Shield, path: 'versicherungen' },
       ]
     },
@@ -124,6 +151,41 @@ export function Sidebar() {
     },
   ]
 
+  // Which group contains the currently active route?
+  const activeSegment = useMemo(() => {
+    if (!projectId) return null
+    const rest = location.pathname.split(`/projects/${projectId}`)[1] || ''
+    return rest.split('/').filter(Boolean)[0] ?? ''
+  }, [location.pathname, projectId])
+
+  const activeGroupLabel = useMemo(() => {
+    if (activeSegment === null) return null
+    const group = navGroups.find(g => g.items.some(i => i.path === activeSegment))
+    return group?.label ?? null
+    // navGroups is rebuilt each render but its structure is static
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSegment, conflictCount])
+
+  // Open/closed state per group — persisted, default: open
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(loadOpenGroups)
+
+  const setGroupOpen = (label: string, open: boolean) => {
+    setOpenGroups(prev => {
+      const next = { ...prev, [label]: open }
+      try { localStorage.setItem(OPEN_GROUPS_KEY, JSON.stringify(next)) } catch { /* quota */ }
+      return next
+    })
+  }
+
+  // The group of the active page never stays collapsed — you should
+  // always see where you are.
+  useEffect(() => {
+    if (activeGroupLabel && openGroups[activeGroupLabel] === false) {
+      setGroupOpen(activeGroupLabel, true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGroupLabel])
+
   const pid = projectId
 
   return (
@@ -136,7 +198,7 @@ export function Sidebar() {
         className="flex items-center h-[56px] px-3.5 border-b border-border gap-3 shrink-0 cursor-pointer select-none"
         onClick={() => navigate('/')}
       >
-        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0 shadow-[0_0_12px_hsl(0_72%_51%/0.3)]">
+        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0 shadow-[0_0_12px_hsl(var(--primary)/0.3)]">
           <Clapperboard className="w-4 h-4 text-primary-foreground" />
         </div>
         {!sidebarCollapsed && (
@@ -150,64 +212,18 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5" aria-label="Hauptnavigation" role="navigation">
+      <nav className="flex-1 overflow-y-auto py-3 px-2" aria-label="Hauptnavigation" role="navigation">
         {pid ? (
           navGroups.map((group) => (
-            <div key={group.label} className="mb-1">
-              {!sidebarCollapsed && (
-                <div className="px-2 pb-1 pt-2.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/50">
-                    {group.label}
-                  </span>
-                </div>
-              )}
-              {sidebarCollapsed && group.label !== tt(navT.overview) && (
-                <div className="my-2 mx-2 h-px bg-border" />
-              )}
-              {group.items.map(item => (
-                <NavLink
-                  key={item.path}
-                  to={item.path === '' ? `/projects/${pid}` : `/projects/${pid}/${item.path}`}
-                  end={item.path === ''}
-                  title={item.label}
-                  aria-label={item.label}
-                  className={({ isActive }) => cn(
-                    'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] group relative',
-                    'transition-[background-color,color,transform] duration-150',
-                    'active:scale-[0.97]',
-                    isActive
-                      ? 'bg-primary/10 text-primary font-medium shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.12)]'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
-                  )}
-                >
-                  {({ isActive }) => (
-                    <>
-                      {isActive && (
-                        <span
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-primary rounded-full shadow-[0_0_8px_hsl(var(--primary)/0.65)]"
-                          aria-current="page"
-                        />
-                      )}
-                      <item.icon className={cn(
-                        'shrink-0 transition-[color,transform] duration-150',
-                        sidebarCollapsed ? 'w-[15px] h-[15px]' : 'w-[14px] h-[14px]',
-                        isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground group-hover:scale-110'
-                      )} />
-                      {!sidebarCollapsed && (
-                        <>
-                          <span className="flex-1 truncate">{item.label}</span>
-                          {(item as any).badge != null && (
-                            <span className="ml-1 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold flex items-center justify-center tabular-nums">
-                              {(item as any).badge}
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </>
-                  )}
-                </NavLink>
-              ))}
-            </div>
+            <NavGroup
+              key={group.label}
+              group={group}
+              pid={pid}
+              collapsed={sidebarCollapsed}
+              open={openGroups[group.label] !== false}
+              isActiveGroup={group.label === activeGroupLabel}
+              onToggle={() => setGroupOpen(group.label, openGroups[group.label] === false)}
+            />
           ))
         ) : (
           <div className="px-3 py-6 text-center">
@@ -236,34 +252,7 @@ export function Sidebar() {
             )}
             {sidebarCollapsed && <div className="my-2 mx-2 h-px bg-border" />}
             {ADMIN_ITEMS.map(item => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                title={item.label}
-                aria-label={item.label}
-                className={({ isActive }) => cn(
-                  'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] group relative',
-                  'transition-[background-color,color,transform] duration-150',
-                  'active:scale-[0.97]',
-                  isActive
-                    ? 'bg-primary/10 text-primary font-medium shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.12)]'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
-                )}
-              >
-                {({ isActive }) => (
-                  <>
-                    {isActive && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-primary rounded-full shadow-[0_0_8px_hsl(var(--primary)/0.65)]" aria-current="page" />
-                    )}
-                    <item.icon className={cn(
-                      'shrink-0 transition-[color,transform] duration-150',
-                      sidebarCollapsed ? 'w-[15px] h-[15px]' : 'w-[14px] h-[14px]',
-                      isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground group-hover:scale-110'
-                    )} />
-                    {!sidebarCollapsed && <span className="flex-1 truncate">{item.label}</span>}
-                  </>
-                )}
-              </NavLink>
+              <NavItem key={item.path} item={item} to={item.path} collapsed={sidebarCollapsed} />
             ))}
           </div>
         )}
@@ -271,6 +260,7 @@ export function Sidebar() {
 
       {/* User menu + Collapse toggle */}
       <div className="border-t border-border shrink-0">
+        <FeedbackWidget collapsed={sidebarCollapsed} />
         <UserMenu collapsed={sidebarCollapsed} />
         <div className="px-2 pb-2">
           <button
@@ -288,6 +278,131 @@ export function Sidebar() {
         </div>
       </div>
     </aside>
+  )
+}
+
+function NavGroup({ group, pid, collapsed, open, isActiveGroup, onToggle }: {
+  group: NavGroupDef
+  pid: string
+  collapsed: boolean
+  open: boolean
+  isActiveGroup: boolean
+  onToggle: () => void
+}) {
+  // Collapsed rail: no group headers, just a thin separator
+  if (collapsed) {
+    return (
+      <div className="mb-1">
+        {group.label !== 'Übersicht' && <div className="my-2 mx-2 h-px bg-border" />}
+        {group.items.map(item => (
+          <NavItem
+            key={item.path}
+            item={item}
+            to={item.path === '' ? `/projects/${pid}` : `/projects/${pid}/${item.path}`}
+            end={item.path === ''}
+            collapsed
+          />
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="mb-1">
+      <button
+        onClick={onToggle}
+        aria-expanded={open}
+        className={cn(
+          'w-full flex items-center gap-1 px-2 pb-1 pt-2.5 group/header rounded-md',
+          'transition-colors duration-150'
+        )}
+      >
+        <span className={cn(
+          'text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors duration-150',
+          isActiveGroup ? 'text-muted-foreground/80' : 'text-muted-foreground/50 group-hover/header:text-muted-foreground/80'
+        )}>
+          {group.label}
+        </span>
+        <ChevronRight className={cn(
+          'w-2.5 h-2.5 text-muted-foreground/40 transition-transform duration-200',
+          open && 'rotate-90'
+        )} style={{ transitionTimingFunction: 'var(--ease-out)' }} />
+        {/* Collapsed group with active page inside still hints at it */}
+        {!open && isActiveGroup && (
+          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+        )}
+      </button>
+      {/* Grid-rows trick: smooth height collapse with pure CSS transitions */}
+      <div
+        className="grid"
+        style={{
+          gridTemplateRows: open ? '1fr' : '0fr',
+          transition: 'grid-template-rows 220ms var(--ease-out)',
+        }}
+      >
+        <div className="overflow-hidden min-h-0">
+          {group.items.map(item => (
+            <NavItem
+              key={item.path}
+              item={item}
+              to={item.path === '' ? `/projects/${pid}` : `/projects/${pid}/${item.path}`}
+              end={item.path === ''}
+              collapsed={false}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function NavItem({ item, to, end, collapsed }: {
+  item: NavItemDef
+  to: string
+  end?: boolean
+  collapsed: boolean
+}) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      title={item.label}
+      aria-label={item.label}
+      className={({ isActive }) => cn(
+        'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] group relative',
+        'transition-[background-color,color,transform] duration-150',
+        'active:scale-[0.97]',
+        isActive
+          ? 'bg-primary/10 text-primary font-medium shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.12)]'
+          : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
+      )}
+    >
+      {({ isActive }) => (
+        <>
+          {isActive && (
+            <span
+              className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-primary rounded-full shadow-[0_0_8px_hsl(var(--primary)/0.65)]"
+              aria-current="page"
+            />
+          )}
+          <item.icon className={cn(
+            'shrink-0 transition-[color,transform] duration-150',
+            collapsed ? 'w-[15px] h-[15px]' : 'w-[14px] h-[14px]',
+            isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground group-hover:scale-110'
+          )} />
+          {!collapsed && (
+            <>
+              <span className="flex-1 truncate">{item.label}</span>
+              {item.badge != null && (
+                <span className="ml-1 min-w-[18px] h-[18px] px-1 rounded-full bg-warning/20 text-warning text-[10px] font-bold flex items-center justify-center tabular-nums">
+                  {item.badge}
+                </span>
+              )}
+            </>
+          )}
+        </>
+      )}
+    </NavLink>
   )
 }
 

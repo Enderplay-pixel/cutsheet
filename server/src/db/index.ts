@@ -808,6 +808,64 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ`)
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMPTZ`)
   await db.exec(`ALTER TABLE screenplay_blocks ADD COLUMN IF NOT EXISTS annotation_color TEXT NOT NULL DEFAULT '#f59e0b'`)
+  await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false`)
+  await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS public_token TEXT`)
+  await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ`)
+  await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_cse_public_token ON call_sheet_entries(public_token)`)
+  await db.exec(`ALTER TABLE project_invites ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE project_invites ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMPTZ`)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token TEXT NOT NULL UNIQUE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS project_tasks (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'offen',
+      department TEXT NOT NULL DEFAULT '',
+      assignee TEXT NOT NULL DEFAULT '',
+      due_date DATE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      completed_at TIMESTAMPTZ
+    )
+  `)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS expenses (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      budget_line_id INTEGER REFERENCES budget_lines(id) ON DELETE SET NULL,
+      category TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL,
+      amount_cents INTEGER NOT NULL DEFAULT 0,
+      receipt_no TEXT NOT NULL DEFAULT '',
+      expense_date DATE,
+      paid BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS feedback (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      user_email TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT 'allgemein',
+      message TEXT NOT NULL,
+      page_path TEXT NOT NULL DEFAULT '',
+      resolved BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
 
   // Check if empty — seed demo data on first run
   const count = await db.get('SELECT COUNT(*) as c FROM projects')
@@ -833,14 +891,31 @@ export async function initDatabase() {
 }
 
 // ─── Demo seed data ───────────────────────────────────────────────────────────
-export async function seedDemoData() {
+// Ohne ownerId: globales Seed beim ersten DB-Init (Bestandsverhalten).
+// Mit ownerId: persönliches, löschbares Demo-Projekt für einen frischen Account.
+export async function seedDemoData(ownerId?: number): Promise<number> {
+  // Drehtage immer relativ zu heute, damit das Demo-Projekt "lebendig" wirkt:
+  // Tag 1 gestern abgedreht, Tag 2/3 stehen bevor (Dashboard-Countdown greift).
+  const d = (offset: number) => {
+    const dt = new Date()
+    dt.setDate(dt.getDate() + offset)
+    return dt.toISOString().slice(0, 10)
+  }
+
   const projectResult = await db.run(`
-    INSERT INTO projects (title, genre, format, length_minutes, status, director, producer, dop, production_company, shoot_start, shoot_end)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, ['Sprachlos', 'Drama', 'Kurzfilm', 15, 'Vorproduktion',
+    INSERT INTO projects (title, genre, format, length_minutes, status, director, producer, dop, production_company, shoot_start, shoot_end, owner_id, is_demo)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, ['Sprachlos (Demo)', 'Drama', 'Kurzfilm', 15, 'Vorproduktion',
       'Sarah Müller', 'Thomas Bauer', 'Lisa Schneider', 'Bauer Film GmbH',
-      '2026-06-15', '2026-06-17'])
+      d(-1), d(7), ownerId ?? null, true])
   const projectId = projectResult.id
+
+  if (ownerId) {
+    await db.run(
+      'INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?) ON CONFLICT DO NOTHING',
+      [projectId, ownerId, 'admin']
+    )
+  }
 
   await db.run(
     'INSERT INTO project_settings (project_id, default_call_time, default_wrap_time) VALUES (?, ?, ?)',
@@ -942,15 +1017,15 @@ export async function seedDemoData() {
   // Shoot days
   const day1 = await db.run(
     'INSERT INTO shoot_days (project_id, day_number, date, status, notes) VALUES (?, ?, ?, ?, ?)',
-    [projectId, 1, '2026-06-15', 'Geplant', 'Drehtag 1 - Innenaufnahmen Andis Wohnung']
+    [projectId, 1, d(-1), 'Geplant', 'Drehtag 1 - Innenaufnahmen Andis Wohnung']
   )
   const day2 = await db.run(
     'INSERT INTO shoot_days (project_id, day_number, date, status, notes) VALUES (?, ?, ?, ?, ?)',
-    [projectId, 2, '2026-06-16', 'Geplant', 'Drehtag 2 - Außenaufnahmen Englischer Garten']
+    [projectId, 2, d(6), 'Geplant', 'Drehtag 2 - Außenaufnahmen Englischer Garten']
   )
   const day3 = await db.run(
     'INSERT INTO shoot_days (project_id, day_number, date, status, notes) VALUES (?, ?, ?, ?, ?)',
-    [projectId, 3, '2026-06-17', 'Geplant', 'Drehtag 3 - Café und Schlussszene']
+    [projectId, 3, d(7), 'Geplant', 'Drehtag 3 - Café und Schlussszene']
   )
   const dayId1 = day1.id, dayId2 = day2.id, dayId3 = day3.id
 
@@ -1055,12 +1130,12 @@ export async function seedDemoData() {
 
   // Calendar events
   const events = [
-    ['Drehtag 1 - Wohnküche', '2026-06-15', 'Drehtag', '#f59e0b', 'Innenaufnahmen Andis Wohnung'],
-    ['Drehtag 2 - Englischer Garten', '2026-06-16', 'Drehtag', '#f59e0b', 'Außenaufnahmen im Park'],
-    ['Drehtag 3 - Café & Schluss', '2026-06-17', 'Drehtag', '#f59e0b', 'Café-Szene und Schlussszene'],
-    ['Casting-Termin', '2026-05-20', 'Casting', '#3b82f6', 'Casting für Nebenrollen'],
-    ['Locationscout Englischer Garten', '2026-05-28', 'Locationscout', '#10b981', 'Mit Lisa und Lars'],
-    ['Produktionsbesprechung', '2026-06-01', 'Meeting', '#8b5cf6', 'Finales Meeting vor Produktion'],
+    ['Drehtag 1 - Wohnküche', d(-1), 'Drehtag', '#f59e0b', 'Innenaufnahmen Andis Wohnung'],
+    ['Drehtag 2 - Englischer Garten', d(6), 'Drehtag', '#f59e0b', 'Außenaufnahmen im Park'],
+    ['Drehtag 3 - Café & Schluss', d(7), 'Drehtag', '#f59e0b', 'Café-Szene und Schlussszene'],
+    ['Casting-Termin', d(-22), 'Casting', '#3b82f6', 'Casting für Nebenrollen'],
+    ['Locationscout Englischer Garten', d(-15), 'Locationscout', '#10b981', 'Mit Lisa und Lars'],
+    ['Produktionsbesprechung', d(-8), 'Meeting', '#8b5cf6', 'Finales Meeting vor Produktion'],
   ]
   for (const [title, date, type, color, notes] of events) {
     await db.run(
@@ -1266,5 +1341,6 @@ export async function seedDemoData() {
     )
   }
 
-  console.log('[DB] Demo-Daten "Sprachlos" erfolgreich eingefügt.')
+  console.log(`[DB] Demo-Daten "Sprachlos" eingefügt${ownerId ? ` (Owner ${ownerId})` : ''}.`)
+  return projectId
 }

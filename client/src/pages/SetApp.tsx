@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { track } from '@/lib/analytics'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
@@ -122,8 +123,10 @@ function ShotlistTab({ projectId, dayId }: { projectId: string; dayId: string })
 }
 
 // ─── Check-in Tab ─────────────────────────────────────────────────────────────
+// Check-ins werden serverseitig persistiert (call_sheet_entries.checked_in),
+// damit Set-App und Check-in-Board dasselbe sehen.
 function CheckInTab({ dayId }: { dayId: string }) {
-  const [checkedIn, setCheckedIn] = useState<Set<number>>(new Set())
+  const queryClient = useQueryClient()
 
   const { data: callSheet, isLoading } = useQuery({
     queryKey: ['set-call-sheet', dayId],
@@ -131,11 +134,33 @@ function CheckInTab({ dayId }: { dayId: string }) {
     enabled: !!dayId,
   })
 
+  const checkinMutation = useMutation({
+    mutationFn: ({ entryId, checkedIn }: { entryId: number; checkedIn: boolean }) =>
+      req<any>(`/call-sheet-entries/${entryId}/checkin`, {
+        method: 'POST',
+        body: JSON.stringify({ checked_in: checkedIn }),
+      }),
+    // Optimistic update: am Set zählt jede Sekunde
+    onMutate: async ({ entryId, checkedIn }) => {
+      await queryClient.cancelQueries({ queryKey: ['set-call-sheet', dayId] })
+      const previous = queryClient.getQueryData<any>(['set-call-sheet', dayId])
+      queryClient.setQueryData<any>(['set-call-sheet', dayId], (old: any) => old ? {
+        ...old,
+        entries: (old.entries || []).map((e: any) => e.id === entryId ? { ...e, checked_in: checkedIn } : e),
+      } : old)
+      return { previous }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(['set-call-sheet', dayId], ctx.previous)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['set-call-sheet', dayId] }),
+  })
+
   if (!dayId) return <EmptyState text="Drehtag auswählen" />
   if (isLoading) return <LoadingCards />
 
   const entries = callSheet?.entries || []
-  const done = [...checkedIn].length
+  const done = entries.filter((e: any) => e.checked_in).length
   const total = entries.length
 
   return (
@@ -144,19 +169,13 @@ function CheckInTab({ dayId }: { dayId: string }) {
         {done}/{total} eingecheckt
       </div>
       {entries.length === 0 && <EmptyState text="Keine Personen in der Disposition" />}
-      {entries.map((entry: any, i: number) => {
-        const uid = entry.person_id ?? i
-        const isIn = checkedIn.has(uid)
+      {entries.map((entry: any) => {
+        // entry.id statt person_id: Cast- und Crew-IDs kollidieren sonst
+        const isIn = !!entry.checked_in
         return (
           <button
-            key={uid}
-            onClick={() => {
-              setCheckedIn(prev => {
-                const next = new Set(prev)
-                if (next.has(uid)) next.delete(uid); else next.add(uid)
-                return next
-              })
-            }}
+            key={entry.id}
+            onClick={() => checkinMutation.mutate({ entryId: entry.id, checkedIn: !isIn })}
             className={cn(
               'w-full text-left rounded-2xl border p-5 flex items-center gap-4 transition-colors',
               isIn ? 'border-green-500/40 bg-green-500/8' : 'border-border bg-card hover:border-primary/30'
@@ -266,6 +285,8 @@ export function Component() {
   const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'))
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
   const [selectedDayId, setSelectedDayId] = useState<string>('')
+
+  useEffect(() => { track('set_app_used') }, [])
 
   const toggleDark = () => {
     setDarkMode(d => {

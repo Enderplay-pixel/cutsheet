@@ -1,16 +1,19 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useProjectStore } from '@/store/useProjectStore'
+import { usePushSubscription } from '@/hooks/usePushSubscription'
 import { useT } from '@/lib/useT'
 import { settingsT, LANGS, type Lang } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
-import { Moon, Sun, Check, KeyRound, User, Globe, Palette } from 'lucide-react'
+import { Moon, Sun, Check, KeyRound, User, Globe, Palette, Bell, ShieldCheck, Download, Trash2 } from 'lucide-react'
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
 
@@ -259,6 +262,152 @@ export function Component() {
           </button>
         </div>
       </Section>
+
+      {/* ── Benachrichtigungen ── */}
+      <PushSection />
+
+      {/* ── Datenschutz & Konto ── */}
+      <PrivacySection />
     </div>
+  )
+}
+
+// ─── Push-Benachrichtigungen ──────────────────────────────────────────────────
+
+function PushSection() {
+  const { state, subscribe, unsubscribe } = usePushSubscription()
+  const { toast } = useToast()
+
+  // Server ohne VAPID-Keys oder Browser ohne Support: Sektion ausblenden
+  if (state === 'unavailable' || state === 'unsupported' || state === 'loading') return null
+
+  return (
+    <Section icon={Bell} title="Benachrichtigungen" description="Push-Nachrichten bei Dispo-Versand und Zeitänderungen">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-foreground">Push-Benachrichtigungen</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {state === 'subscribed'
+              ? 'Aktiv auf diesem Gerät'
+              : state === 'denied'
+                ? 'Im Browser blockiert — bitte in den Browser-Einstellungen erlauben'
+                : 'Erhalte sofort Bescheid, wenn sich Drehzeiten ändern'}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={state === 'denied'}
+          onClick={async () => {
+            const ok = state === 'subscribed' ? await unsubscribe() : await subscribe()
+            if (!ok && state !== 'subscribed') {
+              toast({ variant: 'destructive', title: 'Aktivierung fehlgeschlagen' })
+            }
+          }}
+          className={cn(
+            'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40',
+            state === 'subscribed' ? 'bg-primary' : 'bg-muted-foreground/30'
+          )}
+          role="switch"
+          aria-checked={state === 'subscribed'}
+        >
+          <span className={cn(
+            'inline-block h-4 w-4 rounded-full bg-white shadow transition-transform',
+            state === 'subscribed' ? 'translate-x-6' : 'translate-x-1'
+          )} />
+          <span className="sr-only">Push-Benachrichtigungen</span>
+        </button>
+      </div>
+    </Section>
+  )
+}
+
+// ─── Datenschutz & Konto (DSGVO) ─────────────────────────────────────────────
+
+function PrivacySection() {
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+  const { toast } = useToast()
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deletePw, setDeletePw] = useState('')
+
+  const handleExport = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(api.authExtra.exportUrl(), { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) throw new Error('Export fehlgeschlagen')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'cutsheet-datenexport.json'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: e.message || 'Export fehlgeschlagen' })
+    }
+  }
+
+  const deleteMutation = useMutation({
+    mutationFn: () => api.authExtra.deleteAccount(deletePw),
+    onSuccess: () => {
+      logout()
+      navigate('/login')
+    },
+    onError: (e: any) => toast({ variant: 'destructive', title: 'Löschen fehlgeschlagen', description: e.message }),
+  })
+
+  return (
+    <Section icon={ShieldCheck} title="Datenschutz & Konto" description="Deine Daten gehören dir — Export und Löschung jederzeit">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-foreground">Daten exportieren</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Alle deine personenbezogenen Daten als JSON (DSGVO Art. 20)</p>
+        </div>
+        <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleExport}>
+          <Download className="w-3.5 h-3.5" /> Export
+        </Button>
+      </div>
+
+      <div className="flex items-center justify-between pt-4 border-t border-border/40">
+        <div>
+          <p className="text-sm font-medium text-destructive">Konto löschen</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Unwiderruflich — eigene Solo-Projekte werden mitgelöscht</p>
+        </div>
+        <Button variant="destructive" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setDeleteOpen(true)}>
+          <Trash2 className="w-3.5 h-3.5" /> Löschen
+        </Button>
+      </div>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Konto unwiderruflich löschen?</DialogTitle>
+            <DialogDescription>
+              Deine Solo-Projekte werden gelöscht. Besitzt du Projekte mit weiteren
+              Mitgliedern, musst du diese zuerst übergeben oder löschen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Passwort zur Bestätigung</Label>
+            <Input
+              type="password"
+              value={deletePw}
+              onChange={e => setDeletePw(e.target.value)}
+              autoComplete="current-password"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Abbrechen</Button>
+            <Button
+              variant="destructive"
+              disabled={!deletePw || deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate()}
+            >
+              {deleteMutation.isPending ? 'Wird gelöscht…' : 'Endgültig löschen'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Section>
   )
 }

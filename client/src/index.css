@@ -11,28 +11,42 @@
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-    /* ── Dark mode: Kino-Saal ─────────────────────────── */
-    --background: 0 0% 5%;
-    --foreground: 38 20% 91%;
-    --card: 0 0% 8%;
-    --card-foreground: 38 20% 91%;
-    --popover: 0 0% 11%;
-    --popover-foreground: 38 20% 91%;
+    /* ── Dark mode: Kinosaal (warmes Charcoal, Tungsten-Gold) ── */
+    /* Psychologie: Gold = Set-Licht / Golden Hour — warm, fokussiert,
+       motivierend. Rot ist ab jetzt EXKLUSIV destruktiv/Fehler, damit
+       die Alarmfarbe ihre Bedeutung behält. */
+    --background: 30 8% 5.5%;
+    --foreground: 36 16% 92%;
+    --card: 30 7% 8.5%;
+    --card-foreground: 36 16% 92%;
+    --popover: 30 7% 11%;
+    --popover-foreground: 36 16% 92%;
 
-    --primary: 0 72% 51%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 38 90% 55%;
+    --primary-foreground: 30 60% 7%;
 
-    --secondary: 0 0% 13%;
-    --secondary-foreground: 38 12% 76%;
-    --muted: 0 0% 11%;
-    --muted-foreground: 0 0% 46%;
-    --accent: 25 95% 53%;
-    --accent-foreground: 0 0% 100%;
+    --secondary: 30 6% 13%;
+    --secondary-foreground: 36 10% 76%;
+    --muted: 30 6% 11%;
+    --muted-foreground: 32 6% 52%;
+    --accent: 38 90% 55%;
+    --accent-foreground: 30 60% 7%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 17%;
-    --input: 0 0% 13%;
-    --ring: 0 72% 51%;
+
+    /* Semantische Status-Farben */
+    --success: 152 52% 44%;
+    --success-foreground: 150 60% 96%;
+    --warning: 22 92% 55%;
+    --warning-foreground: 26 70% 8%;
+    --danger: 0 72% 54%;
+    --danger-foreground: 0 0% 98%;
+    --info: 208 88% 62%;
+    --info-foreground: 210 60% 8%;
+
+    --border: 30 6% 16%;
+    --input: 30 6% 13%;
+    --ring: 38 90% 55%;
     --radius: 0.625rem;
 
     --sidebar-width: 220px;
@@ -41,7 +55,7 @@
   }
 
   .light {
-    /* ── Light mode: Pergament ──────────────────────── */
+    /* ── Light mode: Tageslicht (warmes Papier, Bronze-Gold) ── */
     --background: 37 35% 97%;
     --foreground: 25 18% 11%;
     --card: 0 0% 100%;
@@ -49,20 +63,30 @@
     --popover: 0 0% 100%;
     --popover-foreground: 25 18% 11%;
 
-    --primary: 17 83% 40%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 34 85% 36%;
+    --primary-foreground: 40 60% 98%;
 
     --secondary: 37 25% 91%;
     --secondary-foreground: 25 15% 22%;
     --muted: 37 22% 93%;
     --muted-foreground: 25 10% 46%;
-    --accent: 17 83% 40%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
+    --accent: 34 85% 36%;
+    --accent-foreground: 40 60% 98%;
+    --destructive: 0 72% 46%;
     --destructive-foreground: 0 0% 98%;
+
+    --success: 152 60% 30%;
+    --success-foreground: 150 60% 97%;
+    --warning: 22 92% 42%;
+    --warning-foreground: 40 60% 98%;
+    --danger: 0 72% 46%;
+    --danger-foreground: 0 0% 98%;
+    --info: 208 85% 42%;
+    --info-foreground: 210 60% 98%;
+
     --border: 37 18% 82%;
     --input: 37 22% 89%;
-    --ring: 17 83% 40%;
+    --ring: 34 85% 36%;
   }
 }
 

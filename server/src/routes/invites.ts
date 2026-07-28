@@ -2,10 +2,41 @@ import { Router, Request, Response } from 'express'
 import crypto from 'crypto'
 import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
+import { sendEmail, isSmtpConfigured, appBaseUrl } from './emailService'
 
 const router = Router()
 
 const VALID_ROLES = ['admin', 'producer', 'director', 'dept_head', 'read_only']
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Admin',
+  producer: 'Produktion',
+  director: 'Regie',
+  dept_head: 'Department-Leitung',
+  read_only: 'Lesezugriff',
+}
+
+async function sendInviteEmail(invite: { token: string; role: string; email: string }, projectId: number, inviterName: string) {
+  const project = await db.get('SELECT title FROM projects WHERE id = ?', [projectId]) as { title: string } | undefined
+  if (!project) return false
+  const link = `${appBaseUrl()}/invite/${invite.token}`
+  await sendEmail({
+    to: invite.email,
+    subject: `Einladung zum Filmprojekt „${project.title}"`,
+    projectId,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:480px;">
+        <h2 style="color:#111;">Du bist eingeladen!</h2>
+        <p>${inviterName || 'Ein Teammitglied'} hat dich zum Filmprojekt <strong>„${project.title}"</strong> auf CutSheet eingeladen
+           — Rolle: <strong>${ROLE_LABELS[invite.role] ?? invite.role}</strong>.</p>
+        <p style="margin:24px 0;">
+          <a href="${link}" style="background:#b45309;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Einladung annehmen</a>
+        </p>
+        <p style="color:#6b7280;font-size:13px;">CutSheet ist kostenlos — Drehplan, Tagesdispo, Besetzung und mehr an einem Ort.</p>
+      </div>`,
+  })
+  return true
+}
 
 // Helper: check if user owns or is admin-member of a project
 async function isProjectOwner(projectId: string | number, userId: number): Promise<boolean> {
@@ -37,15 +68,52 @@ router.post('/projects/:id/invites', requireAuth, async (req: Request, res: Resp
   }
   const role = VALID_ROLES.includes(req.body.role) ? req.body.role : 'read_only'
   const label = String(req.body.label || '')
+  const email = String(req.body.email || '').trim()
   const token = crypto.randomBytes(20).toString('hex')
 
   const result = await db.run(
-    'INSERT INTO project_invites (project_id, token, role, label, created_by) VALUES (?, ?, ?, ?, ?)',
-    [req.params.id, token, role, label, req.user!.id]
+    'INSERT INTO project_invites (project_id, token, role, label, created_by, email) VALUES (?, ?, ?, ?, ?, ?)',
+    [req.params.id, token, role, label, req.user!.id, email]
   )
 
+  // Optional: Einladung direkt per E-Mail verschicken
+  let emailSent = false
+  if (email && isSmtpConfigured()) {
+    try {
+      emailSent = await sendInviteEmail({ token, role, email }, Number(req.params.id), req.user!.name)
+      if (emailSent) {
+        await db.run('UPDATE project_invites SET email_sent_at = NOW() WHERE id = ?', [result.id])
+      }
+    } catch (err) {
+      console.error('[invites] E-Mail-Versand fehlgeschlagen', err)
+    }
+  }
+
   const invite = await db.get('SELECT * FROM project_invites WHERE id = ?', [result.id])
-  return res.status(201).json({ data: invite, error: null })
+  return res.status(201).json({ data: { ...invite, email_sent: emailSent }, error: null })
+})
+
+// POST /api/projects/:id/invites/:iid/resend — Einladung erneut mailen
+router.post('/projects/:id/invites/:iid/resend', requireAuth, async (req: Request, res: Response) => {
+  if (!await isProjectOwner(req.params.id, req.user!.id)) {
+    return res.status(403).json({ data: null, error: 'Kein Zugriff' })
+  }
+  const invite = await db.get(
+    'SELECT * FROM project_invites WHERE id = ? AND project_id = ?',
+    [req.params.iid, req.params.id]
+  ) as { token: string; role: string; email: string } | undefined
+  if (!invite) return res.status(404).json({ data: null, error: 'Einladung nicht gefunden' })
+  if (!invite.email) return res.status(400).json({ data: null, error: 'Einladung hat keine E-Mail-Adresse' })
+  if (!isSmtpConfigured()) return res.status(400).json({ data: null, error: 'E-Mail-Versand ist auf diesem Server nicht konfiguriert' })
+
+  try {
+    await sendInviteEmail(invite, Number(req.params.id), req.user!.name)
+    await db.run('UPDATE project_invites SET email_sent_at = NOW() WHERE id = ?', [req.params.iid])
+    return res.json({ data: { ok: true }, error: null })
+  } catch (err) {
+    console.error('[invites/resend]', err)
+    return res.status(500).json({ data: null, error: 'E-Mail-Versand fehlgeschlagen' })
+  }
 })
 
 // DELETE /api/projects/:id/invites/:iid

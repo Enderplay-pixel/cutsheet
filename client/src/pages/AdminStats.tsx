@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -9,7 +9,11 @@ import {
   Server,
   TrendingUp,
   ShieldCheck,
+  MessageSquare,
+  Check,
+  Undo2,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const API_BASE = '/api'
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
@@ -305,6 +309,9 @@ export function Component() {
         )}
       </div>
 
+      {/* User feedback */}
+      <FeedbackPanel />
+
       {/* Server information */}
       <div className="rounded-xl border border-border/60 bg-card p-5">
         <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-5">
@@ -314,7 +321,7 @@ export function Component() {
           {[
             { label: 'Umgebung',    value: 'Production' },
             { label: 'Node.js',     value: '20.x' },
-            { label: 'Datenbank',   value: 'SQLite' },
+            { label: 'Datenbank',   value: 'PostgreSQL' },
             { label: 'API-Version', value: 'v1' },
           ].map(item => (
             <div key={item.label}>
@@ -330,6 +337,77 @@ export function Component() {
           <code className="font-mono">/api/admin/stats</code> bereitgestellt (demnächst verfügbar).
         </p>
       </div>
+    </div>
+  )
+}
+
+// ─── Nutzer-Feedback (In-App-Widget) ─────────────────────────────────────────
+
+const FEEDBACK_CATEGORY_LABELS: Record<string, { label: string; cls: string }> = {
+  fehler:    { label: 'Fehler',    cls: 'bg-danger/10 text-danger border-danger/20' },
+  idee:      { label: 'Idee',      cls: 'bg-info/10 text-info border-info/20' },
+  allgemein: { label: 'Allgemein', cls: 'bg-muted text-muted-foreground border-border' },
+}
+
+function FeedbackPanel() {
+  const queryClient = useQueryClient()
+  const { data: feedback = [], isLoading } = useQuery({
+    queryKey: ['admin-feedback'],
+    queryFn: () => req<any[]>('/feedback'),
+  })
+
+  const resolveMutation = useMutation({
+    mutationFn: ({ id, resolved }: { id: number; resolved: boolean }) =>
+      req<any>(`/feedback/${id}`, { method: 'PUT', body: JSON.stringify({ resolved }) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-feedback'] }),
+  })
+
+  const openCount = feedback.filter((f: any) => !f.resolved).length
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-card mb-6 overflow-hidden">
+      <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+        <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">
+          Nutzer-Feedback
+        </p>
+        {openCount > 0 && (
+          <span className="text-[11px] font-bold text-warning tabular-nums">{openCount} offen</span>
+        )}
+      </div>
+      {isLoading ? (
+        <div className="px-5 pb-5 space-y-2.5">
+          {[1, 2].map(i => <Skeleton key={i} className="h-12 rounded-xl" />)}
+        </div>
+      ) : feedback.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <MessageSquare className="w-8 h-8 mb-2 opacity-20" />
+          <p className="text-sm text-muted-foreground/60">Noch kein Feedback eingegangen</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-border/30 max-h-96 overflow-y-auto">
+          {feedback.map((f: any) => {
+            const cat = FEEDBACK_CATEGORY_LABELS[f.category] ?? FEEDBACK_CATEGORY_LABELS.allgemein
+            return (
+              <div key={f.id} className={cn('flex items-start gap-3 px-5 py-3', f.resolved && 'opacity-45')}>
+                <Badge variant="outline" className={cn('text-[10px] shrink-0 mt-0.5', cat.cls)}>{cat.label}</Badge>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{f.message}</p>
+                  <p className="text-[11px] text-muted-foreground/60 mt-1">
+                    {f.user_email || 'anonym'} · {f.page_path} · {f.created_at ? new Date(f.created_at).toLocaleString('de-DE') : ''}
+                  </p>
+                </div>
+                <button
+                  onClick={() => resolveMutation.mutate({ id: f.id, resolved: !f.resolved })}
+                  title={f.resolved ? 'Wieder öffnen' : 'Als erledigt markieren'}
+                  className="shrink-0 p-1.5 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-foreground/5 transition-[color,background-color] duration-150 active:scale-[0.88]"
+                >
+                  {f.resolved ? <Undo2 className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

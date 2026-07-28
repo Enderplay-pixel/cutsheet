@@ -12,11 +12,104 @@ import { formatDate, formatDateLong, debounce, cn, eighthsToString } from '@/lib
 import {
   ChevronLeft, ChevronRight, MapPin, Clock, Users,
   Plus, Minus, ClipboardList, Save, Download, Trash2, Clapperboard,
-  CloudSun, Sunrise, Sunset, Film
+  CloudSun, Sunrise, Sunset, Film, Send, Eye, CheckCircle2, AlertTriangle
 } from 'lucide-react'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
+} from '@/components/ui/dialog'
 import { TimeInput } from '@/components/ui/time-input'
 import { useT } from '@/lib/useT'
 import { dispoT, uiT } from '@/lib/i18n'
+import { track } from '@/lib/analytics'
+
+// ─── Dispo versenden ─────────────────────────────────────────────────────────
+
+function entryStatus(e: any): { label: string; cls: string; icon: any } | null {
+  if (e.confirmed_at) return { label: 'Bestätigt', cls: 'text-success', icon: CheckCircle2 }
+  if (e.viewed_at) return { label: 'Gesehen', cls: 'text-info', icon: Eye }
+  if (e.sent_at) return { label: 'Versendet', cls: 'text-muted-foreground', icon: Send }
+  return null
+}
+
+function SendDispoButton({ dayId, entries, onSent }: {
+  dayId: number
+  entries: any[]
+  onSent: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const { toast } = useToast()
+
+  const sendMutation = useMutation({
+    mutationFn: () => api.callsheetSend.send(dayId),
+    onSuccess: (result) => {
+      track('call_sheet_sent', { recipients: result.sent })
+      setOpen(false)
+      onSent()
+      toast({
+        title: `Dispo an ${result.sent} ${result.sent === 1 ? 'Person' : 'Personen'} versendet`,
+        description: [
+          result.skipped_no_email.length > 0 && `Ohne E-Mail übersprungen: ${result.skipped_no_email.join(', ')}`,
+          result.failed.length > 0 && `Fehlgeschlagen: ${result.failed.join(', ')}`,
+        ].filter(Boolean).join(' · ') || 'Alle Empfänger erreicht.',
+      })
+    },
+    onError: (e: any) => {
+      setOpen(false)
+      toast({ variant: 'destructive', title: 'Versand fehlgeschlagen', description: e.message })
+    },
+  })
+
+  const withEmail = entries.filter((e: any) => e.email || e.person_email)
+  const recipientCount = withEmail.length
+  // Server löst E-Mails selbst auf — die Client-Zählung ist nur eine Vorschau;
+  // wenn der Call Sheet-Endpoint keine E-Mails liefert, zeigen wir alle Einträge.
+  const previewEntries = recipientCount > 0 ? withEmail : entries
+
+  return (
+    <>
+      <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)} disabled={entries.length === 0}>
+        <Send className="w-3.5 h-3.5" />
+        Dispo versenden
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Dispo versenden</DialogTitle>
+            <DialogDescription>
+              Jede Person erhält eine personalisierte E-Mail mit ihrer Call Time, einem
+              Bestätigungs-Link und der Dispo als PDF-Anhang.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-56 overflow-y-auto rounded-lg border border-border/60 divide-y divide-border/40">
+            {previewEntries.map((e: any) => (
+              <div key={e.id} className="flex items-center gap-2.5 px-3 py-2 text-sm">
+                <span className="font-medium flex-1 truncate">{e.person_name || e.name || '—'}</span>
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  {e.call_time != null ? `${String(Math.floor(e.call_time / 60)).padStart(2, '0')}:${String(e.call_time % 60).padStart(2, '0')}` : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-start gap-2 text-[12px] text-muted-foreground">
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-warning" />
+            <span>Personen ohne hinterlegte E-Mail-Adresse werden übersprungen und im Ergebnis aufgelistet.</span>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Abbrechen</Button>
+            <Button onClick={() => sendMutation.mutate()} disabled={sendMutation.isPending} className="gap-1.5">
+              <Send className="w-3.5 h-3.5" />
+              {sendMutation.isPending ? 'Wird versendet…' : 'Jetzt versenden'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -192,6 +285,9 @@ function PersonSection({
             <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2">
               {tt(dispoT.colNotes)}
             </th>
+            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-24">
+              Status
+            </th>
             <th className="py-2 pr-4 w-8" />
           </tr>
         </thead>
@@ -226,6 +322,26 @@ function PersonSection({
                   className="h-7 text-xs w-44"
                   placeholder="—"
                 />
+              </td>
+              <td className="py-2.5 px-2">
+                {(() => {
+                  const st = entryStatus(entry)
+                  if (!st) return <span className="text-[11px] text-muted-foreground/30">–</span>
+                  const StIcon = st.icon
+                  return (
+                    <span
+                      className={cn('inline-flex items-center gap-1 text-[11px] font-semibold', st.cls)}
+                      title={[
+                        entry.sent_at && `Versendet: ${new Date(entry.sent_at).toLocaleString('de-DE')}`,
+                        entry.viewed_at && `Gesehen: ${new Date(entry.viewed_at).toLocaleString('de-DE')}`,
+                        entry.confirmed_at && `Bestätigt: ${new Date(entry.confirmed_at).toLocaleString('de-DE')}`,
+                      ].filter(Boolean).join('\n')}
+                    >
+                      <StIcon className="w-3 h-3" />
+                      {st.label}
+                    </span>
+                  )
+                })()}
               </td>
               <td className="py-2.5 pr-4">
                 <button
@@ -464,6 +580,12 @@ export function Component() {
     queryKey: ['call-sheet', selectedDayId],
     queryFn: () => api.callSheets.get(selectedDayId!),
     enabled: !!selectedDayId,
+    // Solange versendete, aber unbestätigte Einträge existieren, den
+    // Bestätigungs-Status alle 30 s aktualisieren
+    refetchInterval: (query) => {
+      const entries = (query.state.data as any)?.entries || []
+      return entries.some((e: any) => e.sent_at && !e.confirmed_at) ? 30_000 : false
+    },
   })
 
   const [headerForm, setHeaderForm] = useState<any>(null)
@@ -603,6 +725,15 @@ export function Component() {
               <Download className="w-3.5 h-3.5" />PDF
             </Button>
           </a>
+        )}
+
+        {/* Dispo versenden */}
+        {selectedDayId && callSheet && (
+          <SendDispoButton
+            dayId={Number(selectedDayId)}
+            entries={callSheet.entries || []}
+            onSent={() => queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })}
+          />
         )}
       </div>
 

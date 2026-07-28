@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useToast } from '@/components/ui/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn, eighthsToString, debounce } from '@/lib/utils'
-import { Plus, Trash2, Upload, FileText, MapPin, Users, ChevronDown, ChevronUp, Tag, Search, Film } from 'lucide-react'
+import { Plus, Trash2, Upload, Download, FileText, MapPin, Users, ChevronDown, ChevronUp, Tag, Search, Film } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { useT } from '@/lib/useT'
 import { scenesT, uiT } from '@/lib/i18n'
@@ -396,6 +396,22 @@ export function Component() {
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
               <Upload className="w-3.5 h-3.5 mr-1.5" />{tt(scenesT.importBtn)}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              title="Drehbuch im Fountain-Format exportieren (kompatibel mit Highland, Slugline, Final Draft)"
+              onClick={async () => {
+                const token = localStorage.getItem('token')
+                const res = await fetch(api.screenplayIO.fountainExportUrl(pid), { headers: { Authorization: `Bearer ${token}` } })
+                if (!res.ok) return
+                const blob = await res.blob()
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a'); a.href = url; a.download = 'drehbuch.fountain'; a.click()
+                URL.revokeObjectURL(url)
+              }}
+            >
+              <Download className="w-3.5 h-3.5 mr-1.5" />Export
             </Button>
             <Button size="sm" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
               <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(scenesT.newScene)}

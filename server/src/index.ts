@@ -63,6 +63,10 @@ import locationReleaseRouter from './routes/locationRelease'
 import aiSchedulingRouter from './routes/aiScheduling'
 import foerderantragRouter from './routes/foerderantrag'
 import morningBriefRouter from './routes/morningBrief'
+import feedbackRouter from './routes/feedback'
+import tasksRouter from './routes/tasks'
+import expensesRouter from './routes/expenses'
+import contactsExportRouter from './routes/contactsExport'
 
 const app = express()
 const PORT = Number(process.env.PORT) || 3001
@@ -172,6 +176,10 @@ app.use('/api', locationReleaseRouter)
 app.use('/api', aiSchedulingRouter)
 app.use('/api', foerderantragRouter)
 app.use('/api', morningBriefRouter)
+app.use('/api', feedbackRouter)
+app.use('/api', tasksRouter)
+app.use('/api', expensesRouter)
+app.use('/api', contactsExportRouter)
 app.use(sseRouter)
 
 // In production: serve index.html for all non-API routes (SPA fallback)

@@ -8,9 +8,20 @@ import {
   DollarSign, MapPin, ArrowRight, Clock, CheckCircle, AlertCircle,
   TrendingUp, ChevronRight
 } from 'lucide-react'
-import { differenceInDays, parseISO } from 'date-fns'
+import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { useT } from '@/lib/useT'
 import { dashT } from '@/lib/i18n'
+import { useAuth } from '@/contexts/AuthContext'
+import { useEffect } from 'react'
+import { track } from '@/lib/analytics'
+
+function greeting(): string {
+  const h = new Date().getHours()
+  if (h < 5) return 'Gute Nacht'
+  if (h < 11) return 'Guten Morgen'
+  if (h < 18) return 'Guten Tag'
+  return 'Guten Abend'
+}
 
 function DonutRing({ value, color, size = 96 }: { value: number; color: string; size?: number }) {
   const strokeWidth = 7
@@ -64,11 +75,18 @@ export function Component() {
   const { projectId } = useParams()
   const navigate = useNavigate()
   const tt = useT()
+  const { user } = useAuth()
+  const firstName = (user?.name || '').split(' ')[0]
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => api.projects.get(Number(projectId))
   })
+
+  // Aktivierungs-Funnel: Öffnen des Demo-Projekts ist ein Schlüssel-Event
+  useEffect(() => {
+    if (project?.is_demo) track('demo_project_opened')
+  }, [project?.is_demo])
   const { data: stats, isLoading } = useQuery({
     queryKey: ['stats', projectId],
     queryFn: () => api.projects.stats(Number(projectId))
@@ -103,7 +121,7 @@ export function Component() {
   const infos    = (conflicts || []).filter((c: any) => c.severity === 'info')
 
   const daysUntilShoot = stats?.next_shoot_day?.date
-    ? differenceInDays(parseISO(stats.next_shoot_day.date), new Date())
+    ? differenceInCalendarDays(parseISO(stats.next_shoot_day.date), new Date())
     : null
 
   const budgetGap = (stats?.budget_total_cents || 0) - (stats?.financing_total_cents || 0)
@@ -122,13 +140,13 @@ export function Component() {
     {
       label: tt(dashT.shootDaysDone),
       pct: shootProgress,
-      color: '#3b82f6',
+      color: 'hsl(var(--info))',
       sub: `${stats?.completed_shoot_days ?? 0} / ${stats?.total_shoot_days ?? 0}`,
     },
     {
       label: tt(dashT.scenesShot),
       pct: shotScenesProgress,
-      color: '#22c55e',
+      color: 'hsl(var(--success))',
       sub: `${stats?.shot_scenes ?? 0} / ${stats?.total_scenes ?? 0}`,
     },
   ]
@@ -140,6 +158,11 @@ export function Component() {
       <div className="mb-8 pb-7 border-b border-border/40">
         <div className="flex items-start justify-between gap-6">
           <div className="min-w-0 flex-1">
+            {firstName && (
+              <p className="text-[13px] text-muted-foreground/60 mb-1">
+                {greeting()}, <span className="text-muted-foreground font-medium">{firstName}</span>
+              </p>
+            )}
             <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">
               {project?.title || 'Dashboard'}
             </h1>
@@ -250,7 +273,7 @@ export function Component() {
                   </div>
                   <span className={cn(
                     'text-[10px] font-bold tabular-nums',
-                    financingOk ? 'text-green-400' : 'text-red-400'
+                    financingOk ? 'text-success' : 'text-danger'
                   )}>
                     {financingPct}%
                   </span>
@@ -259,19 +282,19 @@ export function Component() {
                   <div
                     className={cn(
                       'h-full rounded-full transition-[width] duration-700',
-                      financingOk ? 'bg-green-500' : 'bg-red-500'
+                      financingOk ? 'bg-success' : 'bg-danger'
                     )}
                     style={{ width: `${financingPct}%` }}
                   />
                 </div>
                 <div className={cn(
                   'text-[13px] font-bold tabular-nums tracking-tight',
-                  financingOk ? 'text-green-400' : 'text-red-400'
+                  financingOk ? 'text-success' : 'text-danger'
                 )}>
                   {formatCurrency(stats?.financing_total_cents || 0)}
                 </div>
                 {!financingOk && (
-                  <div className="text-[11px] text-red-400/70 mt-0.5">
+                  <div className="text-[11px] text-danger/70 mt-0.5">
                     {tt(dashT.gap).replace('{n}', formatCurrency(budgetGap))}
                   </div>
                 )}
@@ -328,17 +351,17 @@ export function Component() {
           <div className={cn(
             'bg-card border rounded-xl p-5',
             errors.length > 0
-              ? 'border-red-500/20'
+              ? 'border-danger/20'
               : warnings.length > 0
-                ? 'border-amber-500/20'
-                : 'border-green-500/20'
+                ? 'border-warning/20'
+                : 'border-success/20'
           )}>
             <div className="flex items-center gap-2 mb-3.5">
               {errors.length > 0
-                ? <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+                ? <AlertCircle className="w-3.5 h-3.5 text-danger" />
                 : warnings.length > 0
-                  ? <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                  : <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                  ? <AlertTriangle className="w-3.5 h-3.5 text-warning" />
+                  : <CheckCircle className="w-3.5 h-3.5 text-success" />
               }
               <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground">
                 {tt(dashT.conflictRadar)}
@@ -347,36 +370,36 @@ export function Component() {
 
             {!conflicts?.length ? (
               <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-                <p className="text-sm text-green-400 font-semibold">{tt(dashT.noConflicts)}</p>
+                <div className="w-1.5 h-1.5 rounded-full bg-success shrink-0" />
+                <p className="text-sm text-success font-semibold">{tt(dashT.noConflicts)}</p>
               </div>
             ) : (
               <div className="space-y-2">
                 {errors.length > 0 && (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-danger shrink-0" />
                       <span className="text-xs text-muted-foreground font-medium">{tt(dashT.errors)}</span>
                     </div>
-                    <span className="text-sm font-bold text-red-400 tabular-nums">{errors.length}</span>
+                    <span className="text-sm font-bold text-danger tabular-nums">{errors.length}</span>
                   </div>
                 )}
                 {warnings.length > 0 && (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-warning shrink-0" />
                       <span className="text-xs text-muted-foreground font-medium">{tt(dashT.warnings)}</span>
                     </div>
-                    <span className="text-sm font-bold text-amber-400 tabular-nums">{warnings.length}</span>
+                    <span className="text-sm font-bold text-warning tabular-nums">{warnings.length}</span>
                   </div>
                 )}
                 {infos.length > 0 && (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-info shrink-0" />
                       <span className="text-xs text-muted-foreground font-medium">{tt(dashT.hints)}</span>
                     </div>
-                    <span className="text-sm font-bold text-blue-400 tabular-nums">{infos.length}</span>
+                    <span className="text-sm font-bold text-info tabular-nums">{infos.length}</span>
                   </div>
                 )}
               </div>

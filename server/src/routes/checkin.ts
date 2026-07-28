@@ -4,13 +4,15 @@ import { db } from '../db'
 const router = Router()
 
 // POST /api/call-sheet-entries/:id/checkin — public, no auth required
+// Body optional: { checked_in: boolean } — ohne Body wird eingecheckt (Bestandsverhalten)
 router.post('/call-sheet-entries/:id/checkin', async (req: Request, res: Response) => {
   const entry = await db.get('SELECT * FROM call_sheet_entries WHERE id = ?', [req.params.id]) as any
   if (!entry) return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
 
+  const checkedIn = (req.body as { checked_in?: boolean })?.checked_in !== false
   await db.run(
-    "UPDATE call_sheet_entries SET checked_in = true, checked_in_at = NOW() WHERE id = ?",
-    [req.params.id]
+    'UPDATE call_sheet_entries SET checked_in = ?, checked_in_at = ? WHERE id = ?',
+    [checkedIn, checkedIn ? new Date() : null, req.params.id]
   )
 
   const updated = await db.get('SELECT * FROM call_sheet_entries WHERE id = ?', [req.params.id]) as any

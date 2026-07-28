@@ -175,7 +175,7 @@ export const api = {
   // ─── Invites & Members ────────────────────────────────────────────────────
   invites: {
     list:   (projectId: number)                    => req<any[]>(`/projects/${projectId}/invites`),
-    create: (projectId: number, data: { role: string; label?: string }) =>
+    create: (projectId: number, data: { role: string; label?: string; email?: string }) =>
                                                       req<any>(`/projects/${projectId}/invites`, { method: 'POST', body: JSON.stringify(data) }),
     delete: (projectId: number, inviteId: number)  => req<any>(`/projects/${projectId}/invites/${inviteId}`, { method: 'DELETE' }),
     getByToken: (token: string)                    => req<any>(`/invites/${token}`),
@@ -311,7 +311,8 @@ export const api = {
 
   // ─── Check-in (A1) ─────────────────────────────────────────────────────────
   checkin: {
-    checkin: (entryId: number) => req<any>(`/call-sheet-entries/${entryId}/checkin`, { method: 'POST' }),
+    checkin: (entryId: number, checkedIn = true) =>
+      req<any>(`/call-sheet-entries/${entryId}/checkin`, { method: 'POST', body: JSON.stringify({ checked_in: checkedIn }) }),
     status: (callSheetId: number) => req<any[]>(`/call-sheets/${callSheetId}/checkin-status`),
   },
 
@@ -480,5 +481,70 @@ export const api = {
   morningBrief: {
     data: (dayId: number) => req<any>(`/shoot-days/${dayId}/morning-brief`),
     pdf: (dayId: number) => `/api/shoot-days/${dayId}/morning-brief/pdf`,
+  },
+
+  // ─── Auth-Erweiterungen: Passwort-Reset + DSGVO ────────────────────────────
+  authExtra: {
+    forgotPassword: (email: string) =>
+      req<{ ok: boolean; emailConfigured: boolean }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+    resetPassword: (token: string, password: string) =>
+      req<{ success: boolean }>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
+    deleteAccount: (password: string) =>
+      req<{ success: boolean }>('/auth/me', { method: 'DELETE', body: JSON.stringify({ password }) }),
+    exportUrl: () => '/api/auth/me/export',
+  },
+
+  // ─── Screenplay-Import/-Export ─────────────────────────────────────────────
+  screenplayIO: {
+    fdxImport: (projectId: number, xml: string, filename: string) =>
+      req<{ scenes_created: number; blocks_created: number }>(
+        `/projects/${projectId}/fdx-import`, { method: 'POST', body: JSON.stringify({ xml, filename }) }),
+    fountainExportUrl: (projectId: number) => `/api/projects/${projectId}/screenplay/export.fountain`,
+  },
+
+  // ─── Dispo-Versand ─────────────────────────────────────────────────────────
+  callsheetSend: {
+    send: (dayId: number) =>
+      req<{ sent: number; failed: string[]; skipped_no_email: string[]; smtp_configured: boolean }>(
+        `/shoot-days/${dayId}/call-sheet/send`, { method: 'POST' }),
+  },
+
+  // ─── Aufgaben (Tasks mit Abnahmeschleife) ──────────────────────────────────
+  tasks: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/tasks`),
+    create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/tasks`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: any) => req<any>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => req<any>(`/tasks/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Kostenstand (Belege / Soll-Ist) ───────────────────────────────────────
+  expenses: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/expenses`),
+    create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/expenses`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: any) => req<any>(`/expenses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => req<any>(`/expenses/${id}`, { method: 'DELETE' }),
+    kostenstand: (projectId: number) => req<any>(`/projects/${projectId}/kostenstand`),
+  },
+
+  // ─── Feedback ──────────────────────────────────────────────────────────────
+  feedback: {
+    submit: (data: { category: string; message: string; page_path: string }) =>
+      req<{ id: number }>('/feedback', { method: 'POST', body: JSON.stringify(data) }),
+    list: () => req<any[]>('/feedback'),
+    resolve: (id: number, resolved: boolean) => req<any>(`/feedback/${id}`, { method: 'PUT', body: JSON.stringify({ resolved }) }),
+  },
+
+  // ─── Kontakt-Export ────────────────────────────────────────────────────────
+  contactsExport: {
+    vcfUrl: (projectId: number) => `/api/projects/${projectId}/kontakte/export.vcf`,
+    csvUrl: (projectId: number) => `/api/projects/${projectId}/kontakte/export.csv`,
+  },
+
+  // ─── Public Dispo (Token-basiert, kein Auth-Header nötig) ──────────────────
+  publicDispo: {
+    get: (token: string) => req<any>(`/cse/t/${token}`),
+    confirm: (token: string) => req<any>(`/cse/t/${token}/confirm`, { method: 'POST' }),
+    claim: (token: string, data: { password: string; name?: string }) =>
+      req<{ token: string; user: any; project_id: number }>(`/cse/t/${token}/claim`, { method: 'POST', body: JSON.stringify(data) }),
   },
 }

@@ -227,6 +227,14 @@ export function Component() {
                       )}>
                         {project.status}
                       </span>
+                      {project.is_demo && (
+                        <span
+                          className="text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 bg-info/15 text-info border border-info/25"
+                          title="Demo-Projekt zum Ausprobieren — kann jederzeit gelöscht werden"
+                        >
+                          Demo
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground/70 truncate">
                       {[project.format, project.genre,

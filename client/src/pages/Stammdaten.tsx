@@ -57,6 +57,7 @@ function InviteSection({ pid }: { pid: number }) {
   const { user } = useAuth()
   const [newRole, setNewRole] = useState('read_only')
   const [newLabel, setNewLabel] = useState('')
+  const [newEmail, setNewEmail] = useState('')
   const [copied, setCopied] = useState<number | null>(null)
   const [qrOpen, setQrOpen] = useState<string | null>(null)
 
@@ -72,8 +73,17 @@ function InviteSection({ pid }: { pid: number }) {
   })
 
   const createMutation = useMutation({
-    mutationFn: () => api.invites.create(pid, { role: newRole, label: newLabel }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invites', pid] }); setNewLabel('') },
+    mutationFn: () => api.invites.create(pid, { role: newRole, label: newLabel, email: newEmail }),
+    onSuccess: (inv: any) => {
+      qc.invalidateQueries({ queryKey: ['invites', pid] })
+      setNewLabel('')
+      setNewEmail('')
+      if (newEmail) {
+        toast(inv?.email_sent
+          ? { title: `Einladung an ${newEmail} versendet` }
+          : { title: 'Link erstellt', description: 'E-Mail-Versand ist auf diesem Server nicht konfiguriert — teile den Link manuell.' })
+      }
+    },
     onError: (e: any) => toast({ variant: 'destructive', title: e.message }),
   })
   const deleteMutation = useMutation({
@@ -120,6 +130,13 @@ function InviteSection({ pid }: { pid: number }) {
             value={newLabel}
             onChange={e => setNewLabel(e.target.value)}
           />
+          <Input
+            type="email"
+            className="h-8 text-xs flex-1 min-w-40"
+            placeholder="E-Mail (optional — sendet Einladung direkt)"
+            value={newEmail}
+            onChange={e => setNewEmail(e.target.value)}
+          />
           <Button size="sm" className="h-8 text-xs" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
             <Plus className="w-3.5 h-3.5 mr-1" /> {tt(masterT.createInvite)}
           </Button>
@@ -139,6 +156,12 @@ function InviteSection({ pid }: { pid: number }) {
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="text-xs font-medium">{roleLabel(inv.role)}</span>
                   {inv.label && <span className="text-xs text-muted-foreground italic">— {inv.label}</span>}
+                  {inv.email && (
+                    <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
+                      inv.email_sent_at ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground')}>
+                      {inv.email_sent_at ? `✓ ${inv.email}` : inv.email}
+                    </span>
+                  )}
                 </div>
                 <p className="text-[11px] text-muted-foreground font-mono truncate">{inviteUrl(inv.token)}</p>
               </div>
