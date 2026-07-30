@@ -7,6 +7,17 @@ import { requireAuth } from '../middleware/auth'
 
 const router = Router()
 
+/**
+ * Formate, die ein Creator-Projekt ergeben. Solche Projekte brauchen keinen
+ * Drehplan und keine Tagesdispo, sondern Videos, Skript-Abschnitte und ein
+ * Upload-Paket.
+ */
+export const CREATOR_FORMATS = ['YouTube-Video', 'YouTube Shorts', 'Reel / TikTok', 'Podcast', 'Stream / Live']
+
+function isCreatorFormat(format: string): boolean {
+  return CREATOR_FORMATS.includes(String(format || '').trim())
+}
+
 // GET /api/projects — only show own projects + projects user is member of
 router.get('/', requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user
@@ -43,10 +54,15 @@ router.post('/', validate(ProjectSchema), async (req, res) => {
   const { title = 'Neues Projekt', genre = '', format = 'Kurzfilm', length_minutes = 0, status = 'Vorproduktion',
     synopsis = '', director = '', producer = '', dop = '', production_company = '', shoot_start = null, shoot_end = null } = req.body
 
+  // Projektart bestimmt Navigation und Feature-Set. Wird sie nicht mitgeschickt,
+  // leitet der Server sie aus dem Format ab — damit ist sie unabhaengig davon
+  // gesetzt, welcher Client das Projekt anlegt.
+  const project_kind = req.body.project_kind ?? (isCreatorFormat(format) ? 'creator' : 'film')
+
   const result = await db.run(`
-    INSERT INTO projects (title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, owner_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, userId || null])
+    INSERT INTO projects (title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, owner_id, project_kind)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, userId || null, project_kind])
 
   const id = result.id
   await db.run('INSERT INTO project_settings (project_id) VALUES (?)', [id])

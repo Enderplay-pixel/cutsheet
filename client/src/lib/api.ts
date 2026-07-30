@@ -28,6 +28,25 @@ export const api = {
     archive: (id: number, archived: boolean) => req<any>(`/projects/${id}/archive`, { method: 'PATCH', body: JSON.stringify({ archived }) }),
   },
 
+  // ─── Creator-Modus (YouTube / Content) ─────────────────────────────────────
+  creator: {
+    videos: (projectId: number) => req<any[]>(`/projects/${projectId}/creator/videos`),
+    createVideo: (projectId: number, data: any) =>
+      req<any>(`/projects/${projectId}/creator/videos`, { method: 'POST', body: JSON.stringify(data) }),
+    video: (videoId: number) => req<any>(`/creator/videos/${videoId}`),
+    updateVideo: (videoId: number, data: any) =>
+      req<any>(`/creator/videos/${videoId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteVideo: (videoId: number) => req<any>(`/creator/videos/${videoId}`, { method: 'DELETE' }),
+    createSection: (videoId: number, data: any) =>
+      req<any>(`/creator/videos/${videoId}/sections`, { method: 'POST', body: JSON.stringify(data) }),
+    updateSection: (sectionId: number, data: any) =>
+      req<any>(`/creator/sections/${sectionId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteSection: (sectionId: number) => req<any>(`/creator/sections/${sectionId}`, { method: 'DELETE' }),
+    reorderSections: (videoId: number, sections: Array<{ id: number; sort_order: number }>) =>
+      req<any>(`/creator/videos/${videoId}/sections/reorder`, { method: 'PUT', body: JSON.stringify({ sections }) }),
+    scriptPdfUrl: (videoId: number) => `/api/creator/videos/${videoId}/pdf`,
+  },
+
   // ─── Scenes ────────────────────────────────────────────────────────────────
   scenes: {
     list: (projectId: number) => req<any[]>(`/projects/${projectId}/scenes`),

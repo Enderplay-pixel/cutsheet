@@ -13,6 +13,9 @@ export const ProjectSchema = z.object({
   production_company: z.string().default(''),
   shoot_start: z.string().optional(),
   shoot_end: z.string().optional(),
+  // 'film' = klassische Produktion, 'creator' = Content-/YouTube-Kanal.
+  // Wird sonst aus dem Format abgeleitet.
+  project_kind: z.enum(['film', 'creator']).optional(),
 })
 
 export const RegisterSchema = z.object({

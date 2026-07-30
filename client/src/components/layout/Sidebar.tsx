@@ -66,7 +66,54 @@ export function Sidebar() {
   })
   const conflictCount = (conflicts || []).filter((c: any) => c.severity === 'error' || c.severity === 'warning').length
 
-  const navGroups: NavGroupDef[] = [
+  // Creator-Projekte (YouTube, Shorts, Podcast) haben keine Crew, keinen
+  // Drehplan und keine Tagesdispo. Sie bekommen deshalb eine eigene Navigation
+  // statt der Filmproduktions-Struktur.
+  const isCreator = (project as any)?.project_kind === 'creator'
+
+  const creatorGroups: NavGroupDef[] = [
+    {
+      label: 'Kanal',
+      items: [
+        { label: tt(navT.dashboard), icon: LayoutDashboard, path: '' },
+        { label: 'Videos', icon: Video, path: 'creator' },
+        { label: 'Aufgaben', icon: CheckSquare, path: 'aufgaben' },
+      ]
+    },
+    {
+      label: 'Ideen & Look',
+      items: [
+        { label: 'Moodboard', icon: Image, path: 'moodboard' },
+        { label: 'Pinnwand', icon: StickyNote, path: 'pinboard' },
+        { label: 'Musikliste', icon: Music, path: 'musikliste' },
+      ]
+    },
+    {
+      label: 'Produktion',
+      items: [
+        { label: tt(navT.shotlist), icon: Camera, path: 'shotlist' },
+        { label: tt(navT.locations), icon: MapPin, path: 'motive' },
+        { label: tt(navT.equipment), icon: Package, path: 'equipment' },
+        { label: tt(navT.calendar), icon: Calendar, path: 'kalender' },
+      ]
+    },
+    {
+      label: 'Nachbearbeitung',
+      items: [
+        { label: 'Postproduktion', icon: Layers, path: 'postplan' },
+        { label: 'Kontakte', icon: BookUser, path: 'kontakte' },
+      ]
+    },
+    {
+      label: 'Geld',
+      items: [
+        { label: tt(navT.budget), icon: DollarSign, path: 'budget' },
+        { label: 'Kostenstand', icon: Wallet, path: 'kostenstand' },
+      ]
+    },
+  ]
+
+  const filmGroups: NavGroupDef[] = [
     {
       // First thing you do: create the project and break down the script
       label: 'Übersicht',
@@ -150,6 +197,8 @@ export function Sidebar() {
       ]
     },
   ]
+
+  const navGroups = isCreator ? creatorGroups : filmGroups
 
   // Which group contains the currently active route?
   const activeSegment = useMemo(() => {

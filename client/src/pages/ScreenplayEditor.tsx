@@ -149,68 +149,6 @@ function getBlockContainerStyle(type: BlockType): string {
   }
 }
 
-// ─── CONT'D / MORE detection ──────────────────────────────────────────────────
-
-/** Returns a set of block IDs that should show (CONT'D) beside their content. */
-function detectContd(blocks: ScreenplayBlock[]): Set<number> {
-  const result = new Set<number>()
-  for (let i = 2; i < blocks.length; i++) {
-    const cur = blocks[i]
-    const prev = blocks[i - 1]
-    const prev2 = blocks[i - 2]
-    // Pattern: character → dialogue/parenthetical → [action/note] → character (same name)
-    if (
-      cur.block_type === 'character' &&
-      (prev.block_type === 'action' || prev.block_type === 'note' || prev.block_type === 'transition') &&
-      (prev2.block_type === 'dialogue' || prev2.block_type === 'parenthetical')
-    ) {
-      // Find the character block above this dialogue chain
-      let j = i - 2
-      while (j > 0 && (blocks[j].block_type === 'dialogue' || blocks[j].block_type === 'parenthetical')) j--
-      if (blocks[j].block_type === 'character') {
-        const prevCharName = blocks[j].content.replace(/\s*\(.*?\)\s*$/, '').trim()
-        const curCharName = cur.content.replace(/\s*\(.*?\)\s*$/, '').trim()
-        if (prevCharName && curCharName && prevCharName.toUpperCase() === curCharName.toUpperCase()) {
-          result.add(cur.id)
-        }
-      }
-    }
-  }
-  return result
-}
-
-/** Returns a set of block IDs (dialogue) that should show (MORE) below them. */
-function detectMore(blocks: ScreenplayBlock[]): Set<number> {
-  const result = new Set<number>()
-  for (let i = 0; i < blocks.length - 1; i++) {
-    const cur = blocks[i]
-    const next = blocks[i + 1]
-    if (
-      cur.block_type === 'dialogue' &&
-      (next.block_type === 'action' || next.block_type === 'transition' || next.block_type === 'note')
-    ) {
-      // Check if the character speaks again (CONT'D pattern) after the action
-      let j = i + 1
-      while (j < blocks.length && (blocks[j].block_type === 'action' || blocks[j].block_type === 'note' || blocks[j].block_type === 'transition')) j++
-      if (j < blocks.length && blocks[j].block_type === 'character') {
-        const charAboveIdx = (() => {
-          let k = i
-          while (k > 0 && (blocks[k].block_type === 'dialogue' || blocks[k].block_type === 'parenthetical')) k--
-          return k
-        })()
-        if (blocks[charAboveIdx].block_type === 'character') {
-          const prevCharName = blocks[charAboveIdx].content.replace(/\s*\(.*?\)\s*$/, '').trim()
-          const nextCharName = blocks[j].content.replace(/\s*\(.*?\)\s*$/, '').trim()
-          if (prevCharName && nextCharName && prevCharName.toUpperCase() === nextCharName.toUpperCase()) {
-            result.add(cur.id)
-          }
-        }
-      }
-    }
-  }
-  return result
-}
-
 // ─── SaveStatus component ─────────────────────────────────────────────────────
 
 function SaveStatus({ saving, tt }: { saving: boolean; tt: (m: any) => string }) {
@@ -235,8 +173,6 @@ function SaveStatus({ saving, tt }: { saving: boolean; tt: (m: any) => string })
 interface BlockEditorProps {
   block: ScreenplayBlock
   isActive: boolean
-  showContd: boolean
-  showMore: boolean
   sceneNumber?: string
   onFocus: () => void
   onContentChange: (id: number, content: string) => void
@@ -251,8 +187,6 @@ interface BlockEditorProps {
 function BlockEditor({
   block,
   isActive,
-  showContd,
-  showMore,
   sceneNumber,
   onFocus,
   onContentChange,
@@ -348,13 +282,6 @@ function BlockEditor({
         </span>
       )}
 
-      {/* Character name with CONT'D indicator */}
-      {block.block_type === 'character' && showContd && localContent && (
-        <span className="block text-center font-mono text-[11px] text-muted-foreground/50 -mb-1 uppercase tracking-wide select-none">
-          {localContent.replace(/\s*\(.*?\)\s*$/, '')} <span className="opacity-70">(CONT'D)</span>
-        </span>
-      )}
-
       <textarea
         ref={handleRef}
         value={localContent}
@@ -364,44 +291,12 @@ function BlockEditor({
         rows={1}
         className={cn(
           getBlockStyle(block.block_type),
-          'min-h-[1.5rem] overflow-hidden focus:ring-0 focus:outline-none',
-          block.block_type === 'character' && showContd && 'opacity-0 absolute pointer-events-none h-0 min-h-0'
+          'min-h-[1.5rem] overflow-hidden focus:ring-0 focus:outline-none'
         )}
         placeholder={localContent ? '' : placeholder}
         spellCheck
       />
 
-      {/* When CONT'D is shown, render editable overlay */}
-      {block.block_type === 'character' && showContd && (
-        <textarea
-          ref={el => {
-            if (el) {
-              textareaRef(el)
-              autoResize(el)
-            }
-          }}
-          value={localContent}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          onFocus={onFocus}
-          rows={1}
-          className={cn(
-            getBlockStyle(block.block_type),
-            'min-h-[1.5rem] overflow-hidden focus:ring-0 focus:outline-none'
-          )}
-          placeholder={placeholder}
-          spellCheck
-        />
-      )}
-
-      {/* MORE indicator below dialogue */}
-      {showMore && (
-        <div className="text-center mt-0.5">
-          <span className="font-mono text-[10px] text-muted-foreground/40 uppercase tracking-wider select-none">
-            (MORE)
-          </span>
-        </div>
-      )}
     </div>
   )
 }
@@ -445,8 +340,6 @@ function SceneSection({
   const headingBlock = blocks.find(b => b.block_type === 'scene_heading')
   const allBlocks = headingBlock ? [headingBlock, ...displayBlocks] : displayBlocks
 
-  const contdBlocks = detectContd(allBlocks)
-  const moreBlocks = detectMore(allBlocks)
 
   return (
     <div ref={sectionRef} className="mb-12" data-scene-id={scene.id}>
@@ -474,8 +367,6 @@ function SceneSection({
           key={block.id}
           block={block}
           isActive={activeBlockId === block.id}
-          showContd={contdBlocks.has(block.id)}
-          showMore={moreBlocks.has(block.id)}
           sceneNumber={block.block_type === 'scene_heading' ? scene.scene_number : undefined}
           onFocus={() => setActiveBlockId(block.id)}
           onContentChange={onContentChange}

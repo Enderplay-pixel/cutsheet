@@ -25,6 +25,19 @@ const STATUS_META: Record<string, { text: string; bg: string; border: string; do
 }
 const DEFAULT_META = { text: 'text-muted-foreground', bg: 'bg-muted/40', border: 'border-l-border', dot: 'bg-muted-foreground' }
 
+/**
+ * Formate. Die Creator-Formate legen ein Projekt der Art 'creator' an — dort
+ * gibt es Videos, Skript-Abschnitte und ein Upload-Paket statt Drehplan,
+ * Tagesdispo und Callsheets. Die Zuordnung trifft der Server anhand des
+ * Formats (CREATOR_FORMATS in routes/projects.ts).
+ */
+const FORMATS = [
+  'Kurzfilm', 'Spielfilm', 'Dokumentation', 'Serie', 'Werbefilm', 'Imagefilm',
+  'YouTube-Video', 'YouTube Shorts', 'Reel / TikTok', 'Podcast', 'Stream / Live',
+]
+
+const CREATOR_FORMATS = ['YouTube-Video', 'YouTube Shorts', 'Reel / TikTok', 'Podcast', 'Stream / Live']
+
 function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [form, setForm] = useState({ title: '', genre: '', format: 'Kurzfilm', director: '', producer: '' })
   const queryClient = useQueryClient()
@@ -37,7 +50,10 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
     onSuccess: (project) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       toast({ title: 'Projekt erstellt' })
-      navigate(`/projects/${project.id}`)
+      // Creator-Projekte starten bei den Videos — das Film-Dashboard zeigt
+      // Drehtage und Dispo, die es dort nicht gibt.
+      const isCreator = (project as any)?.project_kind === 'creator' || CREATOR_FORMATS.includes(form.format)
+      navigate(isCreator ? `/projects/${project.id}/creator` : `/projects/${project.id}`)
       onClose()
     },
     onError: () => toast({ title: 'Fehler beim Erstellen', variant: 'destructive' }),
@@ -65,7 +81,7 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
               <Select value={form.format} onValueChange={v => f('format', v)}>
                 <SelectTrigger className="mt-1 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {['Kurzfilm', 'Spielfilm', 'Dokumentation', 'Serie', 'Werbefilm', 'Imagefilm'].map(v =>
+                  {FORMATS.map(v =>
                     <SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>
                   )}
                 </SelectContent>
