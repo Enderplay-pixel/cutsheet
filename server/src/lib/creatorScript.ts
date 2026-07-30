@@ -200,6 +200,12 @@ export interface CreatorVideoInfo {
   thumbnail_ideas?: string
   description?: string
   tags?: string
+  // Sponsoring wird bei Creators je Video verhandelt
+  sponsor_brand?: string
+  sponsor_fee_cents?: number
+  sponsor_deliverables?: string
+  sponsor_deadline?: string | null
+  sponsor_disclosed?: boolean
 }
 
 /**
@@ -210,7 +216,16 @@ export interface CreatorVideoInfo {
 export function renderCreatorScriptHtml(
   video: CreatorVideoInfo,
   sections: ScriptSection[],
-  opts: { wpm?: number; projectTitle?: string } = {}
+  opts: {
+    wpm?: number
+    projectTitle?: string
+    /** Verwendetes Material mit Lizenz — fuer die Rechteseite. */
+    assets?: Array<{ kind?: string; name?: string; source?: string; license?: string; claim_risk?: string }>
+    /** Geplante Auskopplungen fuer Shorts und Reels. */
+    clips?: Array<{ title?: string; start_seconds?: number; end_seconds?: number; platform?: string; status?: string }>
+    /** Upload-Checkliste zum Abhaken auf Papier. */
+    checklist?: Array<{ label?: string; done?: boolean }>
+  } = {}
 ): string {
   const wpm = opts.wpm ?? DEFAULT_WPM
   const { sections: timed, totalSeconds, totalWords, targetSeconds } = buildTimeline(sections, wpm)
@@ -298,6 +313,7 @@ export function renderCreatorScriptHtml(
               background: #fafafa; padding: 8px 10px; border-radius: 3px; }
   .warn { margin-top: 5px; font-size: 9px; color: #b45309; }
   .warn li { margin-left: 14px; }
+  .check { padding: 2px 0; font-size: 10px; }
 </style>
 </head>
 <body>
@@ -356,7 +372,63 @@ ${rows || '<tr><td colspan="3" class="empty">Noch keine Abschnitte angelegt.</td
     <h3>Tags</h3>
     ${list((video.tags ?? '').split(',').join('\n'))}
   </div>
+
+  ${video.sponsor_brand ? `
+  <div class="block">
+    <h3>Sponsoring</h3>
+    <div><b>${esc(video.sponsor_brand)}</b>${
+      video.sponsor_fee_cents ? ` · ${(video.sponsor_fee_cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}` : ''
+    }${video.sponsor_deadline ? ` · Deadline ${esc(new Date(video.sponsor_deadline).toLocaleDateString('de-DE'))}` : ''}</div>
+    ${video.sponsor_deliverables ? `<div style="margin-top:3px;">${paragraphs(video.sponsor_deliverables)}</div>` : ''}
+    <div style="margin-top:3px;" class="${video.sponsor_disclosed ? '' : 'warn'}">
+      ${video.sponsor_disclosed ? 'Werbung gekennzeichnet.' : 'Achtung: Werbekennzeichnung noch nicht gesetzt.'}
+    </div>
+  </div>` : ''}
 </div>
+
+${(opts.assets?.length || opts.clips?.length || opts.checklist?.length) ? `
+<div class="upload">
+  <h2>Produktion</h2>
+
+  ${opts.assets?.length ? `
+  <div class="block">
+    <h3>Material und Rechte</h3>
+    <table>
+      <thead><tr><th>Art</th><th>Titel</th><th>Quelle</th><th>Lizenz</th><th>Risiko</th></tr></thead>
+      <tbody>
+        ${opts.assets.map(a => `<tr>
+          <td>${esc(a.kind ?? '')}</td>
+          <td>${esc(a.name ?? '')}</td>
+          <td>${esc(a.source ?? '')}</td>
+          <td>${a.license ? esc(a.license) : '<span class="warn">fehlt</span>'}</td>
+          <td>${esc(a.claim_risk ?? 'keins')}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>` : ''}
+
+  ${opts.clips?.length ? `
+  <div class="block">
+    <h3>Auskopplungen</h3>
+    <table>
+      <thead><tr><th>Von–bis</th><th>Titel</th><th>Plattform</th><th>Status</th></tr></thead>
+      <tbody>
+        ${opts.clips.map(c => `<tr>
+          <td>${formatTimecode(c.start_seconds ?? 0)}–${formatTimecode(c.end_seconds ?? 0)}</td>
+          <td>${esc(c.title ?? '')}</td>
+          <td>${esc(c.platform ?? '')}</td>
+          <td>${esc(c.status ?? '')}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>` : ''}
+
+  ${opts.checklist?.length ? `
+  <div class="block">
+    <h3>Upload-Checkliste</h3>
+    ${opts.checklist.map(c => `<div class="check">${c.done ? '☑' : '☐'} ${esc(c.label ?? '')}</div>`).join('')}
+  </div>` : ''}
+</div>` : ''}
 
 </body>
 </html>`

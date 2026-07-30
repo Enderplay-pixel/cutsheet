@@ -76,6 +76,8 @@ export function Sidebar() {
       label: 'Kanal',
       items: [
         { label: tt(navT.dashboard), icon: LayoutDashboard, path: '' },
+        { label: 'Kanal', icon: Activity, path: 'creator/kanal' },
+        { label: 'Ideen', icon: StickyNote, path: 'creator/ideen' },
         { label: 'Videos', icon: Video, path: 'creator' },
         { label: 'Aufgaben', icon: CheckSquare, path: 'aufgaben' },
       ]

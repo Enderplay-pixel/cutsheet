@@ -45,6 +45,39 @@ export const api = {
     reorderSections: (videoId: number, sections: Array<{ id: number; sort_order: number }>) =>
       req<any>(`/creator/videos/${videoId}/sections/reorder`, { method: 'PUT', body: JSON.stringify({ sections }) }),
     scriptPdfUrl: (videoId: number) => `/api/creator/videos/${videoId}/pdf`,
+
+    // Ideen-Backlog
+    ideas: (projectId: number) => req<any[]>(`/projects/${projectId}/creator/ideas`),
+    createIdea: (projectId: number, data: any) =>
+      req<any>(`/projects/${projectId}/creator/ideas`, { method: 'POST', body: JSON.stringify(data) }),
+    updateIdea: (ideaId: number, data: any) =>
+      req<any>(`/creator/ideas/${ideaId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteIdea: (ideaId: number) => req<any>(`/creator/ideas/${ideaId}`, { method: 'DELETE' }),
+    convertIdea: (ideaId: number) => req<any>(`/creator/ideas/${ideaId}/convert`, { method: 'POST' }),
+
+    // Material und Rechte
+    createAsset: (videoId: number, data: any) =>
+      req<any>(`/creator/videos/${videoId}/assets`, { method: 'POST', body: JSON.stringify(data) }),
+    updateAsset: (assetId: number, data: any) =>
+      req<any>(`/creator/assets/${assetId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteAsset: (assetId: number) => req<any>(`/creator/assets/${assetId}`, { method: 'DELETE' }),
+
+    // Auskopplungen
+    createClip: (videoId: number, data: any) =>
+      req<any>(`/creator/videos/${videoId}/clips`, { method: 'POST', body: JSON.stringify(data) }),
+    updateClip: (clipId: number, data: any) =>
+      req<any>(`/creator/clips/${clipId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteClip: (clipId: number) => req<any>(`/creator/clips/${clipId}`, { method: 'DELETE' }),
+
+    // Upload-Checkliste
+    addChecklistItem: (videoId: number, label: string) =>
+      req<any>(`/creator/videos/${videoId}/checklist`, { method: 'POST', body: JSON.stringify({ label }) }),
+    updateChecklistItem: (itemId: number, data: any) =>
+      req<any>(`/creator/checklist/${itemId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteChecklistItem: (itemId: number) => req<any>(`/creator/checklist/${itemId}`, { method: 'DELETE' }),
+
+    // Kanal-Auswertung und Kalender
+    overview: (projectId: number) => req<any>(`/projects/${projectId}/creator/overview`),
   },
 
   // ─── Scenes ────────────────────────────────────────────────────────────────

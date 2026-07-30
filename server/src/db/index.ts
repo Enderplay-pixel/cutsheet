@@ -850,6 +850,84 @@ export async function initDatabase() {
   `)
   await db.exec(`CREATE INDEX IF NOT EXISTS idx_creator_videos_project ON creator_videos(project_id, sort_order)`)
   await db.exec(`CREATE INDEX IF NOT EXISTS idx_creator_sections_video ON creator_script_sections(video_id, sort_order)`)
+
+  // ── Creator-Modus, Ausbaustufe 2 ──
+  // Serie/Format und SEO-Keyword
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS series TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS keyword TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS video_url TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS published_at TEXT`)
+  // Performance wird von Hand gepflegt — es gibt keine YouTube-API-Anbindung
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS views INTEGER NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS impressions INTEGER NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS avg_view_seconds INTEGER NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS likes INTEGER NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS comments INTEGER NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS subs_gained INTEGER NOT NULL DEFAULT 0`)
+  // Sponsoring am Video, weil Deals bei Creators pro Video verhandelt werden
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS sponsor_brand TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS sponsor_fee_cents INTEGER NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS sponsor_deliverables TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS sponsor_deadline TEXT`)
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS sponsor_disclosed BOOLEAN NOT NULL DEFAULT false`)
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS creator_ideas (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      title TEXT NOT NULL DEFAULT '',
+      note TEXT NOT NULL DEFAULT '',
+      impact INTEGER NOT NULL DEFAULT 3,
+      effort INTEGER NOT NULL DEFAULT 3,
+      status TEXT NOT NULL DEFAULT 'offen',
+      video_id INTEGER REFERENCES creator_videos(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS creator_assets (
+      id SERIAL PRIMARY KEY,
+      video_id INTEGER NOT NULL REFERENCES creator_videos(id) ON DELETE CASCADE,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL DEFAULT 'musik',
+      name TEXT NOT NULL DEFAULT '',
+      source TEXT NOT NULL DEFAULT '',
+      license TEXT NOT NULL DEFAULT '',
+      url TEXT NOT NULL DEFAULT '',
+      claim_risk TEXT NOT NULL DEFAULT 'keins',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS creator_clips (
+      id SERIAL PRIMARY KEY,
+      video_id INTEGER NOT NULL REFERENCES creator_videos(id) ON DELETE CASCADE,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      title TEXT NOT NULL DEFAULT '',
+      start_seconds INTEGER NOT NULL DEFAULT 0,
+      end_seconds INTEGER NOT NULL DEFAULT 0,
+      platform TEXT NOT NULL DEFAULT 'YouTube Shorts',
+      status TEXT NOT NULL DEFAULT 'offen',
+      note TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS creator_checklist (
+      id SERIAL PRIMARY KEY,
+      video_id INTEGER NOT NULL REFERENCES creator_videos(id) ON DELETE CASCADE,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      label TEXT NOT NULL,
+      done BOOLEAN NOT NULL DEFAULT false,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_creator_ideas_project ON creator_ideas(project_id)`)
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_creator_assets_video ON creator_assets(video_id)`)
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_creator_clips_video ON creator_clips(video_id, sort_order)`)
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_creator_checklist_video ON creator_checklist(video_id, sort_order)`)
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS public_token TEXT`)
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ`)
   await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_cse_public_token ON call_sheet_entries(public_token)`)
