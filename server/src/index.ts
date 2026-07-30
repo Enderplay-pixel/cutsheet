@@ -65,6 +65,7 @@ import foerderantragRouter from './routes/foerderantrag'
 import morningBriefRouter from './routes/morningBrief'
 import feedbackRouter from './routes/feedback'
 import tasksRouter from './routes/tasks'
+import creatorRouter from './routes/creator'
 import expensesRouter from './routes/expenses'
 import contactsExportRouter from './routes/contactsExport'
 
@@ -178,6 +179,7 @@ app.use('/api', foerderantragRouter)
 app.use('/api', morningBriefRouter)
 app.use('/api', feedbackRouter)
 app.use('/api', tasksRouter)
+app.use('/api', creatorRouter)
 app.use('/api', expensesRouter)
 app.use('/api', contactsExportRouter)
 app.use(sseRouter)

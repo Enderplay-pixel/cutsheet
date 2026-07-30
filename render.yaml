@@ -4,12 +4,19 @@ services:
     runtime: node
     region: frankfurt
     plan: free
-    buildCommand: npm install && npm run build
+    # Chromium explizit installieren: der PDF-Export braucht es zur Laufzeit,
+    # und .puppeteerrc.cjs legt es ins Projektverzeichnis, damit es den Deploy
+    # übersteht (der HOME-Cache tut das nicht).
+    buildCommand: npm install && npx puppeteer browsers install chrome && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
+      # Muss zum cacheDir aus .puppeteerrc.cjs passen, sonst sucht puppeteer
+      # zur Laufzeit wieder im HOME-Cache
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/project/src/.cache/puppeteer
       - key: DATABASE_URL
         sync: false   # set manually in Render dashboard
       - key: JWT_SECRET

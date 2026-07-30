@@ -52,12 +52,22 @@ export function useDownload() {
 
       objectUrl = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = objectUrl
-      a.download = name
-      a.rel = 'noopener'
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
+
+      if ('download' in a) {
+        // Chrome, Firefox, Edge, Safari ab 14: Blob direkt speichern.
+        // Der Anker muss im DOM hängen, sonst ignoriert Firefox den Klick.
+        a.href = objectUrl
+        a.download = name
+        a.rel = 'noopener'
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+      } else {
+        // Sehr alte Safari-/iOS-Versionen kennen kein download-Attribut.
+        // Dort bleibt nur: im neuen Tab öffnen und den Nutzer speichern lassen.
+        const win = window.open(objectUrl, '_blank')
+        if (!win) throw new Error('Der Browser hat das Öffnen des Downloads blockiert.')
+      }
     } catch (err: any) {
       toast({
         title: tt(uiT.downloadFailed),

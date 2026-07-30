@@ -809,6 +809,47 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMPTZ`)
   await db.exec(`ALTER TABLE screenplay_blocks ADD COLUMN IF NOT EXISTS annotation_color TEXT NOT NULL DEFAULT '#f59e0b'`)
   await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false`)
+  // Projektart: 'film' = klassische Produktion, 'creator' = Content-/YouTube-Kanal.
+  // Steuert Navigation und Feature-Set im Client.
+  await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_kind TEXT NOT NULL DEFAULT 'film'`)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS creator_videos (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      title TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'Idee',
+      platform TEXT NOT NULL DEFAULT 'YouTube',
+      hook TEXT NOT NULL DEFAULT '',
+      target_seconds INTEGER NOT NULL DEFAULT 0,
+      wpm INTEGER NOT NULL DEFAULT 150,
+      publish_at TEXT,
+      -- Upload-Paket: je Zeile ein Eintrag, Tags kommasepariert
+      title_variants TEXT NOT NULL DEFAULT '',
+      thumbnail_ideas TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      tags TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS creator_script_sections (
+      id SERIAL PRIMARY KEY,
+      video_id INTEGER NOT NULL REFERENCES creator_videos(id) ON DELETE CASCADE,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL DEFAULT 'segment',
+      heading TEXT NOT NULL DEFAULT '',
+      spoken TEXT NOT NULL DEFAULT '',
+      visuals TEXT NOT NULL DEFAULT '',
+      target_seconds INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_creator_videos_project ON creator_videos(project_id, sort_order)`)
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_creator_sections_video ON creator_script_sections(video_id, sort_order)`)
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS public_token TEXT`)
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ`)
   await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_cse_public_token ON call_sheet_entries(public_token)`)

@@ -25,24 +25,77 @@ function fmtMoney(cents: number, currency = 'EUR'): string {
   return (cents / 100).toLocaleString('de-DE', { style: 'currency', currency })
 }
 
-// Resolve chromium executable — prefer PATH lookup (works in Nix), fall back to known paths
-function resolveChromium(): string | undefined {
-  const fs = require('fs')
-  const { execSync } = require('child_process')
+const fsMod = require('fs')
+const pathMod = require('path')
 
-  // 1. Try shell PATH — Nix puts chromium on PATH correctly
+const fileExists = (p: string) => { try { return fsMod.existsSync(p) } catch { return false } }
+
+/**
+ * Sucht ein von puppeteer heruntergeladenes Chrome in einem Cache-Verzeichnis.
+ * Aufbau: <cache>/chrome/<plattform-version>/chrome-<plattform>/chrome[.exe]
+ * Die Version steht im Ordnernamen, deshalb wird gescannt statt geraten.
+ */
+export function findInPuppeteerCache(cacheDir: string): string | undefined {
+  const root = pathMod.join(cacheDir, 'chrome')
+  if (!fileExists(root)) return undefined
+
+  let builds: string[]
+  try { builds = fsMod.readdirSync(root).sort().reverse() } catch { return undefined }
+
+  const binaries = ['chrome', 'chrome.exe', 'chrome-headless-shell', 'chrome-headless-shell.exe']
+  for (const build of builds) {
+    const buildDir = pathMod.join(root, build)
+    let inner: string[]
+    try { inner = fsMod.readdirSync(buildDir) } catch { continue }
+    for (const dir of inner) {
+      for (const bin of binaries) {
+        const candidate = pathMod.join(buildDir, dir, bin)
+        if (fileExists(candidate)) return candidate
+      }
+    }
+  }
+  return undefined
+}
+
+/**
+ * Findet ein startbares Chromium. Bewusst mehrstufig, damit der PDF-Export in
+ * jeder Umgebung läuft: lokal (Chrome/Edge/Chromium installiert), auf Render und
+ * Railway (von puppeteer geladenes Chrome im Projekt-Cache) und in Nix-Images
+ * (Chromium auf dem PATH).
+ */
+function resolveChromium(): string | undefined {
+  // 1. Explizit gesetzter Pfad hat immer Vorrang
+  if (process.env.PUPPETEER_EXECUTABLE_PATH && fileExists(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+    console.log('[PDF] Chromium via PUPPETEER_EXECUTABLE_PATH:', process.env.PUPPETEER_EXECUTABLE_PATH)
+    return process.env.PUPPETEER_EXECUTABLE_PATH
+  }
+
+  // 2. Von puppeteer heruntergeladenes Chrome. Reihenfolge: konfigurierter
+  //    Cache, Projekt-Cache (.puppeteerrc.cjs), HOME-Cache.
+  const cacheDirs = [
+    process.env.PUPPETEER_CACHE_DIR,
+    pathMod.resolve(__dirname, '../../../.cache/puppeteer'),  // Repo-Wurzel aus dist/routes
+    pathMod.resolve(process.cwd(), '.cache/puppeteer'),
+    process.env.HOME ? pathMod.join(process.env.HOME, '.cache/puppeteer') : undefined,
+  ].filter(Boolean) as string[]
+
+  for (const dir of cacheDirs) {
+    const found = findInPuppeteerCache(dir)
+    if (found) { console.log('[PDF] Chromium im Cache gefunden:', found); return found }
+  }
+
+  // 3. Systeminstallation auf dem PATH (Nix, Debian-Images)
   try {
+    const { execSync } = require('child_process')
     const found = execSync(
       'which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome-stable 2>/dev/null || which google-chrome 2>/dev/null',
       { encoding: 'utf8', timeout: 3000 }
     ).trim().split('\n')[0]
     if (found) { console.log('[PDF] Chromium via which:', found); return found }
-  } catch { /* shell not available */ }
+  } catch { /* keine Shell verfügbar */ }
 
-  // 2. Env var + known static paths
-  const exists = (p: string) => { try { return fs.existsSync(p) } catch { return false } }
+  // 4. Bekannte feste Pfade, inklusive Windows für die lokale Entwicklung
   const candidates = [
-    process.env.PUPPETEER_EXECUTABLE_PATH,
     '/usr/bin/chromium-browser',
     '/usr/bin/chromium',
     '/usr/bin/google-chrome-stable',
@@ -50,9 +103,14 @@ function resolveChromium(): string | undefined {
     '/root/.nix-profile/bin/chromium',
     '/nix/var/nix/profiles/default/bin/chromium',
     '/run/current-system/sw/bin/chromium',
-  ].filter(Boolean) as string[]
-  const found = candidates.find(exists)
-  console.log('[PDF] Chromium static lookup:', found ?? 'NONE')
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+  ]
+  const found = candidates.find(fileExists)
+  // Kein Fund ist kein Fehler: puppeteer löst dann seinen eigenen Pfad auf
+  console.log('[PDF] Chromium statische Suche:', found ?? 'nichts gefunden, puppeteer entscheidet')
   return found
 }
 

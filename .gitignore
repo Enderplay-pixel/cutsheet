@@ -5,6 +5,9 @@ node_modules/
 client/dist/
 server/dist/
 
+# Von puppeteer heruntergeladenes Chromium (siehe .puppeteerrc.cjs)
+.cache/
+
 # Database (do NOT commit the SQLite file)
 data/
 server/data/
