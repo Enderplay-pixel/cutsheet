@@ -63,7 +63,12 @@ export function findInPuppeteerCache(cacheDir: string): string | undefined {
  * Railway (von puppeteer geladenes Chrome im Projekt-Cache) und in Nix-Images
  * (Chromium auf dem PATH).
  */
+/** Wo zuletzt gesucht wurde — geht in die Fehlermeldung, damit sie diagnostizierbar ist. */
+let lastProbedPaths: string[] = []
+
 function resolveChromium(): string | undefined {
+  lastProbedPaths = []
+
   // 1. Explizit gesetzter Pfad hat immer Vorrang
   if (process.env.PUPPETEER_EXECUTABLE_PATH && fileExists(process.env.PUPPETEER_EXECUTABLE_PATH)) {
     console.log('[PDF] Chromium via PUPPETEER_EXECUTABLE_PATH:', process.env.PUPPETEER_EXECUTABLE_PATH)
@@ -80,6 +85,7 @@ function resolveChromium(): string | undefined {
   ].filter(Boolean) as string[]
 
   for (const dir of cacheDirs) {
+    lastProbedPaths.push(`${dir}${fileExists(dir) ? '' : ' (existiert nicht)'}`)
     const found = findInPuppeteerCache(dir)
     if (found) { console.log('[PDF] Chromium im Cache gefunden:', found); return found }
   }
@@ -155,7 +161,14 @@ export async function generatePdf(html: string, opts?: PdfOptions): Promise<Buff
     browser = await puppeteer.launch(launchOptions)
   } catch (launchErr: any) {
     console.error('[PDF] puppeteer.launch failed:', launchErr.message)
-    throw new Error(`Chromium konnte nicht gestartet werden: ${launchErr.message}`)
+    console.error('[PDF] durchsuchte Cache-Verzeichnisse:', lastProbedPaths)
+    // Die durchsuchten Pfade mitgeben: ohne sie ist im Betrieb nicht zu
+    // erkennen, ob der Browser fehlt oder nur woanders liegt.
+    const probed = lastProbedPaths.length ? ` Durchsucht: ${lastProbedPaths.join(', ')}.` : ''
+    throw new Error(
+      `Chromium konnte nicht gestartet werden: ${launchErr.message}${probed}` +
+      ' Abhilfe: "npm install" erneut ausfuehren (installiert Chromium ins Projekt) oder PUPPETEER_EXECUTABLE_PATH setzen.'
+    )
   }
   try {
     const page = await browser.newPage()
