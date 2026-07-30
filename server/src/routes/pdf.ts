@@ -1,6 +1,15 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
+import {
+  layoutScreenplay,
+  renderScreenplayHtml,
+  buildTitlePage,
+  buildTextPage,
+  PAPER,
+  type PaperName,
+  type SceneInput,
+} from '../lib/screenplayFormat'
 
 const router = Router()
 
@@ -611,295 +620,90 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
-/** Detect CONT'D: same character speaks again after action/transition */
-function detectContd(blocks: any[]): Set<number> {
-  const result = new Set<number>()
-  for (let i = 2; i < blocks.length; i++) {
-    const cur = blocks[i], prev = blocks[i - 1], prev2 = blocks[i - 2]
-    if (
-      cur.block_type === 'character' &&
-      (prev.block_type === 'action' || prev.block_type === 'note' || prev.block_type === 'transition' || prev.block_type === 'annotation') &&
-      (prev2.block_type === 'dialogue' || prev2.block_type === 'parenthetical')
-    ) {
-      let j = i - 2
-      while (j > 0 && (blocks[j].block_type === 'dialogue' || blocks[j].block_type === 'parenthetical')) j--
-      if (blocks[j].block_type === 'character') {
-        const a = blocks[j].content.replace(/\s*\(.*?\)\s*$/, '').trim().toUpperCase()
-        const b = cur.content.replace(/\s*\(.*?\)\s*$/, '').trim().toUpperCase()
-        if (a && b && a === b) result.add(cur.id)
-      }
-    }
-  }
-  return result
-}
-
-/** Detect MORE: dialogue block followed by action, then same character speaks again */
-function detectMore(blocks: any[]): Set<number> {
-  const result = new Set<number>()
-  for (let i = 0; i < blocks.length - 1; i++) {
-    const cur = blocks[i], next = blocks[i + 1]
-    if (cur.block_type === 'dialogue' && (next.block_type === 'action' || next.block_type === 'transition' || next.block_type === 'note' || next.block_type === 'annotation')) {
-      let j = i + 1
-      while (j < blocks.length && (blocks[j].block_type === 'action' || blocks[j].block_type === 'note' || blocks[j].block_type === 'transition' || blocks[j].block_type === 'annotation')) j++
-      if (j < blocks.length && blocks[j].block_type === 'character') {
-        let k = i
-        while (k > 0 && (blocks[k].block_type === 'dialogue' || blocks[k].block_type === 'parenthetical')) k--
-        if (blocks[k].block_type === 'character') {
-          const a = blocks[k].content.replace(/\s*\(.*?\)\s*$/, '').trim().toUpperCase()
-          const b = blocks[j].content.replace(/\s*\(.*?\)\s*$/, '').trim().toUpperCase()
-          if (a && b && a === b) result.add(cur.id)
-        }
-      }
-    }
-  }
-  return result
-}
-
-function renderScreenplayBlockHtml(b: any, contdSet: Set<number>, moreSet: Set<number>, includeAnnotations: boolean): string {
-  if (b.block_type === 'annotation') {
-    if (!includeAnnotations) return ''
-    const color = b.annotation_color || '#f59e0b'
-    // Lighten the color for background
-    return `<div class="annotation" style="border-left:3px solid ${esc(color)};background:${esc(color)}18;color:${esc(color)};margin:4px 0 4px 0;padding:2px 6px;font-size:9px;font-family:Arial,sans-serif;font-style:italic;border-radius:2px;">${esc(b.content)}</div>`
-  }
-
-  switch (b.block_type) {
-    case 'scene_heading': {
-      const sceneNum = b.scene_number ? `<span class="scene-num">${esc(b.scene_number)}.</span>` : ''
-      return `<div class="scene-heading">${sceneNum}${esc(b.content || `${b.int_ext || 'INT'}. ${b.title || 'SZENE'} – ${b.day_night || 'TAG'}`)}</div>`
-    }
-    case 'action':
-      return `<div class="action">${esc(b.content)}</div>`
-    case 'character': {
-      const name = esc(b.content)
-      const suffix = contdSet.has(b.id) ? ` <span class="contd">(CONT'D)</span>` : ''
-      return `<div class="character">${name}${suffix}</div>`
-    }
-    case 'dialogue': {
-      const more = moreSet.has(b.id) ? `<div class="more">(MORE)</div>` : ''
-      return `<div class="dialogue">${esc(b.content)}</div>${more}`
-    }
-    case 'parenthetical':
-      return `<div class="parenthetical">${esc(b.content.startsWith('(') ? b.content : `(${b.content})`)}</div>`
-    case 'transition':
-      return `<div class="transition">${esc(b.content)}</div>`
-    case 'note':
-      return `<div class="note">${esc(b.content)}</div>`
-    case 'super':
-      return `<div class="super">${esc(b.content)}</div>`
-    case 'intercut':
-      return `<div class="intercut">${esc(b.content)}</div>`
-    default:
-      return `<div class="action">${esc(b.content)}</div>`
-  }
-}
-
-// GET /api/projects/:projectId/pdf/screenplay?notes=0|1
+// GET /api/projects/:projectId/pdf/screenplay?notes=0|1&paper=a4|letter
+//
+// Drehbuchsatz nach Industriestandard. Die Paginierung macht screenplayFormat,
+// damit Zeilenraster, (MORE)/(CONT'D) und Seitenzahlen exakt sitzen; hier wird
+// nur noch gelesen, gruppiert und ausgeliefert.
 router.get('/projects/:projectId/pdf/screenplay', async (req, res) => {
   const includeAnnotations = req.query.notes === '1'
+  const paper: PaperName = String(req.query.paper || '').toLowerCase() === 'letter' ? 'letter' : 'a4'
+
   const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]) as any
   if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
 
+  // Szenen separat laden: Szenen ohne Blöcke fielen bei einem JOIN über die
+  // Blöcke komplett aus dem PDF. Ihre Überschrift wird unten synthetisiert.
+  const scenes = await db.all(`
+    SELECT id, scene_number, title, int_ext, day_night
+    FROM scenes
+    WHERE project_id = ?
+    ORDER BY sort_order ASC, scene_number ASC
+  `, [req.params.projectId]) as any[]
+
   const blocks = await db.all(`
-    SELECT sb.*, s.scene_number, s.title as scene_title, s.int_ext, s.day_night, s.id as scene_id_ref
+    SELECT sb.scene_id, sb.block_type, sb.content, sb.annotation_color, sb.sort_order
     FROM screenplay_blocks sb
     JOIN scenes s ON sb.scene_id = s.id
     WHERE sb.project_id = ?
     ORDER BY s.sort_order ASC, s.scene_number ASC, sb.sort_order ASC
   `, [req.params.projectId]) as any[]
 
-  // Group by scene preserving order
-  const sceneOrder: number[] = []
-  const sceneMap: Record<number, { scene_number: string; title: string; int_ext: string; day_night: string; blocks: any[] }> = {}
+  const bySceneId = new Map<number, any[]>()
   for (const b of blocks) {
-    if (!sceneMap[b.scene_id]) {
-      sceneOrder.push(b.scene_id)
-      sceneMap[b.scene_id] = { scene_number: b.scene_number, title: b.scene_title, int_ext: b.int_ext, day_night: b.day_night, blocks: [] }
+    const list = bySceneId.get(b.scene_id)
+    if (list) list.push(b)
+    else bySceneId.set(b.scene_id, [b])
+  }
+
+  const sceneInputs: SceneInput[] = scenes.map(scene => {
+    const own = bySceneId.get(scene.id) ?? []
+    if (own.length > 0) return { scene_number: scene.scene_number, blocks: own }
+
+    // Leere Szene: Überschrift aus den Szenen-Metadaten bauen, damit sie im
+    // Drehbuch nicht fehlt (gleiches Verhalten wie beim Fountain-Export).
+    const intExt = String(scene.int_ext || 'INT').toUpperCase()
+    const heading = [
+      `${intExt}.`,
+      String(scene.title || `SZENE ${scene.scene_number}`).toUpperCase(),
+      scene.day_night ? `– ${String(scene.day_night).toUpperCase()}` : '',
+    ].filter(Boolean).join(' ')
+    return {
+      scene_number: scene.scene_number,
+      blocks: [{ block_type: 'scene_heading', content: heading }],
     }
-    sceneMap[b.scene_id].blocks.push(b)
-  }
+  })
 
-  const scenesHtml = sceneOrder.map(sceneId => {
-    const scene = sceneMap[sceneId]
-    const allBlocks = scene.blocks
-    const contdSet = detectContd(allBlocks)
-    const moreSet = detectMore(allBlocks)
+  const scriptPages = layoutScreenplay(sceneInputs, { includeAnnotations })
 
-    const blocksHtml = allBlocks
-      .map(b => renderScreenplayBlockHtml(b, contdSet, moreSet, includeAnnotations))
-      .join('\n')
+  const front: typeof scriptPages = [
+    buildTitlePage({
+      title: project.title || 'Drehbuch',
+      author: project.director || undefined,
+      producer: project.producer || undefined,
+      dateLine: `Stand: ${new Date().toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}`,
+      draftNote: includeAnnotations ? 'Fassung mit Notizen' : undefined,
+    }),
+  ]
+  const synopsisPage = buildTextPage('Synopsis', project.synopsis)
+  if (synopsisPage) front.push(synopsisPage)
 
-    return `<div class="scene">${blocksHtml}</div>`
-  }).join('\n')
-
-  const notesLabel = includeAnnotations ? ' <span style="font-size:9px;background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b44;padding:1px 6px;border-radius:3px;font-family:Arial">mit Notizen</span>' : ''
-
-  const html = `<!DOCTYPE html>
-<html lang="de">
-<head>
-<meta charset="UTF-8">
-<title>${esc(project.title)} – Drehbuch</title>
-<style>
-  @page {
-    size: A4;
-    margin: 25mm 20mm 25mm 30mm;
-    @top-right {
-      content: counter(page);
-      font-family: Courier, monospace;
-      font-size: 11px;
-      color: #666;
-    }
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: Courier, 'Courier New', monospace;
-    font-size: 12px;
-    line-height: 1.5;
-    color: #000;
-    background: #fff;
-    counter-reset: page;
-  }
-
-  /* ── Title page ── */
-  .title-page {
-    text-align: center;
-    padding-top: 80mm;
-    page-break-after: always;
-  }
-  .title-page h1 {
-    font-family: Courier, monospace;
-    font-size: 18px;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 8px;
-  }
-  .title-page .by { font-size: 12px; margin: 16px 0 4px; }
-  .title-page .meta { font-size: 10px; color: #555; margin-top: 40mm; }
-
-  /* ── Scene elements ── */
-  .scene { margin-bottom: 12px; }
-
-  .scene-heading {
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-top: 20px;
-    margin-bottom: 8px;
-    page-break-after: avoid;
-    position: relative;
-  }
-  .scene-num {
-    position: absolute;
-    left: -20px;
-    font-size: 10px;
-    color: #777;
-    font-weight: normal;
-  }
-
-  .action {
-    margin: 6px 0;
-    line-height: 1.6;
-    white-space: pre-wrap;
-  }
-
-  .character {
-    margin-top: 12px;
-    margin-bottom: 0;
-    margin-left: 38%;
-    font-weight: bold;
-    text-transform: uppercase;
-    page-break-after: avoid;
-  }
-  .contd { font-weight: normal; font-size: 10px; }
-
-  .dialogue {
-    margin: 2px 0 4px 22%;
-    max-width: 56%;
-    line-height: 1.6;
-    white-space: pre-wrap;
-    page-break-inside: avoid;
-  }
-
-  .parenthetical {
-    margin: 0 0 2px 30%;
-    max-width: 40%;
-    font-style: italic;
-    color: #333;
-    page-break-after: avoid;
-  }
-
-  .transition {
-    text-align: right;
-    font-weight: bold;
-    text-transform: uppercase;
-    margin: 12px 0 8px;
-  }
-
-  .note {
-    color: #888;
-    font-style: italic;
-    font-size: 10px;
-    border-left: 2px solid #ddd;
-    padding-left: 8px;
-    margin: 4px 0;
-  }
-
-  .super {
-    text-align: center;
-    font-weight: bold;
-    text-transform: uppercase;
-    font-size: 11px;
-    margin: 12px 0;
-    letter-spacing: 0.06em;
-  }
-
-  .intercut {
-    font-weight: bold;
-    text-transform: uppercase;
-    border-top: 2px dashed #ccc;
-    margin-top: 16px;
-    padding-top: 6px;
-  }
-
-  .more {
-    margin-left: 38%;
-    font-style: italic;
-    font-size: 10px;
-    color: #555;
-  }
-
-  .annotation {
-    page-break-inside: avoid;
-  }
-</style>
-</head>
-<body>
-
-<!-- Title Page -->
-<div class="title-page">
-  <h1>${esc(project.title)}${notesLabel}</h1>
-  ${project.synopsis ? `<p style="font-size:11px;color:#444;margin-top:12px;max-width:80%;margin-left:auto;margin-right:auto;">${esc(project.synopsis)}</p>` : ''}
-  <p class="by">von</p>
-  <p style="font-size:13px;font-weight:bold;">${esc(project.director || '—')}</p>
-  <div class="meta">
-    Produzent: ${esc(project.producer || '—')}<br>
-    Stand: ${new Date().toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
-    ${project.shoot_start ? `<br>Drehtage: ${new Date(project.shoot_start).toLocaleDateString('de-DE')} – ${project.shoot_end ? new Date(project.shoot_end).toLocaleDateString('de-DE') : ''}` : ''}
-  </div>
-</div>
-
-<!-- Script content -->
-${scenesHtml || '<p style="color:#555;font-style:italic;">Kein Drehbuchinhalt vorhanden.</p>'}
-
-</body>
-</html>`
+  const html = renderScreenplayHtml([...front, ...scriptPages], {
+    paper,
+    docTitle: `${project.title || 'Drehbuch'} – Drehbuch`,
+  })
 
   try {
-    const pdf = await generatePdf(html)
+    const pdf = await generatePdf(html, {
+      format: PAPER[paper].cssFormat as 'A4' | 'Letter',
+      // Die Geometrie steckt in den Seitenkästen — Chromium darf nichts addieren
+      margin: { top: '0', bottom: '0', left: '0', right: '0' },
+      footer: false,
+    })
     const suffix = includeAnnotations ? '-mit-notizen' : ''
+    const slug = String(project.title || 'drehbuch').replace(/[^a-z0-9]/gi, '-').toLowerCase()
     res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `attachment; filename="drehbuch-${project.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}${suffix}.pdf"`)
+    res.setHeader('Content-Disposition', `attachment; filename="drehbuch-${slug}${suffix}.pdf"`)
     res.send(pdf)
   } catch (e: any) {
     res.status(500).json({ data: null, error: `PDF-Fehler: ${e.message}` })

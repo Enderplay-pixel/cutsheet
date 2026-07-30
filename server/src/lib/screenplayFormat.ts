@@ -468,3 +468,186 @@ export function layoutScreenplay(scenes: SceneInput[], opts: LayoutOptions = {})
   flushPage()
   return pages
 }
+
+// ─── Titel- und Textseiten ────────────────────────────────────────────────────
+
+export interface TitlePageInfo {
+  title: string
+  /** Buch von — im Standard direkt unter dem Titel. */
+  author?: string
+  producer?: string
+  /** Fassung/Datum, unten links. */
+  dateLine?: string
+  /** Zusatzhinweis unten links, z. B. "Fassung mit Notizen". */
+  draftNote?: string
+}
+
+/** Füllt Leerzeilen bis zur Zielzeile auf. */
+function padTo(lines: LaidOutLine[], target: number): void {
+  while (lines.length < target) lines.push(BLANK)
+}
+
+function centered(text: string, type: ElementType = 'action'): LaidOutLine {
+  return { col: centerCol(text), text, type }
+}
+
+/**
+ * Titelseite nach Standard: Titel etwa ein Drittel von oben, mittig und in
+ * Großbuchstaben, darunter die Urheberangabe. Produktions- und Fassungsangaben
+ * stehen unten links. Die Titelseite trägt keine Seitenzahl und wird nicht
+ * mitgezählt.
+ */
+export function buildTitlePage(info: TitlePageInfo): LaidOutPage {
+  const lines: LaidOutLine[] = []
+
+  padTo(lines, 18)
+  for (const l of wrapMono(info.title.toUpperCase(), TEXT_WIDTH)) lines.push(centered(l, 'scene_heading'))
+
+  if (info.author) {
+    lines.push(BLANK, BLANK)
+    lines.push(centered('von'))
+    lines.push(BLANK, BLANK)
+    for (const l of wrapMono(info.author, TEXT_WIDTH)) lines.push(centered(l))
+  }
+
+  const footer = [
+    info.producer ? `Produktion: ${info.producer}` : '',
+    info.dateLine ?? '',
+    info.draftNote ?? '',
+  ].filter(Boolean)
+
+  if (footer.length > 0) {
+    padTo(lines, LINES_PER_PAGE - 4 - footer.length)
+    for (const f of footer) {
+      for (const l of wrapMono(f, TEXT_WIDTH)) lines.push({ col: TEXT_COL, text: l, type: 'action' })
+    }
+  }
+
+  return { number: null, lines }
+}
+
+/**
+ * Eine ungezählte Vorseite mit Überschrift und Fließtext — für die Synopsis,
+ * die auf einer normgerechten Titelseite nichts zu suchen hat.
+ */
+export function buildTextPage(heading: string, body: string | null | undefined): LaidOutPage | null {
+  const text = String(body ?? '').trim()
+  if (!text) return null
+
+  const lines: LaidOutLine[] = []
+  lines.push({ col: TEXT_COL, text: heading.toUpperCase(), type: 'scene_heading' })
+  lines.push(BLANK, BLANK)
+  for (const l of wrapMono(text, TEXT_WIDTH)) {
+    if (lines.length >= LINES_PER_PAGE) break
+    lines.push({ col: TEXT_COL, text: l, type: 'action' })
+  }
+  return { number: null, lines }
+}
+
+// ─── HTML für den PDF-Druck ───────────────────────────────────────────────────
+
+function escapeHtml(s: string): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+const spaces = (n: number) => ' '.repeat(Math.max(0, n))
+
+/**
+ * Eine Rasterzeile als HTML. Die Einrückung entsteht aus echten Leerzeichen in
+ * einem <pre> — bei 10 cpi ist das exakt und braucht keine CSS-Positionierung.
+ */
+function lineToHtml(l: LaidOutLine): string {
+  if (!l.text) return ''
+
+  const body = l.color
+    ? `<span style="color:${escapeHtml(l.color)}">${escapeHtml(l.text)}</span>`
+    : escapeHtml(l.text)
+
+  if (!l.sceneNumber) return spaces(l.col) + body
+
+  // Szenennummer links im Raster und gespiegelt rechts neben dem Textspiegel
+  const num = `${l.sceneNumber}.`
+  const cell = num.slice(0, Math.max(1, l.col - 1)).padEnd(l.col, ' ')
+  const mirror = spaces(SCENE_NUM_RIGHT_COL - cell.length - l.text.length) + escapeHtml(num)
+  return cell + body + mirror
+}
+
+/**
+ * Baut die Druckvorlage. Jede Seite ist ein Kasten in exakter Papiergröße mit
+ * margin:0 im @page — die selbst berechnete Paginierung bildet damit 1:1 auf
+ * PDF-Seiten ab, statt Chromium den Umbruch raten zu lassen.
+ */
+export function renderScreenplayHtml(
+  pages: LaidOutPage[],
+  opts: { paper: PaperName; docTitle: string }
+): string {
+  const paper = PAPER[opts.paper]
+  // Rechte Kante des Textspiegels — dort endet die Seitenzahl
+  const textRightIn = GRID_LEFT_IN + (TEXT_COL + TEXT_WIDTH) / CPI
+
+  const pagesHtml = pages.map(page => {
+    const num = page.number !== null ? `<div class="pnum">${page.number}.</div>` : ''
+    const lines = page.lines.map(lineToHtml).join('\n')
+    return `<section class="page">${num}<pre class="script">${lines}</pre></section>`
+  }).join('\n')
+
+  return `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>${escapeHtml(opts.docTitle)}</title>
+<style>
+  @page { size: ${paper.cssFormat}; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+
+  /* Courier-metrikkompatible Alternativen für Linux-Container, damit 10 cpi
+     auch ohne installiertes Courier New erhalten bleiben. */
+  .script, .pnum {
+    font-family: 'Courier New', 'Liberation Mono', 'Nimbus Mono PS', 'DejaVu Sans Mono', Courier, monospace;
+    font-size: 12pt;
+    line-height: ${(1 / LPI).toFixed(4)}in;
+    color: #000;
+    -webkit-font-smoothing: none;
+  }
+
+  .page {
+    position: relative;
+    display: block;
+    width: ${paper.widthIn}in;
+    /* Ein Hauch weniger als die Papierhöhe: verhindert, dass Rundung eine
+       zusätzliche Leerseite erzeugt. */
+    height: calc(${paper.heightIn}in - 1px);
+    overflow: hidden;
+    page-break-after: always;
+    break-after: page;
+  }
+  .page:last-child { page-break-after: auto; break-after: auto; }
+
+  .script {
+    position: absolute;
+    left: ${GRID_LEFT_IN}in;
+    top: ${TOP_MARGIN_IN}in;
+    margin: 0;
+    padding: 0;
+    white-space: pre;
+  }
+
+  /* Seitenzahl oben rechts, bündig mit dem rechten Textrand */
+  .pnum {
+    position: absolute;
+    top: ${PAGE_NUM_TOP_IN}in;
+    left: 0;
+    width: ${textRightIn}in;
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+${pagesHtml}
+</body>
+</html>`
+}
