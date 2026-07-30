@@ -78,6 +78,14 @@ export const api = {
 
     // Kanal-Auswertung und Kalender
     overview: (projectId: number) => req<any>(`/projects/${projectId}/creator/overview`),
+
+    // YouTube-Anbindung
+    ytStatus: (projectId: number) => req<any>(`/projects/${projectId}/creator/youtube/status`),
+    ytConnect: (projectId: number) => req<any>(`/projects/${projectId}/creator/youtube/connect`),
+    ytSync: (projectId: number) => req<any>(`/projects/${projectId}/creator/youtube/sync`, { method: 'POST' }),
+    ytDisconnect: (projectId: number) => req<any>(`/projects/${projectId}/creator/youtube`, { method: 'DELETE' }),
+    retention: (videoId: number) => req<any>(`/creator/videos/${videoId}/retention`),
+    patterns: (projectId: number) => req<any>(`/projects/${projectId}/creator/patterns`),
   },
 
   // ─── Scenes ────────────────────────────────────────────────────────────────

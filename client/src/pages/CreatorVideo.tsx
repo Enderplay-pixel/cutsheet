@@ -175,6 +175,12 @@ export function Component() {
     queryFn: () => api.creator.video(vid),
   })
 
+  // Retention gegen das Skript — nur sinnvoll, wenn YouTube abgeglichen wurde
+  const { data: retention } = useQuery({
+    queryKey: ['creator-retention', vid],
+    queryFn: () => api.creator.retention(vid),
+  })
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['creator-video', vid] })
     queryClient.invalidateQueries({ queryKey: ['creator-videos', pid] })
@@ -772,6 +778,58 @@ export function Component() {
                   <li key={i} className="text-sm text-muted-foreground">{n}</li>
                 ))}
               </ul>
+            )}
+
+            {/* Retention gegen das Skript: die Auswertung, die Studio nicht
+                liefern kann, weil YouTube das Skript nicht kennt */}
+            {retention?.has_curve && (
+              <div className="mt-8 pt-6 border-t border-border/50">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground/70 mb-1">
+                  Wo die Leute abspringen
+                </div>
+                <p className="text-xs text-muted-foreground/80 mb-4 max-w-2xl">
+                  Die Retention-Kurve von YouTube über deine Skript-Abschnitte gelegt. Der Verlust ist
+                  auf eine Minute normiert, sonst wäre der längste Abschnitt immer der scheinbar schlechteste.
+                </p>
+
+                {(retention.analysis?.notes || []).map((n: string, i: number) => (
+                  <div key={i} className="text-sm mb-1.5">{n}</div>
+                ))}
+
+                <div className="mt-4 space-y-1.5">
+                  {(retention.analysis?.sections || []).map((s: any) => {
+                    const worst = retention.analysis?.worst?.id === s.id
+                    const perMin = s.dropPerMinute ?? 0
+                    return (
+                      <div key={s.id} className={cn(
+                        'flex items-center gap-3 p-2.5 rounded-lg border',
+                        worst ? 'border-amber-500/40 bg-amber-500/5' : 'border-border/50 bg-card'
+                      )}>
+                        <span className="font-mono text-xs w-12 shrink-0 text-muted-foreground">
+                          {timecode(s.startSeconds)}
+                        </span>
+                        <span className="text-sm min-w-0 flex-1 truncate">
+                          {s.heading || s.kind}
+                          <span className="ml-2 text-[10px] uppercase tracking-wider text-muted-foreground/60">{s.kind}</span>
+                        </span>
+                        <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+                          {s.watchStart}% → {s.watchEnd}%
+                        </span>
+                        <span className={cn(
+                          'text-xs shrink-0 tabular-nums w-24 text-right',
+                          perMin > 8 ? 'text-red-400' : perMin > 4 ? 'text-amber-400' : 'text-emerald-400'
+                        )}>
+                          −{perMin}/min
+                        </span>
+                        {/* Balken: sichtbarer Anteil zu Beginn des Abschnitts */}
+                        <span className="hidden md:block w-28 h-1.5 rounded-full bg-muted overflow-hidden shrink-0">
+                          <span className="block h-full bg-primary" style={{ width: `${Math.max(0, Math.min(100, s.watchStart ?? 0))}%` }} />
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             )}
           </div>
         </TabsContent>

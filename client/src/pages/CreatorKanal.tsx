@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { YouTubeConnection } from '@/components/creator/YouTubeConnection'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChevronLeft, ChevronRight, CalendarDays, Eye, Heart, UserPlus, Banknote } from 'lucide-react'
@@ -57,6 +58,12 @@ export function Component() {
     queryFn: () => api.creator.overview(pid),
   })
 
+  // Muster ueber den ganzen Kanal — der Vergleich, den Studio nicht anbietet
+  const { data: patterns } = useQuery({
+    queryKey: ['creator-patterns', pid],
+    queryFn: () => api.creator.patterns(pid),
+  })
+
   const byDay = useMemo(() => {
     const map = new Map<string, any[]>()
     for (const entry of (data?.calendar || []) as any[]) {
@@ -94,6 +101,8 @@ export function Component() {
         subtitle={`${data?.video_count ?? 0} Videos · ${data?.published_count ?? 0} veröffentlicht · ${data?.planned_count ?? 0} geplant`}
       />
 
+      <YouTubeConnection projectId={pid} />
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <Stat icon={Eye} label="Aufrufe gesamt" value={totals.views.toLocaleString('de-DE')} />
         <Stat icon={Heart} label="Likes gesamt" value={totals.likes.toLocaleString('de-DE')} />
@@ -109,6 +118,17 @@ export function Component() {
         <div className="mb-6 p-3.5 rounded-lg border border-border/50 bg-muted/20">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">Veröffentlichungsrhythmus</div>
           {cadence.notes.map((n: string, i: number) => (
+            <div key={i} className="text-sm text-muted-foreground">{n}</div>
+          ))}
+        </div>
+      )}
+
+      {(patterns?.notes || []).length > 0 && (
+        <div className="mb-6 p-3.5 rounded-lg border border-border/50 bg-muted/20">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
+            Muster über den Kanal
+          </div>
+          {patterns.notes.map((n: string, i: number) => (
             <div key={i} className="text-sm text-muted-foreground">{n}</div>
           ))}
         </div>

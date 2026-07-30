@@ -39,3 +39,10 @@ services:
         sync: false
       - key: VAPID_EMAIL
         sync: false
+      # YouTube-Anbindung (optional) — im Dashboard setzen
+      - key: YOUTUBE_CLIENT_ID
+        sync: false
+      - key: YOUTUBE_CLIENT_SECRET
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY
+        generateValue: true
