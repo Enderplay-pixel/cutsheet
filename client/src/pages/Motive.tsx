@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
+import { useDownload } from '@/lib/useDownload'
 import { formatCurrency, debounce, cn } from '@/lib/utils'
 import { Plus, Trash2, MapPin, Zap, ExternalLink, ChevronDown, ChevronUp, Download, PenLine, FileSignature, RotateCcw } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
@@ -116,6 +117,7 @@ function SignatureCanvas({ onSave, disabled }: { onSave: (dataUrl: string) => vo
 
 function LocationReleaseSection({ locId, locName }: { locId: number; locName: string }) {
   const { toast } = useToast()
+  const download = useDownload()
   const queryClient = useQueryClient()
   const [ownerName, setOwnerName] = useState('')
   const [showCanvas, setShowCanvas] = useState(false)
@@ -166,10 +168,10 @@ function LocationReleaseSection({ locId, locName }: { locId: number; locName: st
             </span>
           )}
         </div>
-        <a href={api.locationRelease.pdf(locId)} target="_blank" rel="noopener noreferrer"
+        <button type="button" onClick={() => download(api.locationRelease.pdf(locId), 'motivfreigabe.pdf')}
           className="flex items-center gap-1 text-[10px] text-muted-foreground/60 hover:text-primary transition-colors">
           <Download className="w-3 h-3" />PDF
-        </a>
+        </button>
       </div>
 
       <div className="space-y-2">
@@ -399,6 +401,7 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const download = useDownload()
   const { canEdit } = useProjectPerms()
   const tt = useT()
 
@@ -437,11 +440,9 @@ export function Component() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <a href={api.pdf.motivliste(pid)} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => download(api.pdf.motivliste(pid), 'motivliste.pdf')}>
               <Download className="w-3.5 h-3.5 mr-1.5" />PDF
             </Button>
-          </a>
           {canEdit && (
             <Button size="sm" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
               <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(locT.newLocation)}

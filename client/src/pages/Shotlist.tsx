@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
+import { useDownload } from '@/lib/useDownload'
 import { debounce, getStripClass, eighthsToString, cn } from '@/lib/utils'
 import { Plus, Trash2, Camera, Film, Clock, Download, Check, Copy } from 'lucide-react'
 
@@ -100,6 +101,7 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const download = useDownload()
 
   const { data: scenes, isLoading: scenesLoading } = useQuery({
     queryKey: ['scenes', pid],
@@ -169,11 +171,9 @@ export function Component() {
         title="Auflösung & Shotlist"
         subtitle={`${totalShots} Einstellungen · ${totalDone} erledigt · ${Math.round(totalDuration / 60)} Min.`}
         actions={
-          <a href={api.pdf.shotlist(pid)} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => download(api.pdf.shotlist(pid), 'shotlist.pdf')}>
               <Download className="w-4 h-4 mr-2" />PDF
             </Button>
-          </a>
         }
       />
 

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/use-toast'
+import { useDownload } from '@/lib/useDownload'
 import { Plus, Camera, Save, Download, RotateCcw, Trash2, History, FileText, Sparkles } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -112,6 +113,7 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const download = useDownload()
   const [addDayOpen, setAddDayOpen] = useState(false)
   const [activeDrag, setActiveDrag] = useState<any>(null)
   const [showVersions, setShowVersions] = useState(false)
@@ -253,11 +255,9 @@ export function Component() {
           subtitle={`${shootDays?.length || 0} Drehtage · ${scheduledSceneIds.size} von ${allScenes?.length || 0} Szenen geplant`}
           actions={
             <div className="flex gap-2">
-              <a href={api.pdf.drehplan(pid)} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => download(api.pdf.drehplan(pid), 'drehplan.pdf')}>
                   <Download className="w-4 h-4 mr-2" />PDF
                 </Button>
-              </a>
               <Button variant="outline" size="sm" onClick={() => setShowAiOptimize(true)}>
                 <Sparkles className="w-4 h-4 mr-2" />KI-Optimierung
               </Button>

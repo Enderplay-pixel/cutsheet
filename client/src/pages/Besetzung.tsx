@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
+import { useDownload } from '@/lib/useDownload'
 import { formatCurrency, debounce, cn } from '@/lib/utils'
 import { Plus, Trash2, User, Users, Phone, Mail, ChevronDown, ChevronUp, Download } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
@@ -227,6 +228,7 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const download = useDownload()
   const { canEdit } = useProjectPerms()
 
   const tt = useT()
@@ -300,11 +302,9 @@ export function Component() {
         <Button variant="outline" size="sm" onClick={exportCsv}>
           <Download className="w-3.5 h-3.5 mr-1.5" />CSV
         </Button>
-        <a href={api.pdf.besetzung(pid)} target="_blank" rel="noopener noreferrer">
-          <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={() => download(api.pdf.besetzung(pid), 'besetzung.pdf')}>
             <Download className="w-3.5 h-3.5 mr-1.5" />{tt(castT.pdfBtn)}
           </Button>
-        </a>
       </div>
 
       <Tabs defaultValue="characters">

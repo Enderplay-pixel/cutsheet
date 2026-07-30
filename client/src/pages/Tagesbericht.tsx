@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
+import { useDownload } from '@/lib/useDownload'
 import { formatDate, debounce, cn } from '@/lib/utils'
 import { ChevronLeft, ChevronRight, FileText, Clock, Camera, AlertTriangle, Save, Download } from 'lucide-react'
 import { TimeInput } from '@/components/ui/time-input'
@@ -18,6 +19,7 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const download = useDownload()
   const [selectedDayIdx, setSelectedDayIdx] = useState(0)
 
   const { data: allDays } = useQuery({
@@ -227,11 +229,9 @@ export function Component() {
 
           <div className="flex justify-end gap-2">
             {selectedDay?.id && (
-              <a href={api.pdf.tagesbericht(selectedDay.id)} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline">
+              <Button variant="outline" onClick={() => download(api.pdf.tagesbericht(selectedDay.id), 'tagesbericht.pdf')}>
                   <Download className="w-3.5 h-3.5 mr-1.5" />PDF
                 </Button>
-              </a>
             )}
             <Button onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending}>
               <Save className="w-3.5 h-3.5 mr-1.5" />

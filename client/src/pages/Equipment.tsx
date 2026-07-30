@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
+import { useDownload } from '@/lib/useDownload'
 import { formatCurrency, debounce } from '@/lib/utils'
 import { Plus, Trash2, Package, Check, Download } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
@@ -186,6 +187,7 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const download = useDownload()
   const { canEdit } = useProjectPerms()
   const tt = useT()
   const [newListName, setNewListName] = useState('')
@@ -215,11 +217,9 @@ export function Component() {
         subtitle={`${lists?.length || 0} Listen · ${shootDayCount} Drehtage geplant`}
         actions={
           <div className="flex gap-2">
-            <a href={api.pdf.equipment(pid)} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => download(api.pdf.equipment(pid), 'equipment.pdf')}>
                 <Download className="w-4 h-4 mr-1" />PDF
               </Button>
-            </a>
             {canEdit && (
               <>
                 <Input value={newListName} onChange={e => setNewListName(e.target.value)}

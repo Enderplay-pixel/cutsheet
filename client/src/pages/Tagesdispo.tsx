@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
+import { useDownload } from '@/lib/useDownload'
 import { formatDate, formatDateLong, debounce, cn, eighthsToString } from '@/lib/utils'
 import {
   ChevronLeft, ChevronRight, MapPin, Clock, Users,
@@ -561,6 +562,7 @@ export function Component() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const download = useDownload()
 
   const { data: allDays } = useQuery({
     queryKey: ['shoot-days', pid],
@@ -720,11 +722,9 @@ export function Component() {
 
         {/* PDF download */}
         {selectedDayId && (
-          <a href={api.pdf.tagesdispo(selectedDayId)} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm" className="gap-1.5">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => download(api.pdf.tagesdispo(selectedDayId), 'tagesdispo.pdf')}>
               <Download className="w-3.5 h-3.5" />PDF
             </Button>
-          </a>
         )}
 
         {/* Dispo versenden */}

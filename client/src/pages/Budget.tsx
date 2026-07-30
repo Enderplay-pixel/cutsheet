@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
 import { useToast } from '@/components/ui/use-toast'
+import { useDownload } from '@/lib/useDownload'
 import { formatCurrency, debounce } from '@/lib/utils'
 import { Plus, Trash2, TrendingUp, PieChart, List, CheckCircle, Circle, Download } from 'lucide-react'
 
@@ -148,6 +149,7 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const download = useDownload()
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
   const [selectedFinVersionId, setSelectedFinVersionId] = useState<number | null>(null)
   const [newCategory, setNewCategory] = useState(CATEGORIES[0])
@@ -258,11 +260,9 @@ export function Component() {
                   <Plus className="w-4 h-4 mr-1" />Position
                 </Button>
                 {selectedVersionId && (
-                  <a href={api.pdf.kalkulation(pid, selectedVersionId)} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => download(api.pdf.kalkulation(pid, selectedVersionId), 'kalkulation.pdf')}>
                       <Download className="w-4 h-4 mr-1" />PDF
                     </Button>
-                  </a>
                 )}
               </div>
             </div>
