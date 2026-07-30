@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/useT'
+import { useDownload } from '@/lib/useDownload'
 import { screenplayT } from '@/lib/i18n'
 import {
   ArrowLeft, Plus, Upload, FileText, ChevronRight, ChevronDown, Film,
@@ -545,6 +546,7 @@ export function Component() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const tt = useT()
+  const download = useDownload()
 
   const [activeBlockId, setActiveBlockId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
@@ -1071,17 +1073,19 @@ export function Component() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="text-xs">
-              <DropdownMenuItem asChild className="text-xs cursor-pointer">
-                <a href={api.pdf.screenplay(pid)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                  <FileText className="w-3 h-3" />
-                  {tt(screenplayT.exportPdf)}
-                </a>
+              <DropdownMenuItem
+                className="text-xs cursor-pointer gap-2"
+                onClick={() => download(api.pdf.screenplay(pid), 'drehbuch.pdf')}
+              >
+                <FileText className="w-3 h-3" />
+                {tt(screenplayT.exportPdf)}
               </DropdownMenuItem>
-              <DropdownMenuItem asChild className="text-xs cursor-pointer">
-                <a href={api.pdf.screenplayWithNotes(pid)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                  <PenLine className="w-3 h-3" />
-                  {tt(screenplayT.exportPdfNotes)}
-                </a>
+              <DropdownMenuItem
+                className="text-xs cursor-pointer gap-2"
+                onClick={() => download(api.pdf.screenplayWithNotes(pid), 'drehbuch-mit-notizen.pdf')}
+              >
+                <PenLine className="w-3 h-3" />
+                {tt(screenplayT.exportPdfNotes)}
               </DropdownMenuItem>
               <DropdownMenuItem className="text-xs cursor-pointer" onClick={handleFountainExport}>
                 <Download className="w-3 h-3 mr-2" />

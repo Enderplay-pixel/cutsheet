@@ -47,20 +47,34 @@ function resolveChromium(): string | undefined {
   return found
 }
 
+export interface PdfOptions {
+  watermark?: string
+  /** Papierformat; Standard A4. */
+  format?: 'A4' | 'Letter'
+  /** Seitenränder. Achtung: übersteuert @page-margin aus dem CSS. */
+  margin?: { top: string; bottom: string; left: string; right: string }
+  /**
+   * CutSheet-Fußzeile mit Seitenzahl. Standard true. Das Drehbuch schaltet sie
+   * ab, weil es seine Seitenzahlen normgerecht selbst oben rechts setzt.
+   */
+  footer?: boolean
+}
+
 // Generic PDF generator using puppeteer (lazily loaded)
-export async function generatePdf(html: string, opts?: { watermark?: string }): Promise<Buffer> {
+export async function generatePdf(html: string, opts?: PdfOptions): Promise<Buffer> {
   const puppeteer = require('puppeteer')
   const executablePath = resolveChromium()
   console.log('[PDF] Launching puppeteer, executablePath:', executablePath ?? '(bundled)')
   const launchOptions: any = {
     headless: true,
     args: [
+      // ACHTUNG: Kein --single-process und kein --no-zygote. Beide lassen den
+      // Renderer bei Page.printToPDF abstürzen ("Target closed") — der Grund,
+      // weshalb sämtliche PDF-Exporte fehlgeschlagen sind.
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-      '--single-process',
-      '--no-zygote',
       '--disable-software-rasterizer',
       '--disable-extensions',
       '--disable-background-networking',
@@ -89,14 +103,17 @@ export async function generatePdf(html: string, opts?: { watermark?: string }): 
           font-family:Arial,sans-serif;letter-spacing:4px;">${wm}</div>`)
     }
     await page.setContent(content, { waitUntil: 'domcontentloaded', timeout: 30000 })
+    const withFooter = opts?.footer !== false
     const pdf = await page.pdf({
-      format: 'A4',
+      format: opts?.format ?? 'A4',
       printBackground: true,
-      displayHeaderFooter: true,
-      headerTemplate: '<span></span>',
-      footerTemplate: `<div style="width:100%;text-align:center;font-size:7px;color:#9ca3af;font-family:Arial,sans-serif;">
+      displayHeaderFooter: withFooter,
+      ...(withFooter ? {
+        headerTemplate: '<span></span>',
+        footerTemplate: `<div style="width:100%;text-align:center;font-size:7px;color:#9ca3af;font-family:Arial,sans-serif;">
         Erstellt mit CutSheet &middot; cutsheet.app &nbsp;&nbsp;|&nbsp;&nbsp; Seite <span class="pageNumber"></span> / <span class="totalPages"></span></div>`,
-      margin: { top: '15mm', bottom: '18mm', left: '15mm', right: '15mm' },
+      } : {}),
+      margin: opts?.margin ?? { top: '15mm', bottom: '18mm', left: '15mm', right: '15mm' },
     })
     return pdf
   } finally {

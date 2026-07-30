@@ -137,6 +137,7 @@ export const uiT = {
   csvExport:    { en: 'CSV',            de: 'CSV',             fr: 'CSV'             },
   pdfExport:    { en: 'PDF',            de: 'PDF',             fr: 'PDF'             },
   import:       { en: 'Import',         de: 'Import',          fr: 'Importer'        },
+  downloadFailed: { en: 'Download failed', de: 'Download fehlgeschlagen', fr: 'Échec du téléchargement' },
   search:       { en: 'Search…',        de: 'Suchen…',         fr: 'Rechercher…'     },
   noResults:    { en: 'No results found', de: 'Keine Ergebnisse', fr: 'Aucun résultat' },
   loading:      { en: 'Loading…',       de: 'Laden…',          fr: 'Chargement…'    },
