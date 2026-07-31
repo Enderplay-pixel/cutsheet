@@ -1,4 +1,5 @@
 import 'express-async-errors'
+import { assertSecrets } from './config/secrets'
 import express from 'express'
 import cors from 'cors'
 import path from 'path'
@@ -208,6 +209,9 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // Initialize DB and start server
 async function main() {
+  // Geheimnisse pruefen, bevor irgendetwas Tokens ausstellt
+  assertSecrets()
+
   // Start HTTP server FIRST so /api/health responds immediately.
   // Railway marks the deploy as healthy before DB is ready — this prevents
   // the health-check timeout when PG is still booting alongside the app.

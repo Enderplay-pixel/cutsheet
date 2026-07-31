@@ -10,15 +10,13 @@ import {
 } from '../lib/youtubeOAuth'
 import { parseRetentionRows, analyseScriptRetention, findChannelPatterns } from '../lib/youtubeInsights'
 import { buildTimeline, DEFAULT_WPM } from '../lib/creatorScript'
+import { getStateSecret as stateSecret } from '../config/secrets'
 
 const router = Router()
 
 router.use('/projects/:projectId', requireMember)
 
-/** Geheimnis für die State-Signatur des OAuth-Rücklaufs. */
-function stateSecret(): string {
-  return process.env.JWT_SECRET || 'cutsheet-dev-state-secret'
-}
+
 
 /** Frühestes Datum, für das YouTube Analytics Daten hat. */
 const ANALYTICS_START = '2005-04-23'

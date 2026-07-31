@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'cutsheet-dev-secret-change-in-production'
+import { getJwtSecret } from '../config/secrets'
+
+// Bewusst als Funktion statt als Konstante: in der Produktion soll ein
+// fehlender Schluessel einen Fehler ausloesen und nicht still durchgehen.
 
 export interface AuthUser {
   id: number
@@ -22,7 +25,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as AuthUser
+    const payload = jwt.verify(token, getJwtSecret()) as AuthUser
     req.user = payload
     next()
   } catch {
@@ -34,7 +37,7 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction) {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (token) {
     try {
-      req.user = jwt.verify(token, JWT_SECRET) as AuthUser
+      req.user = jwt.verify(token, getJwtSecret()) as AuthUser
     } catch {}
   }
   next()
@@ -49,5 +52,5 @@ export function requireRole(...roles: string[]) {
 }
 
 export function signToken(user: AuthUser): string {
-  return jwt.sign(user, JWT_SECRET, { expiresIn: '30d' })
+  return jwt.sign(user, getJwtSecret(), { expiresIn: '30d' })
 }
