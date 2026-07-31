@@ -76,7 +76,8 @@ router.get('/creator/youtube/callback', async (req: Request, res: Response) => {
   // Ohne gültigen State kennen wir das Projekt nicht — dann zurück zur
   // Projektliste statt auf eine Route mit leerer ID
   const back = (projectId: number | string | null, params: Record<string, string>) => {
-    const path = projectId ? `/projects/${projectId}/creator/kanal` : '/projects'
+    // Die Projektliste liegt auf der Wurzel, nicht auf /projects
+    const path = projectId ? `/projects/${projectId}/creator/kanal` : '/'
     return `${appBase}${path}?${new URLSearchParams(params).toString()}`
   }
 

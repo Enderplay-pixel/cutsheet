@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, Film, Copy, ArrowRight, Clapperboard, Trash2, Archive, ArchiveRestore } from 'lucide-react'
+import { Plus, Film, Copy, ArrowRight, Clapperboard, Trash2, Archive, ArchiveRestore, Youtube, Smartphone, Mic, Radio } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { OnboardingWizard } from '@/components/OnboardingWizard'
@@ -35,6 +35,22 @@ const FORMATS = [
   'Kurzfilm', 'Spielfilm', 'Dokumentation', 'Serie', 'Werbefilm', 'Imagefilm',
   'YouTube-Video', 'YouTube Shorts', 'Reel / TikTok', 'Podcast', 'Stream / Live',
 ]
+
+/**
+ * Icon je Projektart. Film und Content sehen in der Liste sonst gleich aus,
+ * obwohl dahinter voellig verschiedene Arbeitsweisen stecken — und wer beides
+ * macht, sucht sonst in einer gemischten Liste.
+ */
+function projectIcon(project: any) {
+  if (project?.project_kind !== 'creator') return Film
+  switch (project.format) {
+    case 'YouTube Shorts':
+    case 'Reel / TikTok': return Smartphone
+    case 'Podcast': return Mic
+    case 'Stream / Live': return Radio
+    default: return Youtube
+  }
+}
 
 const CREATOR_FORMATS = ['YouTube-Video', 'YouTube Shorts', 'Reel / TikTok', 'Podcast', 'Stream / Live']
 
@@ -227,7 +243,10 @@ export function Component() {
                 >
                   {/* Status dot + icon */}
                   <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center shrink-0', meta.bg)}>
-                    <Film className={cn('w-4 h-4', meta.text)} />
+                    {(() => {
+                      const Icon = projectIcon(project)
+                      return <Icon className={cn('w-4 h-4', meta.text)} />
+                    })()}
                   </div>
 
                   {/* Info */}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
+import { RetentionChart } from '@/components/creator/RetentionChart'
 import {
   ArrowLeft, Plus, Trash2, Download, Clock, Type, ChevronUp, ChevronDown,
   AlertTriangle, Check, Copy, Presentation, X, Play, Pause, ShieldAlert, Scissors,
@@ -169,6 +170,18 @@ export function Component() {
   const { toast } = useToast()
   const download = useDownload()
   const [prompterOpen, setPrompterOpen] = useState(false)
+
+  // Reiter in der URL halten: so ueberlebt die Auswahl einen Reload und laesst
+  // sich verlinken — praktisch, wenn man jemandem eine bestimmte Ansicht zeigt
+  const [searchParams, setSearchParams] = useSearchParams()
+  const TABS = ['script', 'upload', 'rights', 'clips', 'checklist', 'numbers']
+  const activeTab = TABS.includes(searchParams.get('tab') || '') ? (searchParams.get('tab') as string) : 'script'
+  const setActiveTab = (value: string) => {
+    const next = new URLSearchParams(searchParams)
+    if (value === 'script') next.delete('tab')
+    else next.set('tab', value)
+    setSearchParams(next, { replace: true })
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['creator-video', vid],
@@ -369,7 +382,7 @@ export function Component() {
         </span>
       </div>
 
-      <Tabs defaultValue="script">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="script" className="text-xs">Skript</TabsTrigger>
           <TabsTrigger value="upload" className="text-xs">Upload</TabsTrigger>
@@ -818,9 +831,17 @@ export function Component() {
                   auf eine Minute normiert, sonst wäre der längste Abschnitt immer der scheinbar schlechteste.
                 </p>
 
-                {(retention.analysis?.notes || []).map((n: string, i: number) => (
-                  <div key={i} className="text-sm mb-1.5">{n}</div>
-                ))}
+                <RetentionChart
+                  curve={retention.curve || []}
+                  sections={retention.analysis?.sections || []}
+                  videoSeconds={totalSeconds}
+                />
+
+                <div className="mt-4">
+                  {(retention.analysis?.notes || []).map((n: string, i: number) => (
+                    <div key={i} className="text-sm mb-1.5">{n}</div>
+                  ))}
+                </div>
 
                 <div className="mt-4 space-y-1.5">
                   {(retention.analysis?.sections || []).map((s: any) => {
