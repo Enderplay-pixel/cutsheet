@@ -82,6 +82,7 @@ export const api = {
     // YouTube-Anbindung
     ytStatus: (projectId: number) => req<any>(`/projects/${projectId}/creator/youtube/status`),
     ytConnect: (projectId: number) => req<any>(`/projects/${projectId}/creator/youtube/connect`),
+    ytVideos: (projectId: number) => req<any[]>(`/projects/${projectId}/creator/youtube/videos`),
     ytSync: (projectId: number) => req<any>(`/projects/${projectId}/creator/youtube/sync`, { method: 'POST' }),
     ytDisconnect: (projectId: number) => req<any>(`/projects/${projectId}/creator/youtube`, { method: 'DELETE' }),
     retention: (videoId: number) => req<any>(`/creator/videos/${videoId}/retention`),

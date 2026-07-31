@@ -5,10 +5,11 @@ import {
   getOAuthConfig, buildAuthUrl, createState, verifyState,
   exchangeCode, refreshAccessToken, revokeToken,
   encryptToken, decryptToken,
-  fetchChannel, fetchVideoMetrics, fetchRetentionCurve,
+  fetchChannel, fetchVideoMetrics, fetchRetentionCurve, fetchChannelVideos,
   extractVideoId,
 } from '../lib/youtubeOAuth'
 import { parseRetentionRows, analyseScriptRetention, findChannelPatterns } from '../lib/youtubeInsights'
+import { assignAll } from '../lib/videoMatching'
 import { buildTimeline, DEFAULT_WPM } from '../lib/creatorScript'
 import { getStateSecret as stateSecret } from '../config/secrets'
 
@@ -194,6 +195,37 @@ router.post('/projects/:projectId/creator/youtube/sync', async (req, res) => {
 
     const videos = await db.all('SELECT * FROM creator_videos WHERE project_id = ?', [projectId]) as any[]
 
+    // Videos ohne hinterlegten Link ueber den Titel zuordnen. Nur eindeutige
+    // Treffer werden gesetzt — eine falsche Zuordnung haengt stillschweigend
+    // fremde Zahlen an ein Video und waere schlimmer als gar keine.
+    const needsMatch = videos.filter(v => !v.youtube_video_id && !extractVideoId(v.video_url))
+    const autoLinked: Array<{ title: string; to: string }> = []
+    const suggestions: Array<{ id: number; title: string; suggested_id: string; suggested_title: string; score: number }> = []
+
+    if (needsMatch.length > 0) {
+      const channelVideos = await fetchChannelVideos(accessToken)
+      const assignments = assignAll(
+        needsMatch.map(v => ({ id: v.id, title: v.title || '' })),
+        channelVideos
+      )
+      for (const a of assignments) {
+        if (a.match.auto && a.match.videoId) {
+          await db.run('UPDATE creator_videos SET youtube_video_id = ? WHERE id = ?', [a.match.videoId, a.id])
+          const target = videos.find(v => v.id === a.id)
+          if (target) target.youtube_video_id = a.match.videoId
+          autoLinked.push({ title: a.title, to: a.match.title ?? a.match.videoId })
+        } else if (a.match.videoId) {
+          suggestions.push({
+            id: a.id,
+            title: a.title,
+            suggested_id: a.match.videoId,
+            suggested_title: a.match.title ?? '',
+            score: a.match.score,
+          })
+        }
+      }
+    }
+
     let matched = 0
     let curves = 0
     const unmatched: string[] = []
@@ -239,11 +271,24 @@ router.post('/projects/:projectId/creator/youtube/sync', async (req, res) => {
         matched,
         retention_curves: curves,
         unmatched,
+        auto_linked: autoLinked,
+        suggestions,
       },
       error: null,
     })
   } catch (err: any) {
     res.status(400).json({ data: null, error: err?.message || 'Abgleich fehlgeschlagen' })
+  }
+})
+
+// GET /api/projects/:projectId/creator/youtube/videos — fuer die Auswahlliste
+router.get('/projects/:projectId/creator/youtube/videos', async (req, res) => {
+  try {
+    const accessToken = await validAccessToken(req.params.projectId)
+    const videos = await fetchChannelVideos(accessToken)
+    res.json({ data: videos, error: null })
+  } catch (err: any) {
+    res.status(400).json({ data: null, error: err?.message || 'Videos konnten nicht geladen werden' })
   }
 })
 

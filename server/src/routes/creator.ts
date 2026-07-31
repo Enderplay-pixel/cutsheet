@@ -117,7 +117,7 @@ router.post('/projects/:projectId/creator/videos', async (req, res) => {
 const VIDEO_FIELDS = [
   'title', 'status', 'platform', 'hook', 'target_seconds', 'wpm', 'publish_at',
   'title_variants', 'thumbnail_ideas', 'description', 'tags', 'sort_order',
-  'series', 'keyword', 'video_url', 'published_at',
+  'series', 'keyword', 'video_url', 'published_at', 'youtube_video_id',
   'views', 'impressions', 'avg_view_seconds', 'likes', 'comments', 'subs_gained',
   'sponsor_brand', 'sponsor_fee_cents', 'sponsor_deliverables', 'sponsor_deadline', 'sponsor_disclosed',
 ] as const

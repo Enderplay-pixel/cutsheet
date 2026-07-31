@@ -147,9 +147,20 @@ export function YouTubeConnection({ projectId }: { projectId: number }) {
             {syncResult.matched} von {syncResult.videos_on_youtube} Videos zugeordnet,
             {' '}{syncResult.retention_curves} Retention-Kurven geholt
           </div>
+          {syncResult.auto_linked?.length > 0 && (
+            <div className="text-muted-foreground">
+              Automatisch über den Titel zugeordnet: {syncResult.auto_linked.map((a: any) => `„${a.title}“ → „${a.to}“`).join(', ')}
+            </div>
+          )}
+          {syncResult.suggestions?.length > 0 && (
+            <div className="text-amber-400">
+              Nicht eindeutig, bitte unter „Zahlen“ selbst auswählen:{' '}
+              {syncResult.suggestions.map((s: any) => `„${s.title}“ (nächster Treffer: „${s.suggested_title}“)`).join(', ')}
+            </div>
+          )}
           {syncResult.unmatched?.length > 0 && (
             <div className="text-muted-foreground">
-              Ohne Zuordnung: {syncResult.unmatched.join(', ')} — dafür den Video-Link unter „Zahlen“ eintragen.
+              Ohne Zuordnung: {syncResult.unmatched.join(', ')} — unter „Zahlen“ das passende YouTube-Video auswählen.
             </div>
           )}
         </div>

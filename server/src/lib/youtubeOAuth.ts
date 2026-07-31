@@ -331,6 +331,57 @@ export async function fetchRetentionCurve(
   return (json?.rows ?? []).map((r: any[]) => [Number(r[0]), Number(r[1])] as [number, number])
 }
 
+export interface ChannelVideo {
+  videoId: string
+  title: string
+  publishedAt: string | null
+}
+
+/**
+ * Alle Videos des eigenen Kanals mit Titel.
+ *
+ * Der Weg fuehrt ueber die Uploads-Playlist: Die Analytics API liefert nur
+ * Video-IDs und Zahlen, aber keine Titel — die braucht es aber, um die Videos
+ * den CutSheet-Eintraegen zuzuordnen.
+ */
+export async function fetchChannelVideos(
+  accessToken: string,
+  maxVideos = 200,
+  fetchImpl: FetchLike = fetch as any
+): Promise<ChannelVideo[]> {
+  const channelJson = await getJson(
+    'https://www.googleapis.com/youtube/v3/channels?part=contentDetails&mine=true',
+    accessToken, fetchImpl
+  )
+  const uploads = channelJson?.items?.[0]?.contentDetails?.relatedPlaylists?.uploads
+  if (!uploads) return []
+
+  const videos: ChannelVideo[] = []
+  let pageToken = ''
+
+  while (videos.length < maxVideos) {
+    const url = 'https://www.googleapis.com/youtube/v3/playlistItems'
+      + `?part=snippet&maxResults=50&playlistId=${encodeURIComponent(uploads)}`
+      + (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '')
+
+    const json = await getJson(url, accessToken, fetchImpl)
+    for (const item of json?.items ?? []) {
+      const videoId = item?.snippet?.resourceId?.videoId
+      if (!videoId) continue
+      videos.push({
+        videoId,
+        title: item?.snippet?.title ?? '',
+        publishedAt: item?.snippet?.publishedAt ?? null,
+      })
+    }
+
+    pageToken = json?.nextPageToken ?? ''
+    if (!pageToken) break
+  }
+
+  return videos.slice(0, maxVideos)
+}
+
 /** Video-ID aus einem YouTube-Link ziehen. */
 export function extractVideoId(url: string): string | null {
   const s = String(url || '').trim()

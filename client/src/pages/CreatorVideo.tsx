@@ -181,6 +181,15 @@ export function Component() {
     queryFn: () => api.creator.retention(vid),
   })
 
+  // Videos des verbundenen Kanals fuer die Auswahlliste. Schlaegt fehl, wenn
+  // kein Kanal verbunden ist — dann bleibt es beim Link-Feld.
+  const { data: ytVideoList } = useQuery({
+    queryKey: ['yt-videos', pid],
+    queryFn: () => api.creator.ytVideos(pid),
+    retry: false,
+  })
+  const ytVideos = (ytVideoList || []) as any[]
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['creator-video', vid] })
     queryClient.invalidateQueries({ queryKey: ['creator-videos', pid] })
@@ -737,9 +746,26 @@ export function Component() {
                   onBlur={e => updateVideo.mutate({ published_at: e.target.value || null })} />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Video-Link</Label>
-                <Input defaultValue={video.video_url} className="mt-1 text-sm" placeholder="https://youtu.be/…"
-                  onBlur={e => e.target.value !== video.video_url && updateVideo.mutate({ video_url: e.target.value })} />
+                <Label className="text-xs text-muted-foreground">YouTube-Video</Label>
+                {ytVideos.length > 0 ? (
+                  // Ist der Kanal verbunden, direkt aus seinen Videos waehlen —
+                  // Links heraussuchen und einfuegen ist unnoetige Fleissarbeit
+                  <Select
+                    value={video.youtube_video_id || 'keins'}
+                    onValueChange={v => updateVideo.mutate({ youtube_video_id: v === 'keins' ? '' : v })}
+                  >
+                    <SelectTrigger className="mt-1 text-xs"><SelectValue placeholder="Video auswählen" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="keins" className="text-xs">— nicht verknüpft —</SelectItem>
+                      {ytVideos.map((v: any) => (
+                        <SelectItem key={v.videoId} value={v.videoId} className="text-xs">{v.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input defaultValue={video.video_url} className="mt-1 text-sm" placeholder="https://youtu.be/…"
+                    onBlur={e => e.target.value !== video.video_url && updateVideo.mutate({ video_url: e.target.value })} />
+                )}
               </div>
 
               {([
