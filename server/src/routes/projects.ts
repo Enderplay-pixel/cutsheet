@@ -100,10 +100,16 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
 router.put('/:id', requireAuth, async (req, res) => {
   const { title, genre, format, length_minutes, status, synopsis = '', director, producer, dop, production_company, shoot_start, shoot_end } = req.body
 
+  // Die Projektart wird beim Speichern immer aus dem Format abgeleitet — sie ist
+  // abgeleiteter Zustand, nicht eigene Eingabe. Ein mitgeschicktes project_kind
+  // wird bewusst ignoriert: Oberflaechen schicken den geladenen Datensatz
+  // unveraendert zurueck, und der alte Wert wuerde den Formatwechsel aushebeln.
+  const project_kind = isCreatorFormat(format) ? 'creator' : 'film'
+
   await db.run(`
-    UPDATE projects SET title=?, genre=?, format=?, length_minutes=?, status=?, synopsis=?, director=?, producer=?, dop=?, production_company=?, shoot_start=?, shoot_end=?, updated_at=datetime('now')
+    UPDATE projects SET title=?, genre=?, format=?, length_minutes=?, status=?, synopsis=?, director=?, producer=?, dop=?, production_company=?, shoot_start=?, shoot_end=?, project_kind=?, updated_at=NOW()
     WHERE id=?
-  `, [title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, req.params.id])
+  `, [title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, project_kind, req.params.id])
 
   const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.id])
   res.json({ data: project, error: null })

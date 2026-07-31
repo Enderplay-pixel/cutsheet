@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { formatDate } from '@/lib/utils'
+import { ALL_FORMATS, isCreatorFormat, isCreatorProject } from '@/lib/projectKind'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -25,16 +26,7 @@ const STATUS_META: Record<string, { text: string; bg: string; border: string; do
 }
 const DEFAULT_META = { text: 'text-muted-foreground', bg: 'bg-muted/40', border: 'border-l-border', dot: 'bg-muted-foreground' }
 
-/**
- * Formate. Die Creator-Formate legen ein Projekt der Art 'creator' an — dort
- * gibt es Videos, Skript-Abschnitte und ein Upload-Paket statt Drehplan,
- * Tagesdispo und Callsheets. Die Zuordnung trifft der Server anhand des
- * Formats (CREATOR_FORMATS in routes/projects.ts).
- */
-const FORMATS = [
-  'Kurzfilm', 'Spielfilm', 'Dokumentation', 'Serie', 'Werbefilm', 'Imagefilm',
-  'YouTube-Video', 'YouTube Shorts', 'Reel / TikTok', 'Podcast', 'Stream / Live',
-]
+const FORMATS = ALL_FORMATS
 
 /**
  * Icon je Projektart. Film und Content sehen in der Liste sonst gleich aus,
@@ -42,7 +34,7 @@ const FORMATS = [
  * macht, sucht sonst in einer gemischten Liste.
  */
 function projectIcon(project: any) {
-  if (project?.project_kind !== 'creator') return Film
+  if (!isCreatorProject(project)) return Film
   switch (project.format) {
     case 'YouTube Shorts':
     case 'Reel / TikTok': return Smartphone
@@ -51,8 +43,6 @@ function projectIcon(project: any) {
     default: return Youtube
   }
 }
-
-const CREATOR_FORMATS = ['YouTube-Video', 'YouTube Shorts', 'Reel / TikTok', 'Podcast', 'Stream / Live']
 
 function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [form, setForm] = useState({ title: '', genre: '', format: 'Kurzfilm', director: '', producer: '' })
@@ -68,7 +58,7 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
       toast({ title: 'Projekt erstellt' })
       // Creator-Projekte starten bei den Videos — das Film-Dashboard zeigt
       // Drehtage und Dispo, die es dort nicht gibt.
-      const isCreator = (project as any)?.project_kind === 'creator' || CREATOR_FORMATS.includes(form.format)
+      const isCreator = isCreatorProject(project) || isCreatorFormat(form.format)
       navigate(isCreator ? `/projects/${project.id}/creator` : `/projects/${project.id}`)
       onClose()
     },

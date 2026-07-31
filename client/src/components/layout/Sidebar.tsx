@@ -16,6 +16,7 @@ import {
 import { FeedbackWidget } from '@/components/shared/FeedbackWidget'
 import { useT } from '@/lib/useT'
 import { navT } from '@/lib/i18n'
+import { isCreatorProject } from '@/lib/projectKind'
 
 type NavItemDef = {
   label: string
@@ -69,7 +70,7 @@ export function Sidebar() {
   // Creator-Projekte (YouTube, Shorts, Podcast) haben keine Crew, keinen
   // Drehplan und keine Tagesdispo. Sie bekommen deshalb eine eigene Navigation
   // statt der Filmproduktions-Struktur.
-  const isCreator = (project as any)?.project_kind === 'creator'
+  const isCreator = isCreatorProject(project)
 
   const creatorGroups: NavGroupDef[] = [
     {

@@ -812,6 +812,14 @@ export async function initDatabase() {
   // Projektart: 'film' = klassische Produktion, 'creator' = Content-/YouTube-Kanal.
   // Steuert Navigation und Feature-Set im Client.
   await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_kind TEXT NOT NULL DEFAULT 'film'`)
+  // Nachziehen: Projekte, die vor Einfuehrung der Projektart angelegt wurden,
+  // stehen auf dem Standardwert 'film', obwohl ihr Format eindeutig Content ist.
+  // Ohne das bekommen sie die Filmproduktions-Navigation statt der Creator-Sicht.
+  await db.exec(`
+    UPDATE projects SET project_kind = 'creator'
+    WHERE project_kind = 'film'
+      AND format IN ('YouTube-Video', 'YouTube Shorts', 'Reel / TikTok', 'Podcast', 'Stream / Live')
+  `)
   await db.exec(`
     CREATE TABLE IF NOT EXISTS creator_videos (
       id SERIAL PRIMARY KEY,

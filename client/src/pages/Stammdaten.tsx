@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
 import { debounce, formatDate, cn } from '@/lib/utils'
+import { ALL_FORMATS } from '@/lib/projectKind'
 import { Film, Calendar, Building2, Check, Settings2, Link2, Plus, Trash2, Copy, Users, QrCode } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { TimeInput } from '@/components/ui/time-input'
@@ -16,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { useT } from '@/lib/useT'
 import { masterT, uiT } from '@/lib/i18n'
 
-const FORMATS = ['Kurzfilm', 'Spielfilm', 'Serie', 'Dokumentarfilm', 'Werbefilm', 'Imagefilm', 'Musikvideo']
+const FORMATS = ALL_FORMATS
 const STATUSES = ['Entwicklung', 'Vorproduktion', 'Produktion', 'Postproduktion', 'Abgeschlossen', 'Archiviert']
 
 function FormSection({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
