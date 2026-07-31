@@ -145,7 +145,18 @@ router.put('/creator/videos/:videoId', async (req, res) => {
 
 // DELETE /api/creator/videos/:videoId
 router.delete('/creator/videos/:videoId', async (req, res) => {
-  if (!await loadVideoForUser(req, res)) return
+  const video = await loadVideoForUser(req, res)
+  if (!video) return
+
+  // Ein geloeschtes YouTube-Video soll beim naechsten Abgleich nicht wieder
+  // auftauchen — die Loeschung ist eine Entscheidung, kein Versehen.
+  if (video.youtube_video_id) {
+    await db.run(
+      'INSERT INTO creator_youtube_ignored (project_id, youtube_video_id) VALUES (?, ?) ON CONFLICT DO NOTHING',
+      [video.project_id, video.youtube_video_id]
+    )
+  }
+
   await db.run('DELETE FROM creator_videos WHERE id = ?', [req.params.videoId])
   res.json({ data: { ok: true }, error: null })
 })

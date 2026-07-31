@@ -55,7 +55,13 @@ export function YouTubeConnection({ projectId }: { projectId: number }) {
       queryClient.invalidateQueries({ queryKey: ['yt-status', projectId] })
       queryClient.invalidateQueries({ queryKey: ['creator-overview', projectId] })
       queryClient.invalidateQueries({ queryKey: ['creator-videos', projectId] })
-      toast({ title: 'Abgleich fertig', description: `${data.matched} von ${data.videos_on_youtube} Videos zugeordnet` })
+      toast({
+        title: 'Abgleich fertig',
+        description: [
+          data.imported?.length ? `${data.imported.length} neu übernommen` : '',
+          `${data.matched} von ${data.videos_on_youtube} zugeordnet`,
+        ].filter(Boolean).join(', '),
+      })
     },
     onError: (err: any) => toast({ title: 'Abgleich fehlgeschlagen', description: err?.message, variant: 'destructive' }),
   })
@@ -147,6 +153,11 @@ export function YouTubeConnection({ projectId }: { projectId: number }) {
             {syncResult.matched} von {syncResult.videos_on_youtube} Videos zugeordnet,
             {' '}{syncResult.retention_curves} Retention-Kurven geholt
           </div>
+          {syncResult.imported?.length > 0 && (
+            <div className="text-emerald-400">
+              Neu von YouTube übernommen: {syncResult.imported.map((t: string) => `„${t}“`).join(', ')}
+            </div>
+          )}
           {syncResult.auto_linked?.length > 0 && (
             <div className="text-muted-foreground">
               Automatisch über den Titel zugeordnet: {syncResult.auto_linked.map((a: any) => `„${a.title}“ → „${a.to}“`).join(', ')}

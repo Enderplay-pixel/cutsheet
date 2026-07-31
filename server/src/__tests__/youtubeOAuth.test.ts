@@ -4,7 +4,7 @@ import {
   exchangeCode, refreshAccessToken,
   encryptToken, decryptToken,
   fetchChannel, fetchVideoMetrics, fetchRetentionCurve,
-  extractVideoId, SCOPES,
+  extractVideoId, SCOPES, parseIsoDuration, fetchVideoDetails,
   type OAuthConfig,
 } from '../lib/youtubeOAuth'
 
@@ -255,6 +255,75 @@ describe('fetchRetentionCurve', () => {
     await fetchRetentionCurve('AT', 'v', { startDate: 'a', endDate: 'b' }, s.impl)
     expect(s.calls[0].url).toContain('dimensions=elapsedVideoTimeRatio')
     expect(s.calls[0].url).toContain('metrics=audienceWatchRatio')
+  })
+})
+
+describe('parseIsoDuration', () => {
+  it('liest Minuten und Sekunden', () => {
+    expect(parseIsoDuration('PT12M34S')).toBe(754)
+  })
+
+  it('liest Stunden mit', () => {
+    expect(parseIsoDuration('PT1H2M3S')).toBe(3723)
+  })
+
+  it('kommt mit fehlenden Bestandteilen klar', () => {
+    expect(parseIsoDuration('PT45S')).toBe(45)
+    expect(parseIsoDuration('PT8M')).toBe(480)
+    expect(parseIsoDuration('PT2H')).toBe(7200)
+  })
+
+  it('liest Tage — Livestreams koennen so lang sein', () => {
+    expect(parseIsoDuration('P1DT2H')).toBe(93600)
+  })
+
+  it('rundet Bruchteile von Sekunden', () => {
+    expect(parseIsoDuration('PT1M30.5S')).toBe(91)
+  })
+
+  it('liefert 0 bei unbrauchbarer Eingabe', () => {
+    for (const v of ['', 'quatsch', '12:34', null as any, undefined as any]) {
+      expect(parseIsoDuration(v)).toBe(0)
+    }
+  })
+})
+
+describe('fetchVideoDetails', () => {
+  const antwort = {
+    items: [
+      { id: 'v1', snippet: { title: 'Erstes Video', publishedAt: '2026-07-01T10:00:00Z' }, contentDetails: { duration: 'PT8M20S' } },
+      { id: 'v2', snippet: { title: 'Zweites Video', publishedAt: '2026-07-08T10:00:00Z' }, contentDetails: { duration: 'PT1H5M' } },
+    ],
+  }
+
+  it('liest Titel, Datum und Laenge', async () => {
+    const s = spy(200, antwort)
+    const d = await fetchVideoDetails('AT', ['v1', 'v2'], s.impl)
+    expect(d[0]).toMatchObject({ videoId: 'v1', title: 'Erstes Video', durationSeconds: 500 })
+    expect(d[1].durationSeconds).toBe(3900)
+  })
+
+  it('fragt die IDs kommagetrennt ab', async () => {
+    const s = spy(200, antwort)
+    await fetchVideoDetails('AT', ['v1', 'v2'], s.impl)
+    expect(s.calls[0].url).toContain('id=v1%2Cv2')
+  })
+
+  it('teilt mehr als 50 IDs auf mehrere Aufrufe auf', async () => {
+    const s = spy(200, { items: [] })
+    await fetchVideoDetails('AT', Array.from({ length: 120 }, (_, i) => 'v' + i), s.impl)
+    expect(s.calls).toHaveLength(3)
+  })
+
+  it('liefert bei leerer Liste nichts und ruft nicht ab', async () => {
+    const s = spy(200, { items: [] })
+    expect(await fetchVideoDetails('AT', [], s.impl)).toEqual([])
+    expect(s.calls).toHaveLength(0)
+  })
+
+  it('ueberspringt Eintraege ohne ID', async () => {
+    const s = spy(200, { items: [{ snippet: { title: 'kaputt' } }] })
+    expect(await fetchVideoDetails('AT', ['x'], s.impl)).toEqual([])
   })
 })
 

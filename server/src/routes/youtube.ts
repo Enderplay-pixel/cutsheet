@@ -5,11 +5,12 @@ import {
   getOAuthConfig, buildAuthUrl, createState, verifyState,
   exchangeCode, refreshAccessToken, revokeToken,
   encryptToken, decryptToken,
-  fetchChannel, fetchVideoMetrics, fetchRetentionCurve, fetchChannelVideos,
+  fetchChannel, fetchVideoMetrics, fetchRetentionCurve, fetchChannelVideos, fetchVideoDetails,
   extractVideoId,
 } from '../lib/youtubeOAuth'
 import { parseRetentionRows, analyseScriptRetention, findChannelPatterns } from '../lib/youtubeInsights'
 import { assignAll } from '../lib/videoMatching'
+import { UPLOAD_CHECKLIST } from '../lib/creatorInsights'
 import { buildTimeline, DEFAULT_WPM } from '../lib/creatorScript'
 import { getStateSecret as stateSecret } from '../config/secrets'
 
@@ -227,6 +228,61 @@ router.post('/projects/:projectId/creator/youtube/sync', async (req, res) => {
       }
     }
 
+    // Videos, die auf dem Kanal stehen aber hier fehlen, anlegen. Ohne das
+    // bleibt ein bestehender Kanal fuer CutSheet unsichtbar — der Abgleich
+    // haette nur zugeordnet, was man vorher selbst getippt hat.
+    const linkedIds = new Set(
+      videos.map(v => v.youtube_video_id || extractVideoId(v.video_url)).filter(Boolean) as string[]
+    )
+    const ignoredRows = await db.all(
+      'SELECT youtube_video_id FROM creator_youtube_ignored WHERE project_id = ?', [projectId]
+    ) as Array<{ youtube_video_id: string }>
+    const ignored = new Set(ignoredRows.map(r => r.youtube_video_id))
+
+    const allChannelVideos = await fetchChannelVideos(accessToken)
+    const toImport = allChannelVideos.filter(v => !linkedIds.has(v.videoId) && !ignored.has(v.videoId))
+    const imported: string[] = []
+
+    if (toImport.length > 0) {
+      const details = new Map(
+        (await fetchVideoDetails(accessToken, toImport.map(v => v.videoId))).map(d => [d.videoId, d])
+      )
+      const maxRow = await db.get(
+        'SELECT COALESCE(MAX(sort_order), -1) as m FROM creator_videos WHERE project_id = ?', [projectId]
+      ) as { m: number }
+      let order = maxRow.m + 1
+
+      for (const cv of toImport) {
+        const d = details.get(cv.videoId)
+        const result = await db.run(`
+          INSERT INTO creator_videos
+            (project_id, title, status, youtube_video_id, published_at, duration_seconds, imported_from_youtube, sort_order)
+          VALUES (?, ?, 'Veröffentlicht', ?, ?, ?, true, ?)
+        `, [
+          projectId, d?.title || cv.title, cv.videoId,
+          (d?.publishedAt || cv.publishedAt || '').slice(0, 10) || null,
+          d?.durationSeconds ?? 0, order++,
+        ])
+
+        // Nur die Upload-Checkliste, kein Skript-Geruest: Das Video ist
+        // veroeffentlicht, eine leere Hook/Intro-Vorlage wuerde die Zeitachse
+        // verfaelschen.
+        let checkOrder = 0
+        for (const label of UPLOAD_CHECKLIST) {
+          await db.run(
+            'INSERT INTO creator_checklist (video_id, project_id, label, done, sort_order) VALUES (?, ?, ?, true, ?)',
+            [result.id, projectId, label, checkOrder++]
+          )
+        }
+        imported.push(d?.title || cv.title)
+      }
+
+      // Frisch importierte Videos in denselben Durchlauf aufnehmen
+      const refreshed = await db.all('SELECT * FROM creator_videos WHERE project_id = ?', [projectId]) as any[]
+      videos.length = 0
+      videos.push(...refreshed)
+    }
+
     let matched = 0
     let curves = 0
     const unmatched: string[] = []
@@ -263,6 +319,21 @@ router.post('/projects/:projectId/creator/youtube/sync', async (req, res) => {
       }
     }
 
+    // Echte Laufzeiten nachziehen — sie sind die Bezugsgroesse fuer die Retention
+    const linkedForDuration = videos.map(v => v.youtube_video_id).filter(Boolean) as string[]
+    if (linkedForDuration.length > 0) {
+      try {
+        for (const d of await fetchVideoDetails(accessToken, linkedForDuration)) {
+          if (d.durationSeconds > 0) {
+            await db.run('UPDATE creator_videos SET duration_seconds = ? WHERE project_id = ? AND youtube_video_id = ?',
+              [d.durationSeconds, projectId, d.videoId])
+          }
+        }
+      } catch (err: any) {
+        console.warn('[youtube/sync] Laufzeiten nicht abrufbar:', err?.message)
+      }
+    }
+
     await db.run('UPDATE creator_youtube_accounts SET last_sync_at = NOW(), last_error = \'\' WHERE project_id = ?', [projectId])
 
     res.json({
@@ -274,6 +345,7 @@ router.post('/projects/:projectId/creator/youtube/sync', async (req, res) => {
         unmatched,
         auto_linked: autoLinked,
         suggestions,
+        imported,
       },
       error: null,
     })
@@ -317,15 +389,17 @@ router.get('/creator/videos/:videoId/retention', async (req: Request, res: Respo
   try { rows = JSON.parse(video.retention_curve || '[]') } catch { rows = [] }
   const curve = parseRetentionRows(rows)
 
-  // Echte Videolänge bevorzugen: die Schätzung aus dem Sprechtext weicht ab,
-  // sobald geschnitten wurde
-  const videoSeconds = video.avg_view_seconds > 0 && curve.length > 0
-    ? timeline.totalSeconds || 0
+  // Echte Laufzeit von YouTube bevorzugen; die Schaetzung aus dem Sprechtext
+  // weicht ab, sobald geschnitten wurde. Ohne Anbindung bleibt die Schaetzung.
+  const videoSeconds = Number(video.duration_seconds) > 0
+    ? Number(video.duration_seconds)
     : timeline.totalSeconds || 0
 
   res.json({
     data: {
       has_curve: curve.length > 0,
+      video_seconds: videoSeconds,
+      duration_from_youtube: Number(video.duration_seconds) > 0,
       synced_at: video.synced_at,
       curve,
       analysis: analyseScriptRetention(

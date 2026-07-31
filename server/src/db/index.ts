@@ -956,6 +956,20 @@ export async function initDatabase() {
   // Retention-Kurve als JSON: sie wird immer als Ganzes geholt und gelesen
   await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS retention_curve TEXT NOT NULL DEFAULT ''`)
   await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS synced_at TIMESTAMPTZ`)
+  // Echte Videolaenge von YouTube. Die Schaetzung aus dem Sprechtext weicht ab,
+  // sobald geschnitten wurde — fuer die Retention-Zuordnung zaehlt die echte.
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS duration_seconds INTEGER NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS imported_from_youtube BOOLEAN NOT NULL DEFAULT false`)
+  // Beim Abgleich uebersprungene Videos: Wer ein importiertes Video loescht,
+  // will es nicht beim naechsten Abgleich wiederhaben.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS creator_youtube_ignored (
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      youtube_video_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (project_id, youtube_video_id)
+    )
+  `)
   await db.exec(`CREATE INDEX IF NOT EXISTS idx_creator_ideas_project ON creator_ideas(project_id)`)
   await db.exec(`CREATE INDEX IF NOT EXISTS idx_creator_assets_video ON creator_assets(video_id)`)
   await db.exec(`CREATE INDEX IF NOT EXISTS idx_creator_clips_video ON creator_clips(video_id, sort_order)`)

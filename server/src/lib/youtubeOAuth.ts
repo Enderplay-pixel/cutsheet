@@ -382,6 +382,61 @@ export async function fetchChannelVideos(
   return videos.slice(0, maxVideos)
 }
 
+/**
+ * Wandelt eine ISO-8601-Dauer wie "PT12M34S" in Sekunden.
+ *
+ * YouTube liefert Videolaengen ausschliesslich in diesem Format. Die echte
+ * Laenge ist wichtig, weil sich sonst nur die aus dem Sprechtext geschaetzte
+ * Dauer verwenden laesst — und die weicht ab, sobald geschnitten wurde.
+ */
+export function parseIsoDuration(value: string): number {
+  const m = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/.exec(String(value ?? '').trim())
+  if (!m) return 0
+  const [, d, h, min, sec] = m
+  const total = (Number(d) || 0) * 86400 + (Number(h) || 0) * 3600 + (Number(min) || 0) * 60 + (Number(sec) || 0)
+  return Number.isFinite(total) ? Math.round(total) : 0
+}
+
+export interface VideoDetails {
+  videoId: string
+  title: string
+  publishedAt: string | null
+  durationSeconds: number
+}
+
+/**
+ * Titel, Veroeffentlichungsdatum und Laenge zu bestimmten Videos.
+ * Die API nimmt bis zu 50 IDs je Aufruf entgegen.
+ */
+export async function fetchVideoDetails(
+  accessToken: string,
+  videoIds: string[],
+  fetchImpl: FetchLike = fetch as any
+): Promise<VideoDetails[]> {
+  const out: VideoDetails[] = []
+
+  for (let i = 0; i < videoIds.length; i += 50) {
+    const batch = videoIds.slice(i, i + 50)
+    if (batch.length === 0) continue
+
+    const json = await getJson(
+      `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${encodeURIComponent(batch.join(','))}`,
+      accessToken, fetchImpl
+    )
+    for (const item of json?.items ?? []) {
+      if (!item?.id) continue
+      out.push({
+        videoId: item.id,
+        title: item.snippet?.title ?? '',
+        publishedAt: item.snippet?.publishedAt ?? null,
+        durationSeconds: parseIsoDuration(item.contentDetails?.duration ?? ''),
+      })
+    }
+  }
+
+  return out
+}
+
 /** Video-ID aus einem YouTube-Link ziehen. */
 export function extractVideoId(url: string): string | null {
   const s = String(url || '').trim()
