@@ -976,6 +976,27 @@ export async function initDatabase() {
   await db.exec(`CREATE INDEX IF NOT EXISTS idx_creator_checklist_video ON creator_checklist(video_id, sort_order)`)
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS public_token TEXT`)
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ`)
+
+  // ── Felder fuer das Call Sheet im Branchenstandard ──
+  // Sicherheitsangaben stehen dort ganz oben: im Notfall zaehlt, dass das
+  // naechste Krankenhaus auf dem Blatt steht und nicht im Telefon.
+  await db.exec(`ALTER TABLE call_sheets ADD COLUMN IF NOT EXISTS hospital_name TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE call_sheets ADD COLUMN IF NOT EXISTS hospital_address TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE call_sheets ADD COLUMN IF NOT EXISTS crew_parking TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE call_sheets ADD COLUMN IF NOT EXISTS basecamp TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE call_sheets ADD COLUMN IF NOT EXISTS breakfast_call INTEGER NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE call_sheets ADD COLUMN IF NOT EXISTS lunch_call INTEGER NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE call_sheets ADD COLUMN IF NOT EXISTS weather_high TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE call_sheets ADD COLUMN IF NOT EXISTS weather_low TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE call_sheets ADD COLUMN IF NOT EXISTS walkie_channels TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE call_sheets ADD COLUMN IF NOT EXISTS dept_notes TEXT NOT NULL DEFAULT ''`)
+  // Cast-Zeilen: Status nach Branchenkuerzeln (W = work, SW = start work,
+  // WF = work finish, SWF = start work finish, H = hold) und die Zeitspalten,
+  // die am Set tatsaechlich gebraucht werden
+  await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS cast_status TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS blk_reh INTEGER`)
+  await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS on_set INTEGER`)
+  await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS lose_at INTEGER`)
   await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_cse_public_token ON call_sheet_entries(public_token)`)
   await db.exec(`ALTER TABLE project_invites ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT ''`)
   await db.exec(`ALTER TABLE project_invites ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMPTZ`)

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
+import { renderCallSheetHtml } from '../lib/callSheetLayout'
 import {
   layoutScreenplay,
   renderScreenplayHtml,
@@ -304,44 +305,89 @@ router.get('/projects/:projectId/pdf/drehplan', async (req: Request, res: Respon
 
 // Tagesdispo-HTML — geteilt zwischen PDF-Download-Route und Dispo-Versand
 export async function buildTagesdispoHtml(dayId: number | string): Promise<{ html: string; day: any; sheet: any } | null> {
-  const day = await db.get('SELECT sd.*, p.title as project_title, p.id as project_id FROM shoot_days sd JOIN projects p ON sd.project_id = p.id WHERE sd.id = ?', [dayId]) as any
+  const day = await db.get(
+    'SELECT sd.*, p.title as project_title, p.id as project_id FROM shoot_days sd JOIN projects p ON sd.project_id = p.id WHERE sd.id = ?',
+    [dayId]
+  ) as any
   if (!day) return null
 
-  const { accentColor } = await getProjectSettings(day.project_id)
-  const sheet = await db.get('SELECT cs.*, l.name as location_name FROM call_sheets cs LEFT JOIN locations l ON cs.location_id = l.id WHERE cs.shoot_day_id = ?', [dayId]) as any
-  const entries = sheet ? await db.all('SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC', [sheet.id]) as any[] : []
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', [day.project_id]) as any
+  const sheet = await db.get(
+    'SELECT cs.*, l.name as location_name FROM call_sheets cs LEFT JOIN locations l ON cs.location_id = l.id WHERE cs.shoot_day_id = ?',
+    [dayId]
+  ) as any
 
-  const enrichedEntries = await Promise.all(entries.map(async (e: any) => {
+  const entries = sheet
+    ? await db.all('SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC', [sheet.id]) as any[]
+    : []
+
+  // Cast und Crew getrennt aufbereiten — auf dem Blatt stehen sie in
+  // unterschiedlichen Tabellen mit unterschiedlichen Spalten
+  const cast: any[] = []
+  const crewCalls = new Map<number, number>()
+
+  for (const e of entries) {
     if (e.person_type === 'cast') {
-      const p = await db.get('SELECT ca.actor_name as name, ch.name as role FROM cast ca LEFT JOIN characters ch ON ca.character_id = ch.id WHERE ca.id = ?', [e.person_id]) as any
-      return { ...e, name: p?.name || '—', role: p?.role || '' }
+      const p = await db.get(
+        'SELECT ca.actor_name as name, ch.name as role FROM cast ca LEFT JOIN characters ch ON ca.character_id = ch.id WHERE ca.id = ?',
+        [e.person_id]
+      ) as any
+      cast.push({ ...e, cast_no: cast.length + 1, name: p?.name || '', role: p?.role || '' })
     } else {
-      const p = await db.get('SELECT name, role FROM crew WHERE id = ?', [e.person_id]) as any
-      return { ...e, name: p?.name || '—', role: p?.role || '' }
+      crewCalls.set(e.person_id, e.call_time)
     }
-  }))
+  }
 
-  const scenes = await db.all(`SELECT sds.*, s.scene_number, s.title, s.eighths, l.name as location_name FROM shoot_day_scenes sds JOIN scenes s ON sds.scene_id = s.id LEFT JOIN locations l ON s.location_id = l.id WHERE sds.shoot_day_id = ? ORDER BY sds.sort_order`, [dayId]) as any[]
+  // Ganze Crew des Projekts zeigen, nicht nur die disponierte: Auf dem Blatt
+  // steht die Abteilung vollstaendig, Call-Zeiten nur wo disponiert.
+  const crewRows = await db.all(
+    'SELECT id, name, role, department FROM crew WHERE project_id = ? ORDER BY sort_order ASC, id ASC',
+    [day.project_id]
+  ) as any[]
+  const crew = crewRows.map(c => ({ ...c, call_time: crewCalls.get(c.id) ?? null }))
 
-  const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Tagesdisposition</title>${buildCss(accentColor)}</head><body>
-    <div class="header">
-      <h1>Tagesdisposition — ${day.project_title}</h1>
-      <p class="meta">Drehtag ${day.day_number} | ${day.date} | Allgemeiner Drehbeginn: ${sheet ? fmtTime(sheet.general_call) : '—'} | Drehbeginn: ${sheet ? fmtTime(sheet.shooting_call) : '—'}</p>
-      ${sheet?.location_name ? `<p class="meta">Motiv: ${sheet.location_name}</p>` : ''}
-      ${sheet?.weather_forecast ? `<p class="meta">Wetter: ${sheet.weather_forecast} | Sonnenaufgang: ${sheet.sunrise} | -untergang: ${sheet.sunset}</p>` : ''}
-    </div>
-    <h2>Szenen des Tages</h2>
-    <table>
-      <thead><tr><th>#</th><th>Szene</th><th>Titel</th><th>Motiv</th><th>Seiten</th></tr></thead>
-      <tbody>${scenes.map((s: any, i: number) => `<tr><td>${i+1}</td><td>${s.scene_number}</td><td>${s.title}</td><td>${s.location_name || '—'}</td><td>${s.eighths}/8</td></tr>`).join('')}</tbody>
-    </table>
-    <h2>Callsheet</h2>
-    <table>
-      <thead><tr><th>Name</th><th>Funktion</th><th>Call Time</th><th>Abholort</th><th>Bemerkung</th></tr></thead>
-      <tbody>${enrichedEntries.map((e: any) => `<tr><td>${e.name}</td><td>${e.role}</td><td style="font-weight:bold">${fmtTime(e.call_time)}</td><td>${e.pickup_location || '—'}</td><td>${e.notes || ''}</td></tr>`).join('')}</tbody>
-    </table>
-    ${sheet?.notes ? `<h2>Notizen</h2><p>${sheet.notes}</p>` : ''}
-  </body></html>`
+  // Komparserie: die Tabelle heisst extras. Call-Zeiten gibt es dort nicht,
+  // deshalb bleibt die Spalte leer und wird am Set eingetragen.
+  const background = await db.all(
+    'SELECT name, tariff_group as role FROM extras WHERE project_id = ? ORDER BY id ASC LIMIT 30',
+    [day.project_id]
+  ) as any[]
+
+  const loadScenes = async (id: number | string) => await db.all(`
+    SELECT sds.*, s.scene_number, s.title, s.description, s.int_ext, s.day_night, s.eighths,
+           s.notes, l.name as location_name
+    FROM shoot_day_scenes sds
+    JOIN scenes s ON sds.scene_id = s.id
+    LEFT JOIN locations l ON s.location_id = l.id
+    WHERE sds.shoot_day_id = ?
+    ORDER BY sds.sort_order
+  `, [id]) as any[]
+
+  const scenes = await loadScenes(dayId)
+
+  // Vorschau auf die naechsten beiden Drehtage — steht im Standard unten auf
+  // Seite 1, damit die Crew weiss, was auf sie zukommt
+  const nextDays = await db.all(
+    'SELECT * FROM shoot_days WHERE project_id = ? AND day_number > ? ORDER BY day_number ASC LIMIT 2',
+    [day.project_id, day.day_number]
+  ) as any[]
+  const advance = await Promise.all(nextDays.map(async d => ({ day: d, scenes: await loadScenes(d.id) })))
+
+  const totalRow = await db.get(
+    'SELECT COUNT(*) as c FROM shoot_days WHERE project_id = ?', [day.project_id]
+  ) as { c: number }
+
+  const html = renderCallSheetHtml({
+    project,
+    day,
+    sheet,
+    scenes,
+    cast,
+    background,
+    crew,
+    advance,
+    totalDays: Number(totalRow?.c) || 1,
+  })
 
   return { html, day, sheet }
 }
@@ -360,7 +406,13 @@ router.get('/shoot-days/:dayId/pdf/tagesdispo', async (req: Request, res: Respon
   const { html, day } = built
 
   try {
-    const pdf = await generatePdf(html, { watermark: req.query.watermark ? String(req.query.watermark) : undefined })
+    // Enge Raender und keine CutSheet-Fusszeile: Das Call Sheet bringt seine
+    // eigene Geometrie mit und endet unten mit den Unterschriften.
+    const pdf = await generatePdf(html, {
+      watermark: req.query.watermark ? String(req.query.watermark) : undefined,
+      margin: { top: '8mm', bottom: '8mm', left: '8mm', right: '8mm' },
+      footer: false,
+    })
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="tagesdispo-tag${day.day_number}.pdf"`)
     res.send(pdf)
