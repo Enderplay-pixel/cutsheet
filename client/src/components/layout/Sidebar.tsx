@@ -11,7 +11,7 @@ import {
   Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight,
   StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle, ShieldCheck, BookUser, Settings,
   Layers, CalendarClock, Music, Shield, CheckSquare, Clock, UtensilsCrossed, Image, TableProperties,
-  MessageSquare, Activity, Video, CalendarOff, Wallet
+  MessageSquare, Activity, Video, CalendarOff, Wallet, LayoutGrid
 } from 'lucide-react'
 import { FeedbackWidget } from '@/components/shared/FeedbackWidget'
 import { useT } from '@/lib/useT'
@@ -95,6 +95,7 @@ export function Sidebar() {
       label: 'Produktion',
       items: [
         { label: tt(navT.shotlist), icon: Camera, path: 'shotlist' },
+        { label: 'Set-Plan', icon: LayoutGrid, path: 'setplan' },
         { label: tt(navT.locations), icon: MapPin, path: 'motive' },
         { label: tt(navT.equipment), icon: Package, path: 'equipment' },
         { label: tt(navT.calendar), icon: Calendar, path: 'kalender' },
@@ -172,6 +173,7 @@ export function Sidebar() {
         { label: tt(navT.callSheet), icon: ClipboardList, path: 'tagesdispo' },
         { label: 'Check-in Board', icon: CheckSquare, path: 'checkin' },
         { label: tt(navT.shotlist), icon: Camera, path: 'shotlist' },
+        { label: 'Set-Plan', icon: LayoutGrid, path: 'setplan' },
         { label: 'VFX-Tracking', icon: Layers, path: 'vfx' },
         { label: 'Continuity', icon: Image, path: 'continuity' },
         { label: 'Kameraberichte', icon: Video, path: 'kameraberichte' },

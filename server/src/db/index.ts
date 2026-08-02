@@ -997,6 +997,41 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS blk_reh INTEGER`)
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS on_set INTEGER`)
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS lose_at INTEGER`)
+
+  // ── Set-Plan ──
+  // Ein Grundriss je Szene oder Motiv, auf dem Kamera, Licht und Ton stehen.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS floorplans (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      scene_id INTEGER REFERENCES scenes(id) ON DELETE SET NULL,
+      location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,
+      name TEXT NOT NULL DEFAULT '',
+      image_url TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  // Positionen relativ (0 bis 1) statt in Pixeln: So stimmt der Plan auf jedem
+  // Bildschirm und im PDF, unabhaengig von der Groesse des Hintergrundbilds.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS floorplan_items (
+      id SERIAL PRIMARY KEY,
+      floorplan_id INTEGER NOT NULL REFERENCES floorplans(id) ON DELETE CASCADE,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL DEFAULT 'kamera',
+      label TEXT NOT NULL DEFAULT '',
+      x REAL NOT NULL DEFAULT 0.5,
+      y REAL NOT NULL DEFAULT 0.5,
+      rotation INTEGER NOT NULL DEFAULT 0,
+      size INTEGER NOT NULL DEFAULT 100,
+      notes TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_floorplans_project ON floorplans(project_id)`)
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_floorplan_items_plan ON floorplan_items(floorplan_id, sort_order)`)
   await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_cse_public_token ON call_sheet_entries(public_token)`)
   await db.exec(`ALTER TABLE project_invites ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT ''`)
   await db.exec(`ALTER TABLE project_invites ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMPTZ`)

@@ -89,6 +89,7 @@ const router = createBrowserRouter([
           { path: 'drehplan', lazy: lazyPage(() => import('./pages/Drehplan')) },
           { path: 'staebchenplan', lazy: lazyPage(() => import('./pages/StaebchenplanNew')) },
           { path: 'shotlist', lazy: lazyPage(() => import('./pages/Shotlist')) },
+          { path: 'setplan', lazy: lazyPage(() => import('./pages/Setplan')) },
           { path: 'tagesdispo', lazy: lazyPage(() => import('./pages/Tagesdispo')) },
           { path: 'tagesdispo/:dayId', lazy: lazyPage(() => import('./pages/Tagesdispo')) },
           { path: 'tagesbericht', lazy: lazyPage(() => import('./pages/Tagesbericht')) },

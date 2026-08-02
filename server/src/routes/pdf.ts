@@ -127,6 +127,8 @@ export interface PdfOptions {
   format?: 'A4' | 'Letter'
   /** Seitenränder. Achtung: übersteuert @page-margin aus dem CSS. */
   margin?: { top: string; bottom: string; left: string; right: string }
+  /** Querformat — für breite Layouts wie den Set-Plan. */
+  landscape?: boolean
   /**
    * CutSheet-Fußzeile mit Seitenzahl. Standard true. Das Drehbuch schaltet sie
    * ab, weil es seine Seitenzahlen normgerecht selbst oben rechts setzt.
@@ -187,6 +189,7 @@ export async function generatePdf(html: string, opts?: PdfOptions): Promise<Buff
     const withFooter = opts?.footer !== false
     const pdf = await page.pdf({
       format: opts?.format ?? 'A4',
+      landscape: opts?.landscape ?? false,
       printBackground: true,
       displayHeaderFooter: withFooter,
       ...(withFooter ? {

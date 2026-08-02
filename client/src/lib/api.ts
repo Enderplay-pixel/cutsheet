@@ -89,6 +89,23 @@ export const api = {
     patterns: (projectId: number) => req<any>(`/projects/${projectId}/creator/patterns`),
   },
 
+  // ─── Set-Plan ──────────────────────────────────────────────────────────────
+  floorplans: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/floorplans`),
+    create: (projectId: number, data: any) =>
+      req<any>(`/projects/${projectId}/floorplans`, { method: 'POST', body: JSON.stringify(data) }),
+    get: (planId: number) => req<any>(`/floorplans/${planId}`),
+    update: (planId: number, data: any) =>
+      req<any>(`/floorplans/${planId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (planId: number) => req<any>(`/floorplans/${planId}`, { method: 'DELETE' }),
+    addItem: (planId: number, data: any) =>
+      req<any>(`/floorplans/${planId}/items`, { method: 'POST', body: JSON.stringify(data) }),
+    updateItem: (itemId: number, data: any) =>
+      req<any>(`/floorplan-items/${itemId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteItem: (itemId: number) => req<any>(`/floorplan-items/${itemId}`, { method: 'DELETE' }),
+    pdfUrl: (planId: number) => `/api/floorplans/${planId}/pdf`,
+  },
+
   // ─── Scenes ────────────────────────────────────────────────────────────────
   scenes: {
     list: (projectId: number) => req<any[]>(`/projects/${projectId}/scenes`),
