@@ -78,16 +78,46 @@ router.post('/shoot-days/:dayId/call-sheet', async (req, res) => {
     sunrise = '',
     sunset = '',
     notes = '',
+    // Felder des Call Sheets im Branchenstandard
+    hospital_name = '',
+    hospital_address = '',
+    crew_parking = '',
+    basecamp = '',
+    breakfast_call = 0,
+    lunch_call = 0,
+    weather_high = '',
+    weather_low = '',
+    walkie_channels = '',
+    dept_notes = '',
   } = req.body
+
+  const extraCols = [hospital_name, hospital_address, crew_parking, basecamp,
+    breakfast_call, lunch_call, weather_high, weather_low, walkie_channels, dept_notes]
 
   const existing = await db.get('SELECT id FROM call_sheets WHERE shoot_day_id = ?', [req.params.dayId]) as any
   let sheetId: number
 
   if (existing) {
-    await db.run('UPDATE call_sheets SET general_call=?, shooting_call=?, location_id=?, weather_forecast=?, sunrise=?, sunset=?, notes=?, updated_at=datetime("now") WHERE id=?', [general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes, existing.id])
+    // NOW() statt datetime("now"): Doppelte Anfuehrungszeichen sind in Postgres
+    // ein Bezeichner, keine Zeichenkette — das UPDATE lief in einen Fehler und
+    // jede Aenderung nach dem ersten Anlegen ging still verloren.
+    await db.run(`
+      UPDATE call_sheets SET
+        general_call=?, shooting_call=?, location_id=?, weather_forecast=?, sunrise=?, sunset=?, notes=?,
+        hospital_name=?, hospital_address=?, crew_parking=?, basecamp=?,
+        breakfast_call=?, lunch_call=?, weather_high=?, weather_low=?, walkie_channels=?, dept_notes=?,
+        updated_at=NOW()
+      WHERE id=?
+    `, [general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes, ...extraCols, existing.id])
     sheetId = existing.id
   } else {
-    const result = await db.run('INSERT INTO call_sheets (shoot_day_id, general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [req.params.dayId, general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes])
+    const result = await db.run(`
+      INSERT INTO call_sheets (
+        shoot_day_id, general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes,
+        hospital_name, hospital_address, crew_parking, basecamp,
+        breakfast_call, lunch_call, weather_high, weather_low, walkie_channels, dept_notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [req.params.dayId, general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes, ...extraCols])
     sheetId = result.id
 
     // Auto-populate entries from crew and cast

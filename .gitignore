@@ -8,6 +8,9 @@ server/dist/
 # Von puppeteer heruntergeladenes Chromium (siehe .puppeteerrc.cjs)
 .cache/
 
+# Hochgeladene Dateien gehoeren nicht ins Repo
+server/uploads/
+
 # Database (do NOT commit the SQLite file)
 data/
 server/data/

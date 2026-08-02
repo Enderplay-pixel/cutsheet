@@ -18,6 +18,10 @@ export function toPg(sql: string): string {
     // Multi-arg datetime: datetime('now', '-7 days') → NOW() - INTERVAL '7 days'
     .replace(/datetime\('now'\s*,\s*'([+-]?\d+)\s+(\w+)'\)/gi, "NOW() - INTERVAL '$1 $2'")
     .replace(/datetime\('now'\)/gi, 'NOW()')
+    // Auch die doppelt gequotete Form abfangen: In Postgres waere "now" ein
+    // Bezeichner und die Abfrage schluege fehl. Genau daran ist das Speichern
+    // der Tagesdispo gescheitert.
+    .replace(/datetime\("now"\)/gi, 'NOW()')
     .replace(/\bdate\('now'\)/gi, 'CURRENT_DATE')
     // Quote 'cast' table/column references — reserved word in PostgreSQL.
     // Negative lookbehind skips already-quoted "cast"; negative lookahead skips CAST( function calls.

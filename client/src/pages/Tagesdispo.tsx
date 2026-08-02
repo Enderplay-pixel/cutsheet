@@ -605,12 +605,18 @@ export function Component() {
     }
   }, [callSheet, selectedDayId])
 
+  // Fehler sichtbar machen: Ohne onError schlug das Speichern still fehl, und
+  // die Aenderung war beim naechsten Laden einfach wieder weg.
+  const saveFailed = (err: any) =>
+    toast({ title: 'Nicht gespeichert', description: err?.message, variant: 'destructive' })
+
   const saveMutation = useMutation({
     mutationFn: (data: any) => api.callSheets.createOrUpdate(selectedDayId!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })
       toast({ title: tt(dispoT.saved) })
     },
+    onError: saveFailed,
   })
 
   const saveEntriesMutation = useMutation({
@@ -619,6 +625,7 @@ export function Component() {
       queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })
       toast({ title: tt(dispoT.updated) })
     },
+    onError: saveFailed,
   })
 
   const debouncedSave = useRef(debounce((data: any) => saveMutation.mutate(data), 600)).current
