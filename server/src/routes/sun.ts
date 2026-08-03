@@ -1,8 +1,12 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import SunCalc from 'suncalc'
 
 const router = Router()
+
+// Die Antwort verraet die Koordinaten des Motivs
+router.use('/locations/:id', requireMemberVia(projectIdFromTable('locations', 'id')))
 
 // Munich defaults
 const DEFAULT_LAT = 48.1351

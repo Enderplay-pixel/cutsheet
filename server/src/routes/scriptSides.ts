@@ -1,11 +1,15 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { generatePdf } from './pdf'
+import { requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import {
   layoutScreenplay, renderScreenplayHtml, type SceneInput,
 } from '../lib/screenplayFormat'
 
 const router = Router()
+
+// Sides enthalten Drehbuchinhalt — nur fuer Projektbeteiligte
+router.use('/shoot-days/:dayId', requireMemberVia(projectIdFromTable('shoot_days', 'dayId')))
 
 function resolveChromium(): string | undefined {
   const fs = require('fs')

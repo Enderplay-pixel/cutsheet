@@ -1,7 +1,10 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { requireMemberVia, projectIdFromCallSheet } from '../middleware/projectAuth'
 
 const router = Router()
+
+router.use('/call-sheets/:id', requireMemberVia(projectIdFromCallSheet))
 
 // POST /api/call-sheet-entries/:id/checkin — public, no auth required
 // Body optional: { checked_in: boolean } — ohne Body wird eingecheckt (Bestandsverhalten)

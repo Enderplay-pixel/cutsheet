@@ -90,6 +90,17 @@ export function projectIdFromTable(table: 'shoot_days' | 'locations', param: str
   }
 }
 
+/** Dispo → Drehtag → Projekt. */
+export async function projectIdFromCallSheet(req: Request): Promise<number | null> {
+  try {
+    const row = await db.get(
+      'SELECT sd.project_id FROM call_sheets cs JOIN shoot_days sd ON cs.shoot_day_id = sd.id WHERE cs.id = ?',
+      [req.params.id]
+    ) as any
+    return row?.project_id ?? null
+  } catch { return null }
+}
+
 /** Kamerabericht → Drehtag → Projekt. */
 export async function projectIdFromCameraReport(req: Request): Promise<number | null> {
   try {

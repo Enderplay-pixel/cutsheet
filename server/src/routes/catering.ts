@@ -1,7 +1,12 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 
 const router = Router()
+
+// Verpflegungswuensche sind Gesundheitsangaben — nur fuer Projektbeteiligte
+router.use('/shoot-days/:dayId', requireMemberVia(projectIdFromTable('shoot_days', 'dayId')))
+router.use('/projects/:pid', requireMemberVia(async req => Number(req.params.pid) || null))
 
 async function enrichWithPersonName(entry: any): Promise<any> {
   if (entry.person_type === 'cast') {

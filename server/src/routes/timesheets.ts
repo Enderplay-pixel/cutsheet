@@ -1,7 +1,12 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 
 const router = Router()
+
+// Arbeitszeiten und Gagen: bisher genuegte irgendein Konto, egal welches Projekt
+router.use('/shoot-days/:dayId', requireMemberVia(projectIdFromTable('shoot_days', 'dayId')))
+router.use('/projects/:pid', requireMemberVia(async req => Number(req.params.pid) || null))
 
 function calcOvertimeHours(callTime: number | null, wrapTime: number | null): number {
   if (callTime == null || wrapTime == null) return 0

@@ -22,6 +22,7 @@ vi.mock('../db', () => ({
       if (sql.includes('SELECT owner_id FROM projects')) return { owner_id: OWNER_ID }
       if (sql.includes('project_members')) return null          // kein Mitglied
       if (sql.includes('FROM camera_reports')) return { project_id: 1 }
+      if (sql.includes('FROM call_sheets cs')) return { project_id: 1 }
       if (sql.includes('project_id FROM shoot_days')) return { project_id: 1 }
       if (sql.includes('project_id FROM locations')) return { project_id: 1 }
       if (sql.includes('FROM shoot_days')) return { id: 1, day_number: 1, date: '2026-08-05', project_id: 1 }
@@ -40,10 +41,15 @@ let base = ''
 let currentUser: any = null
 
 beforeAll(async () => {
-  const [brief, release, cameras] = await Promise.all([
+  const [brief, release, cameras, timesheets, catering, checkin, sun, sides] = await Promise.all([
     import('../routes/morningBrief'),
     import('../routes/locationRelease'),
     import('../routes/cameraReports'),
+    import('../routes/timesheets'),
+    import('../routes/catering'),
+    import('../routes/checkin'),
+    import('../routes/sun'),
+    import('../routes/scriptSides'),
   ])
   const app = express()
   app.use(express.json())
@@ -51,6 +57,11 @@ beforeAll(async () => {
   app.use('/api', brief.default)
   app.use('/api', release.default)
   app.use('/api', cameras.default)
+  app.use('/api', timesheets.default)
+  app.use('/api', catering.default)
+  app.use('/api', checkin.default)
+  app.use('/api', sun.default)
+  app.use('/api', sides.default)
   await new Promise<void>(resolve => {
     server = app.listen(0, () => {
       base = `http://127.0.0.1:${(server.address() as any).port}`
@@ -67,6 +78,15 @@ const geschuetzt = [
   ['Motivvertrag (JSON)', '/api/locations/1/release'],
   ['Motivvertrag (PDF)', '/api/locations/1/release/pdf'],
   ['Kameraberichte', '/api/shoot-days/1/camera-reports'],
+  // Diese fuenf prueften bisher nur die Anmeldung, nicht das Projekt: jedes
+  // Konto kam an fremde Produktionen
+  ['Arbeitszeiten', '/api/shoot-days/1/timesheets'],
+  ['Gagen-Export', '/api/projects/1/timesheets/export.csv'],
+  ['Verpflegungsliste', '/api/shoot-days/1/catering-list'],
+  ['Verpflegungswuensche', '/api/projects/1/catering-preferences'],
+  ['Check-in-Stand', '/api/call-sheets/1/checkin-status'],
+  ['Sonnenstand', '/api/locations/1/sun'],
+  ['Script Sides', '/api/shoot-days/1/script-sides/pdf'],
 ]
 
 describe('Leseschutz', () => {
