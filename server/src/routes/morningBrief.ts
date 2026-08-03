@@ -1,33 +1,12 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { generatePdf } from './pdf'
+import {
+  renderDocument, table, stats, section, definitions, paragraph, fmtTime, fmtEighths,
+} from '../lib/documentLayout'
 
 const router = Router()
 
-function resolveChromium(): string | undefined {
-  const fs = require('fs')
-  const { execSync } = require('child_process')
-  try {
-    const found = execSync(
-      'which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome-stable 2>/dev/null || which google-chrome 2>/dev/null',
-      { encoding: 'utf8', timeout: 3000 }
-    ).trim().split('\n')[0]
-    if (found) return found
-  } catch { /* */ }
-  const exists = (p: string) => { try { return fs.existsSync(p) } catch { return false } }
-  return [
-    process.env.PUPPETEER_EXECUTABLE_PATH,
-    '/usr/bin/chromium-browser', '/usr/bin/chromium',
-    '/usr/bin/google-chrome-stable', '/usr/bin/google-chrome',
-    '/root/.nix-profile/bin/chromium',
-  ].filter(Boolean).find(exists as any)
-}
-
-function fmtTime(mins: number) {
-  const h = Math.floor(mins / 60).toString().padStart(2, '0')
-  const m = (mins % 60).toString().padStart(2, '0')
-  return `${h}:${m}`
-}
 
 // GET /api/shoot-days/:dayId/morning-brief
 // Returns JSON data for the briefing
@@ -151,6 +130,9 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
     ORDER BY sds.sort_order ASC
   `, [dayId]) as any[]
 
+  const settings = await db.get('SELECT header_color FROM project_settings WHERE project_id = ?', [shootDay.project_id]) as any
+  const accentColor = settings?.header_color || '#f59e0b'
+
   const callSheet = await db.get('SELECT * FROM call_sheets WHERE shoot_day_id = ?', [dayId]) as any
   const entries = callSheet
     ? await db.all('SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC LIMIT 8', [callSheet.id]) as any[]
@@ -169,8 +151,11 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
     ? new Date(shootDay.date).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
     : ''
 
+  // Nach location_name vergleichen, nicht nach name: abgelegt wird die Szene,
+  // die kein Feld "name" hat — die Pruefung lief immer ins Leere und jedes
+  // Motiv stand so oft da, wie Szenen darin spielen.
   const uniqueLocations = scenes.reduce((acc: any[], s: any) => {
-    if (s.location_name && !acc.find(l => l.name === s.location_name)) acc.push(s)
+    if (s.location_name && !acc.some((l: any) => l.location_name === s.location_name)) acc.push(s)
     return acc
   }, [])
 
@@ -195,116 +180,70 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
     </div>
   `).join('')
 
-  const html = `<!DOCTYPE html>
-<html lang="de">
-<head>
-<meta charset="UTF-8">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 10px; color: #111; background: #fff; }
-  .header { background: #0a0a0a; color: #fff; padding: 12px 16px; display: flex; align-items: baseline; justify-content: space-between; }
-  .header-title { font-size: 16px; font-weight: 800; letter-spacing: -0.5px; }
-  .header-sub { font-size: 10px; opacity: 0.6; }
-  .header-badge { background: #dc2626; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
-  .body { padding: 12px 16px; }
-  .date-row { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: #111; }
-  .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
-  .meta-card { background: #f8f8f8; border: 1px solid #e5e5e5; border-radius: 6px; padding: 8px; }
-  .meta-label { font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 2px; }
-  .meta-value { font-size: 15px; font-weight: 800; color: #111; }
-  .meta-sub { font-size: 8px; color: #666; margin-top: 1px; }
-  h2 { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: #888; font-weight: 600; border-bottom: 1px solid #e5e5e5; padding-bottom: 3px; margin: 10px 0 6px; }
-  table { width: 100%; border-collapse: collapse; }
-  th { font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em; color: #888; text-align: left; padding: 3px 6px; border-bottom: 1px solid #e5e5e5; }
-  td { padding: 4px 6px; border-bottom: 1px solid #f3f3f3; vertical-align: top; }
-  .bold { font-weight: 700; }
-  .muted { color: #666; }
-  .center { text-align: center; }
-  .sun-bar { background: #f8f8f8; border: 1px solid #e5e5e5; border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; display: flex; gap: 16px; align-items: center; }
-  .sun-item { display: flex; flex-direction: column; align-items: center; }
-  .sun-label { font-size: 8px; color: #888; text-transform: uppercase; margin-bottom: 1px; }
-  .sun-time { font-size: 13px; font-weight: 800; }
-  .sun-time.gold { color: #d97706; }
-  .sun-divider { flex: 1; height: 3px; background: linear-gradient(to right, #1e3a5f, #f59e0b, #87ceeb, #f59e0b, #1e3a5f); border-radius: 2px; }
-  .location-card { background: #f8f8f8; border: 1px solid #e5e5e5; border-radius: 6px; padding: 7px 10px; margin-bottom: 6px; }
-  .notes-box { background: #fefce8; border: 1px solid #fde68a; border-radius: 6px; padding: 8px; font-size: 9px; color: #78350f; margin-top: 10px; }
-  .footer { text-align: center; font-size: 8px; color: #bbb; border-top: 1px solid #e5e5e5; padding: 6px; margin-top: 10px; }
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-</style>
-</head>
-<body>
-  <div class="header">
-    <div>
-      <div class="header-title">${project.title}</div>
-      <div class="header-sub">Regie: ${project.director || '–'}</div>
-    </div>
-    <div class="header-badge">DREHTAG ${shootDay.day_number}</div>
-  </div>
+  const seitenAchtel = scenes.reduce((sum: number, s: any) => sum + (Number(s.eighths) || 0), 0)
+  const crewZahl = enriched.filter((e: any) => e.person_type === 'crew').length
+  const castZahl = enriched.filter((e: any) => e.person_type === 'cast').length
 
-  <div class="body">
-    <div class="date-row">${dateStr}</div>
-
-    <div class="meta-grid">
-      <div class="meta-card">
-        <div class="meta-label">General Call</div>
-        <div class="meta-value">${callSheet ? fmtTime(callSheet.general_call) : '–'}</div>
-      </div>
-      <div class="meta-card">
-        <div class="meta-label">Szenen</div>
-        <div class="meta-value">${scenes.length}</div>
-        <div class="meta-sub">${scenes.map((s: any) => s.scene_number).join(', ')}</div>
-      </div>
-      <div class="meta-card">
-        <div class="meta-label">Seiten</div>
-        <div class="meta-value">${(scenes.reduce((sum: number, s: any) => sum + (s.eighths || 0), 0) / 8).toFixed(1)}</div>
-      </div>
-      <div class="meta-card">
-        <div class="meta-label">Crew / Cast</div>
-        <div class="meta-value">${enriched.filter(e => e.person_type === 'crew').length} / ${enriched.filter(e => e.person_type === 'cast').length}</div>
-      </div>
-    </div>
-
-    ${(callSheet?.sunrise || callSheet?.sunset) ? `
-    <div class="sun-bar">
-      <div class="sun-item"><div class="sun-label">Sonnenaufgang</div><div class="sun-time">${callSheet.sunrise || '–'}</div></div>
-      <div class="sun-divider"></div>
-      <div class="sun-item"><div class="sun-label">Sonnenuntergang</div><div class="sun-time">${callSheet.sunset || '–'}</div></div>
-      ${callSheet?.weather_forecast ? `<div style="margin-left:auto;font-size:10px;color:#555;padding: 0 6px;">${callSheet.weather_forecast}</div>` : ''}
-    </div>` : ''}
-
-    <div class="two-col">
-      <div>
-        <h2>Szenenplan</h2>
-        <table>
-          <tr><th>#</th><th>INT/EXT</th><th>Titel</th><th>Motiv</th><th>Seiten</th></tr>
-          ${sceneList}
-        </table>
-      </div>
-      <div>
-        <h2>Motive</h2>
-        ${locationList || '<p class="muted" style="font-size:9px">Keine Motive erfasst</p>'}
-
-        <h2>Call-Zeiten</h2>
-        <table>
-          <tr><th>Name</th><th>Funktion</th><th>Call</th></tr>
-          ${topCallList}
-        </table>
-      </div>
-    </div>
-
-    ${shootDay.notes ? `<div class="notes-box">⚠ ${shootDay.notes}</div>` : ''}
-    ${callSheet?.notes ? `<div class="notes-box" style="margin-top:4px">📋 ${callSheet.notes}</div>` : ''}
-  </div>
-
-  <div class="footer">Morning Brief — ${project.title} — ${dateStr} — Generiert mit CutSheet</div>
-</body>
-</html>`
+  const html = renderDocument({
+    kind: 'Morning Brief',
+    title: `Drehtag ${shootDay.day_number}`,
+    project: project.title,
+    subtitle: dateStr,
+    accent: accentColor,
+    meta: [
+      { label: 'Projekt', value: project.title },
+      { label: 'Regie', value: project.director },
+    ],
+    body:
+      stats([
+        { label: 'General Call', value: callSheet ? fmtTime(callSheet.general_call) : '—' },
+        { label: 'Szenen', value: scenes.length, hint: scenes.map((s: any) => s.scene_number).filter(Boolean).join(', ') || undefined },
+        { label: 'Seiten', value: fmtEighths(seitenAchtel) },
+        { label: 'Crew / Cast', value: `${crewZahl} / ${castZahl}` },
+      ]) +
+      (definitions([
+        { label: 'Sonnenaufgang', value: callSheet?.sunrise },
+        { label: 'Sonnenuntergang', value: callSheet?.sunset },
+        { label: 'Wetter', value: callSheet?.weather_forecast },
+      ]) || '') +
+      section('Szenenplan', table({
+        columns: [
+          { header: 'Szene', value: (r: any) => r.scene_number, width: '9%' },
+          { header: 'I/E', value: (r: any) => r.int_ext, align: 'center', width: '8%' },
+          { header: 'T/N', value: (r: any) => r.day_night, align: 'center', width: '8%' },
+          { header: 'Inhalt', value: (r: any) => r.title },
+          { header: 'Motiv', value: (r: any) => r.location_name, width: '22%' },
+          { header: 'Seiten', value: (r: any) => fmtEighths(r.eighths), align: 'right', width: '9%' },
+        ],
+        rows: scenes,
+        empty: 'Für diesen Tag ist noch nichts disponiert.',
+      }), `${scenes.length} Szenen · ${fmtEighths(seitenAchtel)} Seiten`) +
+      section('Motive', table({
+        columns: [
+          { header: 'Motiv', value: (r: any) => r.location_name, width: '30%' },
+          // Adressteile einzeln — fehlende duerfen nicht als "null" erscheinen
+          { header: 'Adresse', value: (r: any) => [r.address, [r.zip, r.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') },
+        ],
+        rows: uniqueLocations,
+        empty: 'Keine Motive erfasst.',
+      })) +
+      section('Call-Zeiten', table({
+        columns: [
+          { header: 'Name', value: (r: any) => r.name, width: '34%' },
+          { header: 'Funktion', value: (r: any) => r.role, muted: true },
+          { header: 'Call', value: (r: any) => fmtTime(r.call_time), align: 'right', width: '14%' },
+        ],
+        rows: enriched,
+        empty: 'Noch keine Call-Zeiten gesetzt.',
+      }), enriched.length >= 8 ? 'Auszug — vollständig auf der Tagesdispo' : undefined) +
+      (paragraph(shootDay.notes) ? section('Hinweise zum Drehtag', paragraph(shootDay.notes)) : '') +
+      (paragraph(callSheet?.notes) ? section('Hinweise zur Disposition', paragraph(callSheet.notes)) : ''),
+  })
 
   try {
-    // Randlos: der Brief bringt seinen eigenen dunklen Kopf bis an die Kante mit
     const pdf = await generatePdf(html, {
       footer: false,
-      margin: { top: '0', bottom: '0', left: '0', right: '0' },
+      margin: { top: '14mm', bottom: '16mm', left: '12mm', right: '12mm' },
     })
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="morning-brief-tag-${shootDay.day_number}.pdf"`)

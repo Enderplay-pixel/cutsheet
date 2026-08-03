@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
 import { renderCallSheetHtml } from '../lib/callSheetLayout'
+import { renderShotlistHtml, groupShots, type GroupMode } from '../lib/shotlist'
 import {
   renderDocument, table, stats, section, definitions, badge, paragraph, hint,
   fmtMoney, fmtTime, fmtDuration, fmtDate, fmtDateLong, fmtEighths,
@@ -749,68 +750,57 @@ router.get('/shoot-days/:dayId/pdf/tagesbericht', async (req: Request, res: Resp
   await sendPdf(res, html, `tagesbericht-tag${day.day_number}-${slug(day.project_title)}.pdf`)
 })
 
-// GET /api/projects/:projectId/pdf/shotlist
+// GET /api/projects/:projectId/pdf/shotlist?nach=szene|drehtag
 router.get('/projects/:projectId/pdf/shotlist', async (req, res) => {
   const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]) as any
   if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
 
-  const [{ accentColor }, scenes, allShots] = await Promise.all([
+  const mode: GroupMode = String(req.query.nach || '') === 'drehtag' ? 'drehtag' : 'szene'
+
+  const [{ accentColor }, scenes, days, shots] = await Promise.all([
     getProjectSettings(req.params.projectId),
-    db.all('SELECT * FROM scenes WHERE project_id = ? ORDER BY sort_order ASC', [req.params.projectId]),
-    db.all('SELECT * FROM shots WHERE project_id = ? ORDER BY scene_id ASC, sort_order ASC', [req.params.projectId]),
+    db.all(`
+      SELECT s.*, l.name as location_name
+      FROM scenes s
+      LEFT JOIN locations l ON s.location_id = l.id
+      WHERE s.project_id = ?
+      ORDER BY s.sort_order ASC
+    `, [req.params.projectId]),
+    db.all('SELECT id, day_number, date FROM shoot_days WHERE project_id = ? ORDER BY day_number ASC', [req.params.projectId]),
+    db.all('SELECT * FROM shots WHERE project_id = ? ORDER BY sort_order ASC, id ASC', [req.params.projectId]),
   ]) as any[]
 
-  const shotsByScene: Record<number, any[]> = {}
-  for (const sh of allShots) {
-    if (!shotsByScene[sh.scene_id]) shotsByScene[sh.scene_id] = []
-    shotsByScene[sh.scene_id].push(sh)
+  // Storyboards als Daten-URI einbetten: Der Druck laeuft in einem eigenen
+  // Browser ohne Sitzung, ein Link auf /uploads/... bliebe leer. Fehlt eine
+  // Datei — auf Render ueberlebt der Speicher keinen Deploy —, bleibt das Feld
+  // leer statt das PDF scheitern zu lassen.
+  const storyboardDir = pathMod.join(__dirname, '../../uploads/storyboard')
+  for (const shot of shots as any[]) {
+    if (!shot.storyboard_url) continue
+    try {
+      const file = pathMod.join(storyboardDir, pathMod.basename(String(shot.storyboard_url)))
+      if (fileExists(file)) {
+        const ext = pathMod.extname(file).toLowerCase().replace('.', '') || 'png'
+        shot.storyboard = `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${fsMod.readFileSync(file).toString('base64')}`
+      }
+    } catch (err: any) {
+      console.warn('[shotlist] Storyboard nicht lesbar:', err?.message)
+    }
   }
 
-  const columns: Column<any>[] = [
-    { header: 'Nr.', value: (r: any) => r.shot_number, width: '6%' },
-    { header: 'Größe', value: (r: any) => r.size, width: '10%' },
-    { header: 'Bewegung', value: (r: any) => r.movement, width: '12%' },
-    { header: 'Objektiv', value: (r: any) => (r.lens_mm ? `${r.lens_mm} mm` : null), align: 'right', width: '9%' },
-    { header: 'Beschreibung', value: (r: any) => r.description },
-    { header: 'Dauer', value: (r: any) => (r.duration_seconds ? `${r.duration_seconds} s` : null), align: 'right', width: '8%' },
-  ]
-
-  const body = scenes.map((scene: any) => {
-    const shots = shotsByScene[scene.id] || []
-    if (shots.length === 0) return ''
-    const dur = shots.reduce((sum: number, sh: any) => sum + (Number(sh.duration_seconds) || 0), 0)
-    return section(
-      `Szene ${scene.scene_number}${scene.title ? `: ${scene.title}` : ''}`,
-      table({ columns, rows: shots }),
-      `${shots.length} Einstellungen${dur > 0 ? ` · ${fmtDuration(Math.round(dur / 60))} Material` : ''}`
-    )
-  }).join('')
-
-  const totalDuration = allShots.reduce((sum: number, sh: any) => sum + (Number(sh.duration_seconds) || 0), 0)
-  const scenesWithShots = scenes.filter((sc: any) => (shotsByScene[sc.id] || []).length > 0).length
-
-  const html = renderDocument({
-    kind: 'Auflösung & Shotlist',
-    title: project.title,
-    project: project.title,
+  const html = renderShotlistHtml({
+    projectTitle: project.title,
+    director: project.director,
+    dop: project.dop,
     accent: accentColor,
-    landscape: true,
-    subtitle: `${allShots.length} Einstellungen in ${scenesWithShots} Szenen`,
-    meta: [
-      { label: 'Regie', value: project.director },
-      { label: 'Kamera', value: project.dop },
-      { label: 'Stand', value: fmtDate(new Date().toISOString()) },
-    ],
-    body:
-      stats([
-        { label: 'Einstellungen', value: allShots.length },
-        { label: 'Aufgelöste Szenen', value: `${scenesWithShots} / ${scenes.length}` },
-        { label: 'Geplante Materiallänge', value: fmtDuration(Math.round(totalDuration / 60)) },
-      ]) +
-      (body || section('Einstellungen', table({ columns, rows: [], empty: 'Noch keine Einstellungen erfasst.' }))),
+    mode,
+    groups: groupShots(shots, scenes, days, mode),
+    allShots: shots,
+    scenes,
+    days,
   })
 
-  await sendPdf(res, html, `shotlist-${slug(project.title)}.pdf`)
+  await sendPdf(res, html, `shotlist-${mode}-${slug(project.title)}.pdf`)
 })
 
 // GET /api/projects/:projectId/pdf/equipment

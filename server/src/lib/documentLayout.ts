@@ -213,6 +213,8 @@ export interface DocumentOptions {
   landscape?: boolean
   /** Hinweis unten, etwa zur Vertraulichkeit. */
   footnote?: string
+  /** Zusaetzliches CSS fuer Bausteine, die nur ein Dokument braucht. */
+  extraCss?: string
   body: string
 }
 
@@ -334,6 +336,7 @@ export function renderDocument(opts: DocumentOptions): string {
               display: flex; justify-content: space-between;
               font-size: 7pt; color: #a1a1aa; border-top: 0.5pt solid #e4e4e7; padding-top: 3pt; }
   .doc-foot .pg::after { content: counter(page); }
+${opts.extraCss || ''}
 </style>
 </head>
 <body>

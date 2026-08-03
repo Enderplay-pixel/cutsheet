@@ -171,9 +171,15 @@ export function Component() {
         title="Auflösung & Shotlist"
         subtitle={`${totalShots} Einstellungen · ${totalDone} erledigt · ${Math.round(totalDuration / 60)} Min.`}
         actions={
-          <Button variant="outline" size="sm" onClick={() => download(api.pdf.shotlist(pid), 'shotlist.pdf')}>
-              <Download className="w-4 h-4 mr-2" />PDF
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => download(api.pdf.shotlist(pid), 'shotlist-szenen.pdf')}>
+              <Download className="w-4 h-4 mr-2" />PDF nach Szenen
             </Button>
+            {/* Am Drehtag zaehlt nicht die Auflösung, sondern was heute ansteht */}
+            <Button variant="outline" size="sm" onClick={() => download(api.pdf.shotlist(pid, 'drehtag'), 'shotlist-drehtage.pdf')}>
+              <Download className="w-4 h-4 mr-2" />PDF nach Drehtagen
+            </Button>
+          </div>
         }
       />
 

@@ -583,16 +583,26 @@ function lineToHtml(l: LaidOutLine): string {
  */
 export function renderScreenplayHtml(
   pages: LaidOutPage[],
-  opts: { paper: PaperName; docTitle: string }
+  opts: {
+    paper: PaperName
+    docTitle: string
+    /**
+     * Zeile oben links auf jeder Seite. Sides tragen sie, damit ein loses
+     * Blatt zuzuordnen ist; das Drehbuch laesst sie weg.
+     */
+    header?: string
+  }
 ): string {
   const paper = PAPER[opts.paper]
   // Rechte Kante des Textspiegels — dort endet die Seitenzahl
   const textRightIn = GRID_LEFT_IN + (TEXT_COL + TEXT_WIDTH) / CPI
 
+  const head = opts.header ? `<div class="shead">${escapeHtml(opts.header)}</div>` : ''
+
   const pagesHtml = pages.map(page => {
     const num = page.number !== null ? `<div class="pnum">${page.number}.</div>` : ''
     const lines = page.lines.map(lineToHtml).join('\n')
-    return `<section class="page">${num}<pre class="script">${lines}</pre></section>`
+    return `<section class="page">${head}${num}<pre class="script">${lines}</pre></section>`
   }).join('\n')
 
   return `<!DOCTYPE html>
@@ -634,6 +644,18 @@ export function renderScreenplayHtml(
     margin: 0;
     padding: 0;
     white-space: pre;
+  }
+
+  /* Kopfzeile oben links, auf einer Hoehe mit der Seitenzahl */
+  .shead {
+    position: absolute;
+    left: ${GRID_LEFT_IN}in;
+    top: ${PAGE_NUM_TOP_IN}in;
+    font-family: 'Courier New', 'Liberation Mono', Courier, monospace;
+    font-size: 9pt;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #000;
   }
 
   /* Seitenzahl oben rechts, bündig mit dem rechten Textrand */

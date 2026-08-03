@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { generatePdf } from './pdf'
+import {
+  layoutScreenplay, renderScreenplayHtml, type SceneInput,
+} from '../lib/screenplayFormat'
 
 const router = Router()
 
@@ -31,90 +34,43 @@ function resolveChromium(): string | undefined {
 }
 
 
-function blockTypeLabel(blockType: string): string {
-  switch (blockType) {
-    case 'scene_heading': return 'scene_heading'
-    case 'action': return 'action'
-    case 'character': return 'character'
-    case 'dialogue': return 'dialogue'
-    case 'parenthetical': return 'parenthetical'
-    case 'transition': return 'transition'
-    default: return blockType
-  }
-}
 
-function renderBlock(block: any): string {
-  const content = (block.content || '').replace(/\n/g, '<br>')
-  switch (block.block_type) {
-    case 'scene_heading':
-      return `<p class="scene-heading">${content}</p>`
-    case 'action':
-      return `<p class="action">${content}</p>`
-    case 'character':
-      return `<p class="character">${content}</p>`
-    case 'dialogue':
-      return `<p class="dialogue">${content}</p>`
-    case 'parenthetical':
-      return `<p class="parenthetical">${content}</p>`
-    case 'transition':
-      return `<p class="transition">${content}</p>`
-    default:
-      return `<p>${content}</p>`
-  }
-}
-
+/**
+ * Sides sind Auszuege aus dem Drehbuch — also werden sie auch wie Drehbuch
+ * gesetzt. Frueher brachten sie eigenes CSS mit px-Groessen und Prozentraendern
+ * mit; Schriftbild und Zeilenraster wichen dadurch vom Drehbuch ab, aus dem sie
+ * stammen. Jetzt laeuft beides durch denselben Satz.
+ */
 function buildSidesHtml(shootDay: any, scenes: Array<{ scene: any; blocks: any[] }>): string {
-  const dateStr = shootDay.date
+  const sceneInputs: SceneInput[] = scenes.map(({ scene, blocks }) => {
+    if (blocks.length > 0) return { scene_number: scene.scene_number, blocks }
+
+    // Szene ohne Bloecke: Ueberschrift aus den Metadaten bauen, damit sie nicht
+    // stillschweigend fehlt
+    const intExt = String(scene.int_ext || 'INT').toUpperCase()
+    const heading = [
+      `${intExt}.`,
+      String(scene.title || `SZENE ${scene.scene_number}`).toUpperCase(),
+      scene.day_night ? `\u2013 ${String(scene.day_night).toUpperCase()}` : '',
+    ].filter(Boolean).join(' ')
+    return { scene_number: scene.scene_number, blocks: [{ block_type: 'scene_heading', content: heading }] }
+  })
+
+  const datum = shootDay.date
     ? new Date(shootDay.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    : '—'
-  const dayNum = shootDay.day_number ?? '?'
+    : ''
+  const nummern = scenes.map(({ scene }) => scene.scene_number).filter(Boolean).join(', ')
+  const kopf = [
+    `Sides \u2013 Drehtag ${shootDay.day_number ?? '?'}`,
+    datum,
+    nummern ? `Sz. ${nummern}` : '',
+  ].filter(Boolean).join('  \u00b7  ')
 
-  const sceneHtml = scenes.map(({ scene, blocks }) => {
-    const heading = `${scene.int_ext || ''} ${scene.title || ''} — ${scene.day_night || ''}`.trim().toUpperCase()
-    const blockHtml = blocks.map(renderBlock).join('\n')
-    return `
-      <div class="scene">
-        <div class="scene-number">Szene ${scene.scene_number || ''}</div>
-        <div class="scene-title">${heading}</div>
-        ${blockHtml}
-      </div>
-    `
-  }).join('<hr class="scene-divider">')
-
-  return `<!DOCTYPE html>
-<html lang="de">
-<head>
-<meta charset="UTF-8">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Courier New', Courier, monospace; font-size: 11px; color: #000; background: #fff; }
-  .watermark-header {
-    text-align: center;
-    font-weight: bold;
-    font-size: 13px;
-    border-bottom: 2px solid #000;
-    padding-bottom: 6px;
-    margin-bottom: 16px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-  .scene { margin-bottom: 16px; }
-  .scene-number { font-size: 10px; color: #555; margin-bottom: 2px; }
-  .scene-title { font-weight: bold; text-transform: uppercase; margin-bottom: 8px; }
-  .scene-heading { font-weight: bold; text-transform: uppercase; margin-bottom: 6px; }
-  .action { margin-bottom: 6px; }
-  .character { text-align: center; font-weight: bold; margin-bottom: 2px; margin-top: 8px; }
-  .dialogue { margin: 0 20% 6px; }
-  .parenthetical { margin: 0 25% 2px; font-style: italic; }
-  .transition { text-align: right; font-weight: bold; margin-bottom: 8px; }
-  hr.scene-divider { border: none; border-top: 1px dashed #ccc; margin: 16px 0; }
-</style>
-</head>
-<body>
-  <div class="watermark-header">SIDES — ${dateStr} — DREHTAG ${dayNum}</div>
-  ${sceneHtml}
-</body>
-</html>`
+  return renderScreenplayHtml(layoutScreenplay(sceneInputs), {
+    paper: 'a4',
+    docTitle: kopf,
+    header: kopf,
+  })
 }
 
 // GET /api/shoot-days/:dayId/script-sides/pdf?cast_id=X

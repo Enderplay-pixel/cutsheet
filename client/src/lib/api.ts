@@ -245,7 +245,9 @@ export const api = {
     motivliste:     (projectId: number) => `/api/projects/${projectId}/pdf/motivliste`,
     kalkulation:    (projectId: number, versionId: number) => `/api/projects/${projectId}/pdf/kalkulation/${versionId}`,
     equipment:      (projectId: number) => `/api/projects/${projectId}/pdf/equipment`,
-    shotlist:       (projectId: number) => `/api/projects/${projectId}/pdf/shotlist`,
+    // nach='drehtag' buendelt fuer den Set-Gebrauch, sonst nach Szene fuer die Auflösung
+    shotlist:       (projectId: number, nach?: 'szene' | 'drehtag') =>
+      `/api/projects/${projectId}/pdf/shotlist${nach === 'drehtag' ? '?nach=drehtag' : ''}`,
     screenplay:          (projectId: number) => `/api/projects/${projectId}/pdf/screenplay`,
     screenplayWithNotes: (projectId: number) => `/api/projects/${projectId}/pdf/screenplay?notes=1`,
   },

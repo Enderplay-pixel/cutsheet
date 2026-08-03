@@ -64,6 +64,10 @@ const shots = Array.from({ length: 55 }, (_, i) => ({
   lens_mm: i % 2 === 0 ? 35 : null,
   description: `Einstellung ${i + 1}: Figur geht durch das Bild & bleibt stehen`,
   duration_seconds: i % 4 === 0 ? null : 8 + i, sort_order: i,
+  notes: i % 5 === 0 ? 'Achtung: Glasbruch & Sicherheitsabstand' : null,
+  done: i % 3 === 0 ? 1 : 0,
+  shoot_day_id: i % 7 === 0 ? null : (i % 2) + 1,
+  storyboard_url: null,
 }))
 
 const equipmentItems = Array.from({ length: 25 }, (_, i) => ({
@@ -73,7 +77,29 @@ const equipmentItems = Array.from({ length: 25 }, (_, i) => ({
   total_cents: 3 * (3000 + i * 200), checked: i % 2, sort_order: i,
 }))
 
+const callSheet = {
+  id: 1, shoot_day_id: 1, general_call: 420, sunrise: '05:42', sunset: '21:14',
+  weather_forecast: '18 °C, Regen ab 14 Uhr', notes: 'Parken nur Hofeinfahrt & Seitenstraße',
+}
+
+const callEntries = [
+  { id: 1, person_type: 'crew', person_id: 1, call_time: 420, sort_order: 0 },
+  { id: 2, person_type: 'cast', person_id: 2, call_time: 480, sort_order: 1 },
+  { id: 3, person_type: 'crew', person_id: 3, call_time: null, sort_order: 2 },
+]
+
+const blocks = [
+  { scene_id: 1, block_type: 'scene_heading', content: 'INT. ALTBAUWOHNUNG – TAG', sort_order: 0 },
+  { scene_id: 1, block_type: 'action', content: 'ANNA steht am Fenster und sieht hinaus.', sort_order: 1 },
+  { scene_id: 1, block_type: 'character', content: 'ANNA', sort_order: 2 },
+  { scene_id: 1, block_type: 'parenthetical', content: '(leise)', sort_order: 3 },
+  { scene_id: 1, block_type: 'dialogue', content: 'Es hört nicht auf zu regnen. Und ich weiß nicht mehr, ob ich das noch aushalte.', sort_order: 4 },
+]
+
 function fakeGet(sql: string): any {
+  if (sql.includes('FROM call_sheets')) return callSheet
+  if (sql.includes('FROM crew WHERE id')) return { name: 'Ann & Bo <Team>', role: 'Kamera-Assistenz' }
+  if (sql.includes('actor_name as name')) return { name: 'Mira Ø', role: 'Anna' }
   if (sql.includes('location_releases')) {
     return {
       id: 1, owner_name: 'Familie Schmidt & Co', owner_address: null,
@@ -97,10 +123,15 @@ function fakeGet(sql: string): any {
     return { ...days[0], project_title: project.title, director: project.director, producer: project.producer, project_id: 1 }
   }
   if (sql.includes('FROM projects')) return project
+  // Morning Brief und Sides laden den Drehtag ohne JOIN
+  if (sql.includes('FROM shoot_days')) return { ...days[0], project_id: 1 }
   return null
 }
 
 function fakeAll(sql: string): any[] {
+  if (sql.includes('call_sheet_entries')) return callEntries
+  if (sql.includes('screenplay_blocks')) return blocks
+  if (sql.includes('catering_preferences')) return []
   // Der Foerderantrag holt die jeweils juengste Fassung per db.all(... LIMIT 1)
   if (sql.includes('budget_versions')) return [{ id: 1, name: 'Fassung 3 "final"', total_cents: 1409000 }]
   if (sql.includes('financing_plan_versions')) return [{ id: 1, total_cents: 900000 }]
@@ -179,14 +210,17 @@ beforeAll(async () => {
     },
   } as any
 
-  const [pdfRouter, foerder, release] = await Promise.all([
+  const [pdfRouter, foerder, release, brief, sides] = await Promise.all([
     import('../routes/pdf'), import('../routes/foerderantrag'), import('../routes/locationRelease'),
+    import('../routes/morningBrief'), import('../routes/scriptSides'),
   ])
   const app = express()
   app.use((req, _res, next) => { (req as any).user = { id: 1, role: 'admin' }; next() })
   app.use('/api', pdfRouter.default)
   app.use('/api', foerder.default)
   app.use('/api', release.default)
+  app.use('/api', brief.default)
+  app.use('/api', sides.default)
   await new Promise<void>(resolve => {
     server = app.listen(0, () => {
       base = `http://127.0.0.1:${(server.address() as any).port}`
@@ -205,9 +239,11 @@ const docs: Array<[string, string]> = [
   ['kalkulation', '/api/projects/1/pdf/kalkulation/1'],
   ['tagesbericht', '/api/shoot-days/1/pdf/tagesbericht'],
   ['shotlist', '/api/projects/1/pdf/shotlist'],
+  ['shotlist-drehtag', '/api/projects/1/pdf/shotlist?nach=drehtag'],
   ['equipment', '/api/projects/1/pdf/equipment'],
   ['foerderantrag', '/api/projects/1/foerderantrag/export?format=pdf'],
   ['motivvertrag', '/api/locations/2/release/pdf'],
+  ['morning-brief', '/api/shoot-days/1/morning-brief/pdf'],
 ]
 
 async function hole(name: string, url: string) {
@@ -260,6 +296,38 @@ describe('Dokumentrouten', () => {
     const { html } = await hole('motivliste', '/api/projects/1/pdf/motivliste')
     expect(html).toContain('Hauptstr. 1, 10115 Berlin')
     expect(html).not.toContain(', &nbsp;')
+  })
+
+  it('gruppiert die Shotlist wahlweise nach Drehtag', async () => {
+    const { html } = await hole('shotlist-drehtag', '/api/projects/1/pdf/shotlist?nach=drehtag')
+    expect(html).toContain('Drehtag 1')
+    expect(html).toContain('Noch keinem Drehtag zugeordnet')
+  })
+
+  it('nimmt Notiz und Erledigt-Haken der Einstellung mit', async () => {
+    const { html } = await hole('shotlist', '/api/projects/1/pdf/shotlist')
+    expect(html).toContain('shot-note')
+    expect(html).toContain('Glasbruch')
+    expect(html).toContain('kasten voll')
+  })
+
+  it('nennt jedes Motiv im Morning Brief nur einmal', async () => {
+    const { html } = await hole('morning-brief', '/api/shoot-days/1/morning-brief/pdf')
+    const abschnitt = html.slice(html.indexOf('>Motive<'), html.indexOf('>Call-Zeiten<'))
+    expect(abschnitt.split('Altbauwohnung').length - 1).toBe(1)
+  })
+
+  it('setzt die Sides im Drehbuchsatz', async () => {
+    const { html } = await hole('sides', '/api/shoot-days/1/script-sides/pdf')
+    // Gleiche Maschine wie das Drehbuch: Courier auf festem Zeilenraster
+    expect(html).toContain('Courier New')
+    expect(html).toContain('class="script"')
+    // Kopfzeile auf jeder Seite, damit ein loses Blatt zuzuordnen ist
+    expect(html).toContain('class="shead"')
+    expect(html).toContain('Drehtag 1')
+    expect(html).toContain('ANNA')
+    // Kein rohes Markup aus dem Blockinhalt mehr
+    expect(html).not.toContain('<p class="dialogue">')
   })
 
   it('weist die Finanzierungsluecke aus', async () => {
