@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
-import puppeteer from 'puppeteer'
+import { generatePdf } from './pdf'
 
 const router = Router()
 
@@ -300,23 +300,17 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
 </body>
 </html>`
 
-  const executablePath = resolveChromium()
-  const launchOptions: any = {
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--single-process', '--no-zygote'],
-  }
-  if (executablePath) launchOptions.executablePath = executablePath
-
-  const browser = await (puppeteer as any).launch(launchOptions)
   try {
-    const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 })
-    const pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '0', bottom: '0', left: '0', right: '0' } })
+    // Randlos: der Brief bringt seinen eigenen dunklen Kopf bis an die Kante mit
+    const pdf = await generatePdf(html, {
+      footer: false,
+      margin: { top: '0', bottom: '0', left: '0', right: '0' },
+    })
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="morning-brief-tag-${shootDay.day_number}.pdf"`)
-    res.send(Buffer.from(pdf))
-  } finally {
-    await browser.close()
+    res.send(pdf)
+  } catch (e: any) {
+    res.status(500).json({ data: null, error: `PDF-Fehler: ${e.message}` })
   }
 })
 

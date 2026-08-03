@@ -1,6 +1,16 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
-import puppeteer from 'puppeteer'
+import { generatePdf } from './pdf'
+import {
+  renderDocument, table, stats, section, definitions, badge, fmtMoney, fmtDate,
+} from '../lib/documentLayout'
+
+/** Dateinamen von Zeichen befreien, die den Download-Header zerlegen. */
+function slugify(value: string): string {
+  const out = String(value ?? '').normalize('NFKD').replace(/[^\w\s-]/g, '')
+    .trim().replace(/\s+/g, '-').toLowerCase()
+  return out || 'dokument'
+}
 
 const router = Router()
 
@@ -78,60 +88,108 @@ router.get('/projects/:pid/foerderantrag/export', async (req: Request, res: Resp
   }
 
   if (format === 'pdf') {
-    const html = `<!DOCTYPE html>
-<html lang="de"><head><meta charset="UTF-8"><style>
-body { font-family: 'Helvetica Neue', sans-serif; margin: 40px; color: #111; font-size: 12px; }
-h1 { font-size: 20px; margin-bottom: 4px; }
-h2 { font-size: 14px; border-bottom: 2px solid #f59e0b; padding-bottom: 4px; margin-top: 24px; color: #333; }
-table { width: 100%; border-collapse: collapse; margin: 8px 0; }
-th { background: #f5f5f5; padding: 6px 10px; text-align: left; font-size: 11px; }
-td { padding: 5px 10px; border-bottom: 1px solid #eee; }
-.chip { display: inline-block; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
-.total { font-weight: bold; background: #f9f9f9; }
-</style></head><body>
-<h1>${data.project.title}</h1>
-<p><strong>Genre:</strong> ${data.project.genre} &bull; <strong>Format:</strong> ${data.project.format} &bull; <strong>Laufzeit:</strong> ${data.project.length_minutes} Min. &bull; <strong>Drehtage:</strong> ${data.project.total_shoot_days}</p>
-<p><strong>Regie:</strong> ${data.project.director} &bull; <strong>Produktion:</strong> ${data.project.producer} &bull; <strong>Firma:</strong> ${data.project.production_company}</p>
-<p><strong>Drehzeitraum:</strong> ${data.project.shoot_start || '–'} bis ${data.project.shoot_end || '–'}</p>
+    const budgetTotal = budgetVersion?.total_cents ?? null
+    const finTotal = finVersion?.total_cents ?? null
+    // Finanzierungsluecke: die erste Frage jeder Foerderjury
+    const gap = budgetTotal !== null && finTotal !== null ? budgetTotal - finTotal : null
+    const confirmed = finEntries
+      .filter((e: any) => e.confirmed)
+      .reduce((sum: number, e: any) => sum + (Number(e.amount_cents) || 0), 0)
 
-<h2>Schlüsselpositionen</h2>
-<table><tr><th>Name</th><th>Funktion</th><th>Abteilung</th></tr>
-${data.crew_key_positions.map(c => `<tr><td>${c.name}</td><td>${c.role}</td><td>${c.department}</td></tr>`).join('')}
-</table>
+    const html = renderDocument({
+      kind: 'Förderantrag',
+      title: project.title,
+      project: project.title,
+      subtitle: [project.genre, project.format, project.length_minutes ? `${project.length_minutes} Min.` : '']
+        .filter(Boolean).join(' · '),
+      meta: [
+        { label: 'Produktionsfirma', value: project.production_company },
+        { label: 'Regie', value: project.director },
+        { label: 'Stand', value: fmtDate(new Date().toISOString()) },
+      ],
+      body:
+        stats([
+          { label: 'Gesamtkosten', value: fmtMoney(budgetTotal) },
+          { label: 'Finanzierung', value: fmtMoney(finTotal), hint: `davon ${fmtMoney(confirmed)} bestätigt` },
+          {
+            label: gap !== null && gap > 0 ? 'Finanzierungslücke' : 'Deckung',
+            value: gap === null ? '—' : fmtMoney(Math.abs(gap)),
+            hint: gap === null ? undefined : gap > 0 ? 'noch offen' : 'vollständig finanziert',
+          },
+          { label: 'Drehtage', value: shootDays.length },
+        ]) +
+        section('Eckdaten', definitions([
+          { label: 'Titel', value: project.title },
+          { label: 'Genre', value: project.genre },
+          { label: 'Format', value: project.format },
+          { label: 'Laufzeit', value: project.length_minutes ? `${project.length_minutes} Min.` : null },
+          { label: 'Regie', value: project.director },
+          { label: 'Produktion', value: project.producer },
+          { label: 'Produktionsfirma', value: project.production_company },
+          { label: 'Drehzeitraum', value: [project.shoot_start, project.shoot_end].filter(Boolean).length === 2
+              ? `${fmtDate(project.shoot_start)} – ${fmtDate(project.shoot_end)}` : null },
+          { label: 'Synopsis', value: project.synopsis, wide: true },
+        ])) +
+        section('Schlüsselpositionen', table({
+          columns: [
+            { header: 'Name', value: (r: any) => r.name, width: '34%' },
+            { header: 'Funktion', value: (r: any) => r.role },
+            { header: 'Abteilung', value: (r: any) => r.department, width: '28%' },
+          ],
+          rows: keyCrew,
+          empty: 'Noch keine Schlüsselpositionen besetzt.',
+        })) +
+        section('Hauptbesetzung', table({
+          columns: [
+            { header: 'Darsteller*in', value: (r: any) => r.actor_name, width: '34%' },
+            { header: 'Rolle', value: (r: any) => r.character_name },
+            { header: 'Tagesgage', value: (r: any) => fmtMoney(r.fee_per_day), align: 'right', width: '22%' },
+          ],
+          rows: cast.slice(0, 5),
+          empty: 'Noch keine Besetzung erfasst.',
+        })) +
+        section('Drehorte', table({
+          columns: [
+            { header: 'Motiv', value: (r: any) => r.name },
+            { header: 'Stadt', value: (r: any) => r.city, width: '30%' },
+            { header: 'Land', value: (r: any) => r.country, width: '22%' },
+          ],
+          rows: locations,
+          empty: 'Noch keine Drehorte erfasst.',
+        }), 'Regionaleffekt') +
+        section('Kostenübersicht', table({
+          columns: [
+            { header: 'Kategorie', value: (r: any) => r[0] },
+            { header: 'Betrag', value: (r: any) => fmtMoney(r[1]), align: 'right', width: '26%' },
+          ],
+          rows: Object.entries(budgetByCategory),
+          empty: 'Noch keine Kalkulation hinterlegt.',
+          footer: [{ label: 'Gesamtkosten', value: fmtMoney(budgetTotal) }],
+        })) +
+        section('Finanzierungsplan', table({
+          columns: [
+            { header: 'Geldgeber', value: (r: any) => r.source },
+            { header: 'Art', value: (r: any) => r.type, width: '20%' },
+            { header: 'Status', value: (r: any) => (r.confirmed ? badge('Bestätigt', 'ok') : badge('Offen', 'warn')), html: true, align: 'center', width: '16%' },
+            { header: 'Betrag', value: (r: any) => fmtMoney(r.amount_cents), align: 'right', width: '22%' },
+          ],
+          rows: finEntries,
+          empty: 'Noch keine Finanzierung hinterlegt.',
+          footer: [{ label: 'Finanzierung gesamt', value: fmtMoney(finTotal) }],
+        })),
+    })
 
-<h2>Hauptbesetzung</h2>
-<table><tr><th>Darsteller/in</th><th>Rolle</th><th>Tagesgage (EUR)</th></tr>
-${data.cast_main.map(c => `<tr><td>${c.actor}</td><td>${c.character || '–'}</td><td>${c.fee_per_day_eur}</td></tr>`).join('')}
-</table>
-
-<h2>Drehorte (Regionaleffekt)</h2>
-<table><tr><th>Motiv</th><th>Stadt</th><th>Land</th></tr>
-${data.locations.map(l => `<tr><td>${l.name}</td><td>${l.city}</td><td>${l.country}</td></tr>`).join('')}
-</table>
-
-<h2>Budgetübersicht — Gesamtkosten: ${data.budget.total_eur} EUR</h2>
-<table><tr><th>Kategorie</th><th>Betrag (EUR)</th></tr>
-${data.budget.by_category.map(b => `<tr><td>${b.category}</td><td>${b.amount_eur}</td></tr>`).join('')}
-<tr class="total"><td>GESAMT</td><td>${data.budget.total_eur}</td></tr>
-</table>
-
-<h2>Finanzierungsplan — Gesamt: ${data.financing.total_eur} EUR</h2>
-<table><tr><th>Geldgeber</th><th>Typ</th><th>Betrag (EUR)</th><th>Status</th></tr>
-${data.financing.entries.map(e => `<tr><td>${e.source}</td><td>${e.type}</td><td>${e.amount_eur}</td><td>${e.confirmed ? '<span class="chip">Bestätigt</span>' : 'Offen'}</td></tr>`).join('')}
-</table>
-
-<p style="margin-top:32px;font-size:10px;color:#999">Generiert mit CutSheet am ${new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
-</body></html>`
-
-    const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] })
-    const page = await browser.newPage()
-    await page.setContent(html)
-    const pdf = await page.pdf({ format: 'A4', margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } })
-    await browser.close()
-
-    res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `attachment; filename="foerderantrag-${project.title.replace(/\s+/g, '-')}.pdf"`)
-    return res.send(Buffer.from(pdf))
+    try {
+      const pdf = await generatePdf(html, {
+        margin: { top: '14mm', bottom: '16mm', left: '12mm', right: '12mm' },
+        footer: false,
+      })
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', `attachment; filename="foerderantrag-${slugify(project.title)}.pdf"`)
+      return res.send(pdf)
+    } catch (e: any) {
+      return res.status(500).json({ data: null, error: `PDF-Fehler: ${e.message}` })
+    }
   }
 
   res.json({ data, error: null })

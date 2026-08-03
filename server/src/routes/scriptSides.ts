@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
-import puppeteer from 'puppeteer'
+import { generatePdf } from './pdf'
 
 const router = Router()
 
@@ -30,41 +30,6 @@ function resolveChromium(): string | undefined {
   return candidates.find(exists)
 }
 
-async function generateSidesPdf(html: string): Promise<Buffer> {
-  const executablePath = resolveChromium()
-  const launchOptions: any = {
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--single-process',
-      '--no-zygote',
-    ],
-  }
-  if (executablePath) launchOptions.executablePath = executablePath
-
-  let browser: any
-  try {
-    browser = await (puppeteer as any).launch(launchOptions)
-  } catch (err: any) {
-    throw new Error(`Chromium konnte nicht gestartet werden: ${err.message}`)
-  }
-
-  try {
-    const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 })
-    const pdf = await page.pdf({
-      format: 'A5',
-      printBackground: true,
-      margin: { top: '12mm', bottom: '12mm', left: '12mm', right: '12mm' },
-    })
-    return pdf
-  } finally {
-    await browser.close()
-  }
-}
 
 function blockTypeLabel(blockType: string): string {
   switch (blockType) {
@@ -204,7 +169,8 @@ router.get('/shoot-days/:dayId/script-sides/pdf', async (req: Request, res: Resp
 
     // 5. Generate HTML and PDF
     const html = buildSidesHtml(shootDay, scenesWithBlocks)
-    const pdfBuffer = await generateSidesPdf(html)
+    // Sides bringen ihre Seitenzahlen im Drehbuchsatz selbst mit
+    const pdfBuffer = await generatePdf(html, { footer: false })
 
     const dateStr = shootDay.date
       ? new Date(shootDay.date).toISOString().slice(0, 10)

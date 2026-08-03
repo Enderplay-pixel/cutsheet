@@ -1,6 +1,14 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
-import puppeteer from 'puppeteer'
+import { generatePdf } from './pdf'
+import { renderDocument, section, definitions, paragraph, fmtMoney, fmtDate } from '../lib/documentLayout'
+
+/** Dateinamen von Zeichen befreien, die den Download-Header zerlegen. */
+function slugify(value: string): string {
+  const out = String(value ?? '').normalize('NFKD').replace(/[^\w\s-]/g, '')
+    .trim().replace(/\s+/g, '-').toLowerCase()
+  return out || 'dokument'
+}
 
 const router = Router()
 
@@ -47,53 +55,74 @@ router.get('/locations/:id/release/pdf', async (req: Request, res: Response) => 
   if (!location) return res.status(404).json({ data: null, error: 'Motiv nicht gefunden' })
   const release = await db.get('SELECT * FROM location_releases WHERE location_id = ?', [req.params.id]) as any
 
+  const project = await db.get('SELECT title FROM projects WHERE id = ?', [location.project_id]) as any
+
   const shootDates = release ? JSON.parse(release.shoot_dates || '[]') : []
-  const fee = release ? (release.fee_cents / 100).toFixed(2) : '0.00'
 
-  const html = `<!DOCTYPE html>
-<html lang="de">
-<head><meta charset="UTF-8"><style>
-  body { font-family: 'Helvetica Neue', sans-serif; margin: 40px; color: #111; }
-  h1 { font-size: 24px; text-align: center; margin-bottom: 4px; }
-  .sub { text-align: center; color: #666; margin-bottom: 32px; }
-  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-  td { padding: 8px 12px; border-bottom: 1px solid #eee; }
-  td:first-child { font-weight: 600; width: 200px; color: #555; }
-  .signature-area { margin-top: 48px; border-top: 2px solid #000; padding-top: 8px; }
-  .sig-line { display: inline-block; width: 45%; border-bottom: 1px solid #555; margin: 0 2%; }
-  .footer { margin-top: 32px; font-size: 11px; color: #999; }
-</style></head>
-<body>
-  <h1>MOTIVNUTZUNGSVERTRAG</h1>
-  <div class="sub">Drehgenehmigung / Location Release</div>
-  <table>
-    <tr><td>Motiv</td><td>${location.name}</td></tr>
-    <tr><td>Adresse</td><td>${location.address}, ${location.zip} ${location.city}</td></tr>
-    <tr><td>Eigentümer/in</td><td>${release?.owner_name || '_______________'}</td></tr>
-    <tr><td>Adresse Eigentümer</td><td>${release?.owner_address || '_______________'}</td></tr>
-    <tr><td>Drehdaten</td><td>${shootDates.length > 0 ? shootDates.join(', ') : '_______________'}</td></tr>
-    <tr><td>Vergütung</td><td>${fee} EUR</td></tr>
-    <tr><td>Besondere Bedingungen</td><td>${release?.special_conditions || '–'}</td></tr>
-    <tr><td>Status</td><td>${release?.status || 'Entwurf'}</td></tr>
-  </table>
-  <p>Der/die Eigentümer/in erklärt sich hiermit einverstanden, dass die oben genannte Filmproduktion die angegebenen Drehorte an den genannten Terminen für Filmaufnahmen nutzen darf.</p>
-  ${release?.signature_data ? `<div class="signature-area"><img src="${release.signature_data}" style="height:80px;" /></div>` : ''}
-  <div class="signature-area">
-    <div class="sig-line"></div>&nbsp;&nbsp;<div class="sig-line"></div>
-    <br><small style="margin: 0 2%">Ort, Datum &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Unterschrift Eigentümer/in</small>
-  </div>
-  <div class="footer">Generiert mit CutSheet &bull; ${new Date().toLocaleDateString('de-DE')}</div>
-</body></html>`
+  // Adressteile einzeln zusammensetzen — fehlende Angaben duerfen im Vertrag
+  // nicht als "null" stehen
+  const addr = [location.address, [location.zip, location.city].filter(Boolean).join(' ')]
+    .filter(Boolean).join(', ')
 
-  const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] })
-  const page = await browser.newPage()
-  await page.setContent(html)
-  const pdf = await page.pdf({ format: 'A4', margin: { top: '20mm', bottom: '20mm', left: '20mm', right: '20mm' } })
-  await browser.close()
+  const LINIE = '_________________________'
 
-  res.setHeader('Content-Type', 'application/pdf')
-  res.setHeader('Content-Disposition', `attachment; filename="motivvertrag-${location.name.replace(/\s+/g, '-')}.pdf"`)
-  res.send(Buffer.from(pdf))
+  const html = renderDocument({
+    kind: 'Motivnutzungsvertrag',
+    title: location.name,
+    project: project?.title,
+    subtitle: 'Drehgenehmigung / Location Release',
+    accent: '#3f3f46',
+    meta: [
+      { label: 'Status', value: release?.status || 'Entwurf' },
+      { label: 'Stand', value: fmtDate(new Date().toISOString()) },
+    ],
+    footnote: 'Rechtsverbindlich erst mit beiderseitiger Unterschrift',
+    body:
+      section('Vertragsgegenstand', definitions([
+        { label: 'Motiv', value: location.name },
+        { label: 'Adresse', value: addr || LINIE },
+        { label: 'Produktion', value: project?.title },
+        { label: 'Eigentümer/in', value: release?.owner_name || LINIE },
+        { label: 'Adresse Eigentümer/in', value: release?.owner_address || LINIE, wide: true },
+        { label: 'Drehdaten', value: shootDates.length > 0 ? shootDates.join(', ') : LINIE, wide: true },
+        // Im Vertrag gehoert an eine offene Stelle eine Linie zum Ausfuellen,
+        // kein Strich und erst recht keine 0
+        { label: 'Vergütung', value: release?.fee_cents != null ? fmtMoney(release.fee_cents) : LINIE },
+      ])) +
+      section('Vereinbarung',
+        paragraph(
+          'Der/die Eigentümer/in erklärt sich hiermit einverstanden, dass die oben genannte ' +
+          'Filmproduktion das angegebene Motiv an den genannten Terminen für Filmaufnahmen nutzen darf. ' +
+          'Die Produktion verpflichtet sich, das Motiv im ursprünglichen Zustand zu hinterlassen und ' +
+          'entstandene Schäden zu ersetzen.'
+        ) +
+        (release?.special_conditions
+          ? definitions([{ label: 'Besondere Bedingungen', value: release.special_conditions, wide: true }])
+          : '')
+      ) +
+      section('Unterschriften',
+        (release?.signature_data
+          ? `<img src="${String(release.signature_data).replace(/"/g, '&quot;')}" alt="Unterschrift" style="height:60pt;margin-bottom:6pt">`
+          : '') +
+        `<div class="sigs">
+          <div class="sig"><div class="line"></div><div class="cap">Ort, Datum</div></div>
+          <div class="sig"><div class="line"></div><div class="cap">Unterschrift Eigentümer/in</div></div>
+          <div class="sig"><div class="line"></div><div class="cap">Unterschrift Produktion</div></div>
+        </div>`
+      ),
+  })
+
+  try {
+    const pdf = await generatePdf(html, {
+      footer: false,
+      margin: { top: '18mm', bottom: '18mm', left: '18mm', right: '18mm' },
+    })
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="motivvertrag-${slugify(location.name)}.pdf"`)
+    res.send(pdf)
+  } catch (e: any) {
+    res.status(500).json({ data: null, error: `PDF-Fehler: ${e.message}` })
+  }
 })
 
 export default router

@@ -628,12 +628,31 @@ export function Component() {
     onError: saveFailed,
   })
 
-  const debouncedSave = useRef(debounce((data: any) => saveMutation.mutate(data), 600)).current
+  // Offene Aenderung mitfuehren, damit sie nicht verlorengeht, wenn man direkt
+  // nach dem Tippen die Seite wechselt oder das PDF erzeugt — der Speicher-
+  // vorgang ist um 600 ms verzoegert und waere sonst noch nicht gelaufen.
+  const pendingHeader = useRef<any>(null)
+  const debouncedSave = useRef(debounce((data: any) => {
+    pendingHeader.current = null
+    saveMutation.mutate(data)
+  }, 600)).current
+
   const updateHeader = (key: string, value: any) => {
     const next = { ...headerForm, [key]: value }
     setHeaderForm(next)
+    pendingHeader.current = next
     debouncedSave(next)
   }
+
+  /** Offene Aenderung sofort schreiben, ohne auf den Debounce zu warten. */
+  const flushHeader = () => {
+    if (!pendingHeader.current) return
+    const data = pendingHeader.current
+    pendingHeader.current = null
+    saveMutation.mutate(data)
+  }
+
+  useEffect(() => () => { flushHeader() }, [])
 
   const shiftMutation = useMutation({
     mutationFn: (mins: number) => api.callSheets.shiftTimes(callSheet?.id!, mins),
@@ -729,7 +748,13 @@ export function Component() {
 
         {/* PDF download */}
         {selectedDayId && (
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => download(api.pdf.tagesdispo(selectedDayId), 'tagesdispo.pdf')}>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={async () => {
+            // Erst offene Aenderungen schreiben, sonst druckt der Server den
+            // Stand von vor der letzten Eingabe
+            flushHeader()
+            await new Promise(r => setTimeout(r, 250))
+            download(api.pdf.tagesdispo(selectedDayId), 'tagesdispo.pdf')
+          }}>
               <Download className="w-3.5 h-3.5" />PDF
             </Button>
         )}
