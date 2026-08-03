@@ -1,7 +1,13 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import {
+  requireMemberVia, projectIdFromTable, projectIdFromCameraReport,
+} from '../middleware/projectAuth'
 
 const router = Router()
+
+router.use('/shoot-days/:dayId', requireMemberVia(projectIdFromTable('shoot_days', 'dayId')))
+router.use('/camera-reports/:reportId', requireMemberVia(projectIdFromCameraReport))
 
 async function getReportWithTakes(reportId: number) {
   const report = await db.get('SELECT * FROM camera_reports WHERE id = ?', [reportId])

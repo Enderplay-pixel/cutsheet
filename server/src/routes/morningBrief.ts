@@ -1,11 +1,15 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { generatePdf } from './pdf'
+import { requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import {
   renderDocument, table, stats, section, definitions, paragraph, fmtTime, fmtEighths,
 } from '../lib/documentLayout'
 
 const router = Router()
+
+// Der Brief nennt Namen, Call-Zeiten und Motivadressen — nur fuer Projektbeteiligte
+router.use('/shoot-days/:dayId', requireMemberVia(projectIdFromTable('shoot_days', 'dayId')))
 
 
 // GET /api/shoot-days/:dayId/morning-brief

@@ -176,6 +176,9 @@ vi.mock('../db', () => ({
 
 vi.mock('../middleware/projectAuth', () => ({
   requireMember: (_req: any, _res: any, next: any) => next(),
+  requireMemberVia: () => (_req: any, _res: any, next: any) => next(),
+  projectIdFromTable: () => async () => 1,
+  projectIdFromCameraReport: async () => 1,
   getUserProjectRole: async () => 'admin',
 }))
 

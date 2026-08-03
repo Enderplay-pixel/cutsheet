@@ -48,6 +48,59 @@ export async function requireMember(req: Request, res: Response, next: NextFunct
   next()
 }
 
+/**
+ * Wie requireMember, nur wird das Projekt aus einer Kind-Ressource aufgeloest —
+ * Drehtag, Motiv, Kamerabericht.
+ *
+ * Noetig, weil projectWriteGuard GET-Anfragen bewusst durchlaesst und der
+ * Leseschutz damit an jedem Router einzeln haengt. Wer seine Route ueber eine
+ * Kind-Id adressiert (/shoot-days/7/...) statt ueber /projects/3/..., stand
+ * ohne jede Pruefung da.
+ */
+export function requireMemberVia(resolve: (req: Request) => Promise<number | null>) {
+  return async function (req: Request, res: Response, next: NextFunction) {
+    const user = (req as any).user
+    if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+
+    // Globale Administratoren duerfen ueberall hin
+    if (user.role === 'admin') return next()
+
+    const projectId = await resolve(req)
+    // Nicht aufloesbar heisst nicht durchwinken: ein unauffindbares Ziel darf
+    // nicht mehr erlauben als ein auffindbares.
+    if (!projectId) return res.status(404).json({ data: null, error: 'Nicht gefunden' })
+
+    const role = await getUserProjectRole(user.id, projectId)
+    if (role === null) {
+      return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+    }
+
+    ;(req as any).projectRole = role
+    next()
+  }
+}
+
+/** Projekt ueber eine Tabelle mit project_id aufloesen. */
+export function projectIdFromTable(table: 'shoot_days' | 'locations', param: string) {
+  return async (req: Request): Promise<number | null> => {
+    try {
+      const row = await db.get(`SELECT project_id FROM ${table} WHERE id = ?`, [req.params[param]]) as any
+      return row?.project_id ?? null
+    } catch { return null }
+  }
+}
+
+/** Kamerabericht → Drehtag → Projekt. */
+export async function projectIdFromCameraReport(req: Request): Promise<number | null> {
+  try {
+    const row = await db.get(
+      'SELECT sd.project_id FROM camera_reports cr JOIN shoot_days sd ON cr.shoot_day_id = sd.id WHERE cr.id = ?',
+      [req.params.reportId]
+    ) as any
+    return row?.project_id ?? null
+  } catch { return null }
+}
+
 // ─── Project ID extraction from request ───────────────────────────────────────
 async function lookupOne(sql: string, id: string): Promise<number | null> {
   try {
