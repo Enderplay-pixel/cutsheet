@@ -30,6 +30,8 @@ export interface Shot {
   notes: string | null
   duration_seconds: number | null
   done: number | boolean | null
+  /** Circle Take — Freitext, in der Praxis steht auch "3, 5" darin. */
+  best_take?: string | null
   sort_order: number
   /** Als Daten-URI eingebettet — ein Link auf /uploads/… bliebe im Druck leer. */
   storyboard?: string | null
@@ -262,6 +264,24 @@ export function renderShotlistHtml(opts: ShotlistOptions): string {
     { header: 'Objektiv', value: s => (s.lens_mm ? `${s.lens_mm} mm` : null), align: 'right', width: '8%' },
     { header: 'Einstellung', value: s => shotCell(s), html: true },
     { header: 'Dauer', value: s => (seconds(s) > 0 ? `${seconds(s)} s` : null), align: 'right', width: '7%' },
+  )
+
+  // Bester Take: nach Drehtag gebuendelt immer, denn dort wird er am Set von
+  // Hand eingetragen — ein Strich waere da im Weg. Sonst nur, wenn es ihn gibt.
+  if (mode === 'drehtag' || allShots.some(s => String(s.best_take ?? '').trim())) {
+    columns.push({
+      header: 'Bester Take',
+      value: s => {
+        const take = String(s.best_take ?? '').trim()
+        return take ? `<b>${esc(take)}</b>` : '&nbsp;'
+      },
+      html: true,
+      align: 'center',
+      width: '8%',
+    })
+  }
+
+  columns.push(
     { header: '✓', value: s => `<span class="kasten${isDone(s) ? ' voll' : ''}"></span>`, html: true, align: 'center', width: '4%' },
   )
 

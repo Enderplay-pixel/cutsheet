@@ -8,7 +8,7 @@ function shot(over: Partial<Shot> = {}): Shot {
   return {
     id: 1, scene_id: 1, shoot_day_id: 1, shot_number: '1A', size: 'MS',
     movement: 'Statisch', lens_mm: '35', description: 'Anna geht durchs Bild',
-    notes: null, duration_seconds: 30, done: 0, sort_order: 0, ...over,
+    notes: null, best_take: null, duration_seconds: 30, done: 0, sort_order: 0, ...over,
   }
 }
 
@@ -190,6 +190,28 @@ describe('renderShotlistHtml', () => {
     const s1 = [shot({ shoot_day_id: null })]
     const html = renderShotlistHtml({ ...basis, allShots: s1, groups: groupShots(s1, scenes, days, 'szene') })
     expect(html).not.toContain('>Tag</th>')
+  })
+
+  it('zeigt den besten Take, sobald einer erfasst ist', () => {
+    const mit = [shot({ best_take: '3, 5' })]
+    const html = renderShotlistHtml({ ...basis, allShots: mit, groups: groupShots(mit, scenes, days, 'szene') })
+    expect(html).toContain('>Bester Take</th>')
+    expect(html).toContain('3, 5')
+  })
+
+  it('laesst die Spalte nach Szene weg, solange nichts erfasst ist', () => {
+    const html = renderShotlistHtml({ ...basis, allShots: [shot()], groups: groupShots([shot()], scenes, days, 'szene') })
+    expect(html).not.toContain('>Bester Take</th>')
+  })
+
+  it('haelt die Spalte nach Drehtag zum Eintragen frei', () => {
+    // Am Set wird sie mit der Hand gefuellt — ein Strich waere da im Weg
+    const s1 = [shot({ best_take: null })]
+    const html = renderShotlistHtml({
+      ...basis, mode: 'drehtag', allShots: s1, groups: groupShots(s1, scenes, days, 'drehtag'),
+    })
+    expect(html).toContain('>Bester Take</th>')
+    expect(html).toContain('&nbsp;')
   })
 
   it('laeuft quer — sechs Spalten passen nicht ins Hochformat', () => {

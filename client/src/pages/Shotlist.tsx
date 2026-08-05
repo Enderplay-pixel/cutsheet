@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useLayoutEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -15,10 +15,45 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
 import { debounce, getStripClass, eighthsToString, cn } from '@/lib/utils'
-import { Plus, Trash2, Camera, Film, Clock, Download, Check, Copy } from 'lucide-react'
+import { Plus, Trash2, Camera, Film, Clock, Download, Check, Copy, Star } from 'lucide-react'
 
 const SHOT_SIZES = ['ECU', 'CU', 'MCU', 'MS', 'MWS', 'WS', 'EWS', 'Totale', 'Vogelperspektive', 'Froschperspektive']
 const MOVEMENTS = ['Statisch', 'Pan', 'Tilt', 'Pan + Tilt', 'Dolly', 'Fahrt', 'Gimbal', 'Handheld', 'Kran', 'Drohne', 'Zoom']
+
+/**
+ * Textfeld, das mit seinem Inhalt waechst.
+ *
+ * Die Beschreibung stand vorher in einer einzeiligen Eingabe: alles ab der
+ * ersten Zeile war nur durch Scrollen im Feld zu erreichen. Am Set liest man
+ * die Einstellung aber im Ganzen.
+ */
+function AutoTextarea({ value, onChange, placeholder, className }: {
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  className?: string
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    // Erst zuruecksetzen, sonst waechst die Hoehe nur und schrumpft nie wieder
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [value])
+
+  return (
+    <Textarea
+      ref={ref}
+      rows={1}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className={cn('min-h-0 resize-none overflow-hidden py-1.5 leading-snug', className)}
+    />
+  )
+}
 
 function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => void; onDuplicate: () => void }) {
   const [form, setForm] = useState(shot)
@@ -48,50 +83,73 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
   }
 
   return (
-    <div className="flex items-center gap-2 border rounded p-2 bg-card/30 hover:bg-card/50 transition-colors">
-      <span className="font-mono text-xs text-muted-foreground w-8 shrink-0">{shot.shot_number}</span>
+    <div className="border rounded p-2 bg-card/30 hover:bg-card/50 transition-colors space-y-1.5">
+      {/* Kopfzeile: die kurzen, festen Angaben */}
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-xs text-muted-foreground w-8 shrink-0">{shot.shot_number}</span>
 
-      <Select value={form.size || 'MS'} onValueChange={v => update('size', v)}>
-        <SelectTrigger className="w-20 h-7 text-xs shrink-0"><SelectValue /></SelectTrigger>
-        <SelectContent>{SHOT_SIZES.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}</SelectContent>
-      </Select>
+        <Select value={form.size || 'MS'} onValueChange={v => update('size', v)}>
+          <SelectTrigger className="w-20 h-7 text-xs shrink-0"><SelectValue /></SelectTrigger>
+          <SelectContent>{SHOT_SIZES.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}</SelectContent>
+        </Select>
 
-      <Select value={form.movement || 'Statisch'} onValueChange={v => update('movement', v)}>
-        <SelectTrigger className="w-24 h-7 text-xs shrink-0"><SelectValue /></SelectTrigger>
-        <SelectContent>{MOVEMENTS.map(m => <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>)}</SelectContent>
-      </Select>
+        <Select value={form.movement || 'Statisch'} onValueChange={v => update('movement', v)}>
+          <SelectTrigger className="w-24 h-7 text-xs shrink-0"><SelectValue /></SelectTrigger>
+          <SelectContent>{MOVEMENTS.map(m => <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>)}</SelectContent>
+        </Select>
 
-      <div className="flex items-center gap-1 shrink-0">
-        <Input value={form.lens_mm || ''} onChange={e => update('lens_mm', e.target.value)}
-          className="h-7 w-16 text-xs" placeholder="mm" />
-        <span className="text-xs text-muted-foreground">mm</span>
+        <div className="flex items-center gap-1 shrink-0">
+          <Input value={form.lens_mm || ''} onChange={e => update('lens_mm', e.target.value)}
+            className="h-7 w-16 text-xs" placeholder="mm" />
+          <span className="text-xs text-muted-foreground">mm</span>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <Input type="number" value={form.duration_seconds || ''} onChange={e => update('duration_seconds', Number(e.target.value))}
+            className="h-7 w-14 text-xs" placeholder="Sek" />
+          <Clock className="w-3 h-3 text-muted-foreground" />
+        </div>
+
+        {/* Circle Take — Freitext, weil in der Praxis auch "3, 5" darin steht */}
+        <div className="flex items-center gap-1 shrink-0" title="Bester Take (Circle Take)">
+          <Star className={cn('w-3 h-3', form.best_take ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground')} />
+          <Input value={form.best_take || ''} onChange={e => update('best_take', e.target.value)}
+            className="h-7 w-16 text-xs" placeholder="Take" />
+        </div>
+
+        <div className="flex-1" />
+
+        <button
+          onClick={() => toggleDone.mutate()}
+          className={cn(
+            'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0',
+            isDone ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground/40 hover:border-green-500/60'
+          )}
+          title={isDone ? 'Als offen markieren' : 'Als erledigt markieren'}
+        >
+          {isDone && <Check className="w-3 h-3" />}
+        </button>
+        <button onClick={onDuplicate} className="text-muted-foreground hover:text-primary shrink-0" title="Einstellung duplizieren">
+          <Copy className="w-3.5 h-3.5" />
+        </button>
+        <button onClick={onDelete} className="text-muted-foreground hover:text-destructive shrink-0">
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
 
-      <Input value={form.description || ''} onChange={e => update('description', e.target.value)}
-        className="h-7 text-xs flex-1" placeholder="Beschreibung / Inhalt" />
-
-      <div className="flex items-center gap-1 shrink-0">
-        <Input type="number" value={form.duration_seconds || ''} onChange={e => update('duration_seconds', Number(e.target.value))}
-          className="h-7 w-14 text-xs" placeholder="Sek" />
-        <Clock className="w-3 h-3 text-muted-foreground" />
-      </div>
-
-      <button
-        onClick={() => toggleDone.mutate()}
-        className={cn(
-          'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0',
-          isDone ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground/40 hover:border-green-500/60'
-        )}
-        title={isDone ? 'Als offen markieren' : 'Als erledigt markieren'}
-      >
-        {isDone && <Check className="w-3 h-3" />}
-      </button>
-      <button onClick={onDuplicate} className="text-muted-foreground hover:text-primary shrink-0" title="Einstellung duplizieren">
-        <Copy className="w-3.5 h-3.5" />
-      </button>
-      <button onClick={onDelete} className="text-muted-foreground hover:text-destructive shrink-0">
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
+      {/* Beschreibung und Notiz auf voller Breite — hier steht der lange Text */}
+      <AutoTextarea
+        value={form.description || ''}
+        onChange={v => update('description', v)}
+        placeholder="Beschreibung / Inhalt"
+        className="text-xs"
+      />
+      <AutoTextarea
+        value={form.notes || ''}
+        onChange={v => update('notes', v)}
+        placeholder="Notiz (VFX, Requisite, Sicherheit) — erscheint im PDF"
+        className="text-xs text-muted-foreground"
+      />
     </div>
   )
 }

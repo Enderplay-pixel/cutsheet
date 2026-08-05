@@ -811,6 +811,9 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS checked_in_at TIMESTAMPTZ`)
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ`)
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMPTZ`)
+  // Circle Take: welcher Take gedruckt wird. Freitext, weil in der Praxis auch
+  // "3, 5" oder "2 (Ton ab 4)" darin steht.
+  await db.exec(`ALTER TABLE shots ADD COLUMN IF NOT EXISTS best_take TEXT NOT NULL DEFAULT ''`)
   await db.exec(`ALTER TABLE screenplay_blocks ADD COLUMN IF NOT EXISTS annotation_color TEXT NOT NULL DEFAULT '#f59e0b'`)
   await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false`)
   // Projektart: 'film' = klassische Produktion, 'creator' = Content-/YouTube-Kanal.

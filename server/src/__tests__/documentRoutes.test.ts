@@ -68,6 +68,7 @@ const shots = Array.from({ length: 55 }, (_, i) => ({
   done: i % 3 === 0 ? 1 : 0,
   shoot_day_id: i % 7 === 0 ? null : (i % 2) + 1,
   storyboard_url: null,
+  best_take: i % 4 === 1 ? String((i % 3) + 2) : '',
 }))
 
 const equipmentItems = Array.from({ length: 25 }, (_, i) => ({
@@ -305,6 +306,11 @@ describe('Dokumentrouten', () => {
     const { html } = await hole('shotlist-drehtag', '/api/projects/1/pdf/shotlist?nach=drehtag')
     expect(html).toContain('Drehtag 1')
     expect(html).toContain('Noch keinem Drehtag zugeordnet')
+  })
+
+  it('nimmt den besten Take mit', async () => {
+    const { html } = await hole('shotlist', '/api/projects/1/pdf/shotlist')
+    expect(html).toContain('>Bester Take</th>')
   })
 
   it('nimmt Notiz und Erledigt-Haken der Einstellung mit', async () => {

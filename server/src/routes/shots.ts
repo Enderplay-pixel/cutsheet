@@ -46,8 +46,11 @@ router.post('/scenes/:sceneId/shots', async (req, res) => {
 
 // PUT /api/shots/:id
 router.put('/shots/:id', async (req, res) => {
-  const { shot_number, size, movement, lens_mm, description, notes, duration_seconds, sort_order, done } = req.body
-  await db.run('UPDATE shots SET shot_number=?, size=?, movement=?, lens_mm=?, description=?, notes=?, duration_seconds=?, sort_order=COALESCE(?,sort_order), done=COALESCE(?,done) WHERE id=?', [shot_number, size, movement, lens_mm, description, notes, duration_seconds, sort_order ?? null, done != null ? (done ? 1 : 0) : null, req.params.id])
+  const { shot_number, size, movement, lens_mm, description, notes, best_take, duration_seconds, sort_order, done } = req.body
+  await db.run(
+    'UPDATE shots SET shot_number=?, size=?, movement=?, lens_mm=?, description=?, notes=?, best_take=COALESCE(?,best_take), duration_seconds=?, sort_order=COALESCE(?,sort_order), done=COALESCE(?,done) WHERE id=?',
+    [shot_number, size, movement, lens_mm, description, notes, best_take ?? null, duration_seconds, sort_order ?? null, done != null ? (done ? 1 : 0) : null, req.params.id]
+  )
   res.json({ data: await db.get('SELECT * FROM shots WHERE id = ?', [req.params.id]), error: null })
 })
 
