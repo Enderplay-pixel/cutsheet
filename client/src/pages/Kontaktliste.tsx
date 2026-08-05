@@ -191,30 +191,32 @@ export function Component() {
       </div>
 
       <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border/60 bg-muted/30">
-              {[tt(contactsT.colName), tt(contactsT.colType), tt(contactsT.colDept), tt(contactsT.colEmail), tt(contactsT.colPhone)].map(h => (
-                <th key={h} className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              [1,2,3,4,5].map(i => (
-                <tr key={i} className="border-b border-border/30">
-                  {[1,2,3,4,5].map(j => <td key={j} className="py-2.5 px-4"><div className="h-4 bg-muted rounded animate-pulse" /></td>)}
-                </tr>
-              ))
-            ) : allContacts.length === 0 ? (
-              <tr><td colSpan={5} className="py-16 text-center text-sm text-muted-foreground">{tt(contactsT.noContacts)}</td></tr>
-            ) : (
-              allContacts.map((c, i) => (
-                <ContactRow key={i} name={c.name} role={c.role} dept={c.dept} email={c.email} phone={c.phone} type={c.type} />
-              ))
-            )}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <table className="w-full min-w-[560px]">
+            <thead>
+              <tr className="border-b border-border/60 bg-muted/30">
+                {[tt(contactsT.colName), tt(contactsT.colType), tt(contactsT.colDept), tt(contactsT.colEmail), tt(contactsT.colPhone)].map(h => (
+                  <th key={h} className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                [1,2,3,4,5].map(i => (
+                  <tr key={i} className="border-b border-border/30">
+                    {[1,2,3,4,5].map(j => <td key={j} className="py-2.5 px-4"><div className="h-4 bg-muted rounded animate-pulse" /></td>)}
+                  </tr>
+                ))
+              ) : allContacts.length === 0 ? (
+                <tr><td colSpan={5} className="py-16 text-center text-sm text-muted-foreground">{tt(contactsT.noContacts)}</td></tr>
+              ) : (
+                allContacts.map((c, i) => (
+                  <ContactRow key={i} name={c.name} role={c.role} dept={c.dept} email={c.email} phone={c.phone} type={c.type} />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

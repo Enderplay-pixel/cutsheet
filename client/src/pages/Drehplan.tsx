@@ -254,7 +254,7 @@ export function Component() {
           title="Drehplan"
           subtitle={`${shootDays?.length || 0} Drehtage · ${scheduledSceneIds.size} von ${allScenes?.length || 0} Szenen geplant`}
           actions={
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={() => download(api.pdf.drehplan(pid), 'drehplan.pdf')}>
                   <Download className="w-4 h-4 mr-2" />PDF
                 </Button>
@@ -277,7 +277,7 @@ export function Component() {
 
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full w-full">
-          <div className="flex gap-4 p-6 pt-0 min-h-full">
+          <div className="flex gap-4 p-4 sm:p-6 pt-0 min-h-full">
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}

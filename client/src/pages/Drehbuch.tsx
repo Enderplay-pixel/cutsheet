@@ -267,7 +267,7 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
                 </button>
               ))}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Select value={newItemCat} onValueChange={setNewItemCat}>
                 <SelectTrigger className="w-32 h-7 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>{INVENTORY_CATS.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
@@ -393,7 +393,7 @@ export function Component() {
                 .replace('{m}', String(totalMinutes))}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
               <Upload className="w-3.5 h-3.5 mr-1.5" />{tt(scenesT.importBtn)}
             </Button>

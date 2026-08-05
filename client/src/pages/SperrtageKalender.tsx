@@ -136,7 +136,7 @@ export function Component() {
               Nicht-Verfügbarkeiten der Darsteller
             </p>
           </div>
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex items-center gap-3 pt-1 flex-wrap">
             <div className="flex items-center gap-5">
               <div className="text-right">
                 <div className="text-[2.25rem] font-bold tabular-nums tracking-tight leading-none">{castCount}</div>

@@ -1,6 +1,6 @@
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Moon, Sun, Clapperboard, ChevronRight } from 'lucide-react'
+import { Search, Moon, Sun, Clapperboard, ChevronRight, Menu } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -13,7 +13,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ onSearchOpen }: TopBarProps) {
-  const { darkMode, toggleDarkMode, lastSaved } = useProjectStore()
+  const { darkMode, toggleDarkMode, lastSaved, setMobileNav } = useProjectStore()
   const { projectId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
@@ -43,8 +43,17 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
 
   return (
     <header className={cn(
-      'flex items-center h-[56px] px-5 border-b border-border bg-card/70 backdrop-blur-md gap-4 shrink-0',
+      'flex items-center h-[56px] px-3 md:px-5 border-b border-border bg-card/70 backdrop-blur-md gap-2 md:gap-4 shrink-0',
     )}>
+      {/* Navigation aufklappen — ersetzt am Telefon die feste Spalte */}
+      <button
+        onClick={() => setMobileNav(true)}
+        className="md:hidden w-9 h-9 -ml-2 flex items-center justify-center rounded-lg hover:bg-foreground/5 text-muted-foreground hover:text-foreground shrink-0"
+        aria-label="Navigation öffnen"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
       {/* Breadcrumb: project › page */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">

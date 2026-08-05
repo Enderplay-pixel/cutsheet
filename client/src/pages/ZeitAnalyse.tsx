@@ -201,78 +201,80 @@ export function Component() {
 
           {/* Table */}
           <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Szene</th>
-                  <th>Titel</th>
-                  <th className="text-right">Geplant</th>
-                  <th className="text-right">Ist</th>
-                  <th className="text-right">Differenz</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.map(row => {
-                  const diff = row.difference_minutes
-                  const hasActual = row.actual_minutes > 0
-                  return (
-                    <tr key={row.scene_id} className="no-page-break">
-                      <td className="font-mono text-xs">{row.scene_number}</td>
-                      <td className="max-w-[220px] truncate">{row.title || '—'}</td>
-                      <td className="text-right tabular-nums text-sm">
-                        {formatMinutes(row.estimated_minutes)}
-                      </td>
-                      <td className="text-right tabular-nums text-sm">
-                        {hasActual ? formatMinutes(row.actual_minutes) : (
-                          <span className="text-muted-foreground/40">—</span>
-                        )}
-                      </td>
-                      <td className="text-right tabular-nums text-sm">
-                        {hasActual ? (
-                          <span className={cn(
-                            'inline-flex items-center gap-1',
-                            diff > 0 ? 'text-red-400' :
-                            diff < 0 ? 'text-green-400' :
-                            'text-muted-foreground'
-                          )}>
-                            {diff > 0
-                              ? <TrendingUp className="w-3 h-3" />
-                              : diff < 0
-                                ? <TrendingDown className="w-3 h-3" />
-                                : <Minus className="w-3 h-3" />
-                            }
-                            {diff >= 0 ? '+' : ''}{formatMinutes(diff)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground/40">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-border font-semibold">
-                  <td colSpan={2} className="py-3 px-3 pl-4 text-xs uppercase tracking-wide text-muted-foreground">
-                    Gesamt
-                  </td>
-                  <td className="text-right tabular-nums py-3 px-3">
-                    {formatMinutes(totalEstimated)}
-                  </td>
-                  <td className="text-right tabular-nums py-3 px-3">
-                    {totalActual > 0 ? formatMinutes(totalActual) : '—'}
-                  </td>
-                  <td className={cn(
-                    'text-right tabular-nums py-3 px-3 pr-4',
-                    totalDiff > 0 ? 'text-red-400' :
-                    totalDiff < 0 ? 'text-green-400' :
-                    ''
-                  )}>
-                    {totalActual > 0 ? `${totalDiff >= 0 ? '+' : ''}${formatMinutes(totalDiff)}` : '—'}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+            <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+              <table className="data-table min-w-[520px]">
+                <thead>
+                  <tr>
+                    <th>Szene</th>
+                    <th>Titel</th>
+                    <th className="text-right">Geplant</th>
+                    <th className="text-right">Ist</th>
+                    <th className="text-right">Differenz</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.map(row => {
+                    const diff = row.difference_minutes
+                    const hasActual = row.actual_minutes > 0
+                    return (
+                      <tr key={row.scene_id} className="no-page-break">
+                        <td className="font-mono text-xs">{row.scene_number}</td>
+                        <td className="max-w-[220px] truncate">{row.title || '—'}</td>
+                        <td className="text-right tabular-nums text-sm">
+                          {formatMinutes(row.estimated_minutes)}
+                        </td>
+                        <td className="text-right tabular-nums text-sm">
+                          {hasActual ? formatMinutes(row.actual_minutes) : (
+                            <span className="text-muted-foreground/40">—</span>
+                          )}
+                        </td>
+                        <td className="text-right tabular-nums text-sm">
+                          {hasActual ? (
+                            <span className={cn(
+                              'inline-flex items-center gap-1',
+                              diff > 0 ? 'text-red-400' :
+                              diff < 0 ? 'text-green-400' :
+                              'text-muted-foreground'
+                            )}>
+                              {diff > 0
+                                ? <TrendingUp className="w-3 h-3" />
+                                : diff < 0
+                                  ? <TrendingDown className="w-3 h-3" />
+                                  : <Minus className="w-3 h-3" />
+                              }
+                              {diff >= 0 ? '+' : ''}{formatMinutes(diff)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/40">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border font-semibold">
+                    <td colSpan={2} className="py-3 px-3 pl-4 text-xs uppercase tracking-wide text-muted-foreground">
+                      Gesamt
+                    </td>
+                    <td className="text-right tabular-nums py-3 px-3">
+                      {formatMinutes(totalEstimated)}
+                    </td>
+                    <td className="text-right tabular-nums py-3 px-3">
+                      {totalActual > 0 ? formatMinutes(totalActual) : '—'}
+                    </td>
+                    <td className={cn(
+                      'text-right tabular-nums py-3 px-3 pr-4',
+                      totalDiff > 0 ? 'text-red-400' :
+                      totalDiff < 0 ? 'text-green-400' :
+                      ''
+                    )}>
+                      {totalActual > 0 ? `${totalDiff >= 0 ? '+' : ''}${formatMinutes(totalDiff)}` : '—'}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
         </>
       )}

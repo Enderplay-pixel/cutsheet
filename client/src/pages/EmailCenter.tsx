@@ -214,7 +214,7 @@ export function Component() {
                   rows={10} className="mt-1 text-sm resize-none" placeholder="Nachrichtentext…" />
               </div>
 
-              <div className="flex gap-2 pt-1">
+              <div className="flex gap-2 pt-1 flex-wrap">
                 <Button variant="outline" size="sm" onClick={copyEmails} disabled={selectedEmails.length === 0}>
                   {copied ? <Check className="w-4 h-4 mr-2 text-green-500" /> : <Copy className="w-4 h-4 mr-2" />}
                   E-Mails kopieren

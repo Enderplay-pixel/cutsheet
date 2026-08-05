@@ -219,7 +219,7 @@ export function Component() {
     <div className="p-7 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Music className="w-5 h-5 text-muted-foreground" />
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Musikliste / GEMA-Cuesheet</h1>
@@ -228,7 +228,7 @@ export function Component() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={() => exportCSV(allCues)} disabled={allCues.length === 0}>
             <Download className="w-4 h-4 mr-2" /> CSV-Export (GEMA)
           </Button>
@@ -243,42 +243,44 @@ export function Component() {
       {/* Table */}
       <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border/60 bg-muted/30">
-                {['Titel', 'Komponist', 'Verlag', 'Textdichter', 'Dauer', 'Lizenzart', 'Verwendung', 'Szene', 'Notizen', ''].map((h, i) => (
-                  <th key={i} className="text-left py-2.5 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {adding && <CueFormRow pid={pid} onDone={() => setAdding(false)} />}
-              {isLoading ? (
-                [1, 2, 3].map(i => (
-                  <tr key={i} className="border-b border-border/40">
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(j => (
-                      <td key={j} className="py-2.5 px-3"><div className="h-4 bg-muted rounded animate-pulse" /></td>
-                    ))}
-                  </tr>
-                ))
-              ) : allCues.length === 0 && !adding ? (
-                <tr>
-                  <td colSpan={10} className="py-16 text-center">
-                    <Music className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Noch keine Musikcues erfasst</p>
-                  </td>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <table className="w-full min-w-[560px]">
+              <thead>
+                <tr className="border-b border-border/60 bg-muted/30">
+                  {['Titel', 'Komponist', 'Verlag', 'Textdichter', 'Dauer', 'Lizenzart', 'Verwendung', 'Szene', 'Notizen', ''].map((h, i) => (
+                    <th key={i} className="text-left py-2.5 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
+                  ))}
                 </tr>
-              ) : (
-                allCues.map(c =>
-                  editingId === c.id ? (
-                    <CueFormRow key={c.id} initial={c} pid={pid} onDone={() => setEditingId(null)} />
-                  ) : (
-                    <CueRow key={c.id} cue={c} pid={pid} onEdit={cue => { setEditingId(cue.id); setAdding(false) }} />
+              </thead>
+              <tbody>
+                {adding && <CueFormRow pid={pid} onDone={() => setAdding(false)} />}
+                {isLoading ? (
+                  [1, 2, 3].map(i => (
+                    <tr key={i} className="border-b border-border/40">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(j => (
+                        <td key={j} className="py-2.5 px-3"><div className="h-4 bg-muted rounded animate-pulse" /></td>
+                      ))}
+                    </tr>
+                  ))
+                ) : allCues.length === 0 && !adding ? (
+                  <tr>
+                    <td colSpan={10} className="py-16 text-center">
+                      <Music className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">Noch keine Musikcues erfasst</p>
+                    </td>
+                  </tr>
+                ) : (
+                  allCues.map(c =>
+                    editingId === c.id ? (
+                      <CueFormRow key={c.id} initial={c} pid={pid} onDone={() => setEditingId(null)} />
+                    ) : (
+                      <CueRow key={c.id} cue={c} pid={pid} onEdit={cue => { setEditingId(cue.id); setAdding(false) }} />
+                    )
                   )
-                )
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

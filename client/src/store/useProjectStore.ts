@@ -10,7 +10,11 @@ interface ProjectStore {
   toggleDarkMode: () => void
 
   sidebarCollapsed: boolean
+  /** Navigations-Schublade am Telefon. Bewusst nicht gespeichert:
+   *  beim naechsten Laden soll sie wieder zu sein. */
+  mobileNavOpen: boolean
   toggleSidebar: () => void
+  setMobileNav: (open: boolean) => void
 
   searchOpen: boolean
   setSearchOpen: (open: boolean) => void
@@ -43,7 +47,9 @@ export const useProjectStore = create<ProjectStore>()(
       },
 
       sidebarCollapsed: false,
+      mobileNavOpen: false,
       toggleSidebar: () => set(s => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+      setMobileNav: (open: boolean) => set({ mobileNavOpen: open }),
 
       searchOpen: false,
       setSearchOpen: (open) => set({ searchOpen: open }),

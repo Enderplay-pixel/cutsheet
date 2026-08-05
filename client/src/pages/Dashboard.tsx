@@ -369,7 +369,7 @@ export function Component() {
             </div>
 
             {!conflicts?.length ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <div className="w-1.5 h-1.5 rounded-full bg-success shrink-0" />
                 <p className="text-sm text-success font-semibold">{tt(dashT.noConflicts)}</p>
               </div>

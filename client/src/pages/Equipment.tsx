@@ -140,37 +140,39 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
       </AccordionTrigger>
       <AccordionContent className="px-4 pb-4">
         {isLoading ? <Skeleton className="h-32" /> : (
-          <table className="w-full">
-            <thead>
-              <tr className="text-xs text-muted-foreground border-b border-border">
-                <th className="py-1.5 pl-3 w-8" />
-                <th className="text-left py-1.5 px-2">{tt(equipT.labelItem)}</th>
-                <th className="text-center py-1.5 px-2 w-16">{tt(equipT.labelQty)}</th>
-                <th className="text-left py-1.5 px-2 w-36">Verleiher</th>
-                <th className="text-right py-1.5 px-2 w-28">Preis/Tag</th>
-                <th className="text-center py-1.5 px-2 w-16">Tage</th>
-                <th className="text-right py-1.5 px-2 w-24">Gesamt</th>
-                <th className="w-8" />
-              </tr>
-            </thead>
-            <tbody>
-              {(items || []).map((item: any) => (
-                <EquipmentItemRow key={item.id} item={item} shootDayCount={shootDayCount} onDelete={() => deleteItem.mutate(item.id)} />
-              ))}
-              {(!items || items.length === 0) && (
-                <tr><td colSpan={8} className="py-4 text-center text-muted-foreground text-sm">Noch keine Positionen.</td></tr>
-              )}
-            </tbody>
-            {(items && items.length > 0) && (
-              <tfoot className="border-t border-border bg-muted/20">
-                <tr>
-                  <td colSpan={6} className="py-1.5 pl-3 text-xs font-semibold">Summe</td>
-                  <td className="py-1.5 pr-4 text-right font-mono text-sm font-bold">{formatCurrency(totalCost)}</td>
-                  <td />
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <table className="w-full min-w-[560px]">
+              <thead>
+                <tr className="text-xs text-muted-foreground border-b border-border">
+                  <th className="py-1.5 pl-3 w-8" />
+                  <th className="text-left py-1.5 px-2">{tt(equipT.labelItem)}</th>
+                  <th className="text-center py-1.5 px-2 w-16">{tt(equipT.labelQty)}</th>
+                  <th className="text-left py-1.5 px-2 w-36">Verleiher</th>
+                  <th className="text-right py-1.5 px-2 w-28">Preis/Tag</th>
+                  <th className="text-center py-1.5 px-2 w-16">Tage</th>
+                  <th className="text-right py-1.5 px-2 w-24">Gesamt</th>
+                  <th className="w-8" />
                 </tr>
-              </tfoot>
-            )}
-          </table>
+              </thead>
+              <tbody>
+                {(items || []).map((item: any) => (
+                  <EquipmentItemRow key={item.id} item={item} shootDayCount={shootDayCount} onDelete={() => deleteItem.mutate(item.id)} />
+                ))}
+                {(!items || items.length === 0) && (
+                  <tr><td colSpan={8} className="py-4 text-center text-muted-foreground text-sm">Noch keine Positionen.</td></tr>
+                )}
+              </tbody>
+              {(items && items.length > 0) && (
+                <tfoot className="border-t border-border bg-muted/20">
+                  <tr>
+                    <td colSpan={6} className="py-1.5 pl-3 text-xs font-semibold">Summe</td>
+                    <td className="py-1.5 pr-4 text-right font-mono text-sm font-bold">{formatCurrency(totalCost)}</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
         )}
         {canEdit && (
           <Button variant="ghost" size="sm" className="text-xs mt-2 w-full" onClick={() => createItem.mutate()}>
@@ -216,7 +218,7 @@ export function Component() {
         title={tt(equipT.title)}
         subtitle={`${lists?.length || 0} Listen · ${shootDayCount} Drehtage geplant`}
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={() => download(api.pdf.equipment(pid), 'equipment.pdf')}>
                 <Download className="w-4 h-4 mr-1" />PDF
               </Button>

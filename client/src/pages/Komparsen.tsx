@@ -157,14 +157,14 @@ export function Component() {
     <div className="p-7 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Users className="w-5 h-5 text-muted-foreground" />
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Komparsen</h1>
             <p className="text-sm text-muted-foreground">{extras.length} Einträge</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {/* Tarif filter */}
           <Select value={filterTarif} onValueChange={setFilterTarif}>
             <SelectTrigger className="h-9 w-36 text-sm">
@@ -185,60 +185,62 @@ export function Component() {
       {/* Table */}
       <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border/60 bg-muted/30">
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name</th>
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Telefon</th>
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">E-Mail</th>
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tarifgruppe</th>
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notizen</th>
-                <th className="w-20" />
-              </tr>
-            </thead>
-            <tbody>
-              {adding && (
-                <ExtraFormRow pid={pid} onDone={() => setAdding(false)} />
-              )}
-              {isLoading ? (
-                [1,2,3].map(i => (
-                  <tr key={i} className="border-b border-border/40">
-                    {[1,2,3,4,5,6].map(j => (
-                      <td key={j} className="py-2.5 px-4">
-                        <div className="h-4 bg-muted rounded animate-pulse" />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : filtered.length === 0 && !adding ? (
-                <tr>
-                  <td colSpan={6} className="py-16 text-center text-muted-foreground text-sm">
-                    {filterTarif === 'alle'
-                      ? 'Keine Komparsen vorhanden. Füge den ersten hinzu.'
-                      : `Keine Komparsen in Tarifgruppe ${filterTarif}.`}
-                  </td>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <table className="w-full min-w-[560px]">
+              <thead>
+                <tr className="border-b border-border/60 bg-muted/30">
+                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name</th>
+                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Telefon</th>
+                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">E-Mail</th>
+                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tarifgruppe</th>
+                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notizen</th>
+                  <th className="w-20" />
                 </tr>
-              ) : (
-                filtered.map((e: Extra) =>
-                  editingId === e.id ? (
-                    <ExtraFormRow
-                      key={e.id}
-                      initial={e}
-                      pid={pid}
-                      onDone={() => setEditingId(null)}
-                    />
-                  ) : (
-                    <ExtraRow
-                      key={e.id}
-                      extra={e}
-                      pid={pid}
-                      onEdit={ex => { setEditingId(ex.id); setAdding(false) }}
-                    />
+              </thead>
+              <tbody>
+                {adding && (
+                  <ExtraFormRow pid={pid} onDone={() => setAdding(false)} />
+                )}
+                {isLoading ? (
+                  [1,2,3].map(i => (
+                    <tr key={i} className="border-b border-border/40">
+                      {[1,2,3,4,5,6].map(j => (
+                        <td key={j} className="py-2.5 px-4">
+                          <div className="h-4 bg-muted rounded animate-pulse" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : filtered.length === 0 && !adding ? (
+                  <tr>
+                    <td colSpan={6} className="py-16 text-center text-muted-foreground text-sm">
+                      {filterTarif === 'alle'
+                        ? 'Keine Komparsen vorhanden. Füge den ersten hinzu.'
+                        : `Keine Komparsen in Tarifgruppe ${filterTarif}.`}
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((e: Extra) =>
+                    editingId === e.id ? (
+                      <ExtraFormRow
+                        key={e.id}
+                        initial={e}
+                        pid={pid}
+                        onDone={() => setEditingId(null)}
+                      />
+                    ) : (
+                      <ExtraRow
+                        key={e.id}
+                        extra={e}
+                        pid={pid}
+                        onEdit={ex => { setEditingId(ex.id); setAdding(false) }}
+                      />
+                    )
                   )
-                )
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

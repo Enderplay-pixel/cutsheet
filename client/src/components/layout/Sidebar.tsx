@@ -44,7 +44,7 @@ export function Sidebar() {
   const { projectId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { sidebarCollapsed, toggleSidebar } = useProjectStore()
+  const { sidebarCollapsed, toggleSidebar, mobileNavOpen, setMobileNav } = useProjectStore()
   const { user } = useAuth()
   const tt = useT()
 
@@ -240,12 +240,32 @@ export function Sidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGroupLabel])
 
+  // Nach der Auswahl schliessen, sonst verdeckt die Schublade genau die Seite,
+  // die man gerade angetippt hat
+  useEffect(() => { setMobileNav(false) }, [location.pathname, setMobileNav])
+
   const pid = projectId
 
   return (
+    <>
+      {/* Hintergrund, solange die Schublade offen ist — nur am Telefon */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 md:hidden"
+          onClick={() => setMobileNav(false)}
+          aria-hidden
+        />
+      )}
+
     <aside className={cn(
-      'flex flex-col h-screen bg-card border-r border-border sidebar-transition shrink-0 relative',
-      sidebarCollapsed ? 'w-[52px]' : 'w-[220px]'
+      'flex flex-col h-screen bg-card border-r border-border sidebar-transition relative',
+      // Ab md wie bisher eine feste Spalte im Fluss
+      'md:shrink-0 md:translate-x-0 md:static md:z-auto',
+      // Darunter eine Schublade ueber dem Inhalt: 220 px fester Abzug waeren
+      // auf einem 375-px-Display mehr als die Haelfte des Bildschirms
+      'fixed inset-y-0 left-0 z-50 w-[240px]',
+      mobileNavOpen ? 'translate-x-0' : '-translate-x-full',
+      sidebarCollapsed ? 'md:w-[52px]' : 'md:w-[220px]'
     )}>
       {/* Logo / Brand */}
       <div
@@ -316,7 +336,7 @@ export function Sidebar() {
       <div className="border-t border-border shrink-0">
         <FeedbackWidget collapsed={sidebarCollapsed} />
         <UserMenu collapsed={sidebarCollapsed} />
-        <div className="px-2 pb-2">
+        <div className="px-2 pb-2 hidden md:block">
           <button
             onClick={toggleSidebar}
             className="w-full flex items-center justify-center h-8 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-[background-color,color,transform] duration-150 active:scale-[0.92]"
@@ -332,6 +352,7 @@ export function Sidebar() {
         </div>
       </div>
     </aside>
+    </>
   )
 }
 

@@ -84,8 +84,9 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
 
   return (
     <div className="border rounded p-2 bg-card/30 hover:bg-card/50 transition-colors space-y-1.5">
-      {/* Kopfzeile: die kurzen, festen Angaben */}
-      <div className="flex items-center gap-2">
+      {/* Kopfzeile: die kurzen, festen Angaben. Am Telefon umbrechend —
+          nebeneinander braucht die Reihe rund 570 px. */}
+      <div className="flex items-center gap-2 flex-wrap">
         <span className="font-mono text-xs text-muted-foreground w-8 shrink-0">{shot.shot_number}</span>
 
         <Select value={form.size || 'MS'} onValueChange={v => update('size', v)}>
@@ -117,7 +118,7 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
             className="h-7 w-16 text-xs" placeholder="Take" />
         </div>
 
-        <div className="flex-1" />
+        <div className="hidden md:block flex-1" />
 
         <button
           onClick={() => toggleDone.mutate()}
