@@ -214,7 +214,7 @@ function CameraReport({ report, onDelete }: { report: any; onDelete: () => void 
     <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
       {/* Reel info header bar */}
       <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-border/30 bg-muted/20">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <CameraLetterCircle letter={report.camera_letter} size="md" />
           <div>
             <div className="font-semibold text-sm leading-tight">Kamera {report.camera_letter}</div>
@@ -226,7 +226,7 @@ function CameraReport({ report, onDelete }: { report: any; onDelete: () => void 
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Mini stats */}
           {!isLoading && (
             <div className="hidden sm:flex items-center gap-4 text-center">
@@ -359,7 +359,7 @@ export function Component() {
   return (
     <div className="p-7 max-w-6xl mx-auto animate-fade-up">
       {/* Page hero */}
-      <div className="mb-8 pb-7 border-b border-border/40 flex items-start justify-between gap-4">
+      <div className="mb-8 pb-7 border-b border-border/40 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Kameraberichte</h1>
           <p className="text-sm text-muted-foreground/60 mt-1.5">Takes und Kameraaufzeichnungen pro Drehtag</p>
@@ -372,7 +372,7 @@ export function Component() {
 
       {/* Stats row — only when day is selected and reports loaded */}
       {selectedDayId && !reportsLoading && totalReports > 0 && (
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
           <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group">
             <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center mb-3">
               <Clapperboard className="w-4 h-4 text-muted-foreground/70" />
@@ -427,7 +427,7 @@ export function Component() {
         <div className="mb-8">
           <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">Neuer Bericht</p>
           <div className="rounded-xl border border-border/60 bg-card p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {availableLetters.map(l => (
                 <button
                   key={l}

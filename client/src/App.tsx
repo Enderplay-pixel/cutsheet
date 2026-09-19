@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Outlet, useNavigate, useParams } from 'react-router-dom'
+import { Outlet, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
 import { Toaster } from '@/components/ui/toaster'
@@ -22,6 +22,7 @@ import { appT } from '@/lib/i18n'
 function AppShell() {
   const { projectId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { darkMode, setActiveProjectId, searchOpen, setSearchOpen } = useProjectStore()
   const [searchVisible, setSearchVisible] = useState(false)
   const { user, justRegistered, clearJustRegistered } = useAuth()
@@ -97,7 +98,7 @@ function AppShell() {
     <ProjectRoleProvider role={myRole}>
       <TooltipProvider delayDuration={300}>
         <SkipLink />
-        <div className="flex h-screen overflow-hidden bg-background">
+        <div className="flex h-dvh overflow-hidden bg-background">
           <Sidebar />
           <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
             <TopBar onSearchOpen={() => setSearchVisible(true)} />
@@ -109,7 +110,7 @@ function AppShell() {
               </div>
             )}
             <main id="main-content" className="flex-1 overflow-auto" role="main">
-              <ErrorBoundary>
+              <ErrorBoundary key={location.pathname}>
                 <Outlet />
               </ErrorBoundary>
             </main>

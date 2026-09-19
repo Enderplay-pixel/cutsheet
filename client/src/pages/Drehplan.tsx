@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors,
   type DragStartEvent, type DragEndEvent, type DragOverEvent, closestCenter
 } from '@dnd-kit/core'
 import { api } from '@/lib/api'
@@ -130,8 +130,13 @@ export function Component() {
     queryFn: () => api.scenes.list(pid),
   })
 
+  // Maus und Finger getrennt: Mit einem Abstandsschwellwert fuer beide wird
+  // am Touchscreen jede Wischgeste, die auf einer Szene beginnt, zum Ziehen —
+  // das Brett liesse sich dann nicht mehr scrollen. Am Finger hebt erst kurzes
+  // Halten die Szene an; wer sofort wischt, scrollt.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
   )
 
   const removeSceneMutation = useMutation({

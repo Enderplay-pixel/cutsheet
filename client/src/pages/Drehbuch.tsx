@@ -146,7 +146,7 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
             }}
             title={scene.shot_status === 'abgedreht' ? 'Abgedreht ✓' : 'Noch nicht gedreht'}
             className={cn(
-              'w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold transition-colors shrink-0',
+              'w-8 h-8 md:w-5 md:h-5 flex items-center justify-center rounded-full text-xs font-bold transition-colors shrink-0',
               scene.shot_status === 'abgedreht'
                 ? 'bg-green-500/15 text-green-500 ring-1 ring-green-500/30'
                 : 'bg-muted/60 text-muted-foreground/40 hover:text-muted-foreground'

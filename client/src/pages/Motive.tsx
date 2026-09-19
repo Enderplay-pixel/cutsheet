@@ -302,8 +302,8 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
             <Input value={form.name || ''} onChange={e => update('name', e.target.value)} className="mt-1 h-8 text-sm" />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
               <Label className="text-xs text-muted-foreground">{tt(locT.labelAddress)}</Label>
               <Input value={form.address || ''} onChange={e => update('address', e.target.value)} className="mt-1 h-8 text-xs" />
             </div>

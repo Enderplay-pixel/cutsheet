@@ -155,7 +155,7 @@ export function Component() {
 
       <div className="max-w-4xl mx-auto px-8 py-14">
         {/* Header */}
-        <div className="flex items-center justify-between mb-12">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-12">
           <div className="flex items-center gap-4">
             <div className="w-11 h-11 bg-primary rounded-xl flex items-center justify-center shadow-[0_0_24px_hsl(0_72%_51%/0.35)] shrink-0">
               <Clapperboard className="w-5 h-5 text-white" />
@@ -280,7 +280,7 @@ export function Component() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                  <div className="flex items-center gap-0.5 shrink-0 opacity-100 md:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
                     {!showArchived && (
                       <button
                         onClick={e => { e.stopPropagation(); duplicateMutation.mutate(project.id) }}

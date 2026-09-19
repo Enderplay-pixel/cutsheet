@@ -85,7 +85,7 @@ export function Component() {
   return (
     <div className="p-7 max-w-4xl mx-auto animate-fade-up space-y-5">
       {/* Navigation */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" className="w-8 h-8"
             disabled={selectedDayIdx <= 0} onClick={() => setSelectedDayIdx(i => i - 1)}>
@@ -124,7 +124,7 @@ export function Component() {
               <Clock className="w-4 h-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Zeiten</h2>
             </div>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
                 <Label className="text-xs text-muted-foreground">Call Time</Label>
                 <TimeInput value={form.call_time} onChange={v => update('call_time', v)} className="mt-1.5 h-10 text-lg font-bold" />
@@ -160,7 +160,7 @@ export function Component() {
               <Camera className="w-4 h-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Produktionsdaten</h2>
             </div>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
                 <Label className="text-xs text-muted-foreground">Gedrehte Seiten (Achtel)</Label>
                 <Input type="number" value={form.pages_shot || 0} onChange={e => update('pages_shot', Number(e.target.value))}

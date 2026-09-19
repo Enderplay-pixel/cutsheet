@@ -47,7 +47,7 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
   }
 
   return (
-    <div className="flex items-center gap-2 md:gap-3 py-2.5 border-b border-border/30 last:border-0 group flex-wrap md:flex-nowrap">
+    <div className="flex items-center gap-2 lg:gap-3 py-2.5 border-b border-border/30 last:border-0 group flex-wrap lg:flex-nowrap">
       {/* Avatar */}
       <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0">
         {member.name?.[0] || '?'}
@@ -55,20 +55,20 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
 
       {/* Name + Role */}
       <Input value={form.name || ''} onChange={e => update('name', e.target.value)}
-        className="h-7 text-sm font-medium basis-full md:basis-auto md:flex-1 min-w-0 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Name" />
+        className="h-7 text-sm font-medium basis-full lg:basis-auto lg:flex-1 min-w-0 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Name" />
       <Input value={form.role || ''} onChange={e => update('role', e.target.value)}
-        className="h-7 text-xs text-muted-foreground w-32 md:w-40 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Position" />
+        className="h-7 text-xs text-muted-foreground w-32 lg:w-40 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Position" />
 
       {/* Contact */}
-      <div className="flex items-center gap-1 flex-1 min-w-0 md:flex-none md:shrink-0">
+      <div className="flex items-center gap-1 flex-1 min-w-0 lg:flex-none lg:shrink-0">
         <Mail className="w-3 h-3 text-muted-foreground/50" />
         <Input value={form.email || ''} onChange={e => update('email', e.target.value)}
-          className="h-7 text-xs w-full md:w-40 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" type="email" placeholder="email@…" />
+          className="h-7 text-xs w-full lg:w-40 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" type="email" placeholder="email@…" />
       </div>
       <div className="flex items-center gap-1 shrink-0">
         <Phone className="w-3 h-3 text-muted-foreground/50" />
         <Input value={form.phone || ''} onChange={e => update('phone', e.target.value)}
-          className="h-7 text-xs w-24 md:w-28 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="+49…" />
+          className="h-7 text-xs w-24 lg:w-28 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="+49…" />
       </div>
 
       {/* Fee */}
@@ -214,7 +214,7 @@ export function Component() {
 
   return (
     <div className="p-7 max-w-6xl mx-auto animate-fade-up">
-      <div className="flex items-start justify-between mb-7">
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-7">
         <div>
           <h1 className="text-xl font-semibold">{tt(crewT.title)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -222,7 +222,7 @@ export function Component() {
             {totalGage > 0 && ` · ${formatCurrency(totalGage)} ${tt(crewT.totalFee)}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={exportCsv}>
             <Download className="w-3.5 h-3.5 mr-1.5" />CSV
           </Button>

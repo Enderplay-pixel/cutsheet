@@ -121,11 +121,11 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
   return (
     <AccordionItem value={String(list.id)} className="border rounded-lg overflow-hidden">
       <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/20">
-        <div className="flex items-center gap-3 w-full mr-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 min-w-0 w-full mr-2 md:mr-4">
           <Package className="w-4 h-4 text-muted-foreground" />
           <span className="font-semibold text-sm">{list.name}</span>
           <Badge variant="secondary" className="text-xs">{list.department}</Badge>
-          <div className="flex-1" />
+          <div className="hidden sm:block flex-1" />
           {items && items.length > 0 && (
             <div className="flex items-center gap-1.5 shrink-0">
               <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden">

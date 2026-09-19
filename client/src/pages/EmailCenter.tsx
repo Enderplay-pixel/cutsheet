@@ -114,9 +114,9 @@ export function Component() {
         subtitle="E-Mails an Stab und Darsteller senden"
       />
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left: Recipients */}
-        <div className="col-span-1 space-y-3">
+        <div className="lg:col-span-1 space-y-3">
           <Card>
             <CardHeader className="pb-2 pt-3">
               <CardTitle className="text-sm flex items-center justify-between">
@@ -146,7 +146,7 @@ export function Component() {
               {/* Crew by department */}
               {Object.entries(crewByDept).map(([dept, members]) => (
                 <div key={dept}>
-                  <button className="text-xs font-semibold text-muted-foreground hover:text-primary w-full text-left mb-1"
+                  <button className="text-xs font-semibold text-muted-foreground hover:text-primary w-full text-left mb-1 py-1.5 -my-0.5"
                     onClick={() => selectGroup((members as any[]).filter(m => m.email).map(m => m.email))}>
                     {dept}
                   </button>
@@ -175,7 +175,7 @@ export function Component() {
         </div>
 
         {/* Right: Compose */}
-        <div className="col-span-2 space-y-3">
+        <div className="lg:col-span-2 space-y-3">
           {/* Templates */}
           <Card>
             <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm">Vorlagen</CardTitle></CardHeader>

@@ -523,67 +523,69 @@ function ProjectsTab() {
       </div>
 
       <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border/60 bg-muted/30">
-              {['Projekt', 'Inhaber', 'Mitglieder', 'Szenen', 'Drehtage', 'Erstellt', ''].map(h => (
-                <th key={h} className="text-left py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              [1,2,3].map(i => (
-                <tr key={i} className="border-b border-border/40">
-                  {[1,2,3,4,5,6,7].map(j => (
-                    <td key={j} className="py-3 px-4"><div className="h-4 bg-muted animate-pulse rounded" /></td>
-                  ))}
-                </tr>
-              ))
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={7} className="py-12 text-center text-sm text-muted-foreground">Keine Projekte</td></tr>
-            ) : (
-              filtered.map(p => (
-                <tr key={p.id} className="border-b border-border/40 hover:bg-muted/20 transition-colors">
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center shrink-0">
-                        <Clapperboard className="w-3.5 h-3.5 text-primary" />
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border/60 bg-muted/30">
+                {['Projekt', 'Inhaber', 'Mitglieder', 'Szenen', 'Drehtage', 'Erstellt', ''].map(h => (
+                  <th key={h} className="text-left py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                [1,2,3].map(i => (
+                  <tr key={i} className="border-b border-border/40">
+                    {[1,2,3,4,5,6,7].map(j => (
+                      <td key={j} className="py-3 px-4"><div className="h-4 bg-muted animate-pulse rounded" /></td>
+                    ))}
+                  </tr>
+                ))
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={7} className="py-12 text-center text-sm text-muted-foreground">Keine Projekte</td></tr>
+              ) : (
+                filtered.map(p => (
+                  <tr key={p.id} className="border-b border-border/40 hover:bg-muted/20 transition-colors">
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center shrink-0">
+                          <Clapperboard className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground truncate max-w-[180px]">{p.title}</p>
+                          {p.archived ? (
+                            <span className="text-[10px] text-muted-foreground">Archiviert</span>
+                          ) : (
+                            <span className="text-[10px] text-primary">{p.status}</span>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground truncate max-w-[180px]">{p.title}</p>
-                        {p.archived ? (
-                          <span className="text-[10px] text-muted-foreground">Archiviert</span>
-                        ) : (
-                          <span className="text-[10px] text-primary">{p.status}</span>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <p className="text-xs font-medium text-foreground truncate max-w-[120px]">{p.owner_name || '—'}</p>
-                    <p className="text-[11px] text-muted-foreground truncate max-w-[120px]">{p.owner_email}</p>
-                  </td>
-                  <td className="py-3 px-4 text-sm text-center">{p.member_count}</td>
-                  <td className="py-3 px-4 text-sm text-center">{p.scene_count}</td>
-                  <td className="py-3 px-4 text-sm text-center">{p.day_count}</td>
-                  <td className="py-3 px-4 text-xs text-muted-foreground">
-                    {new Date(p.created_at).toLocaleDateString('de-DE')}
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <button
-                      onClick={() => setDeleteConfirm(p)}
-                      className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                      title="Projekt löschen"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                    </td>
+                    <td className="py-3 px-4">
+                      <p className="text-xs font-medium text-foreground truncate max-w-[120px]">{p.owner_name || '—'}</p>
+                      <p className="text-[11px] text-muted-foreground truncate max-w-[120px]">{p.owner_email}</p>
+                    </td>
+                    <td className="py-3 px-4 text-sm text-center">{p.member_count}</td>
+                    <td className="py-3 px-4 text-sm text-center">{p.scene_count}</td>
+                    <td className="py-3 px-4 text-sm text-center">{p.day_count}</td>
+                    <td className="py-3 px-4 text-xs text-muted-foreground">
+                      {new Date(p.created_at).toLocaleDateString('de-DE')}
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <button
+                        onClick={() => setDeleteConfirm(p)}
+                        className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        title="Projekt löschen"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {deleteConfirm && (

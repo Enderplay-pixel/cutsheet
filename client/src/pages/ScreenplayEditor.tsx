@@ -12,7 +12,7 @@ import { screenplayT } from '@/lib/i18n'
 import {
   ArrowLeft, Plus, Upload, FileText, ChevronRight, ChevronDown, Film,
   AlignLeft, User, MessageSquare, Parentheses, CornerUpRight, StickyNote,
-  Clapperboard, CheckCircle2, Loader2, Download, Type, PenLine,
+  Clapperboard, CheckCircle2, Loader2, Download, Type, PenLine, ListTree,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -440,6 +440,8 @@ export function Component() {
   const download = useDownload()
 
   const [activeBlockId, setActiveBlockId] = useState<number | null>(null)
+  /** Szenenleiste am Telefon — dort liegt sie ueber dem Text statt daneben */
+  const [scenesOpen, setScenesOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [localScenes, setLocalScenes] = useState<SceneData[]>([])
 
@@ -743,14 +745,25 @@ export function Component() {
   function scrollToScene(sceneId: number) {
     const el = sectionRefs.current.get(sceneId)
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // Am Telefon verdeckt die Leiste sonst genau die Szene, zu der man wollte
+    setScenesOpen(false)
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Left: Scene Navigator */}
-      <aside className="w-[220px] shrink-0 flex flex-col border-r border-border/40 bg-card overflow-hidden">
+      {scenesOpen && (
+        <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={() => setScenesOpen(false)} aria-hidden />
+      )}
+
+      {/* Left: Scene Navigator. Ab md eine Spalte, darunter eine Schublade —
+          220 px fest daneben liessen dem Text am Telefon 123 px. */}
+      <aside className={cn(
+        'flex-col border-r border-border/40 bg-card overflow-hidden',
+        'md:flex md:static md:w-[220px] md:shrink-0 md:shadow-none md:z-auto',
+        scenesOpen ? 'flex fixed inset-y-0 left-0 z-50 w-[260px] shadow-2xl' : 'hidden',
+      )}>
         <div className="px-3 py-3 border-b border-border/40">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 mb-1">
             {tt(screenplayT.scenes)}
@@ -810,6 +823,16 @@ export function Component() {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Toolbar */}
         <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40 shrink-0 bg-card flex-wrap">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="md:hidden h-7 text-xs gap-1.5"
+            onClick={() => setScenesOpen(true)}
+            aria-label="Szenenliste öffnen"
+          >
+            <ListTree className="w-3.5 h-3.5" />
+            {tt(screenplayT.scenes)}
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -1051,7 +1074,7 @@ export function Component() {
         </div>
 
         {/* Keyboard hints */}
-        <div className="px-4 py-1.5 border-t border-border/30 bg-muted/30 flex items-center gap-4 shrink-0">
+        <div className="px-4 py-1.5 border-t border-border/30 bg-muted/30 flex flex-wrap items-center gap-x-4 gap-y-1 shrink-0">
           <span className="text-[10px] text-muted-foreground/50">
             <kbd className="bg-muted px-1 rounded text-[9px] mr-1">Enter</kbd>{tt(screenplayT.hintEnter)}
           </span>

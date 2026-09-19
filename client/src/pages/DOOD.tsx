@@ -35,12 +35,16 @@ interface DoodReport {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// Codes wie sie der Server liefert (routes/dood.ts). F steht dort fuer den
+// letzten Arbeitstag und zaehlt als Arbeitstag — die alte Legende nannte ihn
+// "Frei" und faerbte ihn grau wie einen leeren Tag — beides behauptete das
+// Gegenteil.
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; border: string }> = {
-  W:   { label: 'Arbeit',            bg: 'bg-green-500/20',  text: 'text-green-700 dark:text-green-300',   border: 'border-green-500/30' },
-  H:   { label: 'Haltetag',          bg: 'bg-amber-400/20',  text: 'text-amber-700 dark:text-amber-300',   border: 'border-amber-400/30' },
-  SW:  { label: 'Start/Wrap',        bg: 'bg-blue-500/20',   text: 'text-blue-700 dark:text-blue-300',     border: 'border-blue-500/30' },
-  F:   { label: 'Frei',              bg: 'bg-muted/60',      text: 'text-muted-foreground',                border: 'border-border/30' },
-  SWF: { label: 'Start+Wrap+Frei',   bg: 'bg-purple-500/20', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-500/30' },
+  W:   { label: 'Arbeit',             bg: 'bg-green-500/20',  text: 'text-green-700 dark:text-green-300',   border: 'border-green-500/30' },
+  H:   { label: 'Haltetag',           bg: 'bg-amber-400/20',  text: 'text-amber-700 dark:text-amber-300',   border: 'border-amber-400/30' },
+  SW:  { label: 'Erster Arbeitstag',  bg: 'bg-blue-500/20',   text: 'text-blue-700 dark:text-blue-300',     border: 'border-blue-500/30' },
+  F:   { label: 'Letzter Arbeitstag', bg: 'bg-cyan-500/20',   text: 'text-cyan-700 dark:text-cyan-300',     border: 'border-cyan-500/30' },
+  SWF: { label: 'Einziger Arbeitstag', bg: 'bg-purple-500/20', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-500/30' },
 }
 
 function statusCell(status: string) {
@@ -105,13 +109,28 @@ export function Component() {
     queryFn: async () => {
       const res = await fetch(`/api/projects/${pid}/dood-report`, { headers })
       if (!res.ok) throw new Error('Fehler beim Laden')
-      return (await res.json()).data
+      const data = (await res.json()).data
+      return {
+        shoot_days: data.shoot_days.map((day: any) => ({ ...day, shoot_day_id: day.id })),
+        cast: data.cast.map((actor: any) => ({
+          cast_id: actor.id,
+          name: actor.actor_name || 'Noch nicht besetzt',
+          character: actor.character_name || '',
+          daily_rate_cents: Number(actor.fee_per_day) || 0,
+          days: Object.fromEntries(data.shoot_days.map((day: any, index: number) => [
+            day.id, { status: actor.days[index]?.code || '' },
+          ])),
+          total_work: Number(actor.total_work_days) || 0,
+          total_hold: Number(actor.total_hold_days) || 0,
+          estimated_cost_cents: Number(actor.total_cost_cents) || 0,
+        })),
+      }
     },
   })
 
   if (isLoading) {
     return (
-      <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+      <div className="p-4 sm:p-7 max-w-6xl mx-auto animate-fade-up">
         <div className="mb-8 pb-7 border-b border-border/40">
           <Skeleton className="h-9 w-64 mb-2" />
           <Skeleton className="h-4 w-48" />
@@ -123,7 +142,7 @@ export function Component() {
 
   if (isError || !report) {
     return (
-      <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+      <div className="p-4 sm:p-7 max-w-6xl mx-auto animate-fade-up">
         <div className="mb-8 pb-7 border-b border-border/40">
           <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Day Out of Days</h1>
         </div>
@@ -143,17 +162,17 @@ export function Component() {
   const totalCost = cast.reduce((sum, c) => sum + c.estimated_cost_cents, 0)
 
   return (
-    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+    <div className="p-4 sm:p-7 max-w-6xl mx-auto animate-fade-up">
       {/* Page hero */}
       <div className="mb-8 pb-7 border-b border-border/40">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Day Out of Days</h1>
             <p className="text-sm text-muted-foreground/60 mt-1.5">
               Übersicht der Drehtage nach Darsteller
             </p>
           </div>
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex flex-wrap items-center gap-3 pt-1">
             <div className="flex items-center gap-5">
               <div className="text-right">
                 <div className="text-[2.25rem] font-bold tabular-nums tracking-tight leading-none">{cast.length}</div>
@@ -200,7 +219,7 @@ export function Component() {
           <p className="text-sm text-muted-foreground/60">Keine Darsteller gefunden.</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border/60 bg-card overflow-hidden mb-6">
+        <div className="rounded-xl border border-border/60 bg-card overflow-x-auto mb-6">
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">
               <thead>
@@ -257,7 +276,7 @@ export function Component() {
       {cast.length > 0 && (
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">Zusammenfassung</p>
-          <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+          <div className="rounded-xl border border-border/60 bg-card overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="border-b border-border/40">

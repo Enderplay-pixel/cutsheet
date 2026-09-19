@@ -53,7 +53,7 @@ function ImageCard({ item, onDelete }: { item: MoodItem; onDelete: () => void })
       <button
         onPointerDown={e => e.stopPropagation()}
         onClick={e => { e.stopPropagation(); onDelete() }}
-        className="absolute -top-2.5 -right-2.5 z-20 w-6 h-6 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg active:scale-90"
+        className="absolute -top-2.5 -right-2.5 z-20 w-6 h-6 rounded-full bg-destructive text-white flex items-center justify-center opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shadow-lg active:scale-90"
       >
         <X className="w-3 h-3" />
       </button>
@@ -92,7 +92,7 @@ function NoteCard({ item, onDelete }: { item: MoodItem; onDelete: () => void }) 
       <button
         onPointerDown={e => e.stopPropagation()}
         onClick={e => { e.stopPropagation(); onDelete() }}
-        className="absolute -top-2.5 -right-2.5 z-20 w-6 h-6 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg active:scale-90"
+        className="absolute -top-2.5 -right-2.5 z-20 w-6 h-6 rounded-full bg-destructive text-white flex items-center justify-center opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shadow-lg active:scale-90"
       >
         <X className="w-3 h-3" />
       </button>
@@ -120,7 +120,7 @@ function ColorCard({ item, onDelete }: { item: MoodItem; onDelete: () => void })
       <button
         onPointerDown={e => e.stopPropagation()}
         onClick={e => { e.stopPropagation(); onDelete() }}
-        className="absolute -top-2.5 -right-2.5 z-20 w-6 h-6 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg active:scale-90"
+        className="absolute -top-2.5 -right-2.5 z-20 w-6 h-6 rounded-full bg-destructive text-white flex items-center justify-center opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shadow-lg active:scale-90"
       >
         <X className="w-3 h-3" />
       </button>
@@ -198,7 +198,7 @@ function CanvasCard({
   return (
     <div
       ref={elRef}
-      className="absolute cursor-grab active:cursor-grabbing select-none"
+      className="absolute cursor-grab active:cursor-grabbing select-none touch-none"
       style={{ left: item.position_x, top: item.position_y, zIndex: 10 }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -555,7 +555,7 @@ export function Component() {
       ))}
 
       {/* Floating add panel */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100%-1rem)] overflow-x-auto">
         <AddPanel pid={pid} scrollRef={scrollRef} onAdded={() => queryClient.invalidateQueries({ queryKey: ['moodboard', pid] })} />
       </div>
     </div>

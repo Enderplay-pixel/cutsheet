@@ -135,7 +135,7 @@ export function Component() {
               Buchungszeiträume für Equipment-Positionen
             </p>
           </div>
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex flex-wrap items-center gap-3 pt-1">
             <div className="flex items-center gap-5">
               <div className="text-right">
                 <div className="text-[2.25rem] font-bold tabular-nums tracking-tight leading-none">{allItems.length}</div>

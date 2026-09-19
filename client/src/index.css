@@ -193,6 +193,51 @@
   }
 }
 
+/* ─── Touch-Geräte ──────────────────────────────────── */
+/* Gilt für Telefone und Tablets ohne Maus. Ein Laptop mit Touchscreen meldet
+   seinen Mauszeiger als primär und bleibt davon unberührt. */
+@media (hover: none), (pointer: coarse) {
+  /* Ohne Mauszeiger gibt es kein Hover: Knöpfe, die sonst erst beim Zeigen
+     erscheinen, wären am Touchscreen schlicht unsichtbar. 28 Stellen nutzen
+     group-hover:opacity-100 — hier bleiben sie dauerhaft sichtbar. */
+  .group-hover\:opacity-100,
+  .md\:group-hover\:opacity-100 {
+    opacity: 1 !important;
+  }
+
+  /* iOS Safari zoomt beim Antippen jedes Eingabefelds mit weniger als 16 px
+     Schrift ungefragt in die Seite und bleibt dort. 16 px ist die Grenze,
+     unterhalb derer das passiert — nicht eine Wunschgröße. */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Reine Symbolknöpfe (ein SVG, kein Text) auf mindestens 36 px Tippfläche.
+     Apple empfiehlt 44 pt; 36 px ist der Kompromiss, der dichte Zeilen wie
+     die Shotlist noch trägt. */
+  button:has(> svg:only-child),
+  [role='button']:has(> svg:only-child) {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  /* Auswahlfelder und Reiter sind am Desktop 26–28 px hoch — mit dem Daumen
+     trifft man daneben. Die Shotlist hat allein 48 Auswahlfelder. */
+  [role='combobox'],
+  [role='tab'] {
+    min-height: 36px;
+  }
+
+  /* Checkboxen sind 14 px groß. Meist sitzen sie in einem <label>, das
+     mittippt — der Kasten selbst soll trotzdem sichtbar zu treffen sein. */
+  [role='checkbox'] {
+    min-width: 20px;
+    min-height: 20px;
+  }
+}
+
 /* ─── Drehplan strip colors ─────────────────────────── */
 .strip-int-tag   { background: hsl(15 75% 50% / 0.10); border-left: 2px solid hsl(15 75% 50% / 0.70); }
 .strip-ext-tag   { background: hsl(138 45% 35% / 0.10); border-left: 2px solid hsl(138 45% 35% / 0.70); }

@@ -178,9 +178,9 @@ export function Component() {
       </div>
 
       {/* Two-panel layout */}
-      <div className="flex gap-5 min-h-[620px]">
+      <div className="flex flex-col md:flex-row gap-5 md:min-h-[620px]">
         {/* Scene list sidebar */}
-        <div className="w-64 shrink-0 rounded-xl border border-border/60 bg-card overflow-hidden flex flex-col">
+        <div className="w-full md:w-64 md:shrink-0 max-h-72 md:max-h-none rounded-xl border border-border/60 bg-card overflow-hidden flex flex-col">
           <div className="px-4 py-3.5 border-b border-border/40 bg-muted/20">
             <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-0.5">Szenen</p>
             <span className="text-sm font-semibold tabular-nums">{scenes?.length || 0} gesamt</span>

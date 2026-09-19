@@ -240,18 +240,20 @@ export function Component() {
 
         {/* ── KALKULATION ── */}
         <TabsContent value="kalkulation" className="space-y-4 mt-4">
-          <div className="flex items-center justify-between">
+          {/* Fassungswahl links, Summe und Werkzeuge rechts — am Telefon
+              untereinander, sonst beginnt die Werkzeugleiste bei x=232 */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               {versions && versions.length > 0 && (
                 <Select value={String(selectedVersionId)} onValueChange={v => setSelectedVersionId(Number(v))}>
-                  <SelectTrigger className="w-52 h-8"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full sm:w-52 h-8"><SelectValue /></SelectTrigger>
                   <SelectContent>{versions.map((v: any) => <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>)}</SelectContent>
                 </Select>
               )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <span className="text-lg font-bold">{formatCurrency(totalBudget)}</span>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 <Select value={newCategory} onValueChange={setNewCategory}>
                   <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
@@ -268,10 +270,11 @@ export function Component() {
             </div>
           </div>
 
-          {/* Side-by-side: category totals + table */}
-          <div className="flex gap-4">
+          {/* Nebeneinander ab lg, am Telefon untereinander: die Summen-Spalte
+              liess der Tabelle sonst 119 px */}
+          <div className="flex flex-col lg:flex-row gap-4">
             {/* Category totals sidebar */}
-            <div className="w-52 shrink-0 space-y-1">
+            <div className="w-full lg:w-52 lg:shrink-0 space-y-1">
               {Object.entries(catTotals).sort().map(([cat, total]) => (
                 <div key={cat} className="flex items-center justify-between text-xs p-2 rounded bg-muted/30">
                   <span className="truncate text-muted-foreground">{cat.split(' - ')[1] || cat}</span>
@@ -291,7 +294,7 @@ export function Component() {
               {linesLoading ? (
                 <Skeleton className="h-64 w-full" />
               ) : (
-                <table className="w-full border rounded-lg overflow-hidden">
+                <table className="w-full border rounded-lg overflow-hidden min-w-[560px]">
                   <thead className="bg-muted/30">
                     <tr className="text-xs text-muted-foreground">
                       <th className="text-left py-2 pl-4 w-8">Kto</th>
@@ -374,36 +377,38 @@ export function Component() {
           )}
 
           {finLoading ? <Skeleton className="h-48" /> : (
-            <table className="w-full border rounded-lg overflow-hidden">
-              <thead className="bg-muted/30">
-                <tr className="text-xs text-muted-foreground">
-                  <th className="text-left py-2 pl-4">Geldgeber / Quelle</th>
-                  <th className="text-left py-2 px-2 w-40">Typ</th>
-                  <th className="text-right py-2 px-2 w-36">Betrag</th>
-                  <th className="text-right py-2 px-2 w-16">Anteil</th>
-                  <th className="text-left py-2 px-2 w-24">Status</th>
-                  <th className="w-8" />
-                </tr>
-              </thead>
-              <tbody>
-                {(finEntries || []).map((e: any) => (
-                  <FinancingRow key={e.id} entry={e} total={finTotal} onDelete={() => deleteFinEntry.mutate(e.id)} />
-                ))}
-                {(!finEntries || finEntries.length === 0) && (
-                  <tr><td colSpan={6} className="py-8 text-center text-muted-foreground text-sm">Noch keine Einträge.</td></tr>
-                )}
-              </tbody>
-              {finEntries && finEntries.length > 0 && (
-                <tfoot className="bg-muted/30">
-                  <tr>
-                    <td colSpan={2} className="py-2 pl-4 text-sm font-semibold">Gesamt</td>
-                    <td className="py-2 px-2 text-right font-mono font-bold">{formatCurrency(finTotal)}</td>
-                    <td className="py-2 px-2 text-right text-sm font-mono">100%</td>
-                    <td colSpan={2} />
+            <div className="overflow-x-auto">
+              <table className="w-full border rounded-lg overflow-hidden min-w-[560px]">
+                <thead className="bg-muted/30">
+                  <tr className="text-xs text-muted-foreground">
+                    <th className="text-left py-2 pl-4">Geldgeber / Quelle</th>
+                    <th className="text-left py-2 px-2 w-40">Typ</th>
+                    <th className="text-right py-2 px-2 w-36">Betrag</th>
+                    <th className="text-right py-2 px-2 w-16">Anteil</th>
+                    <th className="text-left py-2 px-2 w-24">Status</th>
+                    <th className="w-8" />
                   </tr>
-                </tfoot>
-              )}
-            </table>
+                </thead>
+                <tbody>
+                  {(finEntries || []).map((e: any) => (
+                    <FinancingRow key={e.id} entry={e} total={finTotal} onDelete={() => deleteFinEntry.mutate(e.id)} />
+                  ))}
+                  {(!finEntries || finEntries.length === 0) && (
+                    <tr><td colSpan={6} className="py-8 text-center text-muted-foreground text-sm">Noch keine Einträge.</td></tr>
+                  )}
+                </tbody>
+                {finEntries && finEntries.length > 0 && (
+                  <tfoot className="bg-muted/30">
+                    <tr>
+                      <td colSpan={2} className="py-2 pl-4 text-sm font-semibold">Gesamt</td>
+                      <td className="py-2 px-2 text-right font-mono font-bold">{formatCurrency(finTotal)}</td>
+                      <td className="py-2 px-2 text-right text-sm font-mono">100%</td>
+                      <td colSpan={2} />
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
           )}
         </TabsContent>
       </Tabs>

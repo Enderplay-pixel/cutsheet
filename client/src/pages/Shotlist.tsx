@@ -38,9 +38,21 @@ function AutoTextarea({ value, onChange, placeholder, className }: {
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    // Erst zuruecksetzen, sonst waechst die Hoehe nur und schrumpft nie wieder
-    el.style.height = 'auto'
-    el.style.height = `${el.scrollHeight}px`
+    const resize = () => {
+      el.style.height = 'auto'
+      el.style.height = `${el.scrollHeight}px`
+    }
+    resize()
+    // Neu messen, wenn sich die Breite aendert: beim Drehen des Tablets oder
+    // Ein-/Ausklappen der Sidebar bricht der Text anders um.
+    let width = el.clientWidth
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === width) return
+      width = el.clientWidth
+      resize()
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
   }, [value])
 
   return (
@@ -123,7 +135,7 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
         <button
           onClick={() => toggleDone.mutate()}
           className={cn(
-            'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0',
+            'w-8 h-8 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0',
             isDone ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground/40 hover:border-green-500/60'
           )}
           title={isDone ? 'Als offen markieren' : 'Als erledigt markieren'}
@@ -266,13 +278,13 @@ export function Component() {
                   scene.int_ext === 'INT' && scene.day_night === 'NACHT' ? 'bg-indigo-900/10 hover:bg-indigo-900/15' :
                   'bg-teal-900/10 hover:bg-teal-900/15'
                 }`}>
-                  <div className="flex items-center gap-3 w-full mr-4">
+                  <div className="flex min-w-0 flex-wrap items-center gap-3 w-full mr-2">
                     <span className="font-mono text-sm font-bold w-8">{scene.scene_number}</span>
                     <div className="flex gap-1">
                       <Badge variant="outline" className="text-xs px-1.5 py-0">{scene.int_ext}</Badge>
                       <Badge variant="outline" className="text-xs px-1.5 py-0">{scene.day_night}</Badge>
                     </div>
-                    <span className="font-medium text-sm flex-1 text-left truncate">{scene.title}</span>
+                    <span className="font-medium text-sm min-w-0 basis-full sm:basis-auto sm:flex-1 text-left whitespace-normal break-words">{scene.title}</span>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Camera className="w-3 h-3" />
@@ -283,15 +295,17 @@ export function Component() {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pb-4 space-y-2">
-                  {/* Header row */}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground px-2 pb-1 border-b border-border/50">
-                    <span className="w-8">Nr.</span>
-                    <span className="w-20">Größe</span>
-                    <span className="w-24">Bewegung</span>
-                    <span className="w-20">Objektiv</span>
-                    <span className="flex-1">Beschreibung</span>
-                    <span className="w-16">Dauer</span>
-                    <span className="w-6" />
+                  {/* Spaltenkoepfe, ausgerichtet an der Kopfzeile von ShotRow. Die
+                      Breiten entsprechen den Gruppen dort: Feld + Einheit bzw.
+                      Symbol. Am Telefon umbrechen die Zeilen, dort gibt es
+                      keine Spalten, an denen sich Koepfe ausrichten koennten. */}
+                  <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground px-2.5 pb-1 border-b border-border/50">
+                    <span className="w-8 shrink-0">Nr.</span>
+                    <span className="w-20 shrink-0">Größe</span>
+                    <span className="w-24 shrink-0">Bewegung</span>
+                    <span className="w-[5.5rem] shrink-0">Objektiv</span>
+                    <span className="w-[4.5rem] shrink-0">Dauer</span>
+                    <span className="w-[5rem] shrink-0">Bester Take</span>
                   </div>
                   {sceneShots.map((shot: any) => (
                     <ShotRow key={shot.id} shot={shot} onDelete={() => deleteShot.mutate(shot.id)} onDuplicate={() => duplicateShot.mutate(shot)} />

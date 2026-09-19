@@ -268,94 +268,96 @@ function PersonSection({
         </span>
         <span className="ml-auto text-xs text-muted-foreground/60">{entries.length} {tt(uiT.persons)}</span>
       </div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border/30 bg-muted/20">
-            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 pl-4 pr-2 w-40">
-              {tt(dispoT.colName)}
-            </th>
-            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-36">
-              {isCast ? tt(dispoT.colRole) : tt(dispoT.colFunction)}
-            </th>
-            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-28">
-              {tt(dispoT.colCallTime)}
-            </th>
-            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2">
-              {tt(dispoT.colPickup)}
-            </th>
-            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2">
-              {tt(dispoT.colNotes)}
-            </th>
-            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-24">
-              Status
-            </th>
-            <th className="py-2 pr-4 w-8" />
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((entry: any) => (
-            <tr key={entry.id} className="border-b border-border/20 last:border-0 hover:bg-muted/10 transition-colors group">
-              <td className="py-2.5 pl-4 pr-2">
-                <span className="font-semibold text-sm">{entry.person_name || '–'}</span>
-              </td>
-              <td className="py-2.5 px-2">
-                <span className="text-sm text-muted-foreground">{entry.role || '–'}</span>
-              </td>
-              <td className="py-2.5 px-2">
-                <TimeInput
-                  value={entry.call_time || 480}
-                  onChange={v => onUpdate(entry._idx, 'call_time', v)}
-                  className="w-20 h-7 text-xs font-mono font-bold"
-                />
-              </td>
-              <td className="py-2.5 px-2">
-                <Input
-                  value={entry.pickup_location || ''}
-                  onChange={e => onUpdate(entry._idx, 'pickup_location', e.target.value)}
-                  className="h-7 text-xs w-36"
-                  placeholder="—"
-                />
-              </td>
-              <td className="py-2.5 px-2">
-                <Input
-                  value={entry.notes || ''}
-                  onChange={e => onUpdate(entry._idx, 'notes', e.target.value)}
-                  className="h-7 text-xs w-44"
-                  placeholder="—"
-                />
-              </td>
-              <td className="py-2.5 px-2">
-                {(() => {
-                  const st = entryStatus(entry)
-                  if (!st) return <span className="text-[11px] text-muted-foreground/30">–</span>
-                  const StIcon = st.icon
-                  return (
-                    <span
-                      className={cn('inline-flex items-center gap-1 text-[11px] font-semibold', st.cls)}
-                      title={[
-                        entry.sent_at && `Versendet: ${new Date(entry.sent_at).toLocaleString('de-DE')}`,
-                        entry.viewed_at && `Gesehen: ${new Date(entry.viewed_at).toLocaleString('de-DE')}`,
-                        entry.confirmed_at && `Bestätigt: ${new Date(entry.confirmed_at).toLocaleString('de-DE')}`,
-                      ].filter(Boolean).join('\n')}
-                    >
-                      <StIcon className="w-3 h-3" />
-                      {st.label}
-                    </span>
-                  )
-                })()}
-              </td>
-              <td className="py-2.5 pr-4">
-                <button
-                  onClick={() => onDelete(entry.id)}
-                  className="w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </td>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[560px]">
+          <thead>
+            <tr className="border-b border-border/30 bg-muted/20">
+              <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 pl-4 pr-2 w-40">
+                {tt(dispoT.colName)}
+              </th>
+              <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-36">
+                {isCast ? tt(dispoT.colRole) : tt(dispoT.colFunction)}
+              </th>
+              <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-28">
+                {tt(dispoT.colCallTime)}
+              </th>
+              <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2">
+                {tt(dispoT.colPickup)}
+              </th>
+              <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2">
+                {tt(dispoT.colNotes)}
+              </th>
+              <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-24">
+                Status
+              </th>
+              <th className="py-2 pr-4 w-8" />
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {entries.map((entry: any) => (
+              <tr key={entry.id} className="border-b border-border/20 last:border-0 hover:bg-muted/10 transition-colors group">
+                <td className="py-2.5 pl-4 pr-2">
+                  <span className="font-semibold text-sm">{entry.person_name || '–'}</span>
+                </td>
+                <td className="py-2.5 px-2">
+                  <span className="text-sm text-muted-foreground">{entry.role || '–'}</span>
+                </td>
+                <td className="py-2.5 px-2">
+                  <TimeInput
+                    value={entry.call_time || 480}
+                    onChange={v => onUpdate(entry._idx, 'call_time', v)}
+                    className="w-20 h-7 text-xs font-mono font-bold"
+                  />
+                </td>
+                <td className="py-2.5 px-2">
+                  <Input
+                    value={entry.pickup_location || ''}
+                    onChange={e => onUpdate(entry._idx, 'pickup_location', e.target.value)}
+                    className="h-7 text-xs w-36"
+                    placeholder="—"
+                  />
+                </td>
+                <td className="py-2.5 px-2">
+                  <Input
+                    value={entry.notes || ''}
+                    onChange={e => onUpdate(entry._idx, 'notes', e.target.value)}
+                    className="h-7 text-xs w-44"
+                    placeholder="—"
+                  />
+                </td>
+                <td className="py-2.5 px-2">
+                  {(() => {
+                    const st = entryStatus(entry)
+                    if (!st) return <span className="text-[11px] text-muted-foreground/30">–</span>
+                    const StIcon = st.icon
+                    return (
+                      <span
+                        className={cn('inline-flex items-center gap-1 text-[11px] font-semibold', st.cls)}
+                        title={[
+                          entry.sent_at && `Versendet: ${new Date(entry.sent_at).toLocaleString('de-DE')}`,
+                          entry.viewed_at && `Gesehen: ${new Date(entry.viewed_at).toLocaleString('de-DE')}`,
+                          entry.confirmed_at && `Bestätigt: ${new Date(entry.confirmed_at).toLocaleString('de-DE')}`,
+                        ].filter(Boolean).join('\n')}
+                      >
+                        <StIcon className="w-3 h-3" />
+                        {st.label}
+                      </span>
+                    )
+                  })()}
+                </td>
+                <td className="py-2.5 pr-4">
+                  <button
+                    onClick={() => onDelete(entry.id)}
+                    className="w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -476,64 +478,66 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
         <span className="text-sm font-bold uppercase tracking-widest">{tt(dispoT.scenesSection)}</span>
         <span className="ml-auto text-xs text-muted-foreground/60">{scenes.length} {tt(uiT.scenes)}</span>
       </div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border/30 bg-muted/20">
-            <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 pl-4 pr-2 w-14">#</th>
-            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-3">Set & Beschreibung</th>
-            <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-20">INT/EXT</th>
-            <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-16">T/N</th>
-            <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-16">Seiten</th>
-            <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2">Motiv</th>
-          </tr>
-        </thead>
-        <tbody>
-          {scenes.map((s: any) => {
-            const stripColor = sceneStripColor(s.int_ext, s.day_night)
-            const rowBg = sceneRowBg(s.int_ext, s.day_night)
-            const badgeColor = sceneBadgeColor(s.int_ext, s.day_night)
-            return (
-              <tr key={s.scene_id} className={cn('border-b border-border/20 last:border-0 group', rowBg)}>
-                {/* Colored left strip + scene number */}
-                <td className="py-3 pl-0 pr-2 text-center">
-                  <div className="flex items-center">
-                    <div className={cn('w-1 self-stretch rounded-r mr-3 flex-shrink-0', stripColor)} style={{ minHeight: '100%' }} />
-                    <span className="font-mono font-bold text-base tabular-nums">{s.scene_number}</span>
-                  </div>
-                </td>
-                <td className="py-3 px-3">
-                  <span className="font-medium">{s.title || '–'}</span>
-                </td>
-                <td className="py-3 px-2 text-center">
-                  <span className={cn('text-[11px] px-2 py-0.5 rounded font-bold uppercase', badgeColor)}>
-                    {s.int_ext || '–'}
-                  </span>
-                </td>
-                <td className="py-3 px-2 text-center">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase">
-                    {s.day_night === 'TAG' ? 'Tag' : s.day_night === 'NACHT' ? 'Nacht' : (s.day_night || '–')}
-                  </span>
-                </td>
-                <td className="py-3 px-2 text-center">
-                  <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                    {s.eighths != null ? eighthsToString(s.eighths) : '–'}
-                  </span>
-                </td>
-                <td className="py-3 px-2">
-                  {s.location_name ? (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <MapPin className="w-3 h-3 flex-shrink-0" />
-                      {s.location_name}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[560px]">
+          <thead>
+            <tr className="border-b border-border/30 bg-muted/20">
+              <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 pl-4 pr-2 w-14">#</th>
+              <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-3">Set & Beschreibung</th>
+              <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-20">INT/EXT</th>
+              <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-16">T/N</th>
+              <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-16">Seiten</th>
+              <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2">Motiv</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scenes.map((s: any) => {
+              const stripColor = sceneStripColor(s.int_ext, s.day_night)
+              const rowBg = sceneRowBg(s.int_ext, s.day_night)
+              const badgeColor = sceneBadgeColor(s.int_ext, s.day_night)
+              return (
+                <tr key={s.scene_id} className={cn('border-b border-border/20 last:border-0 group', rowBg)}>
+                  {/* Colored left strip + scene number */}
+                  <td className="py-3 pl-0 pr-2 text-center">
+                    <div className="flex items-center">
+                      <div className={cn('w-1 self-stretch rounded-r mr-3 flex-shrink-0', stripColor)} style={{ minHeight: '100%' }} />
+                      <span className="font-mono font-bold text-base tabular-nums">{s.scene_number}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 px-3">
+                    <span className="font-medium">{s.title || '–'}</span>
+                  </td>
+                  <td className="py-3 px-2 text-center">
+                    <span className={cn('text-[11px] px-2 py-0.5 rounded font-bold uppercase', badgeColor)}>
+                      {s.int_ext || '–'}
                     </span>
-                  ) : (
-                    <span className="text-muted-foreground/40 text-xs">–</span>
-                  )}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+                  </td>
+                  <td className="py-3 px-2 text-center">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase">
+                      {s.day_night === 'TAG' ? 'Tag' : s.day_night === 'NACHT' ? 'Nacht' : (s.day_night || '–')}
+                    </span>
+                  </td>
+                  <td className="py-3 px-2 text-center">
+                    <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                      {s.eighths != null ? eighthsToString(s.eighths) : '–'}
+                    </span>
+                  </td>
+                  <td className="py-3 px-2">
+                    {s.location_name ? (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="w-3 h-3 flex-shrink-0" />
+                        {s.location_name}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/40 text-xs">–</span>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {/* Legend */}
       <div className="flex items-center gap-4 flex-wrap px-5 py-2.5 border-t border-border/30 bg-muted/10">
@@ -719,7 +723,7 @@ export function Component() {
     <div className="p-6 max-w-5xl mx-auto animate-fade-up space-y-5">
 
       {/* ── Top navigation bar ──────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" className="w-8 h-8"
             disabled={currentIndex <= 0}
@@ -797,7 +801,7 @@ export function Component() {
               <Skeleton className="h-28 rounded-xl" />
               <Skeleton className="h-28 rounded-xl" />
             </div>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[1,2,3,4].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
             </div>
           </div>
@@ -830,7 +834,7 @@ export function Component() {
             </div>
 
             {/* ── Info strip: location, weather, sunrise, sunset ─────────── */}
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Location */}
               <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-2.5">
                 <div className="flex items-center gap-1.5 mb-1.5">
@@ -850,7 +854,7 @@ export function Component() {
                   <button
                     onClick={fetchWeather}
                     disabled={weatherLoading}
-                    className="ml-auto text-[10px] text-primary hover:underline disabled:opacity-50"
+                    className="ml-auto -my-2 -mr-2 px-2 py-2 text-[10px] text-primary hover:underline disabled:opacity-50"
                     title={tt(dispoT.weather)}
                   >
                     {weatherLoading ? tt(dispoT.weatherFetching) : tt(dispoT.weatherFetch)}
@@ -928,9 +932,9 @@ export function Component() {
 
       {/* ── Time shift + Notes ────────────────────────────────────────────────── */}
       {!isLoading && headerForm && (
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           {/* Time shift card */}
-          <div className="col-span-2 bg-card border border-border/60 rounded-xl p-4 h-fit">
+          <div className="lg:col-span-2 bg-card border border-border/60 rounded-xl p-4 h-fit">
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
               {tt(dispoT.shiftTimes)}
             </p>
@@ -960,7 +964,7 @@ export function Component() {
           </div>
 
           {/* Notes + Catering card */}
-          <div className="col-span-3 space-y-3">
+          <div className="lg:col-span-3 space-y-3">
             <div className="bg-card border border-border/60 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
@@ -979,7 +983,7 @@ export function Component() {
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
                 🍽 {tt(dispoT.catering)}
               </p>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <Button variant="outline" size="icon" className="w-8 h-8"
                   onClick={() => {
                     const n = Math.max(0, (currentDay?.catering_count || 0) - 1)

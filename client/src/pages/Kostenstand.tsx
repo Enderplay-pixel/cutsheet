@@ -111,23 +111,25 @@ export function Component() {
       {rows.length > 0 && (
         <div className="mb-8">
           <p className="section-label mb-3">Soll / Ist je Kategorie</p>
-          <table className="data-table">
-            <thead>
-              <tr><th>Kategorie</th><th className="text-right">Soll</th><th className="text-right">Ist</th><th className="text-right">Differenz</th></tr>
-            </thead>
-            <tbody>
-              {rows.map((r: any) => (
-                <tr key={r.category}>
-                  <td className="font-medium">{r.category || 'Ohne Kategorie'}</td>
-                  <td className="text-right tabular-nums">{formatCurrency(r.soll_cents)}</td>
-                  <td className="text-right tabular-nums">{formatCurrency(r.ist_cents)}</td>
-                  <td className={cn('text-right tabular-nums font-semibold', r.diff_cents < 0 ? 'text-danger' : 'text-success')}>
-                    {r.diff_cents < 0 ? '−' : '+'}{formatCurrency(Math.abs(r.diff_cents))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="data-table min-w-[480px]">
+              <thead>
+                <tr><th>Kategorie</th><th className="text-right">Soll</th><th className="text-right">Ist</th><th className="text-right">Differenz</th></tr>
+              </thead>
+              <tbody>
+                {rows.map((r: any) => (
+                  <tr key={r.category}>
+                    <td className="font-medium">{r.category || 'Ohne Kategorie'}</td>
+                    <td className="text-right tabular-nums">{formatCurrency(r.soll_cents)}</td>
+                    <td className="text-right tabular-nums">{formatCurrency(r.ist_cents)}</td>
+                    <td className={cn('text-right tabular-nums font-semibold', r.diff_cents < 0 ? 'text-danger' : 'text-success')}>
+                      {r.diff_cents < 0 ? '−' : '+'}{formatCurrency(Math.abs(r.diff_cents))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -159,33 +161,35 @@ export function Component() {
           <p className="text-sm font-medium">Noch keine Belege erfasst</p>
         </div>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr><th>Datum</th><th>Beleg-Nr.</th><th>Beschreibung</th><th>Kategorie</th><th className="text-right">Betrag</th><th></th></tr>
-          </thead>
-          <tbody>
-            {expenses.map((e: any) => (
-              <tr key={e.id} className="group">
-                <td className="tabular-nums text-muted-foreground">
-                  {e.expense_date ? new Date(e.expense_date).toLocaleDateString('de-DE') : '—'}
-                </td>
-                <td className="text-muted-foreground">{e.receipt_no || '—'}</td>
-                <td className="font-medium">{e.description}</td>
-                <td className="text-muted-foreground">{e.category || '—'}</td>
-                <td className="text-right tabular-nums font-semibold">{formatCurrency(e.amount_cents)}</td>
-                <td className="w-8">
-                  <button
-                    onClick={() => deleteMutation.mutate(e.id)}
-                    className="p-1.5 rounded-md text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-[color,background-color,opacity] duration-150 active:scale-[0.88]"
-                    title="Beleg löschen"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="data-table min-w-[560px]">
+            <thead>
+              <tr><th>Datum</th><th>Beleg-Nr.</th><th>Beschreibung</th><th>Kategorie</th><th className="text-right">Betrag</th><th></th></tr>
+            </thead>
+            <tbody>
+              {expenses.map((e: any) => (
+                <tr key={e.id} className="group">
+                  <td className="tabular-nums text-muted-foreground">
+                    {e.expense_date ? new Date(e.expense_date).toLocaleDateString('de-DE') : '—'}
+                  </td>
+                  <td className="text-muted-foreground">{e.receipt_no || '—'}</td>
+                  <td className="font-medium">{e.description}</td>
+                  <td className="text-muted-foreground">{e.category || '—'}</td>
+                  <td className="text-right tabular-nums font-semibold">{formatCurrency(e.amount_cents)}</td>
+                  <td className="w-8">
+                    <button
+                      onClick={() => deleteMutation.mutate(e.id)}
+                      className="p-1.5 rounded-md text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-[color,background-color,opacity] duration-150 active:scale-[0.88]"
+                      title="Beleg löschen"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )
