@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
-import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
+import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import {
   getOAuthConfig, buildAuthUrl, createState, verifyState,
   exchangeCode, refreshAccessToken, revokeToken,
@@ -368,13 +368,13 @@ router.get('/projects/:projectId/creator/youtube/videos', async (req, res) => {
 // ─── Auswertung ───────────────────────────────────────────────────────────────
 
 /** Retention eines Videos gegen sein Skript. */
-router.get('/creator/videos/:videoId/retention', async (req: Request, res: Response) => {
+router.get('/creator/videos/:videoId/retention', requireMemberVia(projectIdFromTable('creator_videos', 'videoId')), async (req: Request, res: Response) => {
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
 
   const video = await db.get('SELECT * FROM creator_videos WHERE id = ?', [req.params.videoId]) as any
   if (!video) return res.status(404).json({ data: null, error: 'Video nicht gefunden' })
-  if (user.role !== 'admin' && getUserProjectRole(user.id, video.project_id) === null) {
+  if (user.role !== 'admin' && (await getUserProjectRole(user.id, video.project_id)) === null) {
     return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   }
 

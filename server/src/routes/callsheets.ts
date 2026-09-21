@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
 import crypto from 'crypto'
 import { db } from '../db'
-import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
+import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { sendEmail, isSmtpConfigured, appBaseUrl } from './emailService'
 import { sendPushToUser } from './push'
 
@@ -48,12 +48,12 @@ async function getCallSheet(id: number) {
 }
 
 // GET /api/shoot-days/:dayId/call-sheet
-router.get('/shoot-days/:dayId/call-sheet', async (req: Request, res: Response) => {
+router.get('/shoot-days/:dayId/call-sheet', requireMemberVia(projectIdFromTable('shoot_days', 'dayId')), async (req: Request, res: Response) => {
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
   if (user.role !== 'admin') {
     const day = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [req.params.dayId]) as any
-    if (day && getUserProjectRole(user.id, day.project_id) === null)
+    if (day && (await getUserProjectRole(user.id, day.project_id)) === null)
       return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   }
   const sheet = await db.get('SELECT * FROM call_sheets WHERE shoot_day_id = ?', [req.params.dayId]) as any

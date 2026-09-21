@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
-import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
+import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 
 const router = Router()
 
@@ -21,12 +21,12 @@ router.post('/projects/:projectId/equipment-lists', async (req, res) => {
 })
 
 // GET /api/equipment-lists/:id/items
-router.get('/equipment-lists/:id/items', async (req: Request, res: Response) => {
+router.get('/equipment-lists/:id/items', requireMemberVia(projectIdFromTable('equipment_lists', 'id')), async (req: Request, res: Response) => {
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
   if (user.role !== 'admin') {
     const list = await db.get('SELECT project_id FROM equipment_lists WHERE id = ?', [req.params.id]) as any
-    if (list && getUserProjectRole(user.id, list.project_id) === null)
+    if (list && (await getUserProjectRole(user.id, list.project_id)) === null)
       return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   }
   const items = await db.all('SELECT * FROM equipment_items WHERE equipment_list_id = ? ORDER BY sort_order ASC', [req.params.id])

@@ -6,7 +6,7 @@ import path from 'path'
 import fs from 'fs'
 import { initDatabase } from './db'
 import { optionalAuth } from './middleware/auth'
-import { projectWriteGuard } from './middleware/projectAuth'
+import { projectWriteGuard, requireMember } from './middleware/projectAuth'
 
 // Route imports
 import projectsRouter from './routes/projects'
@@ -91,6 +91,23 @@ app.use(optionalAuth)
 
 // Project-level role enforcement (runs after optionalAuth so req.user is set)
 app.use('/api', projectWriteGuard)
+
+// Leseschutz fuer alles unter /api/projects/:projectId/
+//
+// Warum das hier steht und nicht in den einzelnen Routern: projectWriteGuard
+// laesst GET bewusst durch. Geschuetzt waren Leserouten bisher nur dadurch,
+// dass rund zwanzig ANDERE Router ein router.use('/projects/:projectId',
+// requireMember) tragen und frueher eingebunden werden - Express fuehrt deren
+// Middleware ueber den Pfad-Praefix mit aus. Payroll, DOOD, Continuity und
+// Foerderantrag haben selbst keine Pruefung und hingen allein daran.
+//
+// Das hat gehalten, war aber nicht beabsichtigt: eine geaenderte
+// Einbindungsreihenfolge oder eine entfernte Zeile in einem fremden Router
+// haette Gagen oeffentlich gemacht. Hier steht die Regel jetzt ausdruecklich.
+//
+// Routen ueber eine Kind-Id (/shoot-days/7/...) deckt dieser Praefix NICHT ab.
+// Die brauchen weiterhin requireMemberVia an der Route selbst.
+app.use('/api/projects/:projectId', requireMember)
 
 // Serve uploads
 const uploadsDir = path.join(__dirname, '../uploads')

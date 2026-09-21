@@ -3,7 +3,7 @@ import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 import { db } from '../db'
-import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
+import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { clampPosition, normalizeRotation, clampSize, renderFloorplanHtml } from '../lib/floorplan'
 import { generatePdf } from './pdf'
 
@@ -43,7 +43,7 @@ async function loadPlan(req: Request, res: Response): Promise<any | null> {
   `, [req.params.planId]) as any
 
   if (!plan) { res.status(404).json({ data: null, error: 'Set-Plan nicht gefunden' }); return null }
-  if (user.role !== 'admin' && getUserProjectRole(user.id, plan.project_id) === null) {
+  if (user.role !== 'admin' && (await getUserProjectRole(user.id, plan.project_id)) === null) {
     res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
     return null
   }
@@ -80,7 +80,7 @@ router.post('/projects/:projectId/floorplans', async (req, res) => {
 })
 
 // GET /api/floorplans/:planId
-router.get('/floorplans/:planId', async (req, res) => {
+router.get('/floorplans/:planId', requireMemberVia(projectIdFromTable('floorplans', 'planId')), async (req, res) => {
   const plan = await loadPlan(req, res)
   if (!plan) return
   res.json({ data: { plan, items: await loadItems(plan.id) }, error: null })
@@ -163,7 +163,7 @@ async function loadItem(req: Request, res: Response): Promise<any | null> {
 
   const item = await db.get('SELECT * FROM floorplan_items WHERE id = ?', [req.params.itemId]) as any
   if (!item) { res.status(404).json({ data: null, error: 'Element nicht gefunden' }); return null }
-  if (user.role !== 'admin' && getUserProjectRole(user.id, item.project_id) === null) {
+  if (user.role !== 'admin' && (await getUserProjectRole(user.id, item.project_id)) === null) {
     res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
     return null
   }

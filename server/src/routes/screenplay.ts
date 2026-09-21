@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db, pool } from '../db'
-import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
+import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 
 const router = Router()
 
@@ -117,13 +117,13 @@ router.get('/projects/:projectId/screenplay/export.fountain', async (req, res) =
 })
 
 // ─── GET /api/scenes/:sceneId/blocks ─────────────────────────────────────────
-router.get('/scenes/:sceneId/blocks', async (req: Request, res: Response) => {
+router.get('/scenes/:sceneId/blocks', requireMemberVia(projectIdFromTable('scenes', 'sceneId')), async (req: Request, res: Response) => {
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
   if (user.role !== 'admin') {
     const scene = await db.get('SELECT project_id FROM scenes WHERE id = ?', [req.params.sceneId]) as any
     if (!scene) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
-    if (getUserProjectRole(user.id, scene.project_id) === null)
+    if ((await getUserProjectRole(user.id, scene.project_id)) === null)
       return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   }
   const blocks = await db.all(`

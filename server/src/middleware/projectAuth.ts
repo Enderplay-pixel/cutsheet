@@ -81,7 +81,11 @@ export function requireMemberVia(resolve: (req: Request) => Promise<number | nul
 }
 
 /** Projekt ueber eine Tabelle mit project_id aufloesen. */
-export function projectIdFromTable(table: 'shoot_days' | 'locations', param: string) {
+export type KindTabelle =
+  | 'shoot_days' | 'locations' | 'scenes' | 'creator_videos'
+  | 'budget_versions' | 'financing_plan_versions' | 'equipment_lists' | 'floorplans'
+
+export function projectIdFromTable(table: KindTabelle, param: string) {
   return async (req: Request): Promise<number | null> => {
     try {
       const row = await db.get(`SELECT project_id FROM ${table} WHERE id = ?`, [req.params[param]]) as any

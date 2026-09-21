@@ -17,6 +17,10 @@ const OWNER_ID = 1
 const FREMD_ID = 99
 
 vi.mock('../db', () => ({
+  // Einige Router setzen beim Laden Spalten nach. Ohne pool bricht schon der
+  // Import ab, lange bevor eine Pruefung dran waere.
+  pool: { query: vi.fn(async () => ({ rows: [] })) },
+  toPg: (sql: string) => sql,
   db: {
     get: vi.fn(async (sql: string) => {
       if (sql.includes('SELECT owner_id FROM projects')) return { owner_id: OWNER_ID }
@@ -25,6 +29,14 @@ vi.mock('../db', () => ({
       if (sql.includes('FROM call_sheets cs')) return { project_id: 1 }
       if (sql.includes('project_id FROM shoot_days')) return { project_id: 1 }
       if (sql.includes('project_id FROM locations')) return { project_id: 1 }
+      if (sql.includes('project_id FROM scenes')) return { project_id: 1 }
+      if (sql.includes('project_id FROM creator_videos')) return { project_id: 1 }
+      if (sql.includes('project_id FROM budget_versions')) return { project_id: 1 }
+      if (sql.includes('project_id FROM financing_plan_versions')) return { project_id: 1 }
+      if (sql.includes('project_id FROM equipment_lists')) return { project_id: 1 }
+      if (sql.includes('project_id FROM floorplans')) return { project_id: 1 }
+      // Die Videoroute laedt den ganzen Datensatz, nicht nur project_id
+      if (sql.includes('FROM creator_videos')) return { id: 1, project_id: 1, title: 'Video' }
       if (sql.includes('FROM shoot_days')) return { id: 1, day_number: 1, date: '2026-08-05', project_id: 1 }
       if (sql.includes('FROM locations')) return { id: 1, name: 'Motiv', project_id: 1 }
       if (sql.includes('FROM projects')) return { id: 1, title: 'Sprachlos' }
@@ -51,6 +63,17 @@ beforeAll(async () => {
     import('../routes/sun'),
     import('../routes/scriptSides'),
   ])
+  const [screenplay, budget, callsheets, dailyreports, creator, youtube, equipment, floorplans] =
+    await Promise.all([
+      import('../routes/screenplay'),
+      import('../routes/budget'),
+      import('../routes/callsheets'),
+      import('../routes/dailyreports'),
+      import('../routes/creator'),
+      import('../routes/youtube'),
+      import('../routes/equipment'),
+      import('../routes/floorplans'),
+    ])
   const app = express()
   app.use(express.json())
   app.use((req, _res, next) => { if (currentUser) (req as any).user = currentUser; next() })
@@ -62,6 +85,14 @@ beforeAll(async () => {
   app.use('/api', checkin.default)
   app.use('/api', sun.default)
   app.use('/api', sides.default)
+  app.use('/api', screenplay.default)
+  app.use('/api', budget.default)
+  app.use('/api', callsheets.default)
+  app.use('/api', dailyreports.default)
+  app.use('/api', creator.default)
+  app.use('/api', youtube.default)
+  app.use('/api', equipment.default)
+  app.use('/api', floorplans.default)
   await new Promise<void>(resolve => {
     server = app.listen(0, () => {
       base = `http://127.0.0.1:${(server.address() as any).port}`
@@ -87,6 +118,19 @@ const geschuetzt = [
   ['Check-in-Stand', '/api/call-sheets/1/checkin-status'],
   ['Sonnenstand', '/api/locations/1/sun'],
   ['Script Sides', '/api/shoot-days/1/script-sides/pdf'],
+  // Am 21.09.2026 nachgewiesen: ein angemeldeter Fremder konnte diese sieben
+  // lesen. Bei den Creator-Routen lag es an einem fehlenden await - der
+  // Vergleich stellte ein Promise gegen null, wurde nie wahr, und die
+  // Pruefung liess jeden durch.
+  ['Drehbuchbloecke', '/api/scenes/1/blocks'],
+  ['Kalkulationszeilen', '/api/budget-versions/1/lines'],
+  ['Finanzierungsposten', '/api/financing-versions/1/entries'],
+  ['Tagesdispo', '/api/shoot-days/1/call-sheet'],
+  ['Tagesbericht', '/api/shoot-days/1/daily-report'],
+  ['Creator-Video', '/api/creator/videos/1'],
+  ['Creator-Haltequote', '/api/creator/videos/1/retention'],
+  ['Equipment-Posten', '/api/equipment-lists/1/items'],
+  ['Grundriss', '/api/floorplans/1'],
 ]
 
 describe('Leseschutz', () => {

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
-import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
+import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 
 const router = Router()
 
@@ -90,13 +90,13 @@ router.post('/projects/:projectId/budget-versions', async (req, res) => {
 })
 
 // GET /api/budget-versions/:id/lines
-router.get('/budget-versions/:id/lines', async (req: Request, res: Response) => {
+router.get('/budget-versions/:id/lines', requireMemberVia(projectIdFromTable('budget_versions', 'id')), async (req: Request, res: Response) => {
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
   if (user.role !== 'admin') {
     const version = await db.get('SELECT project_id FROM budget_versions WHERE id = ?', [req.params.id]) as any
     if (!version) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
-    if (getUserProjectRole(user.id, version.project_id) === null)
+    if ((await getUserProjectRole(user.id, version.project_id)) === null)
       return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   }
   const lines = await db.all('SELECT * FROM budget_lines WHERE budget_version_id = ? ORDER BY sort_order ASC, account_code ASC', [req.params.id])
@@ -184,13 +184,13 @@ router.post('/projects/:projectId/financing-versions', async (req, res) => {
 })
 
 // GET /api/financing-versions/:id/entries
-router.get('/financing-versions/:id/entries', async (req: Request, res: Response) => {
+router.get('/financing-versions/:id/entries', requireMemberVia(projectIdFromTable('financing_plan_versions', 'id')), async (req: Request, res: Response) => {
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
   if (user.role !== 'admin') {
     const version = await db.get('SELECT project_id FROM financing_plan_versions WHERE id = ?', [req.params.id]) as any
     if (!version) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
-    if (getUserProjectRole(user.id, version.project_id) === null)
+    if ((await getUserProjectRole(user.id, version.project_id)) === null)
       return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   }
   const entries = await db.all('SELECT * FROM financing_entries WHERE financing_version_id = ? ORDER BY sort_order ASC', [req.params.id])
