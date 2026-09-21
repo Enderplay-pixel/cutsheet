@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
-import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
+import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 
 const router = Router()
 
@@ -51,6 +51,8 @@ router.get('/projects/:projectId/time-analysis', async (req, res) => {
 
   // Build a map of scene_id -> actual_minutes
   const actualMinutesMap: Record<number, number> = {}
+  // Welche Szenen tragen nur einen rechnerischen Anteil statt einer Messung
+  const geschaetzt = new Set<number>()
 
   for (const day of shootDays) {
     const completedIds: number[] = JSON.parse(day.scenes_completed || '[]')
@@ -74,11 +76,43 @@ router.get('/projects/:projectId/time-analysis', async (req, res) => {
 
     if (totalDayMinutes < 0) totalDayMinutes = 0
 
-    // Distribute evenly across scenes shot that day
-    const minutesPerScene = allSceneIds.length > 0 ? Math.round(totalDayMinutes / allSceneIds.length) : 0
+    // Gemessene Zeiten haben Vorrang. Was gemessen wurde, zaehlt genau so;
+    // nur der Rest des Tages wird auf die uebrigen Szenen aufgeteilt.
+    const gemessen = await db.all(
+      'SELECT scene_id, actual_minutes FROM shoot_day_scenes WHERE shoot_day_id = ? AND actual_minutes IS NOT NULL',
+      [day.shoot_day_id]
+    ) as any[]
 
+    const gemessenJeSzene = new Map<number, number>()
+    for (const g of gemessen) gemessenJeSzene.set(Number(g.scene_id), Number(g.actual_minutes))
+
+    let restMinuten = totalDayMinutes
     for (const sceneId of allSceneIds) {
-      actualMinutesMap[sceneId] = (actualMinutesMap[sceneId] || 0) + minutesPerScene
+      const m = gemessenJeSzene.get(Number(sceneId))
+      if (m !== undefined) {
+        actualMinutesMap[sceneId] = (actualMinutesMap[sceneId] || 0) + m
+        geschaetzt.delete(Number(sceneId))
+        restMinuten -= m
+      }
+    }
+    if (restMinuten < 0) restMinuten = 0
+
+    const offene = allSceneIds.filter(id => gemessenJeSzene.get(Number(id)) === undefined)
+    if (offene.length > 0) {
+      // Aufteilung nach geplanter Dauer, nicht zu gleichen Teilen: sonst steht
+      // eine 30-Minuten-Szene mit demselben Wert da wie eine Zweistuendige und
+      // erscheint dramatisch ueberzogen, obwohl niemand sie gemessen hat.
+      const plan = new Map<number, number>()
+      for (const id of offene) {
+        const s = scenes.find((x: any) => Number(x.scene_id) === Number(id))
+        plan.set(Number(id), Math.max(1, Number(s?.estimated_minutes) || 1))
+      }
+      const planSumme = [...plan.values()].reduce((a, b) => a + b, 0)
+      for (const id of offene) {
+        const anteil = Math.round(restMinuten * (plan.get(Number(id))! / planSumme))
+        actualMinutesMap[id] = (actualMinutesMap[id] || 0) + anteil
+        geschaetzt.add(Number(id))
+      }
     }
   }
 
@@ -93,6 +127,8 @@ router.get('/projects/:projectId/time-analysis', async (req, res) => {
       estimated_minutes: estimated,
       actual_minutes: actual,
       difference_minutes: actual - estimated,
+      // true heisst: nicht gemessen, sondern aus der Tagesdrehzeit abgeleitet
+      geschaetzt: geschaetzt.has(Number(s.scene_id)),
     }
   })
 
@@ -100,12 +136,12 @@ router.get('/projects/:projectId/time-analysis', async (req, res) => {
 })
 
 // GET /api/shoot-days/:dayId/daily-report
-router.get('/shoot-days/:dayId/daily-report', async (req: Request, res: Response) => {
+router.get('/shoot-days/:dayId/daily-report', requireMemberVia(projectIdFromTable('shoot_days', 'dayId')), async (req: Request, res: Response) => {
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
   if (user.role !== 'admin') {
     const day = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [req.params.dayId]) as any
-    if (day && getUserProjectRole(user.id, day.project_id) === null)
+    if (day && (await getUserProjectRole(user.id, day.project_id)) === null)
       return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   }
   const report = await db.get('SELECT * FROM daily_reports WHERE shoot_day_id = ?', [req.params.dayId]) as any
@@ -132,6 +168,8 @@ router.post('/shoot-days/:dayId/daily-report', async (req, res) => {
     wrap = defWrap,
     scenes_completed = [],
     scenes_partial = [],
+    // { sceneId: Minuten | null }. null loescht eine Messung wieder.
+    scene_actuals = null,
     pages_shot = 0,
     total_setups = 0,
     camera_rolls = '',
@@ -149,6 +187,19 @@ router.post('/shoot-days/:dayId/daily-report', async (req, res) => {
   } else {
     const result = await db.run(`INSERT INTO daily_reports (shoot_day_id, date, call_time, first_shot, lunch_in, lunch_out, wrap, scenes_completed, scenes_partial, pages_shot, total_setups, camera_rolls, sound_rolls, notes, production_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [req.params.dayId, date, call_time, first_shot, lunch_in, lunch_out, wrap, JSON.stringify(scenes_completed), JSON.stringify(scenes_partial), pages_shot, total_setups, camera_rolls, sound_rolls, notes, production_notes])
     reportId = result.id
+  }
+
+  // Gemessene Minuten je Szene liegen an der Verbindung Drehtag-Szene, nicht
+  // am Bericht: eine Szene kann ueber mehrere Tage gedreht werden.
+  if (scene_actuals && typeof scene_actuals === 'object') {
+    for (const [sceneId, wert] of Object.entries(scene_actuals)) {
+      const minuten = wert === null || wert === '' ? null : Number(wert)
+      if (minuten !== null && (!Number.isFinite(minuten) || minuten < 0)) continue
+      await db.run(
+        'UPDATE shoot_day_scenes SET actual_minutes = ? WHERE shoot_day_id = ? AND scene_id = ?',
+        [minuten, req.params.dayId, sceneId]
+      )
+    }
   }
 
   res.json({ data: await getReport(reportId), error: null })

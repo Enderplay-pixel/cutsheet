@@ -815,6 +815,10 @@ export async function initDatabase() {
   // "3, 5" oder "2 (Ton ab 4)" darin steht.
   await db.exec(`ALTER TABLE shots ADD COLUMN IF NOT EXISTS best_take TEXT NOT NULL DEFAULT ''`)
   await db.exec(`ALTER TABLE screenplay_blocks ADD COLUMN IF NOT EXISTS annotation_color TEXT NOT NULL DEFAULT '#f59e0b'`)
+  // Tatsaechlicher Drehaufwand je Szene und Drehtag. NULL heisst "nicht
+  // gemessen" - nicht 0. Die Zeitanalyse faellt dann auf die Aufteilung der
+  // Tagesdrehzeit zurueck und kennzeichnet den Wert als geschaetzt.
+  await db.exec(`ALTER TABLE shoot_day_scenes ADD COLUMN IF NOT EXISTS actual_minutes INTEGER`)
   await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false`)
   // Projektart: 'film' = klassische Produktion, 'creator' = Content-/YouTube-Kanal.
   // Steuert Navigation und Feature-Set im Client.

@@ -22,6 +22,8 @@ interface SceneRow {
   estimated_minutes: number
   actual_minutes: number
   difference_minutes: number
+  /** true: nicht gemessen, sondern aus der Tagesdrehzeit abgeleitet */
+  geschaetzt?: boolean
 }
 
 export function Component() {
@@ -54,6 +56,7 @@ export function Component() {
   const maxVal = Math.max(...data.map(r => Math.max(r.estimated_minutes || 0, r.actual_minutes || 0)), 1)
 
   const shotScenes = data.filter(r => r.actual_minutes > 0)
+  const geschaetzteZeilen = data.filter(r => r.geschaetzt).length
   const overBudgetCount = shotScenes.filter(r => r.difference_minutes > 0).length
   const underBudgetCount = shotScenes.filter(r => r.difference_minutes < 0).length
 
@@ -224,7 +227,13 @@ export function Component() {
                           {formatMinutes(row.estimated_minutes)}
                         </td>
                         <td className="text-right tabular-nums text-sm">
-                          {hasActual ? formatMinutes(row.actual_minutes) : (
+                          {hasActual ? (
+                            <span className={row.geschaetzt ? 'text-muted-foreground' : undefined}>
+                              {formatMinutes(row.actual_minutes)}
+                              {/* Eine abgeleitete Zahl darf nicht aussehen wie eine gemessene */}
+                              {row.geschaetzt && <span className="ml-1 text-[10px] uppercase tracking-wide opacity-60">gesch.</span>}
+                            </span>
+                          ) : (
                             <span className="text-muted-foreground/40">—</span>
                           )}
                         </td>
@@ -275,6 +284,13 @@ export function Component() {
                 </tfoot>
               </table>
             </div>
+            {geschaetzteZeilen > 0 && (
+              <p className="text-[11px] text-muted-foreground/70 mt-4 leading-relaxed">
+                <b>gesch.</b> heißt: für diese {geschaetzteZeilen === 1 ? 'Szene' : `${geschaetzteZeilen} Szenen`} wurde
+                keine Zeit gemessen. Der Wert ist die Drehzeit des Tages, verteilt nach geplanter
+                Dauer. Gemessene Minuten trägst du im Tagesbericht bei der jeweiligen Szene ein.
+              </p>
+            )}
           </div>
         </>
       )}

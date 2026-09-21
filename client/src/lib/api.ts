@@ -79,6 +79,17 @@ export const api = {
     // Kanal-Auswertung und Kalender
     overview: (projectId: number) => req<any>(`/projects/${projectId}/creator/overview`),
 
+    // Bereiche auf Projektebene: Auswertungen über alle Videos hinweg
+    redaktionsplan: (projectId: number) => req<any>(`/projects/${projectId}/creator/redaktionsplan`),
+    serien: (projectId: number) => req<any>(`/projects/${projectId}/creator/serien`),
+    sponsoren: (projectId: number) => req<any>(`/projects/${projectId}/creator/sponsoren`),
+    seo: (projectId: number) => req<any>(`/projects/${projectId}/creator/seo`),
+    titel: (projectId: number) => req<any>(`/projects/${projectId}/creator/titel`),
+    rechte: (projectId: number) => req<any>(`/projects/${projectId}/creator/rechte`),
+    clipsUebersicht: (projectId: number) => req<any>(`/projects/${projectId}/creator/clips`),
+    checklisten: (projectId: number) => req<any>(`/projects/${projectId}/creator/checklisten`),
+    performance: (projectId: number) => req<any>(`/projects/${projectId}/creator/performance`),
+
     // YouTube-Anbindung
     ytStatus: (projectId: number) => req<any>(`/projects/${projectId}/creator/youtube/status`),
     ytConnect: (projectId: number) => req<any>(`/projects/${projectId}/creator/youtube/connect`),

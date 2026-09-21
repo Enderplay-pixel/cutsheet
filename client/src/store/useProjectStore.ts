@@ -54,7 +54,9 @@ export const useProjectStore = create<ProjectStore>()(
       searchOpen: false,
       setSearchOpen: (open) => set({ searchOpen: open }),
 
-      language: 'en',
+      // Deutsch als Voreinstellung: Strings ohne i18n-Eintrag sind deutsch,
+      // also ist 'de' die einzige Sprache ohne Mischmasch in der Oberflaeche.
+      language: 'de',
       setLanguage: (lang) => set({ language: lang }),
 
       lastSaved: null,

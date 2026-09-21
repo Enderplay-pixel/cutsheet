@@ -17,6 +17,7 @@ import {
   analyseCadence,
 } from '../lib/creatorInsights'
 import { generatePdf } from './pdf'
+import * as areas from '../lib/creatorAreas'
 
 const router = Router()
 
@@ -37,7 +38,9 @@ async function loadVideoForUser(req: Request, res: Response): Promise<any | null
   const video = await db.get('SELECT * FROM creator_videos WHERE id = ?', [req.params.videoId]) as any
   if (!video) { res.status(404).json({ data: null, error: 'Video nicht gefunden' }); return null }
 
-  if (user.role !== 'admin' && getUserProjectRole(user.id, video.project_id) === null) {
+  // await ist hier nicht optional: ohne es vergleicht der Ausdruck ein
+  // Promise mit null, wird nie wahr, und die Pruefung laesst jeden durch.
+  if (user.role !== 'admin' && (await getUserProjectRole(user.id, video.project_id)) === null) {
     res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
     return null
   }
@@ -240,7 +243,7 @@ router.put('/creator/sections/:sectionId', async (req, res) => {
 
   const existing = await db.get('SELECT * FROM creator_script_sections WHERE id = ?', [req.params.sectionId]) as any
   if (!existing) return res.status(404).json({ data: null, error: 'Abschnitt nicht gefunden' })
-  if (user.role !== 'admin' && getUserProjectRole(user.id, existing.project_id) === null) {
+  if (user.role !== 'admin' && (await getUserProjectRole(user.id, existing.project_id)) === null) {
     return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   }
 
@@ -266,7 +269,7 @@ router.delete('/creator/sections/:sectionId', async (req, res) => {
 
   const existing = await db.get('SELECT * FROM creator_script_sections WHERE id = ?', [req.params.sectionId]) as any
   if (!existing) return res.status(404).json({ data: null, error: 'Abschnitt nicht gefunden' })
-  if (user.role !== 'admin' && getUserProjectRole(user.id, existing.project_id) === null) {
+  if (user.role !== 'admin' && (await getUserProjectRole(user.id, existing.project_id)) === null) {
     return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   }
 
@@ -307,7 +310,7 @@ async function loadIdeaForUser(req: Request, res: Response): Promise<any | null>
 
   const idea = await db.get('SELECT * FROM creator_ideas WHERE id = ?', [req.params.ideaId]) as any
   if (!idea) { res.status(404).json({ data: null, error: 'Idee nicht gefunden' }); return null }
-  if (user.role !== 'admin' && getUserProjectRole(user.id, idea.project_id) === null) {
+  if (user.role !== 'admin' && (await getUserProjectRole(user.id, idea.project_id)) === null) {
     res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
     return null
   }
@@ -322,7 +325,7 @@ async function loadOwnedRow(req: Request, res: Response, table: string, idParam:
   // table stammt ausschließlich aus festen Literalen unten, nie aus Nutzereingaben
   const row = await db.get(`SELECT * FROM ${table} WHERE id = ?`, [req.params[idParam]]) as any
   if (!row) { res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' }); return null }
-  if (user.role !== 'admin' && getUserProjectRole(user.id, row.project_id) === null) {
+  if (user.role !== 'admin' && (await getUserProjectRole(user.id, row.project_id)) === null) {
     res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
     return null
   }
@@ -622,6 +625,77 @@ router.get('/creator/videos/:videoId/pdf', async (req, res) => {
   } catch (e: any) {
     res.status(500).json({ data: null, error: `PDF-Fehler: ${e.message}` })
   }
+})
+
+// ─── Bereiche auf Projektebene ──────────────────────────────────────────────
+//
+// Die Einzelvideo-Ansicht zeigt alles zu EINEM Video. Ein Kanal wird aber
+// quer über alle Videos geführt: Was kommt als Nächstes raus, welche Serie
+// traegt, wo fehlt eine Kennzeichnung, welches Material hat keine Lizenz.
+// Die Daten dafür lagen bereits in creator_videos - nur ohne Ansicht.
+
+async function projektVideos(projectId: string) {
+  return await db.all(
+    'SELECT * FROM creator_videos WHERE project_id = ? ORDER BY sort_order ASC, id ASC',
+    [projectId]
+  ) as any[]
+}
+
+router.get('/projects/:projectId/creator/redaktionsplan', async (req, res) => {
+  const videos = await projektVideos(req.params.projectId)
+  res.json({ data: areas.redaktionsplan(videos), error: null })
+})
+
+router.get('/projects/:projectId/creator/serien', async (req, res) => {
+  const videos = await projektVideos(req.params.projectId)
+  res.json({ data: { serien: areas.serien(videos) }, error: null })
+})
+
+router.get('/projects/:projectId/creator/sponsoren', async (req, res) => {
+  const videos = await projektVideos(req.params.projectId)
+  res.json({ data: areas.sponsoren(videos), error: null })
+})
+
+router.get('/projects/:projectId/creator/seo', async (req, res) => {
+  const videos = await projektVideos(req.params.projectId)
+  res.json({ data: areas.seo(videos), error: null })
+})
+
+router.get('/projects/:projectId/creator/titel', async (req, res) => {
+  const videos = await projektVideos(req.params.projectId)
+  res.json({ data: areas.titelUndThumbnails(videos), error: null })
+})
+
+router.get('/projects/:projectId/creator/rechte', async (req, res) => {
+  const videos = await projektVideos(req.params.projectId)
+  const assets = await db.all(
+    'SELECT * FROM creator_assets WHERE project_id = ? ORDER BY id ASC',
+    [req.params.projectId]
+  ) as any[]
+  res.json({ data: areas.rechte(videos, assets), error: null })
+})
+
+router.get('/projects/:projectId/creator/clips', async (req, res) => {
+  const videos = await projektVideos(req.params.projectId)
+  const clips = await db.all(
+    'SELECT * FROM creator_clips WHERE project_id = ? ORDER BY video_id ASC, sort_order ASC',
+    [req.params.projectId]
+  ) as any[]
+  res.json({ data: areas.clips(videos, clips), error: null })
+})
+
+router.get('/projects/:projectId/creator/checklisten', async (req, res) => {
+  const videos = await projektVideos(req.params.projectId)
+  const punkte = await db.all(
+    'SELECT * FROM creator_checklist WHERE project_id = ? ORDER BY video_id ASC, sort_order ASC',
+    [req.params.projectId]
+  ) as any[]
+  res.json({ data: areas.checklisten(videos, punkte), error: null })
+})
+
+router.get('/projects/:projectId/creator/performance', async (req, res) => {
+  const videos = await projektVideos(req.params.projectId)
+  res.json({ data: areas.performance(videos), error: null })
 })
 
 export default router

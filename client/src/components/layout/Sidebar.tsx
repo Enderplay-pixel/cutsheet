@@ -11,7 +11,8 @@ import {
   Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight,
   StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle, ShieldCheck, BookUser, Settings,
   Layers, CalendarClock, Music, Shield, CheckSquare, Clock, UtensilsCrossed, Image, TableProperties,
-  MessageSquare, Activity, Video, CalendarOff, Wallet, LayoutGrid
+  MessageSquare, Activity, Video, CalendarOff, Wallet, LayoutGrid,
+  Type, Scissors, ListChecks, TrendingUp, Megaphone
 } from 'lucide-react'
 import { FeedbackWidget } from '@/components/shared/FeedbackWidget'
 import { useT } from '@/lib/useT'
@@ -67,52 +68,88 @@ export function Sidebar() {
   })
   const conflictCount = (conflicts || []).filter((c: any) => c.severity === 'error' || c.severity === 'warning').length
 
-  // Creator-Projekte (YouTube, Shorts, Podcast) haben keine Crew, keinen
-  // Drehplan und keine Tagesdispo. Sie bekommen deshalb eine eigene Navigation
-  // statt der Filmproduktions-Struktur.
   const isCreator = isCreatorProject(project)
 
+  // Creator hat eigene Bereiche, nicht umbenannte Filmseiten. Die Daten dafuer
+  // lagen laengst in creator_videos - Serie, Zielbegriff, Titelvarianten,
+  // Sponsorenfelder, Haltequote - nur sichtbar war das alles ausschliesslich
+  // innerhalb eines einzelnen Videos. Ein Kanal wird aber quer ueber alle
+  // Videos gefuehrt.
   const creatorGroups: NavGroupDef[] = [
     {
-      label: 'Kanal',
+      label: 'Übersicht',
       items: [
         { label: tt(navT.dashboard), icon: LayoutDashboard, path: '' },
-        { label: 'Kanal', icon: Activity, path: 'creator/kanal' },
-        { label: 'Ideen', icon: StickyNote, path: 'creator/ideen' },
-        { label: 'Videos', icon: Video, path: 'creator' },
+        { label: tt(navT.masterData), icon: Film, path: 'stammdaten' },
         { label: 'Aufgaben', icon: CheckSquare, path: 'aufgaben' },
       ]
     },
     {
-      label: 'Ideen & Look',
+      label: 'Kanal & Planung',
       items: [
+        { label: 'Kanal', icon: Activity, path: 'creator/kanal' },
+        { label: 'Ideen', icon: StickyNote, path: 'creator/ideen' },
+        { label: 'Redaktionsplan', icon: CalendarClock, path: 'creator/redaktionsplan' },
+        { label: 'Serien & Formate', icon: Layers, path: 'creator/serien' },
+        { label: tt(navT.calendar), icon: Calendar, path: 'kalender' },
+      ]
+    },
+    {
+      label: 'Videos',
+      items: [
+        { label: 'Videos', icon: Video, path: 'creator' },
+        { label: 'Titel & Thumbnails', icon: Type, path: 'creator/titel' },
         { label: 'Moodboard', icon: Image, path: 'moodboard' },
-        { label: 'Pinnwand', icon: StickyNote, path: 'pinboard' },
-        { label: 'Musikliste', icon: Music, path: 'musikliste' },
+        { label: 'Kommentare', icon: MessageSquare, path: 'kommentare' },
       ]
     },
     {
       label: 'Produktion',
       items: [
         { label: tt(navT.shotlist), icon: Camera, path: 'shotlist' },
-        { label: 'Set-Plan', icon: LayoutGrid, path: 'setplan' },
-        { label: tt(navT.locations), icon: MapPin, path: 'motive' },
+        { label: 'Drehorte', icon: MapPin, path: 'motive' },
+        { label: 'Gäste & Mitwirkende', icon: Users, path: 'besetzung' },
+        { label: 'Team', icon: Briefcase, path: 'stabliste' },
         { label: tt(navT.equipment), icon: Package, path: 'equipment' },
-        { label: tt(navT.calendar), icon: Calendar, path: 'kalender' },
+        { label: 'Equipment-Kalender', icon: CalendarClock, path: 'equipment-kalender' },
+        { label: 'Set-Ansicht', icon: Clapperboard, path: '/set' },
       ]
     },
     {
-      label: 'Nachbearbeitung',
+      label: 'Schnitt & Rechte',
       items: [
         { label: 'Postproduktion', icon: Layers, path: 'postplan' },
-        { label: 'Kontakte', icon: BookUser, path: 'kontakte' },
+        { label: 'Auskopplungen', icon: Scissors, path: 'creator/clips' },
+        { label: 'Zeitanalyse', icon: TableProperties, path: 'zeitanalyse' },
+        { label: 'Rechte & Lizenzen', icon: ShieldCheck, path: 'creator/rechte' },
+        { label: 'Musikliste', icon: Music, path: 'musikliste' },
+      ]
+    },
+    {
+      label: 'Veröffentlichung',
+      items: [
+        { label: 'Upload-Checklisten', icon: ListChecks, path: 'creator/checklisten' },
+        { label: 'SEO & Metadaten', icon: Search, path: 'creator/seo' },
+        { label: 'Video-Performance', icon: TrendingUp, path: 'creator/performance' },
       ]
     },
     {
       label: 'Geld',
       items: [
+        { label: 'Sponsoren', icon: Megaphone, path: 'creator/sponsoren' },
         { label: tt(navT.budget), icon: DollarSign, path: 'budget' },
         { label: 'Kostenstand', icon: Wallet, path: 'kostenstand' },
+      ]
+    },
+    {
+      label: 'Tools & Kommunikation',
+      items: [
+        { label: tt(navT.email), icon: Mail, path: 'email' },
+        { label: tt(navT.contacts), icon: BookUser, path: 'kontakte' },
+        { label: tt(navT.pinboard), icon: StickyNote, path: 'pinboard' },
+        { label: 'Aktivitäts-Feed', icon: Activity, path: 'aktivitaet' },
+        { label: tt(navT.search), icon: Search, path: 'suche' },
+        { label: tt(navT.auditLog), icon: History, path: 'audit' },
       ]
     },
   ]
@@ -178,7 +215,11 @@ export function Sidebar() {
         { label: 'Continuity', icon: Image, path: 'continuity' },
         { label: 'Kameraberichte', icon: Video, path: 'kameraberichte' },
         { label: tt(navT.dailyReport), icon: FileCheck, path: 'tagesbericht' },
+        { label: 'Zeitanalyse', icon: TableProperties, path: 'zeitanalyse' },
         { label: 'Timesheets', icon: Clock, path: 'timesheets' },
+        // Eigene Ansicht fuers Telefon am Set, ausserhalb des Projektlayouts.
+        // Absoluter Pfad, deshalb der Sonderfall beim Linkbau weiter unten.
+        { label: 'Set-Ansicht', icon: Clapperboard, path: '/set' },
       ]
     },
     {
@@ -258,7 +299,9 @@ export function Sidebar() {
       )}
 
     <aside className={cn(
-      'flex flex-col h-screen bg-card border-r border-border sidebar-transition relative',
+      // h-dvh statt h-screen: 100vh rechnet auf iOS die Browserleiste mit,
+      // dadurch wird das untere Ende der Schublade abgeschnitten.
+      'flex flex-col h-dvh bg-card border-r border-border sidebar-transition relative',
       // Ab md wie bisher eine feste Spalte im Fluss
       'md:shrink-0 md:translate-x-0 md:static md:z-auto',
       // Darunter eine Schublade ueber dem Inhalt: 220 px fester Abzug waeren
@@ -373,7 +416,9 @@ function NavGroup({ group, pid, collapsed, open, isActiveGroup, onToggle }: {
           <NavItem
             key={item.path}
             item={item}
-            to={item.path === '' ? `/projects/${pid}` : `/projects/${pid}/${item.path}`}
+            to={item.path === '' ? `/projects/${pid}`
+              : item.path.startsWith('/') ? item.path
+              : `/projects/${pid}/${item.path}`}
             end={item.path === ''}
             collapsed
           />
@@ -420,7 +465,9 @@ function NavGroup({ group, pid, collapsed, open, isActiveGroup, onToggle }: {
             <NavItem
               key={item.path}
               item={item}
-              to={item.path === '' ? `/projects/${pid}` : `/projects/${pid}/${item.path}`}
+              to={item.path === '' ? `/projects/${pid}`
+              : item.path.startsWith('/') ? item.path
+              : `/projects/${pid}/${item.path}`}
               end={item.path === ''}
               collapsed={false}
             />
