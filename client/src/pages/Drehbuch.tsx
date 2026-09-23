@@ -52,6 +52,17 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
   const updateMutation = useMutation({
     mutationFn: (data: any) => api.scenes.update(scene.id, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenes', projectId] }),
+    // Ohne diesen Zweig waere ein Konflikt stumm: die Aenderung ginge
+    // verloren und niemand erfuehre davon. Deshalb Meldung plus Neuladen -
+    // danach sieht man den fremden Stand und kann bewusst entscheiden.
+    onError: (e: any) => {
+      queryClient.invalidateQueries({ queryKey: ['scenes', projectId] })
+      toast({
+        variant: 'destructive',
+        title: 'Nicht gespeichert',
+        description: e?.message || 'Die Szene konnte nicht gespeichert werden.',
+      })
+    },
   })
   const deleteMutation = useMutation({
     mutationFn: () => api.scenes.delete(scene.id),

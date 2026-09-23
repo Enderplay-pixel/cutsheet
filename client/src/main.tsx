@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query'
+import { toast } from '@/components/ui/use-toast'
 import { RouterProvider, createBrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
@@ -20,6 +21,25 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 30000, retry: 1 },
   },
+  // Auffangnetz fuer alle Schreibvorgaenge.
+  //
+  // Am 23.09.2026 nachgezaehlt: 67 von 161 useMutation-Aufrufen hatten kein
+  // onError. Schlug ein Speichern fehl, verschwand die Aenderung wortlos -
+  // der Nutzer glaubte, es sei gespeichert. Hier faellt nichts mehr durch.
+  //
+  // Wer ein eigenes onError mitbringt, wird uebersprungen, sonst stuenden
+  // zwei Meldungen uebereinander.
+  mutationCache: new MutationCache({
+    onError: (fehler, _variablen, _kontext, mutation) => {
+      if (mutation.options.onError) return
+      const text = fehler instanceof Error ? fehler.message : String(fehler)
+      toast({
+        variant: 'destructive',
+        title: 'Nicht gespeichert',
+        description: text || 'Die Änderung konnte nicht gespeichert werden.',
+      })
+    },
+  }),
 })
 
 const router = createBrowserRouter([

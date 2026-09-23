@@ -50,7 +50,28 @@ router.post('/projects/:projectId/scenes', async (req, res) => {
 
 // PUT /api/scenes/:id
 router.put('/scenes/:id', async (req, res) => {
-  const { scene_number, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes, sort_order, shot_status } = req.body
+  const { scene_number, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes, sort_order, shot_status, updated_at } = req.body
+
+  // Optimistisches Sperren. Ohne das ueberschreibt der zweite Speichervorgang
+  // den ersten stillschweigend: nachgemessen am 23.09.2026 - A aenderte den
+  // Titel, B die Notizen auf altem Stand, danach war A's Titel weg und niemand
+  // hat es gemerkt. Wer kein updated_at mitschickt, wird nicht geprueft, damit
+  // Aufrufe ohne Vorlesen weiter funktionieren.
+  if (updated_at) {
+    const stand = await db.get('SELECT updated_at FROM scenes WHERE id = ?', [req.params.id]) as any
+    if (!stand) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+    const gespeichert = new Date(stand.updated_at).getTime()
+    const mitgebracht = new Date(updated_at).getTime()
+    // Eine Sekunde Spielraum: manche Treiber runden Zeitstempel.
+    if (Number.isFinite(gespeichert) && Number.isFinite(mitgebracht)
+        && gespeichert - mitgebracht > 1000) {
+      return res.status(409).json({
+        data: null,
+        error: 'Diese Szene wurde inzwischen von jemand anderem geändert. Bitte neu laden.',
+      })
+    }
+  }
+
   await db.run(`
     UPDATE scenes SET scene_number=?, title=?, description=?, location_id=?, int_ext=?, day_night=?, eighths=?, estimated_minutes=?, notes=?, sort_order=COALESCE(?,sort_order), shot_status=COALESCE(?,shot_status), updated_at=datetime('now')
     WHERE id=?

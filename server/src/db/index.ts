@@ -822,6 +822,14 @@ export async function initDatabase() {
   // Herkunft einer Kalkulationszeile. Leer heisst: von Hand angelegt und
   // wird von der Kostenuebernahme nie angefasst.
   await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS source_key TEXT NOT NULL DEFAULT ''`)
+
+  // Eine Szene gehoert zu genau einem Drehtag. Ohne diese Sperre konnte sie
+  // bei gleichzeitigem Verschieben an mehreren liegen. Erst Altlasten
+  // bereinigen, sonst scheitert der Index.
+  await db.exec(`DELETE FROM shoot_day_scenes a USING shoot_day_scenes b
+                 WHERE a.scene_id = b.scene_id AND a.id > b.id`)
+  await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS shoot_day_scenes_scene_eindeutig
+                 ON shoot_day_scenes (scene_id)`)
   await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false`)
   // Projektart: 'film' = klassische Produktion, 'creator' = Content-/YouTube-Kanal.
   // Steuert Navigation und Feature-Set im Client.

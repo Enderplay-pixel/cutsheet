@@ -117,9 +117,13 @@ router.post('/shoot-days/move-scene', async (req, res) => {
   const { sceneId, fromDayId, toDayId, sortOrder = 0 } = req.body
 
   await db.transaction(async (tx) => {
-    if (fromDayId) {
-      await tx.run('DELETE FROM shoot_day_scenes WHERE shoot_day_id = ? AND scene_id = ?', [fromDayId, sceneId])
-    }
+    // Aus ALLEN Drehtagen entfernen, nicht nur aus dem, den der Client fuer
+    // den aktuellen haelt. Sonst landet die Szene bei einem veralteten Stand
+    // oder zwei gleichzeitigen Zuegen an mehreren Tagen - nachgemessen am
+    // 23.09.2026: zwei parallele Aufrufe, danach lag die Szene an Tag 2 UND 3,
+    // und jede Folgerechnung zaehlte sie doppelt.
+    await tx.run('DELETE FROM shoot_day_scenes WHERE scene_id = ?', [sceneId])
+    void fromDayId
     if (toDayId) {
       try {
         await tx.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, ?)', [toDayId, sceneId, sortOrder])

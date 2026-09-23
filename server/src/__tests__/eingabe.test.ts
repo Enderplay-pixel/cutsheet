@@ -69,7 +69,7 @@ describe('pruefeIdParameter', () => {
 
   it('kuerzt lange Eingaben in der Meldung', () => {
     const res = antwort()
-    pruefeIdParameter({ params: { id: 'x'.repeat(500) } } as any, res, vi.fn())
+    pruefeIdParameter({ params: { id: 'x'.repeat(500) } } as any, res, vi.fn() as any)
     expect(res.koerper.error.length).toBeLessThan(120)
   })
 })
@@ -119,7 +119,7 @@ describe('uebersetzeDatenbankfehler', () => {
   for (const [meldung, code, teil] of faelle) {
     it(`uebersetzt: ${meldung.slice(0, 40)}`, () => {
       const res = antwort()
-      uebersetzeDatenbankfehler({ message: meldung }, {} as any, res, vi.fn())
+      uebersetzeDatenbankfehler({ message: meldung }, {} as any, res, vi.fn() as any)
       expect(res.code).toBe(code)
       expect(res.koerper.error).toContain(teil)
       // Die Rohmeldung darf nicht nach aussen
@@ -131,7 +131,7 @@ describe('uebersetzeDatenbankfehler', () => {
   it('haelt Unbekanntes zurueck, statt es durchzureichen', () => {
     const res = antwort()
     const leise = vi.spyOn(console, 'error').mockImplementation(() => {})
-    uebersetzeDatenbankfehler({ message: 'SELECT * FROM geheim WHERE x = 1' }, {} as any, res, vi.fn())
+    uebersetzeDatenbankfehler({ message: 'SELECT * FROM geheim WHERE x = 1' }, {} as any, res, vi.fn() as any)
     expect(res.code).toBe(500)
     expect(res.koerper.error).toBe('Unerwarteter Serverfehler.')
     expect(res.koerper.error).not.toContain('SELECT')
