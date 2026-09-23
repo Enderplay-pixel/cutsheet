@@ -52,9 +52,47 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
     // Project itself
     backup['projects'] = [project]
 
-    // Direct project tables
+    // Direkte Projekttabellen - aus dem SCHEMA abgeleitet, nicht aus einer
+    // gepflegten Liste.
+    //
+    // Die Liste oben war handgepflegt und ist abgedriftet: gemessen am
+    // 23.09.2026 fehlten 29 von 48 Tabellen, darunter screenplay_blocks (der
+    // gesamte Drehbuchtext), expenses, timesheets, insurances, music_cues,
+    // vfx_shots, floorplans und die komplette Creator-Seite. Eine Sicherung,
+    // die stillschweigend Daten verliert, ist schlimmer als keine - man
+    // verlaesst sich darauf.
+    //
+    // Was ein project_id traegt, gehoert zum Projekt. Neue Tabellen kommen so
+    // von selbst mit.
+    const mitProjektspalte = await db.all(
+      `SELECT table_name FROM information_schema.columns
+       WHERE table_schema = 'public' AND column_name = 'project_id'
+       ORDER BY table_name`
+    ) as Array<{ table_name: string }>
+
+    // Geheimnisse gehoeren nicht in eine Datei, die heruntergeladen und
+    // weitergereicht wird. Wer die Sicherung hat, haette sonst Zugriff auf
+    // das verknuepfte YouTube-Konto.
+    const nichtExportieren = new Set(['access_token', 'refresh_token'])
+
+    for (const { table_name } of mitProjektspalte) {
+      // Nur echte Bezeichner, damit nichts Fremdes in die Abfrage geraet
+      if (!/^[a-z_][a-z0-9_]*$/.test(table_name)) continue
+      const zeilen = await db.all(
+        `SELECT * FROM ${table_name} WHERE project_id = ?`, [projectId]) as Record<string, unknown>[]
+      backup[table_name] = zeilen.map(z => {
+        const sauber: Record<string, unknown> = {}
+        for (const [spalte, wert] of Object.entries(z)) {
+          if (nichtExportieren.has(spalte)) continue
+          sauber[spalte] = wert
+        }
+        return sauber
+      })
+    }
+
+    // Die Liste oben deckt nur noch Kindtabellen OHNE project_id ab.
     for (const { table, column } of tables) {
-      if (column) {
+      if (column && !backup[table]) {
         backup[table] = await db.all(`SELECT * FROM ${table} WHERE ${column} = ?`, [projectId])
       }
     }

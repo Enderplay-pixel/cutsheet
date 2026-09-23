@@ -8,6 +8,7 @@ import { initDatabase } from './db'
 import { optionalAuth } from './middleware/auth'
 import { projectWriteGuard, requireMember } from './middleware/projectAuth'
 import { pruefeIdParameter, saeubereKoerper, uebersetzeDatenbankfehler } from './middleware/eingabe'
+import { schutzkoepfe, anmeldeBremse } from './middleware/haertung'
 
 // Route imports
 import projectsRouter from './routes/projects'
@@ -84,6 +85,10 @@ let dbReady = false
 if (!isProd) {
   app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'], credentials: true }))
 }
+// Schutzkoepfe vor allem anderen, damit sie auch auf Fehler- und
+// Dateiantworten liegen.
+app.use(schutzkoepfe(isProd))
+
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
@@ -166,6 +171,9 @@ app.use('/api', searchRouter)
 app.use('/api', conflictsRouter)
 app.use('/api', calendarRouter)
 app.use('/api', pdfRouter)
+// Fuenf Fehlversuche je Adresse und E-Mail, dann fuenfzehn Minuten Pause.
+// Vorher waren zehn falsche Passwoerter in vier Sekunden moeglich.
+app.use('/api/auth', anmeldeBremse)
 app.use('/api/auth', authRouter)
 app.use('/api', auditRouter)
 app.use('/api', stickyNotesRouter)
