@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import * as kosten from '../lib/kostenquellen'
 import { db } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 
@@ -132,42 +133,119 @@ router.delete('/budget-lines/:id', async (req, res) => {
   res.json({ data: { ok: true }, error: null })
 })
 
-// POST /api/budget-versions/:id/pull-crew
-router.post('/budget-versions/:id/pull-crew', async (req, res) => {
+// POST /api/budget-versions/:id/kosten-uebernehmen
+//
+// Ersetzt die frueheren Routen pull-crew und pull-cast. Die waren aus drei
+// Gruenden unbrauchbar:
+//   1. `contract_type = "Tagesgage"` - doppelte Anfuehrungszeichen sind in
+//      Postgres ein BEZEICHNER. Die Abfrage suchte eine Spalte namens
+//      Tagesgage und lief auf HTTP 500.
+//   2. Jede Person bekam ALLE Drehtage des Projekts angerechnet, nicht ihre
+//      eigenen. Wer in einer Szene mitspielt, kostete den ganzen Dreh.
+//   3. Zweimal aufgerufen standen alle Zeilen doppelt drin.
+//
+// Diese Route ist wiederholbar: erzeugte Zeilen tragen einen
+// Herkunftsschluessel, handgeschriebene bleiben unangetastet.
+router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
   const version = await db.get('SELECT * FROM budget_versions WHERE id = ?', [req.params.id]) as any
   if (!version) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
-  const crew = await db.all('SELECT * FROM crew WHERE project_id = ? AND contract_type = "Tagesgage"', [version.project_id]) as any[]
-  const shootDaysRow = await db.get('SELECT COUNT(*) as c FROM shoot_days WHERE project_id = ?', [version.project_id])
-  const shootDays = (shootDaysRow as any).c
+  const pid = version.project_id
+  const nurZeigen = Boolean(req.body?.nurZeigen)
 
-  const maxSortRow = await db.get('SELECT COALESCE(MAX(sort_order), 0) as m FROM budget_lines WHERE budget_version_id = ?', [req.params.id])
-  const maxSort = (maxSortRow as any).m
-  for (let i = 0; i < crew.length; i++) {
-    const c = crew[i]
-    const total = c.fee_per_day * shootDays
-    await db.run('INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.params.id, `${c.department}`, `AUTO`, `${c.name} — ${c.role}`, 'Tage', shootDays, c.fee_per_day, total, maxSort + 1 + i])
+  // Arbeitstage je Person - aus den Tagesdispos, wie im Gagen-Export.
+  // Wer auf keiner Dispo steht, hat null Tage und bekommt keine Zeile.
+  async function tageJePerson(art: 'cast' | 'crew'): Promise<Map<number, number>> {
+    const zeilen = await db.all(
+      `SELECT cse.person_id AS pid, COUNT(DISTINCT sd.id) AS tage
+       FROM call_sheet_entries cse
+       JOIN call_sheets cs ON cse.call_sheet_id = cs.id
+       JOIN shoot_days sd ON cs.shoot_day_id = sd.id
+       WHERE cse.person_type = ? AND sd.project_id = ?
+       GROUP BY cse.person_id`,
+      [art, pid]
+    ) as any[]
+    return new Map(zeilen.map(z => [Number(z.pid), Number(z.tage)]))
   }
-  await recalcBudgetTotal(parseInt(req.params.id))
-  res.json({ data: { added: crew.length }, error: null })
-})
 
-// POST /api/budget-versions/:id/pull-cast
-router.post('/budget-versions/:id/pull-cast', async (req, res) => {
-  const version = await db.get('SELECT * FROM budget_versions WHERE id = ?', [req.params.id]) as any
-  if (!version) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
-  const cast = await db.all('SELECT ca.*, ch.name as char_name FROM cast ca LEFT JOIN characters ch ON ca.character_id = ch.id WHERE ca.project_id = ? AND ca.contract_type = "Tagesgage"', [version.project_id]) as any[]
-  const shootDaysRow = await db.get('SELECT COUNT(*) as c FROM shoot_days WHERE project_id = ?', [version.project_id])
-  const shootDays = (shootDaysRow as any).c
+  const besetzung = await db.all(
+    `SELECT c.id, c.actor_name AS name, ch.name AS rolle, c.fee_per_day
+     FROM "cast" c LEFT JOIN characters ch ON c.character_id = ch.id
+     WHERE c.project_id = ?`, [pid]) as any[]
+  const stab = await db.all(
+    'SELECT id, name, role AS rolle, fee_per_day FROM crew WHERE project_id = ?', [pid]) as any[]
+  const equipment = await db.all(
+    `SELECT ei.id, ei.item AS name, ei.quantity, ei.total_days AS days,
+            ei.rental_per_day_cents, ei.total_cents
+     FROM equipment_items ei
+     JOIN equipment_lists el ON ei.equipment_list_id = el.id
+     WHERE el.project_id = ?`, [pid]) as any[]
+  const policen = await db.all(
+    'SELECT id, ins_type AS type, provider, premium_cents FROM insurances WHERE project_id = ?', [pid]) as any[]
 
-  const maxSortRow = await db.get('SELECT COALESCE(MAX(sort_order), 0) as m FROM budget_lines WHERE budget_version_id = ?', [req.params.id])
-  const maxSort = (maxSortRow as any).m
-  for (let i = 0; i < cast.length; i++) {
-    const c = cast[i]
-    const total = c.fee_per_day * shootDays
-    await db.run('INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.params.id, 'Darstellung', 'AUTO', `${c.actor_name}${c.char_name ? ` als ${c.char_name}` : ''}`, 'Tage', shootDays, c.fee_per_day, total, maxSort + 1 + i])
+  const castTage = await tageJePerson('cast')
+  const stabTage = await tageJePerson('crew')
+
+  const soll = [
+    ...kosten.gagenPosten(besetzung, castTage, 'cast'),
+    ...kosten.gagenPosten(stab, stabTage, 'crew'),
+    ...kosten.equipmentPosten(equipment),
+    ...kosten.versicherungsPosten(policen),
+  ]
+
+  // Wer eine Gage hat, aber auf keiner Dispo steht, faellt still heraus.
+  // Das muss man sehen, sonst sucht man den fehlenden Posten vergeblich.
+  const ohneDrehtag = [...besetzung.map(x => ({ ...x, art: 'cast' as const })),
+                       ...stab.map(x => ({ ...x, art: 'crew' as const }))]
+    .filter(x => (kosten.zahl(x.fee_per_day) ?? 0) > 0
+              && ((x.art === 'cast' ? castTage : stabTage).get(Number(x.id)) ?? 0) === 0)
+    .map(x => String(x.name ?? '').trim() || 'Ohne Namen')
+
+  const vorhanden = await db.all(
+    'SELECT id, source_key, description, quantity, unit_price_cents, total_cents FROM budget_lines WHERE budget_version_id = ?',
+    [req.params.id]) as any[]
+  const plan = kosten.abgleiche(vorhanden, soll)
+
+  if (!nurZeigen) {
+    const maxRow = await db.get(
+      'SELECT COALESCE(MAX(sort_order), 0) AS m FROM budget_lines WHERE budget_version_id = ?',
+      [req.params.id]) as any
+    let sort = Number(maxRow?.m ?? 0)
+
+    for (const n of plan.neu) {
+      sort++
+      await db.run(
+        `INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit,
+         quantity, unit_price_cents, total_cents, sort_order, source_key)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [req.params.id, n.kategorie, '', n.beschreibung, n.einheit,
+         n.menge, n.einzelpreis_cent, n.gesamt_cent, sort, n.schluessel])
+    }
+    for (const g of plan.geaendert) {
+      await db.run(
+        `UPDATE budget_lines SET category = ?, description = ?, unit = ?, quantity = ?,
+         unit_price_cents = ?, total_cents = ? WHERE id = ?`,
+        [g.posten.kategorie, g.posten.beschreibung, g.posten.einheit, g.posten.menge,
+         g.posten.einzelpreis_cent, g.posten.gesamt_cent, g.id])
+    }
+    for (const id of plan.entfallen) {
+      await db.run('DELETE FROM budget_lines WHERE id = ?', [id])
+    }
+    await recalcBudgetTotal(parseInt(req.params.id))
   }
-  await recalcBudgetTotal(parseInt(req.params.id))
-  res.json({ data: { added: cast.length }, error: null })
+
+  res.json({
+    data: {
+      nurZeigen,
+      neu: plan.neu.length,
+      geaendert: plan.geaendert.length,
+      entfallen: plan.entfallen.length,
+      unveraendert: plan.unveraendert,
+      summe_cent: soll.reduce((s, p) => s + p.gesamt_cent, 0),
+      ohne_drehtag: ohneDrehtag,
+      posten: plan.neu.concat(plan.geaendert.map(g => g.posten)),
+    },
+    error: null,
+  })
 })
 
 // GET /api/projects/:projectId/financing-versions

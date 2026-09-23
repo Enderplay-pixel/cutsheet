@@ -51,20 +51,24 @@ function EquipmentItemRow({ item, shootDayCount, onDelete }: { item: any; shootD
       </td>
       <td className="py-2 px-2">
         <Input value={form.item || ''} onChange={e => update('item', e.target.value)}
+          aria-label="Bezeichnung des Equipments"
           className={`h-7 text-sm border-0 bg-transparent focus-visible:ring-1 ${form.checked ? 'line-through text-muted-foreground' : ''}`} />
       </td>
       <td className="py-2 px-2 w-16">
         <Input type="number" value={form.quantity || 1} onChange={e => update('quantity', Number(e.target.value))}
+          aria-label={`Menge${form.item ? ` von ${form.item}` : ''}`}
           className="h-7 text-xs text-center" min="1" />
       </td>
       <td className="py-2 px-2 w-36">
         <Input value={form.supplier || ''} onChange={e => update('supplier', e.target.value)}
+          aria-label={`Verleiher${form.item ? ` von ${form.item}` : ''}`}
           className="h-7 text-xs" placeholder="Verleiher" />
       </td>
       <td className="py-2 px-2 w-28">
         <div className="relative">
           <Input type="number" value={(form.rental_per_day_cents || 0) / 100}
             onChange={e => update('rental_per_day_cents', Math.round(Number(e.target.value) * 100))}
+            aria-label={`Tagessatz in Euro${form.item ? ` für ${form.item}` : ''}`}
             className="h-7 text-xs text-right pr-5" />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€/T</span>
         </div>
@@ -72,6 +76,7 @@ function EquipmentItemRow({ item, shootDayCount, onDelete }: { item: any; shootD
       <td className="py-2 px-2 w-16">
         <Input type="number" value={form.total_days || shootDayCount || 1}
           onChange={e => update('total_days', Number(e.target.value))}
+          aria-label={`Anzahl Tage${form.item ? ` für ${form.item}` : ''}`}
           className="h-7 text-xs text-center" min="1" />
       </td>
       <td className="py-2 px-2 w-24 text-right font-mono text-sm font-medium">
@@ -225,6 +230,7 @@ export function Component() {
             {canEdit && (
               <>
                 <Input value={newListName} onChange={e => setNewListName(e.target.value)}
+                  aria-label="Name der neuen Equipment-Liste"
                   placeholder={tt(equipT.newList)} className="h-8 w-40 text-sm" />
                 <Select value={newListDept} onValueChange={setNewListDept}>
                   <SelectTrigger className="w-32 h-8 text-sm"><SelectValue /></SelectTrigger>

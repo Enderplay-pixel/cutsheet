@@ -55,19 +55,23 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
 
       {/* Name + Role */}
       <Input value={form.name || ''} onChange={e => update('name', e.target.value)}
+        aria-label="Name"
         className="h-7 text-sm font-medium basis-full lg:basis-auto lg:flex-1 min-w-0 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Name" />
       <Input value={form.role || ''} onChange={e => update('role', e.target.value)}
+        aria-label={`Position${form.name ? ` von ${form.name}` : ''}`}
         className="h-7 text-xs text-muted-foreground w-32 lg:w-40 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Position" />
 
       {/* Contact */}
       <div className="flex items-center gap-1 flex-1 min-w-0 lg:flex-none lg:shrink-0">
         <Mail className="w-3 h-3 text-muted-foreground/50" />
         <Input value={form.email || ''} onChange={e => update('email', e.target.value)}
+          aria-label={`E-Mail${form.name ? ` von ${form.name}` : ''}`}
           className="h-7 text-xs w-full lg:w-40 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" type="email" placeholder="email@…" />
       </div>
       <div className="flex items-center gap-1 shrink-0">
         <Phone className="w-3 h-3 text-muted-foreground/50" />
         <Input value={form.phone || ''} onChange={e => update('phone', e.target.value)}
+          aria-label={`Telefon${form.name ? ` von ${form.name}` : ''}`}
           className="h-7 text-xs w-24 lg:w-28 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="+49…" />
       </div>
 
@@ -75,6 +79,7 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
       <div className="flex items-center gap-1 shrink-0">
         <Input type="number" value={(form.fee_per_day || 0) / 100}
           onChange={e => update('fee_per_day', Math.round(Number(e.target.value) * 100))}
+          aria-label={`Tagesgage in Euro${form.name ? ` von ${form.name}` : ''}`}
           className="h-7 text-xs w-20 bg-transparent border-transparent hover:border-border focus:border-border transition-colors text-right" />
         <span className="text-xs text-muted-foreground/50">€</span>
       </div>

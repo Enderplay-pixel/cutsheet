@@ -7,6 +7,7 @@ import fs from 'fs'
 import { initDatabase } from './db'
 import { optionalAuth } from './middleware/auth'
 import { projectWriteGuard, requireMember } from './middleware/projectAuth'
+import { pruefeIdParameter, saeubereKoerper, uebersetzeDatenbankfehler } from './middleware/eingabe'
 
 // Route imports
 import projectsRouter from './routes/projects'
@@ -86,6 +87,10 @@ if (!isProd) {
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
+// Nullbytes raus, Zahlen ausserhalb der Spaltenreichweite abweisen -
+// bevor irgendetwas davon die Datenbank erreicht.
+app.use(saeubereKoerper)
+
 // Apply optional auth globally so req.user is populated when token is present
 app.use(optionalAuth)
 
@@ -107,6 +112,9 @@ app.use('/api', projectWriteGuard)
 //
 // Routen ueber eine Kind-Id (/shoot-days/7/...) deckt dieser Praefix NICHT ab.
 // Die brauchen weiterhin requireMemberVia an der Route selbst.
+// Erst pruefen, ob die Kennung ueberhaupt eine sein kann. Sonst landet
+// "abc" als NaN in der Abfrage und Postgres antwortet statt uns.
+app.use('/api/projects/:projectId', pruefeIdParameter)
 app.use('/api/projects/:projectId', requireMember)
 
 // Serve uploads
@@ -220,10 +228,14 @@ if (isProd) {
   })
 }
 
-// Global error handler
+// Letzte Instanz. Uebersetzt bekannte Datenbankfehler in klare Saetze und
+// haelt die Postgres-Rohmeldung (Spaltentypen, Kodierungen) im Log statt in
+// der Antwort.
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('[ERROR]', err)
-  res.status(err.status || 500).json({ data: null, error: err.message || 'Interner Serverfehler' })
+  if (err?.status && err.status < 500) {
+    return res.status(err.status).json({ data: null, error: err.message || 'Fehler' })
+  }
+  return uebersetzeDatenbankfehler(err, req, res, next)
 })
 
 // Initialize DB and start server

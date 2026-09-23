@@ -214,6 +214,7 @@ export function Component() {
               <div>
                 <Label className="text-xs text-muted-foreground">Gedrehte Seiten (Achtel)</Label>
                 <Input type="number" value={form.pages_shot || 0} onChange={e => update('pages_shot', Number(e.target.value))}
+                  aria-label="Gedrehte Seiten in Achteln"
                   className={cn('mt-1.5 h-9', shootRatioWarning && 'border-amber-500')} />
                 {selectedDay?.total_eighths > 0 && (
                   <p className="text-[11px] text-muted-foreground mt-1">Geplant: {selectedDay.total_eighths}/8</p>
@@ -222,6 +223,7 @@ export function Component() {
               <div>
                 <Label className="text-xs text-muted-foreground">Setups</Label>
                 <Input type="number" value={form.total_setups || 0} onChange={e => update('total_setups', Number(e.target.value))}
+                  aria-label="Anzahl Setups"
                   className="mt-1.5 h-9" />
               </div>
               <div>

@@ -286,6 +286,7 @@ function BlockEditor({
         ref={handleRef}
         value={localContent}
         onChange={handleChange}
+        aria-label={blockTypeLabel}
         onKeyDown={handleKeyDown}
         onFocus={onFocus}
         rows={1}

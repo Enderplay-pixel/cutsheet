@@ -145,7 +145,7 @@ export function Component() {
           {rows.map((r: any) => <option key={r.category} value={r.category} />)}
         </datalist>
         <Input value={amount} onChange={e => setAmount(e.target.value)} placeholder="Betrag €" inputMode="decimal" required />
-        <Input value={date} onChange={e => setDate(e.target.value)} type="date" />
+        <Input value={date} onChange={e => setDate(e.target.value)} type="date" aria-label="Belegdatum" />
         <div className="flex gap-2">
           <Input value={receiptNo} onChange={e => setReceiptNo(e.target.value)} placeholder="Beleg-Nr." className="flex-1" />
           <Button type="submit" size="icon" disabled={createMutation.isPending} title="Beleg hinzufügen">

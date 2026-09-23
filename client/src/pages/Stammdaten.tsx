@@ -368,10 +368,10 @@ export function Component() {
 
       <FormSection icon={Calendar} title="Produktionszeitraum">
         <Field label="Drehbeginn">
-          <Input type="date" value={formData.shoot_start || ''} onChange={e => update('shoot_start', e.target.value)} className="h-9" />
+          <Input type="date" value={formData.shoot_start || ''} onChange={e => update('shoot_start', e.target.value)} aria-label="Drehbeginn" className="h-9" />
         </Field>
         <Field label="Drehschluss">
-          <Input type="date" value={formData.shoot_end || ''} onChange={e => update('shoot_end', e.target.value)} className="h-9" />
+          <Input type="date" value={formData.shoot_end || ''} onChange={e => update('shoot_end', e.target.value)} aria-label="Drehschluss" className="h-9" />
         </Field>
         {shootDays !== null && (
           <div className="col-span-2 flex items-center gap-3 p-3 bg-primary/8 rounded-lg border border-primary/20">
@@ -436,6 +436,7 @@ export function Component() {
                 type="color"
                 value={settingsData.header_color || '#f59e0b'}
                 onChange={e => updateSetting('header_color', e.target.value)}
+                aria-label="Akzentfarbe wählen"
                 className="h-9 w-12 rounded cursor-pointer border border-border/60 bg-transparent p-0.5"
               />
               <Input

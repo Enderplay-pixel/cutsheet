@@ -819,6 +819,9 @@ export async function initDatabase() {
   // gemessen" - nicht 0. Die Zeitanalyse faellt dann auf die Aufteilung der
   // Tagesdrehzeit zurueck und kennzeichnet den Wert als geschaetzt.
   await db.exec(`ALTER TABLE shoot_day_scenes ADD COLUMN IF NOT EXISTS actual_minutes INTEGER`)
+  // Herkunft einer Kalkulationszeile. Leer heisst: von Hand angelegt und
+  // wird von der Kostenuebernahme nie angefasst.
+  await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS source_key TEXT NOT NULL DEFAULT ''`)
   await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false`)
   // Projektart: 'film' = klassische Produktion, 'creator' = Content-/YouTube-Kanal.
   // Steuert Navigation und Feature-Set im Client.

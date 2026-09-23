@@ -101,6 +101,7 @@ export function Component() {
           type="date"
           value={newDue}
           onChange={e => setNewDue(e.target.value)}
+          aria-label="Fällig am"
           className="sm:w-40"
         />
         <Button type="submit" disabled={!newTitle.trim() || createMutation.isPending}>

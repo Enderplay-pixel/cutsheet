@@ -16,7 +16,7 @@ import { Progress } from '@/components/ui/progress'
 import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
 import { formatCurrency, debounce } from '@/lib/utils'
-import { Plus, Trash2, TrendingUp, PieChart, List, CheckCircle, Circle, Download } from 'lucide-react'
+import { Plus, Trash2, TrendingUp, PieChart, List, CheckCircle, Circle, Download, Wand2 } from 'lucide-react'
 
 const UNITS = ['Pauschal', 'Tage', 'Stunden', 'Wochen', 'Monate', 'Stück']
 const CATEGORIES = [
@@ -54,6 +54,7 @@ function BudgetLineRow({ line, onDelete }: { line: any; onDelete: () => void }) 
       <td className="py-1.5 pl-4 pr-2 w-8 text-xs text-muted-foreground font-mono">{line.account_code}</td>
       <td className="py-1.5 px-2 flex-1">
         <Input value={form.description || ''} onChange={e => update('description', e.target.value)}
+          aria-label="Beschreibung der Position"
           className="h-7 text-sm border-0 bg-transparent focus-visible:ring-1" />
       </td>
       <td className="py-1.5 px-2 w-24">
@@ -64,11 +65,13 @@ function BudgetLineRow({ line, onDelete }: { line: any; onDelete: () => void }) 
       </td>
       <td className="py-1.5 px-2 w-16">
         <Input type="number" value={form.quantity || 1} onChange={e => update('quantity', Number(e.target.value))}
+          aria-label={`Menge${form.description ? ` für ${form.description}` : ''}`}
           className="h-7 text-xs text-right" step="0.5" min="0" />
       </td>
       <td className="py-1.5 px-2 w-28">
         <div className="relative">
           <Input type="number" value={(form.unit_price_cents || 0) / 100}
+            aria-label={`Einzelpreis in Euro${form.description ? ` für ${form.description}` : ''}`}
             onChange={e => update('unit_price_cents', Math.round(Number(e.target.value) * 100))}
             className="h-7 text-xs text-right pr-5" step="0.01" />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
@@ -108,6 +111,7 @@ function FinancingRow({ entry, total, onDelete }: { entry: any; total: number; o
     <tr className="border-b border-border/20 hover:bg-muted/10 group">
       <td className="py-2 pl-4 pr-2">
         <Input value={form.source || ''} onChange={e => update('source', e.target.value)}
+          aria-label="Geldgeber oder Quelle"
           className="h-7 text-sm border-0 bg-transparent focus-visible:ring-1" />
       </td>
       <td className="py-2 px-2 w-32">
@@ -123,6 +127,7 @@ function FinancingRow({ entry, total, onDelete }: { entry: any; total: number; o
       <td className="py-2 px-2 w-36">
         <div className="relative">
           <Input type="number" value={(form.amount_cents || 0) / 100}
+            aria-label={`Betrag in Euro${form.source ? ` von ${form.source}` : ''}`}
             onChange={e => update('amount_cents', Math.round(Number(e.target.value) * 100))}
             className="h-7 text-sm text-right font-mono pr-5" />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
@@ -228,9 +233,58 @@ export function Component() {
 
   const finTotal = (finEntries || []).reduce((sum: number, e: any) => sum + (e.amount_cents || 0), 0)
 
+  // Kosten aus Besetzung, Stab, Equipment und Versicherungen holen.
+  // Erst zeigen, was passieren wuerde - eine Kalkulation, die sich unter der
+  // Hand aendert, ist schlimmer als eine, die man selbst fuellt.
+  const [vorschau, setVorschau] = useState<any>(null)
+  const kostenVorschau = useMutation({
+    mutationFn: () => api.budget.kostenUebernehmen(selectedVersionId!, true),
+    onSuccess: setVorschau,
+    onError: (e: any) => toast({ variant: 'destructive', title: 'Fehler', description: e.message }),
+  })
+  const kostenUebernehmen = useMutation({
+    mutationFn: () => api.budget.kostenUebernehmen(selectedVersionId!, false),
+    onSuccess: (r: any) => {
+      setVorschau(null)
+      queryClient.invalidateQueries({ queryKey: ['budget-lines', selectedVersionId] })
+      queryClient.invalidateQueries({ queryKey: ['budget-versions', pid] })
+      toast({ title: 'Kosten übernommen',
+        description: `${r.neu} neu, ${r.geaendert} aktualisiert, ${r.entfallen} entfernt.` })
+    },
+    onError: (e: any) => toast({ variant: 'destructive', title: 'Fehler', description: e.message }),
+  })
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-4">
       <PageHeader title="Kalkulation & Finanzierung" subtitle="Budget und Finanzierungsplan" />
+
+      {vorschau && (
+        <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4">
+          <p className="font-semibold text-sm">Das würde sich ändern</p>
+          <p className="text-[13px] text-muted-foreground mt-1">
+            {vorschau.neu} neue {vorschau.neu === 1 ? 'Position' : 'Positionen'},{' '}
+            {vorschau.geaendert} aktualisiert, {vorschau.entfallen} entfernt,{' '}
+            {vorschau.unveraendert} unverändert. Summe aus den Quellen:{' '}
+            <b>{formatCurrency(vorschau.summe_cent)}</b>.
+          </p>
+          <p className="text-[12px] text-muted-foreground/80 mt-2 leading-relaxed">
+            Von Hand eingetragene Positionen bleiben unangetastet. Übernommene Positionen
+            werden beim nächsten Lauf aktualisiert statt doppelt angelegt.
+          </p>
+          {vorschau.ohne_drehtag?.length > 0 && (
+            <p className="text-[12px] text-warning mt-2 leading-relaxed">
+              Ohne Position, weil auf keiner Tagesdispo:{' '}
+              {vorschau.ohne_drehtag.join(', ')}. Erst eintragen, dann erneut übernehmen.
+            </p>
+          )}
+          <div className="flex gap-2 mt-3">
+            <Button size="sm" onClick={() => kostenUebernehmen.mutate()} disabled={kostenUebernehmen.isPending}>
+              Übernehmen
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setVorschau(null)}>Abbrechen</Button>
+          </div>
+        </div>
+      )}
 
       <Tabs defaultValue="kalkulation">
         <TabsList>
@@ -261,6 +315,12 @@ export function Component() {
                 <Button size="sm" onClick={() => createLine.mutate(newCategory)} disabled={!selectedVersionId || createLine.isPending}>
                   <Plus className="w-4 h-4 mr-1" />Position
                 </Button>
+                {selectedVersionId && (
+                  <Button variant="outline" size="sm" onClick={() => kostenVorschau.mutate()}
+                    disabled={kostenVorschau.isPending || kostenUebernehmen.isPending}>
+                    <Wand2 className="w-4 h-4 mr-1" />Kosten übernehmen
+                  </Button>
+                )}
                 {selectedVersionId && (
                   <Button variant="outline" size="sm" onClick={() => download(api.pdf.kalkulation(pid, selectedVersionId), 'kalkulation.pdf')}>
                       <Download className="w-4 h-4 mr-1" />PDF

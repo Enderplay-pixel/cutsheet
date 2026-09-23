@@ -217,8 +217,11 @@ export const api = {
     createLine: (versionId: number, data: any) => req<any>(`/budget-versions/${versionId}/lines`, { method: 'POST', body: JSON.stringify(data) }),
     updateLine: (id: number, data: any) => req<any>(`/budget-lines/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteLine: (id: number) => req<any>(`/budget-lines/${id}`, { method: 'DELETE' }),
-    pullCrew: (versionId: number) => req<any>(`/budget-versions/${versionId}/pull-crew`, { method: 'POST' }),
-    pullCast: (versionId: number) => req<any>(`/budget-versions/${versionId}/pull-cast`, { method: 'POST' }),
+    // Kosten aus Besetzung, Stab, Equipment und Versicherungen uebernehmen.
+    // nurZeigen liefert nur die Vorschau und aendert nichts.
+    kostenUebernehmen: (versionId: number, nurZeigen = false) =>
+      req<any>(`/budget-versions/${versionId}/kosten-uebernehmen`,
+        { method: 'POST', body: JSON.stringify({ nurZeigen }) }),
   },
 
   financing: {
