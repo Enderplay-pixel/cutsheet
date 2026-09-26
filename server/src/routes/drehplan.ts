@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db'
-import { requireMember } from '../middleware/projectAuth'
+import { getUserProjectRole, requireMember } from '../middleware/projectAuth'
 
 const router = Router()
 
@@ -144,8 +144,35 @@ router.put('/shoot-days/:id/scenes/reorder', async (req, res) => {
 })
 
 // POST /api/shoot-days/move-scene
+/**
+ * Die einzige schreibende Route ohne Ressourcen-ID im Pfad: Szene und
+ * Drehtag stehen im Koerper. projectWriteGuard findet dort kein Projekt und
+ * liess deshalb jeden durch - am 26.09.2026 nachgemessen: ein fremdes Konto
+ * konnte Szenen im fremden Drehplan verschieben. Die Pruefung muss hier
+ * selbst stehen.
+ */
 router.post('/shoot-days/move-scene', async (req, res) => {
   const { sceneId, fromDayId, toDayId, sortOrder = 0 } = req.body
+
+  const nutzer = (req as any).user
+  if (!nutzer) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+
+  const szene = await db.get('SELECT project_id FROM scenes WHERE id = ?', [sceneId]) as any
+  const ziel = toDayId
+    ? await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [toDayId]) as any
+    : null
+  const projektId = szene?.project_id ?? ziel?.project_id
+  if (!projektId) return res.status(404).json({ data: null, error: 'Szene oder Drehtag nicht gefunden' })
+
+  // Szene und Zieltag muessen zum selben Projekt gehoeren, sonst waere die
+  // Zuordnung ueber Projektgrenzen hinweg moeglich.
+  if (ziel && Number(ziel.project_id) !== Number(projektId)) {
+    return res.status(400).json({ data: null, error: 'Szene und Drehtag gehören zu verschiedenen Projekten.' })
+  }
+
+  if (nutzer.role !== 'admin' && await getUserProjectRole(nutzer.id, projektId) === null) {
+    return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  }
 
   await db.transaction(async (tx) => {
     // Aus ALLEN Drehtagen entfernen, nicht nur aus dem, den der Client fuer

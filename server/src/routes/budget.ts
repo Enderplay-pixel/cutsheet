@@ -47,7 +47,11 @@ router.put('/projects/:projectId/budget-alerts', async (req, res) => {
 router.get('/projects/:projectId/budget-summary', async (req, res) => {
   const pid = req.params.projectId
 
-  const budgetRow = await db.get('SELECT COALESCE(MAX(total_cents), 0) as total FROM budget_versions WHERE project_id = ? AND status = "Aktiv"', [pid]) as any
+  // Doppelte Anfuehrungszeichen sind in Postgres ein BEZEICHNER, kein Text:
+  // status = "Aktiv" suchte eine Spalte namens Aktiv. Die Auswertung
+  // antwortete deshalb bei JEDEM Projekt mit 500 - und mit ihr der
+  // Budgetalarm, der nie ausgeloest hat.
+  const budgetRow = await db.get("SELECT COALESCE(MAX(total_cents), 0) as total FROM budget_versions WHERE project_id = ? AND status = 'Aktiv'", [pid]) as any
   const spentRow = await db.get(`
     SELECT COALESCE(SUM(bl.total_cents), 0) as spent
     FROM budget_lines bl

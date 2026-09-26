@@ -54,8 +54,8 @@ export function pruefeIdParameter(req: Request, res: Response, next: NextFunctio
  * absichtlich und fast immer aus einem kaputten Import - deshalb wird er
  * entfernt statt die ganze Anfrage abzulehnen.
  *
- * Eine Zahl ausserhalb der Spaltenreichweite ist dagegen eine echte
- * Falschangabe und wird zurueckgewiesen: stillschweigend zu kappen hiesse,
+ * Eine Zahl außerhalb der Spaltenreichweite ist dagegen eine echte
+ * Falschangabe und wird zurückgewiesen: stillschweigend zu kappen hieße,
  * einen anderen Wert zu speichern als angegeben.
  */
 export function saeubereKoerper(req: Request, res: Response, next: NextFunction) {
@@ -69,7 +69,7 @@ export function saeubereKoerper(req: Request, res: Response, next: NextFunction)
     if (typeof wert === 'number') {
       if (!Number.isFinite(wert)) { ausreisser.push(pfad); return wert }
       // Nur ganze Zahlen betreffen INTEGER-Spalten. Kommazahlen wie eine
-      // Menge von 1,5 sind zulaessig und bleiben unberuehrt.
+      // Menge von 1,5 sind zulässig und bleiben unberührt.
       if (Number.isInteger(wert) && (wert > PG_INT_MAX || wert < PG_INT_MIN)) {
         ausreisser.push(pfad)
       }
@@ -91,7 +91,10 @@ export function saeubereKoerper(req: Request, res: Response, next: NextFunction)
   if (ausreisser.length) {
     return res.status(400).json({
       data: null,
-      error: `Zahl ausserhalb des zulässigen Bereichs: ${ausreisser.slice(0, 3).join(', ')}.`,
+      // Die Grenze mit nennen: wer sich um drei Nullen vertippt, sieht sonst
+      // nur einen internen Feldnamen und weiß nicht, was zu klein wäre.
+      error: `Zahl außerhalb des zulässigen Bereichs (höchstens ${PG_INT_MAX.toLocaleString('de-DE')}): `
+        + `${ausreisser.slice(0, 3).join(', ')}.`,
     })
   }
   next()
@@ -113,7 +116,7 @@ export function uebersetzeDatenbankfehler(
     [/invalid input syntax for type (integer|bigint|numeric)/i, 400,
      'Eine Zahl wurde als Text übergeben.'],
     [/out of range for type/i, 400,
-     'Eine Zahl liegt ausserhalb des zulässigen Bereichs.'],
+     'Eine Zahl liegt außerhalb des zulässigen Bereichs.'],
     [/invalid byte sequence for encoding/i, 400,
      'Der Text enthält ein Zeichen, das nicht gespeichert werden kann.'],
     [/violates foreign key constraint/i, 409,

@@ -148,6 +148,10 @@ async function generateSuggestions(projectId: number): Promise<Suggestion[]> {
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
 // GET /api/projects/:projectId/scheduling-suggestions
+// dismissed ist in Postgres BOOLEAN. `dismissed = 0` ist kein "false",
+// sondern ein Typfehler ("operator does not exist: boolean = integer") - in
+// SQLite war es dasselbe, hier nicht. Gemessen am 26.09.2026: jede Route
+// dieser Datei antwortete mit 500, die Drehplan-Optimierung war tot.
 router.get('/projects/:projectId/scheduling-suggestions', async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
@@ -156,7 +160,7 @@ router.get('/projects/:projectId/scheduling-suggestions', async (req: Request, r
     // Check if there are any non-dismissed suggestions created in the last 24h
     const existing = await db.all(`
       SELECT * FROM scheduling_suggestions
-      WHERE project_id = ? AND dismissed = 0 AND created_at >= ?
+      WHERE project_id = ? AND dismissed = false AND created_at >= ?
       ORDER BY created_at DESC
     `, [projectId, oneDayAgo]) as any[]
 
@@ -175,7 +179,7 @@ router.get('/projects/:projectId/scheduling-suggestions', async (req: Request, r
 
     const fresh = await db.all(`
       SELECT * FROM scheduling_suggestions
-      WHERE project_id = ? AND dismissed = 0
+      WHERE project_id = ? AND dismissed = false
       ORDER BY created_at DESC
     `, [projectId]) as any[]
 
@@ -200,7 +204,7 @@ router.post('/projects/:projectId/scheduling-suggestions/generate', async (req: 
 
     const suggestions = await db.all(`
       SELECT * FROM scheduling_suggestions
-      WHERE project_id = ? AND dismissed = 0
+      WHERE project_id = ? AND dismissed = false
       ORDER BY created_at DESC
     `, [projectId]) as any[]
 
@@ -223,7 +227,7 @@ router.patch('/scheduling-suggestions/:id/dismiss', async (req: Request, res: Re
     const user = (req as any).user
     if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
 
-    await db.run('UPDATE scheduling_suggestions SET dismissed = 1 WHERE id = ?', [req.params.id])
+    await db.run('UPDATE scheduling_suggestions SET dismissed = true WHERE id = ?', [req.params.id])
     const row = await db.get('SELECT * FROM scheduling_suggestions WHERE id = ?', [req.params.id]) as any
 
     if (!row) return res.status(404).json({ data: null, error: 'Vorschlag nicht gefunden' })
@@ -247,7 +251,7 @@ router.patch('/scheduling-suggestions/:id/dismiss', async (req: Request, res: Re
 async function runGenerationForProject(projectId: number): Promise<void> {
   // Delete all non-dismissed suggestions for clean slate
   await db.run(`
-    DELETE FROM scheduling_suggestions WHERE project_id = ? AND dismissed = 0
+    DELETE FROM scheduling_suggestions WHERE project_id = ? AND dismissed = false
   `, [projectId])
 
   const suggestions = await generateSuggestions(projectId)
@@ -256,7 +260,7 @@ async function runGenerationForProject(projectId: number): Promise<void> {
     await db.run(`
       INSERT INTO scheduling_suggestions
         (project_id, suggestion_type, title, description, savings_days, scene_ids, dismissed)
-      VALUES (?, ?, ?, ?, ?, ?, 0)
+      VALUES (?, ?, ?, ?, ?, ?, false)
     `, [s.project_id, s.suggestion_type, s.title, s.description, s.savings_days, s.scene_ids])
   }
 }

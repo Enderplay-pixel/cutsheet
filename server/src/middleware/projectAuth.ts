@@ -124,16 +124,13 @@ async function lookupOne(sql: string, id: string): Promise<number | null> {
   } catch { return null }
 }
 
-async function extractProjectId(method: string, path: string, body: any): Promise<number | null> {
-  // /projects/5 or /projects/5/anything
-  const projMatch = path.match(/^\/projects\/(\d+)/)
-  if (projMatch) return Number(projMatch[1])
-
-  // POST body has project_id
-  if (method === 'POST' && body?.project_id) return Number(body.project_id)
-
-  // Entity-level routes — look up project_id from DB
-  const entityPatterns: Array<[RegExp, string]> = [
+/**
+ * Routen, die eine einzelne Ressource ohne Projekt im Pfad ansprechen.
+ *
+ * Exportiert, weil ein Test prueft, dass KEINE schreibende Route fehlt: was
+ * hier fehlt, laesst projectWriteGuard mangels Projekt-ID durch.
+ */
+export const entityPatterns: Array<[RegExp, string]> = [
     [/^\/scenes\/(\d+)/,             'SELECT project_id FROM scenes WHERE id = ?'],
     [/^\/characters\/(\d+)/,         'SELECT project_id FROM characters WHERE id = ?'],
     [/^\/cast\/(\d+)/,               'SELECT project_id FROM cast WHERE id = ?'],
@@ -166,7 +163,53 @@ async function extractProjectId(method: string, path: string, body: any): Promis
      'SELECT project_id FROM project_tasks WHERE id = ?'],
     [/^\/expenses\/(\d+)/,
      'SELECT project_id FROM expenses WHERE id = ?'],
-  ]
+    // Am 26.09.2026 nachgemessen: diese sieben standen nicht in der Liste.
+    // Ohne Eintrag findet extractProjectId kein Projekt, und dann laesst
+    // projectWriteGuard durch - ein fremdes Konto konnte Moodboard,
+    // Anschlussnotizen, Verpflegung, Kommentare, Sperrtage und
+    // ARBEITSZEITEN loeschen oder aendern.
+    [/^\/moodboard\/(\d+)/,
+     'SELECT project_id FROM moodboard_items WHERE id = ?'],
+    [/^\/continuity\/(\d+)/,
+     'SELECT project_id FROM continuity_notes WHERE id = ?'],
+    [/^\/catering-preferences\/(\d+)/,
+     'SELECT project_id FROM catering_preferences WHERE id = ?'],
+    [/^\/timesheets\/(\d+)/,
+     'SELECT project_id FROM timesheets WHERE id = ?'],
+    [/^\/comments\/(\d+)/,
+     'SELECT project_id FROM comments WHERE id = ?'],
+    [/^\/blackout-dates\/(\d+)/,
+     'SELECT project_id FROM cast_blackout_dates WHERE id = ?'],
+    [/^\/scheduling-suggestions\/(\d+)/,
+     'SELECT project_id FROM scheduling_suggestions WHERE id = ?'],
+    // Zweite Messung am selben Tag, diesmal ueber den Routenbaum von Express
+    // statt ueber eine Liste von Hand: elf weitere Routen liessen einen
+    // Fremden durch - darunter der DREHBUCHTEXT und das Verschieben von
+    // Szenen im fremden Drehplan.
+    //
+    // /financing-versions ist nicht /financing-plan-versions: der Pfad heisst
+    // anders als die Tabelle, und das Muster daneben griff nie.
+    [/^\/financing-versions\/(\d+)/,
+     'SELECT project_id FROM financing_plan_versions WHERE id = ?'],
+    [/^\/blocks\/(\d+)/,
+     'SELECT project_id FROM screenplay_blocks WHERE id = ?'],
+    [/^\/financing-entries\/(\d+)/,
+     'SELECT fv.project_id FROM financing_entries fe JOIN financing_plan_versions fv ON fe.financing_version_id = fv.id WHERE fe.id = ?'],
+    [/^\/equipment-bookings\/(\d+)/,
+     'SELECT project_id FROM equipment_bookings WHERE id = ?'],
+    [/^\/call-sheet-entries\/(\d+)/,
+     'SELECT sd.project_id FROM call_sheet_entries cse JOIN call_sheets cs ON cse.call_sheet_id = cs.id JOIN shoot_days sd ON cs.shoot_day_id = sd.id WHERE cse.id = ?'],
+    [/^\/camera-takes\/(\d+)/,
+     'SELECT sd.project_id FROM camera_takes ct JOIN camera_reports cr ON ct.camera_report_id = cr.id JOIN shoot_days sd ON cr.shoot_day_id = sd.id WHERE ct.id = ?'],
+]
+
+async function extractProjectId(method: string, path: string, body: any): Promise<number | null> {
+  // /projects/5 or /projects/5/anything
+  const projMatch = path.match(/^\/projects\/(\d+)/)
+  if (projMatch) return Number(projMatch[1])
+
+  // POST body has project_id
+  if (method === 'POST' && body?.project_id) return Number(body.project_id)
 
   for (const [pattern, sql] of entityPatterns) {
     const m = path.match(pattern)
