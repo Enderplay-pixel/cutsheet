@@ -52,12 +52,15 @@ router.get('/projects/:projectId/budget-summary', async (req, res) => {
   // antwortete deshalb bei JEDEM Projekt mit 500 - und mit ihr der
   // Budgetalarm, der nie ausgeloest hat.
   const budgetRow = await db.get("SELECT COALESCE(MAX(total_cents), 0) as total FROM budget_versions WHERE project_id = ? AND status = 'Aktiv'", [pid]) as any
-  const spentRow = await db.get(`
-    SELECT COALESCE(SUM(bl.total_cents), 0) as spent
-    FROM budget_lines bl
-    JOIN budget_versions bv ON bl.budget_version_id = bv.id
-    WHERE bv.project_id = ? AND bv.status = 'Aktiv'
-  `, [pid]) as any
+
+  // Ausgegeben heisst AUSGEGEBEN - die erfassten Kosten, nicht die Summe der
+  // Kalkulationszeilen. Vorher stand hier die Kalkulation gegen sich selbst:
+  // bei einer aktiven Fassung war das Ergebnis immer genau 100 Prozent, und
+  // ein Alarm bei 80 Prozent haette an jedem Tag jedes Projekts geschlagen.
+  const spentRow = await db.get(
+    'SELECT COALESCE(SUM(amount_cents), 0) as spent FROM expenses WHERE project_id = ?',
+    [pid]
+  ) as any
 
   const budget_total = budgetRow.total
   const total_spent = spentRow.spent

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/components/ui/use-toast'
 import { debounce, formatDate, cn } from '@/lib/utils'
 import { ALL_FORMATS } from '@/lib/projectKind'
-import { Film, Calendar, Building2, Check, Settings2, Link2, Plus, Trash2, Copy, Users, QrCode } from 'lucide-react'
+import { Film, Calendar, Building2, Check, Settings2, Link2, Plus, Trash2, Copy, Users, QrCode, Send } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { TimeInput } from '@/components/ui/time-input'
 import { useAuth } from '@/contexts/AuthContext'
@@ -87,6 +87,21 @@ function InviteSection({ pid }: { pid: number }) {
     },
     onError: (e: any) => toast({ variant: 'destructive', title: e.message }),
   })
+  /**
+   * Einladung noch einmal schicken. Die Route gab es, einen Knopf nicht -
+   * nachgezählt am 26.09.2026. Eine Einladung landet oft im Spam, und der
+   * einzige Ausweg war bisher: löschen, neu anlegen, neuen Link schicken.
+   */
+  const erneutSenden = useMutation({
+    mutationFn: (id: number) => api.invites.resend(pid, id),
+    onSuccess: (_d, id) => {
+      const inv = (invites as any[]).find((i: any) => i.id === id)
+      qc.invalidateQueries({ queryKey: ['invites', pid] })
+      toast({ title: inv?.email ? `Einladung erneut an ${inv.email} gesendet` : 'Einladung erneut gesendet' })
+    },
+    onError: (e: any) => toast({ variant: 'destructive', title: 'Nicht gesendet', description: e.message }),
+  })
+
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.invites.delete(pid, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['invites', pid] }),
@@ -185,6 +200,16 @@ function InviteSection({ pid }: { pid: number }) {
                   <QRCodeSVG value={inviteUrl(inv.token)} size={140} />
                   <p className="text-[10px] text-muted-foreground text-center mt-2">{roleLabel(inv.role)}</p>
                 </div>
+              )}
+              {inv.email && (
+                <button
+                  onClick={() => erneutSenden.mutate(inv.id)}
+                  disabled={erneutSenden.isPending}
+                  className="shrink-0 w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                  title="Einladung erneut senden"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
               )}
               <button
                 onClick={() => deleteMutation.mutate(inv.id)}

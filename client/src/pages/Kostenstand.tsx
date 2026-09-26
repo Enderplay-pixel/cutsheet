@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
-import { Receipt, Plus, Trash2, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
+import { Receipt, Plus, Trash2, TrendingDown, TrendingUp, Wallet, AlertTriangle } from 'lucide-react'
 
 // Kostenstand: Ist-Kosten (Belege) gegen die aktive Kalkulation — Soll/Ist je Kategorie
 
@@ -30,6 +30,26 @@ export function Component() {
   const { data: expenses = [] } = useQuery({
     queryKey: ['expenses', pid],
     queryFn: () => api.expenses.list(pid),
+  })
+
+  /**
+   * Frühwarnung. Der Kostenstand zeigt bisher erst die Überziehung - da ist
+   * das Geld schon weg. Die Schwelle lag als Einstellung samt Route in der
+   * Anwendung, wurde aber von keiner Seite aufgerufen (nachgezählt am
+   * 26.09.2026: eine von sieben Routen ohne Oberfläche).
+   */
+  const { data: warnung } = useQuery({
+    queryKey: ['budget-alerts', pid],
+    queryFn: () => api.budgetAlerts.get(pid),
+  })
+  const [schwelleBearbeiten, setSchwelleBearbeiten] = useState(false)
+  const warnungSpeichern = useMutation({
+    mutationFn: (daten: any) => api.budgetAlerts.update(pid, daten),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budget-alerts', pid] })
+      setSchwelleBearbeiten(false)
+    },
+    onError: (e: any) => toast({ variant: 'destructive', title: 'Nicht gespeichert', description: e.message }),
   })
 
   const invalidate = () => {
@@ -81,6 +101,72 @@ export function Component() {
           </p>
         </div>
       </div>
+
+      {/* Frühwarnung */}
+      {(() => {
+        const schwelle = Number(warnung?.threshold_percent ?? 80)
+        const an = !!warnung?.enabled
+        const erreicht = an && totals.soll_cents > 0 && usedPct >= schwelle
+        return (
+          <div className="mb-5 space-y-3">
+            {erreicht && (
+              <div className={cn(
+                'flex items-start gap-3 rounded-xl border p-3.5',
+                overBudget ? 'border-danger/40 bg-danger/5' : 'border-warning/40 bg-warning/5',
+              )}>
+                <AlertTriangle className={cn('w-4 h-4 mt-0.5 shrink-0', overBudget ? 'text-danger' : 'text-warning')} />
+                <div className="text-[13px] leading-relaxed">
+                  <p className="font-semibold">
+                    {overBudget
+                      ? `Budget überzogen: ${usedPct} % der Kalkulation ausgegeben.`
+                      : `${usedPct} % der Kalkulation ausgegeben - Warnschwelle bei ${schwelle} %.`}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {formatCurrency(totals.ist_cents)} von {formatCurrency(totals.soll_cents)}. Gezählt werden die
+                    erfassten Belege, nicht die Kalkulationszeilen.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
+              <span>Warnung bei</span>
+              {schwelleBearbeiten ? (
+                <>
+                  <Input
+                    type="number" min={1} max={200} defaultValue={schwelle}
+                    className="h-7 w-20 text-[12px]"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        warnungSpeichern.mutate({ threshold_percent: Number((e.target as HTMLInputElement).value) || 80, enabled: true })
+                      }
+                    }}
+                    id="warnschwelle"
+                  />
+                  <span>% der Kalkulation</span>
+                  <Button size="sm" variant="outline" className="h-7 text-[12px]"
+                    onClick={() => {
+                      const feld = document.getElementById('warnschwelle') as HTMLInputElement | null
+                      warnungSpeichern.mutate({ threshold_percent: Number(feld?.value) || 80, enabled: true })
+                    }}>Speichern</Button>
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold text-foreground">{an ? `${schwelle} %` : 'aus'}</span>
+                  <Button size="sm" variant="ghost" className="h-7 text-[12px]"
+                    onClick={() => setSchwelleBearbeiten(true)}>ändern</Button>
+                  {an && (
+                    <Button size="sm" variant="ghost" className="h-7 text-[12px]"
+                      onClick={() => warnungSpeichern.mutate({ threshold_percent: schwelle, enabled: false })}>
+                      abschalten
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Summen */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-7 stagger-sm">

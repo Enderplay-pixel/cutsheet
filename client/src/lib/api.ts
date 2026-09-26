@@ -272,6 +272,7 @@ export const api = {
     create: (projectId: number, data: { role: string; label?: string; email?: string }) =>
                                                       req<any>(`/projects/${projectId}/invites`, { method: 'POST', body: JSON.stringify(data) }),
     delete: (projectId: number, inviteId: number)  => req<any>(`/projects/${projectId}/invites/${inviteId}`, { method: 'DELETE' }),
+    resend: (projectId: number, inviteId: number)  => req<any>(`/projects/${projectId}/invites/${inviteId}/resend`, { method: 'POST' }),
     getByToken: (token: string)                    => req<any>(`/invites/${token}`),
     accept: (token: string)                        => req<any>(`/invites/${token}/accept`, { method: 'POST' }),
   },

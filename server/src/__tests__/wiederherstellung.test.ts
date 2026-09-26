@@ -57,7 +57,7 @@ vi.mock('../db', () => ({
   },
 }))
 
-const { importiereInhalt } = await import('../lib/wiederherstellung')
+import { importiereInhalt } from '../lib/wiederherstellung'
 
 /** Alle Zeilen einer Tabelle als {spalte: wert}. */
 function zeilen(tabelle: string) {
