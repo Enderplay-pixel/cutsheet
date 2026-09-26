@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
+import { importiereInhalt } from '../lib/wiederherstellung'
 
 const router = Router()
 
@@ -165,6 +166,14 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
 })
 
 // POST /api/projects/import — import a previously exported JSON backup as new project
+/**
+ * Eine Sicherung zurückspielen.
+ *
+ * Das Projekt wird hier angelegt, alles Weitere übernimmt importiereInhalt
+ * über das Schema. Vorher stand hier eine Liste von 25 Tabellen von Hand -
+ * die Sicherung enthält 61. Gemessen am 26.09.2026: 300 Drehbuchblöcke in
+ * der Datei, 0 nach dem Zurückspielen.
+ */
 router.post('/projects/import', requireAuth, async (req: Request, res: Response) => {
   try {
     const body = req.body as { data?: { version?: number; data?: Record<string, unknown[]> } }
@@ -178,7 +187,8 @@ router.post('/projects/import', requireAuth, async (req: Request, res: Response)
       return res.status(400).json({ data: null, error: 'Projekt-Daten fehlen im Backup' })
     }
 
-    // Insert new project (strip id, created_at, updated_at) — assign to importing user
+    const nutzerId = (req as any).user.id
+
     const newProjectResult = await db.run(`
       INSERT INTO projects (title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, owner_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -195,212 +205,22 @@ router.post('/projects/import', requireAuth, async (req: Request, res: Response)
       originalProject['production_company'] || '',
       originalProject['shoot_start'] || null,
       originalProject['shoot_end'] || null,
-      (req as any).user.id,
+      nutzerId,
     ])
     const newProjectId = newProjectResult.id
-    // Add importer as project admin
-    await db.run('INSERT INTO project_members (project_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT (project_id, user_id) DO NOTHING', [newProjectId, (req as any).user.id, 'admin'])
-    const oldProjectId = Number(originalProject['id'])
 
-    // ID remapping maps: oldId -> newId for each table
-    const idMap: Record<string, Map<number, number>> = {}
+    await db.run(
+      'INSERT INTO project_members (project_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT (project_id, user_id) DO NOTHING',
+      [newProjectId, nutzerId, 'admin']
+    )
 
-    async function remap(table: string, rows: unknown[], insertFn: (row: Record<string, unknown>) => Promise<number>) {
-      idMap[table] = new Map()
-      for (const row of rows as Record<string, unknown>[]) {
-        const oldId = Number(row['id'])
-        const newId = await insertFn(row)
-        idMap[table].set(oldId, newId)
-      }
-    }
-
-    function getMapped(table: string, oldId: unknown): number | null {
-      if (oldId == null) return null
-      return idMap[table]?.get(Number(oldId)) ?? null
-    }
-
-    // project_settings
-    const settingsRows = (importData['project_settings'] || []) as Record<string, unknown>[]
-    for (const row of settingsRows) {
-      await db.run(`
-        INSERT INTO project_settings (project_id, default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `, [newProjectId, row['default_call_time'], row['default_wrap_time'], row['turnaround_hours'], row['currency'], row['country'], row['logo_url'] ?? null, row['header_color']])
-    }
-
-    // locations
-    await remap('locations', importData['locations'] || [], async (row) => {
-      const r = await db.run(`
-        INSERT INTO locations (project_id, name, address, city, zip, country, lat, lng, contact_name, contact_phone, contact_email, rental_fee, parking_info, power_available, notes, photos)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [newProjectId, row['name'], row['address'], row['city'], row['zip'], row['country'], row['lat'] ?? null, row['lng'] ?? null, row['contact_name'], row['contact_phone'], row['contact_email'], row['rental_fee'], row['parking_info'], row['power_available'], row['notes'], row['photos'] || '[]'])
-      return r.id
-    })
-
-    // characters
-    await remap('characters', importData['characters'] || [], async (row) => {
-      const r = await db.run(`
-        INSERT INTO characters (project_id, name, description, age_range, gender, sort_order)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [newProjectId, row['name'], row['description'], row['age_range'], row['gender'], row['sort_order']])
-      return r.id
-    })
-
-    // cast
-    await remap('cast', importData['cast'] || [], async (row) => {
-      const r = await db.run(`
-        INSERT INTO cast (project_id, character_id, actor_name, email, phone, agent, agent_email, agency, fee_per_day, contract_type, availability_notes, photo_url, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [newProjectId, getMapped('characters', row['character_id']), row['actor_name'], row['email'], row['phone'], row['agent'], row['agent_email'], row['agency'], row['fee_per_day'], row['contract_type'], row['availability_notes'], row['photo_url'] ?? null, row['notes']])
-      return r.id
-    })
-
-    // crew
-    await remap('crew', importData['crew'] || [], async (row) => {
-      const r = await db.run(`
-        INSERT INTO crew (project_id, name, department, role, email, phone, fee_per_day, contract_type, availability_notes, notes, sort_order)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [newProjectId, row['name'], row['department'], row['role'], row['email'], row['phone'], row['fee_per_day'], row['contract_type'], row['availability_notes'], row['notes'], row['sort_order']])
-      return r.id
-    })
-
-    // scenes
-    await remap('scenes', importData['scenes'] || [], async (row) => {
-      const r = await db.run(`
-        INSERT INTO scenes (project_id, scene_number, sort_order, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [newProjectId, row['scene_number'], row['sort_order'], row['title'], row['description'], getMapped('locations', row['location_id']), row['int_ext'], row['day_night'], row['eighths'], row['estimated_minutes'], row['notes']])
-      return r.id
-    })
-
-    // scene_characters
-    for (const row of (importData['scene_characters'] || []) as Record<string, unknown>[]) {
-      const newSceneId = getMapped('scenes', row['scene_id'])
-      const newCharId = getMapped('characters', row['character_id'])
-      if (newSceneId && newCharId) {
-        try {
-          await db.run('INSERT INTO scene_characters (scene_id, character_id, role_in_scene) VALUES (?, ?, ?)', [newSceneId, newCharId, row['role_in_scene'] || ''])
-        } catch { /* ignore UNIQUE */ }
-      }
-    }
-
-    // scene_inventory
-    for (const row of (importData['scene_inventory'] || []) as Record<string, unknown>[]) {
-      const newSceneId = getMapped('scenes', row['scene_id'])
-      if (newSceneId) {
-        await db.run('INSERT INTO scene_inventory (scene_id, item, category, quantity, notes) VALUES (?, ?, ?, ?, ?)', [newSceneId, row['item'], row['category'], row['quantity'], row['notes']])
-      }
-    }
-
-    // shoot_days
-    await remap('shoot_days', importData['shoot_days'] || [], async (row) => {
-      const r = await db.run(`
-        INSERT INTO shoot_days (project_id, day_number, date, status, unit, notes)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [newProjectId, row['day_number'], row['date'], row['status'], row['unit'], row['notes']])
-      return r.id
-    })
-
-    // shoot_day_scenes
-    for (const row of (importData['shoot_day_scenes'] || []) as Record<string, unknown>[]) {
-      const newDayId = getMapped('shoot_days', row['shoot_day_id'])
-      const newSceneId = getMapped('scenes', row['scene_id'])
-      if (newDayId && newSceneId) {
-        try {
-          await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order, estimated_minutes) VALUES (?, ?, ?, ?)', [newDayId, newSceneId, row['sort_order'], row['estimated_minutes'] ?? null])
-        } catch { /* ignore UNIQUE */ }
-      }
-    }
-
-    // call_sheets
-    await remap('call_sheets', importData['call_sheets'] || [], async (row) => {
-      const r = await db.run(`
-        INSERT INTO call_sheets (shoot_day_id, general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `, [getMapped('shoot_days', row['shoot_day_id']), row['general_call'], row['shooting_call'], getMapped('locations', row['location_id']), row['weather_forecast'], row['sunrise'], row['sunset'], row['notes']])
-      return r.id
-    })
-
-    // call_sheet_entries
-    for (const row of (importData['call_sheet_entries'] || []) as Record<string, unknown>[]) {
-      const newCsId = getMapped('call_sheets', row['call_sheet_id'])
-      if (newCsId) {
-        await db.run('INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, call_time, pickup_location, notes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)', [newCsId, row['person_type'], row['person_id'], row['call_time'], row['pickup_location'], row['notes'], row['sort_order']])
-      }
-    }
-
-    // shots
-    await remap('shots', importData['shots'] || [], async (row) => {
-      const r = await db.run(`
-        INSERT INTO shots (project_id, scene_id, shoot_day_id, shot_number, sort_order, size, movement, lens_mm, description, notes, storyboard_url, duration_seconds)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [newProjectId, getMapped('scenes', row['scene_id']), getMapped('shoot_days', row['shoot_day_id']), row['shot_number'], row['sort_order'], row['size'], row['movement'], row['lens_mm'], row['description'], row['notes'], row['storyboard_url'] ?? null, row['duration_seconds'] ?? null])
-      return r.id
-    })
-
-    // budget_versions
-    await remap('budget_versions', importData['budget_versions'] || [], async (row) => {
-      const r = await db.run('INSERT INTO budget_versions (project_id, name, status, total_cents) VALUES (?, ?, ?, ?)', [newProjectId, row['name'], row['status'], row['total_cents']])
-      return r.id
-    })
-
-    // budget_lines
-    for (const row of (importData['budget_lines'] || []) as Record<string, unknown>[]) {
-      const newBvId = getMapped('budget_versions', row['budget_version_id'])
-      if (newBvId) {
-        await db.run('INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [newBvId, row['category'], row['account_code'], row['description'], row['unit'], row['quantity'], row['unit_price_cents'], row['total_cents'], row['notes'], row['sort_order']])
-      }
-    }
-
-    // financing_plan_versions
-    await remap('financing_plan_versions', importData['financing_plan_versions'] || [], async (row) => {
-      const r = await db.run('INSERT INTO financing_plan_versions (project_id, name, total_cents) VALUES (?, ?, ?)', [newProjectId, row['name'], row['total_cents']])
-      return r.id
-    })
-
-    // financing_entries
-    for (const row of (importData['financing_entries'] || []) as Record<string, unknown>[]) {
-      const newFvId = getMapped('financing_plan_versions', row['financing_version_id'])
-      if (newFvId) {
-        await db.run('INSERT INTO financing_entries (financing_version_id, source, type, amount_cents, confirmed, notes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)', [newFvId, row['source'], row['type'], row['amount_cents'], row['confirmed'], row['notes'], row['sort_order']])
-      }
-    }
-
-    // equipment_lists
-    await remap('equipment_lists', importData['equipment_lists'] || [], async (row) => {
-      const r = await db.run('INSERT INTO equipment_lists (project_id, name, department, shoot_day_id, notes) VALUES (?, ?, ?, ?, ?)', [newProjectId, row['name'], row['department'], getMapped('shoot_days', row['shoot_day_id']), row['notes']])
-      return r.id
-    })
-
-    // equipment_items
-    for (const row of (importData['equipment_items'] || []) as Record<string, unknown>[]) {
-      const newElId = getMapped('equipment_lists', row['equipment_list_id'])
-      if (newElId) {
-        await db.run('INSERT INTO equipment_items (equipment_list_id, item, quantity, supplier, rental_per_day_cents, total_days, total_cents, checked, notes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [newElId, row['item'], row['quantity'], row['supplier'], row['rental_per_day_cents'], row['total_days'], row['total_cents'], row['checked'], row['notes'], row['sort_order']])
-      }
-    }
-
-    // project_events
-    for (const row of (importData['project_events'] || []) as Record<string, unknown>[]) {
-      await db.run('INSERT INTO project_events (project_id, title, start_date, end_date, type, color, notes, all_day) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [newProjectId, row['title'], row['start_date'], row['end_date'] ?? null, row['type'], row['color'], row['notes'], row['all_day']])
-    }
-
-    // vehicles, extras, camera_presets, sticky_notes
-    for (const row of (importData['vehicles'] || []) as Record<string, unknown>[]) {
-      await db.run('INSERT INTO vehicles (project_id, name, license_plate, type, capacity, driver_name, driver_phone, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [newProjectId, row['name'], row['license_plate'], row['type'], row['capacity'], row['driver_name'], row['driver_phone'], row['notes']])
-    }
-    for (const row of (importData['extras'] || []) as Record<string, unknown>[]) {
-      await db.run('INSERT INTO extras (project_id, name, phone, email, tariff_group, notes) VALUES (?, ?, ?, ?, ?, ?)', [newProjectId, row['name'], row['phone'], row['email'], row['tariff_group'], row['notes']])
-    }
-    for (const row of (importData['camera_presets'] || []) as Record<string, unknown>[]) {
-      await db.run('INSERT INTO camera_presets (project_id, name, camera, lenses, notes) VALUES (?, ?, ?, ?, ?)', [newProjectId, row['name'], row['camera'], row['lenses'], row['notes']])
-    }
-    for (const row of (importData['sticky_notes'] || []) as Record<string, unknown>[]) {
-      await db.run('INSERT INTO sticky_notes (project_id, content, color, position_x, position_y) VALUES (?, ?, ?, ?, ?)', [newProjectId, row['content'], row['color'], row['position_x'], row['position_y']])
-    }
+    const bericht = await importiereInhalt(importData, Number(newProjectId), Number(nutzerId))
 
     const newProject = await db.get('SELECT * FROM projects WHERE id = ?', [newProjectId])
-    return res.status(201).json({ data: { project: newProject, projectId: newProjectId }, error: null })
+    return res.status(201).json({
+      data: { project: newProject, projectId: newProjectId, bericht },
+      error: null,
+    })
   } catch (err) {
     console.error('[backup import POST]', err)
     return res.status(500).json({ data: null, error: 'Interner Serverfehler beim Import' })

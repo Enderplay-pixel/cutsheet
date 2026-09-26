@@ -224,6 +224,21 @@ export function Component() {
     return acc
   }, {} as Record<string, any[]>)
 
+  /**
+   * Erst die Standardgruppen des deutschen Kalkulationsschemas, dann alles
+   * Weitere, was tatsächlich in den Zeilen steht.
+   *
+   * Vorher wurde nur über CATEGORIES gelaufen. Die Kostenübernahme legt aber
+   * Zeilen in "Gagen Stab", "Gagen Besetzung", "Equipment" und
+   * "Versicherungen" an - gemessen am 26.09.2026: die Summe zählte sie mit,
+   * die Tabelle zeigte sie nicht. Geld, das dasteht und nirgends zu finden
+   * ist, ist schlimmer als kein Geld.
+   */
+  const sichtbareGruppen = [
+    ...CATEGORIES.filter(cat => grouped[cat]?.length > 0),
+    ...Object.keys(grouped).filter(cat => !CATEGORIES.includes(cat) && grouped[cat].length > 0).sort(),
+  ]
+
   const catTotals = Object.fromEntries(
     Object.entries(grouped).map(([cat, items]) => [
       cat,
@@ -367,7 +382,7 @@ export function Component() {
                     </tr>
                   </thead>
                   <tbody>
-                    {CATEGORIES.filter(cat => grouped[cat]?.length > 0).map(cat => (
+                    {sichtbareGruppen.map(cat => (
                       <>
                         <tr key={`header-${cat}`} className="bg-muted/50">
                           <td colSpan={5} className="py-1.5 pl-4 text-xs font-semibold text-muted-foreground">{cat}</td>

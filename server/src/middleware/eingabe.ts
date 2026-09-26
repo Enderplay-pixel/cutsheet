@@ -34,8 +34,22 @@ export function istIdParameter(name: string): boolean {
   return name === 'id' || /Id$/.test(name)
 }
 
+/**
+ * Pfadstücke an der Stelle einer Id, die keine Id sind.
+ *
+ * `/api/projects/import` trifft dasselbe Muster wie `/api/projects/7`, und
+ * die Prüfung wies "import" als ungültige Kennung ab - der Import einer
+ * Sicherung war damit unerreichbar. Gemessen am 26.09.2026 beim Versuch,
+ * eine Sicherung zurückzuspielen.
+ *
+ * Bewusst eine kurze Liste statt einer allgemeinen Ausnahme: jede weitere
+ * Route dieser Art soll hier auffallen, nicht stillschweigend durchrutschen.
+ */
+const KEINE_ID = new Set(['import'])
+
 export function pruefeIdParameter(req: Request, res: Response, next: NextFunction) {
   for (const [name, wert] of Object.entries(req.params ?? {})) {
+    if (KEINE_ID.has(String(wert))) continue
     if (!istIdParameter(name)) continue
     if (!istGueltigeId(wert)) {
       return res.status(400).json({

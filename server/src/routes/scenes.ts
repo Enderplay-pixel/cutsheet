@@ -17,15 +17,41 @@ router.get('/projects/:projectId/scenes', async (req, res) => {
     ORDER BY s.sort_order ASC, s.scene_number ASC
   `, [req.params.projectId])
 
-  const scenesWithDetails = await Promise.all((scenes as any[]).map(async scene => {
-    const characters = await db.all(`
-      SELECT sc.*, c.name as character_name
-      FROM scene_characters sc
-      JOIN characters c ON sc.character_id = c.id
-      WHERE sc.scene_id = ?
-    `, [scene.id])
-    const inventory = await db.all('SELECT * FROM scene_inventory WHERE scene_id = ?', [scene.id])
-    return { ...scene, characters, inventory }
+  // Zwei Abfragen fuer alle Szenen statt zwei je Szene.
+  //
+  // Gemessen am 26.09.2026 an einem Langfilm mit 300 Szenen: der alte Weg
+  // stellte 601 Abfragen. Lokal faellt das kaum auf (Datenbank im selben
+  // Prozessraum), auf Render liegt die Datenbank auf einem anderen Rechner -
+  // dort kostet jede Abfrage eine Netzrunde, und aus Millisekunden wird eine
+  // Sekunde Wartezeit auf der meistgenutzten Seite.
+  const ids = (scenes as any[]).map(s => s.id)
+  const figuren = ids.length ? await db.all(`
+    SELECT sc.*, c.name as character_name
+    FROM scene_characters sc
+    JOIN characters c ON sc.character_id = c.id
+    WHERE sc.scene_id = ANY(?)
+  `, [ids]) : []
+  const inventar = ids.length
+    ? await db.all('SELECT * FROM scene_inventory WHERE scene_id = ANY(?)', [ids])
+    : []
+
+  const figurenJeSzene = new Map<number, any[]>()
+  for (const f of figuren as any[]) {
+    const liste = figurenJeSzene.get(Number(f.scene_id)) ?? []
+    liste.push(f)
+    figurenJeSzene.set(Number(f.scene_id), liste)
+  }
+  const inventarJeSzene = new Map<number, any[]>()
+  for (const i of inventar as any[]) {
+    const liste = inventarJeSzene.get(Number(i.scene_id)) ?? []
+    liste.push(i)
+    inventarJeSzene.set(Number(i.scene_id), liste)
+  }
+
+  const scenesWithDetails = (scenes as any[]).map(scene => ({
+    ...scene,
+    characters: figurenJeSzene.get(Number(scene.id)) ?? [],
+    inventory: inventarJeSzene.get(Number(scene.id)) ?? [],
   }))
 
   res.json({ data: scenesWithDetails, error: null })
@@ -87,7 +113,34 @@ router.put('/scenes/:id', async (req, res) => {
 
 // DELETE /api/scenes/:id
 router.delete('/scenes/:id', async (req, res) => {
+  // Die Tagesberichte fuehren abgedrehte Szenen als JSON-Liste von Kennungen,
+  // nicht als Fremdschluessel - die Datenbank raeumt sie also nicht mit weg.
+  // Gemessen am 26.09.2026: eine geloeschte Szene blieb in der Liste stehen,
+  // bekam in der Zeitanalyse weiter einen Anteil der Tagesdrehzeit zugeteilt,
+  // und dieser Anteil verschwand aus der Summe - der Tag wirkte kuerzer, als
+  // er war.
+  const szene = await db.get('SELECT shoot_day_id FROM shoot_day_scenes WHERE scene_id = ?', [req.params.id]) as any
   await db.run('DELETE FROM scenes WHERE id = ?', [req.params.id])
+  if (szene?.shoot_day_id) {
+    const bericht = await db.get(
+      'SELECT id, scenes_completed, scenes_partial FROM daily_reports WHERE shoot_day_id = ?',
+      [szene.shoot_day_id]
+    ) as any
+    if (bericht) {
+      const ohne = (roh: unknown) => {
+        try {
+          const liste = JSON.parse(String(roh ?? '[]'))
+          return JSON.stringify(Array.isArray(liste)
+            ? liste.filter((x: unknown) => Number(x) !== Number(req.params.id))
+            : [])
+        } catch { return '[]' }
+      }
+      await db.run(
+        'UPDATE daily_reports SET scenes_completed = ?, scenes_partial = ? WHERE id = ?',
+        [ohne(bericht.scenes_completed), ohne(bericht.scenes_partial), bericht.id]
+      )
+    }
+  }
   res.json({ data: { ok: true }, error: null })
 })
 

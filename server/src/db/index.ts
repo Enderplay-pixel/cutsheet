@@ -831,6 +831,19 @@ export async function initDatabase() {
                  WHERE a.scene_id = b.scene_id AND a.id > b.id`)
   await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS shoot_day_scenes_scene_eindeutig
                  ON shoot_day_scenes (scene_id)`)
+
+  // Verwaiste Verweise auf geloeschte Personen.
+  //
+  // person_type/person_id zeigen auf zwei Tabellen, deshalb gibt es keinen
+  // Fremdschluessel - die Datenbank raeumt beim Loeschen eines Stabmitglieds
+  // nicht mit auf. Seit dem 26.09.2026 tut die Anwendung es selbst
+  // (lib/person.ts); was vorher liegen geblieben ist, kommt hier einmalig
+  // weg. Sonst steht auf einem gedruckten Call Sheet eine namenlose Zeile.
+  for (const tabelle of ['call_sheet_entries', 'timesheets', 'catering_preferences']) {
+    await db.exec(`DELETE FROM ${tabelle}
+                   WHERE (person_type = 'crew' AND NOT EXISTS (SELECT 1 FROM crew c WHERE c.id = person_id))
+                      OR (person_type = 'cast' AND NOT EXISTS (SELECT 1 FROM "cast" ca WHERE ca.id = person_id))`)
+  }
   await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false`)
   // Projektart: 'film' = klassische Produktion, 'creator' = Content-/YouTube-Kanal.
   // Steuert Navigation und Feature-Set im Client.

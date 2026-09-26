@@ -33,13 +33,25 @@ router.get('/projects/:projectId/screenplay', async (req, res) => {
     ORDER BY s.sort_order ASC, s.scene_number ASC
   `, [projectId])
 
-  const result = await Promise.all((scenes as any[]).map(async scene => {
-    const blocks = await db.all(`
-      SELECT * FROM screenplay_blocks
-      WHERE scene_id = ?
-      ORDER BY sort_order ASC
-    `, [scene.id])
-    return { scene, blocks }
+  // Eine Abfrage fuer alle Bloecke statt eine je Szene - bei 300 Szenen sind
+  // das 301 Netzrunden zur Datenbank gegen zwei.
+  const ids = (scenes as any[]).map(s => s.id)
+  const alleBloecke = ids.length ? await db.all(`
+    SELECT * FROM screenplay_blocks
+    WHERE scene_id = ANY(?)
+    ORDER BY sort_order ASC
+  `, [ids]) : []
+
+  const bloeckeJeSzene = new Map<number, any[]>()
+  for (const b of alleBloecke as any[]) {
+    const liste = bloeckeJeSzene.get(Number(b.scene_id)) ?? []
+    liste.push(b)
+    bloeckeJeSzene.set(Number(b.scene_id), liste)
+  }
+
+  const result = (scenes as any[]).map(scene => ({
+    scene,
+    blocks: bloeckeJeSzene.get(Number(scene.id)) ?? [],
   }))
 
   res.json({ data: result, error: null })
