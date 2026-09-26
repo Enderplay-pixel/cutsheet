@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
-import { formatDate, debounce, cn } from '@/lib/utils'
+import { formatDate, debounce, cn, dauer } from '@/lib/utils'
 import { ChevronLeft, ChevronRight, FileText, Clock, Camera, AlertTriangle, Save, Download } from 'lucide-react'
 import { TimeInput } from '@/components/ui/time-input'
 
@@ -128,8 +128,10 @@ export function Component() {
     )
   }
 
-  const shootDuration = form ? form.wrap - form.call_time : 0
-  const lunchBreak = form?.lunch_in && form?.lunch_out ? form.lunch_out - form.lunch_in : 0
+  // dauer() trägt den Tageswechsel: ein Nachtdreh von 18:00 bis 02:00 sind
+  // acht Stunden, nicht minus sechzehn.
+  const shootDuration = form ? dauer(form.call_time, form.wrap) : 0
+  const lunchBreak = dauer(form?.lunch_in, form?.lunch_out)
   const shootRatioWarning = form && selectedDay?.total_eighths > 0 && form.pages_shot > selectedDay.total_eighths
 
   return (

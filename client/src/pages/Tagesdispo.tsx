@@ -668,10 +668,47 @@ export function Component() {
 
   const [shiftAmount, setShiftAmount] = useState(15)
   const [weatherLoading, setWeatherLoading] = useState(false)
+  const [sonneLaedt, setSonneLaedt] = useState(false)
 
   // First scene location for header display
   const firstScene = currentDay?.scenes?.[0]
   const locationName = firstScene?.location_name
+
+  /**
+   * Sonnenzeiten aus dem Motiv des Tages. Die Werte kamen bisher nur aus dem
+   * Kopf: die Rechnung lag im Server, die Felder im Formular, dazwischen war
+   * nichts. Golden Hour ist keine Nebensache - danach wird gedreht.
+   */
+  const holeSonnenzeiten = async () => {
+    const motivId = firstScene?.location_id
+    if (!motivId || !currentDay?.date) {
+      toast({ title: 'Kein Motiv oder Datum am Drehtag', variant: 'destructive' }); return
+    }
+    setSonneLaedt(true)
+    try {
+      const d = await api.sun.get(Number(motivId), String(currentDay.date).slice(0, 10))
+      const uhr = (iso: string | null) => iso
+        ? new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+        : ''
+      const auf = uhr(d.sunrise)
+      const unter = uhr(d.sunset)
+      if (!auf && !unter) { toast({ title: 'Keine Sonnenzeiten berechenbar', variant: 'destructive' }); return }
+      if (auf) updateHeader('sunrise', auf)
+      if (unter) updateHeader('sunset', unter)
+      const golden = uhr(d.golden_hour_evening_start)
+      toast({
+        title: `Sonne: ${auf} – ${unter}`,
+        description: d.koordinaten === 'standard'
+          // Nicht verschweigen: ohne Koordinaten am Motiv ist das geraten.
+          ? 'Ohne Koordinaten am Motiv gerechnet (Standardort München) — im Motiv Lat/Lng eintragen für genaue Zeiten.'
+          : golden ? `Golden Hour abends ab ${golden}` : undefined,
+      })
+    } catch {
+      toast({ title: 'Sonnenzeiten nicht abrufbar', variant: 'destructive' })
+    } finally {
+      setSonneLaedt(false)
+    }
+  }
 
   const fetchWeather = async () => {
     const city = locationName || (project as any)?.location || ''
@@ -873,6 +910,14 @@ export function Component() {
                 <div className="flex items-center gap-1.5 mb-1">
                   <Sunrise className="w-3 h-3 text-amber-400" />
                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{tt(dispoT.sunrise)}</span>
+                  <button
+                    onClick={holeSonnenzeiten}
+                    disabled={sonneLaedt}
+                    className="ml-auto -my-2 -mr-2 px-2 py-2 text-[10px] text-primary hover:underline disabled:opacity-50"
+                    title="Sonnenauf- und -untergang aus dem Motiv des Tages"
+                  >
+                    {sonneLaedt ? tt(dispoT.weatherFetching) : tt(dispoT.weatherFetch)}
+                  </button>
                 </div>
                 <Input
                   value={headerForm.sunrise || ''}

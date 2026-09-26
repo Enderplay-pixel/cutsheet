@@ -20,8 +20,14 @@ router.get('/locations/:id/sun', async (req: Request, res: Response) => {
   const location = await db.get('SELECT * FROM locations WHERE id = ?', [req.params.id]) as any
   if (!location) return res.status(404).json({ data: null, error: 'Location nicht gefunden' })
 
-  const lat: number = (location.lat != null && location.lat !== 0) ? location.lat : DEFAULT_LAT
-  const lng: number = (location.lng != null && location.lng !== 0) ? location.lng : DEFAULT_LNG
+  // Ohne Koordinaten am Motiv wird München eingesetzt. Das ist eine Annahme,
+  // keine Messung: zwischen München und Bochum liegen gut vier Längengrade,
+  // die Golden Hour verschiebt sich um eine Viertelstunde. Die Antwort sagt
+  // deshalb, woher die Koordinaten stammen - die Oberfläche kann es anzeigen.
+  const hatKoordinaten = (location.lat != null && location.lat !== 0)
+    && (location.lng != null && location.lng !== 0)
+  const lat: number = hatKoordinaten ? location.lat : DEFAULT_LAT
+  const lng: number = hatKoordinaten ? location.lng : DEFAULT_LNG
 
   // Parse date parameter, default to today
   let date: Date
@@ -53,6 +59,7 @@ router.get('/locations/:id/sun', async (req: Request, res: Response) => {
       golden_hour_evening_start: times.goldenHour instanceof Date && !isNaN(times.goldenHour.getTime()) ? times.goldenHour.toISOString() : null,
       golden_hour_evening_end: times.sunsetStart instanceof Date && !isNaN(times.sunsetStart.getTime()) ? times.sunsetStart.toISOString() : null,
       location: { id: location.id, name: location.name, lat, lng },
+      koordinaten: hatKoordinaten ? 'motiv' : 'standard',
       date: date.toISOString().split('T')[0],
     },
     error: null,

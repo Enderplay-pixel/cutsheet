@@ -17,6 +17,7 @@ import {
   type PaperName,
   type SceneInput,
 } from '../lib/screenplayFormat'
+import { dauer, nettoDrehzeit } from '../lib/drehzeit'
 
 const router = Router()
 
@@ -697,11 +698,11 @@ router.get('/shoot-days/:dayId/pdf/tagesbericht', async (req: Request, res: Resp
     db.all('SELECT sds.*, s.scene_number, s.title, s.eighths, l.name as location_name FROM shoot_day_scenes sds JOIN scenes s ON sds.scene_id = s.id LEFT JOIN locations l ON s.location_id = l.id WHERE sds.shoot_day_id = ? ORDER BY sds.sort_order', [req.params.dayId]),
   ]) as any[]
 
-  const hasTimes = report && report.call_time !== null && report.wrap !== null
-  const gross = hasTimes ? Number(report.wrap) - Number(report.call_time) : 0
-  const lunch = report?.lunch_in != null && report?.lunch_out != null
-    ? Number(report.lunch_out) - Number(report.lunch_in)
-    : 0
+  // dauer() trägt den Tageswechsel: ein Nachtdreh mit Wrap um 02:00 steht als
+  // 120 in der Datenbank und ergab vorher eine negative Drehzeit.
+  const gross = dauer(report?.call_time, report?.wrap) ?? 0
+  const lunch = dauer(report?.lunch_in, report?.lunch_out) ?? 0
+  const netto = nettoDrehzeit(report?.call_time, report?.wrap, report?.lunch_in, report?.lunch_out) ?? 0
 
   const plannedEighths = scenes.reduce((sum: number, sc: any) => sum + (Number(sc.eighths) || 0), 0)
 
@@ -719,7 +720,7 @@ router.get('/shoot-days/:dayId/pdf/tagesbericht', async (req: Request, res: Resp
     body:
       stats([
         { label: 'Drehzeit brutto', value: fmtDuration(gross) },
-        { label: 'Netto ohne Pause', value: fmtDuration(gross - lunch), hint: lunch > 0 ? `${fmtDuration(lunch)} Pause` : 'keine Pause erfasst' },
+        { label: 'Netto ohne Pause', value: fmtDuration(netto), hint: lunch > 0 ? `${fmtDuration(lunch)} Pause` : 'keine Pause erfasst' },
         { label: 'Gedrehte Seiten', value: fmtEighths(report?.pages_shot) , hint: `${fmtEighths(plannedEighths)} geplant` },
         { label: 'Setups', value: report?.total_setups ?? '—' },
       ]) +

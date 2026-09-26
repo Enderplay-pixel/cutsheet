@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Moon, Sun, Clock, Users, List, Camera, FileText, Check, CheckCircle2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, heuteISO } from '@/lib/utils'
 
 const API_BASE = '/api'
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
@@ -25,9 +25,6 @@ function formatMinutes(minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 // ─── Tagesdispo Tab ───────────────────────────────────────────────────────────
 function TagesdispoTab({ dayId }: { dayId: string }) {
@@ -308,7 +305,7 @@ export function Component() {
   })
 
   // Auto-select today's shoot day
-  const today = todayISO()
+  const today = heuteISO()
 
   return (
     <div className={cn('min-h-screen bg-background text-foreground', darkMode ? 'dark' : '')}>

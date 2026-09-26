@@ -32,10 +32,6 @@ function parseDate(s: string): Date {
   return new Date(s + 'T00:00:00')
 }
 
-function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10)
-}
-
 function buildWeeks(start: Date, end: Date): Date[] {
   const days: Date[] = []
   let cur = new Date(start)

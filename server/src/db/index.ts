@@ -1,4 +1,5 @@
 import { Pool, PoolClient } from 'pg'
+import { heuteISO } from '../lib/datum'
 
 // ─── Connection pool ──────────────────────────────────────────────────────────
 export const pool = new Pool({
@@ -1142,7 +1143,9 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
   const d = (offset: number) => {
     const dt = new Date()
     dt.setDate(dt.getDate() + offset)
-    return dt.toISOString().slice(0, 10)
+    // Deutsche Zeit, nicht UTC: sonst legt ein Seed um 01:00 nachts alle
+    // Drehtage einen Tag zu frueh an.
+    return heuteISO(dt)
   }
 
   const projectResult = await db.run(`

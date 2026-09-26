@@ -85,3 +85,35 @@ export function debounce<T extends (...args: any[]) => void>(fn: T, delay: numbe
     timer = setTimeout(() => fn(...args), delay)
   }) as T
 }
+
+/**
+ * Dauer zwischen zwei Uhrzeiten, die als Minuten seit Mitternacht vorliegen.
+ * Liegt `bis` vor `von`, ging es über Mitternacht - dann zählt der nächste
+ * Tag mit.
+ *
+ * Gemessen am 26.09.2026: der Tagesbericht rechnete für einen Nachtdreh von
+ * 18:00 bis 02:00 `120 - 1080 = -960` Minuten und zeigte deshalb gar keine
+ * Drehdauer an. Nachtdrehs sind im Film keine Ausnahme.
+ *
+ * Gleiche Uhrzeit heißt null Minuten, nicht 24 Stunden.
+ */
+export function dauer(von: number | null | undefined, bis: number | null | undefined): number {
+  if (von == null || bis == null || !Number.isFinite(von) || !Number.isFinite(bis)) return 0
+  const d = bis - von
+  return d < 0 ? d + 24 * 60 : d
+}
+
+/**
+ * Heutiges Datum als YYYY-MM-DD - aus den LOKALEN Bestandteilen.
+ *
+ * `new Date().toISOString().slice(0, 10)` liefert das Datum in UTC. In
+ * Deutschland ist es zwischen Mitternacht und 02:00 dort noch der Vortag:
+ * gemessen am 26.09.2026 markierte die Set-App um 01:30 den falschen Drehtag
+ * als "Heute" - und die Kopfzeile daneben zeigte gleichzeitig das richtige.
+ * Genau in dieser Stunde steht ein Nachtdreh noch am Set.
+ */
+export function heuteISO(d: Date = new Date()): string {
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const t = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-${t}`
+}

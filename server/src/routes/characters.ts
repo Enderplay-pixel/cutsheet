@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { db } from '../db'
 import { requireMember } from '../middleware/projectAuth'
+import { loeschePersonenspuren } from '../lib/person'
 
 const router = Router()
 
@@ -72,6 +73,7 @@ router.put('/cast/:id', async (req, res) => {
 
 // DELETE /api/cast/:id
 router.delete('/cast/:id', async (req, res) => {
+  await loeschePersonenspuren('cast', req.params.id)
   await db.run('DELETE FROM cast WHERE id = ?', [req.params.id])
   res.json({ data: { ok: true }, error: null })
 })

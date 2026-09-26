@@ -8,6 +8,7 @@
  */
 
 import { assessRights, analysePerformance, checkClip } from './creatorInsights'
+import { heuteISO } from './datum'
 
 /** Mehrzeiliges Textfeld zu einer Liste. Leere Zeilen fallen weg. */
 export function zeilen(text: unknown): string[] {
@@ -56,7 +57,7 @@ export type PlanEintrag = {
  * geplantes Datum vorbei ist, ohne dass es veröffentlicht wurde.
  */
 export function redaktionsplan(videos: Video[], heute = new Date()) {
-  const stichtag = heute.toISOString().slice(0, 10)
+  const stichtag = heuteISO(heute)
   const eintraege: PlanEintrag[] = videos
     .filter(v => v.publish_at || v.published_at)
     .map(v => {
@@ -128,7 +129,7 @@ export function serien(videos: Video[]) {
  * Schleichwerbung, deshalb steht sie als Warnung drin und nicht als Notiz.
  */
 export function sponsoren(videos: Video[], heute = new Date()) {
-  const stichtag = heute.toISOString().slice(0, 10)
+  const stichtag = heuteISO(heute)
   const liste = videos
     .filter(v => String(v.sponsor_brand || '').trim())
     .map(v => {

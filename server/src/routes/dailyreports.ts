@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
+import { nettoDrehzeit } from '../lib/drehzeit'
 
 const router = Router()
 
@@ -61,20 +62,13 @@ router.get('/projects/:projectId/time-analysis', async (req, res) => {
 
     if (allSceneIds.length === 0) continue
 
-    // Total shooting time for the day in minutes (from first_shot to wrap)
+    // Drehzeit des Tages: erste Klappe bis Drehschluss, ohne Mittagspause.
+    // nettoDrehzeit trägt den Tageswechsel - ein Nachtdreh von 18:00 bis
+    // 02:00 sind acht Stunden, nicht minus sechzehn.
     const firstShot = day.first_shot ?? day.call_time ?? 480
     const wrap = day.wrap ?? 1200
-    // Times are stored as minutes-since-midnight
-    let totalDayMinutes = wrap - firstShot
-    if (totalDayMinutes <= 0) totalDayMinutes = 0
-
-    // Subtract lunch break if present (lunch_in and lunch_out stored as minutes-since-midnight)
     const row = await db.get('SELECT lunch_in, lunch_out FROM daily_reports WHERE id = ?', [day.report_id]) as any
-    if (row && row.lunch_in != null && row.lunch_out != null && row.lunch_out > row.lunch_in) {
-      totalDayMinutes -= (row.lunch_out - row.lunch_in)
-    }
-
-    if (totalDayMinutes < 0) totalDayMinutes = 0
+    const totalDayMinutes = nettoDrehzeit(firstShot, wrap, row?.lunch_in, row?.lunch_out) ?? 0
 
     // Gemessene Zeiten haben Vorrang. Was gemessen wurde, zaehlt genau so;
     // nur der Rest des Tages wird auf die uebrigen Szenen aufgeteilt.

@@ -7,12 +7,34 @@ const router = Router()
 // All /projects/:projectId/* routes require membership
 router.use('/projects/:projectId', requireMember)
 
+/**
+ * Drehtage durchnummerieren - nach Datum, nicht nach Anlegereihenfolge.
+ *
+ * Gemessen am 26.09.2026: wer nachträglich einen früheren Tag anlegt, bekam
+ * die nächste freie Nummer. Ein Plan mit Tag 3 am 5. November und Tag 1 am
+ * 10. November ist kein Plan. Nachgeschobene Tage - ein Nachdreh, ein
+ * vergessenes Motiv - sind in der Produktion die Regel.
+ *
+ * Gleiches Datum: die zuerst angelegte Zeile bleibt vorn.
+ */
+export async function nummeriereDrehtage(projectId: number | string) {
+  const tage = await db.all(
+    'SELECT id FROM shoot_days WHERE project_id = ? ORDER BY date ASC, id ASC',
+    [projectId]
+  ) as any[]
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < tage.length; i++) {
+      await tx.run('UPDATE shoot_days SET day_number = ? WHERE id = ?', [i + 1, tage[i].id])
+    }
+  })
+}
+
 async function getShootDayWithScenes(dayId: number | bigint) {
   const day = await db.get('SELECT * FROM shoot_days WHERE id = ?', [dayId]) as any
   if (!day) return null
   const scenes = await db.all(`
     SELECT sds.*, s.scene_number, s.title, s.int_ext, s.day_night, s.eighths, s.estimated_minutes, s.description, s.notes,
-           l.name as location_name
+           s.location_id, l.name as location_name
     FROM shoot_day_scenes sds
     JOIN scenes s ON sds.scene_id = s.id
     LEFT JOIN locations l ON s.location_id = l.id
@@ -27,7 +49,7 @@ async function getShootDayWithScenes(dayId: number | bigint) {
 
 // GET /api/projects/:projectId/shoot-days
 router.get('/projects/:projectId/shoot-days', async (req, res) => {
-  const days = await db.all('SELECT * FROM shoot_days WHERE project_id = ? ORDER BY day_number ASC', [req.params.projectId])
+  const days = await db.all('SELECT * FROM shoot_days WHERE project_id = ? ORDER BY date ASC, id ASC', [req.params.projectId])
   const result = await Promise.all((days as any[]).map(d => getShootDayWithScenes(d.id)))
   res.json({ data: result, error: null })
 })
@@ -35,9 +57,8 @@ router.get('/projects/:projectId/shoot-days', async (req, res) => {
 // POST /api/projects/:projectId/shoot-days
 router.post('/projects/:projectId/shoot-days', async (req, res) => {
   const { date, status = 'Geplant', unit = 'Haupteinheit', notes = '' } = req.body
-  const maxDayRow = await db.get('SELECT COALESCE(MAX(day_number), 0) as m FROM shoot_days WHERE project_id = ?', [req.params.projectId]) as any
-  const maxDay = maxDayRow.m
-  const result = await db.run('INSERT INTO shoot_days (project_id, day_number, date, status, unit, notes) VALUES (?, ?, ?, ?, ?, ?)', [req.params.projectId, maxDay + 1, date, status, unit, notes])
+  const result = await db.run('INSERT INTO shoot_days (project_id, day_number, date, status, unit, notes) VALUES (?, ?, ?, ?, ?, ?)', [req.params.projectId, 0, date, status, unit, notes])
+  await nummeriereDrehtage(req.params.projectId)
   res.status(201).json({ data: await getShootDayWithScenes(result.id), error: null })
 })
 
@@ -47,16 +68,19 @@ router.post('/projects/:projectId/shoot-days/batch', async (req, res) => {
   if (!Array.isArray(dates) || dates.length === 0)
     return res.status(400).json({ data: null, error: 'dates array required' })
 
-  const maxDayRow = await db.get('SELECT COALESCE(MAX(day_number), 0) as m FROM shoot_days WHERE project_id = ?', [req.params.projectId]) as any
-  let nextDay = (maxDayRow.m as number) + 1
-
-  const created: any[] = []
+  const neueIds: any[] = []
   for (const date of dates) {
     const result = await db.run(
       'INSERT INTO shoot_days (project_id, day_number, date, status, unit, notes) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.params.projectId, nextDay++, date, 'Geplant', 'Haupteinheit', '']
+      [req.params.projectId, 0, date, 'Geplant', 'Haupteinheit', '']
     )
-    const day = await getShootDayWithScenes(result.id)
+    neueIds.push(result.id)
+  }
+  await nummeriereDrehtage(req.params.projectId)
+
+  const created: any[] = []
+  for (const id of neueIds) {
+    const day = await getShootDayWithScenes(id)
     if (day) created.push(day)
   }
   res.status(201).json({ data: created, error: null })
@@ -67,6 +91,11 @@ router.put('/shoot-days/:id', async (req, res) => {
   const { date, status, unit, notes, catering_count } = req.body
   await db.run('UPDATE shoot_days SET date=COALESCE(?,date), status=COALESCE(?,status), unit=COALESCE(?,unit), notes=COALESCE(?,notes), catering_count=COALESCE(?,catering_count) WHERE id=?',
     [date ?? null, status ?? null, unit ?? null, notes ?? null, catering_count ?? null, req.params.id])
+  if (date) {
+    // Ein verschobener Tag aendert die Reihenfolge des ganzen Plans.
+    const tag = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [req.params.id]) as any
+    if (tag) await nummeriereDrehtage(tag.project_id)
+  }
   res.json({ data: await getShootDayWithScenes(parseInt(req.params.id)), error: null })
 })
 
@@ -76,7 +105,9 @@ router.delete('/shoot-days/:id', async (req, res) => {
   const day = await db.get('SELECT * FROM shoot_days WHERE id = ?', [req.params.id]) as any
   if (day) {
     await db.run('DELETE FROM shoot_days WHERE id = ?', [req.params.id])
-    await db.run('UPDATE shoot_days SET day_number = day_number - 1 WHERE project_id = ? AND day_number > ?', [day.project_id, day.day_number])
+    // Nicht "alle darueber minus eins": teilen sich zwei Tage eine Nummer,
+    // rutschen sie damit uebereinander. Neu durchzaehlen ist eindeutig.
+    await nummeriereDrehtage(day.project_id)
   }
   res.json({ data: { ok: true }, error: null })
 })

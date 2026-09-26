@@ -10,7 +10,7 @@ import {
   CheckSquare, Plus, Trash2, ChevronRight, CalendarDays, User, CircleDashed,
   CircleDot, Eye, CheckCircle2
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, heuteISO } from '@/lib/utils'
 
 // Abnahmeschleife wie bei PreProducer: offen → in Arbeit → Abnahme → erledigt
 const STATUS_META: Record<string, { label: string; icon: any; cls: string }> = {
@@ -149,7 +149,7 @@ function TaskList({ tasks, onCycle, onDelete, muted }: {
   onDelete: (t: any) => void
   muted?: boolean
 }) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = heuteISO()
   return (
     <div className="space-y-1.5">
       {tasks.map((t: any) => {
