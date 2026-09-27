@@ -207,7 +207,7 @@ function InviteSection({ pid }: { pid: number }) {
           </div>
           <div className="divide-y divide-border/40">
             {(members as any[]).map((m: any) => (
-              <div key={m.id} className="flex items-center gap-3 px-5 py-2.5">
+              <div key={m.user_id ?? m.id} className="flex items-center gap-3 px-5 py-2.5">
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium">{m.name || m.email}</span>
                   <span className="text-xs text-muted-foreground ml-2">{m.email}</span>

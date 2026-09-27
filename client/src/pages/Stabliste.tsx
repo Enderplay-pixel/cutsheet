@@ -57,15 +57,15 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
       <Input value={form.name || ''} onChange={e => update('name', e.target.value)}
         className="h-7 text-sm font-medium basis-[calc(100%-2.25rem)] lg:basis-auto lg:flex-1 min-w-0 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Name" />
       <Input value={form.role || ''} onChange={e => update('role', e.target.value)}
-        className="h-7 text-xs text-muted-foreground w-32 lg:w-40 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Position" />
+        className="h-7 text-xs text-muted-foreground w-full sm:w-32 lg:w-40 ml-9 sm:ml-0 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Position" />
 
       {/* Contact */}
-      <div className="flex items-center gap-1 flex-1 min-w-0 lg:flex-none lg:shrink-0">
+      <div className="flex items-center gap-1 basis-full sm:basis-auto sm:flex-1 min-w-0 pl-9 sm:pl-0 lg:flex-none lg:shrink-0">
         <Mail className="w-3 h-3 text-muted-foreground/50" />
         <Input value={form.email || ''} onChange={e => update('email', e.target.value)}
           className="h-7 text-xs w-full lg:w-40 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" type="email" placeholder="email@…" />
       </div>
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-1 shrink-0 pl-9 sm:pl-0">
         <Phone className="w-3 h-3 text-muted-foreground/50" />
         <Input value={form.phone || ''} onChange={e => update('phone', e.target.value)}
           className="h-7 text-xs w-24 lg:w-28 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="+49…" />

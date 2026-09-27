@@ -300,6 +300,12 @@ export function renderDocument(opts: DocumentOptions): string {
   /* ── Abschnitte ── */
   .sect { margin-bottom: 16pt; page-break-inside: auto; }
   .sect h2 { font-size: 11.5pt; font-weight: 600; letter-spacing: -0.015em; margin-bottom: 6pt; }
+  /* Überschrift nie allein am Seitenende — sie gehört zur Tabelle darunter */
+  .sect h2 { break-after: avoid; page-break-after: avoid; }
+  .sect h2 + table thead, .sect h2 + .defs { break-before: avoid; }
+  /* Kurze Abschnitte (bis 8 Zeilen) bleiben zusammen, statt eine einzelne
+     Zeile samt Summe auf die nächste Seite zu schieben */
+  .sect:has(tbody tr:last-child:nth-child(-n+8)) { break-inside: avoid; page-break-inside: avoid; }
   .sect h2 .note { float: right; font-size: 8pt; font-weight: 400; color: var(--gray); letter-spacing: 0; margin-top: 2pt; }
 
   /* ── Tabellen ── */
