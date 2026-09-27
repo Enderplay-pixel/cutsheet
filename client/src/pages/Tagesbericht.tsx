@@ -157,7 +157,7 @@ export function Component() {
           </Button>
         </div>
         <div>
-          <h1 className="font-display text-[34px] sm:text-[40px]">Tagesbericht</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">Tagesbericht</h1>
           {selectedDay && (
             <p className="text-sm text-muted-foreground">Drehtag {selectedDay.day_number} · {formatDate(selectedDay.date)}</p>
           )}

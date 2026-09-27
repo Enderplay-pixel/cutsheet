@@ -122,7 +122,7 @@ export function Component() {
       {/* Page hero */}
       <div className="mb-8 pb-7 border-b border-border/40 flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-[34px] sm:text-[40px]">
+          <h1 className="font-display text-[28px] sm:text-[34px]">
             Admin-Statistiken
           </h1>
           <p className="text-sm text-muted-foreground/60 mt-1.5">

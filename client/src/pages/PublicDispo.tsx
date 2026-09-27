@@ -9,7 +9,7 @@ import { track } from '@/lib/analytics'
 import {
   Clapperboard, MapPin, CheckCircle2, Clock, CloudSun, Sunrise, Sunset, UserPlus
 } from 'lucide-react'
-import { BrandMark } from '@/components/shared/BrandMark'
+import { AppIcon } from '@/components/shared/BrandMark'
 import { cn } from '@/lib/utils'
 
 const fmtTime = (mins: number | null | undefined) =>
@@ -45,7 +45,7 @@ export function Component() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-5 text-center">
         <Clapperboard className="w-10 h-10 text-muted-foreground/30 mb-4" />
-        <h1 className="font-display text-[34px] sm:text-[40px] mb-1">Link ungültig</h1>
+        <h1 className="font-display text-[28px] sm:text-[34px] mb-1">Link ungültig</h1>
         <p className="text-sm text-muted-foreground max-w-xs">
           Dieser Dispo-Link existiert nicht oder wurde zurückgezogen. Bitte wende dich an deine Produktionsleitung.
         </p>
@@ -64,7 +64,7 @@ export function Component() {
       {/* Header */}
       <header className="border-b border-border bg-card/60">
         <div className="max-w-md mx-auto px-5 h-14 flex items-center gap-2.5">
-          <BrandMark className="w-[22px] h-[22px] text-foreground shrink-0" />
+          <AppIcon className="w-7 h-7" />
           <div className="min-w-0">
             <p className="text-sm font-bold tracking-tight truncate leading-none">{project.title}</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">Drehtag {day.day_number} · {dateStr}</p>

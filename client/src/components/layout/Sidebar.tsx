@@ -15,7 +15,7 @@ import {
   Type, Scissors, ListChecks, TrendingUp, Megaphone
 } from 'lucide-react'
 import { FeedbackWidget } from '@/components/shared/FeedbackWidget'
-import { BrandMark } from '@/components/shared/BrandMark'
+import { AppIcon } from '@/components/shared/BrandMark'
 import { useT } from '@/lib/useT'
 import { navT } from '@/lib/i18n'
 import { isCreatorProject } from '@/lib/projectKind'
@@ -302,32 +302,32 @@ export function Sidebar() {
     <aside className={cn(
       // h-dvh statt h-screen: 100vh rechnet auf iOS die Browserleiste mit,
       // dadurch wird das untere Ende der Schublade abgeschnitten.
-      'flex flex-col h-dvh bg-canvas border-r border-border sidebar-transition relative',
+      'flex flex-col h-dvh bg-canvas border-r border-border/70 sidebar-transition relative',
       // Ab md wie bisher eine feste Spalte im Fluss
       'md:shrink-0 md:translate-x-0 md:static md:z-auto',
       // Darunter eine Schublade ueber dem Inhalt: 220 px fester Abzug waeren
       // auf einem 375-px-Display mehr als die Haelfte des Bildschirms
       'fixed inset-y-0 left-0 z-50 w-[248px]',
       mobileNavOpen ? 'translate-x-0' : '-translate-x-full',
-      sidebarCollapsed ? 'md:w-[56px]' : 'md:w-[232px]'
+      sidebarCollapsed ? 'md:w-[60px]' : 'md:w-[240px]'
     )}>
       {/* Logo / Brand */}
       <button
         type="button"
         className={cn(
-          'flex items-center h-[56px] border-b border-border gap-2.5 shrink-0 select-none text-left',
-          'transition-colors duration-150 hover:bg-foreground/[0.03]',
+          'flex items-center h-[60px] gap-2.5 shrink-0 select-none text-left',
+          'transition-opacity duration-150 hover:opacity-80',
           sidebarCollapsed ? 'md:justify-center md:px-0 px-4' : 'px-4'
         )}
         onClick={() => navigate('/')}
         aria-label="Zur Projektübersicht"
       >
-        <BrandMark className="w-[22px] h-[22px] shrink-0 text-foreground" />
+        <AppIcon className="w-8 h-8" />
         {!sidebarCollapsed && (
           <div className="flex-1 min-w-0">
-            <span className="font-display text-[21px] leading-none block">CutSheet</span>
+            <span className="text-[14px] font-semibold tracking-[-0.02em] leading-none block">CutSheet</span>
             {project && (
-              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground truncate block mt-1">{project.title}</span>
+              <span className="text-[12px] text-muted-foreground truncate block mt-1 leading-none">{project.title}</span>
             )}
           </div>
         )}
@@ -351,10 +351,10 @@ export function Sidebar() {
           <div className="px-3 py-6 text-center">
             {!sidebarCollapsed && (
               <div>
-                <p className="font-display text-lg italic text-muted-foreground">{tt(navT.noProject)}</p>
+                <p className="text-[13px] text-muted-foreground">{tt(navT.noProject)}</p>
                 <button
                   onClick={() => navigate('/')}
-                  className="mt-2 text-xs text-foreground underline decoration-foreground/25 underline-offset-4 hover:decoration-foreground transition-colors flex items-center gap-1 mx-auto"
+                  className="mt-1.5 text-[13px] text-primary hover:underline underline-offset-4 flex items-center gap-0.5 mx-auto"
                 >
                   {tt(navT.chooseProject)} <ChevronRight className="w-3 h-3" />
                 </button>
@@ -368,7 +368,7 @@ export function Sidebar() {
           <div className="mb-1 mt-1">
             {!sidebarCollapsed && (
               <div className="px-2 pb-1 pt-2.5">
-                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">{tt(navT.admin)}</span>
+                <span className="text-[11px] font-semibold text-muted-foreground/80">{tt(navT.admin)}</span>
               </div>
             )}
             {sidebarCollapsed && <div className="my-2 mx-2 h-px bg-border" />}
@@ -437,13 +437,13 @@ function NavGroup({ group, pid, collapsed, open, isActiveGroup, onToggle }: {
         onClick={onToggle}
         aria-expanded={open}
         className={cn(
-          'w-full flex items-center gap-1.5 px-2.5 pb-1.5 pt-4 group/header rounded-md',
+          'w-full flex items-center gap-1 px-2.5 pb-1 pt-4 group/header rounded-md',
           'transition-colors duration-150'
         )}
       >
         <span className={cn(
-          'font-mono text-[10px] uppercase tracking-[0.14em] transition-colors duration-150 text-left',
-          isActiveGroup ? 'text-foreground/80' : 'text-muted-foreground/70 group-hover/header:text-foreground/80'
+          'text-[11px] font-semibold transition-colors duration-150 text-left',
+          isActiveGroup ? 'text-foreground/70' : 'text-muted-foreground/80 group-hover/header:text-foreground/70'
         )}>
           {group.label}
         </span>
@@ -495,13 +495,13 @@ function NavItem({ item, to, end, collapsed }: {
       title={item.label}
       aria-label={item.label}
       className={({ isActive }) => cn(
-        'flex items-center gap-2.5 px-2.5 h-8 rounded-md text-[13px] group relative',
+        'flex items-center gap-2.5 px-2.5 h-[30px] rounded-lg text-[13px] group relative',
         'transition-[background-color,color,box-shadow,transform] duration-150',
         'active:scale-[0.98]',
         collapsed && 'md:justify-center md:px-0',
         isActive
-          ? 'bg-card text-foreground font-medium shadow-[0_0_0_1px_hsl(var(--border)),0_1px_2px_hsl(var(--shadow)/0.06)]'
-          : 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]'
+          ? 'bg-foreground/[0.08] text-foreground font-medium'
+          : 'text-foreground/80 hover:text-foreground hover:bg-foreground/[0.04]'
       )}
     >
       {({ isActive }) => (
@@ -509,13 +509,13 @@ function NavItem({ item, to, end, collapsed }: {
           <item.icon className={cn(
             'shrink-0 transition-[color,transform] duration-150',
             collapsed ? 'w-[15px] h-[15px]' : 'w-[14px] h-[14px]',
-            isActive ? 'text-foreground' : 'text-muted-foreground/80 group-hover:text-foreground'
+            'text-primary'
           )} />
           {!collapsed && (
             <>
               <span className="flex-1 truncate">{item.label}</span>
               {item.badge != null && (
-                <span className="ml-1 min-w-[18px] h-[18px] px-1 rounded-sm bg-warning/12 text-warning font-mono text-[10px] flex items-center justify-center tabular-nums">
+                <span className="ml-1 min-w-[18px] h-[18px] px-1.5 rounded-full bg-foreground/[0.08] text-muted-foreground text-[11px] font-medium flex items-center justify-center tabular-nums">
                   {item.badge}
                 </span>
               )}
@@ -541,13 +541,13 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
   }
   return (
     <div className="px-3 py-2.5 flex items-center gap-2.5">
-      <div className="shrink-0 w-7 h-7 rounded-[9px] bg-foreground text-background flex items-center justify-center font-mono text-[10.5px] font-medium tracking-tight" aria-hidden>
+      <div className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-b from-zinc-400 to-zinc-500 text-white flex items-center justify-center text-[11px] font-semibold" aria-hidden>
         {initials(user.name || user.email)}
       </div>
       {!collapsed && (
         <div className="flex-1 min-w-0">
           <p className="text-[12.5px] font-medium truncate leading-tight">{user.name || user.email}</p>
-          <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground truncate mt-0.5">{roleLabel[user.role] ?? user.role}</p>
+          <p className="text-[11px] text-muted-foreground truncate mt-0.5">{roleLabel[user.role] ?? user.role}</p>
         </div>
       )}
       <button

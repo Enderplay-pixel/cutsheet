@@ -14,10 +14,10 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      'flex h-10 w-full items-center justify-between whitespace-nowrap rounded-md border border-border bg-input px-3 py-2 text-sm hover:border-foreground/20',
+      'flex h-10 w-full items-center justify-between whitespace-nowrap rounded-[10px] border border-border bg-input px-3 py-2 text-sm',
       'placeholder:text-muted-foreground/50',
       'transition-[border-color,box-shadow] duration-150',
-      'focus:outline-none focus:border-foreground/40 focus:shadow-[0_0_0_3px_hsl(var(--foreground)/0.07)]',
+      'focus:outline-none focus:border-primary focus:shadow-[0_0_0_4px_hsl(var(--primary)/0.18)]',
       'disabled:cursor-not-allowed disabled:opacity-50',
       '[&>span]:line-clamp-1',
       className
@@ -60,7 +60,7 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg',
+        'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-xl border border-border/60 bg-popover/90 backdrop-blur-xl backdrop-saturate-150 text-popover-foreground shadow-xl',
         'origin-[var(--radix-select-content-transform-origin)]',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',

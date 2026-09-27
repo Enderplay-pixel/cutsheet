@@ -160,7 +160,7 @@ export function Component() {
         <div className="flex items-center gap-3 flex-wrap">
           <Users className="w-5 h-5 text-muted-foreground" />
           <div>
-            <h1 className="font-display text-[34px] sm:text-[40px]">Komparsen</h1>
+            <h1 className="font-display text-[28px] sm:text-[34px]">Komparsen</h1>
             <p className="text-sm text-muted-foreground">{extras.length} Einträge</p>
           </div>
         </div>

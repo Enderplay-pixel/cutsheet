@@ -216,7 +216,7 @@ export function Component() {
     <div className="p-7 max-w-6xl mx-auto animate-fade-up">
       <div className="flex flex-wrap items-start justify-between gap-4 mb-7">
         <div>
-          <h1 className="font-display text-[34px] sm:text-[40px]">{tt(crewT.title)}</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">{tt(crewT.title)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {tt(crewT.subtitle).replace('{n}', String(crew?.length || 0))}
             {totalGage > 0 && ` · ${formatCurrency(totalGage)} ${tt(crewT.totalFee)}`}

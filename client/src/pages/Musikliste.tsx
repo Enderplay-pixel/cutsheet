@@ -222,7 +222,7 @@ export function Component() {
         <div className="flex items-center gap-3 flex-wrap">
           <Music className="w-5 h-5 text-muted-foreground" />
           <div>
-            <h1 className="font-display text-[34px] sm:text-[40px]">Musikliste / GEMA-Cuesheet</h1>
+            <h1 className="font-display text-[28px] sm:text-[34px]">Musikliste / GEMA-Cuesheet</h1>
             <p className="text-sm text-muted-foreground">
               {allCues.length} Cues · Gesamtdauer: {formatTotalDuration(totalSeconds)}
             </p>

@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import {
   Film, Users, Clapperboard, AlertTriangle, Calendar,
-  DollarSign, MapPin, ArrowRight, ArrowUpRight, CheckCircle, AlertCircle,
+  DollarSign, MapPin, ArrowRight, CheckCircle, AlertCircle,
   ChevronRight
 } from 'lucide-react'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
@@ -31,14 +31,14 @@ function Figure({ label, value, sub, onClick }: {
     <button
       type="button"
       onClick={onClick}
-      className="group text-left bg-card px-5 py-5 sm:px-6 transition-colors duration-200 hover:bg-muted/60 focus-visible:bg-muted"
+      className="group text-left bg-card px-5 py-5 sm:px-6 transition-colors duration-200 hover:bg-foreground/[0.025] focus-visible:bg-foreground/[0.04]"
     >
       <div className="eyebrow">{label}</div>
-      <div className="font-display text-[52px] leading-none mt-3 tabular-nums">{value}</div>
+      <div className="font-display text-[40px] leading-none mt-2.5 tabular-nums">{value}</div>
       {sub && (
         <div className="text-[12px] text-muted-foreground mt-2 flex items-center gap-1">
           {sub}
-          <ArrowUpRight className="w-3 h-3 opacity-0 -translate-x-0.5 transition-[opacity,transform] duration-200 group-hover:opacity-100 group-hover:translate-x-0" />
+          <ChevronRight className="w-3 h-3 opacity-0 -translate-x-0.5 transition-[opacity,transform] duration-200 group-hover:opacity-100 group-hover:translate-x-0" />
         </div>
       )}
     </button>
@@ -51,14 +51,14 @@ function ProgressRow({ label, done, total, pct, tone }: {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-2">
       <span className="text-[13px] font-medium">{label}</span>
-      <span className="font-mono text-[12px] tabular-nums text-muted-foreground">
-        {done}<span className="opacity-50"> / {total}</span>
-        <span className="ml-3 text-foreground">{pct}%</span>
+      <span className="text-[13px] tabular-nums text-muted-foreground">
+        {done} von {total}
+        <span className="ml-3 font-semibold text-foreground">{pct}%</span>
       </span>
-      <div className="col-span-2 h-[6px] rounded-full bg-foreground/[0.07] overflow-hidden">
+      <div className="col-span-2 h-2 rounded-full bg-foreground/[0.07] overflow-hidden">
         <div
           className={cn('h-full rounded-full origin-left transition-transform duration-700 ease-out',
-            tone === 'ink' ? 'bg-foreground' : tone === 'info' ? 'bg-info' : 'bg-success')}
+            tone === 'ink' ? 'bg-primary' : tone === 'info' ? 'bg-orange-500' : 'bg-success')}
           style={{ transform: `scaleX(${pct / 100})` }}
         />
       </div>
@@ -132,19 +132,19 @@ export function Component() {
   const go = (path: string) => navigate(`/projects/${projectId}/${path}`)
 
   const jumps = [
-    { label: 'Drehplan',   icon: Clapperboard, path: 'drehplan',   key: 'D' },
-    { label: 'Tagesdispo', icon: Calendar,     path: 'tagesdispo', key: 'T' },
-    { label: 'Szenen',     icon: Film,         path: 'drehbuch',   key: 'S' },
-    { label: 'Besetzung',  icon: Users,        path: 'besetzung',  key: 'B' },
-    { label: 'Motive',     icon: MapPin,       path: 'motive',     key: 'M' },
-    { label: 'Budget',     icon: DollarSign,   path: 'budget',     key: 'G' },
+    { label: 'Drehplan',   icon: Clapperboard, path: 'drehplan',   key: 'D', tint: 'bg-blue-500' },
+    { label: 'Tagesdispo', icon: Calendar,     path: 'tagesdispo', key: 'T', tint: 'bg-red-500' },
+    { label: 'Szenen',     icon: Film,         path: 'drehbuch',   key: 'S', tint: 'bg-orange-500' },
+    { label: 'Besetzung',  icon: Users,        path: 'besetzung',  key: 'B', tint: 'bg-violet-500' },
+    { label: 'Motive',     icon: MapPin,       path: 'motive',     key: 'M', tint: 'bg-green-500' },
+    { label: 'Budget',     icon: DollarSign,   path: 'budget',     key: 'G', tint: 'bg-teal-500' },
   ]
 
   return (
     <div className="page-container" aria-label="Dashboard">
 
       {/* ── Kopf: Titel wie auf einem Deckblatt ──────────── */}
-      <header className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-8 lg:gap-12 pb-9 border-b border-border animate-fade-up">
+      <header className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-8 lg:gap-12 pt-2 animate-fade-up">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
             {firstName && (
@@ -154,16 +154,16 @@ export function Component() {
             )}
             {project?.status && <span className="chip-primary">{project.status}</span>}
           </div>
-          <h1 className="font-display text-[52px] sm:text-[68px] mt-4 break-words">
+          <h1 className="font-display text-[40px] sm:text-[56px] mt-3 break-words">
             {project?.title || 'Dashboard'}
           </h1>
           {meta.length > 0 && (
-            <p className="font-mono text-[11.5px] uppercase tracking-[0.12em] text-muted-foreground mt-4">
-              {meta.join('  ·  ')}
+            <p className="text-[17px] text-muted-foreground mt-2">
+              {meta.join(' · ')}
             </p>
           )}
           {project?.synopsis && (
-            <p className="text-[15px] text-muted-foreground mt-4 max-w-[58ch] leading-relaxed line-clamp-3">
+            <p className="text-[15px] text-foreground/80 mt-4 max-w-[58ch] leading-relaxed line-clamp-3">
               {project.synopsis}
             </p>
           )}
@@ -171,14 +171,14 @@ export function Component() {
 
         {/* Nächster Drehtag — die Zahl, in der eine Produktion denkt */}
         {stats?.next_shoot_day ? (
-          <aside className="self-end rounded-xl border border-border bg-card p-5">
+          <aside className="self-end rounded-2xl border border-border/60 bg-card p-5 shadow-md">
             <div className="flex items-center justify-between">
               <span className="eyebrow">{tt(dashT.nextShootDay)}</span>
               <span className="w-1.5 h-1.5 rounded-full bg-signal" aria-hidden />
             </div>
             <div className="flex items-end justify-between gap-4 mt-4">
               <div>
-                <div className="font-display text-[44px] leading-none">
+                <div className="font-display text-[34px] leading-none">
                   {tt(dashT.day)} {stats.next_shoot_day.day_number}
                 </div>
                 <div className="text-[13px] text-muted-foreground mt-2">
@@ -187,8 +187,8 @@ export function Component() {
               </div>
               {daysUntilShoot !== null && daysUntilShoot >= 0 && (
                 <div className="text-right shrink-0">
-                  <div className="font-mono text-[26px] leading-none tabular-nums text-signal">
-                    {daysUntilShoot === 0 ? '0' : `T–${daysUntilShoot}`}
+                  <div className="font-display text-[34px] leading-none tabular-nums text-signal">
+                    {daysUntilShoot}
                   </div>
                   <div className="text-[11px] text-muted-foreground mt-1.5">
                     {daysUntilShoot === 0
@@ -209,9 +209,9 @@ export function Component() {
             </Button>
           </aside>
         ) : (
-          <aside className="self-end rounded-xl border border-dashed border-border p-5">
+          <aside className="self-end rounded-2xl border border-dashed border-border p-5">
             <span className="eyebrow">{tt(dashT.nextShootDay)}</span>
-            <p className="font-display italic text-2xl text-muted-foreground mt-3">Noch kein Drehtag geplant</p>
+            <p className="text-[17px] font-semibold text-muted-foreground mt-2">Noch kein Drehtag geplant</p>
             <Button variant="outline" size="sm" className="mt-4" onClick={() => go('drehplan')}>
               Drehplan anlegen <ArrowRight className="w-3.5 h-3.5" />
             </Button>
@@ -222,7 +222,7 @@ export function Component() {
       {/* ── Kennzahlen als durchlaufende Zeile ───────────── */}
       <section
         aria-label="Kennzahlen"
-        className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-px rounded-xl border border-border bg-border overflow-hidden"
+        className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl border border-border/60 bg-border/70 overflow-hidden shadow-sm"
       >
         <Figure label={tt(dashT.scenes)} value={stats?.total_scenes ?? 0}
           sub={`${stats?.scheduled_scenes ?? 0} ${tt(dashT.inPlan)}`} onClick={() => go('drehbuch')} />
@@ -237,9 +237,9 @@ export function Component() {
       {/* ── Stand & Lage ─────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-5 mt-5">
 
-        <section className="rounded-xl border border-border bg-card p-6 sm:p-7">
+        <section className="rounded-2xl border border-border/60 bg-card p-6 sm:p-7 shadow-sm">
           <div className="flex items-baseline justify-between gap-4">
-            <h2 className="text-[15px] font-semibold">{tt(dashT.progress)}</h2>
+            <h2 className="text-[19px] font-semibold tracking-[-0.02em]">{tt(dashT.progress)}</h2>
             <span className="eyebrow">Stand heute</span>
           </div>
 
@@ -253,24 +253,24 @@ export function Component() {
           </div>
 
           {stats?.budget_total_cents > 0 && (
-            <div className="mt-8 pt-6 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="mt-8 pt-6 border-t border-border/70 grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
                 <div className="eyebrow">{tt(dashT.budget)}</div>
-                <div className="font-display text-[34px] leading-none mt-3 tabular-nums">
+                <div className="font-display text-[28px] leading-none mt-2 tabular-nums">
                   {formatCurrency(stats.budget_total_cents)}
                 </div>
               </div>
               <div>
                 <div className="flex items-center justify-between">
                   <div className="eyebrow">{tt(dashT.financing)}</div>
-                  <span className={cn('font-mono text-[11px] tabular-nums', financingOk ? 'text-success' : 'text-danger')}>
+                  <span className={cn('text-[12px] font-semibold tabular-nums', financingOk ? 'text-success' : 'text-danger')}>
                     {financingPct}%
                   </span>
                 </div>
-                <div className="font-display text-[34px] leading-none mt-3 tabular-nums">
+                <div className="font-display text-[28px] leading-none mt-2 tabular-nums">
                   {formatCurrency(stats?.financing_total_cents || 0)}
                 </div>
-                <div className="h-[6px] bg-foreground/[0.07] rounded-full overflow-hidden mt-3">
+                <div className="h-2 bg-foreground/[0.07] rounded-full overflow-hidden mt-3">
                   <div
                     className={cn('h-full rounded-full origin-left transition-transform duration-700 ease-out', financingOk ? 'bg-success' : 'bg-danger')}
                     style={{ transform: `scaleX(${financingPct / 100})` }}
@@ -288,14 +288,14 @@ export function Component() {
 
         <div className="flex flex-col gap-5">
           {/* Konfliktradar */}
-          <section className="rounded-xl border border-border bg-card">
+          <section className="rounded-2xl border border-border/60 bg-card shadow-sm">
             <div className="flex items-center gap-2 px-5 pt-5">
               {errors.length > 0
                 ? <AlertCircle className="w-3.5 h-3.5 text-danger" />
                 : warnings.length > 0
                   ? <AlertTriangle className="w-3.5 h-3.5 text-warning" />
                   : <CheckCircle className="w-3.5 h-3.5 text-success" />}
-              <h2 className="text-[15px] font-semibold">{tt(dashT.conflictRadar)}</h2>
+              <h2 className="text-[17px] font-semibold tracking-[-0.02em]">{tt(dashT.conflictRadar)}</h2>
             </div>
 
             {!conflicts?.length ? (
@@ -311,7 +311,7 @@ export function Component() {
                     <dt className="flex items-center gap-2.5 text-[13px] text-muted-foreground">
                       <span className={cn('w-1.5 h-1.5 rounded-full', r.cls)} />{r.label}
                     </dt>
-                    <dd className={cn('font-mono text-[13px] tabular-nums', r.text)}>{r.n}</dd>
+                    <dd className={cn('text-[15px] font-semibold tabular-nums', r.text)}>{r.n}</dd>
                   </div>
                 ))}
               </dl>
@@ -320,7 +320,7 @@ export function Component() {
             <button
               onClick={() => go('konfliktradar')}
               aria-label="Konfliktradar Details anzeigen"
-              className="mt-3 w-full flex items-center justify-between border-t border-border px-5 py-3 text-[13px] text-muted-foreground hover:text-foreground hover:bg-foreground/[0.025] transition-colors duration-150 rounded-b-xl"
+              className="mt-3 w-full flex items-center justify-between border-t border-border/70 px-5 py-3 text-[14px] text-primary hover:bg-foreground/[0.025] transition-colors duration-150 rounded-b-2xl"
             >
               Details anzeigen
               <ChevronRight className="w-3.5 h-3.5" />
@@ -328,19 +328,22 @@ export function Component() {
           </section>
 
           {/* Schnellzugriff mit den vorhandenen Tastenkürzeln */}
-          <section className="rounded-xl border border-border bg-card py-2">
-            <h2 className="eyebrow px-5 pt-3 pb-2">Schnellzugriff</h2>
-            <ul>
+          <section>
+            <h2 className="eyebrow px-4 pb-2">Schnellzugriff</h2>
+            <ul className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden divide-y divide-border/70">
               {jumps.map(item => (
                 <li key={item.path}>
                   <button
                     onClick={() => go(item.path)}
                     aria-label={`Zu ${item.label} navigieren`}
-                    className="group w-full flex items-center gap-3 px-5 h-10 text-[13px] text-muted-foreground hover:text-foreground hover:bg-foreground/[0.025] transition-colors duration-150"
+                    className="group w-full flex items-center gap-3 pl-3.5 pr-4 h-11 text-[14px] text-foreground hover:bg-foreground/[0.03] transition-colors duration-150"
                   >
-                    <item.icon className="w-4 h-4 shrink-0" />
+                    <span className={cn('w-7 h-7 rounded-[7px] flex items-center justify-center text-white shrink-0', item.tint)}>
+                      <item.icon className="w-4 h-4" />
+                    </span>
                     <span className="flex-1 text-left">{item.label}</span>
-                    <kbd className="opacity-70 group-hover:opacity-100 transition-opacity">{item.key}</kbd>
+                    <kbd className="opacity-0 group-hover:opacity-100 transition-opacity">{item.key}</kbd>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
                   </button>
                 </li>
               ))}

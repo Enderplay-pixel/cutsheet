@@ -66,7 +66,7 @@ export function Component() {
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-1">
           <Clock className="w-5 h-5 text-muted-foreground" />
-          <h1 className="font-display text-[34px] sm:text-[40px]">Zeitanalyse</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">Zeitanalyse</h1>
         </div>
         <p className="text-sm text-muted-foreground">
           Vergleich von geplantem und tatsächlichem Drehaufwand pro Szene

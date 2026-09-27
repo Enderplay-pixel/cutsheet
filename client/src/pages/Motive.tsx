@@ -433,7 +433,7 @@ export function Component() {
     <div className="p-7 max-w-4xl mx-auto animate-fade-up">
       <div className="flex items-start justify-between mb-7">
         <div>
-          <h1 className="font-display text-[34px] sm:text-[40px]">{tt(locT.title)}</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">{tt(locT.title)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {tt(locT.subtitle).replace('{n}', String(locations?.length || 0))}
             {totalCost > 0 && ` · ${formatCurrency(totalCost)} Mietkosten gesamt`}

@@ -303,7 +303,7 @@ export function Component() {
     <div className="p-7 max-w-3xl mx-auto animate-fade-up space-y-4">
       <div className="flex items-start justify-between mb-7">
         <div>
-          <h1 className="font-display text-[34px] sm:text-[40px]">{tt(masterT.title)}</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">{tt(masterT.title)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Grundlegende Projektinformationen</p>
         </div>
         <div className={cn(
@@ -434,15 +434,15 @@ export function Component() {
             <div className="flex items-center gap-2">
               <input
                 type="color"
-                value={settingsData.header_color || '#f59e0b'}
+                value={accentOf(settingsData.header_color)}
                 onChange={e => updateSetting('header_color', e.target.value)}
                 className="h-9 w-12 rounded cursor-pointer border border-border/60 bg-transparent p-0.5"
               />
               <Input
-                value={settingsData.header_color || '#f59e0b'}
+                value={accentOf(settingsData.header_color)}
                 onChange={e => updateSetting('header_color', e.target.value)}
                 className="h-9 font-mono"
-                placeholder="#f59e0b"
+                placeholder="#0071E3"
               />
             </div>
           </Field>
@@ -453,4 +453,11 @@ export function Component() {
       <InviteSection pid={pid} />
     </div>
   )
+}
+
+// Frühere Voreinstellung (#f59e0b) gilt als „nicht gewählt“ — die PDFs
+// verwenden dann das neue Standardblau, also zeigt die Einstellung es auch.
+function accentOf(color: string | null | undefined): string {
+  const c = String(color ?? '').trim()
+  return !c || c.toLowerCase() === '#f59e0b' ? '#0071E3' : c
 }

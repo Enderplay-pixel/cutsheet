@@ -30,7 +30,7 @@ export function BereichKopf({ symbol: Symbol, titel, untertitel, aktionen }: {
         <Symbol className="w-[17px] h-[17px] text-primary" />
       </div>
       <div className="min-w-0 flex-1">
-        <h1 className="font-display text-[34px] sm:text-[40px]">{titel}</h1>
+        <h1 className="font-display text-[28px] sm:text-[34px]">{titel}</h1>
         {untertitel && (
           <p className="text-[12px] text-muted-foreground mt-1 leading-snug">{untertitel}</p>
         )}

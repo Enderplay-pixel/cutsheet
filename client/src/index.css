@@ -3,105 +3,104 @@
 @tailwind utilities;
 
 /* ════════════════════════════════════════════════════════════════════
-   CutSheet Designsystem — „Dispo auf Papier“
-   Warmes Monochrom wie ein gedrucktes Produktionsdokument: Papier,
-   Tinte, feine Linien. Farbe ist knapp und trägt nur Bedeutung
-   (Status, Warnung, Drehtag). Eine einzige Signalfarbe — Tungsten —
-   markiert, was heute zählt.
+   CutSheet Designsystem — angelehnt an Apples Human Interface
+   Helles Grau als Grund, weiße Flächen mit weichen Schatten und großen
+   Radien, eine einzige Akzentfarbe (System-Blau), fette große Titel.
+   Materialien statt Linien: die Kopfzeile ist durchscheinend.
    ════════════════════════════════════════════════════════════════════ */
 @layer base {
   :root {
-    /* ── Easing ──────────────────────────────────────────── */
-    --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
-    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    /* ── Easing (federnd wie UIKit) ──────────────────────── */
+    --ease-out:    cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 
-    /* ── Dunkel: Schneideraum (warmes Anthrazit, Papier-Tinte) ── */
-    --canvas: 30 5% 6.5%;
-    --background: 30 5% 7.5%;
-    --foreground: 40 12% 90%;
-    --card: 30 4% 9.5%;
-    --card-foreground: 40 12% 90%;
-    --popover: 30 4% 11.5%;
-    --popover-foreground: 40 12% 90%;
+    /* ── Dunkel (systemBackground / secondarySystemBackground) ── */
+    --canvas: 240 3% 7%;
+    --background: 240 3% 7%;
+    --foreground: 0 0% 96%;
+    --card: 240 2% 11.5%;
+    --card-foreground: 0 0% 96%;
+    --popover: 240 2% 14%;
+    --popover-foreground: 0 0% 96%;
 
-    --primary: 40 14% 90%;
-    --primary-foreground: 30 6% 8%;
+    --primary: 211 100% 52%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 30 4% 13.5%;
-    --secondary-foreground: 40 8% 78%;
-    --muted: 30 4% 12%;
-    --muted-foreground: 38 4% 56%;
-    --accent: 30 4% 14%;
-    --accent-foreground: 40 12% 92%;
-    --destructive: 2 58% 56%;
-    --destructive-foreground: 0 0% 98%;
+    --secondary: 240 2% 17%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 240 2% 15%;
+    --muted-foreground: 240 3% 62%;
+    --accent: 240 2% 18%;
+    --accent-foreground: 0 0% 96%;
+    --destructive: 3 100% 61%;
+    --destructive-foreground: 0 0% 100%;
 
-    --signal: 36 62% 60%;
-    --signal-foreground: 30 40% 8%;
-    --signal-soft: 36 40% 60% / 0.12;
+    --signal: 211 100% 58%;
+    --signal-foreground: 0 0% 100%;
+    --signal-soft: 211 100% 58% / 0.14;
 
-    --success: 128 26% 58%;
-    --success-foreground: 128 30% 8%;
-    --warning: 38 58% 60%;
-    --warning-foreground: 30 40% 8%;
-    --danger: 2 58% 64%;
-    --danger-foreground: 0 0% 98%;
-    --info: 204 44% 64%;
-    --info-foreground: 204 40% 8%;
+    --success: 135 64% 52%;
+    --success-foreground: 0 0% 100%;
+    --warning: 36 100% 55%;
+    --warning-foreground: 0 0% 8%;
+    --danger: 3 100% 64%;
+    --danger-foreground: 0 0% 100%;
+    --info: 199 90% 62%;
+    --info-foreground: 0 0% 8%;
 
-    --border: 36 5% 16%;
-    --input: 30 4% 11%;
-    --ring: 40 14% 70%;
-    --radius: 8px;
+    --border: 240 2% 19%;
+    --input: 240 2% 13%;
+    --ring: 211 100% 58%;
+    --radius: 12px;
     --shadow: 0 0% 0%;
 
-    --sidebar-width: 232px;
-    --sidebar-collapsed-width: 56px;
+    --sidebar-width: 240px;
+    --sidebar-collapsed-width: 60px;
     --topbar-height: 56px;
 
     color-scheme: dark;
   }
 
   .light {
-    /* ── Hell: Papier (Knochenweiß, Tinte, Graphit) ── */
-    --canvas: 45 17% 95%;
-    --background: 48 14% 97%;
-    --foreground: 40 6% 11%;
+    /* ── Hell (systemGroupedBackground #F5F5F7) ── */
+    --canvas: 240 11% 95.5%;
+    --background: 240 11% 96.5%;
+    --foreground: 240 3% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 40 6% 11%;
+    --card-foreground: 240 3% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 40 6% 11%;
+    --popover-foreground: 240 3% 11%;
 
-    --primary: 40 6% 11%;
-    --primary-foreground: 48 20% 98%;
+    --primary: 211 100% 45%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 45 14% 93%;
-    --secondary-foreground: 40 6% 22%;
-    --muted: 45 12% 94%;
-    --muted-foreground: 40 3% 45%;
-    --accent: 45 12% 93%;
-    --accent-foreground: 40 6% 11%;
-    --destructive: 1 55% 40%;
-    --destructive-foreground: 0 0% 98%;
+    --secondary: 240 7% 93%;
+    --secondary-foreground: 240 3% 20%;
+    --muted: 240 9% 94.5%;
+    --muted-foreground: 240 2% 45%;
+    --accent: 240 8% 93%;
+    --accent-foreground: 240 3% 11%;
+    --destructive: 3 90% 50%;
+    --destructive-foreground: 0 0% 100%;
 
-    --signal: 34 72% 38%;
-    --signal-foreground: 48 20% 98%;
-    --signal-soft: 42 72% 92%;
+    --signal: 211 100% 45%;
+    --signal-foreground: 0 0% 100%;
+    --signal-soft: 211 100% 96%;
 
-    --success: 124 32% 30%;
-    --success-foreground: 120 30% 97%;
-    --warning: 38 100% 29%;
-    --warning-foreground: 48 20% 98%;
-    --danger: 1 56% 40%;
-    --danger-foreground: 0 0% 98%;
-    --info: 203 67% 37%;
-    --info-foreground: 204 60% 98%;
+    --success: 137 70% 34%;
+    --success-foreground: 0 0% 100%;
+    --warning: 30 100% 40%;
+    --warning-foreground: 0 0% 100%;
+    --danger: 3 90% 48%;
+    --danger-foreground: 0 0% 100%;
+    --info: 199 90% 38%;
+    --info-foreground: 0 0% 100%;
 
-    --border: 40 10% 89%;
+    --border: 240 6% 90%;
     --input: 0 0% 100%;
-    --ring: 40 6% 11%;
-    --shadow: 30 20% 20%;
+    --ring: 211 100% 45%;
+    --shadow: 240 20% 20%;
 
     color-scheme: light;
   }
@@ -122,18 +121,18 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Geist Variable', system-ui, -apple-system, sans-serif;
-    font-feature-settings: "ss01" 1, "cv11" 1;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Geist Variable', system-ui, sans-serif;
     font-size: 14px;
-    line-height: 1.55;
+    line-height: 1.5;
+    letter-spacing: -0.006em;
   }
 
-  h1, h2, h3 { text-wrap: balance; letter-spacing: -0.012em; }
+  h1, h2, h3 { text-wrap: balance; letter-spacing: -0.02em; }
   p { text-wrap: pretty; }
 
   /* Lucide ist dünn gezeichnet; einheitlich etwas kräftiger wirkt es
      technischer und liest sich auf beiden Hintergründen besser. */
-  svg.lucide { stroke-width: 1.75; }
+  svg.lucide { stroke-width: 1.8; }
 
   ::selection { background: hsl(var(--signal) / 0.25); }
 
@@ -149,16 +148,28 @@
 
 /* ─── Typografie-Bausteine ─────────────────────────────── */
 .font-display {
-  font-family: 'Instrument Serif', Georgia, serif;
-  font-weight: 400;
-  letter-spacing: -0.015em;
-  line-height: 1.05;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Geist Variable', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.06;
 }
+/* Gruppenüberschrift wie in den iOS-Einstellungen */
 .eyebrow {
-  @apply font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground;
+  @apply text-[11.5px] font-medium uppercase tracking-[0.04em] text-muted-foreground;
 }
 kbd {
-  @apply font-mono text-[10px] px-1.5 py-0.5 rounded-sm border border-border bg-muted text-muted-foreground;
+  @apply text-[10.5px] font-medium px-1.5 py-0.5 rounded-[5px] border border-border bg-card text-muted-foreground shadow-[0_1px_0_hsl(var(--border))];
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Geist Variable', sans-serif;
+}
+
+/* Umgebungslicht oben im Arbeitsbereich — ein Hauch Systemblau */
+.ambient-glow {
+  background:
+    radial-gradient(55% 45% at 50% -12%, hsl(var(--signal) / 0.09), transparent 70%);
+}
+.light .ambient-glow {
+  background:
+    radial-gradient(55% 45% at 50% -12%, hsl(var(--signal) / 0.06), transparent 70%);
 }
 
 /* ─── Accessibility ──────────────────────────────────── */
@@ -207,8 +218,8 @@ kbd {
 }
 @media (hover: hover) and (pointer: fine) {
   .card-lift:hover {
-    border-color: hsl(var(--foreground) / 0.16);
-    box-shadow: 0 2px 8px hsl(var(--shadow) / 0.05);
+    border-color: hsl(var(--foreground) / 0.18);
+    box-shadow: 0 8px 24px -8px hsl(var(--shadow) / 0.14);
   }
 }
 
@@ -219,7 +230,7 @@ kbd {
 
 /* ─── Section label ──────────────────────────────────── */
 .section-label {
-  @apply font-mono text-[10.5px] font-normal uppercase tracking-[0.14em] text-muted-foreground;
+  @apply text-[11.5px] font-medium uppercase tracking-[0.04em] text-muted-foreground;
 }
 
 /* ─── Subtle top separator line ─────────────────────── */
@@ -280,11 +291,11 @@ kbd {
 }
 
 /* ─── Drehplan strip colors ─────────────────────────── */
-/* Branchenübliche Streifenfarben (INT/EXT × Tag/Nacht), gedämpft */
-.strip-int-tag   { background: hsl(28 45% 55% / 0.10); border-left: 3px solid hsl(28 45% 52% / 0.75); }
-.strip-ext-tag   { background: hsl(96 22% 45% / 0.10); border-left: 3px solid hsl(96 22% 42% / 0.75); }
-.strip-int-nacht { background: hsl(218 30% 50% / 0.10); border-left: 3px solid hsl(218 30% 48% / 0.75); }
-.strip-ext-nacht { background: hsl(176 22% 40% / 0.10); border-left: 3px solid hsl(176 22% 38% / 0.75); }
+/* Branchenübliche Streifenfarben (INT/EXT × Tag/Nacht) */
+.strip-int-tag   { background: hsl(32 90% 55% / 0.10); border-left: 3px solid hsl(32 90% 52%); }
+.strip-ext-tag   { background: hsl(140 50% 45% / 0.10); border-left: 3px solid hsl(140 50% 42%); }
+.strip-int-nacht { background: hsl(222 70% 58% / 0.11); border-left: 3px solid hsl(222 70% 56%); }
+.strip-ext-nacht { background: hsl(180 50% 40% / 0.11); border-left: 3px solid hsl(180 50% 40%); }
 
 /* ─── Global Radix animation timing ─────────────────── */
 /* open: fast start (ease-out feel), close: snap away */
@@ -382,7 +393,7 @@ kbd {
 
 /* ─── Stat cards ─────────────────────────────────────── */
 .stat-card {
-  @apply rounded-xl bg-card border border-border p-5;
+  @apply rounded-2xl bg-card border border-border/60 p-5 shadow-sm;
 }
 
 /* ─── Table styles ──────────────────────────────────── */
@@ -393,7 +404,7 @@ kbd {
   @apply border-b border-border/50;
 }
 .data-table thead th {
-  @apply text-left font-mono text-[10.5px] font-normal uppercase tracking-[0.1em] text-muted-foreground py-2.5 px-3 first:pl-4 last:pr-4;
+  @apply text-left text-[11.5px] font-medium uppercase tracking-[0.03em] text-muted-foreground py-2.5 px-3 first:pl-4 last:pr-4;
 }
 .data-table tbody tr {
   @apply border-b border-border/30;
@@ -457,7 +468,7 @@ kbd {
 
 /* ─── Table row hover accent ─────────────────────────── */
 .data-table tbody tr:hover {
-  box-shadow: inset 2px 0 0 hsl(var(--signal) / 0.6) !important;
+  box-shadow: none !important;
 }
 
 /* ─── Glow effect on primary elements ───────────────── */
@@ -484,11 +495,11 @@ kbd {
 
 /* ─── Hero chip ──────────────────────────────────────── */
 .chip {
-  @apply inline-flex items-center px-2 py-0.5 rounded-sm font-mono text-[10.5px] uppercase tracking-[0.08em]
+  @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11.5px] font-medium
     bg-muted text-muted-foreground border border-border;
 }
 .chip-primary {
-  @apply inline-flex items-center px-2 py-0.5 rounded-sm font-mono text-[10.5px] uppercase tracking-[0.08em]
+  @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11.5px] font-medium
     bg-signal-soft text-signal border border-signal/25;
 }
 

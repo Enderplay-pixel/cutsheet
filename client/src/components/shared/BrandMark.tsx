@@ -11,3 +11,16 @@ export function BrandMark({ className }: { className?: string }) {
     </svg>
   )
 }
+
+// App-Symbol im Stil eines macOS-Icons: dunkles Rechteck mit weichem
+// Glanz oben, darin die Klappe in Weiß.
+export function AppIcon({ className }: { className?: string }) {
+  return (
+    <span
+      className={'relative inline-flex items-center justify-center shrink-0 rounded-[26%] bg-gradient-to-b from-zinc-700 to-zinc-900 text-white shadow-[0_1px_2px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.18)] ' + (className ?? '')}
+      aria-hidden
+    >
+      <BrandMark className="w-[62%] h-[62%]" />
+    </span>
+  )
+}

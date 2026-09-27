@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { BrandMark } from '@/components/shared/BrandMark'
+import { AppIcon } from '@/components/shared/BrandMark'
 import { cn } from '@/lib/utils'
 import { LANGS, loginT, t, type Lang } from '@/lib/i18n'
 import { useProjectStore } from '@/store/useProjectStore'
@@ -43,77 +43,69 @@ export function Component() {
     <div className="min-h-dvh flex bg-background">
 
       {/* ── Links: ein Auszug aus einer Tagesdispo, wie gedruckt ── */}
-      <aside className="hidden lg:flex flex-col justify-between flex-1 bg-canvas border-r border-border relative overflow-hidden select-none px-14 py-12">
-        {/* feine Linierung wie Kontrollpapier */}
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-[0.5] pointer-events-none"
-          style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent 0 31px, hsl(var(--border)) 31px 32px)' }}
-        />
+      <aside className="hidden lg:flex flex-col justify-between flex-1 bg-canvas relative overflow-hidden select-none px-14 py-12">
+        <div aria-hidden className="ambient-glow absolute inset-0 pointer-events-none" />
         <div className="relative flex items-center gap-2.5">
-          <BrandMark className="w-6 h-6 text-foreground" />
-          <span className="font-display text-2xl leading-none">CutSheet</span>
+          <AppIcon className="w-8 h-8" />
+          <span className="text-[17px] font-semibold tracking-[-0.02em]">CutSheet</span>
         </div>
 
-        <div className="relative max-w-[520px]">
-          <p className="font-display text-[64px] xl:text-[76px] leading-[0.98]">
-            Vom Drehbuch<br />bis zur <em className="text-signal">letzten Klappe.</em>
+        <div className="relative max-w-[540px]">
+          <p className="font-display text-[52px] xl:text-[60px] leading-[1.04]">
+            Vom Drehbuch.<br /><span className="text-muted-foreground">Bis zur letzten Klappe.</span>
           </p>
-          <p className="text-[15px] text-muted-foreground mt-6 max-w-[44ch] leading-relaxed">
+          <p className="text-[17px] text-muted-foreground mt-6 max-w-[42ch] leading-relaxed">
             {t(loginT.tagline, lang)} — Drehplan, Dispo, Besetzung und Budget in einem Dokument, das alle am Set lesen können.
           </p>
 
           {/* Dispo-Auszug */}
-          <div className="mt-10 rounded-xl border border-border bg-card shadow-lg rotate-[-1.2deg] origin-bottom-left animate-fade-up">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-              <span className="eyebrow">Tagesdispo · Drehtag 4 / 10</span>
-              <span className="font-mono text-[11px] text-muted-foreground tabular-nums">Sa 03.10.</span>
+          <div className="mt-12 rounded-3xl border border-border/60 bg-card/80 backdrop-blur-xl shadow-2xl animate-fade-up overflow-hidden">
+            <div className="flex items-center justify-between px-6 pt-5 pb-3">
+              <span className="text-[13px] font-semibold">Tagesdispo · Drehtag 4 von 10</span>
+              <span className="text-[13px] text-muted-foreground tabular-nums">Sa, 3. Okt.</span>
             </div>
-            <dl className="grid grid-cols-3 divide-x divide-border text-[13px]">
+            <dl className="grid grid-cols-3 gap-2 px-4 pb-4 text-[13px]">
               {[
                 ['Crew Call', '06:30'],
                 ['Drehbeginn', '08:15'],
                 ['Sonnenunterg.', '18:52'],
               ].map(([k, v]) => (
-                <div key={k} className="px-5 py-3.5">
-                  <dt className="eyebrow">{k}</dt>
-                  <dd className="font-mono text-lg tabular-nums mt-1">{v}</dd>
+                <div key={k} className="rounded-2xl bg-foreground/[0.04] px-4 py-3">
+                  <dt className="text-[12px] text-muted-foreground">{k}</dt>
+                  <dd className="text-[22px] font-semibold tracking-[-0.02em] tabular-nums mt-0.5">{v}</dd>
                 </div>
               ))}
             </dl>
-            <div className="border-t border-border">
+            <div className="border-t border-border/70">
               {[
-                ['12', 'INT. SCHNEIDERAUM — NACHT', '2 ⅛'],
-                ['14A', 'EXT. ARCHIV, HOF — TAG', '⅝'],
+                ['12', 'Int. Schneideraum – Nacht', '2 ⅛'],
+                ['14A', 'Ext. Archiv, Hof – Tag', '⅝'],
               ].map(([sc, set, pg]) => (
-                <div key={sc} className="flex items-center gap-4 px-5 py-2.5 border-b border-border last:border-0 text-[12.5px]">
-                  <span className="font-mono w-8 tabular-nums">{sc}</span>
-                  <span className="flex-1 font-mono uppercase tracking-[0.04em] text-muted-foreground truncate">{set}</span>
-                  <span className="font-mono tabular-nums text-muted-foreground">{pg}</span>
+                <div key={sc} className="flex items-center gap-4 px-6 py-3 border-b border-border/70 last:border-0 text-[13px]">
+                  <span className="w-9 font-semibold tabular-nums">{sc}</span>
+                  <span className="flex-1 text-muted-foreground truncate">{set}</span>
+                  <span className="tabular-nums text-muted-foreground">{pg}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        <p className="relative eyebrow">Produktionsmanagement für Film</p>
+        <p className="relative text-[12px] text-muted-foreground">Produktionsmanagement für Film</p>
       </aside>
 
       {/* ── Rechts: Formular ─────────────────────────────── */}
       <main className="flex flex-col items-center justify-center flex-1 px-6 sm:px-8 py-12">
         <div className="w-full max-w-sm">
           {/* Logo nur am Telefon */}
-          <div className="flex items-center gap-2.5 mb-10 lg:hidden">
-            <BrandMark className="w-6 h-6 text-foreground" />
-            <span className="font-display text-2xl leading-none">CutSheet</span>
-          </div>
+          <AppIcon className="w-14 h-14 mb-6 lg:hidden" />
 
           {/* Heading */}
           <div className="mb-7">
-            <h1 className="font-display text-[44px]">
+            <h1 className="font-display text-[34px]">
               {mode === 'login' ? t(loginT.tabLogin, lang) : t(loginT.tabRegister, lang)}
             </h1>
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="text-[15px] text-muted-foreground mt-1.5">
               {mode === 'login'
                 ? 'Melde dich in deinem Workspace an.'
                 : 'Erstelle deinen Account, um loszulegen.'}
@@ -121,16 +113,16 @@ export function Component() {
           </div>
 
           {/* Tab switcher */}
-          <div className="flex rounded-lg bg-muted border border-border p-0.5 mb-7 gap-0.5" role="tablist">
+          <div className="flex rounded-[10px] bg-foreground/[0.06] p-[3px] mb-7 gap-0.5" role="tablist">
             {(['login', 'register'] as const).map(m => (
               <button
                 key={m}
                 type="button"
                 onClick={() => { setMode(m); setError(null) }}
                 className={cn(
-                  'flex-1 text-[13px] py-1.5 rounded-md font-medium transition-[background-color,color,box-shadow] duration-150 active:scale-[0.98]',
+                  'flex-1 text-[13px] py-1.5 rounded-[8px] font-medium transition-[background-color,color,box-shadow] duration-150 active:scale-[0.98]',
                   mode === m
-                    ? 'bg-card text-foreground shadow-[0_0_0_1px_hsl(var(--border)),0_1px_2px_hsl(var(--shadow)/0.06)]'
+                    ? 'bg-card text-foreground shadow-[0_1px_3px_hsl(var(--shadow)/0.12)]'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
                 role="tab"
@@ -144,7 +136,7 @@ export function Component() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
               <div className="space-y-1.5">
-                <label className="eyebrow">
+                <label className="text-[13px] font-medium text-foreground/80">
                   {t(loginT.labelName, lang)}
                 </label>
                 <Input
@@ -159,7 +151,7 @@ export function Component() {
             )}
 
             <div className="space-y-1.5">
-              <label className="eyebrow">
+              <label className="text-[13px] font-medium text-foreground/80">
                 {t(loginT.labelEmail, lang)}
               </label>
               <Input
@@ -173,7 +165,7 @@ export function Component() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="eyebrow">
+              <label className="text-[13px] font-medium text-foreground/80">
                 {t(loginT.labelPassword, lang)}
               </label>
               <Input
@@ -188,7 +180,7 @@ export function Component() {
                 <div className="text-right">
                   <Link
                     to="/forgot-password"
-                    className="text-[12px] text-muted-foreground underline decoration-transparent underline-offset-4 hover:text-foreground hover:decoration-foreground/40 transition-colors duration-150"
+                    className="text-[13px] text-primary hover:underline underline-offset-4"
                   >
                     Passwort vergessen?
                   </Link>
@@ -199,7 +191,7 @@ export function Component() {
             {/* Language picker — register only */}
             {mode === 'register' && (
               <div className="space-y-1.5">
-                <label className="eyebrow">
+                <label className="text-[13px] font-medium text-foreground/80">
                   {t(loginT.labelLanguage, lang)}
                 </label>
                 <div className="flex gap-2">
@@ -237,7 +229,7 @@ export function Component() {
             </Button>
           </form>
 
-          <p className="text-[11.5px] mt-10 pt-5 border-t border-border flex gap-4 text-muted-foreground">
+          <p className="text-[12px] mt-10 flex gap-4 text-muted-foreground">
             <Link to="/impressum" className="hover:text-foreground transition-colors">Impressum</Link>
             <Link to="/datenschutz" className="hover:text-foreground transition-colors">Datenschutz</Link>
           </p>

@@ -73,7 +73,7 @@ export function Component() {
           <CheckSquare className="w-[17px] h-[17px] text-primary" />
         </div>
         <div>
-          <h1 className="font-display text-[34px] sm:text-[40px]">Aufgaben</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">Aufgaben</h1>
           <p className="text-[12px] text-muted-foreground mt-1">
             {open.length} offen · {done.length} erledigt
           </p>

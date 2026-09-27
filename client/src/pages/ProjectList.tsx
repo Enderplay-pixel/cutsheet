@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, Film, Copy, Trash2, Archive, ArchiveRestore, Youtube, Smartphone, Mic, Radio } from 'lucide-react'
+import { Plus, Film, Copy, Trash2, ChevronRight, Archive, ArchiveRestore, Youtube, Smartphone, Mic, Radio } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { OnboardingWizard } from '@/components/OnboardingWizard'
@@ -21,7 +21,7 @@ import { projectsT, uiT } from '@/lib/i18n'
 const STATUS_META: Record<string, { text: string; dot: string }> = {
   'Entwicklung':    { text: 'text-muted-foreground', dot: 'bg-muted-foreground/60' },
   'Vorproduktion':  { text: 'text-info',             dot: 'bg-info' },
-  'Produktion':     { text: 'text-signal',           dot: 'bg-signal' },
+  'Produktion':     { text: 'text-orange-600 dark:text-orange-400', dot: 'bg-orange-500' },
   'Postproduktion': { text: 'text-violet-600 dark:text-violet-300', dot: 'bg-violet-500' },
   'Abgeschlossen':  { text: 'text-success',          dot: 'bg-success' },
 }
@@ -33,6 +33,8 @@ Object.assign(STATUS_META, {
   'Completed': STATUS_META['Abgeschlossen'],
 })
 const DEFAULT_META = { text: 'text-muted-foreground', dot: 'bg-muted-foreground/60' }
+// Farbige App-Kacheln je Projekt, damit man Projekte auf einen Blick unterscheidet
+const TINTS = ['bg-blue-500', 'bg-orange-500', 'bg-violet-500', 'bg-green-500', 'bg-pink-500', 'bg-teal-500']
 
 const FORMATS = ALL_FORMATS
 
@@ -160,10 +162,10 @@ export function Component() {
     <div className="min-h-full bg-background">
       <div className="max-w-5xl mx-auto px-5 sm:px-10 py-10 sm:py-16">
         {/* Kopf */}
-        <header className="flex flex-wrap items-end justify-between gap-6 pb-8 border-b border-border animate-fade-up">
+        <header className="flex flex-wrap items-end justify-between gap-6 pb-8 animate-fade-up">
           <div>
-            <p className="eyebrow">{showArchived ? tt(projectsT.archived) : 'CutSheet · Produktionen'}</p>
-            <h1 className="font-display text-[56px] sm:text-[72px] mt-3">
+            <p className="text-[15px] text-muted-foreground">{showArchived ? tt(projectsT.archived) : 'Produktionen'}</p>
+            <h1 className="font-display text-[40px] sm:text-[52px] mt-1">
               {showArchived ? 'Archiv' : tt(projectsT.title)}
             </h1>
           </div>
@@ -180,18 +182,18 @@ export function Component() {
 
         {/* Inhalt */}
         {isLoading ? (
-          <div className="divide-y divide-border">
+          <div className="rounded-2xl border border-border/60 bg-card divide-y divide-border/70">
             {[1, 2, 3].map(i => (
-              <div key={i} className="py-6 flex items-center gap-6">
-                <Skeleton className="h-3 w-6" />
-                <div className="flex-1 space-y-2"><Skeleton className="h-7 w-1/3" /><Skeleton className="h-3 w-1/4" /></div>
+              <div key={i} className="px-5 py-4 flex items-center gap-4">
+                <Skeleton className="h-11 w-11 rounded-xl" />
+                <div className="flex-1 space-y-2"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-3 w-1/4" /></div>
               </div>
             ))}
           </div>
         ) : !projects || projects.length === 0 ? (
           <div className="py-24 grid sm:grid-cols-[minmax(0,1fr)_auto] items-end gap-8 animate-fade-up">
             <div>
-              <p className="font-display text-[40px] sm:text-[52px] leading-[1.02] max-w-[16ch]">
+              <p className="font-display text-[32px] sm:text-[40px] max-w-[18ch]">
                 {tt(projectsT.empty)}
               </p>
               <p className="text-[15px] text-muted-foreground mt-4 max-w-[46ch] leading-relaxed">
@@ -204,10 +206,7 @@ export function Component() {
           </div>
         ) : (
           <>
-            <div className="hidden sm:grid grid-cols-[40px_minmax(0,1fr)_150px_168px] gap-6 pt-6 pb-3 eyebrow border-b border-border">
-              <span>Nr.</span><span>Titel</span><span>Phase</span><span className="text-right">Drehzeitraum</span>
-            </div>
-            <ul className="divide-y divide-border border-b border-border stagger-sm">
+            <ul className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden divide-y divide-border/70">
               {(projects || []).map((project: any, idx: number) => {
                 const meta = STATUS_META[project.status] || DEFAULT_META
                 const Icon = projectIcon(project)
@@ -216,39 +215,39 @@ export function Component() {
                     <button
                       type="button"
                       onClick={() => navigate(`/projects/${project.id}`)}
-                      className="w-full text-left grid grid-cols-[28px_minmax(0,1fr)] sm:grid-cols-[40px_minmax(0,1fr)_150px_168px] items-center gap-x-4 sm:gap-x-6 gap-y-2 py-6 pr-28 sm:pr-0 transition-colors duration-200 hover:bg-foreground/[0.02] -mx-3 px-3 rounded-lg"
+                      className="w-full text-left grid grid-cols-[44px_minmax(0,1fr)] sm:grid-cols-[44px_minmax(0,1fr)_150px_120px_20px] items-center gap-x-4 gap-y-2 px-4 sm:px-5 py-4 pr-28 sm:pr-5 transition-colors duration-150 hover:bg-foreground/[0.025]"
                     >
-                      <span className="font-mono text-[12px] text-muted-foreground tabular-nums self-start pt-2.5">
-                        {String(idx + 1).padStart(2, '0')}
+                      <span className={cn('w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-sm', TINTS[idx % TINTS.length])}>
+                        <Icon className="w-5 h-5" />
                       </span>
                       <span className="min-w-0">
                         <span className="flex items-center gap-2.5">
-                          <span className="font-display text-[30px] sm:text-[34px] leading-tight truncate">{project.title}</span>
+                          <span className="text-[17px] font-semibold tracking-[-0.02em] truncate">{project.title}</span>
                           {project.is_demo && (
                             <span className="chip shrink-0" title="Demo-Projekt zum Ausprobieren — kann jederzeit gelöscht werden">Demo</span>
                           )}
                         </span>
-                        <span className="mt-1 flex items-center gap-2 text-[12.5px] text-muted-foreground truncate">
-                          <Icon className="w-3.5 h-3.5 shrink-0" />
+                        <span className="mt-0.5 block text-[13px] text-muted-foreground truncate">
                           {[project.format, project.genre,
                             project.length_minutes ? `${project.length_minutes} Min.` : null,
                             project.director ? `Regie: ${project.director}` : null]
                             .filter(Boolean).join(' · ')}
                         </span>
                       </span>
-                      <span className={cn('col-start-2 sm:col-start-auto flex items-center gap-2 text-[12.5px]', meta.text)}>
+                      <span className={cn('col-start-2 sm:col-start-auto flex items-center gap-2 text-[13px]', meta.text)}>
                         <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', meta.dot)} />
                         {project.status}
                       </span>
-                      <span className="hidden sm:block text-right font-mono text-[12px] text-muted-foreground tabular-nums">
+                      <span className="hidden sm:block text-right text-[13px] text-muted-foreground tabular-nums">
                         {project.shoot_start
                           ? <>{formatDate(project.shoot_start)}{project.shoot_end ? <><br />{formatDate(project.shoot_end)}</> : null}</>
                           : '—'}
                       </span>
+                      <ChevronRight className="hidden sm:block w-4 h-4 text-muted-foreground/50" />
                     </button>
 
                     {/* Aktionen */}
-                    <div className="absolute right-0 top-6 sm:top-1/2 sm:-translate-y-1/2 sm:right-[184px] flex items-center gap-0.5 opacity-100 md:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 bg-background/90 rounded-md">
+                    <div className="absolute right-0 top-6 sm:top-1/2 sm:-translate-y-1/2 sm:right-[170px] flex items-center gap-0.5 opacity-100 md:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 bg-card/95 rounded-full">
                       {!showArchived && (
                         <Button variant="ghost" size="icon" className="h-8 w-8"
                           onClick={() => duplicateMutation.mutate(project.id)} title="Duplizieren" aria-label="Duplizieren">
@@ -271,7 +270,7 @@ export function Component() {
                 )
               })}
             </ul>
-            <p className="mt-4 font-mono text-[11px] text-muted-foreground tabular-nums">
+            <p className="mt-3 px-4 text-[12px] text-muted-foreground tabular-nums">
               {projects.length} Projekt{projects.length !== 1 ? 'e' : ''}
             </p>
           </>

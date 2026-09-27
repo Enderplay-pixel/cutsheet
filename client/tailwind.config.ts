@@ -5,9 +5,9 @@ import defaultColors from 'tailwindcss/colors'
 // ── Gedämpfte Palette ────────────────────────────────────────────────
 // Rund 600 Stellen im Code nutzen Tailwind-Farben direkt (amber-400,
 // blue-500/20 …). Statt jede einzeln anzufassen, wird die Palette hier
-// zentral entsättigt und leicht angewärmt. So passen Status-Tags,
-// Diagramme und Streifen zur warmen Monochrom-Basis, ohne ihre
-// Bedeutung (rot = Problem, grün = erledigt) zu verlieren.
+// zentral etwas zurückgenommen. So passen Status-Tags, Diagramme und
+// Streifen zur neutralen Basis, ohne ihre Bedeutung (rot = Problem,
+// grün = erledigt) zu verlieren.
 type Scale = Record<string, string>
 
 function hexToHsl(hex: string): [number, number, number] {
@@ -32,11 +32,11 @@ function soften(scale: Scale, satFactor: number): Scale {
   return out
 }
 
-// Ein einziges, warmes Grau statt vier kalter Graufamilien
-const warmGray = soften(defaultColors.stone as Scale, 0.9)
+// Ein einziges, neutrales Grau statt fünf Graufamilien
+const neutralGray = soften(defaultColors.zinc as Scale, 1)
 const HUES = ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan',
   'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose'] as const
-const softened = Object.fromEntries(HUES.map(h => [h, soften(defaultColors[h] as Scale, 0.55)]))
+const softened = Object.fromEntries(HUES.map(h => [h, soften(defaultColors[h] as Scale, 0.92)]))
 
 export default {
   darkMode: ['class'],
@@ -50,7 +50,7 @@ export default {
     extend: {
       colors: {
         ...softened,
-        gray: warmGray, zinc: warmGray, slate: warmGray, neutral: warmGray, stone: warmGray,
+        gray: neutralGray, zinc: neutralGray, slate: neutralGray, neutral: neutralGray, stone: neutralGray,
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
@@ -109,26 +109,26 @@ export default {
       },
       borderRadius: {
         // Knapp statt weich: innen enger, Container etwas runder
-        sm: '4px',
-        md: '6px',
+        sm: '6px',
+        md: '8px',
         lg: 'var(--radius)',
-        xl: '10px',
-        '2xl': '12px',
-        '3xl': '14px',
+        xl: '14px',
+        '2xl': '18px',
+        '3xl': '22px',
       },
       boxShadow: {
         // Kaum sichtbar, warm getönt, eine Lichtrichtung (von oben)
-        sm: '0 1px 2px hsl(var(--shadow) / 0.05)',
-        DEFAULT: '0 1px 3px hsl(var(--shadow) / 0.06)',
-        md: '0 2px 8px hsl(var(--shadow) / 0.06)',
-        lg: '0 8px 24px -4px hsl(var(--shadow) / 0.08)',
-        xl: '0 16px 40px -8px hsl(var(--shadow) / 0.12)',
-        '2xl': '0 24px 64px -12px hsl(var(--shadow) / 0.2)',
+        sm: '0 1px 2px hsl(var(--shadow) / 0.04)',
+        DEFAULT: '0 1px 3px hsl(var(--shadow) / 0.06), 0 1px 2px hsl(var(--shadow) / 0.04)',
+        md: '0 4px 12px -2px hsl(var(--shadow) / 0.08), 0 1px 3px hsl(var(--shadow) / 0.05)',
+        lg: '0 12px 32px -8px hsl(var(--shadow) / 0.14), 0 2px 6px hsl(var(--shadow) / 0.05)',
+        xl: '0 20px 48px -12px hsl(var(--shadow) / 0.2), 0 4px 10px hsl(var(--shadow) / 0.06)',
+        '2xl': '0 32px 80px -16px hsl(var(--shadow) / 0.35)',
       },
       fontFamily: {
-        sans: ['"Geist Variable"', 'system-ui', 'sans-serif'],
-        mono: ['"Geist Mono Variable"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
-        display: ['"Instrument Serif"', 'Georgia', 'serif'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"Geist Variable"', 'system-ui', 'sans-serif'],
+        mono: ['ui-monospace', '"SF Mono"', '"Geist Mono Variable"', 'SFMono-Regular', 'monospace'],
+        display: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Geist Variable"', 'system-ui', 'sans-serif'],
       },
       keyframes: {
         'accordion-down': {

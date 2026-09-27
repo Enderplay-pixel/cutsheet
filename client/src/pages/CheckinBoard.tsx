@@ -133,7 +133,7 @@ export function Component() {
       <div className="mb-8 pb-7 border-b border-border/40">
         <div className="flex items-start justify-between gap-6 flex-wrap">
           <div>
-            <h1 className="font-display text-[34px] sm:text-[40px]">Check-in Board</h1>
+            <h1 className="font-display text-[28px] sm:text-[34px]">Check-in Board</h1>
             <p className="text-sm text-muted-foreground/60 mt-1.5">Anwesenheit live verfolgen und bestätigen</p>
           </div>
 

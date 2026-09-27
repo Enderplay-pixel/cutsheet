@@ -1,6 +1,6 @@
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Moon, Sun, Menu } from 'lucide-react'
+import { Search, Moon, Sun, Menu, ChevronRight } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -43,7 +43,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
 
   return (
     <header className={cn(
-      'flex items-center h-[56px] px-3 md:px-6 border-b border-border bg-background gap-2 md:gap-3 shrink-0',
+      'flex items-center h-[56px] px-3 md:px-6 border-b border-border/60 bg-background/75 backdrop-blur-xl backdrop-saturate-150 gap-2 md:gap-3 shrink-0 relative z-20',
     )}>
       {/* Navigation aufklappen — ersetzt am Telefon die feste Spalte */}
       <button
@@ -65,15 +65,15 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
               >
                 {project.title}
               </button>
-              <span className="text-muted-foreground/40 shrink-0 text-[13px]" aria-hidden>/</span>
+              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" aria-hidden />
             </>
           )}
-          <span className="text-[13.5px] font-medium text-foreground truncate">
+          <span className="text-[13.5px] font-semibold text-foreground truncate">
             {pageTitle || project?.title || ''}
           </span>
         </div>
         {lastSaved && (
-          <p className="font-mono text-[10px] text-muted-foreground/70 leading-none mt-1">
+          <p className="text-[11px] text-muted-foreground/80 leading-none mt-1">
             {tt(topBarT.saved)} {new Date(lastSaved).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
           </p>
         )}
@@ -85,14 +85,14 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
           onClick={() => navigate(`/projects/${projectId}/tagesdispo`)}
           title={`Drehtag ${stats.next_shoot_day.day_number} öffnen`}
           className={cn(
-            'hidden md:flex items-center gap-2 h-8 pl-2.5 pr-3 rounded-md border text-xs font-medium tabular-nums',
-            'transition-[background-color,border-color,color] duration-150 active:scale-[0.98]',
+            'hidden md:flex items-center gap-2 h-8 pl-3 pr-3.5 rounded-full text-xs font-medium tabular-nums',
+            'transition-[background-color,color] duration-150 active:scale-[0.97]',
             daysUntilShoot === 0
-              ? 'bg-signal text-signal-foreground border-signal'
-              : 'bg-card text-foreground border-border hover:border-foreground/25'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-signal-soft text-signal hover:brightness-95'
           )}
         >
-          <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', daysUntilShoot === 0 ? 'bg-signal-foreground animate-pulse' : 'bg-signal')} aria-hidden />
+          <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', daysUntilShoot === 0 ? 'bg-primary-foreground animate-pulse' : 'bg-signal')} aria-hidden />
           {daysUntilShoot === 0
             ? `Drehtag ${stats.next_shoot_day.day_number} — HEUTE`
             : daysUntilShoot === 1
@@ -104,7 +104,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
       {/* Search trigger */}
       <button
         onClick={onSearchOpen}
-        className="hidden sm:flex items-center gap-2 h-8 pl-2.5 pr-1.5 w-56 rounded-md bg-card border border-border text-muted-foreground hover:text-foreground hover:border-foreground/25 transition-[border-color,color] duration-150 text-xs active:scale-[0.98]"
+        className="hidden sm:flex items-center gap-2 h-8 pl-2.5 pr-1.5 w-60 rounded-[10px] bg-foreground/[0.06] text-muted-foreground hover:bg-foreground/[0.09] transition-colors duration-150 text-[13px] active:scale-[0.98]"
       >
         <Search className="w-3 h-3 shrink-0" />
         <span className="flex-1 text-left">{tt(topBarT.searchBtn)}</span>
@@ -113,7 +113,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
 
       <button
         onClick={onSearchOpen}
-        className="sm:hidden w-8 h-8 flex items-center justify-center rounded-md hover:bg-foreground/[0.05] text-muted-foreground hover:text-foreground transition-[background-color,color] duration-150 active:scale-[0.97]"
+        className="sm:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-foreground/[0.06] text-muted-foreground hover:text-foreground transition-[background-color,color] duration-150 active:scale-[0.97]"
       >
         <Search className="w-4 h-4" />
       </button>
@@ -122,7 +122,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
       <button
         onClick={toggleDarkMode}
         title={darkMode ? tt(topBarT.lightMode) : tt(topBarT.darkMode)}
-        className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-foreground/[0.05] text-muted-foreground hover:text-foreground transition-[background-color,color] duration-150 active:scale-[0.97]"
+        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-foreground/[0.06] text-muted-foreground hover:text-foreground transition-[background-color,color] duration-150 active:scale-[0.97]"
       >
         {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
       </button>

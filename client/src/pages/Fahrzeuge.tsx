@@ -120,7 +120,7 @@ export function Component() {
         <div className="flex items-center gap-3">
           <Car className="w-5 h-5 text-muted-foreground" />
           <div>
-            <h1 className="font-display text-[34px] sm:text-[40px]">{tt(vehicleT.title)}</h1>
+            <h1 className="font-display text-[28px] sm:text-[34px]">{tt(vehicleT.title)}</h1>
             <p className="text-sm text-muted-foreground">{tt(vehicleT.subtitle).replace('{n}', String(vehicles?.length || 0))}</p>
           </div>
         </div>
