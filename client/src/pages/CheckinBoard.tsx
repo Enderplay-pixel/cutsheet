@@ -19,10 +19,12 @@ interface ShootDay {
 
 interface CallSheetEntry {
   id: number
-  name: string
+  // Der Server liefert person_name; name nur bei aelteren Antworten
+  person_name?: string
+  name?: string
   person_type: 'cast' | 'crew'
   role?: string
-  call_time?: string // ISO or HH:MM
+  call_time?: number | string | null // Minuten seit Mitternacht (Datenbank), aeltere Daten HH:MM
   checked_in: boolean
   checked_in_at?: string
 }
@@ -35,14 +37,21 @@ interface CallSheet {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function formatTime(val: string | undefined) {
-  if (!val) return '–'
-  // handle HH:MM or ISO
-  if (val.includes('T')) {
-    const d = new Date(val)
-    return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
-  }
-  return val.substring(0, 5)
+// call_time kommt aus der Datenbank als Minuten seit Mitternacht (420 = 07:00).
+// Aeltere Eintraege koennen noch Text sein. Frueher nahm die Seite nur Text an
+// und brach bei jeder echten Dispo mit "localeCompare is not a function" ab.
+function callMinuten(val: number | string | null | undefined): number | null {
+  if (val == null || val === '') return null
+  if (typeof val === 'number') return val
+  const m = String(val).match(/(\d{1,2}):(\d{2})/)
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null
+}
+
+function formatTime(val: number | string | null | undefined) {
+  const min = callMinuten(val)
+  if (min == null) return '–'
+  const h = Math.floor(min / 60) % 24
+  return `${String(h).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
 }
 
 function formatDateTime(iso: string | undefined) {
@@ -125,7 +134,7 @@ export function Component() {
 
   const sortedEntries = entries
     .slice()
-    .sort((a, b) => (a.call_time ?? '').localeCompare(b.call_time ?? ''))
+    .sort((a, b) => (callMinuten(a.call_time) ?? 9999) - (callMinuten(b.call_time) ?? 9999))
 
   return (
     <div className="px-5 py-6 sm:p-7 max-w-6xl mx-auto animate-fade-up">
@@ -269,7 +278,7 @@ export function Component() {
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-[0.95rem]">{entry.name}</span>
+                    <span className="font-semibold text-[0.95rem]">{entry.person_name ?? entry.name}</span>
                     <Badge variant={entry.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px]">
                       {entry.person_type === 'cast' ? 'Darsteller' : 'Crew'}
                     </Badge>

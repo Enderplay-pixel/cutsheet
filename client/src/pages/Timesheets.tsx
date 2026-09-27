@@ -24,11 +24,11 @@ interface Timesheet {
   person_id: number
   person_name: string
   person_type: 'cast' | 'crew'
-  call_minutes: number | null
-  wrap_minutes: number | null
+  call_time: number | null
+  wrap_time: number | null
   meal_penalty: boolean
   notes: string
-  overtime_minutes: number | null
+  overtime_hours: number | null
 }
 
 interface Person {
@@ -76,8 +76,8 @@ function TimesheetRow({ ts, dayId }: { ts: Timesheet; dayId: number }) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
-  const [callVal, setCallVal] = useState(minutesToHHMM(ts.call_minutes))
-  const [wrapVal, setWrapVal] = useState(minutesToHHMM(ts.wrap_minutes))
+  const [callVal, setCallVal] = useState(minutesToHHMM(ts.call_time))
+  const [wrapVal, setWrapVal] = useState(minutesToHHMM(ts.wrap_time))
   const [mealPenalty, setMealPenalty] = useState(ts.meal_penalty)
   const [notes, setNotes] = useState(ts.notes ?? '')
 
@@ -114,8 +114,8 @@ function TimesheetRow({ ts, dayId }: { ts: Timesheet; dayId: number }) {
   const wrapMin = parseHHMM(wrapVal)
   const overtime = calcOvertime(callMin, wrapMin)
 
-  const saveCall = () => updateMutation.mutate({ call_minutes: callMin })
-  const saveWrap = () => updateMutation.mutate({ wrap_minutes: wrapMin })
+  const saveCall = () => updateMutation.mutate({ call_time: callMin })
+  const saveWrap = () => updateMutation.mutate({ wrap_time: wrapMin })
   const saveNotes = () => updateMutation.mutate({ notes })
   const saveMeal = (val: boolean) => {
     setMealPenalty(val)
@@ -238,8 +238,8 @@ function AddTimesheetDialog({
         body: JSON.stringify({
           person_id: Number(personId),
           person_type: personType,
-          call_minutes: parseHHMM(callVal),
-          wrap_minutes: parseHHMM(wrapVal),
+          call_time: parseHHMM(callVal),
+          wrap_time: parseHHMM(wrapVal),
         }),
       })
       if (!res.ok) throw new Error('Fehler')
@@ -344,15 +344,15 @@ export function Component() {
 
   // Summary stats
   const totalOvertimeMins = sheets.reduce((sum, ts) => {
-    return sum + calcOvertime(ts.call_minutes, ts.wrap_minutes)
+    return sum + calcOvertime(ts.call_time, ts.wrap_time)
   }, 0)
-  const countWithOT = sheets.filter(ts => calcOvertime(ts.call_minutes, ts.wrap_minutes) > 0).length
+  const countWithOT = sheets.filter(ts => calcOvertime(ts.call_time, ts.wrap_time) > 0).length
 
   // Turnaround warnings: wrap + 11h > next day's call
   // We detect within the same day's sheet if any wrap is very late (>= 21:00 = 1260min) as a heuristic
   const turnaroundWarnings = sheets.filter(ts => {
-    if (ts.wrap_minutes == null) return false
-    return ts.wrap_minutes >= 22 * 60 // wrap after 22:00 → potential turnaround issue
+    if (ts.wrap_time == null) return false
+    return ts.wrap_time >= 22 * 60 // wrap after 22:00 → potential turnaround issue
   })
 
   const selectedDay = (shootDays ?? []).find(d => d.id === selectedDayId)

@@ -130,6 +130,8 @@ function fakeGet(sql: string): any {
 }
 
 function fakeAll(sql: string): any[] {
+  // Shotlist leitet den Drehtag per Unterabfrage aus shoot_day_scenes ab
+  if (sql.includes('FROM shots sh')) return shots
   if (sql.includes('call_sheet_entries')) return callEntries
   if (sql.includes('screenplay_blocks')) return blocks
   if (sql.includes('catering_preferences')) return []

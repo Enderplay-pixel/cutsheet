@@ -850,7 +850,16 @@ router.get('/projects/:projectId/pdf/shotlist', async (req, res) => {
       ORDER BY s.sort_order ASC
     `, [req.params.projectId]),
     db.all('SELECT id, day_number, date FROM shoot_days WHERE project_id = ? ORDER BY day_number ASC', [req.params.projectId]),
-    db.all('SELECT * FROM shots WHERE project_id = ? ORDER BY sort_order ASC, id ASC', [req.params.projectId]),
+    // Drehtag aus dem Drehplan der Szene ableiten (frueheste Zuordnung);
+    // shots.shoot_day_id bleibt im Normalfall leer, sonst landete in der
+    // Ansicht "nach Drehtagen" alles unter "ohne Drehtag".
+    db.all(`
+      SELECT sh.*, COALESCE(sh.shoot_day_id, (
+        SELECT sds.shoot_day_id FROM shoot_day_scenes sds JOIN shoot_days d ON d.id = sds.shoot_day_id
+        WHERE sds.scene_id = sh.scene_id ORDER BY d.day_number ASC LIMIT 1
+      )) AS shoot_day_id
+      FROM shots sh WHERE sh.project_id = ? ORDER BY sh.sort_order ASC, sh.id ASC
+    `, [req.params.projectId]),
   ]) as any[]
 
   // Storyboards als Daten-URI einbetten: Der Druck laeuft in einem eigenen

@@ -31,7 +31,7 @@ import conflictsRouter from './routes/conflicts'
 import calendarRouter from './routes/calendar'
 import pdfRouter from './routes/pdf'
 import authRouter from './routes/auth'
-import auditRouter from './routes/audit'
+import auditRouter, { aenderungenProtokollieren } from './routes/audit'
 import stickyNotesRouter from './routes/stickyNotes'
 import vehiclesRouter from './routes/vehicles'
 import extrasRouter from './routes/extras'
@@ -124,6 +124,8 @@ app.post(['/api/scenes/:sceneId/ai-breakdown', '/api/projects/:pid/drehplan/ai-o
 
 // Project-level role enforcement (runs after optionalAuth so req.user is set)
 app.use('/api', projectWriteGuard)
+// Jede erfolgreiche Aenderung im Projekt landet im Audit-Log
+app.use('/api', aenderungenProtokollieren)
 
 // Leseschutz fuer alles unter /api/projects/:projectId/
 //

@@ -50,7 +50,10 @@ function TakeRow({ take, onUpdate, onDelete }: { take: any; onUpdate: (data: any
   const [form, setForm] = useState(take)
 
   const save = () => {
-    onUpdate(form)
+    // Meter ist eine Zahlenspalte: leeres Feld als null, Komma als Dezimaltrenner
+    const roh = String(form.meters ?? '').trim().replace(',', '.')
+    const meters = roh === '' ? null : Number(roh)
+    onUpdate({ ...form, meters: Number.isFinite(meters as number) ? meters : null })
     setEditing(false)
   }
 
@@ -62,13 +65,13 @@ function TakeRow({ take, onUpdate, onDelete }: { take: any; onUpdate: (data: any
         </td>
         <td className="py-2 px-3 text-center text-sm font-mono">{form.take_number}</td>
         <td className="py-2 px-3">
-          <Input value={form.tc_in || ''} onChange={e => setForm((f: any) => ({ ...f, tc_in: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" placeholder="00:00:00:00" />
+          <Input value={form.timecode_in || ''} onChange={e => setForm((f: any) => ({ ...f, timecode_in: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" placeholder="00:00:00:00" />
         </td>
         <td className="py-2 px-3">
-          <Input value={form.tc_out || ''} onChange={e => setForm((f: any) => ({ ...f, tc_out: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" placeholder="00:00:00:00" />
+          <Input value={form.timecode_out || ''} onChange={e => setForm((f: any) => ({ ...f, timecode_out: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" placeholder="00:00:00:00" />
         </td>
         <td className="py-2 px-3">
-          <Input value={form.meter || ''} onChange={e => setForm((f: any) => ({ ...f, meter: e.target.value }))} className="h-7 text-xs w-16 bg-background" />
+          <Input value={form.meters || ''} onChange={e => setForm((f: any) => ({ ...f, meters: e.target.value }))} className="h-7 text-xs w-16 bg-background" />
         </td>
         <td className="py-2 px-3 text-center">
           <Checkbox checked={!!form.circle} onCheckedChange={v => setForm((f: any) => ({ ...f, circle: !!v }))} />
@@ -104,9 +107,9 @@ function TakeRow({ take, onUpdate, onDelete }: { take: any; onUpdate: (data: any
     )}>
       <td className={cn('py-2.5 px-3 font-mono text-xs', take.false_start && 'line-through text-muted-foreground')}>{take.scene_number}</td>
       <td className="py-2.5 px-3 text-center font-mono text-xs font-semibold tabular-nums">{take.take_number}</td>
-      <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">{take.tc_in || '–'}</td>
-      <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">{take.tc_out || '–'}</td>
-      <td className="py-2.5 px-3 text-center text-xs tabular-nums">{take.meter || '–'}</td>
+      <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">{take.timecode_in || '–'}</td>
+      <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">{take.timecode_out || '–'}</td>
+      <td className="py-2.5 px-3 text-center text-xs tabular-nums">{take.meters || '–'}</td>
       <td className="py-2.5 px-3 text-center">
         {take.circle ? (
           <span className="inline-flex w-5 h-5 rounded-full bg-green-500 items-center justify-center shadow-sm">
@@ -150,12 +153,12 @@ function TakeRow({ take, onUpdate, onDelete }: { take: any; onUpdate: (data: any
 }
 
 function AddTakeForm({ reportId, nextTakeNumber, onAdded }: { reportId: number; nextTakeNumber: number; onAdded: () => void }) {
-  const [form, setForm] = useState({ scene_number: '', tc_in: '', tc_out: '', notes: '', circle: false, false_start: false, mute: false })
+  const [form, setForm] = useState({ scene_number: '', timecode_in: '', timecode_out: '', notes: '', circle: false, false_start: false, mute: false })
 
   const mutation = useMutation({
     mutationFn: (data: any) => req<any>(`/camera-reports/${reportId}/takes`, { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => {
-      setForm({ scene_number: '', tc_in: '', tc_out: '', notes: '', circle: false, false_start: false, mute: false })
+      setForm({ scene_number: '', timecode_in: '', timecode_out: '', notes: '', circle: false, false_start: false, mute: false })
       onAdded()
     },
   })
@@ -167,8 +170,8 @@ function AddTakeForm({ reportId, nextTakeNumber, onAdded }: { reportId: number; 
       </div>
       <Input placeholder="Szene" value={form.scene_number} onChange={e => setForm(f => ({ ...f, scene_number: e.target.value }))} className="h-7 text-xs w-20 bg-background" />
       <span className="text-xs text-muted-foreground/50 font-mono">Take {nextTakeNumber}</span>
-      <Input placeholder="TC In" value={form.tc_in} onChange={e => setForm(f => ({ ...f, tc_in: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" />
-      <Input placeholder="TC Out" value={form.tc_out} onChange={e => setForm(f => ({ ...f, tc_out: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" />
+      <Input placeholder="TC In" value={form.timecode_in} onChange={e => setForm(f => ({ ...f, timecode_in: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" />
+      <Input placeholder="TC Out" value={form.timecode_out} onChange={e => setForm(f => ({ ...f, timecode_out: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" />
       <Input placeholder="Notiz" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="h-7 text-xs w-32 bg-background" />
       <div className="flex items-center gap-1.5">
         <Checkbox id={`circle-${reportId}`} checked={form.circle} onCheckedChange={v => setForm(f => ({ ...f, circle: !!v }))} className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500" />
@@ -197,12 +200,12 @@ function CameraReport({ report, onDelete }: { report: any; onDelete: () => void 
   })
 
   const updateTake = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) => req<any>(`/takes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    mutationFn: ({ id, data }: { id: number; data: any }) => req<any>(`/camera-takes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['camera-report-takes', report.id] }),
   })
 
   const deleteTake = useMutation({
-    mutationFn: (id: number) => req<any>(`/takes/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: number) => req<any>(`/camera-takes/${id}`, { method: 'DELETE' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['camera-report-takes', report.id] }),
   })
 
@@ -352,9 +355,10 @@ export function Component() {
 
   // Aggregate stats
   const totalReports = (reports || []).length
-  const allTakeCounts = (reports || []).map((r: any) => r.take_count ?? 0)
+  // Der Server liefert die Takes je Bericht mit (take_count gab es nie)
+  const allTakeCounts = (reports || []).map((r: any) => r.takes?.length ?? r.take_count ?? 0)
   const totalTakes = allTakeCounts.reduce((a: number, b: number) => a + b, 0)
-  const circleTakes = (reports || []).map((r: any) => r.circle_count ?? 0).reduce((a: number, b: number) => a + b, 0)
+  const circleTakes = (reports || []).map((r: any) => r.takes ? r.takes.filter((t: any) => t.circle).length : (r.circle_count ?? 0)).reduce((a: number, b: number) => a + b, 0)
 
   return (
     <div className="px-5 py-6 sm:p-7 max-w-6xl mx-auto animate-fade-up">
