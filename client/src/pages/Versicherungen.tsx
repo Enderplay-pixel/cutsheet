@@ -317,7 +317,7 @@ export function Component() {
         <div className="flex items-center gap-3">
           <Shield className="w-5 h-5 text-muted-foreground" />
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">Versicherungen</h1>
+            <h1 className="font-display text-[34px] sm:text-[40px]">Versicherungen</h1>
             <p className="text-sm text-muted-foreground">
               {allIns.length} Versicherungen
               {totalPremium > 0 && ` · Gesamtprämie: ${formatEuro(totalPremium)}`}

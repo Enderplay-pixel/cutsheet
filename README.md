@@ -52,7 +52,7 @@ Vollständige Webapplikation zur Verwaltung von Filmproduktionen. Von der Vorpro
 | shadcn/ui (Radix UI) | Accessible Component Primitives |
 | `class-variance-authority` | Varianten-Management für Komponenten |
 | date-fns | Datumsformatierung |
-| Inter (Google Fonts) | Schriftart |
+| Geist, Geist Mono, Instrument Serif (selbst gehostet via @fontsource) | Schriften |
 
 ---
 

@@ -1,92 +1,109 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ════════════════════════════════════════════════════════════════════
+   CutSheet Designsystem — „Dispo auf Papier“
+   Warmes Monochrom wie ein gedrucktes Produktionsdokument: Papier,
+   Tinte, feine Linien. Farbe ist knapp und trägt nur Bedeutung
+   (Status, Warnung, Drehtag). Eine einzige Signalfarbe — Tungsten —
+   markiert, was heute zählt.
+   ════════════════════════════════════════════════════════════════════ */
 @layer base {
   :root {
     /* ── Easing ──────────────────────────────────────────── */
-    --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-    /* ── Dark mode: Kinosaal (warmes Charcoal, Tungsten-Gold) ── */
-    /* Psychologie: Gold = Set-Licht / Golden Hour — warm, fokussiert,
-       motivierend. Rot ist ab jetzt EXKLUSIV destruktiv/Fehler, damit
-       die Alarmfarbe ihre Bedeutung behält. */
-    --background: 30 8% 5.5%;
-    --foreground: 36 16% 92%;
-    --card: 30 7% 8.5%;
-    --card-foreground: 36 16% 92%;
-    --popover: 30 7% 11%;
-    --popover-foreground: 36 16% 92%;
+    /* ── Dunkel: Schneideraum (warmes Anthrazit, Papier-Tinte) ── */
+    --canvas: 30 5% 6.5%;
+    --background: 30 5% 7.5%;
+    --foreground: 40 12% 90%;
+    --card: 30 4% 9.5%;
+    --card-foreground: 40 12% 90%;
+    --popover: 30 4% 11.5%;
+    --popover-foreground: 40 12% 90%;
 
-    --primary: 38 90% 55%;
-    --primary-foreground: 30 60% 7%;
+    --primary: 40 14% 90%;
+    --primary-foreground: 30 6% 8%;
 
-    --secondary: 30 6% 13%;
-    --secondary-foreground: 36 10% 76%;
-    --muted: 30 6% 11%;
-    --muted-foreground: 32 6% 52%;
-    --accent: 38 90% 55%;
-    --accent-foreground: 30 60% 7%;
-    --destructive: 0 72% 51%;
+    --secondary: 30 4% 13.5%;
+    --secondary-foreground: 40 8% 78%;
+    --muted: 30 4% 12%;
+    --muted-foreground: 38 4% 56%;
+    --accent: 30 4% 14%;
+    --accent-foreground: 40 12% 92%;
+    --destructive: 2 58% 56%;
     --destructive-foreground: 0 0% 98%;
 
-    /* Semantische Status-Farben */
-    --success: 152 52% 44%;
-    --success-foreground: 150 60% 96%;
-    --warning: 22 92% 55%;
-    --warning-foreground: 26 70% 8%;
-    --danger: 0 72% 54%;
+    --signal: 36 62% 60%;
+    --signal-foreground: 30 40% 8%;
+    --signal-soft: 36 40% 60% / 0.12;
+
+    --success: 128 26% 58%;
+    --success-foreground: 128 30% 8%;
+    --warning: 38 58% 60%;
+    --warning-foreground: 30 40% 8%;
+    --danger: 2 58% 64%;
     --danger-foreground: 0 0% 98%;
-    --info: 208 88% 62%;
-    --info-foreground: 210 60% 8%;
+    --info: 204 44% 64%;
+    --info-foreground: 204 40% 8%;
 
-    --border: 30 6% 16%;
-    --input: 30 6% 13%;
-    --ring: 38 90% 55%;
-    --radius: 0.625rem;
+    --border: 36 5% 16%;
+    --input: 30 4% 11%;
+    --ring: 40 14% 70%;
+    --radius: 8px;
+    --shadow: 0 0% 0%;
 
-    --sidebar-width: 220px;
-    --sidebar-collapsed-width: 52px;
+    --sidebar-width: 232px;
+    --sidebar-collapsed-width: 56px;
     --topbar-height: 56px;
+
+    color-scheme: dark;
   }
 
   .light {
-    /* ── Light mode: Tageslicht (warmes Papier, Bronze-Gold) ── */
-    --background: 37 35% 97%;
-    --foreground: 25 18% 11%;
+    /* ── Hell: Papier (Knochenweiß, Tinte, Graphit) ── */
+    --canvas: 45 17% 95%;
+    --background: 48 14% 97%;
+    --foreground: 40 6% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 25 18% 11%;
+    --card-foreground: 40 6% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 25 18% 11%;
+    --popover-foreground: 40 6% 11%;
 
-    --primary: 34 85% 36%;
-    --primary-foreground: 40 60% 98%;
+    --primary: 40 6% 11%;
+    --primary-foreground: 48 20% 98%;
 
-    --secondary: 37 25% 91%;
-    --secondary-foreground: 25 15% 22%;
-    --muted: 37 22% 93%;
-    --muted-foreground: 25 10% 46%;
-    --accent: 34 85% 36%;
-    --accent-foreground: 40 60% 98%;
-    --destructive: 0 72% 46%;
+    --secondary: 45 14% 93%;
+    --secondary-foreground: 40 6% 22%;
+    --muted: 45 12% 94%;
+    --muted-foreground: 40 3% 45%;
+    --accent: 45 12% 93%;
+    --accent-foreground: 40 6% 11%;
+    --destructive: 1 55% 40%;
     --destructive-foreground: 0 0% 98%;
 
-    --success: 152 60% 30%;
-    --success-foreground: 150 60% 97%;
-    --warning: 22 92% 42%;
-    --warning-foreground: 40 60% 98%;
-    --danger: 0 72% 46%;
-    --danger-foreground: 0 0% 98%;
-    --info: 208 85% 42%;
-    --info-foreground: 210 60% 98%;
+    --signal: 34 72% 38%;
+    --signal-foreground: 48 20% 98%;
+    --signal-soft: 42 72% 92%;
 
-    --border: 37 18% 82%;
-    --input: 37 22% 89%;
-    --ring: 34 85% 36%;
+    --success: 124 32% 30%;
+    --success-foreground: 120 30% 97%;
+    --warning: 38 100% 29%;
+    --warning-foreground: 48 20% 98%;
+    --danger: 1 56% 40%;
+    --danger-foreground: 0 0% 98%;
+    --info: 203 67% 37%;
+    --info-foreground: 204 60% 98%;
+
+    --border: 40 10% 89%;
+    --input: 0 0% 100%;
+    --ring: 40 6% 11%;
+    --shadow: 30 20% 20%;
+
+    color-scheme: light;
   }
 }
 
@@ -100,15 +117,25 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    font-feature-settings: "rlig" 1, "calt" 1, "cv02" 1, "cv03" 1, "cv04" 1;
+    font-family: 'Geist Variable', system-ui, -apple-system, sans-serif;
+    font-feature-settings: "ss01" 1, "cv11" 1;
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.55;
   }
+
+  h1, h2, h3 { text-wrap: balance; letter-spacing: -0.012em; }
+  p { text-wrap: pretty; }
+
+  /* Lucide ist dünn gezeichnet; einheitlich etwas kräftiger wirkt es
+     technischer und liest sich auf beiden Hintergründen besser. */
+  svg.lucide { stroke-width: 1.75; }
+
+  ::selection { background: hsl(var(--signal) / 0.25); }
 
   :focus-visible {
     outline: 2px solid hsl(var(--ring));
@@ -118,6 +145,20 @@
   .font-mono, .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
+}
+
+/* ─── Typografie-Bausteine ─────────────────────────────── */
+.font-display {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+}
+.eyebrow {
+  @apply font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground;
+}
+kbd {
+  @apply font-mono text-[10px] px-1.5 py-0.5 rounded-sm border border-border bg-muted text-muted-foreground;
 }
 
 /* ─── Accessibility ──────────────────────────────────── */
@@ -145,7 +186,7 @@
 }
 
 /* ─── Scrollbar ─────────────────────────────────────── */
-::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
@@ -166,19 +207,19 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .card-lift:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 24px hsl(0 0% 0% / 0.28);
+    border-color: hsl(var(--foreground) / 0.16);
+    box-shadow: 0 2px 8px hsl(var(--shadow) / 0.05);
   }
 }
 
 /* ─── Status badge ───────────────────────────────────── */
 .badge {
-  @apply inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border;
+  @apply inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.06em] px-1.5 py-0.5 rounded-sm border;
 }
 
 /* ─── Section label ──────────────────────────────────── */
 .section-label {
-  @apply text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/40;
+  @apply font-mono text-[10.5px] font-normal uppercase tracking-[0.14em] text-muted-foreground;
 }
 
 /* ─── Subtle top separator line ─────────────────────── */
@@ -239,10 +280,11 @@
 }
 
 /* ─── Drehplan strip colors ─────────────────────────── */
-.strip-int-tag   { background: hsl(15 75% 50% / 0.10); border-left: 2px solid hsl(15 75% 50% / 0.70); }
-.strip-ext-tag   { background: hsl(138 45% 35% / 0.10); border-left: 2px solid hsl(138 45% 35% / 0.70); }
-.strip-int-nacht { background: hsl(222 68% 46% / 0.10); border-left: 2px solid hsl(222 68% 46% / 0.70); }
-.strip-ext-nacht { background: hsl(168 58% 30% / 0.10); border-left: 2px solid hsl(168 58% 30% / 0.70); }
+/* Branchenübliche Streifenfarben (INT/EXT × Tag/Nacht), gedämpft */
+.strip-int-tag   { background: hsl(28 45% 55% / 0.10); border-left: 3px solid hsl(28 45% 52% / 0.75); }
+.strip-ext-tag   { background: hsl(96 22% 45% / 0.10); border-left: 3px solid hsl(96 22% 42% / 0.75); }
+.strip-int-nacht { background: hsl(218 30% 50% / 0.10); border-left: 3px solid hsl(218 30% 48% / 0.75); }
+.strip-ext-nacht { background: hsl(176 22% 40% / 0.10); border-left: 3px solid hsl(176 22% 38% / 0.75); }
 
 /* ─── Global Radix animation timing ─────────────────── */
 /* open: fast start (ease-out feel), close: snap away */
@@ -335,12 +377,12 @@
 
 /* ─── Page container ─────────────────────────────────── */
 .page-container {
-  @apply p-7 max-w-6xl mx-auto;
+  @apply px-5 py-6 sm:px-8 sm:py-9 max-w-6xl mx-auto;
 }
 
 /* ─── Stat cards ─────────────────────────────────────── */
 .stat-card {
-  @apply rounded-xl bg-card border border-border/70 p-5;
+  @apply rounded-xl bg-card border border-border p-5;
 }
 
 /* ─── Table styles ──────────────────────────────────── */
@@ -351,21 +393,21 @@
   @apply border-b border-border/50;
 }
 .data-table thead th {
-  @apply text-left text-xs font-medium text-muted-foreground py-2.5 px-3 first:pl-4 last:pr-4;
+  @apply text-left font-mono text-[10.5px] font-normal uppercase tracking-[0.1em] text-muted-foreground py-2.5 px-3 first:pl-4 last:pr-4;
 }
 .data-table tbody tr {
   @apply border-b border-border/30;
   transition: background-color 120ms ease-out;
 }
 .data-table tbody tr:hover {
-  @apply bg-muted/20;
+  @apply bg-muted/60;
 }
 .data-table tbody td {
   @apply py-2.5 px-3 first:pl-4 last:pr-4;
 }
 
 /* ─── Input overrides ────────────────────────────────── */
-input[type="date"]::-webkit-calendar-picker-indicator {
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.6);
   cursor: pointer;
 }
@@ -387,7 +429,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   position: absolute;
   top: 0; bottom: 0; left: -60%;
   width: 45%;
-  background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.14), transparent);
+  background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.06), transparent);
   transform: skewX(-15deg);
   pointer-events: none;
 }
@@ -415,12 +457,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* ─── Table row hover accent ─────────────────────────── */
 .data-table tbody tr:hover {
-  box-shadow: inset 2px 0 0 hsl(var(--primary) / 0.35) !important;
+  box-shadow: inset 2px 0 0 hsl(var(--signal) / 0.6) !important;
 }
 
 /* ─── Glow effect on primary elements ───────────────── */
 .glow-primary {
-  box-shadow: 0 0 0 1px hsl(var(--primary)/0.2), 0 4px 20px hsl(var(--primary)/0.15);
+  box-shadow: 0 0 0 1px hsl(var(--foreground)/0.08), 0 2px 8px hsl(var(--shadow)/0.06);
 }
 
 /* ─── Number counter animation ───────────────────────── */
@@ -436,23 +478,23 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(ellipse at 50% 0%, hsl(var(--primary)/0.07) 0%, transparent 60%);
+  background: radial-gradient(ellipse at 50% 0%, hsl(var(--signal)/0.05) 0%, transparent 60%);
   pointer-events: none;
 }
 
 /* ─── Hero chip ──────────────────────────────────────── */
 .chip {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold
-    bg-muted/60 text-muted-foreground border border-border/50;
+  @apply inline-flex items-center px-2 py-0.5 rounded-sm font-mono text-[10.5px] uppercase tracking-[0.08em]
+    bg-muted text-muted-foreground border border-border;
 }
 .chip-primary {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold
-    bg-primary/10 text-primary border border-primary/20;
+  @apply inline-flex items-center px-2 py-0.5 rounded-sm font-mono text-[10.5px] uppercase tracking-[0.08em]
+    bg-signal-soft text-signal border border-signal/25;
 }
 
 /* ─── Highlighted row (for tables) ──────────────────── */
 .row-highlighted {
-  @apply bg-primary/5 border-l-2 border-l-primary/40;
+  @apply bg-signal-soft border-l-2 border-l-signal/60;
 }
 
 /* ─── Print styles ───────────────────────────────────── */

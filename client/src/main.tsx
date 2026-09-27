@@ -5,9 +5,22 @@ import { RouterProvider, createBrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
 import { initAnalytics } from './lib/analytics'
+import '@fontsource-variable/geist'
+import '@fontsource-variable/geist-mono'
+import '@fontsource/instrument-serif/400.css'
+import '@fontsource/instrument-serif/400-italic.css'
 import './index.css'
 
 initAnalytics()
+
+// Hell/Dunkel schon vor dem ersten Rendern setzen — sonst zeigen Login
+// und öffentliche Seiten (ausserhalb der AppShell) immer den Dunkelmodus.
+try {
+  const saved = JSON.parse(localStorage.getItem('cutsheet-ui') || '{}')?.state?.darkMode
+  const dark = typeof saved === 'boolean' ? saved : (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true)
+  document.documentElement.classList.toggle('dark', dark)
+  document.documentElement.classList.toggle('light', !dark)
+} catch { /* Speicher gesperrt: Standard aus index.html bleibt */ }
 
 // After a new deployment the browser may have a cached index.html pointing to
 // old chunk hashes that no longer exist. Wrap every lazy import so that if

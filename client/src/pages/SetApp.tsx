@@ -316,7 +316,7 @@ export function Component() {
         {/* Header */}
         <div className="flex items-center justify-between py-2">
           <div>
-            <h1 className="text-2xl font-bold">Set-App</h1>
+            <h1 className="font-display text-[34px] sm:text-[40px]">Set-App</h1>
             <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
           <button

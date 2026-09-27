@@ -362,7 +362,7 @@ export function Component() {
       {/* Page hero */}
       <div className="mb-8 pb-7 border-b border-border/40 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Timesheets</h1>
+          <h1 className="font-display text-[34px] sm:text-[40px]">Timesheets</h1>
           <p className="text-sm text-muted-foreground/60 mt-1.5">Call- & Wrap-Zeiten, Überstunden und Mahlzeit-Penalties</p>
         </div>
         <Button

@@ -385,7 +385,7 @@ export function Component() {
       <div className="px-7 pt-7 pb-4 border-b border-border/40 shrink-0">
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h1 className="text-xl font-semibold">{tt(scenesT.title)}</h1>
+            <h1 className="font-display text-[34px] sm:text-[40px]">{tt(scenesT.title)}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {tt(scenesT.subtitle)
                 .replace('{n}', String(scenes?.length || 0))

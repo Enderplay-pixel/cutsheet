@@ -9,12 +9,13 @@ import {
   Film, LayoutDashboard, FileText, Users, Briefcase, MapPin, Calendar,
   Camera, ClipboardList, FileCheck, DollarSign, Package, Mail, AlertTriangle,
   Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight,
-  StickyNote, Car, History, Search, FileEdit, LogOut, UserCircle, ShieldCheck, BookUser, Settings,
+  StickyNote, Car, History, Search, FileEdit, LogOut, ShieldCheck, BookUser, Settings,
   Layers, CalendarClock, Music, Shield, CheckSquare, Clock, UtensilsCrossed, Image, TableProperties,
   MessageSquare, Activity, Video, CalendarOff, Wallet, LayoutGrid,
   Type, Scissors, ListChecks, TrendingUp, Megaphone
 } from 'lucide-react'
 import { FeedbackWidget } from '@/components/shared/FeedbackWidget'
+import { BrandMark } from '@/components/shared/BrandMark'
 import { useT } from '@/lib/useT'
 import { navT } from '@/lib/i18n'
 import { isCreatorProject } from '@/lib/projectKind'
@@ -301,32 +302,36 @@ export function Sidebar() {
     <aside className={cn(
       // h-dvh statt h-screen: 100vh rechnet auf iOS die Browserleiste mit,
       // dadurch wird das untere Ende der Schublade abgeschnitten.
-      'flex flex-col h-dvh bg-card border-r border-border sidebar-transition relative',
+      'flex flex-col h-dvh bg-canvas border-r border-border sidebar-transition relative',
       // Ab md wie bisher eine feste Spalte im Fluss
       'md:shrink-0 md:translate-x-0 md:static md:z-auto',
       // Darunter eine Schublade ueber dem Inhalt: 220 px fester Abzug waeren
       // auf einem 375-px-Display mehr als die Haelfte des Bildschirms
-      'fixed inset-y-0 left-0 z-50 w-[240px]',
+      'fixed inset-y-0 left-0 z-50 w-[248px]',
       mobileNavOpen ? 'translate-x-0' : '-translate-x-full',
-      sidebarCollapsed ? 'md:w-[52px]' : 'md:w-[220px]'
+      sidebarCollapsed ? 'md:w-[56px]' : 'md:w-[232px]'
     )}>
       {/* Logo / Brand */}
-      <div
-        className="flex items-center h-[56px] px-3.5 border-b border-border gap-3 shrink-0 cursor-pointer select-none"
+      <button
+        type="button"
+        className={cn(
+          'flex items-center h-[56px] border-b border-border gap-2.5 shrink-0 select-none text-left',
+          'transition-colors duration-150 hover:bg-foreground/[0.03]',
+          sidebarCollapsed ? 'md:justify-center md:px-0 px-4' : 'px-4'
+        )}
         onClick={() => navigate('/')}
+        aria-label="Zur Projektübersicht"
       >
-        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0 shadow-[0_0_12px_hsl(var(--primary)/0.3)]">
-          <Clapperboard className="w-4 h-4 text-primary-foreground" />
-        </div>
+        <BrandMark className="w-[22px] h-[22px] shrink-0 text-foreground" />
         {!sidebarCollapsed && (
           <div className="flex-1 min-w-0">
-            <span className="font-bold text-sm tracking-tight leading-none block">CutSheet</span>
+            <span className="font-display text-[21px] leading-none block">CutSheet</span>
             {project && (
-              <span className="text-[11px] text-muted-foreground truncate block mt-0.5 font-normal">{project.title}</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground truncate block mt-1">{project.title}</span>
             )}
           </div>
         )}
-      </div>
+      </button>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3 px-2" aria-label="Hauptnavigation" role="navigation">
@@ -346,11 +351,10 @@ export function Sidebar() {
           <div className="px-3 py-6 text-center">
             {!sidebarCollapsed && (
               <div>
-                <Clapperboard className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground">{tt(navT.noProject)}</p>
+                <p className="font-display text-lg italic text-muted-foreground">{tt(navT.noProject)}</p>
                 <button
                   onClick={() => navigate('/')}
-                  className="mt-2 text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1 mx-auto"
+                  className="mt-2 text-xs text-foreground underline decoration-foreground/25 underline-offset-4 hover:decoration-foreground transition-colors flex items-center gap-1 mx-auto"
                 >
                   {tt(navT.chooseProject)} <ChevronRight className="w-3 h-3" />
                 </button>
@@ -364,7 +368,7 @@ export function Sidebar() {
           <div className="mb-1 mt-1">
             {!sidebarCollapsed && (
               <div className="px-2 pb-1 pt-2.5">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/50">{tt(navT.admin)}</span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">{tt(navT.admin)}</span>
               </div>
             )}
             {sidebarCollapsed && <div className="my-2 mx-2 h-px bg-border" />}
@@ -382,7 +386,7 @@ export function Sidebar() {
         <div className="px-2 pb-2 hidden md:block">
           <button
             onClick={toggleSidebar}
-            className="w-full flex items-center justify-center h-8 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-[background-color,color,transform] duration-150 active:scale-[0.92]"
+            className="w-full flex items-center justify-center h-8 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/[0.05] transition-[background-color,color,transform] duration-150 active:scale-[0.92]"
             title={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
             aria-label={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
             aria-expanded={!sidebarCollapsed}
@@ -433,13 +437,13 @@ function NavGroup({ group, pid, collapsed, open, isActiveGroup, onToggle }: {
         onClick={onToggle}
         aria-expanded={open}
         className={cn(
-          'w-full flex items-center gap-1 px-2 pb-1 pt-2.5 group/header rounded-md',
+          'w-full flex items-center gap-1.5 px-2.5 pb-1.5 pt-4 group/header rounded-md',
           'transition-colors duration-150'
         )}
       >
         <span className={cn(
-          'text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors duration-150',
-          isActiveGroup ? 'text-muted-foreground/80' : 'text-muted-foreground/50 group-hover/header:text-muted-foreground/80'
+          'font-mono text-[10px] uppercase tracking-[0.14em] transition-colors duration-150 text-left',
+          isActiveGroup ? 'text-foreground/80' : 'text-muted-foreground/70 group-hover/header:text-foreground/80'
         )}>
           {group.label}
         </span>
@@ -449,7 +453,7 @@ function NavGroup({ group, pid, collapsed, open, isActiveGroup, onToggle }: {
         )} style={{ transitionTimingFunction: 'var(--ease-out)' }} />
         {/* Collapsed group with active page inside still hints at it */}
         {!open && isActiveGroup && (
-          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-signal shrink-0" />
         )}
       </button>
       {/* Grid-rows trick: smooth height collapse with pure CSS transitions */}
@@ -491,32 +495,27 @@ function NavItem({ item, to, end, collapsed }: {
       title={item.label}
       aria-label={item.label}
       className={({ isActive }) => cn(
-        'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] group relative',
-        'transition-[background-color,color,transform] duration-150',
-        'active:scale-[0.97]',
+        'flex items-center gap-2.5 px-2.5 h-8 rounded-md text-[13px] group relative',
+        'transition-[background-color,color,box-shadow,transform] duration-150',
+        'active:scale-[0.98]',
+        collapsed && 'md:justify-center md:px-0',
         isActive
-          ? 'bg-primary/10 text-primary font-medium shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.12)]'
-          : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
+          ? 'bg-card text-foreground font-medium shadow-[0_0_0_1px_hsl(var(--border)),0_1px_2px_hsl(var(--shadow)/0.06)]'
+          : 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]'
       )}
     >
       {({ isActive }) => (
         <>
-          {isActive && (
-            <span
-              className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-primary rounded-full shadow-[0_0_8px_hsl(var(--primary)/0.65)]"
-              aria-current="page"
-            />
-          )}
           <item.icon className={cn(
             'shrink-0 transition-[color,transform] duration-150',
             collapsed ? 'w-[15px] h-[15px]' : 'w-[14px] h-[14px]',
-            isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground group-hover:scale-110'
+            isActive ? 'text-foreground' : 'text-muted-foreground/80 group-hover:text-foreground'
           )} />
           {!collapsed && (
             <>
               <span className="flex-1 truncate">{item.label}</span>
               {item.badge != null && (
-                <span className="ml-1 min-w-[18px] h-[18px] px-1 rounded-full bg-warning/20 text-warning text-[10px] font-bold flex items-center justify-center tabular-nums">
+                <span className="ml-1 min-w-[18px] h-[18px] px-1 rounded-sm bg-warning/12 text-warning font-mono text-[10px] flex items-center justify-center tabular-nums">
                   {item.badge}
                 </span>
               )}
@@ -541,19 +540,19 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
     read_only: tt(navT.roles.read_only),
   }
   return (
-    <div className="px-2 py-2.5 flex items-center gap-2">
-      <div className="shrink-0 w-7 h-7 rounded-full bg-primary/12 border border-primary/20 flex items-center justify-center">
-        <UserCircle className="w-4 h-4 text-primary" />
+    <div className="px-3 py-2.5 flex items-center gap-2.5">
+      <div className="shrink-0 w-7 h-7 rounded-[9px] bg-foreground text-background flex items-center justify-center font-mono text-[10.5px] font-medium tracking-tight" aria-hidden>
+        {initials(user.name || user.email)}
       </div>
       {!collapsed && (
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold truncate leading-tight">{user.name || user.email}</p>
-          <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5">{roleLabel[user.role] ?? user.role}</p>
+          <p className="text-[12.5px] font-medium truncate leading-tight">{user.name || user.email}</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground truncate mt-0.5">{roleLabel[user.role] ?? user.role}</p>
         </div>
       )}
       <button
         onClick={() => navigate('/settings')}
-        className="shrink-0 p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-[background-color,color,transform] duration-150 active:scale-[0.88]"
+        className="shrink-0 p-1.5 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/[0.05] transition-[background-color,color,transform] duration-150 active:scale-[0.88]"
         title={tt(navT.settings)}
         aria-label={tt(navT.settings)}
       >
@@ -569,4 +568,9 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
       </button>
     </div>
   )
+}
+
+function initials(name: string) {
+  const parts = name.replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean)
+  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '·'
 }

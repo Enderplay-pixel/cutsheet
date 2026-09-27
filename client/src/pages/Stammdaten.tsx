@@ -303,7 +303,7 @@ export function Component() {
     <div className="p-7 max-w-3xl mx-auto animate-fade-up space-y-4">
       <div className="flex items-start justify-between mb-7">
         <div>
-          <h1 className="text-xl font-semibold">{tt(masterT.title)}</h1>
+          <h1 className="font-display text-[34px] sm:text-[40px]">{tt(masterT.title)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Grundlegende Projektinformationen</p>
         </div>
         <div className={cn(

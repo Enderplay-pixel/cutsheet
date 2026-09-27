@@ -3,16 +3,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Clapperboard, Film, Users, Calendar } from 'lucide-react'
+import { BrandMark } from '@/components/shared/BrandMark'
 import { cn } from '@/lib/utils'
 import { LANGS, loginT, t, type Lang } from '@/lib/i18n'
 import { useProjectStore } from '@/store/useProjectStore'
-
-const FEATURES = [
-  { icon: Film,     label: 'Drehplan',  desc: 'Shooting schedule' },
-  { icon: Users,    label: 'Crew',      desc: 'Team management'   },
-  { icon: Calendar, label: 'Budget',    desc: 'Finance tracking'  },
-]
 
 export function Component() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
@@ -46,68 +40,80 @@ export function Component() {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-dvh flex bg-background">
 
-      {/* ── Left panel — cinematic ─────────────────────── */}
-      <div className="hidden lg:flex flex-col items-center justify-center flex-1 bg-[hsl(0_0%_3%)] relative overflow-hidden select-none">
-        {/* Tungsten glow at bottom */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_110%,hsl(var(--primary)/0.18),transparent_65%)]" />
-        {/* Horizontal film-strip lines */}
+      {/* ── Links: ein Auszug aus einer Tagesdispo, wie gedruckt ── */}
+      <aside className="hidden lg:flex flex-col justify-between flex-1 bg-canvas border-r border-border relative overflow-hidden select-none px-14 py-12">
+        {/* feine Linierung wie Kontrollpapier */}
         <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 59px,hsl(0_0%_100%) 60px)',
-          }}
+          aria-hidden
+          className="absolute inset-0 opacity-[0.5] pointer-events-none"
+          style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent 0 31px, hsl(var(--border)) 31px 32px)' }}
         />
-        {/* Vertical edge fade */}
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(0_0%_3%)_0%,transparent_15%,transparent_85%,hsl(0_0%_3%)_100%)]" />
+        <div className="relative flex items-center gap-2.5">
+          <BrandMark className="w-6 h-6 text-foreground" />
+          <span className="font-display text-2xl leading-none">CutSheet</span>
+        </div>
 
-        <div className="relative z-10 text-center max-w-xs px-6">
-          <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-[0_0_48px_hsl(var(--primary)/0.45)]">
-            <Clapperboard className="w-10 h-10 text-primary-foreground" />
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight mb-3">CutSheet</h1>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            {t(loginT.tagline, lang)}
+        <div className="relative max-w-[520px]">
+          <p className="font-display text-[64px] xl:text-[76px] leading-[0.98]">
+            Vom Drehbuch<br />bis zur <em className="text-signal">letzten Klappe.</em>
+          </p>
+          <p className="text-[15px] text-muted-foreground mt-6 max-w-[44ch] leading-relaxed">
+            {t(loginT.tagline, lang)} — Drehplan, Dispo, Besetzung und Budget in einem Dokument, das alle am Set lesen können.
           </p>
 
-          <div className="mt-10 grid grid-cols-3 gap-3">
-            {FEATURES.map(({ icon: Icon, label, desc }) => (
-              <div key={label} className="p-3 rounded-xl border border-white/6 bg-white/3">
-                <Icon className="w-4 h-4 text-primary mx-auto mb-2" />
-                <div className="text-xs font-semibold">{label}</div>
-                <div className="text-[10px] text-muted-foreground/70 mt-0.5">{desc}</div>
-              </div>
-            ))}
+          {/* Dispo-Auszug */}
+          <div className="mt-10 rounded-xl border border-border bg-card shadow-lg rotate-[-1.2deg] origin-bottom-left animate-fade-up">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+              <span className="eyebrow">Tagesdispo · Drehtag 4 / 10</span>
+              <span className="font-mono text-[11px] text-muted-foreground tabular-nums">Sa 03.10.</span>
+            </div>
+            <dl className="grid grid-cols-3 divide-x divide-border text-[13px]">
+              {[
+                ['Crew Call', '06:30'],
+                ['Drehbeginn', '08:15'],
+                ['Sonnenunterg.', '18:52'],
+              ].map(([k, v]) => (
+                <div key={k} className="px-5 py-3.5">
+                  <dt className="eyebrow">{k}</dt>
+                  <dd className="font-mono text-lg tabular-nums mt-1">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="border-t border-border">
+              {[
+                ['12', 'INT. SCHNEIDERAUM — NACHT', '2 ⅛'],
+                ['14A', 'EXT. ARCHIV, HOF — TAG', '⅝'],
+              ].map(([sc, set, pg]) => (
+                <div key={sc} className="flex items-center gap-4 px-5 py-2.5 border-b border-border last:border-0 text-[12.5px]">
+                  <span className="font-mono w-8 tabular-nums">{sc}</span>
+                  <span className="flex-1 font-mono uppercase tracking-[0.04em] text-muted-foreground truncate">{set}</span>
+                  <span className="font-mono tabular-nums text-muted-foreground">{pg}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Bottom wordmark */}
-        <p className="absolute bottom-6 text-[11px] text-muted-foreground/30 tracking-widest uppercase">
-          Film Production Management
-        </p>
-      </div>
+        <p className="relative eyebrow">Produktionsmanagement für Film</p>
+      </aside>
 
-      {/* ── Right panel — form ─────────────────────────── */}
-      <div className="flex flex-col items-center justify-center flex-1 bg-background px-8 py-12 relative">
-        {/* Subtle top glow */}
-        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-
+      {/* ── Rechts: Formular ─────────────────────────────── */}
+      <main className="flex flex-col items-center justify-center flex-1 px-6 sm:px-8 py-12">
         <div className="w-full max-w-sm">
-          {/* Mobile-only logo */}
-          <div className="flex flex-col items-center mb-8 lg:hidden">
-            <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center shadow-[0_0_24px_hsl(var(--primary)/0.35)] mb-4">
-              <Clapperboard className="w-7 h-7 text-primary-foreground" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight">CutSheet</h1>
+          {/* Logo nur am Telefon */}
+          <div className="flex items-center gap-2.5 mb-10 lg:hidden">
+            <BrandMark className="w-6 h-6 text-foreground" />
+            <span className="font-display text-2xl leading-none">CutSheet</span>
           </div>
 
           {/* Heading */}
           <div className="mb-7">
-            <h2 className="text-2xl font-bold tracking-tight">
+            <h1 className="font-display text-[44px]">
               {mode === 'login' ? t(loginT.tabLogin, lang) : t(loginT.tabRegister, lang)}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1.5">
+            </h1>
+            <p className="text-sm text-muted-foreground mt-2">
               {mode === 'login'
                 ? 'Melde dich in deinem Workspace an.'
                 : 'Erstelle deinen Account, um loszulegen.'}
@@ -115,18 +121,20 @@ export function Component() {
           </div>
 
           {/* Tab switcher */}
-          <div className="flex rounded-lg bg-muted/60 border border-border/60 p-1 mb-6 gap-1">
+          <div className="flex rounded-lg bg-muted border border-border p-0.5 mb-7 gap-0.5" role="tablist">
             {(['login', 'register'] as const).map(m => (
               <button
                 key={m}
                 type="button"
                 onClick={() => { setMode(m); setError(null) }}
                 className={cn(
-                  'flex-1 text-sm py-1.5 rounded-md font-medium transition-[background-color,color,box-shadow] duration-150 active:scale-[0.97]',
+                  'flex-1 text-[13px] py-1.5 rounded-md font-medium transition-[background-color,color,box-shadow] duration-150 active:scale-[0.98]',
                   mode === m
-                    ? 'bg-background text-foreground shadow-sm border border-border/60'
+                    ? 'bg-card text-foreground shadow-[0_0_0_1px_hsl(var(--border)),0_1px_2px_hsl(var(--shadow)/0.06)]'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
+                role="tab"
+                aria-selected={mode === m}
               >
                 {m === 'login' ? t(loginT.tabLogin, lang) : t(loginT.tabRegister, lang)}
               </button>
@@ -136,7 +144,7 @@ export function Component() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">
+                <label className="eyebrow">
                   {t(loginT.labelName, lang)}
                 </label>
                 <Input
@@ -151,7 +159,7 @@ export function Component() {
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">
+              <label className="eyebrow">
                 {t(loginT.labelEmail, lang)}
               </label>
               <Input
@@ -165,7 +173,7 @@ export function Component() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">
+              <label className="eyebrow">
                 {t(loginT.labelPassword, lang)}
               </label>
               <Input
@@ -180,7 +188,7 @@ export function Component() {
                 <div className="text-right">
                   <Link
                     to="/forgot-password"
-                    className="text-[12px] text-muted-foreground hover:text-primary transition-colors duration-150"
+                    className="text-[12px] text-muted-foreground underline decoration-transparent underline-offset-4 hover:text-foreground hover:decoration-foreground/40 transition-colors duration-150"
                   >
                     Passwort vergessen?
                   </Link>
@@ -191,7 +199,7 @@ export function Component() {
             {/* Language picker — register only */}
             {mode === 'register' && (
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">
+                <label className="eyebrow">
                   {t(loginT.labelLanguage, lang)}
                 </label>
                 <div className="flex gap-2">
@@ -204,8 +212,8 @@ export function Component() {
                         'flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg border text-xs font-medium',
                         'transition-[background-color,border-color,color] duration-150 active:scale-[0.97]',
                         language === l.code
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground hover:bg-foreground/4'
+                          ? 'border-foreground bg-card text-foreground'
+                          : 'border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground'
                       )}
                     >
                       <span className="text-xl leading-none">{l.flag}</span>
@@ -217,27 +225,24 @@ export function Component() {
             )}
 
             {error && (
-              <div className="rounded-lg bg-destructive/8 border border-destructive/20 px-3.5 py-2.5 text-sm text-destructive font-medium">
+              <div role="alert" className="rounded-md bg-danger/[0.07] border border-danger/25 px-3.5 py-2.5 text-[13px] text-danger">
                 {error}
               </div>
             )}
 
-            <Button type="submit" className="w-full h-10 text-sm font-semibold" disabled={loading}>
+            <Button type="submit" size="lg" className="w-full" disabled={loading}>
               {loading
                 ? (mode === 'login' ? t(loginT.btnLoginLoading, lang) : t(loginT.btnRegisterLoading, lang))
                 : (mode === 'login' ? t(loginT.tabLogin, lang) : t(loginT.btnRegister, lang))}
             </Button>
           </form>
 
-          <p className="text-center text-[11px] text-muted-foreground/40 mt-8 tracking-wide">
-            CutSheet · Film Production Management
-          </p>
-          <p className="text-center text-[11px] mt-2 space-x-3">
-            <Link to="/impressum" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">Impressum</Link>
-            <Link to="/datenschutz" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">Datenschutz</Link>
+          <p className="text-[11.5px] mt-10 pt-5 border-t border-border flex gap-4 text-muted-foreground">
+            <Link to="/impressum" className="hover:text-foreground transition-colors">Impressum</Link>
+            <Link to="/datenschutz" className="hover:text-foreground transition-colors">Datenschutz</Link>
           </p>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

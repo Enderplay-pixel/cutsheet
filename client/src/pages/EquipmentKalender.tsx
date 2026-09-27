@@ -130,7 +130,7 @@ export function Component() {
       <div className="mb-8 pb-7 border-b border-border/40">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Equipment-Kalender</h1>
+            <h1 className="font-display text-[34px] sm:text-[40px]">Equipment-Kalender</h1>
             <p className="text-sm text-muted-foreground/60 mt-1.5">
               Buchungszeiträume für Equipment-Positionen
             </p>

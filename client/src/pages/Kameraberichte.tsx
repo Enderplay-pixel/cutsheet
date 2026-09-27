@@ -361,7 +361,7 @@ export function Component() {
       {/* Page hero */}
       <div className="mb-8 pb-7 border-b border-border/40 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Kameraberichte</h1>
+          <h1 className="font-display text-[34px] sm:text-[40px]">Kameraberichte</h1>
           <p className="text-sm text-muted-foreground/60 mt-1.5">Takes und Kameraaufzeichnungen pro Drehtag</p>
         </div>
         <Button variant="outline" size="sm" className="shrink-0 active:scale-[0.97]" onClick={() => alert('PDF-Export: Kommt bald!')}>

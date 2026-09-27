@@ -104,7 +104,7 @@ function AppShell() {
             <TopBar onSearchOpen={() => setSearchVisible(true)} />
             {/* Read-only banner */}
             {projectId && myRole === 'read_only' && (
-              <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-600 dark:text-amber-400 shrink-0">
+              <div className="flex items-center gap-2 px-4 py-1.5 bg-warning/[0.08] border-b border-warning/20 text-xs text-warning shrink-0">
                 <EyeOff className="w-3.5 h-3.5 shrink-0" />
                 <span>{tt(appT.readOnlyBanner)}</span>
               </div>

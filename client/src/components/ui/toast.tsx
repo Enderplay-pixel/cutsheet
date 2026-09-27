@@ -21,7 +21,7 @@ ToastViewport.displayName = ToastPrimitives.Viewport.displayName
 const toastVariants = cva(
   [
     'group pointer-events-auto relative flex w-full items-start justify-between space-x-3 overflow-hidden',
-    'rounded-xl border border-l-[3px] p-4 pr-8 shadow-2xl',
+    'rounded-lg border border-l-[3px] p-4 pr-8 shadow-xl',
     'transition-[transform,opacity] duration-150',
     'data-[swipe=cancel]:translate-x-0',
     'data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)]',
@@ -33,7 +33,7 @@ const toastVariants = cva(
   {
     variants: {
       variant: {
-        default: 'border-border/70 border-l-primary/70 bg-card text-card-foreground',
+        default: 'border-border border-l-signal bg-card text-card-foreground',
         destructive: 'destructive group border-border/60 border-l-destructive bg-card text-card-foreground',
       },
     },
