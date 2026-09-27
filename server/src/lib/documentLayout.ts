@@ -295,6 +295,11 @@ export function renderDocument(opts: DocumentOptions): string {
        color: #3f3f46; background: #f4f4f5; border-bottom: 1pt solid #d4d4d8;
        padding: 4pt 5pt; text-align: left; }
   td { padding: 3.5pt 5pt; border-bottom: 0.5pt solid #ececee; vertical-align: top; }
+  /* Lange Zeichenketten umbrechen. Gemessen am 27.09.2026: ein Szenentitel
+     ohne Leerzeichen (200 Zeichen, wie er aus einem Import kommen kann) lief
+     im gedruckten Drehplan waagerecht aus der Seite heraus und schob die
+     Spalten daneben ueber den Rand. */
+  td, th { overflow-wrap: anywhere; word-break: break-word; }
   table.zebra tbody tr:nth-child(even) td { background: #fafafa; }
   td.r, th[style*="right"] { text-align: right; }
   td.c { text-align: center; }

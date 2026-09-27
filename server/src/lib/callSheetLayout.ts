@@ -240,7 +240,8 @@ export function renderCallSheetHtml(data: CallSheetData): string {
   body { font-family: Arial, Helvetica, sans-serif; font-size: 7.4pt; color: #000; }
 
   table { width: 100%; border-collapse: collapse; }
-  td, th { border: 0.5pt solid #444; padding: 1.4pt 3pt; vertical-align: top; }
+  td, th { border: 0.5pt solid #444; padding: 1.4pt 3pt; vertical-align: top;
+           overflow-wrap: anywhere; word-break: break-word; }
   .c { text-align: center; }
   .r { text-align: right; }
   .b { font-weight: bold; }
