@@ -78,7 +78,10 @@
     --secondary: 240 7% 93%;
     --secondary-foreground: 240 3% 20%;
     --muted: 240 9% 94.5%;
-    --muted-foreground: 240 2% 45%;
+    /* 42 statt 45 Prozent: gedaempfter Text stand auf der Seitenflaeche bei
+       einem Kontrast von 4.41 und damit unter den geforderten 4.5 fuer
+       kleine Schrift. Gemessen am 27.09.2026 im Hellmodus. */
+    --muted-foreground: 240 2% 42%;
     --accent: 240 8% 93%;
     --accent-foreground: 240 3% 11%;
     --destructive: 3 90% 50%;
