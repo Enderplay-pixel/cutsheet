@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useDownload } from '@/lib/useDownload'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,7 +17,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { formatDate, formatDateLong } from '@/lib/utils'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths, isSameDay, isSameMonth, parseISO, isToday } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const EVENT_TYPES = [
@@ -113,6 +114,7 @@ function AddEventDialog({ open, onClose, projectId, defaultDate }: { open: boole
 export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
+  const download = useDownload()
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -168,9 +170,16 @@ export function Component() {
         title="Terminkalender"
         subtitle={format(currentMonth, 'MMMM yyyy', { locale: de })}
         actions={
-          <Button size="sm" onClick={() => { setAddDate(new Date()); setAddOpen(true) }}>
-            <Plus className="w-4 h-4 mr-2" />Termin
-          </Button>
+          <div className="flex gap-2">
+            {/* Drehtage und Termine als .ics - für Google, Apple, Outlook */}
+            <Button size="sm" variant="outline" title="Drehtage und Termine für Google, Apple oder Outlook Kalender"
+              onClick={() => download(api.ical.export(pid), 'cutsheet-kalender.ics')}>
+              <Download className="w-4 h-4 mr-2" />Kalender (.ics)
+            </Button>
+            <Button size="sm" onClick={() => { setAddDate(new Date()); setAddOpen(true) }}>
+              <Plus className="w-4 h-4 mr-2" />Termin
+            </Button>
+          </div>
         }
       />
 

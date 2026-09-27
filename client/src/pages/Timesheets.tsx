@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
+import { useDownload } from '@/lib/useDownload'
+import { api } from '@/lib/api'
 import { Plus, Download, AlertTriangle, Clock, Users, FileText, CalendarDays } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -314,6 +316,7 @@ function AddTimesheetDialog({
 export function Component() {
   const { projectId: id } = useParams<{ projectId: string }>()
   const pid = Number(id)
+  const download = useDownload()
   const [selectedDayId, setSelectedDayId] = useState<number | null>(null)
   const [showAdd, setShowAdd] = useState(false)
 
@@ -365,15 +368,29 @@ export function Component() {
           <h1 className="font-display text-[28px] sm:text-[34px]">Timesheets</h1>
           <p className="text-sm text-muted-foreground/60 mt-1.5">Call- & Wrap-Zeiten, Überstunden und Mahlzeit-Penalties</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="shrink-0 active:scale-[0.97]"
-          onClick={() => window.location.href = `/api/projects/${pid}/timesheets/export.csv`}
-        >
-          <Download className="mr-2 h-4 w-4" />
-          CSV exportieren
-        </Button>
+        <div className="flex flex-wrap gap-2 shrink-0 justify-end">
+          {/* Über useDownload mit Token: der frühere direkte Link lief ohne
+              Anmeldung und endete immer mit 401 */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="active:scale-[0.97]"
+            onClick={() => download(`/api/projects/${pid}/timesheets/export.csv`, 'timesheets.csv')}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            CSV exportieren
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="active:scale-[0.97]"
+            title="Drehtage laut Dispo × Tagesgage, plus Überstunden – für die Lohnbuchhaltung"
+            onClick={() => download(api.payroll.export(pid), 'lohnexport.csv')}
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            Lohnexport
+          </Button>
+        </div>
       </div>
 
       {/* Day selector card */}

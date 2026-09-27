@@ -1,3 +1,4 @@
+import { dateiname } from '../lib/dateiname'
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
@@ -624,7 +625,7 @@ router.get('/creator/videos/:videoId/pdf', async (req, res) => {
 
   try {
     const pdf = await generatePdf(html)
-    const slug = String(video.title || 'video').replace(/[^a-z0-9]/gi, '-').toLowerCase()
+    const slug = dateiname(video.title, 'video')
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="skript-${slug}.pdf"`)
     res.send(pdf)

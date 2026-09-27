@@ -341,6 +341,10 @@ export function Component() {
                       <Download className="w-4 h-4 mr-1" />PDF
                     </Button>
                 )}
+                <Button variant="outline" size="sm" title="Projektdaten, Kalkulation und Finanzierungsplan gebündelt für den Förderantrag"
+                  onClick={() => download(api.foerderantrag.pdf(pid), 'foerderantrag.pdf')}>
+                  <Download className="w-4 h-4 mr-1" />Förderantrag
+                </Button>
               </div>
             </div>
           </div>

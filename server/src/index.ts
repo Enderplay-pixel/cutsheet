@@ -174,6 +174,20 @@ if (isProd) {
   }
 }
 
+// Digital Asset Links für die Android-App im Play Store (Trusted Web
+// Activity). Google prüft darüber, dass App und Domain zusammengehören -
+// ohne die Datei zeigt die App eine Browser-Adressleiste. Werte per
+// Umgebung, siehe docs/playstore.md.
+app.get('/.well-known/assetlinks.json', (_req, res) => {
+  const paket = process.env.TWA_PACKAGE_NAME?.trim()
+  const fingerabdruecke = (process.env.TWA_SHA256_FINGERPRINTS ?? '').split(',').map(f => f.trim()).filter(Boolean)
+  if (!paket || fingerabdruecke.length === 0) return res.json([])
+  res.json([{
+    relation: ['delegate_permission/common.handle_all_urls'],
+    target: { namespace: 'android_app', package_name: paket, sha256_cert_fingerprints: fingerabdruecke },
+  }])
+})
+
 // Public health check - always responds, used by Railway
 // testversion: Kennzeichnung fuer die Testphase vor dem Launch (CUTSHEET_TESTVERSION=1)
 const testversion = /^(1|true|ja)$/i.test(process.env.CUTSHEET_TESTVERSION ?? '')

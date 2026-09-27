@@ -39,6 +39,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null)
     localStorage.removeItem('token')
     resetAnalytics()
+    // Offline-Kopien der API gehören zum abgemeldeten Konto - auf einem
+    // geteilten Set-Tablet darf die nächste Person sie nicht sehen
+    if ('caches' in window) {
+      caches.delete('api-cache').catch(() => {})
+      caches.delete('set-offline').catch(() => {})
+    }
   }, [])
 
   useEffect(() => {

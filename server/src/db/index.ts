@@ -47,7 +47,12 @@ export function toPg(sql: string): string {
     .replace(/\bdate\('now'\)/gi, 'CURRENT_DATE')
     // Quote 'cast' table/column references - reserved word in PostgreSQL.
     // Negative lookbehind skips already-quoted "cast"; negative lookahead skips CAST( function calls.
-    .replace(/(?<!")\bcast\b(?!\()/gi, '"cast"')
+    // Nur ausserhalb von Textliteralen: aus person_type = 'cast' wurde sonst
+    // person_type = '"cast"' - der Lohnexport zaehlte fuer jeden Darsteller
+    // null Drehtage, der Morning Brief fand keine Catering-Angaben des Casts.
+    .split(/('(?:[^']|'')*')/)
+    .map((teil, j) => (j % 2 === 1 ? teil : teil.replace(/(?<!")\bcast\b(?!\()/gi, '"cast"')))
+    .join('')
     .replace(/\?/g, () => `$${++i}`)
 }
 

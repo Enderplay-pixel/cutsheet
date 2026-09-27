@@ -1,3 +1,4 @@
+import { dateiname } from '../lib/dateiname'
 import { Router, Request, Response } from 'express'
 import { resolveAccent } from '../lib/pdfFonts'
 import { db } from '../db'
@@ -296,13 +297,7 @@ async function getProjectSettings(projectId: number | string): Promise<{ accentC
  * Anfuehrungszeichen im Projekttitel wuerden sonst den Content-Disposition-Header
  * zerlegen, Umlaute je nach Browser als Kauderwelsch ankommen.
  */
-function slug(value: string): string {
-  const out = String(value ?? '')
-    .normalize('NFKD')
-    .replace(/[^\w\s-]/g, '')
-    .trim().replace(/\s+/g, '-').toLowerCase()
-  return out || 'dokument'
-}
+const slug = (value: string) => dateiname(value)
 
 /**
  * PDF ausliefern - oder den Fehler als JSON melden, damit der Client ihn zeigen kann.
@@ -1045,7 +1040,7 @@ router.get('/projects/:projectId/pdf/screenplay', async (req, res) => {
       footer: false,
     })
     const suffix = includeAnnotations ? '-mit-notizen' : ''
-    const slug = String(project.title || 'drehbuch').replace(/[^a-z0-9]/gi, '-').toLowerCase()
+    const slug = dateiname(project.title, 'drehbuch')
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="drehbuch-${slug}${suffix}.pdf"`)
     res.send(pdf)

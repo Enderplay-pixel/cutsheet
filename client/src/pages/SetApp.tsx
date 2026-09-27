@@ -29,6 +29,7 @@ function formatMinutes(minutes: number): string {
 // ─── Tagesdispo Tab ───────────────────────────────────────────────────────────
 function TagesdispoTab({ dayId }: { dayId: string }) {
   const { data: callSheet, isLoading } = useQuery({
+    networkMode: 'offlineFirst',
     queryKey: ['set-call-sheet', dayId],
     queryFn: () => req<any>(`/shoot-days/${dayId}/call-sheet`),
     enabled: !!dayId,
@@ -66,6 +67,7 @@ function ShotlistTab({ projectId, dayId }: { projectId: string; dayId: string })
   const queryClient = useQueryClient()
 
   const { data: shots, isLoading } = useQuery({
+    networkMode: 'offlineFirst',
     queryKey: ['set-shots', projectId, dayId],
     queryFn: () => req<any[]>(`/projects/${projectId}/shots${dayId ? `?shootDayId=${dayId}` : ''}`),
     enabled: !!projectId,
@@ -126,6 +128,7 @@ function CheckInTab({ dayId }: { dayId: string }) {
   const queryClient = useQueryClient()
 
   const { data: callSheet, isLoading } = useQuery({
+    networkMode: 'offlineFirst',
     queryKey: ['set-call-sheet', dayId],
     queryFn: () => req<any>(`/shoot-days/${dayId}/call-sheet`),
     enabled: !!dayId,
@@ -205,6 +208,7 @@ function ContinuityTab({ projectId }: { projectId: string }) {
   const [selectedSceneId, setSelectedSceneId] = useState<string>('')
 
   const { data: scenes } = useQuery({
+    networkMode: 'offlineFirst',
     queryKey: ['set-scenes', projectId],
     queryFn: () => req<any[]>(`/projects/${projectId}/scenes`),
     enabled: !!projectId,
@@ -278,10 +282,26 @@ function LoadingCards() {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
+function useOnline() {
+  const [online, setOnline] = useState(() => navigator.onLine)
+  useEffect(() => {
+    const an = () => setOnline(true), aus = () => setOnline(false)
+    window.addEventListener('online', an); window.addEventListener('offline', aus)
+    return () => { window.removeEventListener('online', an); window.removeEventListener('offline', aus) }
+  }, [])
+  return online
+}
+
 export function Component() {
   const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'))
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
-  const [selectedDayId, setSelectedDayId] = useState<string>('')
+  // Auswahl merken: offline neu geöffnet, soll die App direkt den Tag zeigen
+  const gemerkt = (() => { try { return JSON.parse(localStorage.getItem('set-auswahl') || '{}') } catch { return {} } })()
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(gemerkt.projekt ?? '')
+  const [selectedDayId, setSelectedDayId] = useState<string>(gemerkt.tag ?? '')
+  useEffect(() => {
+    try { localStorage.setItem('set-auswahl', JSON.stringify({ projekt: selectedProjectId, tag: selectedDayId })) } catch { /* privat */ }
+  }, [selectedProjectId, selectedDayId])
+  const online = useOnline()
 
   useEffect(() => { track('set_app_used') }, [])
 
@@ -294,11 +314,13 @@ export function Component() {
   }
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
+    networkMode: 'offlineFirst',
     queryKey: ['projects-set'],
     queryFn: () => req<any[]>('/projects'),
   })
 
   const { data: shootDays } = useQuery({
+    networkMode: 'offlineFirst',
     queryKey: ['shoot-days-set', selectedProjectId],
     queryFn: () => req<any[]>(`/projects/${selectedProjectId}/shoot-days`),
     enabled: !!selectedProjectId,
@@ -323,6 +345,12 @@ export function Component() {
             {darkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
           </button>
         </div>
+
+        {!online && (
+          <div role="status" className="rounded-2xl bg-warning/15 text-warning px-4 py-3 text-sm font-medium">
+            Offline – du siehst den zuletzt geladenen Stand. Änderungen wie Check-ins gehen erst wieder mit Netz.
+          </div>
+        )}
 
         {/* Project + Day selectors */}
         <div className="grid grid-cols-2 gap-3">

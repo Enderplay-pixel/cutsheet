@@ -1,3 +1,4 @@
+import { dateiname } from '../lib/dateiname'
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { generatePdf } from './pdf'
@@ -6,11 +7,7 @@ import {
 } from '../lib/documentLayout'
 
 /** Dateinamen von Zeichen befreien, die den Download-Header zerlegen. */
-function slugify(value: string): string {
-  const out = String(value ?? '').normalize('NFKD').replace(/[^\w\s-]/g, '')
-    .trim().replace(/\s+/g, '-').toLowerCase()
-  return out || 'dokument'
-}
+const slugify = (value: string) => dateiname(value)
 
 const router = Router()
 
@@ -45,7 +42,8 @@ router.get('/projects/:pid/foerderantrag/export', async (req: Request, res: Resp
   // Budget by category (FFA-like structure)
   const budgetByCategory: Record<string, number> = {}
   for (const line of budgetLines) {
-    const cat = line.category.split(' - ')[0] || line.category
+    // Mit Namen ("2000 - Stab"): nur die Nummer sagt einem Förderer nichts
+    const cat = String(line.category || 'Ohne Kategorie').trim()
     budgetByCategory[cat] = (budgetByCategory[cat] || 0) + line.total_cents
   }
 
@@ -74,7 +72,9 @@ router.get('/projects/:pid/foerderantrag/export', async (req: Request, res: Resp
     locations: locations.map((l: any) => ({ name: l.name, city: l.city, country: l.country })),
     budget: {
       total_eur: budgetVersion ? (budgetVersion.total_cents / 100).toFixed(2) : '0.00',
-      by_category: Object.entries(budgetByCategory).map(([cat, cents]) => ({ category: cat, amount_eur: (cents / 100).toFixed(2) })),
+      by_category: Object.entries(budgetByCategory)
+        .sort(([a], [b]) => (parseInt(a) || 1e9) - (parseInt(b) || 1e9) || a.localeCompare(b, 'de'))
+        .map(([cat, cents]) => ({ category: cat, amount_eur: (cents / 100).toFixed(2) })),
     },
     financing: {
       total_eur: finVersion ? (finVersion.total_cents / 100).toFixed(2) : '0.00',
