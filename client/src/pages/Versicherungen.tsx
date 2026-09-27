@@ -58,7 +58,7 @@ function ExpiryBadge({ end_date }: { end_date: string }) {
   return (
     <span className={cn(
       'text-xs font-medium px-2 py-0.5 rounded-full',
-      status === 'expired' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'
+      status === 'expired' ? 'bg-danger/10 text-danger' : 'bg-warning/10 text-warning'
     )}>
       {status === 'expired' ? 'Abgelaufen' : 'Läuft bald ab'}
     </span>
@@ -101,7 +101,7 @@ function InsuranceCard({ ins, pid, canEdit }: { ins: Insurance; pid: number; can
   const expiryStatus = getExpiryStatus(ins.end_date)
   const borderColor =
     expiryStatus === 'expired' ? 'border-red-500/40' :
-    expiryStatus === 'soon' ? 'border-amber-500/40' :
+    expiryStatus === 'soon' ? 'border-warning/40' :
     'border-border/60'
 
   const i = 'h-7 text-sm'
@@ -164,7 +164,7 @@ function InsuranceCard({ ins, pid, canEdit }: { ins: Insurance; pid: number; can
             {ins.provider && <span className="text-sm text-muted-foreground">· {ins.provider}</span>}
             <ExpiryBadge end_date={ins.end_date} />
             {(expiryStatus === 'expired' || expiryStatus === 'soon') && (
-              <AlertTriangle className={cn('w-3.5 h-3.5', expiryStatus === 'expired' ? 'text-red-400' : 'text-amber-400')} />
+              <AlertTriangle className={cn('w-3.5 h-3.5', expiryStatus === 'expired' ? 'text-danger' : 'text-warning')} />
             )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 mt-2">
@@ -339,7 +339,7 @@ export function Component() {
         </div>
       )}
       {soonCount > 0 && (
-        <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
+        <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-lg bg-warning/10 border border-warning/20 text-warning text-sm">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span><strong>{soonCount}</strong> Versicherung{soonCount !== 1 ? 'en' : ''} läuft in weniger als 30 Tagen ab</span>
         </div>

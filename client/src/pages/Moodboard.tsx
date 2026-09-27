@@ -324,7 +324,7 @@ function AddPanel({
         <p className="text-[13px] font-medium text-foreground/80">
           {mode === 'image-url' ? 'Bild via URL' : mode === 'image-file' ? 'Bild hochladen' : mode === 'note' ? 'Notiz' : 'Farbe'}
         </p>
-        <button onClick={reset} className="text-muted-foreground hover:text-foreground/60 transition-colors">
+        <button onClick={reset} aria-label="Ansicht zurücksetzen" title="Ansicht zurücksetzen" className="text-muted-foreground hover:text-foreground/60 transition-colors">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -481,7 +481,7 @@ export function Component() {
 
       {/* Top bar */}
       <div className="flex items-center gap-4 px-5 py-3 border-b shrink-0" style={{ borderColor: 'hsl(var(--foreground) / 0.06)', background: 'hsl(var(--background))' }}>
-        <p className="text-[13px] font-semibold text-foreground/80">Moodboard</p>
+        <h1 className="text-[13px] font-semibold text-foreground/80">Moodboard</h1>
         <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
           {imageCount > 0 && <span className="flex items-center gap-1"><Image className="w-3 h-3" />{imageCount}</span>}
           {noteCount  > 0 && <span className="flex items-center gap-1"><StickyNote className="w-3 h-3" />{noteCount}</span>}
@@ -544,6 +544,7 @@ export function Component() {
       ].map(({ dir, Icon, style }) => (
         <button
           key={dir}
+          aria-label={`Nach ${({ up: 'oben', down: 'unten', left: 'links', right: 'rechts' } as Record<string, string>)[dir] ?? dir} rollen`}
           className="absolute z-40 w-8 h-8 rounded-full flex items-center justify-center transition-opacity opacity-30 hover:opacity-80"
           style={{ ...style, background: 'hsl(var(--foreground) / 0.1)', color: 'hsl(var(--foreground))' }}
           onClick={() => {

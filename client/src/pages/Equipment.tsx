@@ -47,7 +47,8 @@ function EquipmentItemRow({ item, shootDayCount, onDelete }: { item: any; shootD
   return (
     <tr className="border-b border-border/20 hover:bg-muted/10 group">
       <td className="py-2 pl-3">
-        <Checkbox checked={!!form.checked} onCheckedChange={v => update('checked', v ? 1 : 0)} />
+        <Checkbox checked={!!form.checked} onCheckedChange={v => update('checked', v ? 1 : 0)}
+          aria-label={`${form.item || 'Position'} als gepackt markieren`} />
       </td>
       <td className="py-2 px-2">
         <Input value={form.item || ''} onChange={e => update('item', e.target.value)}

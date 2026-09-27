@@ -179,11 +179,11 @@ export function Component() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader className="pb-3 flex-row items-center justify-between">
-              <Button variant="ghost" size="sm" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+              <Button variant="ghost" size="sm" aria-label="Vorheriger Monat" title="Vorheriger Monat" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
                 <ChevronLeft className="w-4 h-4" />
               </Button>
               <CardTitle className="text-base">{format(currentMonth, 'MMMM yyyy', { locale: de })}</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+              <Button variant="ghost" size="sm" aria-label="Nächster Monat" title="Nächster Monat" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </CardHeader>
@@ -268,7 +268,7 @@ export function Component() {
                         <EventDot color={ev.color} />
                         <span className="text-sm font-medium">{ev.title}</span>
                       </div>
-                      <button onClick={() => deleteEvent.mutate(ev.id)} className="text-muted-foreground hover:text-destructive">
+                      <button onClick={() => deleteEvent.mutate(ev.id)} aria-label={`Termin ${ev.title || ''} löschen`} title="Termin löschen" className="text-muted-foreground hover:text-destructive">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>

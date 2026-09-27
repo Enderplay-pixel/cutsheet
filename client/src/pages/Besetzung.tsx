@@ -69,6 +69,7 @@ function CharacterCard({ char, scenes, onDelete }: { char: any; scenes: any[]; o
         </div>
         {canEdit && (
           <button onClick={e => { e.stopPropagation(); onDelete() }}
+            aria-label="Eintrag löschen" title="Löschen"
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -166,6 +167,7 @@ function CastCard({ castMember, characters, shootDays, onDelete }: { castMember:
         </div>
         {canEdit && (
           <button onClick={e => { e.stopPropagation(); onDelete() }}
+            aria-label="Eintrag löschen" title="Löschen"
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
             <Trash2 className="w-3.5 h-3.5" />
           </button>

@@ -140,6 +140,7 @@ export function Component() {
         <span className="font-medium">{monthLabel}</span>
         <div className="flex-1" />
         <Button variant="ghost" size="sm" className="h-7 w-7 p-0"
+          aria-label="Vorheriger Monat" title="Vorheriger Monat"
           onClick={() => setCursor(c => (c.month === 0 ? { year: c.year - 1, month: 11 } : { ...c, month: c.month - 1 }))}>
           <ChevronLeft className="w-4 h-4" />
         </Button>
@@ -148,6 +149,7 @@ export function Component() {
           Heute
         </Button>
         <Button variant="ghost" size="sm" className="h-7 w-7 p-0"
+          aria-label="Nächster Monat" title="Nächster Monat"
           onClick={() => setCursor(c => (c.month === 11 ? { year: c.year + 1, month: 0 } : { ...c, month: c.month + 1 }))}>
           <ChevronRight className="w-4 h-4" />
         </Button>

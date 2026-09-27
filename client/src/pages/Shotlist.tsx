@@ -102,12 +102,12 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
         <span className="font-mono text-xs text-muted-foreground w-8 shrink-0">{shot.shot_number}</span>
 
         <Select value={form.size || 'MS'} onValueChange={v => update('size', v)}>
-          <SelectTrigger className="w-20 h-7 text-xs shrink-0"><SelectValue /></SelectTrigger>
+          <SelectTrigger aria-label="Einstellungsgröße" className="w-20 h-7 text-xs shrink-0"><SelectValue /></SelectTrigger>
           <SelectContent>{SHOT_SIZES.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}</SelectContent>
         </Select>
 
         <Select value={form.movement || 'Statisch'} onValueChange={v => update('movement', v)}>
-          <SelectTrigger className="w-24 h-7 text-xs shrink-0"><SelectValue /></SelectTrigger>
+          <SelectTrigger aria-label="Kamerabewegung" className="w-24 h-7 text-xs shrink-0"><SelectValue /></SelectTrigger>
           <SelectContent>{MOVEMENTS.map(m => <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>)}</SelectContent>
         </Select>
 
@@ -145,7 +145,7 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
         <button onClick={onDuplicate} className="text-muted-foreground hover:text-primary shrink-0" title="Einstellung duplizieren">
           <Copy className="w-3.5 h-3.5" />
         </button>
-        <button onClick={onDelete} className="text-muted-foreground hover:text-destructive shrink-0">
+        <button onClick={onDelete} aria-label="Einstellung löschen" title="Einstellung löschen" className="text-muted-foreground hover:text-destructive shrink-0">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -255,7 +255,7 @@ export function Component() {
       />
 
       {scenesWithNoShots.length > 0 && (
-        <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm text-amber-400">
+        <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/30 rounded-lg text-sm text-warning">
           <Camera className="w-4 h-4 shrink-0" />
           <span>{scenesWithNoShots.length} Szene(n) ohne Einstellungen: {scenesWithNoShots.map(s => `Sz. ${s.scene_number}`).join(', ')}</span>
         </div>

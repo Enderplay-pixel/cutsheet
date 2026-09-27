@@ -350,6 +350,8 @@ function PersonSection({
                 <td className="py-2.5 pr-4">
                   <button
                     onClick={() => onDelete(entry.id)}
+                    aria-label={`${entry.name || 'Person'} aus der Dispo nehmen`}
+                    title="Aus der Dispo nehmen"
                     className="w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -767,11 +769,12 @@ export function Component() {
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" className="w-8 h-8"
             disabled={currentIndex <= 0}
+            aria-label="Vorheriger Drehtag" title="Vorheriger Drehtag"
             onClick={() => navigate(`/projects/${pid}/tagesdispo/${allDays[currentIndex - 1].id}`)}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <Select value={String(selectedDayId)} onValueChange={v => navigate(`/projects/${pid}/tagesdispo/${v}`)}>
-            <SelectTrigger className="w-52 h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Drehtag wählen" className="w-52 h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               {allDays.map((d: any) => (
                 <SelectItem key={d.id} value={String(d.id)} className="text-xs">
@@ -782,6 +785,7 @@ export function Component() {
           </Select>
           <Button variant="outline" size="icon" className="w-8 h-8"
             disabled={currentIndex >= allDays.length - 1}
+            aria-label="Nächster Drehtag" title="Nächster Drehtag"
             onClick={() => navigate(`/projects/${pid}/tagesdispo/${allDays[currentIndex + 1].id}`)}>
             <ChevronRight className="w-4 h-4" />
           </Button>
@@ -821,9 +825,9 @@ export function Component() {
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-6 py-3 border-b border-border/40 bg-muted/20">
           <div className="flex items-center gap-2.5 min-w-0">
             <Clapperboard className="w-4 h-4 text-muted-foreground shrink-0" />
-            <span className="font-bold text-sm uppercase tracking-widest truncate">
+            <h1 className="font-bold text-sm uppercase tracking-widest truncate">
               {project?.title || 'Produktion'}
-            </span>
+            </h1>
             {currentDay && (
               <span className="text-xs text-muted-foreground font-medium ml-1 whitespace-nowrap">
                 · {tt(dispoT.dayLabel)} {currentDay.day_number} von {allDays.length}
@@ -990,6 +994,7 @@ export function Component() {
             </p>
             <div className="flex items-center gap-2 mb-3">
               <Button variant="outline" size="icon" className="w-7 h-7"
+                aria-label="Verschiebung um 5 Minuten verringern"
                 onClick={() => setShiftAmount(Math.max(5, shiftAmount - 5))}>
                 <Minus className="w-3 h-3" />
               </Button>
@@ -997,6 +1002,7 @@ export function Component() {
                 {shiftAmount} Min
               </span>
               <Button variant="outline" size="icon" className="w-7 h-7"
+                aria-label="Verschiebung um 5 Minuten erhöhen"
                 onClick={() => setShiftAmount(shiftAmount + 5)}>
                 <Plus className="w-3 h-3" />
               </Button>
@@ -1035,6 +1041,7 @@ export function Component() {
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <Button variant="outline" size="icon" className="w-8 h-8"
+                  aria-label="Eine Verpflegung weniger"
                   onClick={() => {
                     const n = Math.max(0, (currentDay?.catering_count || 0) - 1)
                     api.drehplan.updateDay(selectedDayId!, { catering_count: n }).then(() =>
@@ -1048,6 +1055,7 @@ export function Component() {
                   <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{tt(dispoT.cateringPersons)}</div>
                 </div>
                 <Button variant="outline" size="icon" className="w-8 h-8"
+                  aria-label="Eine Verpflegung mehr"
                   onClick={() => {
                     const n = (currentDay?.catering_count || 0) + 1
                     api.drehplan.updateDay(selectedDayId!, { catering_count: n }).then(() =>

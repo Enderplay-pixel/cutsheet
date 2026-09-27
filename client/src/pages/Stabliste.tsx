@@ -92,7 +92,7 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
           {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
         </button>
         {canEdit && (
-          <button onClick={onDelete} className="w-6 h-6 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+          <button onClick={onDelete} aria-label={`${form.name || 'Eintrag'} aus dem Stab entfernen`} title="Aus dem Stab entfernen" className="w-6 h-6 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
             <Trash2 className="w-3 h-3" />
           </button>
         )}

@@ -140,11 +140,12 @@ export function Component() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" className="w-8 h-8"
+            aria-label="Vorheriger Drehtag" title="Vorheriger Drehtag"
             disabled={selectedDayIdx <= 0} onClick={() => setSelectedDayIdx(i => i - 1)}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <Select value={String(selectedDayIdx)} onValueChange={v => setSelectedDayIdx(Number(v))}>
-            <SelectTrigger className="w-52 h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Drehtag wählen" className="w-52 h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               {allDays.map((d: any, i: number) => (
                 <SelectItem key={d.id} value={String(i)} className="text-xs">
@@ -154,6 +155,7 @@ export function Component() {
             </SelectContent>
           </Select>
           <Button variant="outline" size="icon" className="w-8 h-8"
+            aria-label="Nächster Drehtag" title="Nächster Drehtag"
             disabled={selectedDayIdx >= allDays.length - 1} onClick={() => setSelectedDayIdx(i => i + 1)}>
             <ChevronRight className="w-4 h-4" />
           </Button>
@@ -217,7 +219,7 @@ export function Component() {
                 <Label className="text-xs text-muted-foreground">Gedrehte Seiten (Achtel)</Label>
                 <Input type="number" value={form.pages_shot || 0} onChange={e => update('pages_shot', Number(e.target.value))}
                   aria-label="Gedrehte Seiten in Achteln"
-                  className={cn('mt-1.5 h-9', shootRatioWarning && 'border-amber-500')} />
+                  className={cn('mt-1.5 h-9', shootRatioWarning && 'border-warning')} />
                 {selectedDay?.total_eighths > 0 && (
                   <p className="text-[11px] text-muted-foreground mt-1">Geplant: {selectedDay.total_eighths}/8</p>
                 )}
@@ -240,9 +242,9 @@ export function Component() {
               </div>
             </div>
             {shootRatioWarning && (
-              <div className="mt-4 flex items-start gap-2 p-3 bg-amber-500/8 border border-amber-500/20 rounded-lg">
-                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-400">Mehr Seiten gedreht als geplant – Drehabweichung prüfen.</p>
+              <div className="mt-4 flex items-start gap-2 p-3 bg-warning/[0.08] border border-warning/20 rounded-lg">
+                <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+                <p className="text-xs text-warning">Mehr Seiten gedreht als geplant – Drehabweichung prüfen.</p>
               </div>
             )}
           </div>

@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 
 const SEV_CONFIG = {
   error:   { label: 'Fehler',   icon: AlertCircle,  color: 'text-red-400',    bg: 'bg-red-500/5 border-red-500/20',    dot: 'bg-red-400' },
-  warning: { label: 'Warnung',  icon: AlertTriangle, color: 'text-amber-400',  bg: 'bg-amber-500/5 border-amber-500/20', dot: 'bg-amber-400' },
+  warning: { label: 'Warnung',  icon: AlertTriangle, color: 'text-warning',    bg: 'bg-warning/5 border-warning/20',     dot: 'bg-warning' },
   info:    { label: 'Hinweis',  icon: AlertCircle,  color: 'text-blue-400',   bg: 'bg-blue-500/5 border-blue-500/20',  dot: 'bg-blue-400' },
 } as const
 

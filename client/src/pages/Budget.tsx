@@ -59,7 +59,7 @@ function BudgetLineRow({ line, onDelete }: { line: any; onDelete: () => void }) 
       </td>
       <td className="py-1.5 px-2 w-24">
         <Select value={form.unit || 'Pauschal'} onValueChange={v => update('unit', v)}>
-          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+          <SelectTrigger aria-label="Einheit" className="h-7 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>{UNITS.map(u => <SelectItem key={u} value={u} className="text-xs">{u}</SelectItem>)}</SelectContent>
         </Select>
       </td>
@@ -81,7 +81,7 @@ function BudgetLineRow({ line, onDelete }: { line: any; onDelete: () => void }) 
         {formatCurrency(total)}
       </td>
       <td className="py-1.5 pr-3 w-8">
-        <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all">
+        <button onClick={onDelete} aria-label={`Position ${line.description || line.account_code || ''} löschen`} title="Position löschen" className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </td>
@@ -116,7 +116,7 @@ function FinancingRow({ entry, total, onDelete }: { entry: any; total: number; o
       </td>
       <td className="py-2 px-2 w-32">
         <Select value={form.type || 'Förderung'} onValueChange={v => update('type', v)}>
-          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+          <SelectTrigger aria-label="Einheit" className="h-7 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             {['Förderung regional', 'Förderung national', 'Sender', 'Eigenmittel', 'Co-Produktion', 'Vertrieb', 'Sonstiges'].map(t => (
               <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
@@ -141,7 +141,7 @@ function FinancingRow({ entry, total, onDelete }: { entry: any; total: number; o
         </button>
       </td>
       <td className="py-2 pr-3 w-8">
-        <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
+        <button onClick={onDelete} aria-label="Finanzierungsposten löschen" title="Posten löschen" className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </td>
@@ -315,7 +315,7 @@ export function Component() {
             <div className="flex items-center gap-2">
               {versions && versions.length > 0 && (
                 <Select value={String(selectedVersionId)} onValueChange={v => setSelectedVersionId(Number(v))}>
-                  <SelectTrigger className="w-full sm:w-52 h-8"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Kalkulationsfassung wählen" className="w-full sm:w-52 h-8"><SelectValue /></SelectTrigger>
                   <SelectContent>{versions.map((v: any) => <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>)}</SelectContent>
                 </Select>
               )}
@@ -324,7 +324,7 @@ export function Component() {
               <span className="text-lg font-bold">{formatCurrency(totalBudget)}</span>
               <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 <Select value={newCategory} onValueChange={setNewCategory}>
-                  <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Kategorie wählen" className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
                 </Select>
                 <Button size="sm" onClick={() => createLine.mutate(newCategory)} disabled={!selectedVersionId || createLine.isPending}>
@@ -418,7 +418,7 @@ export function Component() {
           <div className="flex items-center justify-between">
             {finVersions && finVersions.length > 0 && (
               <Select value={String(selectedFinVersionId)} onValueChange={v => setSelectedFinVersionId(Number(v))}>
-                <SelectTrigger className="w-52 h-8"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Finanzierungsfassung wählen" className="w-52 h-8"><SelectValue /></SelectTrigger>
                 <SelectContent>{finVersions.map((v: any) => <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>)}</SelectContent>
               </Select>
             )}
