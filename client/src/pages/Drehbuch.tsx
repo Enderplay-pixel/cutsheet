@@ -16,6 +16,7 @@ import { Plus, Trash2, Upload, Download, FileText, MapPin, Users, ChevronDown, C
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { useT } from '@/lib/useT'
 import { scenesT, uiT } from '@/lib/i18n'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 const INT_EXT_OPTIONS = ['INT', 'EXT', 'INT/EXT']
 const DAY_NIGHT_OPTIONS = ['TAG', 'NACHT', 'DÄMMERUNG', 'MORGEN']
@@ -338,6 +339,7 @@ function ImportDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
 }
 
 export function Component() {
+  const { darfSchreiben } = useSchreibrecht()
   const { projectId } = useParams()
   const pid = Number(projectId)
   const queryClient = useQueryClient()
@@ -405,7 +407,7 @@ export function Component() {
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} disabled={!darfSchreiben}>
               <Upload className="w-3.5 h-3.5 mr-1.5" />{tt(scenesT.importBtn)}
             </Button>
             <Button
@@ -424,7 +426,7 @@ export function Component() {
             >
               <Download className="w-3.5 h-3.5 mr-1.5" />Export
             </Button>
-            <Button size="sm" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+            <Button size="sm" onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !darfSchreiben}>
               <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(scenesT.newScene)}
             </Button>
           </div>
@@ -489,7 +491,7 @@ export function Component() {
               <>
                 <p className="text-sm font-medium mb-1">{tt(scenesT.noScenes)}</p>
                 <p className="text-xs mb-4">{tt(scenesT.noScenesHint)}</p>
-                <Button size="sm" onClick={() => createMutation.mutate()}>
+                <Button size="sm" onClick={() => createMutation.mutate()} disabled={!darfSchreiben}>
                   <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(scenesT.newScene)}
                 </Button>
               </>

@@ -142,6 +142,11 @@ export function Component() {
     && Array.isArray(projects)
     && (projects as any[]).filter(p => !p.is_demo).length === 0
 
+  /** Ab Abteilungsleitung darf geschrieben werden - so haelt es der Server. */
+  const darfAendern = (p: any) =>
+    p.owner_id === user?.id || ['admin', 'producer', 'director', 'dept_head'].includes(p.my_role)
+  const istEigentuemerin = (p: any) => p.owner_id === user?.id
+
   const duplicateMutation = useMutation({
     mutationFn: (id: number) => api.projects.duplicate(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['projects'] }); toast({ title: 'Projekt dupliziert' }) },
@@ -292,9 +297,15 @@ export function Component() {
                     )}
                   </div>
 
-                  {/* Actions */}
+                  {/*
+                    Aktionen nur, wo sie auch erlaubt sind. Gemessen am
+                    27.09.2026: ein Konto mit Lesezugriff bekam an einem
+                    fremden Projekt Duplizieren, Archivieren und Loeschen
+                    angeboten - jeder Klick waere am Server gescheitert.
+                    Loeschen kann ohnehin nur die Eigentuemerin.
+                  */}
                   <div className="flex items-center gap-0.5 shrink-0 opacity-100 md:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
-                    {!showArchived && (
+                    {!showArchived && darfAendern(project) && (
                       <button
                         onClick={e => { e.stopPropagation(); duplicateMutation.mutate(project.id) }}
                         className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/50 hover:text-foreground hover:bg-foreground/6 transition-[background-color,color] duration-150"
@@ -303,6 +314,7 @@ export function Component() {
                         <Copy className="w-3.5 h-3.5" />
                       </button>
                     )}
+                    {darfAendern(project) && (
                     <button
                       onClick={e => { e.stopPropagation(); archiveMutation.mutate({ id: project.id, archived: !showArchived }) }}
                       className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/50 hover:text-amber-400 hover:bg-amber-400/10 transition-[background-color,color] duration-150"
@@ -310,6 +322,8 @@ export function Component() {
                     >
                       {showArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
                     </button>
+                    )}
+                    {istEigentuemerin(project) && (
                     <button
                       onClick={e => {
                         e.stopPropagation()
@@ -322,6 +336,7 @@ export function Component() {
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
+                    )}
                   </div>
 
                   <div className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground/20 group-hover:text-primary transition-colors duration-150 shrink-0">

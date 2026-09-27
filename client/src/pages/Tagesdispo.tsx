@@ -22,6 +22,7 @@ import { TimeInput } from '@/components/ui/time-input'
 import { useT } from '@/lib/useT'
 import { dispoT, uiT } from '@/lib/i18n'
 import { track } from '@/lib/analytics'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 // ─── Dispo versenden ─────────────────────────────────────────────────────────
 
@@ -252,6 +253,7 @@ function PersonSection({
   onDelete: (id: number) => void
   isCast: boolean
 }) {
+  const { darfSchreiben } = useSchreibrecht()
   const tt = useT()
   if (entries.length === 0) return null
 
@@ -303,14 +305,14 @@ function PersonSection({
                   <span className="text-sm text-muted-foreground">{entry.role || '–'}</span>
                 </td>
                 <td className="py-2.5 px-2">
-                  <TimeInput
+                  <TimeInput disabled={!darfSchreiben}
                     value={entry.call_time || 480}
                     onChange={v => onUpdate(entry._idx, 'call_time', v)}
                     className="w-20 h-7 text-xs font-mono font-bold"
                   />
                 </td>
                 <td className="py-2.5 px-2">
-                  <Input
+                  <Input disabled={!darfSchreiben}
                     value={entry.pickup_location || ''}
                     onChange={e => onUpdate(entry._idx, 'pickup_location', e.target.value)}
                     className="h-7 text-xs w-36"
@@ -318,7 +320,7 @@ function PersonSection({
                   />
                 </td>
                 <td className="py-2.5 px-2">
-                  <Input
+                  <Input disabled={!darfSchreiben}
                     value={entry.notes || ''}
                     onChange={e => onUpdate(entry._idx, 'notes', e.target.value)}
                     className="h-7 text-xs w-44"
@@ -560,6 +562,7 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function Component() {
+  const { darfSchreiben } = useSchreibrecht()
   const tt = useT()
   const { projectId, dayId } = useParams()
   const pid = Number(projectId)
@@ -851,7 +854,7 @@ export function Component() {
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
                   {tt(dispoT.generalCall)}
                 </p>
-                <TimeInput
+                <TimeInput disabled={!darfSchreiben}
                   value={headerForm.general_call || 480}
                   onChange={v => updateHeader('general_call', v)}
                   className="h-16 text-5xl font-black text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none"
@@ -862,7 +865,7 @@ export function Component() {
                 <p className="text-[11px] font-bold uppercase tracking-widest text-primary/60 mb-2">
                   {tt(dispoT.shootingCall)}
                 </p>
-                <TimeInput
+                <TimeInput disabled={!darfSchreiben}
                   value={headerForm.shooting_call || 510}
                   onChange={v => updateHeader('shooting_call', v)}
                   className="h-16 text-5xl font-black text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none text-primary"
@@ -897,7 +900,7 @@ export function Component() {
                     {weatherLoading ? tt(dispoT.weatherFetching) : tt(dispoT.weatherFetch)}
                   </button>
                 </div>
-                <Input
+                <Input disabled={!darfSchreiben}
                   value={headerForm.weather_forecast || ''}
                   onChange={e => updateHeader('weather_forecast', e.target.value)}
                   className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-semibold shadow-none"
@@ -919,7 +922,7 @@ export function Component() {
                     {sonneLaedt ? tt(dispoT.weatherFetching) : tt(dispoT.weatherFetch)}
                   </button>
                 </div>
-                <Input
+                <Input disabled={!darfSchreiben}
                   value={headerForm.sunrise || ''}
                   onChange={e => updateHeader('sunrise', e.target.value)}
                   className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono font-semibold shadow-none"
@@ -933,7 +936,7 @@ export function Component() {
                   <Sunset className="w-3 h-3 text-orange-400" />
                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{tt(dispoT.sunset)}</span>
                 </div>
-                <Input
+                <Input disabled={!darfSchreiben}
                   value={headerForm.sunset || ''}
                   onChange={e => updateHeader('sunset', e.target.value)}
                   className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono font-semibold shadow-none"
@@ -1016,7 +1019,7 @@ export function Component() {
                   {tt(dispoT.generalNotes)}
                 </p>
               </div>
-              <Textarea
+              <Textarea disabled={!darfSchreiben}
                 value={headerForm?.notes || ''}
                 onChange={e => updateHeader('notes', e.target.value)}
                 rows={3}

@@ -7,6 +7,8 @@ interface TimeInputProps {
   onChange: (v: number) => void
   className?: string
   placeholder?: string
+  /** Bei Lesezugriff gesperrt - sonst tippt jemand eine Zeit, die nie ankommt. */
+  disabled?: boolean
 }
 
 /**
@@ -18,7 +20,7 @@ interface TimeInputProps {
  * nachgereicht: Wer eine Zeit eintippt und danach direkt druckt oder die Seite
  * wechselt, verlöre sie sonst stillschweigend.
  */
-export function TimeInput({ value, onChange, className, placeholder = '08:00' }: TimeInputProps) {
+export function TimeInput({ value, onChange, className, placeholder = '08:00', disabled }: TimeInputProps) {
   const [str, setStr] = useState(formatTime(value || 0))
   useEffect(() => setStr(formatTime(value || 0)), [value])
 
@@ -60,6 +62,7 @@ export function TimeInput({ value, onChange, className, placeholder = '08:00' }:
       }}
       className={cn('font-mono text-center', className)}
       placeholder={placeholder}
+      disabled={disabled}
     />
   )
 }

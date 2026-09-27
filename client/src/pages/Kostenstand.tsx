@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { Receipt, Plus, Trash2, TrendingDown, TrendingUp, Wallet, AlertTriangle } from 'lucide-react'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 // Kostenstand: Ist-Kosten (Belege) gegen die aktive Kalkulation - Soll/Ist je Kategorie
 
 export function Component() {
+  const { darfSchreiben } = useSchreibrecht()
   const { projectId } = useParams()
   const pid = Number(projectId)
   const queryClient = useQueryClient()
@@ -133,7 +135,7 @@ export function Component() {
               <span>Warnung bei</span>
               {schwelleBearbeiten ? (
                 <>
-                  <Input
+                  <Input disabled={!darfSchreiben}
                     type="number" min={1} max={200} defaultValue={schwelle}
                     className="h-7 w-20 text-[12px]"
                     onKeyDown={e => {
@@ -225,15 +227,15 @@ export function Component() {
         onSubmit={e => { e.preventDefault(); if (desc.trim() && amount) createMutation.mutate() }}
         className="grid grid-cols-2 lg:grid-cols-6 gap-2 mb-6"
       >
-        <Input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Beschreibung" className="col-span-2" required />
-        <Input value={category} onChange={e => setCategory(e.target.value)} placeholder="Kategorie" list="kostenstand-categories" />
+        <Input disabled={!darfSchreiben} value={desc} onChange={e => setDesc(e.target.value)} placeholder="Beschreibung" className="col-span-2" required />
+        <Input disabled={!darfSchreiben} value={category} onChange={e => setCategory(e.target.value)} placeholder="Kategorie" list="kostenstand-categories" />
         <datalist id="kostenstand-categories">
           {rows.map((r: any) => <option key={r.category} value={r.category} />)}
         </datalist>
-        <Input value={amount} onChange={e => setAmount(e.target.value)} placeholder="Betrag €" inputMode="decimal" required />
-        <Input value={date} onChange={e => setDate(e.target.value)} type="date" aria-label="Belegdatum" />
+        <Input disabled={!darfSchreiben} value={amount} onChange={e => setAmount(e.target.value)} placeholder="Betrag €" inputMode="decimal" required />
+        <Input disabled={!darfSchreiben} value={date} onChange={e => setDate(e.target.value)} type="date" aria-label="Belegdatum" />
         <div className="flex gap-2">
-          <Input value={receiptNo} onChange={e => setReceiptNo(e.target.value)} placeholder="Beleg-Nr." className="flex-1" />
+          <Input disabled={!darfSchreiben} value={receiptNo} onChange={e => setReceiptNo(e.target.value)} placeholder="Beleg-Nr." className="flex-1" />
           <Button type="submit" size="icon" disabled={createMutation.isPending} title="Beleg hinzufügen">
             <Plus className="w-4 h-4" />
           </Button>

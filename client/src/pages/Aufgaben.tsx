@@ -11,6 +11,7 @@ import {
   CircleDot, Eye, CheckCircle2
 } from 'lucide-react'
 import { cn, heuteISO } from '@/lib/utils'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 // Abnahmeschleife wie bei PreProducer: offen → in Arbeit → Abnahme → erledigt
 const STATUS_META: Record<string, { label: string; icon: any; cls: string }> = {
@@ -23,6 +24,7 @@ const STATUS_ORDER = ['offen', 'in_arbeit', 'abnahme', 'erledigt']
 const nextStatus = (s: string) => STATUS_ORDER[(STATUS_ORDER.indexOf(s) + 1) % STATUS_ORDER.length]
 
 export function Component() {
+  const { darfSchreiben } = useSchreibrecht()
   const { projectId } = useParams()
   const pid = Number(projectId)
   const queryClient = useQueryClient()
@@ -85,19 +87,19 @@ export function Component() {
         onSubmit={e => { e.preventDefault(); if (newTitle.trim()) createMutation.mutate() }}
         className="flex flex-col sm:flex-row gap-2 mb-7"
       >
-        <Input
+        <Input disabled={!darfSchreiben}
           value={newTitle}
           onChange={e => setNewTitle(e.target.value)}
           placeholder="Neue Aufgabe - z. B. „Drehgenehmigung Stadtpark einholen“"
           className="flex-1"
         />
-        <Input
+        <Input disabled={!darfSchreiben}
           value={newAssignee}
           onChange={e => setNewAssignee(e.target.value)}
           placeholder="Zuständig"
           className="sm:w-36"
         />
-        <Input
+        <Input disabled={!darfSchreiben}
           type="date"
           value={newDue}
           onChange={e => setNewDue(e.target.value)}

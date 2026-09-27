@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { useT } from '@/lib/useT'
 import { masterT, uiT } from '@/lib/i18n'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 const FORMATS = ALL_FORMATS
 const STATUSES = ['Entwicklung', 'Vorproduktion', 'Produktion', 'Postproduktion', 'Abgeschlossen', 'Archiviert']
@@ -52,6 +53,7 @@ const ROLE_OPTS = [
 ]
 
 function InviteSection({ pid }: { pid: number }) {
+  const { darfSchreiben } = useSchreibrecht()
   const tt = useT()
   const qc = useQueryClient()
   const { toast } = useToast()
@@ -140,13 +142,13 @@ function InviteSection({ pid }: { pid: number }) {
               {ROLE_OPTS.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Input
+          <Input disabled={!darfSchreiben}
             className="h-8 text-xs flex-1 min-w-32"
             placeholder="Beschriftung (optional)"
             value={newLabel}
             onChange={e => setNewLabel(e.target.value)}
           />
-          <Input
+          <Input disabled={!darfSchreiben}
             type="email"
             className="h-8 text-xs flex-1 min-w-40"
             placeholder="E-Mail (optional - sendet Einladung direkt)"
@@ -257,6 +259,7 @@ function InviteSection({ pid }: { pid: number }) {
 }
 
 export function Component() {
+  const { darfSchreiben } = useSchreibrecht()
   const tt = useT()
   const { projectId } = useParams()
   const pid = Number(projectId)
@@ -342,7 +345,7 @@ export function Component() {
 
       <FormSection icon={Film} title="Basisdaten">
         <Field label={tt(masterT.labelTitle)} full>
-          <Input value={formData.title || ''} onChange={e => update('title', e.target.value)}
+          <Input disabled={!darfSchreiben} value={formData.title || ''} onChange={e => update('title', e.target.value)}
             placeholder="Projekttitel" className="h-9 text-base font-medium" />
         </Field>
         <Field label={tt(masterT.labelFormat)}>
@@ -358,45 +361,45 @@ export function Component() {
           </Select>
         </Field>
         <Field label={tt(masterT.labelGenre)}>
-          <Input value={formData.genre || ''} onChange={e => update('genre', e.target.value)}
+          <Input disabled={!darfSchreiben} value={formData.genre || ''} onChange={e => update('genre', e.target.value)}
             placeholder="z.B. Drama, Thriller, Komödie" className="h-9" />
         </Field>
         <Field label={tt(masterT.labelMinutes)}>
-          <Input type="number" value={formData.length_minutes || ''}
+          <Input disabled={!darfSchreiben} type="number" value={formData.length_minutes || ''}
             onChange={e => update('length_minutes', Number(e.target.value))}
             placeholder="z.B. 90" className="h-9" />
         </Field>
         <Field label={tt(masterT.labelSynopsis)} full>
-          <Textarea value={formData.synopsis || ''} onChange={e => update('synopsis', e.target.value)}
+          <Textarea disabled={!darfSchreiben} value={formData.synopsis || ''} onChange={e => update('synopsis', e.target.value)}
             rows={3} className="resize-none text-sm" placeholder="Worum geht es in dem Film? (1–2 Sätze)" />
         </Field>
       </FormSection>
 
       <FormSection icon={Building2} title="Kreativteam">
         <Field label="Regie">
-          <Input value={formData.director || ''} onChange={e => update('director', e.target.value)}
+          <Input disabled={!darfSchreiben} value={formData.director || ''} onChange={e => update('director', e.target.value)}
             placeholder="Name Regisseur/in" className="h-9" />
         </Field>
         <Field label="Produktion">
-          <Input value={formData.producer || ''} onChange={e => update('producer', e.target.value)}
+          <Input disabled={!darfSchreiben} value={formData.producer || ''} onChange={e => update('producer', e.target.value)}
             placeholder="Name Produzent/in" className="h-9" />
         </Field>
         <Field label="Kamera / DoP">
-          <Input value={formData.dop || ''} onChange={e => update('dop', e.target.value)}
+          <Input disabled={!darfSchreiben} value={formData.dop || ''} onChange={e => update('dop', e.target.value)}
             placeholder="Director of Photography" className="h-9" />
         </Field>
         <Field label="Produktionsfirma">
-          <Input value={formData.production_company || ''} onChange={e => update('production_company', e.target.value)}
+          <Input disabled={!darfSchreiben} value={formData.production_company || ''} onChange={e => update('production_company', e.target.value)}
             placeholder="Firmenname" className="h-9" />
         </Field>
       </FormSection>
 
       <FormSection icon={Calendar} title="Produktionszeitraum">
         <Field label="Drehbeginn">
-          <Input type="date" value={formData.shoot_start || ''} onChange={e => update('shoot_start', e.target.value)} aria-label="Drehbeginn" className="h-9" />
+          <Input disabled={!darfSchreiben} type="date" value={formData.shoot_start || ''} onChange={e => update('shoot_start', e.target.value)} aria-label="Drehbeginn" className="h-9" />
         </Field>
         <Field label="Drehschluss">
-          <Input type="date" value={formData.shoot_end || ''} onChange={e => update('shoot_end', e.target.value)} aria-label="Drehschluss" className="h-9" />
+          <Input disabled={!darfSchreiben} type="date" value={formData.shoot_end || ''} onChange={e => update('shoot_end', e.target.value)} aria-label="Drehschluss" className="h-9" />
         </Field>
         {shootDays !== null && (
           <div className="col-span-2 flex items-center gap-3 p-3 bg-primary/8 rounded-lg border border-primary/20">
@@ -412,21 +415,21 @@ export function Component() {
       {settingsData && (
         <FormSection icon={Settings2} title="Produktionseinstellungen">
           <Field label={tt(masterT.labelDefaultCall)}>
-            <TimeInput
+            <TimeInput disabled={!darfSchreiben}
               value={settingsData.default_call_time}
               onChange={v => updateSetting('default_call_time', v)}
               className="h-9 w-full"
             />
           </Field>
           <Field label="Standard-Drehschluss (Wrap)">
-            <TimeInput
+            <TimeInput disabled={!darfSchreiben}
               value={settingsData.default_wrap_time}
               onChange={v => updateSetting('default_wrap_time', v)}
               className="h-9 w-full"
             />
           </Field>
           <Field label="Turnaround-Mindestzeit (Stunden)">
-            <Input
+            <Input disabled={!darfSchreiben}
               type="number"
               min={8}
               max={24}
@@ -448,7 +451,7 @@ export function Component() {
             </Select>
           </Field>
           <Field label="Produktionsland">
-            <Input
+            <Input disabled={!darfSchreiben}
               value={settingsData.country || 'Deutschland'}
               onChange={e => updateSetting('country', e.target.value)}
               className="h-9"
@@ -462,9 +465,10 @@ export function Component() {
                 value={settingsData.header_color || '#f59e0b'}
                 onChange={e => updateSetting('header_color', e.target.value)}
                 aria-label="Akzentfarbe wählen"
-                className="h-9 w-12 rounded cursor-pointer border border-border/60 bg-transparent p-0.5"
+                disabled={!darfSchreiben}
+                className="h-9 w-12 rounded cursor-pointer border border-border/60 bg-transparent p-0.5 disabled:cursor-not-allowed disabled:opacity-50"
               />
-              <Input
+              <Input disabled={!darfSchreiben}
                 value={settingsData.header_color || '#f59e0b'}
                 onChange={e => updateSetting('header_color', e.target.value)}
                 className="h-9 font-mono"

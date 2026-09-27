@@ -26,17 +26,25 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
   // Global admins see all projects
   if (user.role === 'admin') {
     const projects = await db.all(`
-      SELECT DISTINCT p.* FROM projects p WHERE p.archived = ? ORDER BY p.updated_at DESC
+      SELECT DISTINCT p.*, 'admin' AS my_role FROM projects p WHERE p.archived = ? ORDER BY p.updated_at DESC
     `, [showArchived ? 1 : 0])
     return res.json({ data: projects, error: null })
   }
 
+  // Die eigene Rolle je Projekt mitliefern: die Liste bietet Duplizieren,
+  // Archivieren und Loeschen an, und ohne Rolle konnte sie das nicht
+  // unterscheiden. Gemessen am 27.09.2026: ein Konto mit Lesezugriff bekam
+  // alle drei Knoepfe fuer ein fremdes Projekt angeboten - jeder Klick waere
+  // am Server gescheitert.
   const projects = await db.all(`
-    SELECT DISTINCT p.* FROM projects p
+    SELECT DISTINCT p.*,
+           CASE WHEN p.owner_id = ? THEN 'admin'
+                ELSE (SELECT role FROM project_members WHERE project_id = p.id AND user_id = ?) END AS my_role
+    FROM projects p
     WHERE (p.owner_id = ? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?))
       AND p.archived = ?
     ORDER BY p.updated_at DESC
-  `, [user.id, user.id, showArchived ? 1 : 0])
+  `, [user.id, user.id, user.id, user.id, showArchived ? 1 : 0])
   res.json({ data: projects, error: null })
 })
 
