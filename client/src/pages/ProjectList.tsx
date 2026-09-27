@@ -148,7 +148,9 @@ export function Component() {
     && !localStorage.getItem(`cutsheet-tutorial-seen-${user.id}`)
   // Das Demoprojekt zaehlt nicht als eigenes: wer nur das hat, steht noch am
   // Anfang und soll den Assistenten bekommen.
-  const zeigeAssistent = !!user && !tutorialLaeuft && !isLoading
+  // Nur in der normalen Liste: ein leeres Archiv heißt nicht "neues Konto".
+  // Vorher sprang der Assistent auf, sobald jemand das leere Archiv öffnete.
+  const zeigeAssistent = !!user && !tutorialLaeuft && !isLoading && !showArchived
     && Array.isArray(projects)
     && (projects as any[]).filter(p => !p.is_demo).length === 0
 

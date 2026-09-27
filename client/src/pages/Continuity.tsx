@@ -103,7 +103,7 @@ function ContinuityCard({
       <p className="text-sm text-foreground/80 leading-relaxed flex-1">{entry.description}</p>
 
       {/* Photos */}
-      {entry.photos && entry.photos.length > 0 && (
+      {Array.isArray(entry.photos) && entry.photos.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {entry.photos.slice(0, 6).map((src, i) => (
             <PhotoThumb key={i} src={src} onClick={() => onPhotoClick(src)} />
@@ -175,7 +175,7 @@ function EntryDialog({
     cast_id: entry ? String(entry.cast_id ?? '') : '',
     category: entry?.category ?? 'kostüm',
     description: entry?.description ?? '',
-    photos: entry?.photos ?? [],
+    photos: Array.isArray(entry?.photos) ? entry.photos : [],
   })
 
   const token = localStorage.getItem('token')
