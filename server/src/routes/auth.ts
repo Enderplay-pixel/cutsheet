@@ -87,7 +87,7 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response)
   }
 })
 
-// POST /forgot-password — antwortet immer 200, verrät nie ob die E-Mail existiert
+// POST /forgot-password - antwortet immer 200, verrät nie ob die E-Mail existiert
 router.post('/forgot-password', async (req: Request, res: Response) => {
   try {
     const email = String((req.body as { email?: string })?.email || '').trim().toLowerCase()
@@ -109,7 +109,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
         const link = `${appBaseUrl()}/reset-password/${token}`
         await sendEmail({
           to: email,
-          subject: 'CutSheet — Passwort zurücksetzen',
+          subject: 'CutSheet - Passwort zurücksetzen',
           html: `
             <div style="font-family:Arial,sans-serif;max-width:480px;">
               <h2 style="color:#111;">Passwort zurücksetzen</h2>
@@ -158,7 +158,7 @@ router.get('/me', requireAuth, (req: Request, res: Response) => {
   return res.json({ data: req.user, error: null })
 })
 
-// GET /me/export — DSGVO Art. 20: alle personenbezogenen Daten als JSON-Download
+// GET /me/export - DSGVO Art. 20: alle personenbezogenen Daten als JSON-Download
 router.get('/me/export', requireAuth, async (req: Request, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
@@ -191,7 +191,7 @@ router.get('/me/export', requireAuth, async (req: Request, res: Response) => {
   }
 })
 
-// DELETE /me — DSGVO Art. 17: Konto löschen (blockt, wenn Projekte mit weiteren Mitgliedern existieren)
+// DELETE /me - DSGVO Art. 17: Konto löschen (blockt, wenn Projekte mit weiteren Mitgliedern existieren)
 router.delete('/me', requireAuth, async (req: Request, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
@@ -203,7 +203,7 @@ router.delete('/me', requireAuth, async (req: Request, res: Response) => {
     const valid = await bcrypt.compare(password, user.password_hash)
     if (!valid) return res.status(400).json({ data: null, error: 'Passwort falsch' })
 
-    // Eigene Projekte mit weiteren Mitgliedern blockieren die Löschung —
+    // Eigene Projekte mit weiteren Mitgliedern blockieren die Löschung -
     // explizite Übergabe statt stillem Datenverlust für das Team.
     const blocking = await db.all(
       `SELECT p.id, p.title FROM projects p

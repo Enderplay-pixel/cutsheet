@@ -14,7 +14,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { Plus, Clock, Type, Trash2, ChevronRight, Youtube } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-/** Pipeline-Stufen in Workflow-Reihenfolge — Serverseite kennt dieselbe Liste. */
+/** Pipeline-Stufen in Workflow-Reihenfolge - Serverseite kennt dieselbe Liste. */
 const STATUS = ['Idee', 'Skript', 'Dreh', 'Schnitt', 'Thumbnail', 'Upload', 'Veröffentlicht'] as const
 type Status = typeof STATUS[number]
 
@@ -91,7 +91,7 @@ function NewVideoDialog({ open, onClose, projectId }: { open: boolean; onClose: 
             </div>
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">Hook — die ersten Sekunden entscheiden</Label>
+            <Label className="text-xs text-muted-foreground">Hook - die ersten Sekunden entscheiden</Label>
             <Textarea
               value={form.hook} rows={2} className="mt-1 text-sm"
               placeholder="Womit haeltst du die Leute in den ersten fuenf Sekunden?"
@@ -114,7 +114,7 @@ function NewVideoDialog({ open, onClose, projectId }: { open: boolean; onClose: 
 }
 
 // React Router laedt die Seiten per `lazy` und erwartet einen Export namens
-// `Component` — wie alle anderen Seiten hier.
+// `Component` - wie alle anderen Seiten hier.
 export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)

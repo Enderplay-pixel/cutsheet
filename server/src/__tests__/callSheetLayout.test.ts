@@ -17,7 +17,7 @@ describe('fmtCallTime', () => {
   })
 
   it('behandelt Mitternacht und Mittag richtig', () => {
-    // 12 statt 0 — "0:00 AM" gibt es auf keinem Call Sheet
+    // 12 statt 0 - "0:00 AM" gibt es auf keinem Call Sheet
     expect(fmtCallTime(0)).toBe('12:00 AM')
     expect(fmtCallTime(12 * 60)).toBe('12:00 PM')
   })

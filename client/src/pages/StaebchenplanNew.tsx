@@ -352,7 +352,7 @@ export function Component() {
               <h1 className="text-2xl font-bold tracking-tight">Stäbchenplan</h1>
             </div>
             <p className="text-sm text-muted-foreground">
-              Visueller Drehplan — Szenenstreifen nach Drehtag
+              Visueller Drehplan - Szenenstreifen nach Drehtag
             </p>
           </div>
           <Legend />

@@ -12,7 +12,7 @@ router.post('/projects/:pid/drehplan/ai-optimize', async (req: Request, res: Res
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(400).json({ data: null, error: 'KI nicht konfiguriert — ANTHROPIC_API_KEY fehlt' })
+    return res.status(400).json({ data: null, error: 'KI nicht konfiguriert - ANTHROPIC_API_KEY fehlt' })
   }
 
   const pid = Number(req.params.pid)

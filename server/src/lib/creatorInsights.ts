@@ -4,7 +4,7 @@
  * Rechte an verwendetem Material, Performance nach Veroeffentlichung und der
  * Veroeffentlichungsrhythmus.
  *
- * Alles hier ist bewusst reine Rechnerei ohne Datenbank — so laesst es sich
+ * Alles hier ist bewusst reine Rechnerei ohne Datenbank - so laesst es sich
  * testen und sowohl im Server als auch im PDF verwenden.
  */
 
@@ -84,7 +84,7 @@ export function checkClip(clip: Clip, videoSeconds?: number): ClipCheck {
   if (end <= start) {
     problems.push('Ende muss nach dem Anfang liegen.')
   } else {
-    if (duration < 5) problems.push(`Mit ${duration}s zu kurz — unter 5s traegt kein Clip.`)
+    if (duration < 5) problems.push(`Mit ${duration}s zu kurz - unter 5s traegt kein Clip.`)
     const isShortFormat = /short|reel|tiktok/i.test(String(clip.platform ?? ''))
     if (isShortFormat && duration > SHORTS_MAX_SECONDS) {
       problems.push(`${duration}s ueberschreitet das Limit von ${SHORTS_MAX_SECONDS}s fuer dieses Format.`)
@@ -185,14 +185,14 @@ export function analysePerformance(p: Performance, videoSeconds?: number): Perfo
 
   const notes: string[] = []
   if (ctr !== null) {
-    if (ctr < 2) notes.push(`Klickrate ${ctr} % liegt unter dem ueblichen Bereich — Titel und Thumbnail pruefen.`)
-    else if (ctr > 10) notes.push(`Klickrate ${ctr} % ist ueberdurchschnittlich — Titel und Thumbnail funktionieren.`)
+    if (ctr < 2) notes.push(`Klickrate ${ctr} % liegt unter dem ueblichen Bereich - Titel und Thumbnail pruefen.`)
+    else if (ctr > 10) notes.push(`Klickrate ${ctr} % ist ueberdurchschnittlich - Titel und Thumbnail funktionieren.`)
     else notes.push(`Klickrate ${ctr} % liegt im ueblichen Bereich von 2 bis 10 %.`)
   }
   if (retention !== null) {
-    if (retention < 30) notes.push(`Im Schnitt nur ${retention} % gesehen — der Einstieg haelt nicht.`)
-    else if (retention >= 50) notes.push(`${retention} % gesehen — das ist ein guter Wert.`)
-    else notes.push(`${retention} % gesehen — solide, Luft nach oben im Mittelteil.`)
+    if (retention < 30) notes.push(`Im Schnitt nur ${retention} % gesehen - der Einstieg haelt nicht.`)
+    else if (retention >= 50) notes.push(`${retention} % gesehen - das ist ein guter Wert.`)
+    else notes.push(`${retention} % gesehen - solide, Luft nach oben im Mittelteil.`)
   }
   if (viewsPerSub !== null) {
     notes.push(`Ein neues Abo je ${viewsPerSub} Aufrufe.`)
@@ -217,7 +217,7 @@ export interface CadenceInsight {
 }
 
 /**
- * Wie regelmaessig wird veroeffentlicht? Regelmaessigkeit schlaegt Frequenz —
+ * Wie regelmaessig wird veroeffentlicht? Regelmaessigkeit schlaegt Frequenz -
  * deshalb wird neben dem Schnitt auch die groesste Luecke ausgewiesen.
  */
 export function analyseCadence(dates: Array<string | null | undefined>): CadenceInsight {
@@ -233,7 +233,7 @@ export function analyseCadence(dates: Array<string | null | undefined>): Cadence
       count: times.length,
       notes: times.length === 0
         ? ['Noch keine Veroeffentlichung geplant oder erfasst.']
-        : ['Erst eine Veroeffentlichung — fuer einen Rhythmus braucht es mindestens zwei.'],
+        : ['Erst eine Veroeffentlichung - fuer einen Rhythmus braucht es mindestens zwei.'],
     }
   }
 
@@ -249,7 +249,7 @@ export function analyseCadence(dates: Array<string | null | undefined>): Cadence
   // Bewusst laengste gegen kuerzeste Pause statt gegen den Schnitt: ein einzelner
   // Ausreisser zieht den Schnitt selbst mit hoch und wuerde sich so verstecken.
   if (longest >= shortest * 3 && longest - shortest > 7) {
-    notes.push('Der Rhythmus schwankt stark — Regelmaessigkeit wiegt bei YouTube schwerer als Frequenz.')
+    notes.push('Der Rhythmus schwankt stark - Regelmaessigkeit wiegt bei YouTube schwerer als Frequenz.')
   }
 
   return { averageDays: average, longestGapDays: longest, count: times.length, notes }

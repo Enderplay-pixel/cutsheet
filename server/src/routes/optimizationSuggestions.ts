@@ -50,7 +50,7 @@ async function generateSuggestions(projectId: number): Promise<Suggestion[]> {
         project_id: projectId,
         suggestion_type: 'location_clustering',
         title: `Szenen am gleichen Motiv zusammenlegen: ${locationName}`,
-        description: `Szenen ${sceneNumbers} sind am Motiv "${locationName}" auf ${shootDayIds.size} verschiedene Drehtage verteilt — Bündelung kann Drehtage reduzieren.`,
+        description: `Szenen ${sceneNumbers} sind am Motiv "${locationName}" auf ${shootDayIds.size} verschiedene Drehtage verteilt - Bündelung kann Drehtage reduzieren.`,
         savings_days: shootDayIds.size - 1,
         scene_ids: JSON.stringify(sceneIds),
       })
@@ -84,7 +84,7 @@ async function generateSuggestions(projectId: number): Promise<Suggestion[]> {
     const lastDate = new Date(sortedDates[sortedDates.length - 1])
     const workingDateSet = new Set(sortedDates)
 
-    // Count calendar days between first and last — subtract working days
+    // Count calendar days between first and last - subtract working days
     let totalDays = 0
     const cursor = new Date(firstDate)
     while (cursor <= lastDate) {
@@ -100,7 +100,7 @@ async function generateSuggestions(projectId: number): Promise<Suggestion[]> {
         project_id: projectId,
         suggestion_type: 'cast_gaps',
         title: `Hold-Tage für ${actorName} reduzieren`,
-        description: `Darsteller ${actorName} hat ${holdDays} Hold-Tage zwischen Drehtagen — Zusammenlegung der Drehtage könnte Kosten senken.`,
+        description: `Darsteller ${actorName} hat ${holdDays} Hold-Tage zwischen Drehtagen - Zusammenlegung der Drehtage könnte Kosten senken.`,
         savings_days: holdDays,
         scene_ids: JSON.stringify(sceneIds),
       })
@@ -135,7 +135,7 @@ async function generateSuggestions(projectId: number): Promise<Suggestion[]> {
         project_id: projectId,
         suggestion_type: 'night_scenes',
         title: 'Nacht-Szenen bündeln',
-        description: `Nacht-Szenen (${sceneNumbers}) sind über ${weekNumbers.size} Wochen verteilt — Bündelung würde Kosten für Nacht-Crew und Equipment senken.`,
+        description: `Nacht-Szenen (${sceneNumbers}) sind über ${weekNumbers.size} Wochen verteilt - Bündelung würde Kosten für Nacht-Crew und Equipment senken.`,
         savings_days: weekNumbers.size - 1,
         scene_ids: JSON.stringify(sceneIds),
       })

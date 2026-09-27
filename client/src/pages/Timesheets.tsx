@@ -483,7 +483,7 @@ export function Component() {
               <div className="text-sm pt-0.5">
                 <span className="font-semibold text-red-600 dark:text-red-400">Turnaround-Warnung:</span>{' '}
                 <span className="text-muted-foreground">
-                  {turnaroundWarnings.map(w => w.person_name).join(', ')} — spätes Wrap, bitte 11h Ruhezeit prüfen.
+                  {turnaroundWarnings.map(w => w.person_name).join(', ')} - spätes Wrap, bitte 11h Ruhezeit prüfen.
                 </span>
               </div>
             </div>
@@ -502,7 +502,7 @@ export function Component() {
           ) : (
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">
-                Einträge{selectedDay ? ` — DT ${selectedDay.day_number} · ${formatDate(selectedDay.date)}` : ''}
+                Einträge{selectedDay ? ` - DT ${selectedDay.day_number} · ${formatDate(selectedDay.date)}` : ''}
               </p>
               <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
                 <div className="overflow-x-auto">

@@ -88,7 +88,7 @@ export function Component() {
         <Input
           value={newTitle}
           onChange={e => setNewTitle(e.target.value)}
-          placeholder="Neue Aufgabe — z. B. „Drehgenehmigung Stadtpark einholen“"
+          placeholder="Neue Aufgabe - z. B. „Drehgenehmigung Stadtpark einholen“"
           className="flex-1"
         />
         <Input
@@ -167,7 +167,7 @@ function TaskList({ tasks, onCycle, onDelete, muted }: {
           >
             <button
               onClick={() => onCycle(t)}
-              title={`Status: ${meta.label} — klicken für nächsten Schritt`}
+              title={`Status: ${meta.label} - klicken für nächsten Schritt`}
               className={cn('shrink-0 transition-transform duration-150 active:scale-[0.85]', meta.cls)}
             >
               <Icon className="w-[18px] h-[18px]" />

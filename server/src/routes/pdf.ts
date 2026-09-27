@@ -59,7 +59,7 @@ export function findInPuppeteerCache(cacheDir: string): string | undefined {
  * Railway (von puppeteer geladenes Chrome im Projekt-Cache) und in Nix-Images
  * (Chromium auf dem PATH).
  */
-/** Wo zuletzt gesucht wurde — geht in die Fehlermeldung, damit sie diagnostizierbar ist. */
+/** Wo zuletzt gesucht wurde - geht in die Fehlermeldung, damit sie diagnostizierbar ist. */
 let lastProbedPaths: string[] = []
 
 function resolveChromium(): string | undefined {
@@ -122,7 +122,7 @@ export interface PdfOptions {
   format?: 'A4' | 'Letter'
   /** Seitenränder. Achtung: übersteuert @page-margin aus dem CSS. */
   margin?: { top: string; bottom: string; left: string; right: string }
-  /** Querformat — für breite Layouts wie den Set-Plan. */
+  /** Querformat - für breite Layouts wie den Set-Plan. */
   landscape?: boolean
   /**
    * CutSheet-Fußzeile mit Seitenzahl. Standard true. Das Drehbuch schaltet sie
@@ -140,7 +140,7 @@ export async function generatePdf(html: string, opts?: PdfOptions): Promise<Buff
     headless: true,
     args: [
       // ACHTUNG: Kein --single-process und kein --no-zygote. Beide lassen den
-      // Renderer bei Page.printToPDF abstürzen ("Target closed") — der Grund,
+      // Renderer bei Page.printToPDF abstürzen ("Target closed") - der Grund,
       // weshalb sämtliche PDF-Exporte fehlgeschlagen sind.
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -224,11 +224,11 @@ function slug(value: string): string {
 }
 
 /**
- * PDF ausliefern — oder den Fehler als JSON melden, damit der Client ihn zeigen kann.
+ * PDF ausliefern - oder den Fehler als JSON melden, damit der Client ihn zeigen kann.
  *
  * Die generische Puppeteer-Fusszeile bleibt aus: renderDocument setzt eine eigene,
  * die zusaetzlich Projekt und Dokumentart nennt. Beide zusammen lagen im selben
- * Band uebereinander. Die Raender entsprechen der @page-Regel der Dokumenthuelle —
+ * Band uebereinander. Die Raender entsprechen der @page-Regel der Dokumenthuelle -
  * ein an page.pdf() uebergebener Rand uebersteuert das CSS.
  */
 async function sendPdf(res: Response, html: string, filename: string, opts?: PdfOptions) {
@@ -246,7 +246,7 @@ async function sendPdf(res: Response, html: string, filename: string, opts?: Pdf
   }
 }
 
-/** INT/EXT als Marke — auf einen Blick unterscheidbar. */
+/** INT/EXT als Marke - auf einen Blick unterscheidbar. */
 function ieBadge(value: string): string {
   return badge(String(value || '—'), String(value).toUpperCase() === 'INT' ? 'warn' : 'info')
 }
@@ -284,7 +284,7 @@ router.get('/projects/:projectId/pdf/drehplan', async (req: Request, res: Respon
     totalMinutes += dayMinutes
 
     dayParts.push(section(
-      `Drehtag ${day.day_number} — ${fmtDateLong(day.date)}`,
+      `Drehtag ${day.day_number} - ${fmtDateLong(day.date)}`,
       (day.notes ? definitions([{ label: 'Notiz', value: day.notes, wide: true }]) : '') +
       table({
         columns: [
@@ -304,7 +304,7 @@ router.get('/projects/:projectId/pdf/drehplan', async (req: Request, res: Respon
     ))
   }
 
-  // Was noch auf keinem Drehtag steht — beim Disponieren die eigentliche Frage
+  // Was noch auf keinem Drehtag steht - beim Disponieren die eigentliche Frage
   const unscheduled = await db.all(`
     SELECT s.*, l.name as location_name
     FROM scenes s
@@ -361,7 +361,7 @@ router.get('/projects/:projectId/pdf/drehplan', async (req: Request, res: Respon
     { watermark: req.query.watermark ? String(req.query.watermark) : undefined })
 })
 
-// Tagesdispo-HTML — geteilt zwischen PDF-Download-Route und Dispo-Versand
+// Tagesdispo-HTML - geteilt zwischen PDF-Download-Route und Dispo-Versand
 export async function buildTagesdispoHtml(dayId: number | string): Promise<{ html: string; day: any; sheet: any } | null> {
   const day = await db.get(
     'SELECT sd.*, p.title as project_title, p.id as project_id FROM shoot_days sd JOIN projects p ON sd.project_id = p.id WHERE sd.id = ?',
@@ -379,7 +379,7 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
     ? await db.all('SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC', [sheet.id]) as any[]
     : []
 
-  // Cast und Crew getrennt aufbereiten — auf dem Blatt stehen sie in
+  // Cast und Crew getrennt aufbereiten - auf dem Blatt stehen sie in
   // unterschiedlichen Tabellen mit unterschiedlichen Spalten
   const cast: any[] = []
   const crewCalls = new Map<number, number>()
@@ -423,7 +423,7 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
 
   const scenes = await loadScenes(dayId)
 
-  // Vorschau auf die naechsten beiden Drehtage — steht im Standard unten auf
+  // Vorschau auf die naechsten beiden Drehtage - steht im Standard unten auf
   // Seite 1, damit die Crew weiss, was auf sie zukommt
   const nextDays = await db.all(
     'SELECT * FROM shoot_days WHERE project_id = ? AND day_number > ? ORDER BY day_number ASC LIMIT 2',
@@ -516,7 +516,7 @@ router.get('/projects/:projectId/pdf/stabliste', async (req, res) => {
       { label: 'Produktion', value: project.producer },
       { label: 'Stand', value: fmtDate(new Date().toISOString()) },
     ],
-    footnote: 'Kontaktdaten — vertraulich, nur für den internen Gebrauch',
+    footnote: 'Kontaktdaten - vertraulich, nur für den internen Gebrauch',
     body: body || section('Stab', table({ columns, rows: [], empty: 'Noch keine Crew erfasst.' })),
   })
 
@@ -544,7 +544,7 @@ router.get('/projects/:projectId/pdf/besetzungsliste', async (req, res) => {
       { label: 'Regie', value: project.director },
       { label: 'Stand', value: fmtDate(new Date().toISOString()) },
     ],
-    footnote: 'Kontaktdaten — vertraulich, nur für den internen Gebrauch',
+    footnote: 'Kontaktdaten - vertraulich, nur für den internen Gebrauch',
     body: table({
       columns: [
         { header: 'Rolle', value: (r: any) => r.character_name, width: '20%' },
@@ -571,7 +571,7 @@ router.get('/projects/:projectId/pdf/motivliste', async (req, res) => {
 
   const totalFee = locs.reduce((sum: number, l: any) => sum + (Number(l.rental_fee) || 0), 0)
 
-  /** Adresse zusammensetzen — fehlende Teile weglassen statt "null, null" zu drucken. */
+  /** Adresse zusammensetzen - fehlende Teile weglassen statt "null, null" zu drucken. */
   const address = (l: any) => [l.address, [l.zip, l.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
 
   const html = renderDocument({
@@ -773,7 +773,7 @@ router.get('/projects/:projectId/pdf/shotlist', async (req, res) => {
 
   // Storyboards als Daten-URI einbetten: Der Druck laeuft in einem eigenen
   // Browser ohne Sitzung, ein Link auf /uploads/... bliebe leer. Fehlt eine
-  // Datei — auf Render ueberlebt der Speicher keinen Deploy —, bleibt das Feld
+  // Datei - auf Render ueberlebt der Speicher keinen Deploy -, bleibt das Feld
   // leer statt das PDF scheitern zu lassen.
   const storyboardDir = pathMod.join(__dirname, '../../uploads/storyboard')
   for (const shot of shots as any[]) {
@@ -949,7 +949,7 @@ router.get('/projects/:projectId/pdf/screenplay', async (req, res) => {
   try {
     const pdf = await generatePdf(html, {
       format: PAPER[paper].cssFormat as 'A4' | 'Letter',
-      // Die Geometrie steckt in den Seitenkästen — Chromium darf nichts addieren
+      // Die Geometrie steckt in den Seitenkästen - Chromium darf nichts addieren
       margin: { top: '0', bottom: '0', left: '0', right: '0' },
       footer: false,
     })

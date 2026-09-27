@@ -11,7 +11,7 @@ router.post('/scenes/:sceneId/ai-breakdown', async (req: Request, res: Response)
     if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      return res.status(503).json({ data: null, error: 'KI nicht konfiguriert — ANTHROPIC_API_KEY fehlt' })
+      return res.status(503).json({ data: null, error: 'KI nicht konfiguriert - ANTHROPIC_API_KEY fehlt' })
     }
 
     const { sceneId } = req.params

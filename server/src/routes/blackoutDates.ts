@@ -22,10 +22,10 @@ router.get('/projects/:projectId/cast/:castId/blackout-dates', async (req: Reque
   }
 })
 
-// GET /api/projects/:projectId/blackout-dates — all blackout dates, enriched with cast name
+// GET /api/projects/:projectId/blackout-dates - all blackout dates, enriched with cast name
 router.get('/projects/:projectId/blackout-dates', async (req: Request, res: Response) => {
   try {
-    // Handle the /conflicts sub-path — Express evaluates routes in order but this GET
+    // Handle the /conflicts sub-path - Express evaluates routes in order but this GET
     // is registered after the conflicts route, so the conflicts route will match first.
     const dates = await db.all(`
       SELECT cbd.*, c.actor_name as cast_name

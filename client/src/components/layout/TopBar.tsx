@@ -45,7 +45,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
     <header className={cn(
       'flex items-center h-[56px] px-3 md:px-5 border-b border-border bg-card/70 backdrop-blur-md gap-2 md:gap-4 shrink-0',
     )}>
-      {/* Navigation aufklappen — ersetzt am Telefon die feste Spalte */}
+      {/* Navigation aufklappen - ersetzt am Telefon die feste Spalte */}
       <button
         onClick={() => setMobileNav(true)}
         className="md:hidden w-9 h-9 -ml-2 flex items-center justify-center rounded-lg hover:bg-foreground/5 text-muted-foreground hover:text-foreground shrink-0"
@@ -79,7 +79,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
         )}
       </div>
 
-      {/* Next shoot day — the one number everyone on a production thinks in */}
+      {/* Next shoot day - the one number everyone on a production thinks in */}
       {daysUntilShoot !== null && daysUntilShoot >= 0 && (
         <button
           onClick={() => navigate(`/projects/${projectId}/tagesdispo`)}
@@ -94,9 +94,9 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
         >
           <Clapperboard className="w-3 h-3 shrink-0" />
           {daysUntilShoot === 0
-            ? `Drehtag ${stats.next_shoot_day.day_number} — HEUTE`
+            ? `Drehtag ${stats.next_shoot_day.day_number} - HEUTE`
             : daysUntilShoot === 1
-              ? `Drehtag ${stats.next_shoot_day.day_number} — morgen`
+              ? `Drehtag ${stats.next_shoot_day.day_number} - morgen`
               : `Drehtag ${stats.next_shoot_day.day_number} in ${daysUntilShoot} Tagen`}
         </button>
       )}

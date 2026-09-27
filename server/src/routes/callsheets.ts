@@ -99,7 +99,7 @@ router.post('/shoot-days/:dayId/call-sheet', async (req, res) => {
 
   if (existing) {
     // NOW() statt datetime("now"): Doppelte Anfuehrungszeichen sind in Postgres
-    // ein Bezeichner, keine Zeichenkette — das UPDATE lief in einen Fehler und
+    // ein Bezeichner, keine Zeichenkette - das UPDATE lief in einen Fehler und
     // jede Aenderung nach dem ersten Anlegen ging still verloren.
     await db.run(`
       UPDATE call_sheets SET
@@ -148,7 +148,7 @@ router.put('/call-sheets/:id/entries', async (req, res) => {
   res.json({ data: await getCallSheet(parseInt(req.params.id)), error: null })
 })
 
-// POST /api/call-sheets/:id/entries/add  — add a person not yet on the sheet
+// POST /api/call-sheets/:id/entries/add  - add a person not yet on the sheet
 router.post('/call-sheets/:id/entries/add', async (req, res) => {
   const { person_type, person_id, call_time = 480 } = req.body
   const sheet = await db.get('SELECT id FROM call_sheets WHERE id = ?', [req.params.id]) as any
@@ -175,7 +175,7 @@ router.post('/call-sheets/:id/shift-times', async (req, res) => {
   await db.run('UPDATE call_sheet_entries SET call_time = call_time + ? WHERE call_sheet_id = ?', [minutes, req.params.id])
   await db.run('UPDATE call_sheets SET general_call = general_call + ?, shooting_call = shooting_call + ?, updated_at = NOW() WHERE id = ?', [minutes, minutes, req.params.id])
 
-  // Crew sofort informieren — verschobene Drehbeginne sind die wichtigste Set-Info
+  // Crew sofort informieren - verschobene Drehbeginne sind die wichtigste Set-Info
   const ctx = await db.get(
     'SELECT sd.project_id, sd.day_number, sd.id as day_id FROM call_sheets cs JOIN shoot_days sd ON cs.shoot_day_id = sd.id WHERE cs.id = ?',
     [req.params.id]
@@ -191,7 +191,7 @@ router.post('/call-sheets/:id/shift-times', async (req, res) => {
   res.json({ data: await getCallSheet(parseInt(req.params.id)), error: null })
 })
 
-// POST /api/shoot-days/:dayId/call-sheet/send — Dispo per E-Mail an alle Beteiligten.
+// POST /api/shoot-days/:dayId/call-sheet/send - Dispo per E-Mail an alle Beteiligten.
 // Personalisierte Mail mit Call Time, Public-Link, Tracking-Pixel und PDF-Anhang.
 router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Response) => {
   const user = (req as any).user
@@ -258,7 +258,7 @@ router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Resp
   const base = appBaseUrl()
   const dateStr = day.date ? new Date(day.date).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 
-  // Versand in Batches à 5 — Teilfehler werden gesammelt, nicht verschluckt
+  // Versand in Batches à 5 - Teilfehler werden gesammelt, nicht verschluckt
   let sent = 0
   const failed: string[] = []
   for (let i = 0; i < recipients.length; i += 5) {
@@ -266,12 +266,12 @@ router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Resp
     const results = await Promise.allSettled(batch.map(async r => {
       await sendEmail({
         to: r.email,
-        subject: `Tagesdispo Drehtag ${day.day_number} — ${day.project_title}`,
+        subject: `Tagesdispo Drehtag ${day.day_number} - ${day.project_title}`,
         projectId: day.project_id,
         attachments: pdfBuffer ? [{ filename: `tagesdispo-tag${day.day_number}.pdf`, content: pdfBuffer }] : undefined,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:520px;">
-            <h2 style="color:#111;margin-bottom:4px;">Drehtag ${day.day_number} — ${day.project_title}</h2>
+            <h2 style="color:#111;margin-bottom:4px;">Drehtag ${day.day_number} - ${day.project_title}</h2>
             <p style="color:#6b7280;margin-top:0;">${dateStr}</p>
             <p>Hallo ${r.name},</p>
             <p>hier ist deine Tagesdisposition:</p>

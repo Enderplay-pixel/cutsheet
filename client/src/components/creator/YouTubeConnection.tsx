@@ -78,7 +78,7 @@ export function YouTubeConnection({ projectId }: { projectId: number }) {
 
   if (isLoading) return null
 
-  // Ohne Zugangsdaten auf dem Server ist nichts einzurichten — dann hilft nur
+  // Ohne Zugangsdaten auf dem Server ist nichts einzurichten - dann hilft nur
   // die Anleitung, kein toter Knopf
   if (!status?.configured) {
     return (
@@ -98,7 +98,7 @@ export function YouTubeConnection({ projectId }: { projectId: number }) {
         <div className="flex items-center gap-2 font-medium"><Youtube className="w-4 h-4 text-red-500" />YouTube-Anbindung</div>
         <p className="mt-2 mb-3 text-sm text-muted-foreground max-w-2xl">
           Verbinde deinen Kanal, dann holt CutSheet Aufrufe, Impressionen, Klickrate und die
-          Retention-Kurve automatisch — und legt sie über dein Skript, um zu zeigen,
+          Retention-Kurve automatisch - und legt sie über dein Skript, um zu zeigen,
           an welcher Stelle die Leute abspringen.
         </p>
         <Button size="sm" onClick={() => connect.mutate()} disabled={connect.isPending}>
@@ -171,7 +171,7 @@ export function YouTubeConnection({ projectId }: { projectId: number }) {
           )}
           {syncResult.unmatched?.length > 0 && (
             <div className="text-muted-foreground">
-              Ohne Zuordnung: {syncResult.unmatched.join(', ')} — unter „Zahlen“ das passende YouTube-Video auswählen.
+              Ohne Zuordnung: {syncResult.unmatched.join(', ')} - unter „Zahlen“ das passende YouTube-Video auswählen.
             </div>
           )}
         </div>

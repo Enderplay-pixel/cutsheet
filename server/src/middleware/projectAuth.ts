@@ -28,7 +28,7 @@ export async function getUserProjectRole(userId: number, projectId: number): Pro
 }
 
 /**
- * Express middleware — requires the requesting user to be a member of the project
+ * Express middleware - requires the requesting user to be a member of the project
  * identified by req.params.projectId. Global admins bypass the check.
  */
 export async function requireMember(req: Request, res: Response, next: NextFunction) {
@@ -49,7 +49,7 @@ export async function requireMember(req: Request, res: Response, next: NextFunct
 }
 
 /**
- * Wie requireMember, nur wird das Projekt aus einer Kind-Ressource aufgeloest —
+ * Wie requireMember, nur wird das Projekt aus einer Kind-Ressource aufgeloest -
  * Drehtag, Motiv, Kamerabericht.
  *
  * Noetig, weil projectWriteGuard GET-Anfragen bewusst durchlaesst und der

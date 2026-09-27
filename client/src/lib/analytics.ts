@@ -1,4 +1,4 @@
-// Produktanalytik via PostHog EU — komplett env-gated:
+// Produktanalytik via PostHog EU - komplett env-gated:
 // ohne VITE_POSTHOG_KEY ist jede Funktion ein No-op (kein Netzwerk-Call).
 import posthog from 'posthog-js'
 

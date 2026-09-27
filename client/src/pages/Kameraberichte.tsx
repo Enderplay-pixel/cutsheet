@@ -289,7 +289,7 @@ function CameraReport({ report, onDelete }: { report: any; onDelete: () => void 
                 {(takes || []).length === 0 && (
                   <tr>
                     <td colSpan={10} className="text-center py-8 text-muted-foreground/40 text-xs">
-                      Noch keine Takes — füge den ersten hinzu
+                      Noch keine Takes - füge den ersten hinzu
                     </td>
                   </tr>
                 )}
@@ -370,7 +370,7 @@ export function Component() {
         </Button>
       </div>
 
-      {/* Stats row — only when day is selected and reports loaded */}
+      {/* Stats row - only when day is selected and reports loaded */}
       {selectedDayId && !reportsLoading && totalReports > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
           <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group">

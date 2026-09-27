@@ -8,7 +8,7 @@ import {
 
 const router = Router()
 
-// Sides enthalten Drehbuchinhalt — nur fuer Projektbeteiligte
+// Sides enthalten Drehbuchinhalt - nur fuer Projektbeteiligte
 router.use('/shoot-days/:dayId', requireMemberVia(projectIdFromTable('shoot_days', 'dayId')))
 
 function resolveChromium(): string | undefined {
@@ -40,7 +40,7 @@ function resolveChromium(): string | undefined {
 
 
 /**
- * Sides sind Auszuege aus dem Drehbuch — also werden sie auch wie Drehbuch
+ * Sides sind Auszuege aus dem Drehbuch - also werden sie auch wie Drehbuch
  * gesetzt. Frueher brachten sie eigenes CSS mit px-Groessen und Prozentraendern
  * mit; Schriftbild und Zeilenraster wichen dadurch vom Drehbuch ab, aus dem sie
  * stammen. Jetzt laeuft beides durch denselben Satz.

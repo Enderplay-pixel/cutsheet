@@ -49,7 +49,7 @@ router.post('/projects/:projectId/scenes/:sceneId/comments', async (req: Request
   }
 })
 
-// PATCH /api/comments/:id/resolve — toggle resolved
+// PATCH /api/comments/:id/resolve - toggle resolved
 router.patch('/comments/:id/resolve', async (req: Request, res: Response) => {
   try {
     const user = (req as any).user

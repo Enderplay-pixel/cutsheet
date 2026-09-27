@@ -63,7 +63,7 @@ router.get('/locations/:id/release/pdf', async (req: Request, res: Response) => 
 
   const shootDates = release ? JSON.parse(release.shoot_dates || '[]') : []
 
-  // Adressteile einzeln zusammensetzen — fehlende Angaben duerfen im Vertrag
+  // Adressteile einzeln zusammensetzen - fehlende Angaben duerfen im Vertrag
   // nicht als "null" stehen
   const addr = [location.address, [location.zip, location.city].filter(Boolean).join(' ')]
     .filter(Boolean).join(', ')

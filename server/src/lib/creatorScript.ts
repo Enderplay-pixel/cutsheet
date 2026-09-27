@@ -2,7 +2,7 @@
  * Creator-Modus: Logik für YouTube-/Content-Videos.
  *
  * Ein Video ist kein Drehbuch. Es gibt keine Szenen mit INT./EXT. und keine
- * "eine Seite ≈ eine Minute"-Regel — die Länge ergibt sich aus dem gesprochenen
+ * "eine Seite ≈ eine Minute"-Regel - die Länge ergibt sich aus dem gesprochenen
  * Text. Deshalb rechnet dieses Modul in Wörtern und Sekunden statt in Seiten,
  * und die Gliederung folgt der YouTube-Dramaturgie statt dem Master Scene
  * Format.
@@ -23,7 +23,7 @@ export const SECTION_LABELS: Record<SectionKind, string> = {
   outro: 'Outro',
 }
 
-/** Vorlage für ein neues Video — die übliche Abfolge. */
+/** Vorlage für ein neues Video - die übliche Abfolge. */
 export const DEFAULT_SECTIONS: Array<{ kind: SectionKind; heading: string; target_seconds: number }> = [
   { kind: 'hook', heading: 'Hook', target_seconds: 15 },
   { kind: 'intro', heading: 'Intro', target_seconds: 30 },
@@ -210,7 +210,7 @@ export interface CreatorVideoInfo {
 
 /**
  * Zweispaltiges Creator-Skript: links der gesprochene Text, rechts B-Roll und
- * Einblendungen — das Layout, mit dem Creator tatsächlich drehen und schneiden.
+ * Einblendungen - das Layout, mit dem Creator tatsächlich drehen und schneiden.
  * Dahinter das Upload-Paket auf einer eigenen Seite.
  */
 export function renderCreatorScriptHtml(
@@ -219,7 +219,7 @@ export function renderCreatorScriptHtml(
   opts: {
     wpm?: number
     projectTitle?: string
-    /** Verwendetes Material mit Lizenz — fuer die Rechteseite. */
+    /** Verwendetes Material mit Lizenz - fuer die Rechteseite. */
     assets?: Array<{ kind?: string; name?: string; source?: string; license?: string; claim_risk?: string }>
     /** Geplante Auskopplungen fuer Shorts und Reels. */
     clips?: Array<{ title?: string; start_seconds?: number; end_seconds?: number; platform?: string; status?: string }>

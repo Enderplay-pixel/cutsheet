@@ -21,7 +21,7 @@ function filenameFromDisposition(header: string | null): string | null {
 /**
  * Lädt eine geschützte Server-Datei (PDF, CSV, ICS …) herunter.
  *
- * Ein `<a href>` kann keinen Authorization-Header mitschicken — deshalb liefen
+ * Ein `<a href>` kann keinen Authorization-Header mitschicken - deshalb liefen
  * alle Export-Links in ein "Nicht authentifiziert" des Servers. Wir holen die
  * Datei per fetch mit Token und geben sie als Blob-URL an den Browser weiter.
  */
@@ -41,7 +41,7 @@ export function useDownload() {
         try {
           const body = await res.json()
           if (body?.error) message = String(body.error)
-        } catch { /* keine JSON-Antwort — Statuscode genügt */ }
+        } catch { /* keine JSON-Antwort - Statuscode genügt */ }
         throw new Error(message)
       }
 

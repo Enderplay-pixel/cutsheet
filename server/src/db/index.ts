@@ -24,7 +24,7 @@ export function toPg(sql: string): string {
     // der Tagesdispo gescheitert.
     .replace(/datetime\("now"\)/gi, 'NOW()')
     .replace(/\bdate\('now'\)/gi, 'CURRENT_DATE')
-    // Quote 'cast' table/column references — reserved word in PostgreSQL.
+    // Quote 'cast' table/column references - reserved word in PostgreSQL.
     // Negative lookbehind skips already-quoted "cast"; negative lookahead skips CAST( function calls.
     .replace(/(?<!")\bcast\b(?!\()/gi, '"cast"')
     .replace(/\?/g, () => `$${++i}`)
@@ -807,7 +807,7 @@ export async function initDatabase() {
     EXCEPTION WHEN duplicate_object THEN NULL; END $$;
   `)
 
-  // Add new columns — each in its own exec() call to avoid multi-statement issues
+  // Add new columns - each in its own exec() call to avoid multi-statement issues
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS checked_in BOOLEAN DEFAULT false`)
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS checked_in_at TIMESTAMPTZ`)
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ`)
@@ -901,7 +901,7 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS keyword TEXT NOT NULL DEFAULT ''`)
   await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS video_url TEXT NOT NULL DEFAULT ''`)
   await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS published_at TEXT`)
-  // Performance wird von Hand gepflegt — es gibt keine YouTube-API-Anbindung
+  // Performance wird von Hand gepflegt - es gibt keine YouTube-API-Anbindung
   await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS views INTEGER NOT NULL DEFAULT 0`)
   await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS impressions INTEGER NOT NULL DEFAULT 0`)
   await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS avg_view_seconds INTEGER NOT NULL DEFAULT 0`)
@@ -993,7 +993,7 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS retention_curve TEXT NOT NULL DEFAULT ''`)
   await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS synced_at TIMESTAMPTZ`)
   // Echte Videolaenge von YouTube. Die Schaetzung aus dem Sprechtext weicht ab,
-  // sobald geschnitten wurde — fuer die Retention-Zuordnung zaehlt die echte.
+  // sobald geschnitten wurde - fuer die Retention-Zuordnung zaehlt die echte.
   await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS duration_seconds INTEGER NOT NULL DEFAULT 0`)
   await db.exec(`ALTER TABLE creator_videos ADD COLUMN IF NOT EXISTS imported_from_youtube BOOLEAN NOT NULL DEFAULT false`)
   // Beim Abgleich uebersprungene Videos: Wer ein importiertes Video loescht,
@@ -1124,7 +1124,7 @@ export async function initDatabase() {
     )
   `)
 
-  // Check if empty — seed demo data on first run
+  // Check if empty - seed demo data on first run
   const count = await db.get('SELECT COUNT(*) as c FROM projects')
   if (!count || Number(count.c) === 0) {
     await seedDemoData()
@@ -1407,7 +1407,7 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
   const shotsData: Array<[number, string, string, string, string, number, string, number]> = [
     [sceneIds[0], 'E1', 'Totale', 'Statisch', '35mm', 0, 'Andi allein am Tisch, Fenster im Hintergrund', 8],
     [sceneIds[0], 'E2', 'Nahe', 'Statisch', '85mm', 1, 'Close auf leeres Notizbuch', 4],
-    [sceneIds[0], 'E3', 'Groß', 'Statisch', '85mm', 2, 'Andis Gesicht — leerer Blick', 5],
+    [sceneIds[0], 'E3', 'Groß', 'Statisch', '85mm', 2, 'Andis Gesicht - leerer Blick', 5],
     [sceneIds[3], 'E1', 'Halbnahe', 'Statisch', '50mm', 0, 'Andi öffnet die Tür', 6],
     [sceneIds[3], 'E2', 'Schuss-Gegenschuss', 'Statisch', '85mm', 1, 'Blick von Mia auf Andi', 5],
     [sceneIds[3], 'E3', 'Schuss-Gegenschuss', 'Statisch', '85mm', 2, 'Blick von Andi auf Mia', 5],
@@ -1457,25 +1457,25 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
     [dayId1, 420, 495, 750, 810, 1110,
      2, 12, 2, 2,
      'Sehr produktiver Drehtag. Szenen 1-4 komplett abgedreht. Felix Wagner hat hervorragende Arbeit geleistet.',
-     'Parkplätze waren knapp — für Tag 2 Alternativparkplatz organisieren.']
+     'Parkplätze waren knapp - für Tag 2 Alternativparkplatz organisieren.']
   )
 
   // Screenplay blocks (Drehbuch-Editor)
   const blocksByScene: Array<[number, string, string]>[] = [
     [ // Szene 1
-      [sceneIds[0], 'scene_heading', 'INNEN. ANDIS WOHNKÜCHE — TAG'],
+      [sceneIds[0], 'scene_heading', 'INNEN. ANDIS WOHNKÜCHE - TAG'],
       [sceneIds[0], 'action', 'Die Küche ist klein und ordentlich. Morgenlicht fällt durchs Fenster. ANDI (28) sitzt reglos am Tisch. Vor ihm: eine Tasse Kaffee, die längst kalt ist. Ein leeres Notizbuch.'],
       [sceneIds[0], 'action', 'Er starrt auf das Notizbuch. Seine Hand liegt daneben, rührt sich nicht.'],
     ],
     [ // Szene 4
-      [sceneIds[3], 'scene_heading', 'INNEN. ANDIS WOHNUNGSTÜR — TAG'],
+      [sceneIds[3], 'scene_heading', 'INNEN. ANDIS WOHNUNGSTÜR - TAG'],
       [sceneIds[3], 'action', 'Die Tür öffnet sich einen Spalt. Andi schaut durch den Spalt. MIA (30) steht im Treppenhaus, hält eine kleine Pflanze.'],
       [sceneIds[3], 'character', 'MIA'],
       [sceneIds[3], 'dialogue', 'Ich dachte, vielleicht... wäre das etwas für dich. Eine Pflanze. Die braucht nicht viel.'],
       [sceneIds[3], 'action', 'Andi sagt nichts. Schaut auf die Pflanze.'],
     ],
     [ // Szene 5
-      [sceneIds[4], 'scene_heading', 'AUSSEN. ENGLISCHER GARTEN, BANK — TAG'],
+      [sceneIds[4], 'scene_heading', 'AUSSEN. ENGLISCHER GARTEN, BANK - TAG'],
       [sceneIds[4], 'action', 'Eine Bank am Teich. Andi schreibt in sein Notizbuch. Mia sitzt daneben, liest ein Buch. Keine Worte nötig.'],
       [sceneIds[4], 'action', 'Er dreht das Notizbuch, zeigt ihr eine Zeichnung. Sie lächelt.'],
     ],
@@ -1491,7 +1491,7 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
     }
   }
 
-  // Sticky notes (Pinboard) — schema: content, color, position_x, position_y (no title)
+  // Sticky notes (Pinboard) - schema: content, color, position_x, position_y (no title)
   const stickyData = [
     ['Englischer Garten Genehmigung noch ausstehend! Lars kümmert sich darum.', '#f59e0b', 0, 0],
     ['Vegane Option für Anna Schmidt (Hauptdarstellerin) nicht vergessen!', '#3b82f6', 220, 0],
@@ -1505,10 +1505,10 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
     )
   }
 
-  // VFX shots — schema columns: shot_number, description, vfx_type, status, artist, deadline, complexity, notes
+  // VFX shots - schema columns: shot_number, description, vfx_type, status, artist, deadline, complexity, notes
   const vfxShots = [
     ['VFX-001', sceneIds[5], 'Regen wird digital hinzugefügt', 'Compositing', 'Offen', '', '2026-07-01', 'Mittel', ''],
-    ['VFX-002', sceneIds[0], 'Außenblick durchs Fenster — digitale Erweiterung', 'Matte Painting', 'Offen', '', '2026-07-15', 'Niedrig', ''],
+    ['VFX-002', sceneIds[0], 'Außenblick durchs Fenster - digitale Erweiterung', 'Matte Painting', 'Offen', '', '2026-07-15', 'Niedrig', ''],
   ]
   for (const [shotNum, sceneId, desc, vfxType, status, artist, deadline, complexity, notesTxt] of vfxShots) {
     await db.run(
@@ -1517,7 +1517,7 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
     )
   }
 
-  // Post-production phases — schema column is "phase" not "name"
+  // Post-production phases - schema column is "phase" not "name"
   const postPhases = [
     ['Rohschnitt', '2026-06-20', '2026-07-10', 'Maria Sommer', 'Laufend', 'Offline-Schnitt mit DaVinci Resolve'],
     ['Feinschnitt', '2026-07-11', '2026-07-18', 'Ben Richter', 'Ausstehend', 'Online-Grading nach Schnittabnahme'],
@@ -1533,9 +1533,9 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
     )
   }
 
-  // Music cues — duration_seconds is INTEGER, no sort_order column
+  // Music cues - duration_seconds is INTEGER, no sort_order column
   const musicCues = [
-    ['Andis Morgen', 'Erik Satie', 'Satie Estate', 'Original', 'Unterlegt', 135, 'GEMA-pflichtig — Lizenz klären'],
+    ['Andis Morgen', 'Erik Satie', 'Satie Estate', 'Original', 'Unterlegt', 135, 'GEMA-pflichtig - Lizenz klären'],
     ['Parkszene', '', '', 'Original', 'Atmo', 220, 'Nur Umgebungsgeräusche, keine Musik'],
     ['Abspann', 'Ben Richter', 'Eigenkomposition', 'Original', 'Unterlegt', 90, 'Auftragskomposition'],
   ]
@@ -1560,7 +1560,7 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
     )
   }
 
-  // Vehicles — schema: name, license_plate, type, capacity, driver_name, driver_phone, notes
+  // Vehicles - schema: name, license_plate, type, capacity, driver_name, driver_phone, notes
   const vehicles = [
     ['Produktionsbus', 'M-BP-2026', 'Transporter', 9, 'Lars Weber', '0178 8888888', 'Equipment-Transport, Mietwagen Sixt'],
     ['Regiefahrzeug', 'M-RG-445', 'PKW', 5, 'Sarah Müller', '0172 1111111', 'Privatwagen Regie'],
@@ -1573,7 +1573,7 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
     )
   }
 
-  // Extras — schema: name, phone, email, tariff_group, notes
+  // Extras - schema: name, phone, email, tariff_group, notes
   const extras = [
     ['Thomas Meier', '0160 1112233', 'thomas.meier@gmail.com', 'Standard', 'Café-Gast, 17. Juni'],
     ['Sabine Koch', '0161 4445566', 'sabine.k@web.de', 'Standard', 'Café-Gast, 17. Juni'],
@@ -1587,7 +1587,7 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
     )
   }
 
-  // Camera presets — schema: name, camera, lenses, notes
+  // Camera presets - schema: name, camera, lenses, notes
   const presets = [
     ['Standard Dialog', 'Sony FX3', '50mm T2.8', 'A-Kamera Dialog-Einstellungen, ISO 800'],
     ['Totale Außen', 'Sony FX3', '35mm T4', 'Standard für Außentotalen, ISO 400'],

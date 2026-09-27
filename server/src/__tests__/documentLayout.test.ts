@@ -11,7 +11,7 @@ describe('Formatierung', () => {
   })
 
   it('markiert fehlende Betraege statt 0 zu behaupten', () => {
-    // Number(null) ist 0 — auf einem Kalkulationsblatt waere "0,00 €" eine
+    // Number(null) ist 0 - auf einem Kalkulationsblatt waere "0,00 €" eine
     // Behauptung, wo in Wahrheit nichts erfasst ist
     expect(fmtMoney(null)).toBe('—')
     expect(fmtMoney(undefined)).toBe('—')

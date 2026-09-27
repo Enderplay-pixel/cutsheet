@@ -204,7 +204,7 @@ function StepTeam({
   )
 }
 
-// ─── Step 4: Drehbuch importieren — der Aha-Moment ──────────────────────────
+// ─── Step 4: Drehbuch importieren - der Aha-Moment ──────────────────────────
 function StepDrehbuch({ projectId, onDone, onSkip }: {
   projectId: number
   onDone: (result: { scenes_created: number; blocks_created: number }) => void
@@ -240,7 +240,7 @@ function StepDrehbuch({ projectId, onDone, onSkip }: {
         </div>
         <div>
           <h2 className="text-base font-semibold">Drehbuch importieren</h2>
-          <p className="text-xs text-muted-foreground">Final Draft, Celtx oder Fountain — Szenen entstehen automatisch.</p>
+          <p className="text-xs text-muted-foreground">Final Draft, Celtx oder Fountain - Szenen entstehen automatisch.</p>
         </div>
       </div>
 
@@ -286,7 +286,7 @@ function StepDrehbuch({ projectId, onDone, onSkip }: {
             onClick={onSkip}
             className="mt-5 w-full text-center text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
           >
-            Überspringen — ich lege Szenen später an
+            Überspringen - ich lege Szenen später an
           </button>
         </>
       )}
@@ -337,9 +337,22 @@ function StepFertig({ title, importResult, onGo }: {
 }
 
 // ─── Main Component ──────────────────────────────────────────────────────────
-export function OnboardingWizard() {
+/**
+ * Der Einstiegsassistent legt das erste Projekt an.
+ *
+ * Gemessen am 27.09.2026 mit einem frisch registrierten Konto: er stand
+ * GLEICHZEITIG mit dem sechsschrittigen Willkommensfenster offen - zwei
+ * Begrüßungen übereinander, die obere verdeckte die untere. Ursache waren
+ * zwei voneinander unabhängige Erstlauf-Schalter.
+ *
+ * Dazu hing sein Kennzeichen am Browser, nicht am Konto: das zweite Konto in
+ * demselben Browser sah ihn nie, ein bestehendes Konto in einem neuen
+ * Browser dafür wieder - auch mit zwanzig Projekten.
+ */
+export function OnboardingWizard({ kontoId }: { kontoId?: number }) {
   const navigate = useNavigate()
-  const [open, setOpen] = useState(() => localStorage.getItem('onboarding_done') !== '1')
+  const schluessel = `onboarding_done_${kontoId ?? 'unbekannt'}`
+  const [open, setOpen] = useState(() => localStorage.getItem(schluessel) !== '1')
   const [step, setStep] = useState(0)
   const [createdProjectId, setCreatedProjectId] = useState<number | null>(null)
   const [importResult, setImportResult] = useState<{ scenes_created: number; blocks_created: number } | null>(null)
@@ -365,7 +378,7 @@ export function OnboardingWizard() {
   }
 
   const handleSkip = () => {
-    localStorage.setItem('onboarding_done', '1')
+    localStorage.setItem(schluessel, '1')
     setOpen(false)
   }
 
@@ -374,7 +387,7 @@ export function OnboardingWizard() {
   }
 
   const handleGoToDashboard = () => {
-    localStorage.setItem('onboarding_done', '1')
+    localStorage.setItem(schluessel, '1')
     setOpen(false)
     if (createdProjectId) {
       navigate(importResult

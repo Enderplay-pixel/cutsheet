@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { OnboardingWizard } from '@/components/OnboardingWizard'
 import { useT } from '@/lib/useT'
 import { projectsT, uiT } from '@/lib/i18n'
+import { useAuth } from '@/contexts/AuthContext'
 
 const STATUS_META: Record<string, { text: string; bg: string; border: string; dot: string }> = {
   'Entwicklung':    { text: 'text-zinc-400',   bg: 'bg-zinc-400/8',   border: 'border-l-zinc-500/60',   dot: 'bg-zinc-400' },
@@ -30,7 +31,7 @@ const FORMATS = ALL_FORMATS
 
 /**
  * Icon je Projektart. Film und Content sehen in der Liste sonst gleich aus,
- * obwohl dahinter voellig verschiedene Arbeitsweisen stecken — und wer beides
+ * obwohl dahinter voellig verschiedene Arbeitsweisen stecken - und wer beides
  * macht, sucht sonst in einer gemischten Liste.
  */
 function projectIcon(project: any) {
@@ -56,7 +57,7 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
     onSuccess: (project) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       toast({ title: 'Projekt erstellt' })
-      // Creator-Projekte starten bei den Videos — das Film-Dashboard zeigt
+      // Creator-Projekte starten bei den Videos - das Film-Dashboard zeigt
       // Drehtage und Dispo, die es dort nicht gibt.
       const isCreator = isCreatorProject(project) || isCreatorFormat(form.format)
       navigate(isCreator ? `/projects/${project.id}/creator` : `/projects/${project.id}`)
@@ -128,6 +129,18 @@ export function Component() {
     queryKey: ['projects', showArchived],
     queryFn: () => api.projects.list(showArchived),
   })
+
+  // Das Willkommensfenster laeuft genau dann, wenn App.tsx es oeffnet:
+  // frisch registriert und noch nicht gesehen. Derselbe Schluessel, damit die
+  // beiden Erstlauf-Fenster nicht uebereinander stehen.
+  const { user, justRegistered } = useAuth()
+  const tutorialLaeuft = !!user && justRegistered
+    && !localStorage.getItem(`cutsheet-tutorial-seen-${user.id}`)
+  // Das Demoprojekt zaehlt nicht als eigenes: wer nur das hat, steht noch am
+  // Anfang und soll den Assistenten bekommen.
+  const zeigeAssistent = !!user && !tutorialLaeuft && !isLoading
+    && Array.isArray(projects)
+    && (projects as any[]).filter(p => !p.is_demo).length === 0
 
   const duplicateMutation = useMutation({
     mutationFn: (id: number) => api.projects.duplicate(id),
@@ -255,7 +268,7 @@ export function Component() {
                       {project.is_demo && (
                         <span
                           className="text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 bg-info/15 text-info border border-info/25"
-                          title="Demo-Projekt zum Ausprobieren — kann jederzeit gelöscht werden"
+                          title="Demo-Projekt zum Ausprobieren - kann jederzeit gelöscht werden"
                         >
                           Demo
                         </span>
@@ -322,7 +335,13 @@ export function Component() {
       </div>
 
       <NewProjectDialog open={showNew} onClose={() => setShowNew(false)} />
-      <OnboardingWizard />
+      {/*
+        Nur fuer ein Konto ohne Projekte - und nicht, solange das
+        Willkommensfenster laeuft. Vorher standen beide uebereinander, und der
+        Assistent erschien auch jemandem mit zwanzig Projekten, sobald er den
+        Browser wechselte.
+      */}
+      {zeigeAssistent && <OnboardingWizard kontoId={user?.id} />}
     </div>
   )
 }

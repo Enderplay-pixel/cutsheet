@@ -2,8 +2,8 @@
  * Auflösung & Shotlist.
  *
  * Die Liste hat zwei Leser mit verschiedenen Fragen. In der Vorbereitung fragt
- * die Regie "wie löse ich diese Szene auf?" — dafür wird nach Szene gruppiert.
- * Am Drehtag fragt die Kamera "was steht heute an?" — dafür nach Drehtag. Beides
+ * die Regie "wie löse ich diese Szene auf?" - dafür wird nach Szene gruppiert.
+ * Am Drehtag fragt die Kamera "was steht heute an?" - dafür nach Drehtag. Beides
  * ist dieselbe Liste, nur anders gebündelt.
  *
  * Was frueher fehlte und auf jeder Shotlist der Branche steht: das Storyboard,
@@ -30,10 +30,10 @@ export interface Shot {
   notes: string | null
   duration_seconds: number | null
   done: number | boolean | null
-  /** Circle Take — Freitext, in der Praxis steht auch "3, 5" darin. */
+  /** Circle Take - Freitext, in der Praxis steht auch "3, 5" darin. */
   best_take?: string | null
   sort_order: number
-  /** Als Daten-URI eingebettet — ein Link auf /uploads/… bliebe im Druck leer. */
+  /** Als Daten-URI eingebettet - ein Link auf /uploads/… bliebe im Druck leer. */
   storyboard?: string | null
 }
 
@@ -67,7 +67,7 @@ export interface ShotGroup {
 const seconds = (shot: Shot) => Number(shot.duration_seconds) || 0
 const isDone = (shot: Shot) => Boolean(shot.done)
 
-/** Materiallänge einer Gruppe in Minuten — die Tabelle rechnet in Sekunden. */
+/** Materiallänge einer Gruppe in Minuten - die Tabelle rechnet in Sekunden. */
 export function totalMinutes(shots: Shot[]): number {
   return Math.round(shots.reduce((sum, s) => sum + seconds(s), 0) / 60)
 }
@@ -81,7 +81,7 @@ export function summarise(shots: Shot[]): string {
   return parts.join(' · ')
 }
 
-/** Einordnung einer Szene: INT/EXT, Tag/Nacht, Motiv — jeweils nur wenn erfasst. */
+/** Einordnung einer Szene: INT/EXT, Tag/Nacht, Motiv - jeweils nur wenn erfasst. */
 export function sceneContext(scene: Scene): string {
   return [scene.int_ext, scene.day_night, scene.location_name]
     .map(v => String(v ?? '').trim())
@@ -92,7 +92,7 @@ export function sceneContext(scene: Scene): string {
 /**
  * Einstellungen bündeln.
  *
- * Gruppen ohne Einstellungen fallen weg — eine Szene, die noch nicht aufgelöst
+ * Gruppen ohne Einstellungen fallen weg - eine Szene, die noch nicht aufgelöst
  * ist, braucht keine leere Tabelle. Was keiner Gruppe zugeordnet ist, kommt
  * ans Ende: übersehen wäre schlimmer als unsortiert.
  */
@@ -156,13 +156,13 @@ export function groupShots(shots: Shot[], scenes: Scene[], days: ShootDay[], mod
 /** Nur die tatsächlich verwendeten Abkürzungen erklären. */
 export function legend(shots: Shot[]): Array<{ code: string; text: string }> {
   const bedeutung: Record<string, string> = {
-    ECU: 'Extreme Close-Up — Detail',
-    CU: 'Close-Up — Nah',
-    MCU: 'Medium Close-Up — Groß',
-    MS: 'Medium Shot — Halbnah',
-    MWS: 'Medium Wide Shot — Halbtotale',
-    WS: 'Wide Shot — Totale',
-    EWS: 'Extreme Wide Shot — Weite Totale',
+    ECU: 'Extreme Close-Up - Detail',
+    CU: 'Close-Up - Nah',
+    MCU: 'Medium Close-Up - Groß',
+    MS: 'Medium Shot - Halbnah',
+    MWS: 'Medium Wide Shot - Halbtotale',
+    WS: 'Wide Shot - Totale',
+    EWS: 'Extreme Wide Shot - Weite Totale',
   }
   const used = new Set(shots.map(s => String(s.size ?? '').trim()).filter(Boolean))
   return Object.entries(bedeutung)
@@ -175,7 +175,7 @@ function esc(value: any): string {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-/** Beschreibung und Notiz in einer Zelle — die Notiz gehört zur Einstellung. */
+/** Beschreibung und Notiz in einer Zelle - die Notiz gehört zur Einstellung. */
 function shotCell(shot: Shot): string {
   const beschreibung = String(shot.description ?? '').trim()
   const notiz = String(shot.notes ?? '').trim()
@@ -267,7 +267,7 @@ export function renderShotlistHtml(opts: ShotlistOptions): string {
   )
 
   // Bester Take: nach Drehtag gebuendelt immer, denn dort wird er am Set von
-  // Hand eingetragen — ein Strich waere da im Weg. Sonst nur, wenn es ihn gibt.
+  // Hand eingetragen - ein Strich waere da im Weg. Sonst nur, wenn es ihn gibt.
   if (mode === 'drehtag' || allShots.some(s => String(s.best_take ?? '').trim())) {
     columns.push({
       header: 'Bester Take',

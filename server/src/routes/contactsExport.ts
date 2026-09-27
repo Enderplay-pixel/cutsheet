@@ -37,7 +37,7 @@ async function collectContacts(projectId: string | number): Promise<Contact[]> {
 
 const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n')
 
-// GET /api/projects/:projectId/kontakte/export.vcf — vCard 3.0 (PreProducer-Parität)
+// GET /api/projects/:projectId/kontakte/export.vcf - vCard 3.0 (PreProducer-Parität)
 router.get('/projects/:projectId/kontakte/export.vcf', requireAuth, requireMember, async (req: Request, res: Response) => {
   const project = await db.get('SELECT title FROM projects WHERE id = ?', [req.params.projectId]) as any
   const contacts = await collectContacts(req.params.projectId)

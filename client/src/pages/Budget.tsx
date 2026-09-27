@@ -309,7 +309,7 @@ export function Component() {
 
         {/* ── KALKULATION ── */}
         <TabsContent value="kalkulation" className="space-y-4 mt-4">
-          {/* Fassungswahl links, Summe und Werkzeuge rechts — am Telefon
+          {/* Fassungswahl links, Summe und Werkzeuge rechts - am Telefon
               untereinander, sonst beginnt die Werkzeugleiste bei x=232 */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">

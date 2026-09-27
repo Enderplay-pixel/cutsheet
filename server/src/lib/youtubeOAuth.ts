@@ -160,7 +160,7 @@ export async function refreshAccessToken(
 
   if (!json?.access_token) throw new Error('Google lieferte kein Zugriffstoken zurück.')
   return {
-    // Beim Refresh schickt Google kein neues Refresh-Token — das alte gilt weiter
+    // Beim Refresh schickt Google kein neues Refresh-Token - das alte gilt weiter
     accessToken: json.access_token,
     refreshToken: json.refresh_token ?? null,
     expiresAt: Date.now() + (Number(json.expires_in) || 3600) * 1000,
@@ -172,7 +172,7 @@ export async function revokeToken(token: string, fetchImpl: FetchLike = fetch as
   try {
     await postForm(REVOKE_ENDPOINT, { token }, fetchImpl)
   } catch {
-    // Ein bereits abgelaufenes Token laesst sich nicht widerrufen — das ist kein
+    // Ein bereits abgelaufenes Token laesst sich nicht widerrufen - das ist kein
     // Grund, das Trennen scheitern zu lassen
   }
 }
@@ -186,7 +186,7 @@ export async function revokeToken(token: string, fetchImpl: FetchLike = fetch as
  */
 function encryptionKey(): Buffer {
   const secret = process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET
-  if (!secret) throw new Error('Weder TOKEN_ENCRYPTION_KEY noch JWT_SECRET gesetzt — Tokens können nicht sicher gespeichert werden.')
+  if (!secret) throw new Error('Weder TOKEN_ENCRYPTION_KEY noch JWT_SECRET gesetzt - Tokens können nicht sicher gespeichert werden.')
   return crypto.scryptSync(secret, 'cutsheet-youtube-token', 32)
 }
 
@@ -265,7 +265,7 @@ export interface VideoMetrics {
 
 /**
  * Kennzahlen je Video ueber einen Zeitraum. Impressionen und Klickrate liegen
- * in einer eigenen Metrikgruppe, die nicht jeder Kanal freigeschaltet hat —
+ * in einer eigenen Metrikgruppe, die nicht jeder Kanal freigeschaltet hat -
  * deshalb werden sie getrennt geholt und duerfen fehlen.
  */
 export async function fetchVideoMetrics(
@@ -341,7 +341,7 @@ export interface ChannelVideo {
  * Alle Videos des eigenen Kanals mit Titel.
  *
  * Der Weg fuehrt ueber die Uploads-Playlist: Die Analytics API liefert nur
- * Video-IDs und Zahlen, aber keine Titel — die braucht es aber, um die Videos
+ * Video-IDs und Zahlen, aber keine Titel - die braucht es aber, um die Videos
  * den CutSheet-Eintraegen zuzuordnen.
  */
 export async function fetchChannelVideos(
@@ -387,7 +387,7 @@ export async function fetchChannelVideos(
  *
  * YouTube liefert Videolaengen ausschliesslich in diesem Format. Die echte
  * Laenge ist wichtig, weil sich sonst nur die aus dem Sprechtext geschaetzte
- * Dauer verwenden laesst — und die weicht ab, sobald geschnitten wurde.
+ * Dauer verwenden laesst - und die weicht ab, sobald geschnitten wurde.
  */
 export function parseIsoDuration(value: string): number {
   const m = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/.exec(String(value ?? '').trim())

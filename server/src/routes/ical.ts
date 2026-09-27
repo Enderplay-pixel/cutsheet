@@ -133,7 +133,7 @@ async function appendCallEntries(
     cal.createEvent({
       start,
       end,
-      summary: `Call Time — ${personType === 'cast' ? 'Darsteller' : 'Crew'}`,
+      summary: `Call Time - ${personType === 'cast' ? 'Darsteller' : 'Crew'}`,
       description: entry.notes || entry.pickup_location || '',
       allDay: false,
     })

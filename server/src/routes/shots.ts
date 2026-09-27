@@ -54,7 +54,7 @@ router.put('/shots/:id', async (req, res) => {
   res.json({ data: await db.get('SELECT * FROM shots WHERE id = ?', [req.params.id]), error: null })
 })
 
-// PATCH /api/shots/:id/done — toggle done status (0↔1)
+// PATCH /api/shots/:id/done - toggle done status (0↔1)
 router.patch('/shots/:id/done', async (req, res) => {
   const shot = await db.get('SELECT id, done FROM shots WHERE id = ?', [req.params.id]) as any
   if (!shot) return res.status(404).json({ data: null, error: 'Shot nicht gefunden' })

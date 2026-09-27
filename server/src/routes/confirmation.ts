@@ -42,7 +42,7 @@ async function getPersonForEntry(entry: EntryRow): Promise<{ name: string; role:
   return p ? { name: p.name || '', role: p.role || '', email: p.email || '' } : undefined
 }
 
-// GET /api/cse/t/:token — öffentliche Dispo-Daten für die Empfänger-Ansicht
+// GET /api/cse/t/:token - öffentliche Dispo-Daten für die Empfänger-Ansicht
 // Bewusst OHNE Gagen und Telefonnummern.
 router.get('/cse/t/:token', async (req: Request, res: Response) => {
   const entry = await getEntryByToken(req.params.token)
@@ -100,7 +100,7 @@ router.get('/cse/t/:token', async (req: Request, res: Response) => {
   })
 })
 
-// POST /api/cse/t/:token/confirm — Zusage bestätigen (öffentlich)
+// POST /api/cse/t/:token/confirm - Zusage bestätigen (öffentlich)
 router.post('/cse/t/:token/confirm', async (req: Request, res: Response) => {
   const entry = await getEntryByToken(req.params.token)
   if (!entry) return res.status(404).json({ data: null, error: 'Link ungültig' })
@@ -109,7 +109,7 @@ router.post('/cse/t/:token/confirm', async (req: Request, res: Response) => {
   return res.json({ data: { confirmed: true }, error: null })
 })
 
-// GET /api/cse/t/:token/track.png — E-Mail-Tracking-Pixel (setzt viewed_at einmalig)
+// GET /api/cse/t/:token/track.png - E-Mail-Tracking-Pixel (setzt viewed_at einmalig)
 router.get('/cse/t/:token/track.png', async (req: Request, res: Response) => {
   const entry = await getEntryByToken(req.params.token)
   if (entry && !entry.viewed_at) {
@@ -122,7 +122,7 @@ router.get('/cse/t/:token/track.png', async (req: Request, res: Response) => {
   return res.send(TRACKING_PIXEL)
 })
 
-// POST /api/cse/t/:token/claim — One-Click-Account für Crew-Mitglieder.
+// POST /api/cse/t/:token/claim - One-Click-Account für Crew-Mitglieder.
 // E-Mail kommt aus dem Cast/Crew-Eintrag (nicht frei wählbar), Rolle: read_only.
 router.post('/cse/t/:token/claim', async (req: Request, res: Response) => {
   try {

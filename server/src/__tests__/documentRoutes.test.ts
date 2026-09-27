@@ -2,7 +2,7 @@
  * Prueft alle Dokumentrouten auf der HTML-Ebene: echte Route, echtes Layout,
  * gefaelschte Datenbank und gefaelschtes Chromium.
  *
- * Die Testdaten sind absichtlich unangenehm — fehlende Felder, Sonderzeichen,
+ * Die Testdaten sind absichtlich unangenehm - fehlende Felder, Sonderzeichen,
  * Anfuehrungszeichen im Titel. Genau daran ist die alte Fassung gescheitert:
  * `${row.email}` schrieb bei einem leeren Feld das Wort "null" ins PDF, und
  * ein "&" im Namen landete unmaskiert im Markup.
@@ -33,7 +33,7 @@ const crew = Array.from({ length: 42 }, (_, i) => ({
 }))
 
 const scenes = Array.from({ length: 24 }, (_, i) => ({
-  id: i + 1, scene_number: `${i + 1}`, title: `Szene ${i + 1} — Am Fluss`,
+  id: i + 1, scene_number: `${i + 1}`, title: `Szene ${i + 1} - Am Fluss`,
   int_ext: i % 2 === 0 ? 'INT' : 'EXT', day_night: i % 3 === 0 ? 'NACHT' : 'TAG',
   eighths: (i % 7) + 1, estimated_minutes: 30 + i * 5, sort_order: i,
   location_name: i % 5 === 0 ? null : 'Altbauwohnung',
@@ -44,7 +44,7 @@ const days = [
   { id: 2, day_number: 2, date: '2026-08-06', status: 'geplant', notes: null },
 ]
 
-// Zweites Motiv ohne jede Adressangabe — hier stand frueher "null, null null"
+// Zweites Motiv ohne jede Adressangabe - hier stand frueher "null, null null"
 const locations = [
   { id: 1, name: 'Altbauwohnung', address: 'Hauptstr. 1', zip: '10115', city: 'Berlin', country: 'Deutschland', contact_name: 'H. Meier', contact_phone: '030 1234', power_available: 1, rental_fee: 45000, project_id: 1 },
   { id: 2, name: 'Waldlichtung', address: null, zip: null, city: null, country: null, contact_name: null, contact_phone: null, power_available: 0, rental_fee: null, project_id: 1 },
@@ -116,7 +116,7 @@ function fakeGet(sql: string): any {
     return {
       call_time: 420, first_shot: 540, lunch_in: 780, lunch_out: 825, wrap: 1230,
       pages_shot: 19, total_setups: 14, camera_rolls: 'A001, A002', sound_rolls: null,
-      production_notes: 'Regen ab 14 Uhr.\nSzene 12 verschoben — Licht & Ton ok.',
+      production_notes: 'Regen ab 14 Uhr.\nSzene 12 verschoben - Licht & Ton ok.',
       notes: null,
     }
   }
@@ -191,7 +191,7 @@ let server: http.Server
 let base = ''
 
 beforeAll(async () => {
-  // generatePdf laedt puppeteer per require zur Laufzeit — vi.mock erreicht das
+  // generatePdf laedt puppeteer per require zur Laufzeit - vi.mock erreicht das
   // nicht, der Modul-Cache von Node schon.
   const { createRequire } = await import('module')
   const req = createRequire(__filename)

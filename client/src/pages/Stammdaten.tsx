@@ -82,7 +82,7 @@ function InviteSection({ pid }: { pid: number }) {
       if (newEmail) {
         toast(inv?.email_sent
           ? { title: `Einladung an ${newEmail} versendet` }
-          : { title: 'Link erstellt', description: 'E-Mail-Versand ist auf diesem Server nicht konfiguriert — teile den Link manuell.' })
+          : { title: 'Link erstellt', description: 'E-Mail-Versand ist auf diesem Server nicht konfiguriert - teile den Link manuell.' })
       }
     },
     onError: (e: any) => toast({ variant: 'destructive', title: e.message }),
@@ -149,7 +149,7 @@ function InviteSection({ pid }: { pid: number }) {
           <Input
             type="email"
             className="h-8 text-xs flex-1 min-w-40"
-            placeholder="E-Mail (optional — sendet Einladung direkt)"
+            placeholder="E-Mail (optional - sendet Einladung direkt)"
             value={newEmail}
             onChange={e => setNewEmail(e.target.value)}
           />
@@ -171,7 +171,7 @@ function InviteSection({ pid }: { pid: number }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="text-xs font-medium">{roleLabel(inv.role)}</span>
-                  {inv.label && <span className="text-xs text-muted-foreground italic">— {inv.label}</span>}
+                  {inv.label && <span className="text-xs text-muted-foreground italic">- {inv.label}</span>}
                   {inv.email && (
                     <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
                       inv.email_sent_at ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground')}>
@@ -475,7 +475,7 @@ export function Component() {
         </FormSection>
       )}
 
-      {/* Invite section — always visible */}
+      {/* Invite section - always visible */}
       <InviteSection pid={pid} />
     </div>
   )

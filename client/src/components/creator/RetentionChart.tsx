@@ -57,7 +57,7 @@ function timecode(total: number): string {
  * Retention-Kurve mit den Skript-Abschnitten als Hintergrundbänder.
  *
  * Die Liste darunter sagt, *wie viel* ein Abschnitt kostet. Die Kurve zeigt,
- * *wo* der Absprung passiert — ob gleichmäßig über den Abschnitt oder als Kante
+ * *wo* der Absprung passiert - ob gleichmäßig über den Abschnitt oder als Kante
  * an einer bestimmten Sekunde. Das unterscheidet "der Teil ist zu lang" von
  * "an dieser Stelle steigen sie aus", und das sieht man nur im Verlauf.
  *
@@ -102,7 +102,7 @@ export function RetentionChart({
   function onMove(e: React.MouseEvent<SVGSVGElement>) {
     const rect = e.currentTarget.getBoundingClientRect()
     // Ohne gerenderte Breite waere die Umrechnung eine Division durch null und
-    // ergaebe NaN — dann lieber gar keinen Wert anzeigen
+    // ergaebe NaN - dann lieber gar keinen Wert anzeigen
     if (rect.width <= 0) return
 
     // Auf das viewBox-Koordinatensystem umrechnen, damit es bei jeder Breite stimmt

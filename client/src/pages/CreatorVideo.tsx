@@ -56,7 +56,7 @@ function timecode(totalSeconds: number): string {
   return h > 0 ? `${h}:${two(m % 60)}:${two(s % 60)}` : `${m}:${two(s % 60)}`
 }
 
-/** Speichert erst nach kurzer Pause — wie im Drehbuch-Editor. */
+/** Speichert erst nach kurzer Pause - wie im Drehbuch-Editor. */
 function useDebouncedSave<T>(save: (value: T) => void, delay = 600) {
   const timer = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
@@ -70,7 +70,7 @@ function useDebouncedSave<T>(save: (value: T) => void, delay = 600) {
 
 /**
  * Vollbild-Ablauf des Sprechtexts fuer die Aufnahme. Die Scrollgeschwindigkeit
- * ergibt sich aus dem eingestellten Sprechtempo, laesst sich aber live regeln —
+ * ergibt sich aus dem eingestellten Sprechtempo, laesst sich aber live regeln -
  * kein Creator spricht exakt im Schnitt.
  */
 function Teleprompter({ sections, wpm, onClose }: { sections: any[]; wpm: number; onClose: () => void }) {
@@ -89,7 +89,7 @@ function Teleprompter({ sections, wpm, onClose }: { sections: any[]; wpm: number
     let last = performance.now()
     // Position als Fließkommawert mitführen statt aus dem DOM zurückzulesen:
     // scrollTop schneidet Nachkommastellen ab. Bei normalem Sprechtempo sind
-    // das rund 0,37 px pro Frame — jede Zuweisung würde auf 0 abgeschnitten und
+    // das rund 0,37 px pro Frame - jede Zuweisung würde auf 0 abgeschnitten und
     // der Prompter stünde still.
     let position = boxRef.current?.scrollTop ?? 0
 
@@ -172,7 +172,7 @@ export function Component() {
   const [prompterOpen, setPrompterOpen] = useState(false)
 
   // Reiter in der URL halten: so ueberlebt die Auswahl einen Reload und laesst
-  // sich verlinken — praktisch, wenn man jemandem eine bestimmte Ansicht zeigt
+  // sich verlinken - praktisch, wenn man jemandem eine bestimmte Ansicht zeigt
   const [searchParams, setSearchParams] = useSearchParams()
   const TABS = ['script', 'upload', 'rights', 'clips', 'checklist', 'numbers']
   const activeTab = TABS.includes(searchParams.get('tab') || '') ? (searchParams.get('tab') as string) : 'script'
@@ -188,14 +188,14 @@ export function Component() {
     queryFn: () => api.creator.video(vid),
   })
 
-  // Retention gegen das Skript — nur sinnvoll, wenn YouTube abgeglichen wurde
+  // Retention gegen das Skript - nur sinnvoll, wenn YouTube abgeglichen wurde
   const { data: retention } = useQuery({
     queryKey: ['creator-retention', vid],
     queryFn: () => api.creator.retention(vid),
   })
 
   // Videos des verbundenen Kanals fuer die Auswahlliste. Schlaegt fehl, wenn
-  // kein Kanal verbunden ist — dann bleibt es beim Link-Feld.
+  // kein Kanal verbunden ist - dann bleibt es beim Link-Feld.
   const { data: ytVideoList } = useQuery({
     queryKey: ['yt-videos', pid],
     queryFn: () => api.creator.ytVideos(pid),
@@ -395,7 +395,7 @@ export function Component() {
         {/* ── Skript ── */}
         <TabsContent value="script" className="mt-5">
           <div className="mb-5">
-            <Label className="text-xs text-muted-foreground">Hook — die ersten Sekunden entscheiden</Label>
+            <Label className="text-xs text-muted-foreground">Hook - die ersten Sekunden entscheiden</Label>
             <Textarea
               defaultValue={video.hook} rows={2}
               onChange={e => saveHook(e.target.value)}
@@ -482,7 +482,7 @@ export function Component() {
         <TabsContent value="upload" className="mt-5">
           <div className="grid md:grid-cols-2 gap-6 max-w-5xl">
             <div>
-              <Label className="text-xs text-muted-foreground">Titel-Varianten <span className="opacity-60">— eine pro Zeile</span></Label>
+              <Label className="text-xs text-muted-foreground">Titel-Varianten <span className="opacity-60">- eine pro Zeile</span></Label>
               <Textarea
                 defaultValue={video.title_variants} rows={5} className="mt-1 text-sm"
                 placeholder={'Ich habe 30 Tage lang …\nWarum niemand über … spricht'}
@@ -490,7 +490,7 @@ export function Component() {
               />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Thumbnail-Ideen <span className="opacity-60">— eine pro Zeile</span></Label>
+              <Label className="text-xs text-muted-foreground">Thumbnail-Ideen <span className="opacity-60">- eine pro Zeile</span></Label>
               <Textarea
                 defaultValue={video.thumbnail_ideas} rows={5} className="mt-1 text-sm"
                 placeholder={'Großes Gesicht links, Pfeil rechts\nVorher/Nachher gesplittet'}
@@ -511,13 +511,13 @@ export function Component() {
 
             <div className="md:col-span-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-muted-foreground">Kapitelmarken <span className="opacity-60">— aus den Abschnitts-Überschriften</span></Label>
+                <Label className="text-xs text-muted-foreground">Kapitelmarken <span className="opacity-60">- aus den Abschnitts-Überschriften</span></Label>
                 <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={copyChapters} disabled={!(data.chapters?.lines || []).length}>
                   {copied ? <><Check className="w-3 h-3 mr-1" />Kopiert</> : <><Copy className="w-3 h-3 mr-1" />Kopieren</>}
                 </Button>
               </div>
               <pre className="mt-1 p-3 rounded-md bg-muted/40 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                {(data.chapters?.lines || []).join('\n') || '— noch keine Abschnitte mit Überschrift —'}
+                {(data.chapters?.lines || []).join('\n') || '- noch keine Abschnitte mit Überschrift -'}
               </pre>
               {(data.chapters?.problems || []).length > 0 && (
                 <ul className="mt-2 space-y-1">
@@ -539,7 +539,7 @@ export function Component() {
               />
             </div>
             <div className="md:col-span-2">
-              <Label className="text-xs text-muted-foreground">Tags <span className="opacity-60">— kommagetrennt</span></Label>
+              <Label className="text-xs text-muted-foreground">Tags <span className="opacity-60">- kommagetrennt</span></Label>
               <Input defaultValue={video.tags} className="mt-1 text-sm" placeholder="schnitt, workflow, tutorial"
                 onBlur={e => e.target.value !== video.tags && updateVideo.mutate({ tags: e.target.value })} />
             </div>
@@ -580,7 +580,7 @@ export function Component() {
               {video.sponsor_brand && !video.sponsor_disclosed && (
                 <div className="flex items-start gap-1.5 mt-3 text-xs text-amber-400">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
-                  Bezahlte Inhalte müssen gekennzeichnet werden — im Video und in der YouTube-Einstellung.
+                  Bezahlte Inhalte müssen gekennzeichnet werden - im Video und in der YouTube-Einstellung.
                 </div>
               )}
             </div>
@@ -591,7 +591,7 @@ export function Component() {
         <TabsContent value="rights" className="mt-5">
           <p className="text-xs text-muted-foreground/80 mb-4 max-w-2xl">
             Musik, Stockmaterial und Grafiken mit ihrer Lizenz. Ein einziger ungeklärter Track kann
-            die Monetarisierung des ganzen Videos kosten — fehlt die Lizenzangabe, zählt das hier als Risiko.
+            die Monetarisierung des ganzen Videos kosten - fehlt die Lizenzangabe, zählt das hier als Risiko.
           </p>
 
           {rights.problems.length > 0 && (
@@ -743,7 +743,7 @@ export function Component() {
         <TabsContent value="numbers" className="mt-5">
           <div className="max-w-4xl">
             <p className="text-xs text-muted-foreground/80 mb-4">
-              Werte aus YouTube Studio von Hand eintragen — es gibt keine automatische Anbindung.
+              Werte aus YouTube Studio von Hand eintragen - es gibt keine automatische Anbindung.
               Die Einordnung darunter richtet sich nach den üblichen Richtwerten.
             </p>
 
@@ -761,7 +761,7 @@ export function Component() {
               <div>
                 <Label className="text-xs text-muted-foreground">YouTube-Video</Label>
                 {ytVideos.length > 0 ? (
-                  // Ist der Kanal verbunden, direkt aus seinen Videos waehlen —
+                  // Ist der Kanal verbunden, direkt aus seinen Videos waehlen -
                   // Links heraussuchen und einfuegen ist unnoetige Fleissarbeit
                   <Select
                     value={video.youtube_video_id || 'keins'}
@@ -769,7 +769,7 @@ export function Component() {
                   >
                     <SelectTrigger className="mt-1 text-xs"><SelectValue placeholder="Video auswählen" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="keins" className="text-xs">— nicht verknüpft —</SelectItem>
+                      <SelectItem value="keins" className="text-xs">- nicht verknüpft -</SelectItem>
                       {ytVideos.map((v: any) => (
                         <SelectItem key={v.videoId} value={v.videoId} className="text-xs">{v.title}</SelectItem>
                       ))}

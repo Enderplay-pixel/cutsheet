@@ -6,7 +6,7 @@ const router = Router()
 
 const VALID_CATEGORIES = ['fehler', 'idee', 'allgemein']
 
-// POST /api/feedback — In-App-Feedback von eingeloggten Nutzern
+// POST /api/feedback - In-App-Feedback von eingeloggten Nutzern
 router.post('/feedback', requireAuth, async (req: Request, res: Response) => {
   try {
     const { category, message, page_path } = req.body as { category?: string; message?: string; page_path?: string }
@@ -25,13 +25,13 @@ router.post('/feedback', requireAuth, async (req: Request, res: Response) => {
   }
 })
 
-// GET /api/feedback — alle Einträge (nur Site-Admin)
+// GET /api/feedback - alle Einträge (nur Site-Admin)
 router.get('/feedback', requireAuth, requireRole('admin'), async (_req: Request, res: Response) => {
   const rows = await db.all('SELECT * FROM feedback ORDER BY created_at DESC LIMIT 500', [])
   return res.json({ data: rows, error: null })
 })
 
-// PUT /api/feedback/:id — als erledigt markieren (nur Site-Admin)
+// PUT /api/feedback/:id - als erledigt markieren (nur Site-Admin)
 router.put('/feedback/:id', requireAuth, requireRole('admin'), async (req: Request, res: Response) => {
   const resolved = (req.body as { resolved?: boolean })?.resolved !== false
   await db.run('UPDATE feedback SET resolved = ? WHERE id = ?', [resolved, req.params.id])

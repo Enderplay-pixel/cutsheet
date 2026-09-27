@@ -2,7 +2,7 @@
  * Leseschutz der Routen, die ueber eine Kind-Ressource adressiert werden.
  *
  * Anlass: projectWriteGuard laesst GET-Anfragen bewusst durch, der Leseschutz
- * haengt also an jedem Router einzeln. Drei Router hatten gar keinen — der
+ * haengt also an jedem Router einzeln. Drei Router hatten gar keinen - der
  * Morning Brief (Namen, Call-Zeiten, Motivadressen), der Motivvertrag (Name,
  * Anschrift und Verguetung des Eigentuemers) und die Kameraberichte waren ohne
  * Anmeldung aus dem Netz abrufbar.
@@ -49,7 +49,7 @@ vi.mock('../db', () => ({
 
 let server: http.Server
 let base = ''
-/** Wer gilt fuer die naechste Anfrage als angemeldet — null heisst: niemand. */
+/** Wer gilt fuer die naechste Anfrage als angemeldet - null heisst: niemand. */
 let currentUser: any = null
 
 beforeAll(async () => {

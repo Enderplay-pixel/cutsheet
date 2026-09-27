@@ -21,7 +21,7 @@ const STATUS_STYLE: Record<string, string> = {
   verworfen: 'bg-muted/50 text-muted-foreground border-border',
 }
 
-/** Farbe nach Prioritaet — hohe Werte sollen ins Auge springen. */
+/** Farbe nach Prioritaet - hohe Werte sollen ins Auge springen. */
 function scoreStyle(score: number): string {
   if (score >= 70) return 'text-emerald-400'
   if (score >= 40) return 'text-amber-400'
@@ -131,7 +131,7 @@ export function Component() {
         <Textarea
           value={draft.note}
           onChange={e => setDraft(p => ({ ...p, note: e.target.value }))}
-          placeholder="Notiz — Winkel, Hook, Quelle (optional)"
+          placeholder="Notiz - Winkel, Hook, Quelle (optional)"
           rows={2}
           className="mt-3 text-sm"
         />
@@ -144,7 +144,7 @@ export function Component() {
           <Lightbulb className="w-9 h-9 mx-auto text-muted-foreground/40" />
           <p className="mt-3 text-sm font-medium">Noch keine Ideen gesammelt</p>
           <p className="mt-1 text-xs text-muted-foreground/70 max-w-md mx-auto">
-            Wirkung und Aufwand von 1 bis 5. Die Reihenfolge ergibt sich aus dem Verhältnis —
+            Wirkung und Aufwand von 1 bis 5. Die Reihenfolge ergibt sich aus dem Verhältnis -
             eine kleine Idee mit großer Wirkung landet vor einem aufwendigen Großprojekt.
           </p>
         </div>

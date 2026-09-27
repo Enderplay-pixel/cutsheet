@@ -78,7 +78,7 @@ const app = express()
 const PORT = Number(process.env.PORT) || 3001
 const isProd = process.env.NODE_ENV === 'production'
 
-// Set to true once initDatabase() succeeds — guards all API routes
+// Set to true once initDatabase() succeeds - guards all API routes
 let dbReady = false
 
 // In dev allow Vite dev server; in prod same-origin (no CORS needed)
@@ -146,13 +146,13 @@ if (isProd) {
   }
 }
 
-// Public health check — always responds, used by Railway
+// Public health check - always responds, used by Railway
 app.get('/api/health', (_req, res) => res.json({ ok: true, db: dbReady }))
 
 // Block all other API routes until DB is initialized
 app.use('/api', (req, res, next) => {
   if (dbReady) return next()
-  res.status(503).json({ data: null, error: 'Server startet noch — bitte kurz warten und erneut versuchen.' })
+  res.status(503).json({ data: null, error: 'Server startet noch - bitte kurz warten und erneut versuchen.' })
 })
 
 // Mount routes
@@ -252,7 +252,7 @@ async function main() {
   assertSecrets()
 
   // Start HTTP server FIRST so /api/health responds immediately.
-  // Railway marks the deploy as healthy before DB is ready — this prevents
+  // Railway marks the deploy as healthy before DB is ready - this prevents
   // the health-check timeout when PG is still booting alongside the app.
   const server = await new Promise<import('http').Server>((resolve) => {
     const s = app.listen(PORT, () => {
@@ -262,10 +262,10 @@ async function main() {
   })
 
   if (!process.env.DATABASE_URL) {
-    console.warn('[DB] WARNUNG: DATABASE_URL nicht gesetzt — bitte PostgreSQL-Addon in Railway hinzufügen')
+    console.warn('[DB] WARNUNG: DATABASE_URL nicht gesetzt - bitte PostgreSQL-Addon in Railway hinzufügen')
   }
 
-  // Retry DB init — Railway may start app before PG plugin is ready
+  // Retry DB init - Railway may start app before PG plugin is ready
   const MAX_RETRIES = 10
   const RETRY_DELAY_MS = 3000
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -280,13 +280,13 @@ async function main() {
         server.close()
         process.exit(1)
       }
-      console.warn(`[DB] Verbindungsversuch ${attempt}/${MAX_RETRIES} fehlgeschlagen — nächster in ${RETRY_DELAY_MS / 1000}s`)
+      console.warn(`[DB] Verbindungsversuch ${attempt}/${MAX_RETRIES} fehlgeschlagen - nächster in ${RETRY_DELAY_MS / 1000}s`)
       await new Promise(r => setTimeout(r, RETRY_DELAY_MS))
     }
   }
 }
 
-// Graceful shutdown — pg pool drains connections automatically
+// Graceful shutdown - pg pool drains connections automatically
 process.on('SIGTERM', () => process.exit(0))
 process.on('SIGINT',  () => process.exit(0))
 

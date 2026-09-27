@@ -6,7 +6,7 @@ import { importiereInhalt } from '../lib/wiederherstellung'
 
 const router = Router()
 
-// GET /api/projects/:projectId/backup — export full project as JSON
+// GET /api/projects/:projectId/backup - export full project as JSON
 router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
@@ -98,7 +98,7 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
       }
     }
 
-    // Derived tables — fetch based on parent IDs collected above
+    // Derived tables - fetch based on parent IDs collected above
     const shootDayIds = (backup['shoot_days'] as Array<{ id: number }>).map(r => r.id)
     const sceneIds = (backup['scenes'] as Array<{ id: number }>).map(r => r.id)
     const shotIds = (backup['shots'] as Array<{ id: number }>).map(r => r.id)
@@ -165,7 +165,7 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
   }
 })
 
-// POST /api/projects/import — import a previously exported JSON backup as new project
+// POST /api/projects/import - import a previously exported JSON backup as new project
 /**
  * Eine Sicherung zurückspielen.
  *

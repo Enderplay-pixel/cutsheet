@@ -137,7 +137,7 @@ export default function ProjectTemplates() {
       </div>
       <TemplateSelector
         onSelect={template => {
-          // When used standalone, redirect or emit — here just log
+          // When used standalone, redirect or emit - here just log
           console.log('Template selected:', template)
         }}
       />

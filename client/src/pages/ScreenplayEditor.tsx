@@ -441,7 +441,7 @@ export function Component() {
   const download = useDownload()
 
   const [activeBlockId, setActiveBlockId] = useState<number | null>(null)
-  /** Szenenleiste am Telefon — dort liegt sie ueber dem Text statt daneben */
+  /** Szenenleiste am Telefon - dort liegt sie ueber dem Text statt daneben */
   const [scenesOpen, setScenesOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [localScenes, setLocalScenes] = useState<SceneData[]>([])
@@ -758,7 +758,7 @@ export function Component() {
         <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={() => setScenesOpen(false)} aria-hidden />
       )}
 
-      {/* Left: Scene Navigator. Ab md eine Spalte, darunter eine Schublade —
+      {/* Left: Scene Navigator. Ab md eine Spalte, darunter eine Schublade -
           220 px fest daneben liessen dem Text am Telefon 123 px. */}
       <aside className={cn(
         'flex-col border-r border-border/40 bg-card overflow-hidden',

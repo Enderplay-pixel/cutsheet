@@ -9,7 +9,7 @@
 export interface ItemType {
   kind: string
   label: string
-  /** Hat eine Blickrichtung — Kamera und Licht zeigen irgendwohin, ein Tisch nicht. */
+  /** Hat eine Blickrichtung - Kamera und Licht zeigen irgendwohin, ein Tisch nicht. */
   directional: boolean
   color: string
   /** Kurzzeichen fuer die Darstellung im Plan. */
@@ -18,7 +18,7 @@ export interface ItemType {
 
 /**
  * Die Symbole des Set-Plans. Die Auswahl folgt dem, was auf einem echten
- * Grundriss steht — nicht jedem denkbaren Gegenstand, sondern dem, worueber am
+ * Grundriss steht - nicht jedem denkbaren Gegenstand, sondern dem, worueber am
  * Set gesprochen wird.
  */
 export const ITEM_TYPES: ItemType[] = [
@@ -51,7 +51,7 @@ export function clampPosition(x: number, y: number): { x: number; y: number } {
 /**
  * Fehlende Angabe von einer echten 0 unterscheiden.
  *
- * `Number(null)` ergibt 0 und nicht NaN — anders als bei `undefined`. Ohne
+ * `Number(null)` ergibt 0 und nicht NaN - anders als bei `undefined`. Ohne
  * diese Pruefung wuerde ein fehlender Wert als Null durchgehen und in der
  * Begrenzung auf dem Minimum landen statt auf dem Standardwert.
  */
@@ -87,7 +87,7 @@ export interface PlanItem {
 
 /**
  * Zusammenfassung fuer die Legende: was steht wie oft auf dem Plan.
- * Am Set fragt jemand "wie viele Lampen brauchen wir?" — die Antwort steht
+ * Am Set fragt jemand "wie viele Lampen brauchen wir?" - die Antwort steht
  * dann unter dem Bild statt im Kopf des Oberbeleuchters.
  */
 export function summarise(items: PlanItem[]): Array<{ kind: string; label: string; count: number; color: string }> {
@@ -154,7 +154,7 @@ export function renderFloorplanHtml(plan: any, items: PlanItem[], imageDataUri: 
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Set-Plan — ${esc(plan?.name)}</title>
+<title>Set-Plan - ${esc(plan?.name)}</title>
 <style>
   @page { size: A4 landscape; margin: 10mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -174,7 +174,7 @@ export function renderFloorplanHtml(plan: any, items: PlanItem[], imageDataUri: 
   .stage.empty { width: 100%; height: 120mm; }
 
   .sym { position: absolute; transform: translate(-50%, -50%); }
-  /* Blickrichtung als Kegel — bei Kamera und Licht die eigentliche Information */
+  /* Blickrichtung als Kegel - bei Kamera und Licht die eigentliche Information */
   .cone {
     position: absolute; left: 50%; top: 50%;
     width: calc(30px * var(--s)); height: calc(46px * var(--s));

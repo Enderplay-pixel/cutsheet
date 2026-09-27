@@ -29,7 +29,7 @@ router.use('/projects/:projectId', requireMember)
 /**
  * Zugriff über die Video-ID prüfen. Die Videorouten hängen nicht unter
  * /projects/:projectId, deshalb muss die Projektzugehörigkeit hier von Hand
- * aufgelöst werden — gleiche Logik wie requireMember.
+ * aufgelöst werden - gleiche Logik wie requireMember.
  */
 async function loadVideoForUser(req: Request, res: Response): Promise<any | null> {
   const user = (req as any).user
@@ -50,7 +50,7 @@ async function loadVideoForUser(req: Request, res: Response): Promise<any | null
 
 /**
  * Befüllt ein frisch angelegtes Video mit der üblichen Gliederung und der
- * Upload-Checkliste. Beides soll da sein, bevor es gebraucht wird — ein leeres
+ * Upload-Checkliste. Beides soll da sein, bevor es gebraucht wird - ein leeres
  * Skript hilft niemandem, und eine Checkliste kommt zu spät, wenn schon etwas
  * vergessen wurde.
  */
@@ -152,7 +152,7 @@ router.delete('/creator/videos/:videoId', async (req, res) => {
   if (!video) return
 
   // Ein geloeschtes YouTube-Video soll beim naechsten Abgleich nicht wieder
-  // auftauchen — die Loeschung ist eine Entscheidung, kein Versehen.
+  // auftauchen - die Loeschung ist eine Entscheidung, kein Versehen.
   if (video.youtube_video_id) {
     await db.run(
       'INSERT INTO creator_youtube_ignored (project_id, youtube_video_id) VALUES (?, ?) ON CONFLICT DO NOTHING',
@@ -166,7 +166,7 @@ router.delete('/creator/videos/:videoId', async (req, res) => {
 
 // ─── Skript-Abschnitte ────────────────────────────────────────────────────────
 
-// GET /api/creator/videos/:videoId — Video mit Abschnitten und Zeitachse
+// GET /api/creator/videos/:videoId - Video mit Abschnitten und Zeitachse
 router.get('/creator/videos/:videoId', async (req, res) => {
   const video = await loadVideoForUser(req, res)
   if (!video) return
@@ -303,7 +303,7 @@ function clampScore(n: any): number {
   return Math.min(5, Math.max(1, Number.isFinite(v) ? v : 3))
 }
 
-/** Idee laden und Zugriff prüfen — Ideen hängen am Projekt, nicht am Video. */
+/** Idee laden und Zugriff prüfen - Ideen hängen am Projekt, nicht am Video. */
 async function loadIdeaForUser(req: Request, res: Response): Promise<any | null> {
   const user = (req as any).user
   if (!user) { res.status(401).json({ data: null, error: 'Nicht authentifiziert' }); return null }
@@ -388,7 +388,7 @@ router.delete('/creator/ideas/:ideaId', async (req, res) => {
   res.json({ data: { ok: true }, error: null })
 })
 
-// POST /api/creator/ideas/:ideaId/convert — aus der Idee ein Video machen
+// POST /api/creator/ideas/:ideaId/convert - aus der Idee ein Video machen
 router.post('/creator/ideas/:ideaId/convert', async (req, res) => {
   const idea = await loadIdeaForUser(req, res)
   if (!idea) return
@@ -520,7 +520,7 @@ router.put('/creator/checklist/:itemId', async (req, res) => {
   res.json({ data: await db.get('SELECT * FROM creator_checklist WHERE id = ?', [req.params.itemId]), error: null })
 })
 
-// POST /api/creator/videos/:videoId/checklist — eigenen Punkt ergänzen
+// POST /api/creator/videos/:videoId/checklist - eigenen Punkt ergänzen
 router.post('/creator/videos/:videoId/checklist', async (req, res) => {
   const video = await loadVideoForUser(req, res)
   if (!video) return

@@ -53,14 +53,14 @@ export function Component() {
             ) : (
               <p className="text-sm text-warning leading-relaxed">
                 Auf diesem Server ist kein E-Mail-Versand konfiguriert. Bitte wende dich an
-                die Person, die CutSheet betreibt — sie kann dein Passwort zurücksetzen.
+                die Person, die CutSheet betreibt - sie kann dein Passwort zurücksetzen.
               </p>
             )}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Gib deine E-Mail-Adresse ein — wir schicken dir einen Link, mit dem du ein
+              Gib deine E-Mail-Adresse ein - wir schicken dir einen Link, mit dem du ein
               neues Passwort festlegen kannst.
             </p>
             <div className="space-y-1.5">

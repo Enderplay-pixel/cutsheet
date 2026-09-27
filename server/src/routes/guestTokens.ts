@@ -5,7 +5,7 @@ import { requireAuth } from '../middleware/auth'
 
 const router = Router()
 
-// POST /api/projects/:projectId/guest-tokens — create a guest token
+// POST /api/projects/:projectId/guest-tokens - create a guest token
 router.post('/projects/:projectId/guest-tokens', requireAuth, async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
@@ -29,7 +29,7 @@ router.post('/projects/:projectId/guest-tokens', requireAuth, async (req: Reques
   }
 })
 
-// GET /api/guest/:token — public endpoint, returns call sheet data
+// GET /api/guest/:token - public endpoint, returns call sheet data
 router.get('/guest/:token', async (req: Request, res: Response) => {
   try {
     const { token } = req.params

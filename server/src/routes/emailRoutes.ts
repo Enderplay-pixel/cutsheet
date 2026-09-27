@@ -61,8 +61,8 @@ router.post('/projects/:pid/email/test', requireAuth, async (req: Request, res: 
   try {
     const result = await sendEmail({
       to: user.email,
-      subject: 'CutSheet — Test-E-Mail',
-      html: `<h2>Test-E-Mail von CutSheet</h2><p>Hallo ${user.name},</p><p>Die E-Mail-Konfiguration funktioniert korrekt.</p><p>— CutSheet</p>`,
+      subject: 'CutSheet - Test-E-Mail',
+      html: `<h2>Test-E-Mail von CutSheet</h2><p>Hallo ${user.name},</p><p>Die E-Mail-Konfiguration funktioniert korrekt.</p><p>- CutSheet</p>`,
       projectId,
     })
     return res.json({ data: result, error: null })

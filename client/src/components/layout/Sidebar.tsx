@@ -261,7 +261,7 @@ export function Sidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSegment, conflictCount])
 
-  // Open/closed state per group — persisted, default: open
+  // Open/closed state per group - persisted, default: open
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(loadOpenGroups)
 
   const setGroupOpen = (label: string, open: boolean) => {
@@ -272,7 +272,7 @@ export function Sidebar() {
     })
   }
 
-  // The group of the active page never stays collapsed — you should
+  // The group of the active page never stays collapsed - you should
   // always see where you are.
   useEffect(() => {
     if (activeGroupLabel && openGroups[activeGroupLabel] === false) {
@@ -289,7 +289,7 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Hintergrund, solange die Schublade offen ist — nur am Telefon */}
+      {/* Hintergrund, solange die Schublade offen ist - nur am Telefon */}
       {mobileNavOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/60 md:hidden"

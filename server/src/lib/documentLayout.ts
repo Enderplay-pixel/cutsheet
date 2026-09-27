@@ -29,7 +29,7 @@ function multiline(s: any): string {
  * Fehlende Angabe von einer echten 0 unterscheiden.
  *
  * `Number(null)` ergibt 0 und nicht NaN. Ohne diese Pruefung stuende auf einem
- * Kalkulationsblatt "0,00 €", wo in Wahrheit nichts erfasst ist — eine
+ * Kalkulationsblatt "0,00 €", wo in Wahrheit nichts erfasst ist - eine
  * Tatsachenbehauptung statt einer Leerstelle.
  */
 function givenNumber(value: unknown): number | null {
@@ -98,7 +98,7 @@ export interface Column<T = any> {
   align?: Align
   /** Breite als CSS-Angabe, z. B. '12%'. */
   width?: string
-  /** Wert nicht maskieren — nur für selbst erzeugtes Markup verwenden. */
+  /** Wert nicht maskieren - nur für selbst erzeugtes Markup verwenden. */
   html?: boolean
   /** Kleiner und blasser setzen, für Nebeninformationen. */
   muted?: boolean
@@ -111,7 +111,7 @@ export interface TableOptions<T = any> {
   empty?: string
   /** Fußzeile der Tabelle, etwa für Summen. */
   footer?: Array<{ label: string; value: string; span?: number }>
-  /** Zeilen abwechselnd hinterlegen — bei breiten Tabellen eine Lesehilfe. */
+  /** Zeilen abwechselnd hinterlegen - bei breiten Tabellen eine Lesehilfe. */
   zebra?: boolean
 }
 
@@ -146,7 +146,7 @@ export function table<T>(opts: TableOptions<T>): string {
   </table>`
 }
 
-/** Kennzahlenreihe unter dem Kopf — die Antwort auf "wie viel ist das insgesamt?". */
+/** Kennzahlenreihe unter dem Kopf - die Antwort auf "wie viel ist das insgesamt?". */
 export function stats(items: Array<{ label: string; value: string | number; hint?: string }>): string {
   if (items.length === 0) return ''
   return `<div class="stats">${items.map(s => `
@@ -179,7 +179,7 @@ export function definitions(items: Array<{ label: string; value: any; wide?: boo
 /**
  * Fließtext aus einem Freitextfeld.
  *
- * Maskiert den Inhalt und erhält Absätze — Drehberichte werden mit Umbrüchen
+ * Maskiert den Inhalt und erhält Absätze - Drehberichte werden mit Umbrüchen
  * getippt, und die sind Teil der Aussage.
  */
 export function paragraph(text: any, muted = false): string {
@@ -204,7 +204,7 @@ export interface DocumentOptions {
   /** Art des Dokuments, steht klein über dem Titel. */
   kind: string
   title: string
-  /** Projektname — steht im Kopf und in der Fußzeile. */
+  /** Projektname - steht im Kopf und in der Fußzeile. */
   project?: string
   subtitle?: string
   /** Eckdaten rechts im Kopf. */
@@ -221,7 +221,7 @@ export interface DocumentOptions {
 /**
  * Kennung fuer die Fusszeile.
  *
- * Bei den meisten Listen sind Titel und Projekt dasselbe — ungefiltert stuende
+ * Bei den meisten Listen sind Titel und Projekt dasselbe - ungefiltert stuende
  * der Name dort zweimal. Doppelte Teile fallen weg, die Dokumentart kommt dazu,
  * damit ein einzelnes verlorenes Blatt zuzuordnen ist.
  */
@@ -249,7 +249,7 @@ export function renderDocument(opts: DocumentOptions): string {
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>${esc(opts.title)}${opts.project ? ` — ${esc(opts.project)}` : ''}</title>
+<title>${esc(opts.title)}${opts.project ? ` - ${esc(opts.project)}` : ''}</title>
 <style>
   @page { size: A4 ${opts.landscape ? 'landscape' : 'portrait'}; margin: 14mm 12mm 16mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -287,7 +287,7 @@ export function renderDocument(opts: DocumentOptions): string {
 
   /* ── Tabellen ── */
   table { width: 100%; border-collapse: collapse; }
-  /* Kopf auf jeder Folgeseite wiederholen — ohne das steht man auf Seite 3
+  /* Kopf auf jeder Folgeseite wiederholen - ohne das steht man auf Seite 3
      vor Zahlenspalten ohne Beschriftung */
   thead { display: table-header-group; }
   tr { page-break-inside: avoid; }
@@ -313,7 +313,7 @@ export function renderDocument(opts: DocumentOptions): string {
   .def .k { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.07em; color: #71717a; }
   .def .v { font-size: 9pt; }
 
-  /* Unterschriftenfeld — bewusst grosszuegig, es wird mit der Hand ausgefuellt */
+  /* Unterschriftenfeld - bewusst grosszuegig, es wird mit der Hand ausgefuellt */
   .sigs { display: flex; gap: 18pt; margin-top: 26pt; }
   .sig { flex: 1; }
   .sig .line { border-bottom: 0.8pt solid #52525b; height: 30pt; }

@@ -28,11 +28,11 @@ async function sendInviteEmail(invite: { token: string; role: string; email: str
       <div style="font-family:Arial,sans-serif;max-width:480px;">
         <h2 style="color:#111;">Du bist eingeladen!</h2>
         <p>${inviterName || 'Ein Teammitglied'} hat dich zum Filmprojekt <strong>„${project.title}"</strong> auf CutSheet eingeladen
-           — Rolle: <strong>${ROLE_LABELS[invite.role] ?? invite.role}</strong>.</p>
+           - Rolle: <strong>${ROLE_LABELS[invite.role] ?? invite.role}</strong>.</p>
         <p style="margin:24px 0;">
           <a href="${link}" style="background:#b45309;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Einladung annehmen</a>
         </p>
-        <p style="color:#6b7280;font-size:13px;">CutSheet ist kostenlos — Drehplan, Tagesdispo, Besetzung und mehr an einem Ort.</p>
+        <p style="color:#6b7280;font-size:13px;">CutSheet ist kostenlos - Drehplan, Tagesdispo, Besetzung und mehr an einem Ort.</p>
       </div>`,
   })
   return true
@@ -93,7 +93,7 @@ router.post('/projects/:id/invites', requireAuth, async (req: Request, res: Resp
   return res.status(201).json({ data: { ...invite, email_sent: emailSent }, error: null })
 })
 
-// POST /api/projects/:id/invites/:iid/resend — Einladung erneut mailen
+// POST /api/projects/:id/invites/:iid/resend - Einladung erneut mailen
 router.post('/projects/:id/invites/:iid/resend', requireAuth, async (req: Request, res: Response) => {
   if (!await isProjectOwner(req.params.id, req.user!.id)) {
     return res.status(403).json({ data: null, error: 'Kein Zugriff' })

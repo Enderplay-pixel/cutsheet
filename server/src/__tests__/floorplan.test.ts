@@ -58,7 +58,7 @@ describe('normalizeRotation', () => {
     expect(normalizeRotation(450)).toBe(90)
   })
 
-  it('rechnet negative Winkel um — Drehen gegen den Uhrzeigersinn ist normal', () => {
+  it('rechnet negative Winkel um - Drehen gegen den Uhrzeigersinn ist normal', () => {
     expect(normalizeRotation(-90)).toBe(270)
     expect(normalizeRotation(-450)).toBe(270)
   })
@@ -78,7 +78,7 @@ describe('clampSize', () => {
   })
 
   it('nimmt die Standardgroesse bei fehlendem Wert', () => {
-    // Number(null) ist 0 und nicht NaN — ohne eigene Pruefung landete das
+    // Number(null) ist 0 und nicht NaN - ohne eigene Pruefung landete das
     // fehlende Feld auf dem Minimum statt auf dem Standardwert
     expect(clampSize(null)).toBe(100)
     expect(clampSize(undefined)).toBe(100)

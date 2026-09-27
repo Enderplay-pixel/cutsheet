@@ -131,7 +131,7 @@ export function Component() {
   })
 
   // Maus und Finger getrennt: Mit einem Abstandsschwellwert fuer beide wird
-  // am Touchscreen jede Wischgeste, die auf einer Szene beginnt, zum Ziehen —
+  // am Touchscreen jede Wischgeste, die auf einer Szene beginnt, zum Ziehen -
   // das Brett liesse sich dann nicht mehr scrollen. Am Finger hebt erst kurzes
   // Halten die Szene an; wer sofort wischt, scrollt.
   const sensors = useSensors(

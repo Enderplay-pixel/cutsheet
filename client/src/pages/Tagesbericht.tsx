@@ -85,7 +85,7 @@ export function Component() {
   }
 
   // Szenenstand des Tages. Eine Szene ist entweder offen, angefangen oder
-  // abgedreht — nie zweierlei, deshalb beim Weiterschalten aus beiden Listen
+  // abgedreht - nie zweierlei, deshalb beim Weiterschalten aus beiden Listen
   // entfernen und nur in die neue eintragen.
   const abgedreht: number[] = form?.scenes_completed ?? []
   const angefangen: number[] = form?.scenes_partial ?? []
@@ -247,7 +247,7 @@ export function Component() {
             )}
           </div>
 
-          {/* Szenen heute — antippen schaltet offen → angefangen → abgedreht */}
+          {/* Szenen heute - antippen schaltet offen → angefangen → abgedreht */}
           {selectedDay?.scenes?.length > 0 && (
             <div className="bg-card border border-border/60 rounded-xl p-5">
               <div className="flex items-baseline justify-between gap-3 mb-1">
@@ -281,7 +281,7 @@ export function Component() {
                           stand === 'offen' && 'bg-muted border-transparent text-muted-foreground hover:border-border',
                         )}
                       >
-                        {/* Farbe allein sagt es nicht — der Stand steht als Wort dabei */}
+                        {/* Farbe allein sagt es nicht - der Stand steht als Wort dabei */}
                         {stand === 'fertig' ? '✓ ' : stand === 'teil' ? '· ' : ''}
                         Sz. {s.scene_number} – {s.title}
                         {stand === 'teil' && <span className="ml-1 opacity-70">(angefangen)</span>}

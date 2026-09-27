@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { Receipt, Plus, Trash2, TrendingDown, TrendingUp, Wallet, AlertTriangle } from 'lucide-react'
 
-// Kostenstand: Ist-Kosten (Belege) gegen die aktive Kalkulation — Soll/Ist je Kategorie
+// Kostenstand: Ist-Kosten (Belege) gegen die aktive Kalkulation - Soll/Ist je Kategorie
 
 export function Component() {
   const { projectId } = useParams()

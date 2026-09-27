@@ -59,7 +59,7 @@ router.delete('/expenses/:id', requireAuth, async (req: Request, res: Response) 
   return res.json({ data: { ok: true }, error: null })
 })
 
-// GET /api/projects/:projectId/kostenstand — Soll/Ist je Kategorie gegen aktive Kalkulation
+// GET /api/projects/:projectId/kostenstand - Soll/Ist je Kategorie gegen aktive Kalkulation
 router.get('/projects/:projectId/kostenstand', requireAuth, requireMember, async (req: Request, res: Response) => {
   const activeVersion = await db.get(
     `SELECT id, name, total_cents FROM budget_versions WHERE project_id = ? AND status = 'Aktiv'

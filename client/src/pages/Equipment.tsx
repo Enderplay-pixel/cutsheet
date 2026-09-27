@@ -210,7 +210,12 @@ export function Component() {
     queryFn: () => api.drehplan.listDays(pid),
   })
 
-  const shootDayCount = shootDays?.length || 1
+  // Zwei verschiedene Dinge, vorher eine Zahl: die Ueberschrift nennt die
+  // tatsaechlichen Drehtage, die Vorgabe je Position braucht mindestens 1.
+  // Gemessen am 27.09.2026 an einem frischen Projekt: der Drehplan zeigte
+  // "0 Drehtage", das Equipment daneben "1 Drehtage geplant".
+  const drehtage = shootDays?.length ?? 0
+  const shootDayCount = Math.max(1, drehtage)
 
   const createList = useMutation({
     mutationFn: () => api.equipment.createList(pid, { name: newListName || 'Neue Equipmentliste', department: newListDept }),
@@ -221,7 +226,7 @@ export function Component() {
     <div className="p-6 max-w-5xl mx-auto space-y-4">
       <PageHeader
         title={tt(equipT.title)}
-        subtitle={`${lists?.length || 0} Listen · ${shootDayCount} Drehtage geplant`}
+        subtitle={`${lists?.length || 0} Listen · ${drehtage} ${drehtage === 1 ? 'Drehtag' : 'Drehtage'} geplant`}
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={() => download(api.pdf.equipment(pid), 'equipment.pdf')}>

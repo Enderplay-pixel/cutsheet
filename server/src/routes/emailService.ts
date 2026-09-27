@@ -16,7 +16,7 @@ export function appBaseUrl() {
   return (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/$/, '')
 }
 
-/** Dezenter Footer unter jeder E-Mail — der Viral-Grundstein. */
+/** Dezenter Footer unter jeder E-Mail - der Viral-Grundstein. */
 export function emailFooter() {
   return `
     <div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;font-family:Arial,sans-serif;">

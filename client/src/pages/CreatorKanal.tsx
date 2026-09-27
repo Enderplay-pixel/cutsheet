@@ -58,7 +58,7 @@ export function Component() {
     queryFn: () => api.creator.overview(pid),
   })
 
-  // Muster ueber den ganzen Kanal — der Vergleich, den Studio nicht anbietet
+  // Muster ueber den ganzen Kanal - der Vergleich, den Studio nicht anbietet
   const { data: patterns } = useQuery({
     queryKey: ['creator-patterns', pid],
     queryFn: () => api.creator.patterns(pid),
@@ -176,7 +176,7 @@ export function Component() {
                 <button
                   key={e.id}
                   onClick={() => navigate(`/projects/${pid}/creator/${e.id}`)}
-                  title={`${e.title} — ${e.status}${e.published ? ' (veröffentlicht)' : ''}`}
+                  title={`${e.title} - ${e.status}${e.published ? ' (veröffentlicht)' : ''}`}
                   className="w-full flex items-center gap-1 px-1 py-0.5 mb-0.5 rounded text-left text-[10px] hover:bg-muted/60 transition-colors"
                 >
                   <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', STATUS_DOT[e.status] || 'bg-muted-foreground')} />

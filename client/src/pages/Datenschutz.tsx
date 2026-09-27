@@ -8,7 +8,7 @@ export function Component() {
     <LegalLayout title="Datenschutzerklärung">
       <h2>1. Verantwortlicher</h2>
       <p>
-        [VOR- UND NACHNAME], [ANSCHRIFT], E-Mail: [KONTAKT-E-MAIL] —
+        [VOR- UND NACHNAME], [ANSCHRIFT], E-Mail: [KONTAKT-E-MAIL] -
         verantwortlich im Sinne der Datenschutz-Grundverordnung (DSGVO).
       </p>
 

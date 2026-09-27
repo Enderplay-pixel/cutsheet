@@ -63,7 +63,7 @@ describe('checkSecrets in der Entwicklung', () => {
   })
 
   it('beanstandet den Platzhalter auch hier', () => {
-    // Wer ihn ausdruecklich setzt, meint ihn vermutlich ernst — und das ist falsch
+    // Wer ihn ausdruecklich setzt, meint ihn vermutlich ernst - und das ist falsch
     expect(checkSecrets({ NODE_ENV: 'development', JWT_SECRET: PLATZHALTER } as any).ok).toBe(false)
   })
 })

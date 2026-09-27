@@ -48,7 +48,7 @@ export function Component() {
   return (
     <div className="min-h-screen flex">
 
-      {/* ── Left panel — cinematic ─────────────────────── */}
+      {/* ── Left panel - cinematic ─────────────────────── */}
       <div className="hidden lg:flex flex-col items-center justify-center flex-1 bg-[hsl(0_0%_3%)] relative overflow-hidden select-none">
         {/* Tungsten glow at bottom */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_110%,hsl(var(--primary)/0.18),transparent_65%)]" />
@@ -88,7 +88,7 @@ export function Component() {
         </p>
       </div>
 
-      {/* ── Right panel — form ─────────────────────────── */}
+      {/* ── Right panel - form ─────────────────────────── */}
       <div className="flex flex-col items-center justify-center flex-1 bg-background px-8 py-12 relative">
         {/* Subtle top glow */}
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
@@ -188,7 +188,7 @@ export function Component() {
               )}
             </div>
 
-            {/* Language picker — register only */}
+            {/* Language picker - register only */}
             {mode === 'register' && (
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">

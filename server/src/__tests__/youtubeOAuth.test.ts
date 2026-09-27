@@ -273,7 +273,7 @@ describe('parseIsoDuration', () => {
     expect(parseIsoDuration('PT2H')).toBe(7200)
   })
 
-  it('liest Tage — Livestreams koennen so lang sein', () => {
+  it('liest Tage - Livestreams koennen so lang sein', () => {
     expect(parseIsoDuration('P1DT2H')).toBe(93600)
   })
 

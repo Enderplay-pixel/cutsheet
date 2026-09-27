@@ -85,7 +85,7 @@ router.get('/projects/:projectId/screenplay/export.fountain', async (req, res) =
     if (blocks.length === 0) {
       // Szene ohne Blöcke: Heading aus den Szenen-Metadaten synthetisieren
       const intExt = scene.int_ext === 'INT' ? 'INT.' : 'EXT.'
-      const dayNight = scene.day_night ? ` — ${scene.day_night}` : ''
+      const dayNight = scene.day_night ? ` - ${scene.day_night}` : ''
       lines.push(`${intExt} ${String(scene.title || 'SZENE ' + scene.scene_number).toUpperCase()}${dayNight}`, '')
       if (scene.description) lines.push(scene.description, '')
       continue

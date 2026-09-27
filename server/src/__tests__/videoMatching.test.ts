@@ -33,7 +33,7 @@ describe('titleSimilarity', () => {
   })
 
   it('ignoriert Gross- und Kleinschreibung sowie Satzzeichen', () => {
-    expect(titleSimilarity('Dear Evan Hansen announcement', 'DEAR EVAN HANSEN — ANNOUNCEMENT!')).toBe(1)
+    expect(titleSimilarity('Dear Evan Hansen announcement', 'DEAR EVAN HANSEN - ANNOUNCEMENT!')).toBe(1)
   })
 
   it('bewertet Titel mit Zusatz sehr hoch', () => {
@@ -50,7 +50,7 @@ describe('titleSimilarity', () => {
   })
 
   it('unterscheidet Folgen derselben Reihe', () => {
-    // Aehnlich, aber nicht identisch — das darf nicht automatisch zugeordnet werden
+    // Aehnlich, aber nicht identisch - das darf nicht automatisch zugeordnet werden
     const s = titleSimilarity('Studio Tour Teil 1', 'Studio Tour Teil 2')
     expect(s).toBeGreaterThan(0.5)
     expect(s).toBeLessThan(1)
@@ -134,7 +134,7 @@ describe('assignAll', () => {
   })
 
   it('gibt dem sichereren Treffer den Vorrang', () => {
-    // Video 2 passt exakt, Video 1 nur vage — Video 2 muss den Kandidaten bekommen
+    // Video 2 passt exakt, Video 1 nur vage - Video 2 muss den Kandidaten bekommen
     const r = assignAll([
       { id: 1, title: 'Kamera' },
       { id: 2, title: 'Meine neue Kamera im Test' },

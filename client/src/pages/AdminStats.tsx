@@ -168,7 +168,7 @@ export function Component() {
 
       {/* Feature usage + Project status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Feature usage — progress bar list */}
+        {/* Feature usage - progress bar list */}
         <div className="rounded-xl border border-border/60 bg-card p-5">
           <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-5">
             Meistgenutzte Features
@@ -192,7 +192,7 @@ export function Component() {
             ))}
           </div>
           <p className="text-[11px] text-muted-foreground/40 mt-5">
-            * Statische Beispieldaten — Backend-Tracking folgt demnächst.
+            * Statische Beispieldaten - Backend-Tracking folgt demnächst.
           </p>
         </div>
 

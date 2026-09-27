@@ -33,7 +33,7 @@ export function Component() {
   const [authError, setAuthError] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(false)
 
-  // Load invite info (public endpoint — no auth needed)
+  // Load invite info (public endpoint - no auth needed)
   useEffect(() => {
     if (!token) return
     fetch(`/api/invites/${token}`)

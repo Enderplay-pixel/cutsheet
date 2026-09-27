@@ -26,7 +26,7 @@ export function isCreatorFormat(format: string | null | undefined): boolean {
  * Neben project_kind wird auch das Format geprüft: Projekte, die vor der
  * Einführung der Projektart angelegt wurden, stehen in der Datenbank auf
  * 'film', obwohl ihr Format eindeutig ein Content-Format ist. Der Server holt
- * das per Migration nach — bis die durch ist, soll die Oberfläche trotzdem
+ * das per Migration nach - bis die durch ist, soll die Oberfläche trotzdem
  * das Richtige zeigen.
  */
 export function isCreatorProject(project: any): boolean {

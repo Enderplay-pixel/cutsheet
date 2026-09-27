@@ -36,7 +36,7 @@ router.get('/projects/:projectId/creator/youtube/status', async (req, res) => {
 
   res.json({
     data: {
-      // Ohne Zugangsdaten in der Umgebung ist die Anbindung nicht einrichtbar —
+      // Ohne Zugangsdaten in der Umgebung ist die Anbindung nicht einrichtbar -
       // die Oberfläche zeigt dann eine Anleitung statt eines toten Knopfes
       configured: Boolean(config),
       connected: Boolean(account?.channel_id),
@@ -70,11 +70,11 @@ router.get('/projects/:projectId/creator/youtube/connect', async (req, res) => {
 
 /**
  * Rücklauf von Google. Läuft als Browser-Weiterleitung, kann also keinen
- * Authorization-Header tragen — die Zuordnung kommt aus dem signierten State.
+ * Authorization-Header tragen - die Zuordnung kommt aus dem signierten State.
  */
 router.get('/creator/youtube/callback', async (req: Request, res: Response) => {
   const appBase = (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/+$/, '')
-  // Ohne gültigen State kennen wir das Projekt nicht — dann zurück zur
+  // Ohne gültigen State kennen wir das Projekt nicht - dann zurück zur
   // Projektliste statt auf eine Route mit leerer ID
   const back = (projectId: number | string | null, params: Record<string, string>) => {
     // Die Projektliste liegt auf der Wurzel, nicht auf /projects
@@ -148,8 +148,8 @@ router.delete('/projects/:projectId/creator/youtube', async (req, res) => {
 /**
  * Gültiges Zugriffstoken besorgen und bei Bedarf erneuern.
  *
- * Läuft der Refresh ins Leere — im Google-Testmodus nach sieben Tagen der
- * Normalfall — wird der Grund am Konto vermerkt, damit die Oberfläche zum
+ * Läuft der Refresh ins Leere - im Google-Testmodus nach sieben Tagen der
+ * Normalfall - wird der Grund am Konto vermerkt, damit die Oberfläche zum
  * Neuverbinden auffordern kann statt stumm zu scheitern.
  */
 async function validAccessToken(projectId: number | string): Promise<string> {
@@ -172,7 +172,7 @@ async function validAccessToken(projectId: number | string): Promise<string> {
     )
     return refreshed.accessToken
   } catch (err: any) {
-    const message = 'Zugriff abgelaufen — bitte neu verbinden. ' + String(err?.message || '')
+    const message = 'Zugriff abgelaufen - bitte neu verbinden. ' + String(err?.message || '')
     await db.run('UPDATE creator_youtube_accounts SET last_error = ?, updated_at = NOW() WHERE project_id = ?',
       [message.slice(0, 500), projectId])
     throw new Error(message)
@@ -198,7 +198,7 @@ router.post('/projects/:projectId/creator/youtube/sync', async (req, res) => {
     const videos = await db.all('SELECT * FROM creator_videos WHERE project_id = ?', [projectId]) as any[]
 
     // Videos ohne hinterlegten Link ueber den Titel zuordnen. Nur eindeutige
-    // Treffer werden gesetzt — eine falsche Zuordnung haengt stillschweigend
+    // Treffer werden gesetzt - eine falsche Zuordnung haengt stillschweigend
     // fremde Zahlen an ein Video und waere schlimmer als gar keine.
     const needsMatch = videos.filter(v => !v.youtube_video_id && !extractVideoId(v.video_url))
     const autoLinked: Array<{ title: string; to: string }> = []
@@ -229,7 +229,7 @@ router.post('/projects/:projectId/creator/youtube/sync', async (req, res) => {
     }
 
     // Videos, die auf dem Kanal stehen aber hier fehlen, anlegen. Ohne das
-    // bleibt ein bestehender Kanal fuer CutSheet unsichtbar — der Abgleich
+    // bleibt ein bestehender Kanal fuer CutSheet unsichtbar - der Abgleich
     // haette nur zugeordnet, was man vorher selbst getippt hat.
     const linkedIds = new Set(
       videos.map(v => v.youtube_video_id || extractVideoId(v.video_url)).filter(Boolean) as string[]
@@ -313,13 +313,13 @@ router.post('/projects/:projectId/creator/youtube/sync', async (req, res) => {
           curves++
         }
       } catch (err: any) {
-        // Retention gibt es erst ab einer Mindestzahl an Aufrufen — kein Grund,
+        // Retention gibt es erst ab einer Mindestzahl an Aufrufen - kein Grund,
         // den ganzen Abgleich abzubrechen
         console.warn('[youtube/sync] keine Retention für', ytId, err?.message)
       }
     }
 
-    // Echte Laufzeiten nachziehen — sie sind die Bezugsgroesse fuer die Retention
+    // Echte Laufzeiten nachziehen - sie sind die Bezugsgroesse fuer die Retention
     const linkedForDuration = videos.map(v => v.youtube_video_id).filter(Boolean) as string[]
     if (linkedForDuration.length > 0) {
       try {
@@ -354,7 +354,7 @@ router.post('/projects/:projectId/creator/youtube/sync', async (req, res) => {
   }
 })
 
-// GET /api/projects/:projectId/creator/youtube/videos — fuer die Auswahlliste
+// GET /api/projects/:projectId/creator/youtube/videos - fuer die Auswahlliste
 router.get('/projects/:projectId/creator/youtube/videos', async (req, res) => {
   try {
     const accessToken = await validAccessToken(req.params.projectId)
@@ -418,7 +418,7 @@ router.get('/creator/videos/:videoId/retention', requireMemberVia(projectIdFromT
   })
 })
 
-/** Muster über den ganzen Kanal — der Vergleich, den Studio nicht anbietet. */
+/** Muster über den ganzen Kanal - der Vergleich, den Studio nicht anbietet. */
 router.get('/projects/:projectId/creator/patterns', async (req, res) => {
   const videos = await db.all('SELECT * FROM creator_videos WHERE project_id = ?', [req.params.projectId]) as any[]
 

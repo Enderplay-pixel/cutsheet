@@ -36,8 +36,8 @@ interface DoodReport {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 // Codes wie sie der Server liefert (routes/dood.ts). F steht dort fuer den
-// letzten Arbeitstag und zaehlt als Arbeitstag — die alte Legende nannte ihn
-// "Frei" und faerbte ihn grau wie einen leeren Tag — beides behauptete das
+// letzten Arbeitstag und zaehlt als Arbeitstag - die alte Legende nannte ihn
+// "Frei" und faerbte ihn grau wie einen leeren Tag - beides behauptete das
 // Gegenteil.
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; border: string }> = {
   W:   { label: 'Arbeit',             bg: 'bg-green-500/20',  text: 'text-green-700 dark:text-green-300',   border: 'border-green-500/30' },

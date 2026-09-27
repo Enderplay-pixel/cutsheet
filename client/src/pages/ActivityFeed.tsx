@@ -150,7 +150,7 @@ export function Component() {
             Aktivitäten
           </h1>
           <p className="text-sm text-muted-foreground/60 mt-1.5">
-            Projektverlauf — aktualisiert alle 30 Sekunden
+            Projektverlauf - aktualisiert alle 30 Sekunden
           </p>
         </div>
 

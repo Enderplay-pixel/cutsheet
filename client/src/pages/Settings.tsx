@@ -295,7 +295,7 @@ function PushSection() {
             {state === 'subscribed'
               ? 'Aktiv auf diesem Gerät'
               : state === 'denied'
-                ? 'Im Browser blockiert — bitte in den Browser-Einstellungen erlauben'
+                ? 'Im Browser blockiert - bitte in den Browser-Einstellungen erlauben'
                 : 'Erhalte sofort Bescheid, wenn sich Drehzeiten ändern'}
           </p>
         </div>
@@ -362,7 +362,7 @@ function PrivacySection() {
   })
 
   return (
-    <Section icon={ShieldCheck} title="Datenschutz & Konto" description="Deine Daten gehören dir — Export und Löschung jederzeit">
+    <Section icon={ShieldCheck} title="Datenschutz & Konto" description="Deine Daten gehören dir - Export und Löschung jederzeit">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-foreground">Daten exportieren</p>
@@ -376,7 +376,7 @@ function PrivacySection() {
       <div className="flex items-center justify-between pt-4 border-t border-border/40">
         <div>
           <p className="text-sm font-medium text-destructive">Konto löschen</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Unwiderruflich — eigene Solo-Projekte werden mitgelöscht</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Unwiderruflich - eigene Solo-Projekte werden mitgelöscht</p>
         </div>
         <Button variant="destructive" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setDeleteOpen(true)}>
           <Trash2 className="w-3.5 h-3.5" /> Löschen

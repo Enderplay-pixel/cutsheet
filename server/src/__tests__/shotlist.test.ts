@@ -55,7 +55,7 @@ describe('groupShots nach Szene', () => {
   })
 
   it('verliert Einstellungen einer geloeschten Szene nicht', () => {
-    // scene_id zeigt ins Leere — uebersehen waere schlimmer als unsortiert
+    // scene_id zeigt ins Leere - uebersehen waere schlimmer als unsortiert
     const groups = groupShots([shot({ scene_id: 99 })], scenes, days, 'szene')
     expect(groups).toHaveLength(1)
     expect(groups[0].key).toBe('ohne')
@@ -123,7 +123,7 @@ describe('renderShotlistHtml', () => {
   }
 
   it('zeigt die Storyboard-Spalte nur, wenn es Bilder gibt', () => {
-    // Auf die Spaltenueberschrift pruefen, nicht auf das Wort — das steht auch
+    // Auf die Spaltenueberschrift pruefen, nicht auf das Wort - das steht auch
     // im CSS-Kommentar
     const ohne = renderShotlistHtml({ ...basis, allShots: [shot()], groups: groupShots([shot()], scenes, days, 'szene') })
     expect(ohne).not.toContain('>Storyboard</th>')
@@ -205,7 +205,7 @@ describe('renderShotlistHtml', () => {
   })
 
   it('haelt die Spalte nach Drehtag zum Eintragen frei', () => {
-    // Am Set wird sie mit der Hand gefuellt — ein Strich waere da im Weg
+    // Am Set wird sie mit der Hand gefuellt - ein Strich waere da im Weg
     const s1 = [shot({ best_take: null })]
     const html = renderShotlistHtml({
       ...basis, mode: 'drehtag', allShots: s1, groups: groupShots(s1, scenes, days, 'drehtag'),
@@ -214,7 +214,7 @@ describe('renderShotlistHtml', () => {
     expect(html).toContain('&nbsp;')
   })
 
-  it('laeuft quer — sechs Spalten passen nicht ins Hochformat', () => {
+  it('laeuft quer - sechs Spalten passen nicht ins Hochformat', () => {
     const html = renderShotlistHtml({ ...basis, allShots: [shot()], groups: groupShots([shot()], scenes, days, 'szene') })
     expect(html).toContain('A4 landscape')
   })

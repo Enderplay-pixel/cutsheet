@@ -62,7 +62,7 @@ router.post('/projects/:projectId/shoot-days', async (req, res) => {
   res.status(201).json({ data: await getShootDayWithScenes(result.id), error: null })
 })
 
-// POST /api/projects/:projectId/shoot-days/batch — create multiple days from a date range
+// POST /api/projects/:projectId/shoot-days/batch - create multiple days from a date range
 router.post('/projects/:projectId/shoot-days/batch', async (req, res) => {
   const { dates } = req.body   // string[] of 'YYYY-MM-DD'
   if (!Array.isArray(dates) || dates.length === 0)

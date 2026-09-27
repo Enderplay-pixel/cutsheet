@@ -96,7 +96,7 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
 
   return (
     <div className="border rounded p-2 bg-card/30 hover:bg-card/50 transition-colors space-y-1.5">
-      {/* Kopfzeile: die kurzen, festen Angaben. Am Telefon umbrechend —
+      {/* Kopfzeile: die kurzen, festen Angaben. Am Telefon umbrechend -
           nebeneinander braucht die Reihe rund 570 px. */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="font-mono text-xs text-muted-foreground w-8 shrink-0">{shot.shot_number}</span>
@@ -123,7 +123,7 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
           <Clock className="w-3 h-3 text-muted-foreground" />
         </div>
 
-        {/* Circle Take — Freitext, weil in der Praxis auch "3, 5" darin steht */}
+        {/* Circle Take - Freitext, weil in der Praxis auch "3, 5" darin steht */}
         <div className="flex items-center gap-1 shrink-0" title="Bester Take (Circle Take)">
           <Star className={cn('w-3 h-3', form.best_take ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground')} />
           <Input value={form.best_take || ''} onChange={e => update('best_take', e.target.value)}
@@ -150,7 +150,7 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
         </button>
       </div>
 
-      {/* Beschreibung und Notiz auf voller Breite — hier steht der lange Text */}
+      {/* Beschreibung und Notiz auf voller Breite - hier steht der lange Text */}
       <AutoTextarea
         value={form.description || ''}
         onChange={v => update('description', v)}
@@ -160,7 +160,7 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
       <AutoTextarea
         value={form.notes || ''}
         onChange={v => update('notes', v)}
-        placeholder="Notiz (VFX, Requisite, Sicherheit) — erscheint im PDF"
+        placeholder="Notiz (VFX, Requisite, Sicherheit) - erscheint im PDF"
         className="text-xs text-muted-foreground"
       />
     </div>

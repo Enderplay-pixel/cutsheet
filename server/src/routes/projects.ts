@@ -18,7 +18,7 @@ function isCreatorFormat(format: string): boolean {
   return CREATOR_FORMATS.includes(String(format || '').trim())
 }
 
-// GET /api/projects — only show own projects + projects user is member of
+// GET /api/projects - only show own projects + projects user is member of
 router.get('/', requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user
   const showArchived = req.query.archived === '1'
@@ -48,14 +48,14 @@ router.patch('/:id/archive', requireAuth, async (req, res) => {
   res.json({ data: project, error: null })
 })
 
-// POST /api/projects — set owner, add creator as admin member
+// POST /api/projects - set owner, add creator as admin member
 router.post('/', validate(ProjectSchema), async (req, res) => {
   const userId = (req as any).user?.id
   const { title = 'Neues Projekt', genre = '', format = 'Kurzfilm', length_minutes = 0, status = 'Vorproduktion',
     synopsis = '', director = '', producer = '', dop = '', production_company = '', shoot_start = null, shoot_end = null } = req.body
 
   // Projektart bestimmt Navigation und Feature-Set. Wird sie nicht mitgeschickt,
-  // leitet der Server sie aus dem Format ab — damit ist sie unabhaengig davon
+  // leitet der Server sie aus dem Format ab - damit ist sie unabhaengig davon
   // gesetzt, welcher Client das Projekt anlegt.
   const project_kind = req.body.project_kind ?? (isCreatorFormat(format) ? 'creator' : 'film')
 
@@ -100,7 +100,7 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
 router.put('/:id', requireAuth, async (req, res) => {
   const { title, genre, format, length_minutes, status, synopsis = '', director, producer, dop, production_company, shoot_start, shoot_end } = req.body
 
-  // Die Projektart wird beim Speichern immer aus dem Format abgeleitet — sie ist
+  // Die Projektart wird beim Speichern immer aus dem Format abgeleitet - sie ist
   // abgeleiteter Zustand, nicht eigene Eingabe. Ein mitgeschicktes project_kind
   // wird bewusst ignoriert: Oberflaechen schicken den geladenen Datensatz
   // unveraendert zurueck, und der alte Wert wuerde den Formatwechsel aushebeln.
@@ -145,7 +145,7 @@ router.put('/:id/settings', requireAuth, async (req, res) => {
   res.json({ data: settings, error: null })
 })
 
-// DELETE /api/projects/:id — owner or global admin only
+// DELETE /api/projects/:id - owner or global admin only
 router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user
   const projectId = Number(req.params.id)
@@ -164,7 +164,7 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
 
 // ─── Member management ────────────────────────────────────────────────────────
 
-// GET /api/projects/:id/members — list members with user info (owner always included)
+// GET /api/projects/:id/members - list members with user info (owner always included)
 router.get('/:id/members', requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user
   const projectId = Number(req.params.id)
@@ -201,7 +201,7 @@ router.get('/:id/members', requireAuth, async (req: Request, res: Response) => {
   res.json({ data: result, error: null })
 })
 
-// POST /api/projects/:id/members — add member { userId, role }
+// POST /api/projects/:id/members - add member { userId, role }
 router.post('/:id/members', requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user
   const projectId = Number(req.params.id)
@@ -228,7 +228,7 @@ router.post('/:id/members', requireAuth, async (req: Request, res: Response) => 
   res.status(201).json({ data: { user_id: targetUser.id, name: targetUser.name, email: targetUser.email, role: memberRole }, error: null })
 })
 
-// PUT /api/projects/:id/members/:userId/role — change role
+// PUT /api/projects/:id/members/:userId/role - change role
 router.put('/:id/members/:userId/role', requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user
   const projectId = Number(req.params.id)
@@ -258,7 +258,7 @@ router.put('/:id/members/:userId/role', requireAuth, async (req: Request, res: R
   res.json({ data: updated, error: null })
 })
 
-// DELETE /api/projects/:id/members/:userId — remove member (can't remove owner)
+// DELETE /api/projects/:id/members/:userId - remove member (can't remove owner)
 router.delete('/:id/members/:userId', requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user
   const projectId = Number(req.params.id)

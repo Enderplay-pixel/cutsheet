@@ -180,7 +180,7 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
     }
   })
 
-  // 10. Turnaround violations — cast called back before minimum rest
+  // 10. Turnaround violations - cast called back before minimum rest
   await pruefung('Turnaround', conflicts, async () => {
     const settings = await db.get('SELECT turnaround_hours FROM project_settings WHERE project_id = ?', [pid]) as any
     const turnaroundMins = (settings?.turnaround_hours ?? 11) * 60
@@ -256,7 +256,7 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
       conflicts.push({
         severity: 'warning', category: 'Drehplan',
         message: `Mehrere Drehtage am ${d.date}`,
-        detail: `${d.c} aktive Drehtage am selben Datum — Terminkonflikt prüfen.`,
+        detail: `${d.c} aktive Drehtage am selben Datum - Terminkonflikt prüfen.`,
         link: 'drehplan'
       })
     })

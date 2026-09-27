@@ -1,12 +1,12 @@
 /**
- * Call Sheet im Branchenstandard — zwei Seiten.
+ * Call Sheet im Branchenstandard - zwei Seiten.
  *
  * Seite 1 ist das Blatt, das am Set in der Hand liegt: Zeiten, Sicherheit,
  * Szenen, Cast, Departmentnotizen, Vorschau auf die naechsten Tage.
  * Seite 2 ist die Crewliste nach Departments in drei Spalten.
  *
  * Die Anordnung folgt der ueblichen Vorlage, weil jeder am Set weiss, wo er
- * schauen muss — die Position einer Angabe ist hier Teil der Information.
+ * schauen muss - die Position einer Angabe ist hier Teil der Information.
  */
 
 // ─── Formatierung ─────────────────────────────────────────────────────────────
@@ -24,7 +24,7 @@ export function fmtCallTime(minutes: number | null | undefined): string {
 
 /**
  * Achtel als Seitenangabe: 8 Achtel sind eine Seite.
- * Die Branche schreibt "2 3/8", nicht "19/8" — so laesst sich der Tag im Kopf
+ * Die Branche schreibt "2 3/8", nicht "19/8" - so laesst sich der Tag im Kopf
  * ueberschlagen.
  */
 export function fmtEighths(eighths: number | null | undefined): string {
@@ -109,7 +109,7 @@ export function groupByDepartment(crew: CrewMember[]): Array<{ department: strin
 
 /**
  * Verteilt die Departments auf drei Spalten, ohne eines zu zerreissen.
- * Es wird nach Zeilenzahl ausgeglichen, nicht nach Anzahl der Departments —
+ * Es wird nach Zeilenzahl ausgeglichen, nicht nach Anzahl der Departments -
  * sonst steht eine Spalte voll und zwei sind leer.
  */
 export function balanceColumns(
@@ -198,7 +198,7 @@ export function renderCallSheetHtml(data: CallSheetData): string {
 
   const advanceBlocks = advance.map(a => `
     <tr class="advhead"><td colspan="7">
-      Drehtag ${esc(a.day.day_number)} — ${esc(fmtSheetDate(a.day.date))}
+      Drehtag ${esc(a.day.day_number)} - ${esc(fmtSheetDate(a.day.date))}
     </td></tr>
     ${a.scenes.map((sc, i) => `<tr>
       <td class="c b">${esc(sc.scene_number)}</td>
@@ -233,7 +233,7 @@ export function renderCallSheetHtml(data: CallSheetData): string {
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Call Sheet — ${esc(project?.title)} — Drehtag ${esc(day?.day_number)}</title>
+<title>Call Sheet - ${esc(project?.title)} - Drehtag ${esc(day?.day_number)}</title>
 <style>
   @page { size: A4 portrait; margin: 8mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }

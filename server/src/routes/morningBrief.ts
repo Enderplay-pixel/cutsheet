@@ -8,7 +8,7 @@ import {
 
 const router = Router()
 
-// Der Brief nennt Namen, Call-Zeiten und Motivadressen — nur fuer Projektbeteiligte
+// Der Brief nennt Namen, Call-Zeiten und Motivadressen - nur fuer Projektbeteiligte
 router.use('/shoot-days/:dayId', requireMemberVia(projectIdFromTable('shoot_days', 'dayId')))
 
 
@@ -156,7 +156,7 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
     : ''
 
   // Nach location_name vergleichen, nicht nach name: abgelegt wird die Szene,
-  // die kein Feld "name" hat — die Pruefung lief immer ins Leere und jedes
+  // die kein Feld "name" hat - die Pruefung lief immer ins Leere und jedes
   // Motiv stand so oft da, wie Szenen darin spielen.
   const uniqueLocations = scenes.reduce((acc: any[], s: any) => {
     if (s.location_name && !acc.some((l: any) => l.location_name === s.location_name)) acc.push(s)
@@ -225,7 +225,7 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
       section('Motive', table({
         columns: [
           { header: 'Motiv', value: (r: any) => r.location_name, width: '30%' },
-          // Adressteile einzeln — fehlende duerfen nicht als "null" erscheinen
+          // Adressteile einzeln - fehlende duerfen nicht als "null" erscheinen
           { header: 'Adresse', value: (r: any) => [r.address, [r.zip, r.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') },
         ],
         rows: uniqueLocations,
@@ -239,7 +239,7 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
         ],
         rows: enriched,
         empty: 'Noch keine Call-Zeiten gesetzt.',
-      }), enriched.length >= 8 ? 'Auszug — vollständig auf der Tagesdispo' : undefined) +
+      }), enriched.length >= 8 ? 'Auszug - vollständig auf der Tagesdispo' : undefined) +
       (paragraph(shootDay.notes) ? section('Hinweise zum Drehtag', paragraph(shootDay.notes)) : '') +
       (paragraph(callSheet?.notes) ? section('Hinweise zur Disposition', paragraph(callSheet.notes)) : ''),
   })

@@ -74,12 +74,12 @@ export function Component() {
       </header>
 
       <main className="max-w-md mx-auto px-5 pt-6 space-y-4 animate-fade-up">
-        {/* Persönliche Call Time — die eine Info, die zählt */}
+        {/* Persönliche Call Time - die eine Info, die zählt */}
         <div className="rounded-2xl border border-primary/25 bg-primary/5 p-6 text-center relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none"
             style={{ background: 'radial-gradient(ellipse at top, hsl(var(--primary)/0.08) 0%, transparent 60%)' }} />
           <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-primary mb-2">
-            Deine Call Time{me.name ? ` — ${me.name}` : ''}
+            Deine Call Time{me.name ? ` - ${me.name}` : ''}
           </p>
           <div className="text-6xl font-black tabular-nums tracking-tight leading-none">
             {fmtTime(me.call_time)}
@@ -170,7 +170,7 @@ export function Component() {
         {!has_account && me.email && <ClaimCard token={token!} project={project} myName={me.name} email={me.email} />}
         {has_account && (
           <p className="text-center text-[13px] text-muted-foreground">
-            Du hast bereits ein CutSheet-Konto — <Link to="/login" className="text-primary hover:underline">hier anmelden</Link>, um das ganze Projekt zu sehen.
+            Du hast bereits ein CutSheet-Konto - <Link to="/login" className="text-primary hover:underline">hier anmelden</Link>, um das ganze Projekt zu sehen.
           </p>
         )}
 

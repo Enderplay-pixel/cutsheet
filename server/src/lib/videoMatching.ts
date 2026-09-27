@@ -3,7 +3,7 @@
  *
  * Ohne diese Zuordnung muesste man jeden Video-Link von Hand eintragen. Die
  * Titel liegen aber auf beiden Seiten vor, und in der Praxis heisst ein Video
- * auf YouTube fast genauso wie im Skript — nur mit Zusaetzen wie "(2026)",
+ * auf YouTube fast genauso wie im Skript - nur mit Zusaetzen wie "(2026)",
  * Emojis oder einem Kanalnamen hinten dran.
  */
 
@@ -18,7 +18,7 @@ export interface MatchResult {
   title: string | null
   /** 0 bis 1. Ab 0.82 wird automatisch verknuepft. */
   score: number
-  /** Zweitbester Treffer — bei knappem Abstand wird nicht automatisch gewaehlt. */
+  /** Zweitbester Treffer - bei knappem Abstand wird nicht automatisch gewaehlt. */
   runnerUpScore: number
   auto: boolean
 }
@@ -37,7 +37,7 @@ export function normalizeTitle(title: string): string {
   return String(title ?? '')
     .toLowerCase()
     .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
-    // Alles ausser Buchstaben und Ziffern faellt weg — das trifft auch Emojis
+    // Alles ausser Buchstaben und Ziffern faellt weg - das trifft auch Emojis
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()
     .replace(/\s+/g, ' ')
@@ -60,7 +60,7 @@ function contentWords(title: string): string[] {
  * ignoriert die Reihenfolge und erkennt Zusaetze am Ende, verliert aber bei
  * Tippfehlern. Die Zeichenaehnlichkeit faengt Tippfehler, verwechselt aber
  * Titel mit gleichen Wortstaemmen. Ein Titel, der komplett im anderen steckt,
- * gilt als sehr aehnlich — genau der Fall "Titel + Zusatz".
+ * gilt als sehr aehnlich - genau der Fall "Titel + Zusatz".
  */
 export function titleSimilarity(a: string, b: string): number {
   const na = normalizeTitle(a)
@@ -92,7 +92,7 @@ export function titleSimilarity(a: string, b: string): number {
 const WORD_MATCH_THRESHOLD = 0.7
 
 /**
- * Wie viele Woerter haben beide Titel gemeinsam — unscharf gezaehlt.
+ * Wie viele Woerter haben beide Titel gemeinsam - unscharf gezaehlt.
  *
  * Ein exakter Mengenvergleich wuerde "grosses" und "grosse" als voellig
  * verschiedene Woerter behandeln und einem einzigen Tippfehler oder einer
@@ -150,8 +150,8 @@ function clamp01(n: number): number {
  * Sucht zu einem Titel das passende Video auf dem Kanal.
  *
  * Automatisch zugeordnet wird nur, wenn der beste Treffer sicher genug ist UND
- * den zweitbesten deutlich schlaegt. Bei zwei aehnlich guten Kandidaten — etwa
- * "Teil 1" und "Teil 2" — waere eine Vertauschung schlimmer als gar keine
+ * den zweitbesten deutlich schlaegt. Bei zwei aehnlich guten Kandidaten - etwa
+ * "Teil 1" und "Teil 2" - waere eine Vertauschung schlimmer als gar keine
  * Zuordnung, weil sie unbemerkt falsche Zahlen ans Video haengt.
  */
 export function findBestMatch(title: string, candidates: Candidate[]): MatchResult {
@@ -206,7 +206,7 @@ export function assignAll(
       taken.add(match.videoId)
       result.push({ id: v.id, title: v.title, match })
     } else if (match.videoId) {
-      // Bereits vergeben — nächstbesten freien Kandidaten suchen
+      // Bereits vergeben - nächstbesten freien Kandidaten suchen
       const free = candidates.filter(c => !taken.has(c.videoId))
       const alt = findBestMatch(v.title, free)
       if (alt.videoId) taken.add(alt.videoId)

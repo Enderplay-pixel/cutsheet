@@ -86,7 +86,7 @@ router.get('/projects/:projectId/search', async (req, res) => {
     type: 'crew',
     id: r.id,
     title: r.name,
-    subtitle: `${r.role} — ${r.department}`,
+    subtitle: `${r.role} - ${r.department}`,
     url: `/projects/${pid}/stabliste`,
   }))
 

@@ -219,7 +219,7 @@ export function Component() {
 
           {/* Plan */}
           <div>
-            {/* Die Bezugsflaeche fuer die Positionen muss genau das Bild sein —
+            {/* Die Bezugsflaeche fuer die Positionen muss genau das Bild sein -
                 im PDF ist sie es auch. Waere sie hier der breitere Container,
                 saessen dieselben Koordinaten im Druck an anderer Stelle. */}
             <div className="text-center">
@@ -315,7 +315,7 @@ export function Component() {
               ))}
             </div>
             <p className="mt-2 text-xs text-muted-foreground/70">
-              Symbol anklicken, um es hinzuzufügen — dann auf dem Plan an die richtige Stelle ziehen.
+              Symbol anklicken, um es hinzuzufügen - dann auf dem Plan an die richtige Stelle ziehen.
             </p>
           </div>
 

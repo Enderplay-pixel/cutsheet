@@ -8,7 +8,7 @@ import { findInPuppeteerCache } from '../routes/pdf'
  * Regressionstest für den Fehler, der den PDF-Export auf Render lahmgelegt hat:
  * puppeteer legt Chrome unter <cache>/chrome/<plattform-version>/chrome-<plattform>/
  * ab. Die Version steckt im Ordnernamen, sie muss also gefunden statt geraten
- * werden — sonst kommt "Could not find Chrome (ver. …)".
+ * werden - sonst kommt "Could not find Chrome (ver. …)".
  */
 describe('findInPuppeteerCache', () => {
   let root: string

@@ -5,7 +5,7 @@
  * kein Fließtext. Courier 12pt heißt exakt 10 Zeichen pro Zoll und 6 Zeilen pro
  * Zoll, eine Seite fasst 55 Zeilen (daraus folgt die Regel "eine Seite ≈ eine
  * Minute Film"). (MORE)/(CONT'D) und die Witwen-/Waisen-Regeln hängen davon ab,
- * *wo* eine Seite bricht — das weiß CSS nicht, ein eigener Umbruch schon.
+ * *wo* eine Seite bricht - das weiß CSS nicht, ein eigener Umbruch schon.
  *
  * Maße in Zoll ab linker Papierkante, gemäß WGA/Final-Draft-Konvention:
  *   Textspiegel links 1.5", Breite 6.0" (= 60 Zeichen), rechts ≥ 0.75"
@@ -31,7 +31,7 @@ export const TOP_MARGIN_IN = 1.0
 /** Seitenzahl sitzt 0.5" unter der Papieroberkante. */
 export const PAGE_NUM_TOP_IN = 0.5
 /**
- * 55 Zeilen pro Seite — bewusst papierunabhängig, damit die Seitenzahl weiter
+ * 55 Zeilen pro Seite - bewusst papierunabhängig, damit die Seitenzahl weiter
  * der Laufzeit entspricht (1 Seite ≈ 1 Minute), auch auf A4.
  */
 export const LINES_PER_PAGE = 55
@@ -151,7 +151,7 @@ interface Element {
   spaceBefore: number
   /** Darf nicht als letzte Zeile einer Seite stehen (Waise). */
   keepWithNext: boolean
-  /** Figurenname, zu dem dieses Element gehört — für (MORE)/(CONT'D). */
+  /** Figurenname, zu dem dieses Element gehört - für (MORE)/(CONT'D). */
   speaker?: string
   sceneNumber?: string
   color?: string
@@ -168,7 +168,7 @@ function bareName(s: string): string {
  * Wandelt die Editor-Blöcke einer Szene in gesetzte Elemente um.
  *
  * Setzt (CONT'D) hinter den Figurennamen, wenn dieselbe Figur nach einer
- * Unterbrechung durch Action erneut spricht — das ist die Konvention innerhalb
+ * Unterbrechung durch Action erneut spricht - das ist die Konvention innerhalb
  * einer Seite und unabhängig vom (CONT'D) am Seitenumbruch.
  */
 function blocksToElements(blocks: SourceBlock[], includeAnnotations: boolean): Element[] {
@@ -327,12 +327,12 @@ function lineOf(el: Element, text: string): LaidOutLine {
   return { col: GEOMETRY[el.type].col, text, type: el.type, color: el.color }
 }
 
-/** Rechtsbündig im Textspiegel — für Transitions. */
+/** Rechtsbündig im Textspiegel - für Transitions. */
 function rightAlign(text: string): number {
   return TEXT_COL + Math.max(0, TEXT_WIDTH - text.length)
 }
 
-/** Mittig im Textspiegel — für SUPER. */
+/** Mittig im Textspiegel - für SUPER. */
 function centerCol(text: string): number {
   return TEXT_COL + Math.max(0, Math.floor((TEXT_WIDTH - text.length) / 2))
 }
@@ -445,7 +445,7 @@ export function layoutScreenplay(scenes: SceneInput[], opts: LayoutOptions = {})
     const budget = remaining() - lead - (isDialogue ? 1 : 0)
     const tailAfterSplit = el.lines.length - budget
 
-    // Trennen nur, wenn beide Hälften genug Zeilen behalten — sonst komplett
+    // Trennen nur, wenn beide Hälften genug Zeilen behalten - sonst komplett
     // auf die nächste Seite schieben
     if (!splittable || budget < MIN_SPLIT_LINES || tailAfterSplit < MIN_SPLIT_LINES) {
       flushPage()
@@ -473,7 +473,7 @@ export function layoutScreenplay(scenes: SceneInput[], opts: LayoutOptions = {})
 
 export interface TitlePageInfo {
   title: string
-  /** Buch von — im Standard direkt unter dem Titel. */
+  /** Buch von - im Standard direkt unter dem Titel. */
   author?: string
   producer?: string
   /** Fassung/Datum, unten links. */
@@ -527,7 +527,7 @@ export function buildTitlePage(info: TitlePageInfo): LaidOutPage {
 }
 
 /**
- * Eine ungezählte Vorseite mit Überschrift und Fließtext — für die Synopsis,
+ * Eine ungezählte Vorseite mit Überschrift und Fließtext - für die Synopsis,
  * die auf einer normgerechten Titelseite nichts zu suchen hat.
  */
 export function buildTextPage(heading: string, body: string | null | undefined): LaidOutPage | null {
@@ -558,7 +558,7 @@ const spaces = (n: number) => ' '.repeat(Math.max(0, n))
 
 /**
  * Eine Rasterzeile als HTML. Die Einrückung entsteht aus echten Leerzeichen in
- * einem <pre> — bei 10 cpi ist das exakt und braucht keine CSS-Positionierung.
+ * einem <pre> - bei 10 cpi ist das exakt und braucht keine CSS-Positionierung.
  */
 function lineToHtml(l: LaidOutLine): string {
   if (!l.text) return ''
@@ -578,7 +578,7 @@ function lineToHtml(l: LaidOutLine): string {
 
 /**
  * Baut die Druckvorlage. Jede Seite ist ein Kasten in exakter Papiergröße mit
- * margin:0 im @page — die selbst berechnete Paginierung bildet damit 1:1 auf
+ * margin:0 im @page - die selbst berechnete Paginierung bildet damit 1:1 auf
  * PDF-Seiten ab, statt Chromium den Umbruch raten zu lassen.
  */
 export function renderScreenplayHtml(
@@ -594,7 +594,7 @@ export function renderScreenplayHtml(
   }
 ): string {
   const paper = PAPER[opts.paper]
-  // Rechte Kante des Textspiegels — dort endet die Seitenzahl
+  // Rechte Kante des Textspiegels - dort endet die Seitenzahl
   const textRightIn = GRID_LEFT_IN + (TEXT_COL + TEXT_WIDTH) / CPI
 
   const head = opts.header ? `<div class="shead">${escapeHtml(opts.header)}</div>` : ''

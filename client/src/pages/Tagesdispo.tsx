@@ -62,7 +62,7 @@ function SendDispoButton({ dayId, entries, onSent }: {
 
   const withEmail = entries.filter((e: any) => e.email || e.person_email)
   const recipientCount = withEmail.length
-  // Server löst E-Mails selbst auf — die Client-Zählung ist nur eine Vorschau;
+  // Server löst E-Mails selbst auf - die Client-Zählung ist nur eine Vorschau;
   // wenn der Call Sheet-Endpoint keine E-Mails liefert, zeigen wir alle Einträge.
   const previewEntries = recipientCount > 0 ? withEmail : entries
 
@@ -633,7 +633,7 @@ export function Component() {
   })
 
   // Offene Aenderung mitfuehren, damit sie nicht verlorengeht, wenn man direkt
-  // nach dem Tippen die Seite wechselt oder das PDF erzeugt — der Speicher-
+  // nach dem Tippen die Seite wechselt oder das PDF erzeugt - der Speicher-
   // vorgang ist um 600 ms verzoegert und waere sonst noch nicht gelaufen.
   const pendingHeader = useRef<any>(null)
   const debouncedSave = useRef(debounce((data: any) => {
@@ -700,7 +700,7 @@ export function Component() {
         title: `Sonne: ${auf} – ${unter}`,
         description: d.koordinaten === 'standard'
           // Nicht verschweigen: ohne Koordinaten am Motiv ist das geraten.
-          ? 'Ohne Koordinaten am Motiv gerechnet (Standardort München) — im Motiv Lat/Lng eintragen für genaue Zeiten.'
+          ? 'Ohne Koordinaten am Motiv gerechnet (Standardort München) - im Motiv Lat/Lng eintragen für genaue Zeiten.'
           : golden ? `Golden Hour abends ab ${golden}` : undefined,
       })
     } catch {

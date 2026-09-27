@@ -4,7 +4,7 @@ import { requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 
 const router = Router()
 
-// Verpflegungswuensche sind Gesundheitsangaben — nur fuer Projektbeteiligte
+// Verpflegungswuensche sind Gesundheitsangaben - nur fuer Projektbeteiligte
 router.use('/shoot-days/:dayId', requireMemberVia(projectIdFromTable('shoot_days', 'dayId')))
 router.use('/projects/:pid', requireMemberVia(async req => Number(req.params.pid) || null))
 
@@ -35,7 +35,7 @@ router.get('/projects/:pid/catering-preferences', async (req: Request, res: Resp
   return res.json({ data: enriched, error: null })
 })
 
-// POST /api/projects/:pid/catering-preferences — upsert
+// POST /api/projects/:pid/catering-preferences - upsert
 router.post('/projects/:pid/catering-preferences', async (req: Request, res: Response) => {
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })

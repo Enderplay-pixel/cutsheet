@@ -12,7 +12,7 @@ interface TimeInputProps {
 /**
  * Zeiteingabe als HH:MM.
  *
- * Der Wert wird beim Verlassen des Feldes übernommen — während des Tippens
+ * Der Wert wird beim Verlassen des Feldes übernommen - während des Tippens
  * wäre "1" oder "16:" noch keine sinnvolle Zeit. Zusätzlich zählt aber die
  * Eingabetaste, und beim Ausblenden der Komponente wird eine offene Änderung
  * nachgereicht: Wer eine Zeit eintippt und danach direkt druckt oder die Seite
@@ -22,7 +22,7 @@ export function TimeInput({ value, onChange, className, placeholder = '08:00' }:
   const [str, setStr] = useState(formatTime(value || 0))
   useEffect(() => setStr(formatTime(value || 0)), [value])
 
-  // Aktuellen Stand für die Übernahme beim Ausblenden festhalten — der
+  // Aktuellen Stand für die Übernahme beim Ausblenden festhalten - der
   // Aufräum-Effekt sähe sonst nur den Stand vom ersten Rendern.
   const latest = useRef({ str, value, onChange })
   latest.current = { str, value, onChange }

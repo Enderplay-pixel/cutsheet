@@ -3,7 +3,7 @@
  *
  * Studio kennt die Retention-Kurve, aber nicht das Skript. CutSheet kennt das
  * Skript mit Timecodes. Erst die Verbindung beider Seiten beantwortet die
- * Frage, die zaehlt: *an welcher Stelle des Skripts* springen die Leute ab —
+ * Frage, die zaehlt: *an welcher Stelle des Skripts* springen die Leute ab -
  * beim Sponsor, nach dem Hook, im zweiten Hauptteil?
  *
  * Reine Rechnerei ohne Netzwerk und Datenbank, damit es testbar bleibt.
@@ -72,7 +72,7 @@ export interface SectionRetention extends TimedSection {
   watchEnd: number | null
   /** Verlust ueber den Abschnitt in Prozentpunkten; positiv heisst Abwanderung. */
   dropPercentPoints: number | null
-  /** Verlust je Minute — macht unterschiedlich lange Abschnitte vergleichbar. */
+  /** Verlust je Minute - macht unterschiedlich lange Abschnitte vergleichbar. */
   dropPerMinute: number | null
 }
 
@@ -80,7 +80,7 @@ export interface ScriptRetentionAnalysis {
   sections: SectionRetention[]
   /** Abschnitt mit dem staerksten Verlust je Minute. */
   worst: SectionRetention | null
-  /** Zuschaueranteil nach 30 Sekunden — der Hook-Test. */
+  /** Zuschaueranteil nach 30 Sekunden - der Hook-Test. */
   hookRetention: number | null
   /** Abwanderung waehrend der Sponsorstrecke, falls es eine gibt. */
   sponsorDrop: number | null
@@ -91,7 +91,7 @@ export interface ScriptRetentionAnalysis {
  * Legt die Retention-Kurve ueber die Skript-Abschnitte.
  *
  * Der Verlust wird je Minute normiert, weil ein zehnminuetiger Hauptteil
- * natuerlich mehr Zuschauer verliert als ein zwanzigsekuendiger Call to Action —
+ * natuerlich mehr Zuschauer verliert als ein zwanzigsekuendiger Call to Action -
  * ohne Normierung waere der laengste Abschnitt immer der vermeintlich schlechteste.
  */
 export function analyseScriptRetention(
@@ -137,16 +137,16 @@ export function analyseScriptRetention(
     : null
 
   if (hookRetention !== null) {
-    if (hookRetention < 60) notes.push(`Nach 30 Sekunden sind noch ${hookRetention} % dabei — der Einstieg verliert zu früh.`)
-    else if (hookRetention >= 75) notes.push(`Nach 30 Sekunden noch ${hookRetention} % — der Hook trägt.`)
-    else notes.push(`Nach 30 Sekunden noch ${hookRetention} % — brauchbar, aber ausbaufähig.`)
+    if (hookRetention < 60) notes.push(`Nach 30 Sekunden sind noch ${hookRetention} % dabei - der Einstieg verliert zu früh.`)
+    else if (hookRetention >= 75) notes.push(`Nach 30 Sekunden noch ${hookRetention} % - der Hook trägt.`)
+    else notes.push(`Nach 30 Sekunden noch ${hookRetention} % - brauchbar, aber ausbaufähig.`)
   }
   if (worst && (worst.dropPerMinute as number) > 0) {
     notes.push(`Stärkster Verlust in „${worst.heading || worst.kind}“: ${worst.dropPerMinute} Prozentpunkte je Minute.`)
   }
   if (sponsorDrop !== null) {
     notes.push(sponsorDrop > 10
-      ? `Die Sponsorstrecke kostet ${sponsorDrop} Prozentpunkte — kürzer oder später platzieren.`
+      ? `Die Sponsorstrecke kostet ${sponsorDrop} Prozentpunkte - kürzer oder später platzieren.`
       : `Die Sponsorstrecke kostet ${sponsorDrop} Prozentpunkte, das ist unauffällig.`)
   }
 
@@ -192,7 +192,7 @@ const WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Fr
 
 /**
  * Sucht Muster ueber den ganzen Kanal. Studio zeigt die Zahlen je Video;
- * interessant wird es erst im Vergleich — welche Laenge, welcher Wochentag,
+ * interessant wird es erst im Vergleich - welche Laenge, welcher Wochentag,
  * welcher Hook funktioniert bei *diesem* Kanal.
  */
 export function findChannelPatterns(videos: VideoSummary[]): ChannelPatterns {
@@ -236,8 +236,8 @@ export function findChannelPatterns(videos: VideoSummary[]): ChannelPatterns {
   if (averageCtr !== null) notes.push(`Klickrate im Schnitt ${averageCtr} % über ${withCtr.length} Videos.`)
   if (averageRetention !== null) notes.push(`Im Schnitt werden ${averageRetention} % der Laufzeit gesehen.`)
   if (lengthVsRetention !== null) {
-    if (lengthVsRetention < -0.4) notes.push('Längere Videos werden anteilig deutlich schlechter zu Ende gesehen — kürzer schneiden lohnt.')
-    else if (lengthVsRetention > 0.4) notes.push('Längere Videos halten hier besser — das Publikum bleibt bei mehr Tiefe dran.')
+    if (lengthVsRetention < -0.4) notes.push('Längere Videos werden anteilig deutlich schlechter zu Ende gesehen - kürzer schneiden lohnt.')
+    else if (lengthVsRetention > 0.4) notes.push('Längere Videos halten hier besser - das Publikum bleibt bei mehr Tiefe dran.')
     else notes.push('Zwischen Länge und gesehenem Anteil zeigt sich kein klarer Zusammenhang.')
   }
   if (bestWeekday && byWeekday.size > 1) {

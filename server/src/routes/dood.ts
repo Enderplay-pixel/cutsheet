@@ -59,7 +59,7 @@ router.get('/projects/:pid/dood-report', async (req: Request, res: Response) => 
     const workIndices = days.map((d, i) => d.isWork ? i : -1).filter(i => i >= 0)
 
     if (workIndices.length === 0) {
-      // No work days — all empty
+      // No work days - all empty
       const emptyDays = days.map(d => ({ date: d.date, day_number: d.day_number, code: '' }))
       return {
         id: castMember.id,
