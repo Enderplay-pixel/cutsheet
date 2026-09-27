@@ -200,6 +200,11 @@ export function Component() {
             >
               <span className="text-2xl leading-none">{l.flag}</span>
               <span className="text-xs leading-none">{l.label}</span>
+              {l.teilweise && (
+                <span className="text-[10px] leading-none text-muted-foreground/70">
+                  {tt(settingsT.languagePartial)}
+                </span>
+              )}
               {language === l.code && (
                 <span className="w-4 h-4 rounded-full bg-primary flex items-center justify-center mt-0.5">
                   <Check className="w-2.5 h-2.5 text-primary-foreground" />

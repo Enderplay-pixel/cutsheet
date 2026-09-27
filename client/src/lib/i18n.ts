@@ -1,9 +1,18 @@
 export type Lang = 'en' | 'de' | 'fr'
 
-export const LANGS: { code: Lang; label: string; flag: string }[] = [
-  { code: 'en', label: 'English',  flag: '🇬🇧' },
+/**
+ * `teilweise` heißt: Rahmen übersetzt, Seiteninhalte nicht.
+ *
+ * Gemessen am 27.09.2026: 14 von 69 Seiten benutzen diese Datei, die
+ * restlichen 55 stehen fest auf Deutsch. Die Oberfläche versprach vorher
+ * "die Sprache für die gesamte App" - das stimmte nicht, und eine halb
+ * übersetzte Seite sieht nach Fehler aus. Lieber vorher sagen, was einen
+ * erwartet.
+ */
+export const LANGS: { code: Lang; label: string; flag: string; teilweise?: boolean }[] = [
+  { code: 'en', label: 'English',  flag: '🇬🇧', teilweise: true },
   { code: 'de', label: 'Deutsch',  flag: '🇩🇪' },
-  { code: 'fr', label: 'Français', flag: '🇫🇷' },
+  { code: 'fr', label: 'Français', flag: '🇫🇷', teilweise: true },
 ]
 
 export function t(map: Record<Lang, string>, lang: Lang): string {
@@ -66,6 +75,61 @@ export const navT = {
   noProject:      { en: 'No project open', de: 'Kein Projekt geöffnet', fr: 'Aucun projet ouvert' },
   chooseProject:  { en: 'Choose project',  de: 'Projekt wählen',        fr: 'Choisir un projet'   },
   logout:         { en: 'Sign out',        de: 'Abmelden',              fr: 'Déconnexion'         },
+  // ── Nachgezogen am 27.09.2026 ──────────────────────────────────────────
+  // Gemessen: 50 der Navigationsbeschriftungen standen fest auf Deutsch. Die
+  // Seitenleiste war damit im englischen Modus halb deutsch - schlimmer als
+  // durchgehend deutsch, weil es nach einem Fehler aussieht.
+  // group labels
+  channelPlanning: { en: 'Channel & Planning', de: 'Kanal & Planung',        fr: 'Chaîne & planning'      },
+  videos:          { en: 'Videos',             de: 'Videos',                 fr: 'Vidéos'                 },
+  editRights:      { en: 'Edit & Rights',      de: 'Schnitt & Rechte',       fr: 'Montage & droits'       },
+  publishing:      { en: 'Publishing',         de: 'Veröffentlichung',       fr: 'Publication'            },
+  money:           { en: 'Money',              de: 'Geld',                   fr: 'Argent'                 },
+  development:     { en: 'Development',        de: 'Entwicklung',            fr: 'Développement'          },
+  castingTeam:     { en: 'Casting & Team',     de: 'Casting & Team',         fr: 'Casting & équipe'       },
+  planningPrep:    { en: 'Planning & Prep',    de: 'Planung & Vorbereitung', fr: 'Préparation'            },
+  shootDays:       { en: 'Shoot Days',         de: 'Dreharbeiten',           fr: 'Tournage'               },
+  postProduction:  { en: 'Post-Production',    de: 'Post-Produktion',        fr: 'Post-production'        },
+  toolsComms:      { en: 'Tools & Comms',      de: 'Tools & Kommunikation',  fr: 'Outils & communication' },
+  // nav items
+  tasks:           { en: 'Tasks',              de: 'Aufgaben',               fr: 'Tâches'                 },
+  moodboard:       { en: 'Moodboard',          de: 'Moodboard',              fr: 'Moodboard'              },
+  sceneComments:   { en: 'Scene Comments',     de: 'Szenen-Kommentare',      fr: 'Commentaires de scène'  },
+  comments:        { en: 'Comments',           de: 'Kommentare',             fr: 'Commentaires'           },
+  blackoutDays:    { en: 'Cast Blackouts',     de: 'Sperrtage Cast',         fr: 'Indisponibilités'       },
+  equipmentCal:    { en: 'Equipment Calendar', de: 'Equipment-Kalender',     fr: 'Calendrier matériel'    },
+  catering:        { en: 'Catering',           de: 'Catering',               fr: 'Restauration'           },
+  costStatus:      { en: 'Cost Status',        de: 'Kostenstand',            fr: 'Suivi des coûts'        },
+  insurances:      { en: 'Insurances',         de: 'Versicherungen',         fr: 'Assurances'             },
+  checkinBoard:    { en: 'Check-in Board',     de: 'Check-in Board',         fr: 'Tableau de présence'    },
+  setPlan:         { en: 'Set Plan',           de: 'Set-Plan',               fr: 'Plan de plateau'        },
+  vfxTracking:     { en: 'VFX Tracking',       de: 'VFX-Tracking',           fr: 'Suivi VFX'              },
+  continuity:      { en: 'Continuity',         de: 'Continuity',             fr: 'Continuité'             },
+  cameraReports:   { en: 'Camera Reports',     de: 'Kameraberichte',         fr: 'Rapports caméra'        },
+  timeAnalysis:    { en: 'Time Analysis',      de: 'Zeitanalyse',            fr: 'Analyse du temps'       },
+  timesheets:      { en: 'Timesheets',         de: 'Timesheets',             fr: "Feuilles d'heures"     },
+  setView:         { en: 'Set View',           de: 'Set-Ansicht',            fr: 'Vue plateau'            },
+  doodReport:      { en: 'DOOD Report',        de: 'DOOD-Report',            fr: 'Rapport DOOD'           },
+  postPlan:        { en: 'Post Plan',          de: 'Postplan',               fr: 'Plan de post-prod'      },
+  postProd:        { en: 'Post-Production',    de: 'Postproduktion',         fr: 'Post-production'        },
+  musicCues:       { en: 'Music Cues',         de: 'Musikliste',             fr: 'Liste musicale'         },
+  activityFeed:    { en: 'Activity Feed',      de: 'Aktivitäts-Feed',        fr: "Fil d'activité"        },
+  adminStats:      { en: 'Admin Statistics',   de: 'Admin-Statistiken',      fr: 'Statistiques admin'     },
+  // Creator
+  channel:         { en: 'Channel',            de: 'Kanal',                  fr: 'Chaîne'                 },
+  ideas:           { en: 'Ideas',              de: 'Ideen',                  fr: 'Idées'                  },
+  editorialPlan:   { en: 'Editorial Plan',     de: 'Redaktionsplan',         fr: 'Calendrier éditorial'   },
+  seriesFormats:   { en: 'Series & Formats',   de: 'Serien & Formate',       fr: 'Séries & formats'       },
+  titlesThumbs:    { en: 'Titles & Thumbnails', de: 'Titel & Thumbnails',    fr: 'Titres & miniatures'    },
+  guestsCast:      { en: 'Guests & Cast',      de: 'Gäste & Mitwirkende',    fr: 'Invités & intervenants' },
+  team:            { en: 'Team',               de: 'Team',                   fr: 'Équipe'                 },
+  filmingLocations:{ en: 'Filming Locations',  de: 'Drehorte',               fr: 'Lieux de tournage'      },
+  clips:           { en: 'Clips',              de: 'Auskopplungen',          fr: 'Extraits'               },
+  rightsLicenses:  { en: 'Rights & Licenses',  de: 'Rechte & Lizenzen',      fr: 'Droits & licences'      },
+  uploadChecklists:{ en: 'Upload Checklists',  de: 'Upload-Checklisten',     fr: 'Listes de publication'  },
+  seoMetadata:     { en: 'SEO & Metadata',     de: 'SEO & Metadaten',        fr: 'SEO & métadonnées'      },
+  videoPerformance:{ en: 'Video Performance',  de: 'Video-Performance',      fr: 'Performance vidéo'      },
+  sponsors:        { en: 'Sponsors',           de: 'Sponsoren',              fr: 'Sponsors'               },
   roles: {
     admin:      { en: 'Admin',            de: 'Admin',             fr: 'Admin'               },
     producer:   { en: 'Producer',         de: 'Produzent',         fr: 'Producteur'          },
@@ -515,7 +579,8 @@ export const settingsT = {
   darkMode:        { en: 'Dark mode',              de: 'Dunkles Design',           fr: 'Mode sombre'              },
   darkModeDesc:    { en: 'Switch between light and dark interface.', de: 'Zwischen hellem und dunklem Design wechseln.', fr: 'Basculer entre l\'interface claire et sombre.' },
   language:        { en: 'Language',               de: 'Sprache',                  fr: 'Langue'                   },
-  languageDesc:    { en: 'Choose the language used across the entire app.', de: 'Wähle die Sprache für die gesamte App.', fr: 'Choisissez la langue utilisée dans toute l\'application.' },
+  languageDesc:    { en: 'Navigation and key screens. Marked languages are partial - most pages are German.', de: 'Navigation und zentrale Ansichten. Gekennzeichnete Sprachen sind unvollständig - die meisten Seiten sind deutsch.', fr: 'Navigation et écrans principaux. Les langues marquées sont partielles - la plupart des pages sont en allemand.' },
+  languagePartial: { en: 'partial',                de: 'teilweise',                fr: 'partiel'                  },
   settings:        { en: 'Settings',               de: 'Einstellungen',            fr: 'Paramètres'               },
 }
 

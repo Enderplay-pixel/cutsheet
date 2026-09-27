@@ -51,7 +51,7 @@ export function Sidebar() {
 
   const ADMIN_ITEMS = [
     { label: tt(navT.userMgmt), icon: ShieldCheck, path: '/admin' },
-    { label: 'Admin-Statistiken', icon: Activity, path: '/admin/stats' },
+    { label: tt(navT.adminStats), icon: Activity, path: '/admin/stats' },
   ]
 
   const { data: project } = useQuery({
@@ -77,77 +77,77 @@ export function Sidebar() {
   // Videos gefuehrt.
   const creatorGroups: NavGroupDef[] = [
     {
-      label: 'Übersicht',
+      label: tt(navT.overview),
       items: [
         { label: tt(navT.dashboard), icon: LayoutDashboard, path: '' },
         { label: tt(navT.masterData), icon: Film, path: 'stammdaten' },
-        { label: 'Aufgaben', icon: CheckSquare, path: 'aufgaben' },
+        { label: tt(navT.tasks), icon: CheckSquare, path: 'aufgaben' },
       ]
     },
     {
-      label: 'Kanal & Planung',
+      label: tt(navT.channelPlanning),
       items: [
-        { label: 'Kanal', icon: Activity, path: 'creator/kanal' },
-        { label: 'Ideen', icon: StickyNote, path: 'creator/ideen' },
-        { label: 'Redaktionsplan', icon: CalendarClock, path: 'creator/redaktionsplan' },
-        { label: 'Serien & Formate', icon: Layers, path: 'creator/serien' },
+        { label: tt(navT.channel), icon: Activity, path: 'creator/kanal' },
+        { label: tt(navT.ideas), icon: StickyNote, path: 'creator/ideen' },
+        { label: tt(navT.editorialPlan), icon: CalendarClock, path: 'creator/redaktionsplan' },
+        { label: tt(navT.seriesFormats), icon: Layers, path: 'creator/serien' },
         { label: tt(navT.calendar), icon: Calendar, path: 'kalender' },
       ]
     },
     {
-      label: 'Videos',
+      label: tt(navT.videos),
       items: [
-        { label: 'Videos', icon: Video, path: 'creator' },
-        { label: 'Titel & Thumbnails', icon: Type, path: 'creator/titel' },
-        { label: 'Moodboard', icon: Image, path: 'moodboard' },
-        { label: 'Kommentare', icon: MessageSquare, path: 'kommentare' },
+        { label: tt(navT.videos), icon: Video, path: 'creator' },
+        { label: tt(navT.titlesThumbs), icon: Type, path: 'creator/titel' },
+        { label: tt(navT.moodboard), icon: Image, path: 'moodboard' },
+        { label: tt(navT.comments), icon: MessageSquare, path: 'kommentare' },
       ]
     },
     {
-      label: 'Produktion',
+      label: tt(navT.production),
       items: [
         { label: tt(navT.shotlist), icon: Camera, path: 'shotlist' },
-        { label: 'Drehorte', icon: MapPin, path: 'motive' },
-        { label: 'Gäste & Mitwirkende', icon: Users, path: 'besetzung' },
-        { label: 'Team', icon: Briefcase, path: 'stabliste' },
+        { label: tt(navT.filmingLocations), icon: MapPin, path: 'motive' },
+        { label: tt(navT.guestsCast), icon: Users, path: 'besetzung' },
+        { label: tt(navT.team), icon: Briefcase, path: 'stabliste' },
         { label: tt(navT.equipment), icon: Package, path: 'equipment' },
-        { label: 'Equipment-Kalender', icon: CalendarClock, path: 'equipment-kalender' },
-        { label: 'Set-Ansicht', icon: Clapperboard, path: '/set' },
+        { label: tt(navT.equipmentCal), icon: CalendarClock, path: 'equipment-kalender' },
+        { label: tt(navT.setView), icon: Clapperboard, path: '/set' },
       ]
     },
     {
-      label: 'Schnitt & Rechte',
+      label: tt(navT.editRights),
       items: [
-        { label: 'Postproduktion', icon: Layers, path: 'postplan' },
-        { label: 'Auskopplungen', icon: Scissors, path: 'creator/clips' },
-        { label: 'Zeitanalyse', icon: TableProperties, path: 'zeitanalyse' },
-        { label: 'Rechte & Lizenzen', icon: ShieldCheck, path: 'creator/rechte' },
-        { label: 'Musikliste', icon: Music, path: 'musikliste' },
+        { label: tt(navT.postProd), icon: Layers, path: 'postplan' },
+        { label: tt(navT.clips), icon: Scissors, path: 'creator/clips' },
+        { label: tt(navT.timeAnalysis), icon: TableProperties, path: 'zeitanalyse' },
+        { label: tt(navT.rightsLicenses), icon: ShieldCheck, path: 'creator/rechte' },
+        { label: tt(navT.musicCues), icon: Music, path: 'musikliste' },
       ]
     },
     {
-      label: 'Veröffentlichung',
+      label: tt(navT.publishing),
       items: [
-        { label: 'Upload-Checklisten', icon: ListChecks, path: 'creator/checklisten' },
-        { label: 'SEO & Metadaten', icon: Search, path: 'creator/seo' },
-        { label: 'Video-Performance', icon: TrendingUp, path: 'creator/performance' },
+        { label: tt(navT.uploadChecklists), icon: ListChecks, path: 'creator/checklisten' },
+        { label: tt(navT.seoMetadata), icon: Search, path: 'creator/seo' },
+        { label: tt(navT.videoPerformance), icon: TrendingUp, path: 'creator/performance' },
       ]
     },
     {
-      label: 'Geld',
+      label: tt(navT.money),
       items: [
-        { label: 'Sponsoren', icon: Megaphone, path: 'creator/sponsoren' },
+        { label: tt(navT.sponsors), icon: Megaphone, path: 'creator/sponsoren' },
         { label: tt(navT.budget), icon: DollarSign, path: 'budget' },
-        { label: 'Kostenstand', icon: Wallet, path: 'kostenstand' },
+        { label: tt(navT.costStatus), icon: Wallet, path: 'kostenstand' },
       ]
     },
     {
-      label: 'Tools & Kommunikation',
+      label: tt(navT.toolsComms),
       items: [
         { label: tt(navT.email), icon: Mail, path: 'email' },
         { label: tt(navT.contacts), icon: BookUser, path: 'kontakte' },
         { label: tt(navT.pinboard), icon: StickyNote, path: 'pinboard' },
-        { label: 'Aktivitäts-Feed', icon: Activity, path: 'aktivitaet' },
+        { label: tt(navT.activityFeed), icon: Activity, path: 'aktivitaet' },
         { label: tt(navT.search), icon: Search, path: 'suche' },
         { label: tt(navT.auditLog), icon: History, path: 'audit' },
       ]
@@ -157,29 +157,29 @@ export function Sidebar() {
   const filmGroups: NavGroupDef[] = [
     {
       // First thing you do: create the project and break down the script
-      label: 'Übersicht',
+      label: tt(navT.overview),
       items: [
         { label: tt(navT.dashboard), icon: LayoutDashboard, path: '' },
         { label: tt(navT.masterData), icon: Film, path: 'stammdaten' },
-        { label: 'Aufgaben', icon: CheckSquare, path: 'aufgaben' },
+        { label: tt(navT.tasks), icon: CheckSquare, path: 'aufgaben' },
       ]
     },
     {
       // Concept & creative development phase
-      label: 'Entwicklung',
+      label: tt(navT.development),
       items: [
         { label: tt(navT.scenes), icon: FileText, path: 'drehbuch' },
         { label: tt(navT.scriptEditor), icon: FileEdit, path: 'screenplay-editor' },
-        { label: 'Moodboard', icon: Image, path: 'moodboard' },
-        { label: 'Szenen-Kommentare', icon: MessageSquare, path: 'kommentare' },
+        { label: tt(navT.moodboard), icon: Image, path: 'moodboard' },
+        { label: tt(navT.sceneComments), icon: MessageSquare, path: 'kommentare' },
       ]
     },
     {
       // Build your team
-      label: 'Casting & Team',
+      label: tt(navT.castingTeam),
       items: [
         { label: tt(navT.casting), icon: Users, path: 'besetzung' },
-        { label: 'Sperrtage Cast', icon: CalendarOff, path: 'sperrtage' },
+        { label: tt(navT.blackoutDays), icon: CalendarOff, path: 'sperrtage' },
         { label: tt(navT.extras), icon: Users, path: 'komparsen' },
         { label: tt(navT.crew), icon: Briefcase, path: 'stabliste' },
         { label: tt(navT.contacts), icon: BookUser, path: 'kontakte' },
@@ -187,7 +187,7 @@ export function Sidebar() {
     },
     {
       // Pre-production planning: schedule, locations, resources, budget
-      label: 'Planung & Vorbereitung',
+      label: tt(navT.planningPrep),
       items: [
         { label: tt(navT.locations), icon: MapPin, path: 'motive' },
         { label: tt(navT.shootingPlan), icon: Clapperboard, path: 'drehplan' },
@@ -195,49 +195,49 @@ export function Sidebar() {
         { label: tt(navT.calendar), icon: Calendar, path: 'kalender' },
         { label: tt(navT.conflicts), icon: AlertTriangle, path: 'konfliktradar', badge: conflictCount > 0 ? conflictCount : undefined },
         { label: tt(navT.equipment), icon: Package, path: 'equipment' },
-        { label: 'Equipment-Kalender', icon: CalendarClock, path: 'equipment-kalender' },
+        { label: tt(navT.equipmentCal), icon: CalendarClock, path: 'equipment-kalender' },
         { label: tt(navT.vehicles), icon: Car, path: 'fahrzeuge' },
-        { label: 'Catering', icon: UtensilsCrossed, path: 'catering' },
+        { label: tt(navT.catering), icon: UtensilsCrossed, path: 'catering' },
         { label: tt(navT.budget), icon: DollarSign, path: 'budget' },
-        { label: 'Kostenstand', icon: Wallet, path: 'kostenstand' },
-        { label: 'Versicherungen', icon: Shield, path: 'versicherungen' },
+        { label: tt(navT.costStatus), icon: Wallet, path: 'kostenstand' },
+        { label: tt(navT.insurances), icon: Shield, path: 'versicherungen' },
       ]
     },
     {
       // Day-to-day on set
-      label: 'Dreharbeiten',
+      label: tt(navT.shootDays),
       items: [
         { label: tt(navT.callSheet), icon: ClipboardList, path: 'tagesdispo' },
-        { label: 'Check-in Board', icon: CheckSquare, path: 'checkin' },
+        { label: tt(navT.checkinBoard), icon: CheckSquare, path: 'checkin' },
         { label: tt(navT.shotlist), icon: Camera, path: 'shotlist' },
-        { label: 'Set-Plan', icon: LayoutGrid, path: 'setplan' },
-        { label: 'VFX-Tracking', icon: Layers, path: 'vfx' },
-        { label: 'Continuity', icon: Image, path: 'continuity' },
-        { label: 'Kameraberichte', icon: Video, path: 'kameraberichte' },
+        { label: tt(navT.setPlan), icon: LayoutGrid, path: 'setplan' },
+        { label: tt(navT.vfxTracking), icon: Layers, path: 'vfx' },
+        { label: tt(navT.continuity), icon: Image, path: 'continuity' },
+        { label: tt(navT.cameraReports), icon: Video, path: 'kameraberichte' },
         { label: tt(navT.dailyReport), icon: FileCheck, path: 'tagesbericht' },
-        { label: 'Zeitanalyse', icon: TableProperties, path: 'zeitanalyse' },
-        { label: 'Timesheets', icon: Clock, path: 'timesheets' },
+        { label: tt(navT.timeAnalysis), icon: TableProperties, path: 'zeitanalyse' },
+        { label: tt(navT.timesheets), icon: Clock, path: 'timesheets' },
         // Eigene Ansicht fuers Telefon am Set, ausserhalb des Projektlayouts.
         // Absoluter Pfad, deshalb der Sonderfall beim Linkbau weiter unten.
-        { label: 'Set-Ansicht', icon: Clapperboard, path: '/set' },
+        { label: tt(navT.setView), icon: Clapperboard, path: '/set' },
       ]
     },
     {
       // After wrap
-      label: 'Post-Produktion',
+      label: tt(navT.postProduction),
       items: [
-        { label: 'DOOD-Report', icon: TableProperties, path: 'dood' },
-        { label: 'Postplan', icon: CalendarClock, path: 'postplan' },
-        { label: 'Musikliste', icon: Music, path: 'musikliste' },
+        { label: tt(navT.doodReport), icon: TableProperties, path: 'dood' },
+        { label: tt(navT.postPlan), icon: CalendarClock, path: 'postplan' },
+        { label: tt(navT.musicCues), icon: Music, path: 'musikliste' },
       ]
     },
     {
       // Communication & tools used throughout
-      label: 'Tools & Kommunikation',
+      label: tt(navT.toolsComms),
       items: [
         { label: tt(navT.email), icon: Mail, path: 'email' },
         { label: tt(navT.pinboard), icon: StickyNote, path: 'pinboard' },
-        { label: 'Aktivitäts-Feed', icon: Activity, path: 'aktivitaet' },
+        { label: tt(navT.activityFeed), icon: Activity, path: 'aktivitaet' },
         { label: tt(navT.search), icon: Search, path: 'suche' },
         { label: tt(navT.auditLog), icon: History, path: 'audit' },
       ]
