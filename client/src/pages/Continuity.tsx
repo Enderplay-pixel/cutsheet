@@ -190,11 +190,13 @@ function EntryDialog({
         description: form.description,
         photos: form.photos,
       }
+      // Bearbeiten laeuft ueber /continuity/:id (PUT) - der fruehere Pfad
+      // unter /projects/... existierte nicht, Aenderungen scheiterten mit 404
       const url = entry
-        ? `/api/projects/${pid}/continuity/${entry.id}`
+        ? `/api/continuity/${entry.id}`
         : `/api/projects/${pid}/continuity`
       const res = await fetch(url, {
-        method: entry ? 'PATCH' : 'POST',
+        method: entry ? 'PUT' : 'POST',
         headers,
         body: JSON.stringify(body),
       })
@@ -388,7 +390,7 @@ export function Component() {
 
   const deleteMutation = useMutation({
     mutationFn: async (entryId: number) => {
-      const res = await fetch(`/api/projects/${pid}/continuity/${entryId}`, {
+      const res = await fetch(`/api/continuity/${entryId}`, {
         method: 'DELETE',
         headers,
       })

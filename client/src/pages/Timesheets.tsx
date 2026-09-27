@@ -87,7 +87,7 @@ function TimesheetRow({ ts, dayId }: { ts: Timesheet; dayId: number }) {
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<Timesheet>) => {
       const res = await fetch(`/api/timesheets/${ts.id}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers,
         body: JSON.stringify(data),
       })

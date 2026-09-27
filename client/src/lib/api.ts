@@ -516,10 +516,6 @@ export const api = {
     vapidKey: () => req<any>('/push/vapid-public-key'),
   },
 
-  // ─── Confirmation (C3) ─────────────────────────────────────────────────────
-  confirmation: {
-    confirm: (entryId: number) => req<any>(`/call-sheet-entries/${entryId}/confirm`, { method: 'POST' }),
-  },
 
   // ─── iCal (C4) ─────────────────────────────────────────────────────────────
   ical: {
