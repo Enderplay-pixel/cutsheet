@@ -46,3 +46,15 @@ services:
         sync: false
       - key: TOKEN_ENCRYPTION_KEY
         generateValue: true
+      # Zugang & Testversion - siehe docs/testversion.md
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: TEST_ADMIN_EMAIL
+        sync: false
+      - key: TEST_ADMIN_PASSWORD
+        sync: false
+      - key: CUTSHEET_TESTVERSION
+        sync: false
+      # Free-Plan hat 512 MB: nur ein PDF gleichzeitig rendern
+      - key: PDF_MAX_PARALLEL
+        value: "1"

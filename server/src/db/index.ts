@@ -852,7 +852,7 @@ async function ensureTestAdmin() {
 
   const email = prod ? envEmail! : (envEmail || 'admin@cutsheet.dev')
   const password = prod ? envPassword! : (envPassword || 'admin1234')
-  const existing = await db.get('SELECT id FROM users WHERE email = ?', [email]) as any
+  const existing = await db.get('SELECT id, password_hash FROM users WHERE email = ?', [email]) as any
   if (!existing) {
     const hash = await hashPasswort(password, 12)
     await db.run(
@@ -862,6 +862,12 @@ async function ensureTestAdmin() {
     console.log(prod ? `[DB] Test-Admin erstellt: ${email}` : `[DB] Test-Admin erstellt: ${email} / ${password}`)
   } else {
     await db.run("UPDATE users SET role = 'admin' WHERE id = ?", [existing.id])
+    // Ist das Passwort per Umgebung vorgegeben, gilt es auch fuer ein schon
+    // vorhandenes Konto - sonst waere nach einem Wechsel das alte weiter gueltig.
+    if (envPassword && !(await pruefePasswort(envPassword, existing.password_hash))) {
+      await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [await hashPasswort(envPassword, 12), existing.id])
+      console.log(`[DB] Test-Admin ${email}: Passwort aus TEST_ADMIN_PASSWORD übernommen`)
+    }
   }
 }
 

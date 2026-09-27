@@ -16,6 +16,7 @@
  */
 import { db, TxClient } from './index'
 import { heuteISO } from '../lib/datum'
+import { hashPasswort } from '../lib/passwort'
 
 export const GROSSPRODUKTION_TITEL = 'Nordlicht (Großproduktion)'
 
@@ -224,7 +225,7 @@ const RESTKALKULATION: Array<[string, string, string, string, number, number]> =
 export interface GrossproduktionErgebnis {
   projectId: number
   zahlen: Record<string, number>
-  team: Array<{ email: string; rolle: string; passwort: string | null }>
+  team: Array<{ email: string; rolle: string; passwort: string }>
 }
 
 /**
@@ -232,7 +233,12 @@ export interface GrossproduktionErgebnis {
  * Namens beim selben Besitzer wird vorher entfernt (ON DELETE CASCADE räumt
  * alle abhängigen Tabellen mit ab).
  */
-export async function seedGrossproduktion(ownerId: number, opts: { teamPasswort?: string } = {}): Promise<GrossproduktionErgebnis> {
+export async function seedGrossproduktion(
+  ownerId: number,
+  // ohneTeam: fuer Lasttest-Daten - sonst saehen die Teamkonten jedes der
+  // hundert Lasttest-Projekte in ihrer Liste.
+  opts: { teamPasswort?: string; ohneTeam?: boolean } = {},
+): Promise<GrossproduktionErgebnis> {
   const rnd = mulberry32(20261003)
   const pick = <T,>(a: readonly T[]): T => a[Math.floor(rnd() * a.length)]
   const between = (a: number, b: number) => a + Math.floor(rnd() * (b - a + 1))
@@ -249,7 +255,6 @@ export async function seedGrossproduktion(ownerId: number, opts: { teamPasswort?
   // Teamkonten mit festen Rollen, damit sich Rechte realistisch testen lassen.
   // Passwort: vorgegeben oder zufällig — nie ein bekannter Standard.
   const { randomBytes } = await import('crypto')
-  const bcrypt = await import('bcryptjs')
   const teamRollen: Array<[string, string, string]> = [
     ['nordlicht.produktion@cutsheet.test', 'Produktion Nordlicht', 'producer'],
     ['nordlicht.regie@cutsheet.test', 'Regie Nordlicht', 'director'],
@@ -258,16 +263,17 @@ export async function seedGrossproduktion(ownerId: number, opts: { teamPasswort?
     ['nordlicht.sender@cutsheet.test', 'Redaktion Sender (nur lesen)', 'read_only'],
   ]
   const teamIds: Array<[number, string]> = []
-  for (const [email, name, rolle] of teamRollen) {
+  for (const [email, name, rolle] of opts.ohneTeam ? [] : teamRollen) {
+    // Bei jedem Lauf ein bekanntes Passwort setzen - vorgegeben oder neu
+    // gewuerfelt - und einmalig zurueckgeben. Sonst bliebe nach einem
+    // frueheren Lauf ein Passwort stehen, das niemand mehr kennt.
+    const passwort = opts.teamPasswort || randomBytes(9).toString('base64url')
+    const hash = await hashPasswort(passwort, 10)
     const bestehend = await db.get('SELECT id FROM users WHERE email = ?', [email]) as any
     if (bestehend) {
-      // Vorgegebenes Passwort auch bei vorhandenen Konten setzen — sonst bleibt
-      // nach einem abgebrochenen Lauf ein unbekanntes Zufallspasswort stehen.
-      if (opts.teamPasswort) await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [await bcrypt.hash(opts.teamPasswort, 10), bestehend.id])
-      teamIds.push([bestehend.id, rolle]); team.push({ email, rolle, passwort: opts.teamPasswort ?? null }); continue
+      await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [hash, bestehend.id])
+      teamIds.push([bestehend.id, rolle]); team.push({ email, rolle, passwort }); continue
     }
-    const passwort = opts.teamPasswort || randomBytes(9).toString('base64url')
-    const hash = await bcrypt.hash(passwort, 10)
     const r = await db.run('INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)', [email, hash, name, 'user'])
     teamIds.push([r.id, rolle]); team.push({ email, rolle, passwort })
   }
@@ -460,7 +466,10 @@ export async function seedGrossproduktion(ownerId: number, opts: { teamPasswort?
         // 11 h Drehtag inkl. Pause, gelegentlich Overtime — Wrap nach
         // Mitternacht steht wie im Tagesbericht als Uhrzeit (z. B. 120 = 02:00)
         return [dayIds[d], daten[d], gc, gc + between(60, 110), (gc + 330) % 1440, (gc + 390) % 1440, (gc + 600 + between(-30, rnd() < 0.15 ? 120 : 40)) % 1440,
-          s.map(i => szenenMeta[i].nummer).join(', '), '', s.reduce((a, i) => a + szenenMeta[i].eighths, 0), s.reduce((a, i) => a + shotsJeSzene[i].length, 0) + between(0, 6),
+          // Wie die App: JSON-Liste der Szenen-IDs; gelegentlich bleibt die
+          // letzte Szene des Tages angedreht statt fertig
+          ...(() => { const ids = s.map(i => sceneIds[i]); const teil = ids.length > 1 && rnd() < 0.2 ? ids.splice(-1) : []; return [JSON.stringify(ids), JSON.stringify(teil)] })(),
+          s.reduce((a, i) => a + szenenMeta[i].eighths, 0), s.reduce((a, i) => a + shotsJeSzene[i].length, 0) + between(0, 6),
           `A${d + 1}01–A${d + 1}0${between(3, 6)}`, `S${d + 1}01–S${d + 1}0${between(2, 4)}`,
           pick(['Wetterumschwung ab 15 Uhr, zwei Einstellungen ins Studio verlegt.', 'Reibungsloser Tag, Overtime 25 Min. wegen Kranumbau.', 'Polizeiabsperrung verspätet, Drehbeginn +40 Min.', '']),
           pick(['Catering gelobt.', 'Generator ausgefallen 11:20–11:45.', 'Stunt ohne Zwischenfall.', ''])]

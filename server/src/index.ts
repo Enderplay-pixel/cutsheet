@@ -173,7 +173,9 @@ if (isProd) {
 }
 
 // Public health check - always responds, used by Railway
-app.get('/api/health', (_req, res) => res.json({ ok: true, db: dbReady }))
+// testversion: Kennzeichnung fuer die Testphase vor dem Launch (CUTSHEET_TESTVERSION=1)
+const testversion = /^(1|true|ja)$/i.test(process.env.CUTSHEET_TESTVERSION ?? '')
+app.get('/api/health', (_req, res) => res.json({ ok: true, db: dbReady, testversion }))
 
 // Block all other API routes until DB is initialized
 app.use('/api', (req, res, next) => {

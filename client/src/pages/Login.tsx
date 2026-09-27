@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AppIcon } from '@/components/shared/BrandMark'
+import { TestversionBadge } from '@/components/shared/TestversionBadge'
 import { cn } from '@/lib/utils'
 import { LANGS, loginT, t, type Lang } from '@/lib/i18n'
 import { useProjectStore } from '@/store/useProjectStore'
@@ -48,6 +49,7 @@ export function Component() {
         <div className="relative flex items-center gap-2.5">
           <AppIcon className="w-8 h-8" />
           <span className="text-[17px] font-semibold tracking-[-0.02em]">CutSheet</span>
+          <TestversionBadge />
         </div>
 
         <div className="relative max-w-[540px]">
@@ -98,7 +100,10 @@ export function Component() {
       <main className="flex flex-col items-center justify-center flex-1 px-6 sm:px-8 py-12">
         <div className="w-full max-w-sm">
           {/* Logo nur am Telefon */}
-          <AppIcon className="w-14 h-14 mb-6 lg:hidden" />
+          <div className="flex items-end gap-2 mb-6 lg:hidden">
+            <AppIcon className="w-14 h-14" />
+            <TestversionBadge className="mb-1" />
+          </div>
 
           {/* Heading */}
           <div className="mb-7">

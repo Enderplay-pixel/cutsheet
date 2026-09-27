@@ -24,7 +24,7 @@ async function main() {
     const email = `last${i}@cutsheet.test`
     let u = await db.get('SELECT id FROM users WHERE email = ?', [email]) as any
     if (!u) u = await db.run('INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)', [email, hash, `Lasttest ${i}`, 'user'])
-    await seedGrossproduktion(u.id, { teamPasswort: passwort })
+    await seedGrossproduktion(u.id, { ohneTeam: true })
     if (i % 10 === 0) console.log(`${i}/${anzahl} (${((Date.now() - t0) / 1000).toFixed(0)} s)`)
   }
   await pool.end()

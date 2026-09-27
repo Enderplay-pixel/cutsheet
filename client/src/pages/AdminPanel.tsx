@@ -614,6 +614,118 @@ function ProjectsTab() {
 
 // ─── System tab ───────────────────────────────────────────────────────────────
 
+// ─── Großproduktion ───────────────────────────────────────────────────────────
+
+interface GrossErgebnis {
+  projectId: number
+  zahlen: Record<string, number>
+  team: Array<{ email: string; rolle: string; passwort: string }>
+}
+
+const ROLLEN_TEXT: Record<string, string> = {
+  producer: 'Produktion', director: 'Regie', dept_head: 'Abteilungsleitung', read_only: 'Nur lesen',
+}
+
+const ZAHL_TEXT: Array<[string, string]> = [
+  ['drehtage', 'Drehtage'], ['szenen', 'Szenen'], ['einstellungen', 'Shots'], ['stab', 'Stab'],
+  ['darsteller', 'Darsteller'], ['komparsen', 'Komparsen'], ['motive', 'Motive'], ['takes', 'Takes'],
+]
+
+function GrossproduktionKarte() {
+  const { toast } = useToast()
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+  const [ergebnis, setErgebnis] = useState<GrossErgebnis | null>(null)
+  const [bestaetigen, setBestaetigen] = useState(false)
+
+  const anlegen = useMutation({
+    mutationFn: () => adminFetch('/grossproduktion', { method: 'POST' }) as Promise<GrossErgebnis>,
+    onSuccess: (d) => {
+      setErgebnis(d)
+      setBestaetigen(false)
+      qc.invalidateQueries({ queryKey: ['projects'] })
+      qc.invalidateQueries({ queryKey: ['admin-stats'] })
+      toast({ title: 'Großproduktion angelegt', description: 'Nordlicht steht in deiner Projektliste.' })
+    },
+    onError: (e: Error) => toast({ title: 'Anlegen fehlgeschlagen', description: e.message, variant: 'destructive' }),
+  })
+
+  const kopieren = (text: string) => {
+    navigator.clipboard?.writeText(text).then(
+      () => toast({ title: 'Kopiert' }),
+      () => toast({ title: 'Kopieren nicht möglich', variant: 'destructive' }),
+    )
+  }
+
+  return (
+    <div className="bg-card border border-primary/20 rounded-xl p-5 space-y-3">
+      <p className="text-sm font-semibold flex items-center gap-2">
+        <Clapperboard className="w-4 h-4 text-primary" /> Testprojekt „Nordlicht“ (Großproduktion)
+      </p>
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        Legt eine vollständige Kinoproduktion in deinem Konto an: 45 Drehtage mit Tagesdispos und Berichten,
+        160 Szenen, über 700 Shots, 100 Stab-Mitglieder, 240 Komparsen, Budget rund 5 Mio. €, Finanzierung,
+        Ausgaben, Equipment, Fahrzeuge, VFX, Musik, Continuity und mehr. Dazu fünf Teamkonten mit
+        unterschiedlichen Rollen, um Rechte zu testen. Ein vorhandenes „Nordlicht“ wird ersetzt.
+      </p>
+      {!bestaetigen ? (
+        <Button size="sm" className="h-8 text-xs gap-2" onClick={() => setBestaetigen(true)} disabled={anlegen.isPending}>
+          <Plus className="w-3.5 h-3.5" /> Großproduktion anlegen
+        </Button>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">Vorhandenes Nordlicht und Team-Passwörter werden ersetzt. Dauert wenige Sekunden.</p>
+          <div className="flex items-center gap-2">
+          <Button size="sm" className="h-8 text-xs gap-2" onClick={() => anlegen.mutate()} disabled={anlegen.isPending}>
+            {anlegen.isPending ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            {anlegen.isPending ? 'Wird angelegt …' : 'Ja, anlegen'}
+          </Button>
+          <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setBestaetigen(false)} disabled={anlegen.isPending}>
+            Abbrechen
+          </Button>
+          </div>
+        </div>
+      )}
+
+      {ergebnis && (
+        <div className="space-y-3 pt-2 border-t border-border/60">
+          <div className="grid grid-cols-4 gap-2">
+            {ZAHL_TEXT.filter(([k]) => ergebnis.zahlen[k] != null).map(([k, label]) => (
+              <div key={k} className="rounded-lg bg-muted/50 px-2.5 py-2">
+                <p className="text-sm font-semibold tabular-nums">{ergebnis.zahlen[k].toLocaleString('de-DE')}</p>
+                <p className="text-[11px] text-muted-foreground">{label}</p>
+              </div>
+            ))}
+          </div>
+          <div>
+            <p className="text-xs font-medium mb-1.5">Teamkonten – Passwörter werden nur jetzt angezeigt</p>
+            <div className="rounded-lg border border-border/60 divide-y divide-border/60">
+              {ergebnis.team.map(t => (
+                <div key={t.email} className="flex items-center gap-2 px-3 py-2 text-xs">
+                  <span className="w-28 shrink-0 text-muted-foreground">{ROLLEN_TEXT[t.rolle] ?? t.rolle}</span>
+                  <span className="font-mono truncate flex-1" title={t.email}>{t.email}</span>
+                  <span className="font-mono">{t.passwort}</span>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label={`Zugang ${t.email} kopieren`}
+                    onClick={() => kopieren(`${t.email}\t${t.passwort}`)}
+                  >
+                    <KeyRound className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <Button size="sm" variant="outline" className="h-8 text-xs gap-2" onClick={() => navigate(`/projects/${ergebnis.projectId}`)}>
+            <FolderOpen className="w-3.5 h-3.5" /> Nordlicht öffnen
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SystemTab({ stats }: { stats: Stats | undefined }) {
   const { toast } = useToast()
   const navigate = useNavigate()
@@ -643,18 +755,19 @@ function SystemTab({ stats }: { stats: Stats | undefined }) {
         </div>
       )}
 
+      <GrossproduktionKarte />
+
       {/* Test admin info */}
-      <div className="bg-card border border-primary/20 rounded-xl p-5 space-y-2">
+      <div className="bg-card border border-border/60 rounded-xl p-5 space-y-2">
         <p className="text-sm font-semibold flex items-center gap-2">
-          <Shield className="w-4 h-4 text-primary" /> Test-Admin Account
+          <Shield className="w-4 h-4 text-primary" /> Test-Admin-Konto
         </p>
-        <p className="text-xs text-muted-foreground">
-          Dieser Account wird bei jedem Server-Start automatisch angelegt und seine Rolle auf <code className="bg-muted px-1 rounded">admin</code> zurückgesetzt.
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          In der Produktion gibt es kein Standardkonto mehr. Ein Test-Admin entsteht nur, wenn auf dem Server
+          {' '}<code className="bg-muted px-1 rounded">TEST_ADMIN_EMAIL</code> und
+          {' '}<code className="bg-muted px-1 rounded">TEST_ADMIN_PASSWORD</code> (mindestens 12 Zeichen) gesetzt sind.
+          Wer per <code className="bg-muted px-1 rounded">ADMIN_EMAIL</code> eingetragen ist, bleibt dauerhaft Admin.
         </p>
-        <div className="mt-2 space-y-1 font-mono text-xs">
-          <div className="flex gap-2"><span className="text-muted-foreground w-20">E-Mail</span><span className="text-foreground">admin@cutsheet.dev</span></div>
-          <div className="flex gap-2"><span className="text-muted-foreground w-20">Passwort</span><span className="text-foreground">admin1234</span></div>
-        </div>
       </div>
 
       {/* Dangerous zone */}
