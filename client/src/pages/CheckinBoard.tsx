@@ -128,12 +128,12 @@ export function Component() {
     .sort((a, b) => (a.call_time ?? '').localeCompare(b.call_time ?? ''))
 
   return (
-    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+    <div className="px-5 py-6 sm:p-7 max-w-6xl mx-auto animate-fade-up">
       {/* Page hero */}
       <div className="mb-8 pb-7 border-b border-border/40">
         <div className="flex items-start justify-between gap-6 flex-wrap">
           <div>
-            <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Check-in Board</h1>
+            <h1 className="font-display text-[28px] sm:text-[34px]">Check-in Board</h1>
             <p className="text-sm text-muted-foreground/60 mt-1.5">Anwesenheit live verfolgen und bestätigen</p>
           </div>
 
@@ -248,7 +248,7 @@ export function Component() {
               className={[
                 'rounded-xl border p-5 transition-all duration-300',
                 entry.checked_in
-                  ? 'border-green-500/30 bg-green-500/5 shadow-[0_0_0_1px_rgba(34,197,94,0.1),0_0_20px_rgba(34,197,94,0.07)]'
+                  ? 'border-success/30 bg-success/[0.05]'
                   : 'border-border/60 bg-card',
               ].join(' ')}
             >

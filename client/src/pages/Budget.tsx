@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { Fragment, useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -270,7 +270,7 @@ export function Component() {
   })
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-4">
+    <div className="px-5 py-6 sm:p-6 max-w-6xl mx-auto space-y-4">
       <PageHeader title="Kalkulation & Finanzierung" subtitle="Budget und Finanzierungsplan" />
 
       {vorschau && (
@@ -383,8 +383,8 @@ export function Component() {
                   </thead>
                   <tbody>
                     {sichtbareGruppen.map(cat => (
-                      <>
-                        <tr key={`header-${cat}`} className="bg-muted/50">
+                      <Fragment key={cat}>
+                        <tr className="bg-muted/50">
                           <td colSpan={5} className="py-1.5 pl-4 text-xs font-semibold text-muted-foreground">{cat}</td>
                           <td className="py-1.5 pr-4 text-right text-xs font-mono font-semibold">{formatCurrency(catTotals[cat] || 0)}</td>
                           <td />
@@ -392,7 +392,7 @@ export function Component() {
                         {(grouped[cat] || []).map((line: any) => (
                           <BudgetLineRow key={line.id} line={line} onDelete={() => deleteLine.mutate(line.id)} />
                         ))}
-                      </>
+                      </Fragment>
                     ))}
                     {(!lines || lines.length === 0) && (
                       <tr><td colSpan={7} className="py-8 text-center text-muted-foreground text-sm">Noch keine Positionen. Wähle eine Kategorie und klicke „Position".</td></tr>

@@ -204,6 +204,7 @@ beforeAll(async () => {
           setContent: async (html: string) => {
             captured.set(current, { html, opts: captured.get(current)?.opts })
           },
+          evaluate: async () => undefined,
           pdf: async (opts: any) => {
             captured.set(current, { html: captured.get(current)?.html || '', opts })
             return Buffer.from('%PDF-1.4 attrappe')
@@ -281,10 +282,13 @@ describe('Dokumentrouten', () => {
 
       it('setzt genau eine Fusszeile', async () => {
         const { html, opts } = await hole(name, url)
-        // Die generische Puppeteer-Fusszeile muss aus sein, sonst stehen zwei
-        // Fusszeilen im selben Band uebereinander
-        expect(opts.displayHeaderFooter).toBe(false)
-        expect(html).toContain('doc-foot')
+        // Die Fusszeile des Dokuments kommt als Druckerfusszeile aus den
+        // Meta-Angaben — genau eine, mit Seitenzahl, ohne die generische
+        expect(opts.displayHeaderFooter).toBe(true)
+        expect(html).toContain('cutsheet-foot-left')
+        expect(opts.footerTemplate).toContain('pageNumber')
+        expect(opts.footerTemplate).not.toContain('cutsheet.app')
+        expect(opts.footerTemplate.match(/Seite/g)?.length).toBe(1)
       })
 
       it('haengt einen unversehrten Dateinamen an', async () => {

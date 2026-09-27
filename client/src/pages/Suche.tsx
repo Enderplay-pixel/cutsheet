@@ -137,7 +137,7 @@ export function Component() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="px-7 pt-7 pb-4 border-b border-border/40 shrink-0">
-        <h1 className="text-xl font-semibold mb-4">Suche</h1>
+        <h1 className="font-display text-[28px] sm:text-[34px] mb-4">Suche</h1>
         <div className="relative max-w-xl">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input

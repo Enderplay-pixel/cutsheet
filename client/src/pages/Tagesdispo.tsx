@@ -760,7 +760,7 @@ export function Component() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto animate-fade-up space-y-5">
+    <div className="px-5 py-6 sm:p-6 max-w-5xl mx-auto animate-fade-up space-y-5">
 
       {/* ── Top navigation bar ──────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3">

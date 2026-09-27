@@ -132,7 +132,7 @@ export default function ProjectTemplates() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Projektvorlage wählen</h1>
+        <h1 className="font-display text-[28px] sm:text-[34px]">Projektvorlage wählen</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Wähle eine Vorlage, um das neue Projekt vorzubefüllen</p>
       </div>
       <TemplateSelector

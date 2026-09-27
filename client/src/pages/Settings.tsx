@@ -102,7 +102,7 @@ export function Component() {
     <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
       {/* Page title */}
       <div>
-        <h1 className="text-xl font-semibold text-foreground">{tt(settingsT.title)}</h1>
+        <h1 className="font-display text-[28px] sm:text-[34px]">{tt(settingsT.title)}</h1>
         <p className="text-sm text-muted-foreground mt-0.5">{user?.email}</p>
       </div>
 

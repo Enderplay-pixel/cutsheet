@@ -36,7 +36,7 @@ export function Component() {
 
   if (isLoading) {
     return (
-      <div className="p-7 max-w-5xl mx-auto space-y-4">
+      <div className="px-5 py-6 sm:p-7 max-w-5xl mx-auto space-y-4">
         <Skeleton className="h-7 w-56" />
         <Skeleton className="h-4 w-80" />
         <div className="space-y-2 mt-6">
@@ -61,12 +61,12 @@ export function Component() {
   const underBudgetCount = shotScenes.filter(r => r.difference_minutes < 0).length
 
   return (
-    <div className="p-7 max-w-5xl mx-auto animate-fade-up">
+    <div className="px-5 py-6 sm:p-7 max-w-5xl mx-auto animate-fade-up">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-1">
           <Clock className="w-5 h-5 text-muted-foreground" />
-          <h1 className="text-2xl font-semibold tracking-tight">Zeitanalyse</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">Zeitanalyse</h1>
         </div>
         <p className="text-sm text-muted-foreground">
           Vergleich von geplantem und tatsächlichem Drehaufwand pro Szene

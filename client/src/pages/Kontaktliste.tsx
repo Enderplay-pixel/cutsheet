@@ -108,7 +108,8 @@ export function Component() {
   }))
   const castContacts = (castList || []).map((c: any) => {
     const char = (characters || []).find((ch: any) => ch.id === c.character_id)
-    return { ...c, type: 'cast' as const, role: char ? `als ${char.name}` : 'Darsteller', dept: 'Cast' }
+    // Darsteller fuehren ihren Namen als actor_name, nicht als name
+    return { ...c, name: c.actor_name || c.name || '', type: 'cast' as const, role: char ? `als ${char.name}` : (c.character_name ? `als ${c.character_name}` : 'Darsteller'), dept: 'Cast' }
   })
 
   const allContacts = [
@@ -137,13 +138,13 @@ export function Component() {
   }
 
   return (
-    <div className="p-4 sm:p-7 max-w-6xl mx-auto animate-fade-up">
-      {/* Am Telefon untereinander: drei Ausgabeknoepfe neben der Ueberschrift
-          waren 415px breit und zwangen die Seite zum Seitwaertsscrollen.
-          Gemessen am 27.09.2026 bei 375px. */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
+    <div className="px-5 py-6 sm:p-7 max-w-6xl mx-auto animate-fade-up">
+      {/* Umbrechend statt nebeneinander: drei Ausgabeknoepfe neben der
+          Ueberschrift waren am Telefon 415px breit und zwangen die Seite zum
+          Seitwaertsscrollen. Gemessen am 27.09.2026 bei 375px. */}
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold">{tt(contactsT.title)}</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">{tt(contactsT.title)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {tt(contactsT.subtitle).replace('{n}', String(crewContacts.length + castContacts.length))}
           </p>

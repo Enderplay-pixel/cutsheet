@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { resolveAccent } from '../lib/pdfFonts'
 import { db } from '../db'
 import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
 import { renderCallSheetHtml } from '../lib/callSheetLayout'
@@ -6,7 +7,7 @@ import { renderShotlistHtml, groupShots, type GroupMode } from '../lib/shotlist'
 import {
   renderDocument, table, stats, section, definitions, badge, paragraph, hint,
   fmtMoney, fmtTime, fmtDuration, fmtDate, fmtDateLong, fmtEighths,
-  type Column,
+  FOOT_LEFT, FOOT_RIGHT, type Column,
 } from '../lib/documentLayout'
 import {
   layoutScreenplay,
@@ -177,11 +178,17 @@ export async function generatePdf(html: string, opts?: PdfOptions): Promise<Buff
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       content = html.replace('<body>', `<body>
         <div style="position:fixed;top:42%;left:4%;width:92%;text-align:center;transform:rotate(-28deg);
-          font-size:56px;font-weight:bold;color:rgba(17,17,17,0.07);z-index:9999;pointer-events:none;
-          font-family:Arial,sans-serif;letter-spacing:4px;">${wm}</div>`)
+          font-size:56px;font-weight:700;color:rgba(29,29,31,0.06);z-index:9999;pointer-events:none;
+          font-family:'Geist',-apple-system,'Helvetica Neue',Arial,sans-serif;letter-spacing:-1px;">${wm}</div>`)
     }
     await page.setContent(content, { waitUntil: 'domcontentloaded', timeout: 30000 })
-    const withFooter = opts?.footer !== false
+    // Eingebettete Schriften sind data:-URLs und laden asynchron. Ohne dieses
+    // Warten druckt Chromium, bevor sie bereitstehen — der Text fehlt im PDF.
+    await page.evaluate('document.fonts.ready')
+    // Dokumente aus renderDocument bringen ihre Fußzeile als Meta-Angabe mit
+    const docFoot = readDocFoot(html)
+    const withFooter = opts?.footer !== false || docFoot !== null
+    const footStyle = `width:100%;font-size:7.5px;color:#86868b;font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;`
     const pdf = await page.pdf({
       format: opts?.format ?? 'A4',
       landscape: opts?.landscape ?? false,
@@ -189,7 +196,11 @@ export async function generatePdf(html: string, opts?: PdfOptions): Promise<Buff
       displayHeaderFooter: withFooter,
       ...(withFooter ? {
         headerTemplate: '<span></span>',
-        footerTemplate: `<div style="width:100%;text-align:center;font-size:7px;color:#9ca3af;font-family:Arial,sans-serif;">
+        footerTemplate: docFoot
+          ? `<div style="${footStyle}display:flex;justify-content:space-between;padding:0 12mm;">
+              <span>${docFoot.left}</span>
+              <span>${docFoot.right} &nbsp;·&nbsp; Seite <span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`
+          : `<div style="${footStyle}text-align:center;">
         Erstellt mit CutSheet &middot; cutsheet.app &nbsp;&nbsp;|&nbsp;&nbsp; Seite <span class="pageNumber"></span> / <span class="totalPages"></span></div>`,
       } : {}),
       margin: opts?.margin ?? { top: '15mm', bottom: '18mm', left: '15mm', right: '15mm' },
@@ -200,11 +211,22 @@ export async function generatePdf(html: string, opts?: PdfOptions): Promise<Buff
   }
 }
 
+/**
+ * Fußzeilentexte aus den Meta-Angaben von renderDocument.
+ * Die Werte sind dort bereits HTML-maskiert und dürfen so ins Template.
+ */
+function readDocFoot(html: string): { left: string; right: string } | null {
+  const pick = (name: string) => new RegExp(`<meta name="${name}" content="([^"]*)">`).exec(html)?.[1]
+  const left = pick(FOOT_LEFT)
+  const right = pick(FOOT_RIGHT)
+  return left === undefined && right === undefined ? null : { left: left ?? '', right: right ?? '' }
+}
+
 // Helper: fetch project settings (accent color + currency)
 async function getProjectSettings(projectId: number | string): Promise<{ accentColor: string; currency: string }> {
   const settings = await db.get('SELECT header_color, currency FROM project_settings WHERE project_id = ?', [projectId]) as any
   return {
-    accentColor: settings?.header_color || '#f59e0b',
+    accentColor: resolveAccent(settings?.header_color),
     currency: settings?.currency || 'EUR',
   }
 }
@@ -445,6 +467,7 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
     crew,
     advance,
     totalDays: Number(totalRow?.c) || 1,
+    accent: (await getProjectSettings(day.project_id)).accentColor,
   })
 
   return { html, day, sheet }

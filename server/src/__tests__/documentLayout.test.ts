@@ -207,9 +207,9 @@ describe('renderDocument', () => {
     expect(drei).toContain('Sprachlos · Drehtag 1 · Tagesbericht')
   })
 
-  it('setzt eine Fusszeile mit Seitenzahl', () => {
-    expect(html).toContain('counter(page)')
-    expect(html).toContain('doc-foot')
+  it('gibt die Fusszeile als Meta-Angabe an den PDF-Druck weiter', () => {
+    expect(html).toContain('<meta name="cutsheet-foot-left"')
+    expect(html).toContain('<meta name="cutsheet-foot-right" content="Erstellt mit CutSheet')
   })
 
   it('kann quer', () => {

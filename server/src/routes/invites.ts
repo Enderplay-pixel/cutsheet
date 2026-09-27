@@ -38,10 +38,13 @@ async function sendInviteEmail(invite: { token: string; role: string; email: str
   return true
 }
 
-// Helper: check if user owns or is admin-member of a project
-async function isProjectOwner(projectId: string | number, userId: number): Promise<boolean> {
+// Helper: check if user owns or is admin-member of a project.
+// Globale Admins duerfen wie ueberall sonst (siehe middleware/projectAuth) alles.
+async function isProjectOwner(projectId: string | number, user: { id: number; role?: string }): Promise<boolean> {
+  const userId = user.id
   const project = await db.get('SELECT owner_id FROM projects WHERE id = ?', [projectId]) as any
   if (!project) return false
+  if (user.role === 'admin') return true
   if (project.owner_id === userId) return true
   const mem = await db.get("SELECT role FROM project_members WHERE project_id = ? AND user_id = ? AND role = 'admin'", [projectId, userId])
   return !!mem
@@ -51,7 +54,7 @@ async function isProjectOwner(projectId: string | number, userId: number): Promi
 
 // GET /api/projects/:id/invites
 router.get('/projects/:id/invites', requireAuth, async (req: Request, res: Response) => {
-  if (!await isProjectOwner(req.params.id, req.user!.id)) {
+  if (!await isProjectOwner(req.params.id, req.user!)) {
     return res.status(403).json({ data: null, error: 'Nur Projekt-Admins können Einladungslinks sehen' })
   }
   const invites = await db.all(
@@ -63,7 +66,7 @@ router.get('/projects/:id/invites', requireAuth, async (req: Request, res: Respo
 
 // POST /api/projects/:id/invites
 router.post('/projects/:id/invites', requireAuth, async (req: Request, res: Response) => {
-  if (!await isProjectOwner(req.params.id, req.user!.id)) {
+  if (!await isProjectOwner(req.params.id, req.user!)) {
     return res.status(403).json({ data: null, error: 'Nur Projekt-Admins können Einladungslinks erstellen' })
   }
   const role = VALID_ROLES.includes(req.body.role) ? req.body.role : 'read_only'
@@ -95,7 +98,7 @@ router.post('/projects/:id/invites', requireAuth, async (req: Request, res: Resp
 
 // POST /api/projects/:id/invites/:iid/resend - Einladung erneut mailen
 router.post('/projects/:id/invites/:iid/resend', requireAuth, async (req: Request, res: Response) => {
-  if (!await isProjectOwner(req.params.id, req.user!.id)) {
+  if (!await isProjectOwner(req.params.id, req.user!)) {
     return res.status(403).json({ data: null, error: 'Kein Zugriff' })
   }
   const invite = await db.get(
@@ -118,7 +121,7 @@ router.post('/projects/:id/invites/:iid/resend', requireAuth, async (req: Reques
 
 // DELETE /api/projects/:id/invites/:iid
 router.delete('/projects/:id/invites/:iid', requireAuth, async (req: Request, res: Response) => {
-  if (!await isProjectOwner(req.params.id, req.user!.id)) {
+  if (!await isProjectOwner(req.params.id, req.user!)) {
     return res.status(403).json({ data: null, error: 'Kein Zugriff' })
   }
   await db.run('DELETE FROM project_invites WHERE id = ? AND project_id = ?', [req.params.iid, req.params.id])
@@ -176,7 +179,7 @@ router.post('/invites/:token/accept', requireAuth, async (req: Request, res: Res
 
 // GET /api/projects/:id/members
 router.get('/projects/:id/members', requireAuth, async (req: Request, res: Response) => {
-  if (!await isProjectOwner(req.params.id, req.user!.id)) {
+  if (!await isProjectOwner(req.params.id, req.user!)) {
     return res.status(403).json({ data: null, error: 'Kein Zugriff' })
   }
   const members = await db.all(`
@@ -191,7 +194,7 @@ router.get('/projects/:id/members', requireAuth, async (req: Request, res: Respo
 
 // PUT /api/projects/:id/members/:uid/role
 router.put('/projects/:id/members/:uid/role', requireAuth, async (req: Request, res: Response) => {
-  if (!await isProjectOwner(req.params.id, req.user!.id)) {
+  if (!await isProjectOwner(req.params.id, req.user!)) {
     return res.status(403).json({ data: null, error: 'Kein Zugriff' })
   }
   const role = VALID_ROLES.includes(req.body.role) ? req.body.role : 'read_only'
@@ -201,7 +204,7 @@ router.put('/projects/:id/members/:uid/role', requireAuth, async (req: Request, 
 
 // DELETE /api/projects/:id/members/:uid
 router.delete('/projects/:id/members/:uid', requireAuth, async (req: Request, res: Response) => {
-  if (!await isProjectOwner(req.params.id, req.user!.id)) {
+  if (!await isProjectOwner(req.params.id, req.user!)) {
     return res.status(403).json({ data: null, error: 'Kein Zugriff' })
   }
   await db.run('DELETE FROM project_members WHERE project_id = ? AND user_id = ?', [req.params.id, req.params.uid])

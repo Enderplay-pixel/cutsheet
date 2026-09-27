@@ -100,7 +100,7 @@ export function Component() {
 
   const { data: comments, isLoading: commentsLoading } = useQuery({
     queryKey: ['scene-comments', selectedSceneId],
-    queryFn: () => req<any[]>(`/scenes/${selectedSceneId}/comments`),
+    queryFn: () => req<any[]>(`/projects/${pid}/scenes/${selectedSceneId}/comments`),
     enabled: selectedSceneId !== null,
   })
 
@@ -109,7 +109,7 @@ export function Component() {
     queryFn: async () => {
       const sceneIds = (scenes || []).map((s: any) => s.id)
       const results = await Promise.all(
-        sceneIds.map((sid: number) => req<any[]>(`/scenes/${sid}/comments`).catch(() => []))
+        sceneIds.map((sid: number) => req<any[]>(`/projects/${pid}/scenes/${sid}/comments`).catch(() => []))
       )
       const counts: Record<number, number> = {}
       sceneIds.forEach((sid: number, i: number) => {
@@ -154,12 +154,12 @@ export function Component() {
   const totalUnresolved = Object.values(allCommentCounts || {}).reduce((sum: number, n: any) => sum + n, 0)
 
   return (
-    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+    <div className="px-5 py-6 sm:p-7 max-w-6xl mx-auto animate-fade-up">
       {/* Page hero */}
       <div className="mb-8 pb-7 border-b border-border/40">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Szenen-Kommentare</h1>
+            <h1 className="font-display text-[28px] sm:text-[34px]">Szenen-Kommentare</h1>
             <p className="text-sm text-muted-foreground/60 mt-1.5">
               Projektweite Übersicht aller Kommentare
             </p>

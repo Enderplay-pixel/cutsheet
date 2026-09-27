@@ -13,6 +13,8 @@
  *  - Seitenzahl und Dokumentname in der Fußzeile, damit lose Blätter zuzuordnen sind
  */
 
+import { pdfFontFaces, PDF_SANS, resolveAccent } from './pdfFonts'
+
 function esc(s: any): string {
   return String(s ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -234,15 +236,20 @@ function footIdentity(opts: DocumentOptions): string {
   return parts.join(' · ')
 }
 
+/** Namen der Meta-Angaben, aus denen generatePdf die Fußzeile baut. */
+export const FOOT_LEFT = 'cutsheet-foot-left'
+export const FOOT_RIGHT = 'cutsheet-foot-right'
+
 /**
  * Baut das fertige Dokument.
  *
- * Die Fußzeile mit Seitenzahl wird bewusst hier gesetzt und nicht über die
- * Kopf-/Fußzeilenfunktion des Druckers: So steht dort auch der Projektname,
- * und lose Blätter lassen sich wieder zuordnen.
+ * Die Fußzeile steht als Meta-Angabe im Kopf und wird von generatePdf in die
+ * Druckerfußzeile übernommen — samt Projektname und „Seite x / y“, damit lose
+ * Blätter zuzuordnen sind. Ein position:fixed-Element im Seitenrand erzeugte
+ * dagegen eine leere Folgeseite, auf der die Fußzeile dann allein stand.
  */
 export function renderDocument(opts: DocumentOptions): string {
-  const accent = opts.accent || '#f59e0b'
+  const accent = resolveAccent(opts.accent)
   const today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
   return `<!DOCTYPE html>
@@ -250,40 +257,56 @@ export function renderDocument(opts: DocumentOptions): string {
 <head>
 <meta charset="UTF-8">
 <title>${esc(opts.title)}${opts.project ? ` - ${esc(opts.project)}` : ''}</title>
+<meta name="${FOOT_LEFT}" content="${esc(footIdentity(opts))}">
+<meta name="${FOOT_RIGHT}" content="${esc(opts.footnote || `Erstellt mit CutSheet am ${today}`)}">
 <style>
-  @page { size: A4 ${opts.landscape ? 'landscape' : 'portrait'}; margin: 14mm 12mm 16mm; }
+  ${pdfFontFaces()}
+  @page { size: A4 ${opts.landscape ? 'landscape' : 'portrait'}; margin: 14mm 13mm 17mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --accent: ${accent}; --ink: #1d1d1f; --ink2: #424245; --gray: #6e6e73; --faint: #86868b;
+          --line: #d2d2d7; --hair: #e8e8ed; --fill: #f5f5f7; }
   body {
-    font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
-    font-size: 9pt; line-height: 1.4; color: #18181b;
+    font-family: ${PDF_SANS};
+    font-size: 9pt; line-height: 1.45; color: var(--ink); letter-spacing: -0.003em;
+    font-feature-settings: 'tnum' 0;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
 
   /* ── Kopf ── */
-  .doc-head { display: flex; align-items: flex-start; gap: 16pt;
-              border-bottom: 2.5pt solid ${accent}; padding-bottom: 8pt; margin-bottom: 12pt; }
+  .doc-brand { display: flex; align-items: center; gap: 5pt; margin-bottom: 12pt; }
+  .doc-brand .icon { width: 14pt; height: 14pt; border-radius: 3.6pt; background: linear-gradient(#3a3a3c, #1d1d1f);
+                     display: flex; align-items: center; justify-content: center; }
+  .doc-brand .name { font-size: 8.5pt; font-weight: 600; letter-spacing: -0.01em; }
+  .doc-brand .kind { margin-left: auto; font-size: 7.5pt; font-weight: 600; color: var(--accent);
+                     background: color-mix(in srgb, var(--accent) 10%, white); padding: 1.5pt 6pt; border-radius: 10pt; }
+  .doc-head { display: flex; align-items: flex-end; gap: 16pt; padding-bottom: 12pt; margin-bottom: 14pt;
+              border-bottom: 0.5pt solid var(--line); }
   .doc-head .left { flex: 1; min-width: 0; }
-  .doc-kind { font-size: 7.5pt; font-weight: 700; letter-spacing: 0.12em;
-              text-transform: uppercase; color: ${accent}; }
-  .doc-title { font-size: 19pt; font-weight: 800; letter-spacing: -0.015em; line-height: 1.1; margin-top: 1pt; }
-  .doc-sub { font-size: 9pt; color: #52525b; margin-top: 3pt; }
-  .doc-meta { text-align: right; font-size: 8pt; color: #52525b; min-width: 130pt; }
-  .doc-meta div { margin-bottom: 1.5pt; }
-  .doc-meta b { color: #18181b; }
+  .doc-title { font-size: 22pt; font-weight: 700; letter-spacing: -0.028em; line-height: 1.08; }
+  .doc-sub { font-size: 10pt; color: var(--gray); margin-top: 3pt; }
+  .doc-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5pt 14pt; max-width: 60%; }
+  .doc-meta div { font-size: 7pt; color: var(--gray); }
+  .doc-meta b { display: block; font-size: 9pt; font-weight: 600; color: var(--ink); margin-top: 0.5pt; }
 
   /* ── Kennzahlen ── */
-  .stats { display: flex; flex-wrap: wrap; gap: 8pt; margin-bottom: 12pt; }
-  .stat { flex: 1; min-width: 90pt; border: 0.6pt solid #e4e4e7; border-left: 2.5pt solid ${accent};
-          border-radius: 2pt; padding: 5pt 8pt; background: #fafafa; }
-  .stat .k { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.07em; color: #71717a; }
-  .stat .v { font-size: 14pt; font-weight: 700; line-height: 1.15; margin-top: 1pt; }
-  .stat .h { font-size: 7.5pt; color: #71717a; }
+  .stats { display: flex; flex-wrap: wrap; gap: 6pt; margin-bottom: 16pt; }
+  .stat { flex: 1; min-width: 90pt; border-radius: 8pt; padding: 7pt 10pt 8pt; background: var(--fill); }
+  .stat .k { font-size: 7.5pt; color: var(--gray); }
+  .stat .v { font-size: 15pt; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin-top: 1pt;
+             font-variant-numeric: tabular-nums; }
+  .stat .h { font-size: 7.5pt; color: var(--faint); }
+  .stat:first-child .v { color: var(--accent); }
 
   /* ── Abschnitte ── */
-  .sect { margin-bottom: 14pt; page-break-inside: auto; }
-  .sect h2 { font-size: 10.5pt; font-weight: 700; margin-bottom: 5pt;
-             padding-bottom: 3pt; border-bottom: 0.8pt solid #d4d4d8; }
-  .sect h2 .note { float: right; font-size: 8pt; font-weight: 400; color: #71717a; }
+  .sect { margin-bottom: 16pt; page-break-inside: auto; }
+  .sect h2 { font-size: 11.5pt; font-weight: 600; letter-spacing: -0.015em; margin-bottom: 6pt; }
+  /* Überschrift nie allein am Seitenende — sie gehört zur Tabelle darunter */
+  .sect h2 { break-after: avoid; page-break-after: avoid; }
+  .sect h2 + table thead, .sect h2 + .defs { break-before: avoid; }
+  /* Kurze Abschnitte (bis 8 Zeilen) bleiben zusammen, statt eine einzelne
+     Zeile samt Summe auf die nächste Seite zu schieben */
+  .sect:has(tbody tr:last-child:nth-child(-n+8)) { break-inside: avoid; page-break-inside: avoid; }
+  .sect h2 .note { float: right; font-size: 8pt; font-weight: 400; color: var(--gray); letter-spacing: 0; margin-top: 2pt; }
 
   /* ── Tabellen ── */
   table { width: 100%; border-collapse: collapse; }
@@ -291,74 +314,71 @@ export function renderDocument(opts: DocumentOptions): string {
      vor Zahlenspalten ohne Beschriftung */
   thead { display: table-header-group; }
   tr { page-break-inside: avoid; }
-  th { font-size: 7.2pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
-       color: #3f3f46; background: #f4f4f5; border-bottom: 1pt solid #d4d4d8;
-       padding: 4pt 5pt; text-align: left; }
-  td { padding: 3.5pt 5pt; border-bottom: 0.5pt solid #ececee; vertical-align: top; }
+  th { font-size: 7pt; font-weight: 600; color: var(--gray); text-transform: uppercase; letter-spacing: 0.03em;
+       border-bottom: 0.6pt solid var(--line); padding: 4pt 6pt 4pt; text-align: left; }
+  td { padding: 4.5pt 6pt; border-bottom: 0.5pt solid var(--hair); vertical-align: top; }
+  th:first-child, td:first-child { padding-left: 2pt; }
+  th:last-child, td:last-child { padding-right: 2pt; }
   /* Lange Zeichenketten umbrechen. Gemessen am 27.09.2026: ein Szenentitel
      ohne Leerzeichen (200 Zeichen, wie er aus einem Import kommen kann) lief
      im gedruckten Drehplan waagerecht aus der Seite heraus und schob die
      Spalten daneben ueber den Rand. */
   td, th { overflow-wrap: anywhere; word-break: break-word; }
-  table.zebra tbody tr:nth-child(even) td { background: #fafafa; }
+  table.zebra tbody tr:nth-child(even) td { background: #fafafc; }
   td.r, th[style*="right"] { text-align: right; }
   td.c { text-align: center; }
   /* Zahlen mit gleicher Ziffernbreite: nur so stehen sie untereinander */
   td.r { font-variant-numeric: tabular-nums; }
-  td.muted { color: #71717a; font-size: 8pt; }
-  td.empty { text-align: center; color: #a1a1aa; font-style: italic; padding: 10pt; }
-  tfoot td { border-top: 1.2pt solid #52525b; border-bottom: none; padding-top: 5pt; font-weight: 700; }
-  tfoot .sumlabel { color: #52525b; font-weight: 600; }
-  tfoot .sumvalue { font-size: 11pt; font-variant-numeric: tabular-nums; }
+  td.muted { color: var(--gray); font-size: 8pt; }
+  td.empty { text-align: center; color: var(--faint); padding: 14pt; }
+  tfoot td { border-top: 0.8pt solid var(--ink); border-bottom: none; padding-top: 6pt; font-weight: 600; }
+  tfoot .sumlabel { color: var(--gray); font-weight: 500; }
+  tfoot .sumvalue { font-size: 11pt; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 
   /* ── Eckdaten ── */
-  .defs { display: flex; flex-wrap: wrap; gap: 6pt 14pt; margin-bottom: 10pt; }
+  .defs { display: flex; flex-wrap: wrap; gap: 8pt 18pt; margin-bottom: 12pt; }
   .def { min-width: 110pt; }
   .def.wide { width: 100%; }
-  .def .k { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.07em; color: #71717a; }
-  .def .v { font-size: 9pt; }
+  .def .k { font-size: 7.5pt; color: var(--gray); }
+  .def .v { font-size: 9.5pt; font-weight: 500; margin-top: 0.5pt; }
 
   /* Unterschriftenfeld - bewusst grosszuegig, es wird mit der Hand ausgefuellt */
-  .sigs { display: flex; gap: 18pt; margin-top: 26pt; }
+  .sigs { display: flex; gap: 20pt; margin-top: 28pt; }
   .sig { flex: 1; }
-  .sig .line { border-bottom: 0.8pt solid #52525b; height: 30pt; }
-  .sig .cap { font-size: 7.5pt; color: #71717a; margin-top: 3pt; }
+  .sig .line { border-bottom: 0.6pt solid var(--ink2); height: 30pt; }
+  .sig .cap { font-size: 7.5pt; color: var(--gray); margin-top: 3pt; }
 
-  .text { font-size: 9pt; line-height: 1.55; max-width: 165mm; }
-  .text.muted { color: #52525b; }
-  .hint { font-size: 8.5pt; color: #a1a1aa; font-style: italic; }
+  .text { font-size: 9.5pt; line-height: 1.6; max-width: 165mm; }
+  .text.muted { color: var(--ink2); }
+  .hint { font-size: 8.5pt; color: var(--faint); }
 
-  .badge { display: inline-block; font-size: 7.5pt; font-weight: 600; padding: 0.5pt 4pt;
-           border-radius: 6pt; border: 0.6pt solid; }
-  .badge.neutral { color: #52525b; border-color: #d4d4d8; background: #f4f4f5; }
-  .badge.ok   { color: #15803d; border-color: #86efac; background: #f0fdf4; }
-  .badge.warn { color: #b45309; border-color: #fcd34d; background: #fffbeb; }
-  .badge.bad  { color: #b91c1c; border-color: #fca5a5; background: #fef2f2; }
-  .badge.info { color: #1d4ed8; border-color: #93c5fd; background: #eff6ff; }
+  .badge { display: inline-block; font-size: 7.5pt; font-weight: 600; padding: 1pt 6pt; border-radius: 10pt; }
+  .badge.neutral { color: #424245; background: #ececf0; }
+  .badge.ok   { color: #1a7f37; background: #e3f5e8; }
+  .badge.warn { color: #a05a00; background: #fff1dc; }
+  .badge.bad  { color: #c9251c; background: #fde8e7; }
+  .badge.info { color: #0062c4; background: #e5f0fd; }
 
   /* ── Fußzeile auf jeder Seite ── */
-  .doc-foot { position: fixed; bottom: -10mm; left: 0; right: 0;
-              display: flex; justify-content: space-between;
-              font-size: 7pt; color: #a1a1aa; border-top: 0.5pt solid #e4e4e7; padding-top: 3pt; }
-  .doc-foot .pg::after { content: counter(page); }
 ${opts.extraCss || ''}
 </style>
 </head>
 <body>
-  <div class="doc-foot">
-    <span>${esc(footIdentity(opts))}</span>
-    <span>${esc(opts.footnote || `Erstellt mit CutSheet am ${today}`)}</span>
+
+  <div class="doc-brand">
+    <span class="icon">${BRAND_SVG}</span>
+    <span class="name">CutSheet</span>
+    <span class="kind">${esc(opts.kind)}</span>
   </div>
 
   <div class="doc-head">
     <div class="left">
-      <div class="doc-kind">${esc(opts.kind)}</div>
       <div class="doc-title">${esc(opts.title)}</div>
       ${opts.subtitle ? `<div class="doc-sub">${esc(opts.subtitle)}</div>` : ''}
     </div>
     ${opts.meta?.length ? `<div class="doc-meta">
       ${opts.meta.filter(m => m.value !== null && m.value !== undefined && String(m.value) !== '')
-        .map(m => `<div>${esc(m.label)}: <b>${esc(m.value)}</b></div>`).join('')}
+        .map(m => `<div>${esc(m.label)}<b>${esc(m.value)}</b></div>`).join('')}
     </div>` : ''}
   </div>
 
@@ -366,3 +386,6 @@ ${opts.extraCss || ''}
 </body>
 </html>`
 }
+
+/** Die Klappe aus dem App-Symbol, weiß für das dunkle Kästchen im Kopf. */
+export const BRAND_SVG = `<svg viewBox="0 0 24 24" width="9pt" height="9pt" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="9.5" width="18" height="11.5" rx="1.75"/><path d="M3.6 8 20.4 5.1M8.2 7.2 9.6 9.5M13 6.4l1.4 2.3M17.8 5.6l1.4 2.3"/></svg>`

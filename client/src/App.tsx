@@ -100,18 +100,23 @@ function AppShell() {
         <SkipLink />
         <div className="flex h-dvh overflow-hidden bg-background">
           <Sidebar />
-          <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+          <div className="flex flex-col flex-1 min-w-0 overflow-hidden relative">
+            <div className="ambient-glow absolute inset-x-0 top-0 h-[420px] pointer-events-none" aria-hidden />
             <TopBar onSearchOpen={() => setSearchVisible(true)} />
             {/* Read-only banner */}
             {projectId && myRole === 'read_only' && (
-              <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-600 dark:text-amber-400 shrink-0">
+              <div className="flex items-center gap-2 px-4 py-1.5 bg-warning/[0.08] border-b border-warning/20 text-xs text-warning shrink-0">
                 <EyeOff className="w-3.5 h-3.5 shrink-0" />
                 <span>{tt(appT.readOnlyBanner)}</span>
               </div>
             )}
-            <main id="main-content" className="flex-1 overflow-auto" role="main">
+            <main id="main-content" className="flex-1 overflow-auto relative" role="main">
               <ErrorBoundary key={location.pathname}>
-                <Outlet />
+                {/* Seitenwechsel-Animation; h-full, damit Vollhöhen-Seiten wie
+                    Drehplan und Moodboard ihre Höhe behalten */}
+                <div className="page-enter h-full">
+                  <Outlet />
+                </div>
               </ErrorBoundary>
             </main>
           </div>

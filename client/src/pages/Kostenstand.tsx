@@ -97,7 +97,7 @@ export function Component() {
           <Wallet className="w-[17px] h-[17px] text-primary" />
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-tight leading-none">Kostenstand</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">Kostenstand</h1>
           <p className="text-[12px] text-muted-foreground mt-1">
             Ist-Kosten gegen {kostenstand?.budget_version ? `Kalkulation „${kostenstand.budget_version.name}"` : 'die Kalkulation'}
           </p>

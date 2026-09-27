@@ -7,6 +7,7 @@
  * und die Gliederung folgt der YouTube-Dramaturgie statt dem Master Scene
  * Format.
  */
+import { pdfFontFaces, PDF_SANS, PDF_MONO } from './pdfFonts'
 
 /** Sprechgeschwindigkeit für die Laufzeitschätzung (Wörter pro Minute). */
 export const DEFAULT_WPM = 150
@@ -268,28 +269,29 @@ export function renderCreatorScriptHtml(
 <meta charset="UTF-8">
 <title>${esc(video.title)} – Videoskript</title>
 <style>
+  ${pdfFontFaces()}
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10.5px; color: #111; }
+  body { font-family: ${PDF_SANS}; font-size: 10.5px; color: #1d1d1f; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-  .head { border-bottom: 3px solid #ef4444; padding-bottom: 8px; margin-bottom: 14px; }
-  .head h1 { font-size: 19px; letter-spacing: -0.01em; }
-  .head .meta { color: #555; font-size: 10px; margin-top: 4px; }
-  .head .hook { margin-top: 8px; padding: 7px 10px; background: #fef2f2; border-left: 3px solid #ef4444; font-size: 11px; }
-  .head .hook b { display: block; font-size: 8.5px; text-transform: uppercase; letter-spacing: .08em; color: #b91c1c; margin-bottom: 2px; }
+  .head { border-bottom: 0.5pt solid #d2d2d7; padding-bottom: 10px; margin-bottom: 14px; }
+  .head h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.03em; }
+  .head .meta { color: #6e6e73; font-size: 11px; margin-top: 3px; }
+  .head .hook { margin-top: 10px; padding: 8px 12px; background: #fff1f0; border-radius: 10px; font-size: 11px; }
+  .head .hook b { display: block; font-size: 9px; font-weight: 600; color: #d70015; margin-bottom: 2px; }
 
-  .stats { display: flex; gap: 18px; margin-bottom: 14px; padding: 8px 12px; background: #f4f4f5; border-radius: 4px; }
-  .stats div span { display: block; font-size: 8.5px; text-transform: uppercase; letter-spacing: .07em; color: #666; }
-  .stats div b { font-size: 14px; }
+  .stats { display: flex; gap: 22px; margin-bottom: 16px; padding: 10px 14px; background: #f5f5f7; border-radius: 12px; }
+  .stats div span { display: block; font-size: 9px; color: #6e6e73; }
+  .stats div b { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
 
   table { width: 100%; border-collapse: collapse; }
   th { text-align: left; font-size: 8.5px; text-transform: uppercase; letter-spacing: .07em;
-       color: #666; border-bottom: 1.5px solid #d4d4d8; padding: 0 8px 4px; }
-  td { vertical-align: top; padding: 9px 8px; border-bottom: 1px solid #e5e7eb; }
+       color: #6e6e73; font-weight: 600; border-bottom: 0.6pt solid #d2d2d7; padding: 0 8px 4px; }
+  td { vertical-align: top; padding: 9px 8px; border-bottom: 0.5pt solid #e8e8ed; }
   tr { page-break-inside: avoid; }
 
   .tc { width: 74px; }
-  .tc .time { font-family: 'Courier New', monospace; font-weight: bold; font-size: 12px; }
-  .tc .kind { font-size: 8.5px; text-transform: uppercase; letter-spacing: .06em; color: #ef4444; margin-top: 1px; }
+  .tc .time { font-family: ${PDF_MONO}; font-weight: 600; font-size: 12px; }
+  .tc .kind { font-size: 8.5px; font-weight: 600; color: #d70015; margin-top: 1px; }
   .tc .dur { font-size: 8.5px; color: #777; }
   .tc .delta { font-size: 8px; margin-top: 2px; }
   .tc .over { color: #b45309; }
@@ -299,18 +301,18 @@ export function renderCreatorScriptHtml(
   .spoken { width: 56%; }
   .spoken .heading { font-weight: bold; font-size: 11.5px; margin-bottom: 3px; }
   .spoken .text { line-height: 1.5; }
-  .visuals { color: #3f3f46; font-size: 9.5px; line-height: 1.45; background: #fafafa; }
+  .visuals { color: #424245; font-size: 9.5px; line-height: 1.45; background: #fafafc; }
   .empty { color: #bbb; }
 
   .upload { page-break-before: always; }
-  .upload h2 { font-size: 15px; border-bottom: 2px solid #ef4444; padding-bottom: 5px; margin-bottom: 12px; }
+  .upload h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.025em; padding-bottom: 6px; margin-bottom: 12px; border-bottom: 0.5pt solid #d2d2d7; }
   .block { margin-bottom: 14px; }
-  .block h3 { font-size: 9px; text-transform: uppercase; letter-spacing: .08em; color: #666; margin-bottom: 4px; }
+  .block h3 { font-size: 10px; font-weight: 600; color: #6e6e73; margin-bottom: 4px; }
   .block ul { margin-left: 15px; }
   .block li { margin-bottom: 2px; line-height: 1.45; }
-  .desc { white-space: pre-wrap; line-height: 1.5; background: #fafafa; padding: 8px 10px; border-radius: 3px; }
-  .chapters { font-family: 'Courier New', monospace; font-size: 10px; line-height: 1.6;
-              background: #fafafa; padding: 8px 10px; border-radius: 3px; }
+  .desc { white-space: pre-wrap; line-height: 1.5; background: #f5f5f7; padding: 10px 12px; border-radius: 10px; }
+  .chapters { font-family: ${PDF_MONO}; font-size: 10px; line-height: 1.6;
+              background: #f5f5f7; padding: 10px 12px; border-radius: 10px; }
   .warn { margin-top: 5px; font-size: 9px; color: #b45309; }
   .warn li { margin-left: 14px; }
   .check { padding: 2px 0; font-size: 10px; }

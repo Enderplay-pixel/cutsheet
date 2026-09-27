@@ -108,7 +108,7 @@ export function Component() {
   }, {} as Record<string, any[]>)
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-4">
+    <div className="px-5 py-6 sm:p-6 max-w-5xl mx-auto space-y-4">
       <PageHeader
         title="E-Mail Center"
         subtitle="E-Mails an Stab und Darsteller senden"

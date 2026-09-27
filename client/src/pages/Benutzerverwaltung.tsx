@@ -81,12 +81,12 @@ export function Component() {
   }
 
   return (
-    <div className="p-7 max-w-4xl mx-auto space-y-8">
+    <div className="px-5 py-6 sm:p-7 max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <div className="flex items-center gap-3">
         <ShieldCheck className="w-5 h-5 text-muted-foreground" />
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Benutzerverwaltung</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">Benutzerverwaltung</h1>
           <p className="text-sm text-muted-foreground">{users.length} registrierte Benutzer · nur für Admins</p>
         </div>
       </div>

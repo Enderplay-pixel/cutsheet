@@ -5,6 +5,7 @@
  * derselbe Plan auf jedem Bildschirm und im PDF, unabhaengig davon, wie gross
  * das hochgeladene Bild ist oder wie breit der Browser gerade steht.
  */
+import { pdfFontFaces, PDF_SANS } from './pdfFonts'
 
 export interface ItemType {
   kind: string
@@ -156,20 +157,21 @@ export function renderFloorplanHtml(plan: any, items: PlanItem[], imageDataUri: 
 <meta charset="UTF-8">
 <title>Set-Plan - ${esc(plan?.name)}</title>
 <style>
+  ${pdfFontFaces()}
   @page { size: A4 landscape; margin: 10mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #111; }
+  body { font-family: ${PDF_SANS}; font-size: 10px; color: #1d1d1f; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-  h1 { font-size: 15px; }
-  .meta { color: #555; font-size: 9px; margin-top: 2px; }
-  .head { border-bottom: 2px solid #111; padding-bottom: 5px; margin-bottom: 8px; }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.028em; }
+  .meta { color: #6e6e73; font-size: 10px; margin-top: 2px; }
+  .head { border-bottom: 0.5pt solid #d2d2d7; padding-bottom: 8px; margin-bottom: 10px; }
 
   /* Die Buehne umschliesst das Bild genau, damit die relativen Positionen der
      Symbole zum Bild passen und nicht zu einem Rahmen daneben. Begrenzt wird
      in beide Richtungen: Ein hochformatiges Bild wuerde sonst auf volle Breite
      gezogen und ueber mehrere Seiten laufen. */
   .stagewrap { text-align: center; }
-  .stage { position: relative; display: inline-block; max-width: 100%; border: 1px solid #999; background: #fafafa; }
+  .stage { position: relative; display: inline-block; max-width: 100%; border: 0.5pt solid #d2d2d7; border-radius: 10px; overflow: hidden; background: #f5f5f7; }
   .stage img { display: block; max-width: 100%; max-height: 148mm; width: auto; height: auto; }
   .stage.empty { width: 100%; height: 120mm; }
 
@@ -194,7 +196,7 @@ export function renderFloorplanHtml(plan: any, items: PlanItem[], imageDataUri: 
     position: absolute; left: 50%; top: 100%; transform: translateX(-50%);
     margin-top: 2px; white-space: nowrap;
     font-size: calc(8px * var(--s)); font-weight: bold;
-    background: #fff; border: 1px solid var(--c); border-radius: 2px; padding: 0 3px;
+    background: #fff; border: 1px solid var(--c); border-radius: 6px; padding: 0 4px;
   }
 
   .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }

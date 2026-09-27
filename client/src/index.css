@@ -1,92 +1,108 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ════════════════════════════════════════════════════════════════════
+   CutSheet Designsystem — angelehnt an Apples Human Interface
+   Helles Grau als Grund, weiße Flächen mit weichen Schatten und großen
+   Radien, eine einzige Akzentfarbe (System-Blau), fette große Titel.
+   Materialien statt Linien: die Kopfzeile ist durchscheinend.
+   ════════════════════════════════════════════════════════════════════ */
 @layer base {
   :root {
-    /* ── Easing ──────────────────────────────────────────── */
-    --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
-    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    /* ── Easing (federnd wie UIKit) ──────────────────────── */
+    --ease-out:    cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 
-    /* ── Dark mode: Kinosaal (warmes Charcoal, Tungsten-Gold) ── */
-    /* Psychologie: Gold = Set-Licht / Golden Hour — warm, fokussiert,
-       motivierend. Rot ist ab jetzt EXKLUSIV destruktiv/Fehler, damit
-       die Alarmfarbe ihre Bedeutung behält. */
-    --background: 30 8% 5.5%;
-    --foreground: 36 16% 92%;
-    --card: 30 7% 8.5%;
-    --card-foreground: 36 16% 92%;
-    --popover: 30 7% 11%;
-    --popover-foreground: 36 16% 92%;
+    /* ── Dunkel (systemBackground / secondarySystemBackground) ── */
+    --canvas: 240 3% 7%;
+    --background: 240 3% 7%;
+    --foreground: 0 0% 96%;
+    --card: 240 2% 11.5%;
+    --card-foreground: 0 0% 96%;
+    --popover: 240 2% 14%;
+    --popover-foreground: 0 0% 96%;
 
-    --primary: 38 90% 55%;
-    --primary-foreground: 30 60% 7%;
+    --primary: 211 100% 52%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 30 6% 13%;
-    --secondary-foreground: 36 10% 76%;
-    --muted: 30 6% 11%;
-    --muted-foreground: 32 6% 52%;
-    --accent: 38 90% 55%;
-    --accent-foreground: 30 60% 7%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
+    --secondary: 240 2% 17%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 240 2% 15%;
+    --muted-foreground: 240 3% 62%;
+    --accent: 240 2% 18%;
+    --accent-foreground: 0 0% 96%;
+    --destructive: 3 100% 61%;
+    --destructive-foreground: 0 0% 100%;
 
-    /* Semantische Status-Farben */
-    --success: 152 52% 44%;
-    --success-foreground: 150 60% 96%;
-    --warning: 22 92% 55%;
-    --warning-foreground: 26 70% 8%;
-    --danger: 0 72% 54%;
-    --danger-foreground: 0 0% 98%;
-    --info: 208 88% 62%;
-    --info-foreground: 210 60% 8%;
+    --signal: 211 100% 58%;
+    --signal-foreground: 0 0% 100%;
+    --signal-soft: 211 100% 58% / 0.14;
 
-    --border: 30 6% 16%;
-    --input: 30 6% 13%;
-    --ring: 38 90% 55%;
-    --radius: 0.625rem;
+    --success: 135 64% 52%;
+    --success-foreground: 0 0% 100%;
+    --warning: 36 100% 55%;
+    --warning-foreground: 0 0% 8%;
+    --danger: 3 100% 64%;
+    --danger-foreground: 0 0% 100%;
+    --info: 199 90% 62%;
+    --info-foreground: 0 0% 8%;
 
-    --sidebar-width: 220px;
-    --sidebar-collapsed-width: 52px;
+    --border: 240 2% 19%;
+    --input: 240 2% 13%;
+    --ring: 211 100% 58%;
+    --radius: 12px;
+    --shadow: 0 0% 0%;
+
+    --sidebar-width: 240px;
+    --sidebar-collapsed-width: 60px;
     --topbar-height: 56px;
+
+    color-scheme: dark;
   }
 
   .light {
-    /* ── Light mode: Tageslicht (warmes Papier, Bronze-Gold) ── */
-    --background: 37 35% 97%;
-    --foreground: 25 18% 11%;
+    /* ── Hell (systemGroupedBackground #F5F5F7) ── */
+    --canvas: 240 11% 95.5%;
+    --background: 240 11% 96.5%;
+    --foreground: 240 3% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 25 18% 11%;
+    --card-foreground: 240 3% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 25 18% 11%;
+    --popover-foreground: 240 3% 11%;
 
-    --primary: 34 85% 36%;
-    --primary-foreground: 40 60% 98%;
+    --primary: 211 100% 45%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 37 25% 91%;
-    --secondary-foreground: 25 15% 22%;
-    --muted: 37 22% 93%;
-    --muted-foreground: 25 10% 46%;
-    --accent: 34 85% 36%;
-    --accent-foreground: 40 60% 98%;
-    --destructive: 0 72% 46%;
-    --destructive-foreground: 0 0% 98%;
+    --secondary: 240 7% 93%;
+    --secondary-foreground: 240 3% 20%;
+    --muted: 240 9% 94.5%;
+    --muted-foreground: 240 2% 45%;
+    --accent: 240 8% 93%;
+    --accent-foreground: 240 3% 11%;
+    --destructive: 3 90% 50%;
+    --destructive-foreground: 0 0% 100%;
 
-    --success: 152 60% 30%;
-    --success-foreground: 150 60% 97%;
-    --warning: 22 92% 42%;
-    --warning-foreground: 40 60% 98%;
-    --danger: 0 72% 46%;
-    --danger-foreground: 0 0% 98%;
-    --info: 208 85% 42%;
-    --info-foreground: 210 60% 98%;
+    --signal: 211 100% 45%;
+    --signal-foreground: 0 0% 100%;
+    --signal-soft: 211 100% 96%;
 
-    --border: 37 18% 82%;
-    --input: 37 22% 89%;
-    --ring: 34 85% 36%;
+    --success: 137 70% 34%;
+    --success-foreground: 0 0% 100%;
+    --warning: 30 100% 40%;
+    --warning-foreground: 0 0% 100%;
+    --danger: 3 90% 48%;
+    --danger-foreground: 0 0% 100%;
+    --info: 199 90% 38%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 240 6% 90%;
+    --input: 0 0% 100%;
+    --ring: 211 100% 45%;
+    --shadow: 240 20% 20%;
+
+    color-scheme: light;
   }
 }
 
@@ -100,15 +116,25 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    font-feature-settings: "rlig" 1, "calt" 1, "cv02" 1, "cv03" 1, "cv04" 1;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Geist Variable', system-ui, sans-serif;
     font-size: 14px;
     line-height: 1.5;
+    letter-spacing: -0.006em;
   }
+
+  h1, h2, h3 { text-wrap: balance; letter-spacing: -0.02em; }
+  p { text-wrap: pretty; }
+
+  /* Lucide ist dünn gezeichnet; einheitlich etwas kräftiger wirkt es
+     technischer und liest sich auf beiden Hintergründen besser. */
+  svg.lucide { stroke-width: 1.8; }
+
+  ::selection { background: hsl(var(--signal) / 0.25); }
 
   :focus-visible {
     outline: 2px solid hsl(var(--ring));
@@ -118,6 +144,32 @@
   .font-mono, .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
+}
+
+/* ─── Typografie-Bausteine ─────────────────────────────── */
+.font-display {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Geist Variable', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.06;
+}
+/* Gruppenüberschrift wie in den iOS-Einstellungen */
+.eyebrow {
+  @apply text-[11.5px] font-medium uppercase tracking-[0.04em] text-muted-foreground;
+}
+kbd {
+  @apply text-[10.5px] font-medium px-1.5 py-0.5 rounded-[5px] border border-border bg-card text-muted-foreground shadow-[0_1px_0_hsl(var(--border))];
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Geist Variable', sans-serif;
+}
+
+/* Umgebungslicht oben im Arbeitsbereich — ein Hauch Systemblau */
+.ambient-glow {
+  background:
+    radial-gradient(55% 45% at 50% -12%, hsl(var(--signal) / 0.09), transparent 70%);
+}
+.light .ambient-glow {
+  background:
+    radial-gradient(55% 45% at 50% -12%, hsl(var(--signal) / 0.06), transparent 70%);
 }
 
 /* ─── Accessibility ──────────────────────────────────── */
@@ -145,7 +197,7 @@
 }
 
 /* ─── Scrollbar ─────────────────────────────────────── */
-::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
@@ -157,7 +209,7 @@
 
 /* ─── Sidebar collapse transition ───────────────────── */
 .sidebar-transition {
-  transition: width 260ms var(--ease-out);
+  transition: width 320ms cubic-bezier(0.32, 0.72, 0, 1), transform 380ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* ─── Card lift hover ────────────────────────────────── */
@@ -166,19 +218,19 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .card-lift:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 24px hsl(0 0% 0% / 0.28);
+    border-color: hsl(var(--foreground) / 0.18);
+    box-shadow: 0 8px 24px -8px hsl(var(--shadow) / 0.14);
   }
 }
 
 /* ─── Status badge ───────────────────────────────────── */
 .badge {
-  @apply inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border;
+  @apply inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.06em] px-1.5 py-0.5 rounded-sm border;
 }
 
 /* ─── Section label ──────────────────────────────────── */
 .section-label {
-  @apply text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/40;
+  @apply text-[11.5px] font-medium uppercase tracking-[0.04em] text-muted-foreground;
 }
 
 /* ─── Subtle top separator line ─────────────────────── */
@@ -239,20 +291,26 @@
 }
 
 /* ─── Drehplan strip colors ─────────────────────────── */
-.strip-int-tag   { background: hsl(15 75% 50% / 0.10); border-left: 2px solid hsl(15 75% 50% / 0.70); }
-.strip-ext-tag   { background: hsl(138 45% 35% / 0.10); border-left: 2px solid hsl(138 45% 35% / 0.70); }
-.strip-int-nacht { background: hsl(222 68% 46% / 0.10); border-left: 2px solid hsl(222 68% 46% / 0.70); }
-.strip-ext-nacht { background: hsl(168 58% 30% / 0.10); border-left: 2px solid hsl(168 58% 30% / 0.70); }
+/* Branchenübliche Streifenfarben (INT/EXT × Tag/Nacht) */
+.strip-int-tag   { background: hsl(32 90% 55% / 0.10); border-left: 3px solid hsl(32 90% 52%); }
+.strip-ext-tag   { background: hsl(140 50% 45% / 0.10); border-left: 3px solid hsl(140 50% 42%); }
+.strip-int-nacht { background: hsl(222 70% 58% / 0.11); border-left: 3px solid hsl(222 70% 56%); }
+.strip-ext-nacht { background: hsl(180 50% 40% / 0.11); border-left: 3px solid hsl(180 50% 40%); }
 
 /* ─── Global Radix animation timing ─────────────────── */
 /* open: fast start (ease-out feel), close: snap away */
 .animate-in  {
-  animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1) !important;
-  animation-duration: 160ms !important;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1) !important;
+  animation-duration: 200ms !important;
 }
 .animate-out {
-  animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1) !important;
-  animation-duration: 100ms !important;
+  animation-timing-function: cubic-bezier(0.4, 0, 1, 1) !important;
+  animation-duration: 130ms !important;
+}
+/* Dialoge gleiten mit Apples Sheet-Kurve auf, etwas laenger als Menues */
+[role='dialog'].animate-in, [role='alertdialog'].animate-in {
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1) !important;
+  animation-duration: 340ms !important;
 }
 
 /* ─── prefers-reduced-motion ─────────────────────────── */
@@ -282,6 +340,12 @@
 
   /* Instant sidebar */
   .sidebar-transition { transition-duration: 0ms !important; }
+
+  /* Seitenwechsel, Kaskaden und Zeilen ohne Bewegung */
+  .page-enter, .page-enter > * > *, main tbody tr, .skeleton-shimmer::after, .pulse-dot::after {
+    animation: none !important;
+  }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 
   /* No button press scale or shine */
   button:active, [role="button"]:active, a:active { transform: none !important; box-shadow: none !important; }
@@ -335,12 +399,12 @@
 
 /* ─── Page container ─────────────────────────────────── */
 .page-container {
-  @apply p-7 max-w-6xl mx-auto;
+  @apply px-5 py-6 sm:px-8 sm:py-9 max-w-6xl mx-auto;
 }
 
 /* ─── Stat cards ─────────────────────────────────────── */
 .stat-card {
-  @apply rounded-xl bg-card border border-border/70 p-5;
+  @apply rounded-2xl bg-card border border-border/60 p-5 shadow-sm;
 }
 
 /* ─── Table styles ──────────────────────────────────── */
@@ -351,21 +415,21 @@
   @apply border-b border-border/50;
 }
 .data-table thead th {
-  @apply text-left text-xs font-medium text-muted-foreground py-2.5 px-3 first:pl-4 last:pr-4;
+  @apply text-left text-[11.5px] font-medium uppercase tracking-[0.03em] text-muted-foreground py-2.5 px-3 first:pl-4 last:pr-4;
 }
 .data-table tbody tr {
   @apply border-b border-border/30;
   transition: background-color 120ms ease-out;
 }
 .data-table tbody tr:hover {
-  @apply bg-muted/20;
+  @apply bg-muted/60;
 }
 .data-table tbody td {
   @apply py-2.5 px-3 first:pl-4 last:pr-4;
 }
 
 /* ─── Input overrides ────────────────────────────────── */
-input[type="date"]::-webkit-calendar-picker-indicator {
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.6);
   cursor: pointer;
 }
@@ -387,7 +451,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   position: absolute;
   top: 0; bottom: 0; left: -60%;
   width: 45%;
-  background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.14), transparent);
+  background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.06), transparent);
   transform: skewX(-15deg);
   pointer-events: none;
 }
@@ -415,12 +479,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* ─── Table row hover accent ─────────────────────────── */
 .data-table tbody tr:hover {
-  box-shadow: inset 2px 0 0 hsl(var(--primary) / 0.35) !important;
+  box-shadow: none !important;
 }
 
 /* ─── Glow effect on primary elements ───────────────── */
 .glow-primary {
-  box-shadow: 0 0 0 1px hsl(var(--primary)/0.2), 0 4px 20px hsl(var(--primary)/0.15);
+  box-shadow: 0 0 0 1px hsl(var(--foreground)/0.08), 0 2px 8px hsl(var(--shadow)/0.06);
 }
 
 /* ─── Number counter animation ───────────────────────── */
@@ -436,23 +500,23 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(ellipse at 50% 0%, hsl(var(--primary)/0.07) 0%, transparent 60%);
+  background: radial-gradient(ellipse at 50% 0%, hsl(var(--signal)/0.05) 0%, transparent 60%);
   pointer-events: none;
 }
 
 /* ─── Hero chip ──────────────────────────────────────── */
 .chip {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold
-    bg-muted/60 text-muted-foreground border border-border/50;
+  @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11.5px] font-medium
+    bg-muted text-muted-foreground border border-border;
 }
 .chip-primary {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold
-    bg-primary/10 text-primary border border-primary/20;
+  @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11.5px] font-medium
+    bg-signal-soft text-signal border border-signal/25;
 }
 
 /* ─── Highlighted row (for tables) ──────────────────── */
 .row-highlighted {
-  @apply bg-primary/5 border-l-2 border-l-primary/40;
+  @apply bg-signal-soft border-l-2 border-l-signal/60;
 }
 
 /* ─── Print styles ───────────────────────────────────── */
@@ -474,4 +538,87 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   h1 { font-size: 18pt; }
   h2 { font-size: 14pt; }
   h3 { font-size: 12pt; }
+}
+
+/* ─── Moodboard-Notizen: Helligkeiten je Modus ───────── */
+:root { --note-bg-l: 16%; --note-border-l: 40%; --note-text-l: 80%; }
+.light { --note-bg-l: 94%; --note-border-l: 60%; --note-text-l: 28%; }
+
+
+/* ════════════════════════════════════════════════════════════════════
+   Bewegung — ruhig, federnd, nie im Weg. Alles nur über transform und
+   opacity; prefers-reduced-motion schaltet es oben ab.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Seitenwechsel: die neue Seite hebt sich leicht an und wird scharf.
+   fill-mode backwards: nach dem Ende wirkt die Animation nicht mehr — sonst
+   ueberschriebe ihr transform:none die Transformationen von dnd-kit. */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(10px); filter: blur(3px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+.page-enter { animation: page-in 460ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+
+/* Kaskade: die Abschnitte einer Seite erscheinen nacheinander */
+.page-enter > * > * { animation: rise-in 560ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.page-enter > * > *:nth-child(1) { animation-delay: 30ms; }
+.page-enter > * > *:nth-child(2) { animation-delay: 80ms; }
+.page-enter > * > *:nth-child(3) { animation-delay: 130ms; }
+.page-enter > * > *:nth-child(4) { animation-delay: 180ms; }
+.page-enter > * > *:nth-child(5) { animation-delay: 220ms; }
+.page-enter > * > *:nth-child(6) { animation-delay: 260ms; }
+.page-enter > * > *:nth-child(7) { animation-delay: 290ms; }
+.page-enter > * > *:nth-child(n+8) { animation-delay: 320ms; }
+
+/* Tabellenzeilen: neue Zeilen blenden sanft ein (nur beim Einfügen) */
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+main tbody tr { animation: row-in 380ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+main tbody tr:nth-child(2)  { animation-delay: 20ms; }
+main tbody tr:nth-child(3)  { animation-delay: 40ms; }
+main tbody tr:nth-child(4)  { animation-delay: 60ms; }
+main tbody tr:nth-child(5)  { animation-delay: 80ms; }
+main tbody tr:nth-child(6)  { animation-delay: 100ms; }
+main tbody tr:nth-child(7)  { animation-delay: 120ms; }
+main tbody tr:nth-child(8)  { animation-delay: 140ms; }
+main tbody tr:nth-child(n+9) { animation-delay: 160ms; }
+
+/* Ladeplatzhalter: ein Lichtstreif statt Pulsieren */
+@keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.skeleton-shimmer { position: relative; overflow: hidden; }
+.skeleton-shimmer::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.06), transparent);
+  animation: shimmer 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Live-Punkt: ein weicher Ring, der sich ausbreitet */
+@keyframes pulse-ring {
+  0%   { transform: scale(1); opacity: 0.55; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+.pulse-dot { position: relative; }
+.pulse-dot::after {
+  content: ''; position: absolute; inset: 0; border-radius: 9999px; background: inherit;
+  animation: pulse-ring 2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+/* Tab-Inhalte blenden beim Wechsel über */
+[role='tabpanel'][data-state='active'] { animation: rise-in 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+
+/* Hell/Dunkel-Wechsel: kreisförmige Enthüllung per View Transitions */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-new(root) { z-index: 2; }
+
+/* Klickbare Karten heben sich unter dem Zeiger leicht an */
+@media (hover: hover) and (pointer: fine) {
+  .lift { transition: transform 260ms cubic-bezier(0.34, 1.4, 0.64, 1), box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1); }
+  .lift:hover { transform: translateY(-2px); box-shadow: 0 12px 32px -12px hsl(var(--shadow) / 0.22); }
+  .lift:active { transform: translateY(0) scale(0.99); }
 }

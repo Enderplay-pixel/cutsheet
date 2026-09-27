@@ -18,8 +18,8 @@ export default defineConfig({
         name: 'CutSheet',
         short_name: 'CutSheet',
         description: 'Professionelles Film-Produktions-Management',
-        theme_color: '#0a0a0a',
-        background_color: '#0a0a0a',
+        theme_color: '#0D0D0F',
+        background_color: '#0D0D0F',
         display: 'standalone',
         // Nicht auf Hochformat festnageln: am Tablet quer bekommt die App die
         // volle Sidebar und 804 px Inhalt — dort arbeitet sie am besten

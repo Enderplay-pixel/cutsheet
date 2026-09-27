@@ -358,11 +358,11 @@ export function Component() {
   const selectedDay = (shootDays ?? []).find(d => d.id === selectedDayId)
 
   return (
-    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+    <div className="px-5 py-6 sm:p-7 max-w-6xl mx-auto animate-fade-up">
       {/* Page hero */}
       <div className="mb-8 pb-7 border-b border-border/40 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[1.85rem] font-bold tracking-tight leading-tight">Timesheets</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">Timesheets</h1>
           <p className="text-sm text-muted-foreground/60 mt-1.5">Call- & Wrap-Zeiten, Überstunden und Mahlzeit-Penalties</p>
         </div>
         <Button

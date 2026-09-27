@@ -223,7 +223,7 @@ export function Component() {
   })
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-4">
+    <div className="px-5 py-6 sm:p-6 max-w-5xl mx-auto space-y-4">
       <PageHeader
         title={tt(equipT.title)}
         subtitle={`${lists?.length || 0} Listen · ${drehtage} ${drehtage === 1 ? 'Drehtag' : 'Drehtage'} geplant`}

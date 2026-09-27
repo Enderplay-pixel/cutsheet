@@ -9,6 +9,7 @@ import { track } from '@/lib/analytics'
 import {
   Clapperboard, MapPin, CheckCircle2, Clock, CloudSun, Sunrise, Sunset, UserPlus
 } from 'lucide-react'
+import { AppIcon } from '@/components/shared/BrandMark'
 import { cn } from '@/lib/utils'
 
 const fmtTime = (mins: number | null | undefined) =>
@@ -44,7 +45,7 @@ export function Component() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-5 text-center">
         <Clapperboard className="w-10 h-10 text-muted-foreground/30 mb-4" />
-        <h1 className="text-lg font-bold mb-1">Link ungültig</h1>
+        <h1 className="font-display text-[28px] sm:text-[34px] mb-1">Link ungültig</h1>
         <p className="text-sm text-muted-foreground max-w-xs">
           Dieser Dispo-Link existiert nicht oder wurde zurückgezogen. Bitte wende dich an deine Produktionsleitung.
         </p>
@@ -63,9 +64,7 @@ export function Component() {
       {/* Header */}
       <header className="border-b border-border bg-card/60">
         <div className="max-w-md mx-auto px-5 h-14 flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center shrink-0">
-            <Clapperboard className="w-3.5 h-3.5 text-primary-foreground" />
-          </div>
+          <AppIcon className="w-7 h-7" />
           <div className="min-w-0">
             <p className="text-sm font-bold tracking-tight truncate leading-none">{project.title}</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">Drehtag {day.day_number} · {dateStr}</p>
@@ -77,7 +76,7 @@ export function Component() {
         {/* Persönliche Call Time - die eine Info, die zählt */}
         <div className="rounded-2xl border border-primary/25 bg-primary/5 p-6 text-center relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none"
-            style={{ background: 'radial-gradient(ellipse at top, hsl(var(--primary)/0.08) 0%, transparent 60%)' }} />
+            style={{ background: 'radial-gradient(ellipse at top, hsl(var(--signal)/0.06) 0%, transparent 60%)' }} />
           <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-primary mb-2">
             Deine Call Time{me.name ? ` - ${me.name}` : ''}
           </p>
