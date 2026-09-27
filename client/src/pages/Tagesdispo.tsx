@@ -815,21 +815,23 @@ export function Component() {
 
       {/* ── Call Sheet header card ───────────────────────────────────────────── */}
       <div className="bg-card border border-border/60 rounded-2xl overflow-hidden shadow-sm">
-        {/* Production title bar */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-border/40 bg-muted/20">
-          <div className="flex items-center gap-2.5">
-            <Clapperboard className="w-4 h-4 text-muted-foreground" />
-            <span className="font-bold text-sm uppercase tracking-widest">
+        {/* Kopfzeile. Am Telefon untereinander statt nebeneinander: drei Angaben
+            in einer 375px-Zeile quetschen "Tag 1 von 8" sonst in eine
+            dreizeilige Spalte. Gemessen am 27.09.2026 am Telefon. */}
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-6 py-3 border-b border-border/40 bg-muted/20">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Clapperboard className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span className="font-bold text-sm uppercase tracking-widest truncate">
               {project?.title || 'Produktion'}
             </span>
             {currentDay && (
-              <span className="text-xs text-muted-foreground font-medium ml-1">
+              <span className="text-xs text-muted-foreground font-medium ml-1 whitespace-nowrap">
                 · {tt(dispoT.dayLabel)} {currentDay.day_number} von {allDays.length}
               </span>
             )}
           </div>
           {currentDay?.date && (
-            <span className="text-sm font-medium text-muted-foreground">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
               {formatDateLong(currentDay.date)}
             </span>
           )}
@@ -879,7 +881,7 @@ export function Component() {
               <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-2.5">
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <MapPin className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{tt(dispoT.location)}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 truncate min-w-0">{tt(dispoT.location)}</span>
                 </div>
                 <p className="text-sm font-semibold truncate">
                   {locationName || <span className="text-muted-foreground font-normal">–</span>}
@@ -890,11 +892,11 @@ export function Component() {
               <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-2.5">
                 <div className="flex items-center gap-1.5 mb-1">
                   <CloudSun className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{tt(dispoT.weather)}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 truncate min-w-0">{tt(dispoT.weather)}</span>
                   <button
                     onClick={fetchWeather}
                     disabled={weatherLoading}
-                    className="ml-auto -my-2 -mr-2 px-2 py-2 text-[10px] text-primary hover:underline disabled:opacity-50"
+                    className="ml-auto shrink-0 -my-2 -mr-2 px-2 py-2 text-[10px] text-primary hover:underline disabled:opacity-50"
                     title={tt(dispoT.weather)}
                   >
                     {weatherLoading ? tt(dispoT.weatherFetching) : tt(dispoT.weatherFetch)}
@@ -912,11 +914,11 @@ export function Component() {
               <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-2.5">
                 <div className="flex items-center gap-1.5 mb-1">
                   <Sunrise className="w-3 h-3 text-amber-400" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{tt(dispoT.sunrise)}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 truncate min-w-0">{tt(dispoT.sunrise)}</span>
                   <button
                     onClick={holeSonnenzeiten}
                     disabled={sonneLaedt}
-                    className="ml-auto -my-2 -mr-2 px-2 py-2 text-[10px] text-primary hover:underline disabled:opacity-50"
+                    className="ml-auto shrink-0 -my-2 -mr-2 px-2 py-2 text-[10px] text-primary hover:underline disabled:opacity-50"
                     title="Sonnenauf- und -untergang aus dem Motiv des Tages"
                   >
                     {sonneLaedt ? tt(dispoT.weatherFetching) : tt(dispoT.weatherFetch)}
@@ -934,7 +936,7 @@ export function Component() {
               <div className="bg-muted/30 border border-border/50 rounded-lg px-3 py-2.5">
                 <div className="flex items-center gap-1.5 mb-1">
                   <Sunset className="w-3 h-3 text-orange-400" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{tt(dispoT.sunset)}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 truncate min-w-0">{tt(dispoT.sunset)}</span>
                 </div>
                 <Input disabled={!darfSchreiben}
                   value={headerForm.sunset || ''}

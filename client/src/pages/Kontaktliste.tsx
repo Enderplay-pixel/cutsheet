@@ -137,15 +137,18 @@ export function Component() {
   }
 
   return (
-    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
-      <div className="flex items-start justify-between mb-6">
-        <div>
+    <div className="p-4 sm:p-7 max-w-6xl mx-auto animate-fade-up">
+      {/* Am Telefon untereinander: drei Ausgabeknoepfe neben der Ueberschrift
+          waren 415px breit und zwangen die Seite zum Seitwaertsscrollen.
+          Gemessen am 27.09.2026 bei 375px. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold">{tt(contactsT.title)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {tt(contactsT.subtitle).replace('{n}', String(crewContacts.length + castContacts.length))}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button onClick={copyAllEmails} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
             <Mail className="w-3.5 h-3.5" /> {tt(contactsT.copyAllEmails)}
           </button>
