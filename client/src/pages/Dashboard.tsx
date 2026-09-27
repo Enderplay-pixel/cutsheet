@@ -7,14 +7,16 @@ import { Button } from '@/components/ui/button'
 import {
   Film, Users, Clapperboard, AlertTriangle, Calendar,
   DollarSign, MapPin, ArrowRight, CheckCircle, AlertCircle,
-  ChevronRight
+  ChevronRight, Video, Lightbulb, Activity, Megaphone
 } from 'lucide-react'
+import { isCreatorProject } from '@/lib/projectKind'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { useT } from '@/lib/useT'
 import { dashT } from '@/lib/i18n'
 import { useAuth } from '@/contexts/AuthContext'
 import { useEffect } from 'react'
 import { track } from '@/lib/analytics'
+import { useCountUp, useEntered } from '@/lib/motion'
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -27,6 +29,7 @@ function greeting(): string {
 function Figure({ label, value, sub, onClick }: {
   label: string; value: number | string; sub?: string; onClick?: () => void
 }) {
+  const shown = useCountUp(value)
   return (
     <button
       type="button"
@@ -34,7 +37,7 @@ function Figure({ label, value, sub, onClick }: {
       className="group text-left bg-card px-5 py-5 sm:px-6 transition-colors duration-200 hover:bg-foreground/[0.025] focus-visible:bg-foreground/[0.04]"
     >
       <div className="eyebrow">{label}</div>
-      <div className="font-display text-[40px] leading-none mt-2.5 tabular-nums">{value}</div>
+      <div className="font-display text-[40px] leading-none mt-2.5 tabular-nums">{Math.round(shown)}</div>
       {sub && (
         <div className="text-[12px] text-muted-foreground mt-2 flex items-center gap-1">
           {sub}
@@ -45,21 +48,23 @@ function Figure({ label, value, sub, onClick }: {
   )
 }
 
-function ProgressRow({ label, done, total, pct, tone }: {
-  label: string; done: number; total: number; pct: number; tone: 'ink' | 'info' | 'success'
+function ProgressRow({ label, done, total, pct, tone, delay = 0 }: {
+  label: string; done: number; total: number; pct: number; tone: 'ink' | 'info' | 'success'; delay?: number
 }) {
+  const entered = useEntered(120 + delay)
+  const shownPct = useCountUp(pct, 1000)
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-2">
       <span className="text-[13px] font-medium">{label}</span>
       <span className="text-[13px] tabular-nums text-muted-foreground">
         {done} von {total}
-        <span className="ml-3 font-semibold text-foreground">{pct}%</span>
+        <span className="ml-3 font-semibold text-foreground">{Math.round(shownPct)}%</span>
       </span>
       <div className="col-span-2 h-2 rounded-full bg-foreground/[0.07] overflow-hidden">
         <div
-          className={cn('h-full rounded-full origin-left transition-transform duration-700 ease-out',
+          className={cn('h-full rounded-full origin-left transition-transform duration-1000 ease-smooth',
             tone === 'ink' ? 'bg-primary' : tone === 'info' ? 'bg-orange-500' : 'bg-success')}
-          style={{ transform: `scaleX(${pct / 100})` }}
+          style={{ transform: `scaleX(${entered ? pct / 100 : 0})` }}
         />
       </div>
     </div>
@@ -90,6 +95,11 @@ export function Component() {
     queryKey: ['conflicts', projectId],
     queryFn: () => api.conflicts(Number(projectId))
   })
+
+  // Hooks vor dem frühen Return: Balken gleiten ein, Beträge zählen hoch
+  const entered = useEntered(360)
+  const budgetShown = useCountUp(stats?.budget_total_cents || 0, 1100)
+  const financingShown = useCountUp(stats?.financing_total_cents || 0, 1100)
 
   if (isLoading) return (
     <div className="page-container space-y-8">
@@ -131,7 +141,8 @@ export function Component() {
     .filter(Boolean)
   const go = (path: string) => navigate(`/projects/${projectId}/${path}`)
 
-  const jumps = [
+  const isCreator = isCreatorProject(project)
+  const filmJumps = [
     { label: 'Drehplan',   icon: Clapperboard, path: 'drehplan',   key: 'D', tint: 'bg-blue-500' },
     { label: 'Tagesdispo', icon: Calendar,     path: 'tagesdispo', key: 'T', tint: 'bg-red-500' },
     { label: 'Szenen',     icon: Film,         path: 'drehbuch',   key: 'S', tint: 'bg-orange-500' },
@@ -139,6 +150,16 @@ export function Component() {
     { label: 'Motive',     icon: MapPin,       path: 'motive',     key: 'M', tint: 'bg-green-500' },
     { label: 'Budget',     icon: DollarSign,   path: 'budget',     key: 'G', tint: 'bg-teal-500' },
   ]
+  // Creator-Projekte haben eigene Bereiche; Drehplan und Szenen gibt es dort nicht
+  const creatorJumps = [
+    { label: 'Videos',          icon: Video,        path: 'creator',                key: '', tint: 'bg-red-500' },
+    { label: 'Ideen',           icon: Lightbulb,    path: 'creator/ideen',          key: '', tint: 'bg-yellow-500' },
+    { label: 'Redaktionsplan',  icon: Calendar,     path: 'creator/redaktionsplan', key: '', tint: 'bg-blue-500' },
+    { label: 'Kanal',           icon: Activity,     path: 'creator/kanal',          key: '', tint: 'bg-violet-500' },
+    { label: 'Sponsoren',       icon: Megaphone,    path: 'creator/sponsoren',      key: '', tint: 'bg-green-500' },
+    { label: 'Budget',          icon: DollarSign,   path: 'budget',                 key: 'G', tint: 'bg-teal-500' },
+  ]
+  const jumps = isCreator ? creatorJumps : filmJumps
 
   return (
     <div className="page-container" aria-label="Dashboard">
@@ -171,10 +192,10 @@ export function Component() {
 
         {/* Nächster Drehtag — die Zahl, in der eine Produktion denkt */}
         {stats?.next_shoot_day ? (
-          <aside className="self-end rounded-2xl border border-border/60 bg-card p-5 shadow-md">
+          <aside className="self-end rounded-2xl border border-border/60 bg-card p-5 shadow-md lift">
             <div className="flex items-center justify-between">
               <span className="eyebrow">{tt(dashT.nextShootDay)}</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-signal" aria-hidden />
+              <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-signal" aria-hidden />
             </div>
             <div className="flex items-end justify-between gap-4 mt-4">
               <div>
@@ -212,8 +233,8 @@ export function Component() {
           <aside className="self-end rounded-2xl border border-dashed border-border p-5">
             <span className="eyebrow">{tt(dashT.nextShootDay)}</span>
             <p className="text-[17px] font-semibold text-muted-foreground mt-2">Noch kein Drehtag geplant</p>
-            <Button variant="outline" size="sm" className="mt-4" onClick={() => go('drehplan')}>
-              Drehplan anlegen <ArrowRight className="w-3.5 h-3.5" />
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => go(isCreator ? 'kalender' : 'drehplan')}>
+              {isCreator ? 'Drehtermin planen' : 'Drehplan anlegen'} <ArrowRight className="w-3.5 h-3.5" />
             </Button>
           </aside>
         )}
@@ -246,9 +267,9 @@ export function Component() {
           <div className="space-y-6 mt-7">
             <ProgressRow label={tt(dashT.scheduleDone)} tone="ink"
               done={stats?.scheduled_scenes ?? 0} total={stats?.total_scenes ?? 0} pct={scheduleProgress} />
-            <ProgressRow label={tt(dashT.shootDaysDone)} tone="info"
+            <ProgressRow label={tt(dashT.shootDaysDone)} tone="info" delay={120}
               done={stats?.completed_shoot_days ?? 0} total={stats?.total_shoot_days ?? 0} pct={shootProgress} />
-            <ProgressRow label={tt(dashT.scenesShot)} tone="success"
+            <ProgressRow label={tt(dashT.scenesShot)} tone="success" delay={240}
               done={stats?.shot_scenes ?? 0} total={stats?.total_scenes ?? 0} pct={shotScenesProgress} />
           </div>
 
@@ -257,7 +278,7 @@ export function Component() {
               <div>
                 <div className="eyebrow">{tt(dashT.budget)}</div>
                 <div className="font-display text-[28px] leading-none mt-2 tabular-nums">
-                  {formatCurrency(stats.budget_total_cents)}
+                  {formatCurrency(Math.round(budgetShown))}
                 </div>
               </div>
               <div>
@@ -268,12 +289,12 @@ export function Component() {
                   </span>
                 </div>
                 <div className="font-display text-[28px] leading-none mt-2 tabular-nums">
-                  {formatCurrency(stats?.financing_total_cents || 0)}
+                  {formatCurrency(Math.round(financingShown))}
                 </div>
                 <div className="h-2 bg-foreground/[0.07] rounded-full overflow-hidden mt-3">
                   <div
-                    className={cn('h-full rounded-full origin-left transition-transform duration-700 ease-out', financingOk ? 'bg-success' : 'bg-danger')}
-                    style={{ transform: `scaleX(${financingPct / 100})` }}
+                    className={cn('h-full rounded-full origin-left transition-transform duration-1000 ease-smooth', financingOk ? 'bg-success' : 'bg-danger')}
+                    style={{ transform: `scaleX(${entered ? financingPct / 100 : 0})` }}
                   />
                 </div>
                 {!financingOk && (
@@ -342,7 +363,7 @@ export function Component() {
                       <item.icon className="w-4 h-4" />
                     </span>
                     <span className="flex-1 text-left">{item.label}</span>
-                    <kbd className="opacity-0 group-hover:opacity-100 transition-opacity">{item.key}</kbd>
+                    {item.key && <kbd className="opacity-0 group-hover:opacity-100 transition-opacity">{item.key}</kbd>}
                     <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
                   </button>
                 </li>

@@ -357,7 +357,7 @@ export function Component() {
   const circleTakes = (reports || []).map((r: any) => r.circle_count ?? 0).reduce((a: number, b: number) => a + b, 0)
 
   return (
-    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+    <div className="px-5 py-6 sm:p-7 max-w-6xl mx-auto animate-fade-up">
       {/* Page hero */}
       <div className="mb-8 pb-7 border-b border-border/40 flex flex-wrap items-start justify-between gap-4">
         <div>

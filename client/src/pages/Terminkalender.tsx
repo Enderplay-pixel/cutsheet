@@ -163,7 +163,7 @@ export function Component() {
   const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-4">
+    <div className="px-5 py-6 sm:p-6 max-w-5xl mx-auto space-y-4">
       <PageHeader
         title="Terminkalender"
         subtitle={format(currentMonth, 'MMMM yyyy', { locale: de })}

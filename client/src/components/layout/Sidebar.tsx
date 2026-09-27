@@ -293,7 +293,7 @@ export function Sidebar() {
       {/* Hintergrund, solange die Schublade offen ist — nur am Telefon */}
       {mobileNavOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 md:hidden"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden animate-fade-in"
           onClick={() => setMobileNav(false)}
           aria-hidden
         />

@@ -216,13 +216,18 @@ export function Component() {
       if (!selectedDayId) return []
       const res = await fetch(`/api/shoot-days/${selectedDayId}/catering-list`, { headers })
       if (!res.ok) throw new Error('Fehler')
-      return (await res.json()).data
+      // Der Server liefert { entries: [...] } mit person_name — die Tabelle
+      // erwartet eine Liste mit name
+      const data = (await res.json()).data
+      const entries: any[] = Array.isArray(data) ? data : (data?.entries ?? [])
+      return entries.map(e => ({ ...e, name: e.name ?? e.person_name ?? '' }))
     },
     enabled: !!selectedDayId,
   })
 
   const allPersons: Person[] = [
-    ...(cast ?? []).map(p => ({ ...p, person_type: 'cast' as const })),
+    // Darsteller fuehren ihren Namen als actor_name
+    ...(cast ?? []).map((p: any) => ({ ...p, name: p.actor_name || p.name || '', person_type: 'cast' as const })),
     ...(crew ?? []).map(p => ({ ...p, person_type: 'crew' as const })),
   ]
 
@@ -242,10 +247,10 @@ export function Component() {
   const totalPersons = allPersons.length
 
   return (
-    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+    <div className="px-5 py-6 sm:p-7 max-w-6xl mx-auto animate-fade-up">
       {/* Page hero */}
       <div className="mb-8 pb-7 border-b border-border/40">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="font-display text-[28px] sm:text-[34px]">Catering</h1>
             <p className="text-sm text-muted-foreground/60 mt-1.5">Ernährungspräferenzen und Tageslisten verwalten</p>

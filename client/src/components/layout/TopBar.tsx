@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { useT } from '@/lib/useT'
 import { topBarT } from '@/lib/i18n'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
+import { toggleThemeWithReveal } from '@/lib/motion'
 
 interface TopBarProps {
   onSearchOpen: () => void
@@ -19,11 +20,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
   const location = useLocation()
   const tt = useT()
 
-  const segments = location.pathname.split('/')
-  const lastSegment = segments[segments.length - 1]
-  const pageKey = isNaN(Number(lastSegment)) ? lastSegment : ''
-  const pageTitleMap = topBarT.pageTitles[pageKey as keyof typeof topBarT.pageTitles]
-  const pageTitle = pageTitleMap ? tt(pageTitleMap) : ''
+  const pageTitle = resolvePageTitle(location.pathname, tt)
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -92,7 +89,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
               : 'bg-signal-soft text-signal hover:brightness-95'
           )}
         >
-          <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', daysUntilShoot === 0 ? 'bg-primary-foreground animate-pulse' : 'bg-signal')} aria-hidden />
+          <span className={cn('pulse-dot w-1.5 h-1.5 rounded-full shrink-0', daysUntilShoot === 0 ? 'bg-primary-foreground' : 'bg-signal')} aria-hidden />
           {daysUntilShoot === 0
             ? `Drehtag ${stats.next_shoot_day.day_number} — HEUTE`
             : daysUntilShoot === 1
@@ -120,7 +117,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
 
       {/* Dark mode */}
       <button
-        onClick={toggleDarkMode}
+        onClick={e => toggleThemeWithReveal(toggleDarkMode, { x: e.clientX, y: e.clientY })}
         title={darkMode ? tt(topBarT.lightMode) : tt(topBarT.darkMode)}
         className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-foreground/[0.06] text-muted-foreground hover:text-foreground transition-[background-color,color] duration-150 active:scale-[0.97]"
       >
@@ -128,4 +125,37 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
       </button>
     </header>
   )
+}
+
+// Seiten ohne Eintrag in topBarT.pageTitles — sonst stuende in der Kopfzeile
+// nur der Projektname
+const EXTRA_TITLES: Record<string, string> = {
+  aufgaben: 'Aufgaben', kostenstand: 'Kostenstand', kommentare: 'Szenen-Kommentare',
+  sperrtage: 'Sperrtage', checkin: 'Check-in Board', catering: 'Catering', timesheets: 'Timesheets',
+  continuity: 'Continuity', kameraberichte: 'Kameraberichte', vfx: 'VFX-Tracking', postplan: 'Postplan',
+  musikliste: 'Musikliste', versicherungen: 'Versicherungen', dood: 'Day Out of Days', moodboard: 'Moodboard',
+  aktivitaet: 'Aktivitäten', zeitanalyse: 'Zeitanalyse', setplan: 'Set-Plan', 'equipment-kalender': 'Equipment-Kalender',
+  admin: 'Admin', stats: 'Admin-Statistiken',
+  creator: 'Videos', ideen: 'Ideen', kanal: 'Kanal', redaktionsplan: 'Redaktionsplan', serien: 'Serien & Formate',
+  sponsoren: 'Sponsoren', seo: 'SEO & Metadaten', titel: 'Titel & Thumbnails', rechte: 'Rechte & Lizenzen',
+  clips: 'Auskopplungen', checklisten: 'Upload-Checklisten', performance: 'Video-Performance',
+}
+
+/**
+ * Seitentitel aus dem Pfad: der hinterste Abschnitt, der keine ID ist.
+ * /projects/1/tagesdispo/5 → Tagesdispo, /projects/2/creator/3 → Videos.
+ */
+function resolvePageTitle(pathname: string, tt: (m: any) => string): string {
+  const segments = pathname.split('/').filter(Boolean)
+  const inProject = segments[0] === 'projects'
+  const rest = inProject ? segments.slice(2) : segments
+  for (let i = rest.length - 1; i >= 0; i--) {
+    const seg = rest[i]
+    if (!isNaN(Number(seg))) continue
+    const known = topBarT.pageTitles[seg as keyof typeof topBarT.pageTitles]
+    if (known) return tt(known)
+    if (EXTRA_TITLES[seg]) return EXTRA_TITLES[seg]
+  }
+  // Projekt-Startseite
+  return inProject && rest.length === 0 ? tt(topBarT.pageTitles['' as keyof typeof topBarT.pageTitles]) : ''
 }

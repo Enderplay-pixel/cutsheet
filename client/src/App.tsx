@@ -112,7 +112,11 @@ function AppShell() {
             )}
             <main id="main-content" className="flex-1 overflow-auto relative" role="main">
               <ErrorBoundary key={location.pathname}>
-                <Outlet />
+                {/* Seitenwechsel-Animation; h-full, damit Vollhöhen-Seiten wie
+                    Drehplan und Moodboard ihre Höhe behalten */}
+                <div className="page-enter h-full">
+                  <Outlet />
+                </div>
               </ErrorBoundary>
             </main>
           </div>

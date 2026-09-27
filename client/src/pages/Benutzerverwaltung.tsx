@@ -81,7 +81,7 @@ export function Component() {
   }
 
   return (
-    <div className="p-7 max-w-4xl mx-auto space-y-8">
+    <div className="px-5 py-6 sm:p-7 max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <div className="flex items-center gap-3">
         <ShieldCheck className="w-5 h-5 text-muted-foreground" />

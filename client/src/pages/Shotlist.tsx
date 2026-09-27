@@ -237,7 +237,7 @@ export function Component() {
   const scenesWithNoShots = (scenes || []).filter((s: any) => !shotsByScene[s.id]?.length)
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-4">
+    <div className="px-5 py-6 sm:p-6 max-w-5xl mx-auto space-y-4">
       <PageHeader
         title="Auflösung & Shotlist"
         subtitle={`${totalShots} Einstellungen · ${totalDone} erledigt · ${Math.round(totalDuration / 60)} Min.`}

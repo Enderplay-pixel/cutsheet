@@ -311,9 +311,9 @@ export function Component() {
   const soonCount = allIns.filter(i => getExpiryStatus(i.end_date) === 'soon').length
 
   return (
-    <div className="p-7 max-w-4xl mx-auto">
+    <div className="px-5 py-6 sm:p-7 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <Shield className="w-5 h-5 text-muted-foreground" />
           <div>

@@ -130,6 +130,12 @@ export default {
         mono: ['ui-monospace', '"SF Mono"', '"Geist Mono Variable"', 'SFMono-Regular', 'monospace'],
         display: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Geist Variable"', 'system-ui', 'sans-serif'],
       },
+      transitionTimingFunction: {
+        // Federnd wie UIKit-Buttons, und Apples Kurve fuer Sheets/Dialoge
+        spring: 'cubic-bezier(0.34, 1.4, 0.64, 1)',
+        sheet: 'cubic-bezier(0.32, 0.72, 0, 1)',
+        smooth: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      },
       keyframes: {
         'accordion-down': {
           from: { height: '0' },

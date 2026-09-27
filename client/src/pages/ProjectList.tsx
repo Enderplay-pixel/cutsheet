@@ -206,7 +206,7 @@ export function Component() {
           </div>
         ) : (
           <>
-            <ul className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden divide-y divide-border/70">
+            <ul className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden divide-y divide-border/70 stagger-sm">
               {(projects || []).map((project: any, idx: number) => {
                 const meta = STATUS_META[project.status] || DEFAULT_META
                 const Icon = projectIcon(project)
