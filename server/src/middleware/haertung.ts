@@ -153,3 +153,55 @@ export const anmeldeBremse = bremse({
     return `${ip}|${mail}`
   },
 })
+
+// ─── Ratengrenze ────────────────────────────────────────────────────────────
+
+/**
+ * Zaehlt JEDE Anfrage im festen Fenster - fuer Stellen, an denen schon die
+ * Menge das Problem ist: Registrierungen (Spam-Konten), KI-Aufrufe (kosten
+ * pro Aufruf Geld), E-Mail-Versand (Ruf der Absenderadresse) und als
+ * Sicherheitsnetz fuer die ganze API gegen einen Client in Endlosschleife.
+ */
+export function ratenGrenze(o: { grenze: number; fensterMs: number; name: string; schluessel?: (req: Request) => string }) {
+  const zaehlerR = new Map<string, { n: number; start: number }>()
+  const schluesselVon = o.schluessel ?? ((req: Request) =>
+    String(req.ip || req.socket?.remoteAddress || 'unbekannt'))
+  const aufraeumer = setInterval(() => {
+    const jetzt = Date.now()
+    for (const [k, e] of zaehlerR) if (jetzt - e.start > o.fensterMs) zaehlerR.delete(k)
+  }, o.fensterMs)
+  aufraeumer.unref()
+
+  return function (req: Request, res: Response, next: NextFunction) {
+    const jetzt = Date.now()
+    const k = schluesselVon(req)
+    let e = zaehlerR.get(k)
+    if (!e || jetzt - e.start > o.fensterMs) {
+      e = { n: 0, start: jetzt }
+      zaehlerR.set(k, e)
+    }
+    e.n++
+    if (e.n > o.grenze) {
+      const sekunden = Math.max(1, Math.ceil((e.start + o.fensterMs - jetzt) / 1000))
+      res.setHeader('Retry-After', String(sekunden))
+      return res.status(429).json({ data: null, error: `${o.name}: zu viele Anfragen. Bitte ${sekunden} Sekunden warten.` })
+    }
+    next()
+  }
+}
+
+/** Angemeldete Nutzer nach Konto trennen, sonst nach Adresse. Ein ganzes
+ * Filmteam hinter dem WLAN des Sets teilt sich eine Adresse. */
+const nutzerOderIp = (req: Request) => {
+  const id = (req as any).user?.id
+  return id ? `u${id}` : `ip${req.ip || req.socket?.remoteAddress || 'unbekannt'}`
+}
+
+/** Ganze API: 1200 Anfragen pro Minute und Nutzer. Eine Seite braucht 3-8. */
+export const apiGrenze = ratenGrenze({ name: 'API', grenze: 1200, fensterMs: 60_000, schluessel: nutzerOderIp })
+
+/** Registrierung: 10 neue Konten pro Stunde und Adresse. */
+export const registrierGrenze = ratenGrenze({ name: 'Registrierung', grenze: 10, fensterMs: 60 * 60_000 })
+
+/** KI und E-Mail-Versand: 30 pro Stunde und Nutzer. */
+export const teuerGrenze = ratenGrenze({ name: 'Kontingent', grenze: 30, fensterMs: 60 * 60_000, schluessel: nutzerOderIp })

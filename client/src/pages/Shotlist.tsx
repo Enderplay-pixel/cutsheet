@@ -27,6 +27,8 @@ const MOVEMENTS = ['Statisch', 'Pan', 'Tilt', 'Pan + Tilt', 'Dolly', 'Fahrt', 'G
  * ersten Zeile war nur durch Scrollen im Feld zu erreichen. Am Set liest man
  * die Einstellung aber im Ganzen.
  */
+const FIELD_SIZING = typeof CSS !== 'undefined' && CSS.supports?.('field-sizing', 'content')
+
 function AutoTextarea({ value, onChange, placeholder, className }: {
   value: string
   onChange: (v: string) => void
@@ -38,11 +40,17 @@ function AutoTextarea({ value, onChange, placeholder, className }: {
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
+    // Wo der Browser mitwachsende Felder selbst kann (field-sizing), gar
+    // nicht messen. Sonst die Messung gebündelt im nächsten Frame: vorher las
+    // jedes Feld beim Einblenden sofort scrollHeight — bei einer Großproduktion
+    // mit 1.400 Feldern zwang das 1.400 Layouts nacheinander, die Seite stand
+    // minutenlang.
+    if (FIELD_SIZING) return
     const resize = () => {
       el.style.height = 'auto'
       el.style.height = `${el.scrollHeight}px`
     }
-    resize()
+    const raf = requestAnimationFrame(resize)
     // Neu messen, wenn sich die Breite aendert: beim Drehen des Tablets oder
     // Ein-/Ausklappen der Sidebar bricht der Text anders um.
     let width = el.clientWidth
@@ -52,7 +60,7 @@ function AutoTextarea({ value, onChange, placeholder, className }: {
       resize()
     })
     observer.observe(el)
-    return () => observer.disconnect()
+    return () => { cancelAnimationFrame(raf); observer.disconnect() }
   }, [value])
 
   return (
@@ -63,6 +71,7 @@ function AutoTextarea({ value, onChange, placeholder, className }: {
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       className={cn('min-h-0 resize-none overflow-hidden py-1.5 leading-snug', className)}
+      style={FIELD_SIZING ? ({ fieldSizing: 'content' } as React.CSSProperties) : undefined}
     />
   )
 }
@@ -231,6 +240,18 @@ export function Component() {
     return acc
   }, {} as Record<number, any[]>)
 
+  // Bei einer Großproduktion (160 Szenen, 700 Einstellungen) nicht alles auf
+  // einmal aufklappen: jede Einstellung hat sieben Eingabefelder. Zugeklappte
+  // Szenen rendern ihren Inhalt nicht.
+  const [offen, setOffen] = useState<string[] | null>(null)
+  const [suche, setSuche] = useState('')
+  const vieleSzenen = (scenes?.length ?? 0) > 20
+  const offeneSzenen = offen ?? (vieleSzenen ? [] : (scenes || []).map((s: any) => String(s.id)))
+  const sichtbareSzenen = (scenes || []).filter((s: any) => {
+    const q = suche.trim().toLowerCase()
+    return !q || String(s.scene_number).toLowerCase() === q || String(s.title || '').toLowerCase().includes(q)
+  })
+
   const totalShots = shots?.length || 0
   const totalDuration = (shots || []).reduce((sum: number, s: any) => sum + (s.duration_seconds || 0), 0)
   const totalDone = (shots || []).filter((s: any) => s.done).length
@@ -264,8 +285,17 @@ export function Component() {
       {isLoading ? (
         <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-32" />)}</div>
       ) : (
-        <Accordion type="multiple" defaultValue={(scenes || []).map((s: any) => String(s.id))} className="space-y-2">
-          {(scenes || []).map((scene: any) => {
+        <>
+        {vieleSzenen && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Input value={suche} onChange={e => setSuche(e.target.value)} placeholder="Szene suchen (Nummer oder Titel)" aria-label="Szene suchen" className="h-9 w-full sm:w-72" />
+            <Button variant="outline" size="sm" onClick={() => setOffen(sichtbareSzenen.map((s: any) => String(s.id)))}>Alle aufklappen</Button>
+            <Button variant="ghost" size="sm" onClick={() => setOffen([])}>Alle zuklappen</Button>
+            <span className="text-xs text-muted-foreground">{sichtbareSzenen.length} Szenen</span>
+          </div>
+        )}
+        <Accordion type="multiple" value={offeneSzenen} onValueChange={setOffen} className="space-y-2">
+          {sichtbareSzenen.map((scene: any) => {
             const sceneShots = shotsByScene[scene.id] || []
             const sceneDuration = sceneShots.reduce((s: number, sh: any) => s + (sh.duration_seconds || 0), 0)
             const doneCount = sceneShots.filter((sh: any) => sh.done).length
@@ -319,6 +349,7 @@ export function Component() {
             )
           })}
         </Accordion>
+        </>
       )}
     </div>
   )

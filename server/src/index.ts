@@ -2,13 +2,17 @@ import 'express-async-errors'
 import { assertSecrets } from './config/secrets'
 import express from 'express'
 import cors from 'cors'
+import compression from 'compression'
 import path from 'path'
 import fs from 'fs'
-import { initDatabase } from './db'
+import { initDatabase, pool } from './db'
+import { ueberlastKontext } from './lib/ueberlast'
+import { passwortPoolBeenden } from './lib/passwort'
+import { pdfBrowserSchliessen } from './routes/pdf'
 import { optionalAuth } from './middleware/auth'
 import { projectWriteGuard, requireMember } from './middleware/projectAuth'
 import { pruefeIdParameter, saeubereKoerper, uebersetzeDatenbankfehler } from './middleware/eingabe'
-import { schutzkoepfe, anmeldeBremse } from './middleware/haertung'
+import { schutzkoepfe, anmeldeBremse, apiGrenze, registrierGrenze, teuerGrenze } from './middleware/haertung'
 
 // Route imports
 import projectsRouter from './routes/projects'
@@ -35,7 +39,6 @@ import cameraPresetsRouter from './routes/cameraPresets'
 import backupRouter from './routes/backup'
 import guestTokensRouter from './routes/guestTokens'
 import invitesRouter from './routes/invites'
-import sseRouter from './routes/sse'
 import screenplayRouter from './routes/screenplay'
 import adminRouter from './routes/admin'
 import vfxRouter from './routes/vfx'
@@ -89,6 +92,16 @@ if (!isProd) {
 // Dateiantworten liegen.
 app.use(schutzkoepfe(isProd))
 
+// Hinter dem Proxy von Railway/Render: sonst sieht der Server fuer jeden
+// Nutzer dieselbe Proxy-Adresse, und die Anmeldebremse traefe alle
+// gemeinsam. Anzahl der vertrauten Proxy-Stufen per TRUST_PROXY.
+if (isProd) app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1)
+
+// gzip fuer JSON und HTML. Eine Shotlist der Grossproduktion schrumpft von
+// 258 KB auf rund 25 KB - am Set ueber Mobilfunk der Unterschied zwischen
+// sofort und zaeh. PDFs und Bilder sind schon komprimiert und bleiben aussen vor.
+app.use(compression({ threshold: 1024 }))
+
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
@@ -96,8 +109,18 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 // bevor irgendetwas davon die Datenbank erreicht.
 app.use(saeubereKoerper)
 
+// Scheitert eine Abfrage am vollen Verbindungspool, wird aus dem 500 der
+// Route ein 503 mit Retry-After (siehe lib/ueberlast.ts).
+app.use('/api', ueberlastKontext)
+
 // Apply optional auth globally so req.user is populated when token is present
 app.use(optionalAuth)
+
+// Mengenbremsen (nach optionalAuth, damit nach Konto gezaehlt wird)
+app.use('/api', apiGrenze)
+app.post('/api/auth/register', registrierGrenze)
+app.post(['/api/scenes/:sceneId/ai-breakdown', '/api/projects/:pid/drehplan/ai-optimize',
+  '/api/projects/:pid/email/send', '/api/projects/:pid/email/test'], teuerGrenze)
 
 // Project-level role enforcement (runs after optionalAuth so req.user is set)
 app.use('/api', projectWriteGuard)
@@ -136,13 +159,16 @@ if (isProd) {
       immutable: true,
     }))
     // index.html: never cache (ensures fresh chunk references after deploy)
-    app.use(express.static(distPath, {
+    // Nicht fuer /api: sonst prueft jede API-Anfrage erst per Dateisystem,
+    // ob es eine gleichnamige Datei gibt (im Profil unter Last sichtbar).
+    const statisch = express.static(distPath, {
       setHeaders: (res, filePath) => {
         if (filePath.endsWith('index.html')) {
           res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
         }
       }
-    }))
+    })
+    app.use((req, res, next) => (req.path.startsWith('/api/') ? next() : statisch(req, res, next)))
   }
 }
 
@@ -220,7 +246,6 @@ app.use('/api', youtubeRouter)
 app.use('/api', floorplansRouter)
 app.use('/api', expensesRouter)
 app.use('/api', contactsExportRouter)
-app.use(sseRouter)
 
 // In production: serve index.html for all non-API routes (SPA fallback)
 if (isProd) {
@@ -260,6 +285,11 @@ async function main() {
       resolve(s)
     })
   })
+  httpServer = server
+  // Keep-Alive laenger als der Proxy davor (meist 60 s), sonst schliesst
+  // Node Verbindungen, die der Proxy noch fuer offen haelt - sporadische 502.
+  server.keepAliveTimeout = 65_000
+  server.headersTimeout = 66_000
 
   if (!process.env.DATABASE_URL) {
     console.warn('[DB] WARNUNG: DATABASE_URL nicht gesetzt - bitte PostgreSQL-Addon in Railway hinzufügen')
@@ -286,9 +316,29 @@ async function main() {
   }
 }
 
-// Graceful shutdown - pg pool drains connections automatically
-process.on('SIGTERM', () => process.exit(0))
-process.on('SIGINT',  () => process.exit(0))
+// Geordnet herunterfahren: bei einem Deploy schickt die Plattform SIGTERM.
+// Laufende Anfragen duerfen fertig werden, neue nimmt der Server nicht mehr
+// an; danach Datenbank, Passwort-Worker und PDF-Browser schliessen. Nach
+// zehn Sekunden ist trotzdem Schluss.
+let httpServer: import('http').Server | null = null
+let faehrtHerunter = false
+async function herunterfahren(signal: string) {
+  if (faehrtHerunter) return
+  faehrtHerunter = true
+  console.log(`[Server] ${signal} empfangen - fahre herunter`)
+  setTimeout(() => process.exit(0), 10_000).unref()
+  await new Promise<void>(r => (httpServer ? httpServer.close(() => r()) : r()))
+  await Promise.allSettled([pool.end(), passwortPoolBeenden(), pdfBrowserSchliessen()])
+  process.exit(0)
+}
+process.on('SIGTERM', () => { void herunterfahren('SIGTERM') })
+process.on('SIGINT',  () => { void herunterfahren('SIGINT') })
+
+// Ein vergessener Promise-Fehler soll protokolliert werden, nicht den ganzen
+// Server fuer alle Nutzer beenden.
+process.on('unhandledRejection', (grund: any) => {
+  console.error('[Unbehandelt] Promise abgelehnt:', grund?.message ?? grund)
+})
 
 main()
 

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
+import { istUeberlastet, UEBERLAST_TEXT } from '../lib/ueberlast'
 
 /**
  * Eingabepruefung an der Grenze.
@@ -125,6 +126,12 @@ export function uebersetzeDatenbankfehler(
 ) {
   if (res.headersSent) return next(fehler)
   const text = String(fehler?.message ?? '')
+
+  if (istUeberlastet(fehler)) {
+    console.warn('[Ueberlast]', _req.method, _req.path, text)
+    res.setHeader('Retry-After', '2')
+    return res.status(503).json({ data: null, error: UEBERLAST_TEXT })
+  }
 
   const bekannt: Array<[RegExp, number, string]> = [
     [/invalid input syntax for type (integer|bigint|numeric)/i, 400,

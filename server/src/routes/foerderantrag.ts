@@ -29,7 +29,7 @@ router.get('/projects/:pid/foerderantrag/export', async (req: Request, res: Resp
   const shootDays = await db.all('SELECT * FROM shoot_days WHERE project_id = ? ORDER BY day_number ASC', [pid]) as any[]
 
   // Budget
-  const budgetVersions = await db.all('SELECT * FROM budget_versions WHERE project_id = ? ORDER BY created_at DESC LIMIT 1', [pid]) as any[]
+  const budgetVersions = await db.all("SELECT * FROM budget_versions WHERE project_id = ? ORDER BY (status = 'Aktiv') DESC, created_at DESC LIMIT 1", [pid]) as any[]
   const budgetVersion = budgetVersions[0]
   const budgetLines = budgetVersion ? await db.all('SELECT * FROM budget_lines WHERE budget_version_id = ? ORDER BY sort_order ASC', [budgetVersion.id]) as any[] : []
 

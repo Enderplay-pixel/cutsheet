@@ -209,7 +209,10 @@ beforeAll(async () => {
             captured.set(current, { html: captured.get(current)?.html || '', opts })
             return Buffer.from('%PDF-1.4 attrappe')
           },
+          close: async () => {},
         }),
+        // generatePdf teilt einen Browser und haengt sich an 'disconnected'
+        on: () => {},
         close: async () => {},
       }),
     },
