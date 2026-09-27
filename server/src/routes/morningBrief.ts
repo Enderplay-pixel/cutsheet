@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { resolveAccent } from '../lib/pdfFonts'
 import { db } from '../db'
 import { generatePdf } from './pdf'
 import { requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
@@ -135,7 +136,7 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
   `, [dayId]) as any[]
 
   const settings = await db.get('SELECT header_color FROM project_settings WHERE project_id = ?', [shootDay.project_id]) as any
-  const accentColor = settings?.header_color || '#f59e0b'
+  const accentColor = resolveAccent(settings?.header_color)
 
   const callSheet = await db.get('SELECT * FROM call_sheets WHERE shoot_day_id = ?', [dayId]) as any
   const entries = callSheet

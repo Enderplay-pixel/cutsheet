@@ -133,7 +133,7 @@ export function Component() {
   const shootRatioWarning = form && selectedDay?.total_eighths > 0 && form.pages_shot > selectedDay.total_eighths
 
   return (
-    <div className="p-7 max-w-4xl mx-auto animate-fade-up space-y-5">
+    <div className="px-5 py-6 sm:p-7 max-w-4xl mx-auto animate-fade-up space-y-5">
       {/* Navigation */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
@@ -157,7 +157,7 @@ export function Component() {
           </Button>
         </div>
         <div>
-          <h1 className="text-xl font-semibold leading-tight">Tagesbericht</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">Tagesbericht</h1>
           {selectedDay && (
             <p className="text-sm text-muted-foreground">Drehtag {selectedDay.day_number} · {formatDate(selectedDay.date)}</p>
           )}
@@ -186,8 +186,8 @@ export function Component() {
               <div>
                 <Label className="text-xs text-muted-foreground">Mittagspause</Label>
                 <div className="flex gap-1 mt-1.5">
-                  <TimeInput value={form.lunch_in || 720} onChange={v => update('lunch_in', v)} className="h-10" />
-                  <TimeInput value={form.lunch_out || 780} onChange={v => update('lunch_out', v)} className="h-10" />
+                  <TimeInput value={form.lunch_in || 720} onChange={v => update('lunch_in', v)} className="h-10 px-1 min-w-0" />
+                  <TimeInput value={form.lunch_out || 780} onChange={v => update('lunch_out', v)} className="h-10 px-1 min-w-0" />
                 </div>
               </div>
               <div>

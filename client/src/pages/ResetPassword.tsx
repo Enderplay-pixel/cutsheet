@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Clapperboard, KeyRound } from 'lucide-react'
+import { KeyRound } from 'lucide-react'
+import { AppIcon } from '@/components/shared/BrandMark'
 
 export function Component() {
   const { token } = useParams<{ token: string }>()
@@ -35,10 +36,8 @@ export function Component() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center shadow-[0_0_24px_hsl(var(--primary)/0.35)] mb-4">
-            <Clapperboard className="w-7 h-7 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">Neues Passwort</h1>
+          <AppIcon className="w-14 h-14 mb-5" />
+          <h1 className="font-display text-[28px] sm:text-[34px]">Neues Passwort</h1>
           <p className="text-sm text-muted-foreground mt-1.5">Lege ein neues Passwort für dein Konto fest.</p>
         </div>
 

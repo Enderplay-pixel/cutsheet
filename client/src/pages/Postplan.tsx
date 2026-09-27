@@ -246,13 +246,13 @@ export function Component() {
   const sel = 'h-7 text-sm w-full rounded-md border border-input bg-background px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring'
 
   return (
-    <div className="p-7 max-w-5xl mx-auto">
+    <div className="px-5 py-6 sm:p-7 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <CalendarClock className="w-5 h-5 text-muted-foreground" />
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">Postproduktionsplan</h1>
+            <h1 className="font-display text-[28px] sm:text-[34px]">Postproduktionsplan</h1>
             <p className="text-sm text-muted-foreground">
               {allPhases.length} Phasen
               {totalPostDays !== null && ` · Gesamtdauer: ${totalPostDays} Tage`}

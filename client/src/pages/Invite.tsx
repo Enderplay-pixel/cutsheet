@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Clapperboard, Film, CheckCircle2, AlertCircle, Loader2, LogIn, UserPlus } from 'lucide-react'
+import { Film, CheckCircle2, AlertCircle, Loader2, LogIn, UserPlus } from 'lucide-react'
+import { AppIcon } from '@/components/shared/BrandMark'
 import { cn } from '@/lib/utils'
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
@@ -93,10 +94,8 @@ export function Component() {
 
         {/* Logo */}
         <div className="flex flex-col items-center mb-2">
-          <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-md mb-3">
-            <Clapperboard className="w-6 h-6 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">CutSheet</h1>
+          <AppIcon className="w-14 h-14 mb-4" />
+          <h1 className="font-display text-[28px] sm:text-[34px]">CutSheet</h1>
         </div>
 
         {/* Loading */}

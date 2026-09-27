@@ -207,7 +207,7 @@ function InviteSection({ pid }: { pid: number }) {
           </div>
           <div className="divide-y divide-border/40">
             {(members as any[]).map((m: any) => (
-              <div key={m.id} className="flex items-center gap-3 px-5 py-2.5">
+              <div key={m.user_id ?? m.id} className="flex items-center gap-3 px-5 py-2.5">
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium">{m.name || m.email}</span>
                   <span className="text-xs text-muted-foreground ml-2">{m.email}</span>
@@ -286,7 +286,7 @@ export function Component() {
 
   if (isLoading || !formData) {
     return (
-      <div className="p-7 max-w-3xl mx-auto">
+      <div className="px-5 py-6 sm:p-7 max-w-3xl mx-auto">
         <div className="h-7 w-48 bg-muted animate-pulse rounded mb-6" />
         <div className="space-y-4">
           {[1,2,3].map(i => <div key={i} className="h-40 bg-muted animate-pulse rounded-xl" />)}
@@ -300,10 +300,10 @@ export function Component() {
     : null
 
   return (
-    <div className="p-7 max-w-3xl mx-auto animate-fade-up space-y-4">
-      <div className="flex items-start justify-between mb-7">
+    <div className="px-5 py-6 sm:p-7 max-w-3xl mx-auto animate-fade-up space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-7">
         <div>
-          <h1 className="text-xl font-semibold">{tt(masterT.title)}</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">{tt(masterT.title)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Grundlegende Projektinformationen</p>
         </div>
         <div className={cn(
@@ -434,15 +434,15 @@ export function Component() {
             <div className="flex items-center gap-2">
               <input
                 type="color"
-                value={settingsData.header_color || '#f59e0b'}
+                value={accentOf(settingsData.header_color)}
                 onChange={e => updateSetting('header_color', e.target.value)}
                 className="h-9 w-12 rounded cursor-pointer border border-border/60 bg-transparent p-0.5"
               />
               <Input
-                value={settingsData.header_color || '#f59e0b'}
+                value={accentOf(settingsData.header_color)}
                 onChange={e => updateSetting('header_color', e.target.value)}
                 className="h-9 font-mono"
-                placeholder="#f59e0b"
+                placeholder="#0071E3"
               />
             </div>
           </Field>
@@ -453,4 +453,11 @@ export function Component() {
       <InviteSection pid={pid} />
     </div>
   )
+}
+
+// Frühere Voreinstellung (#f59e0b) gilt als „nicht gewählt“ — die PDFs
+// verwenden dann das neue Standardblau, also zeigt die Einstellung es auch.
+function accentOf(color: string | null | undefined): string {
+  const c = String(color ?? '').trim()
+  return !c || c.toLowerCase() === '#f59e0b' ? '#0071E3' : c
 }

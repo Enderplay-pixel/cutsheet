@@ -55,17 +55,17 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
 
       {/* Name + Role */}
       <Input value={form.name || ''} onChange={e => update('name', e.target.value)}
-        className="h-7 text-sm font-medium basis-full lg:basis-auto lg:flex-1 min-w-0 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Name" />
+        className="h-7 text-sm font-medium basis-[calc(100%-2.25rem)] lg:basis-auto lg:flex-1 min-w-0 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Name" />
       <Input value={form.role || ''} onChange={e => update('role', e.target.value)}
-        className="h-7 text-xs text-muted-foreground w-32 lg:w-40 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Position" />
+        className="h-7 text-xs text-muted-foreground w-full sm:w-32 lg:w-40 ml-9 sm:ml-0 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Position" />
 
       {/* Contact */}
-      <div className="flex items-center gap-1 flex-1 min-w-0 lg:flex-none lg:shrink-0">
+      <div className="flex items-center gap-1 basis-full sm:basis-auto sm:flex-1 min-w-0 pl-9 sm:pl-0 lg:flex-none lg:shrink-0">
         <Mail className="w-3 h-3 text-muted-foreground/50" />
         <Input value={form.email || ''} onChange={e => update('email', e.target.value)}
           className="h-7 text-xs w-full lg:w-40 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" type="email" placeholder="email@…" />
       </div>
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-1 shrink-0 pl-9 sm:pl-0">
         <Phone className="w-3 h-3 text-muted-foreground/50" />
         <Input value={form.phone || ''} onChange={e => update('phone', e.target.value)}
           className="h-7 text-xs w-24 lg:w-28 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="+49…" />
@@ -104,29 +104,37 @@ function DepartmentSection({ dept, members, onAdd, onDelete, onCopyEmails }: {
 
   return (
     <div className="border border-border/60 rounded-xl overflow-hidden bg-card">
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left"
-      >
-        <span className="text-sm font-semibold flex-1">{dept}</span>
-        <span className="text-xs text-muted-foreground tabular-nums">{members.length} {tt(crewT.persons)}</span>
-        {deptTotal > 0 && (
-          <span className="text-xs text-muted-foreground tabular-nums">{formatCurrency(deptTotal)}{tt(uiT.perDay)}</span>
-        )}
+      {/* Kopfzeile: Aufklappen und E-Mails-Kopieren sind zwei getrennte Knöpfe —
+          ein Knopf im Knopf ist ungültiges HTML und für Screenreader stumm */}
+      <div className="flex items-center hover:bg-muted/30 transition-colors">
         <button
-          onClick={e => { e.stopPropagation(); onCopyEmails() }}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary px-2 py-0.5 rounded hover:bg-primary/10 transition-colors"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          className="flex-1 min-w-0 flex items-center gap-3 pl-4 py-3 text-left"
+        >
+          <span className="text-sm font-semibold flex-1">{dept}</span>
+          <span className="text-xs text-muted-foreground tabular-nums">{members.length} {tt(crewT.persons)}</span>
+          {deptTotal > 0 && (
+            <span className="text-xs text-muted-foreground tabular-nums">{formatCurrency(deptTotal)}{tt(uiT.perDay)}</span>
+          )}
+        </button>
+        <button
+          onClick={onCopyEmails}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mx-2 px-2 py-1 rounded-full hover:bg-primary/10 transition-colors"
           title={tt(crewT.copyEmails)}
+          aria-label={tt(crewT.copyEmails)}
         >
           <Mail className="w-3 h-3" />
         </button>
-        {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-      </button>
+        <button onClick={() => setOpen(!open)} className="pr-4 py-3" aria-label={open ? 'Einklappen' : 'Aufklappen'}>
+          {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+        </button>
+      </div>
 
       {open && (
         <div className="border-t border-border/40 px-4 py-1 bg-card">
           {/* Column headers */}
-          <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground/60 font-medium uppercase tracking-wide border-b border-border/30 mb-1">
+          <div className="hidden lg:flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground/60 font-medium uppercase tracking-wide border-b border-border/30 mb-1">
             <div className="w-7" />
             <div className="flex-1">{tt(uiT.name)}</div>
             <div className="w-40">{tt(uiT.position)}</div>
@@ -213,10 +221,10 @@ export function Component() {
   }
 
   return (
-    <div className="p-7 max-w-6xl mx-auto animate-fade-up">
+    <div className="px-5 py-6 sm:p-7 max-w-6xl mx-auto animate-fade-up">
       <div className="flex flex-wrap items-start justify-between gap-4 mb-7">
         <div>
-          <h1 className="text-xl font-semibold">{tt(crewT.title)}</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">{tt(crewT.title)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {tt(crewT.subtitle).replace('{n}', String(crew?.length || 0))}
             {totalGage > 0 && ` · ${formatCurrency(totalGage)} ${tt(crewT.totalFee)}`}

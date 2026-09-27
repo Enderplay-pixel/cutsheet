@@ -14,19 +14,19 @@ export function PageHeader({ title, subtitle, actions, className, border = true 
       // Erst ab lg nebeneinander: Breakpoints messen den Bildschirm, nicht
       // den Platz neben der Sidebar. Bei 768 px (iPad hoch) bleiben dem Inhalt
       // 548 px — fuenf Knoepfe plus Titel passen dort nicht in eine Zeile.
-      'flex flex-col gap-3 mb-7 lg:flex-row lg:items-start lg:justify-between lg:gap-4',
-      border && 'pb-5 border-b border-border/50',
+      'flex flex-col gap-4 mb-8 lg:flex-row lg:items-end lg:justify-between lg:gap-6',
+      border && 'pb-6',
       className
     )}>
       <div className="min-w-0">
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground leading-tight truncate">{title}</h1>
+        <h1 className="font-display text-[28px] sm:text-[34px] text-foreground truncate pb-0.5">{title}</h1>
         {subtitle && (
-          <p className="text-sm text-muted-foreground/70 mt-1 leading-snug font-medium truncate">{subtitle}</p>
+          <p className="text-[15px] text-muted-foreground mt-1 leading-snug max-w-[65ch]">{subtitle}</p>
         )}
       </div>
       {actions && (
         // flex-wrap, damit mehrere Knoepfe umbrechen statt hinauszuragen
-        <div className="flex items-center gap-2 flex-wrap lg:ml-6 lg:shrink-0 lg:mt-0.5">{actions}</div>
+        <div className="flex items-center gap-2 flex-wrap lg:shrink-0 lg:pb-1">{actions}</div>
       )}
     </div>
   )

@@ -8,6 +8,7 @@
  * Die Anordnung folgt der ueblichen Vorlage, weil jeder am Set weiss, wo er
  * schauen muss — die Position einer Angabe ist hier Teil der Information.
  */
+import { pdfFontFaces, PDF_SANS, resolveAccent } from './pdfFonts'
 
 // ─── Formatierung ─────────────────────────────────────────────────────────────
 
@@ -146,6 +147,8 @@ export interface CallSheetData {
   /** Die naechsten Drehtage fuer die Vorschau. */
   advance: Array<{ day: any; scenes: any[] }>
   totalDays: number
+  /** Kopffarbe des Projekts; ohne Angabe der Standard. */
+  accent?: string
 }
 
 /** Ein Abschnitt der Departmentnotizen auf Seite 1. */
@@ -155,6 +158,7 @@ const DEPT_NOTE_ROWS = [
 ]
 
 export function renderCallSheetHtml(data: CallSheetData): string {
+  const accent = resolveAccent(data.accent)
   const { project, day, sheet, scenes, cast, background, crew, advance, totalDays } = data
   const s = sheet ?? {}
 
@@ -235,60 +239,66 @@ export function renderCallSheetHtml(data: CallSheetData): string {
 <meta charset="UTF-8">
 <title>Call Sheet — ${esc(project?.title)} — Drehtag ${esc(day?.day_number)}</title>
 <style>
+  ${pdfFontFaces()}
   @page { size: A4 portrait; margin: 8mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 7.4pt; color: #000; }
+  :root { --accent: ${accent}; --ink: #1d1d1f; --gray: #6e6e73; --line: #c7c7cc; --hair: #e5e5ea; --fill: #f5f5f7; }
+  body { font-family: ${PDF_SANS}; font-size: 7.4pt; color: var(--ink); line-height: 1.3;
+         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   table { width: 100%; border-collapse: collapse; }
-  td, th { border: 0.5pt solid #444; padding: 1.4pt 3pt; vertical-align: top; }
+  td, th { border: 0.5pt solid var(--line); padding: 1.8pt 3.5pt; vertical-align: top; }
   .c { text-align: center; }
   .r { text-align: right; }
-  .b { font-weight: bold; }
+  .b { font-weight: 600; }
   .nb td { border: none; }
 
   /* Kopf */
-  .top td { border: 0.5pt solid #000; }
-  .prod { width: 22%; font-size: 7pt; line-height: 1.35; }
-  .titlebox { text-align: center; vertical-align: middle; }
-  .titlebox .name { font-size: 17pt; font-weight: bold; letter-spacing: -0.02em; }
-  .titlebox .sub { font-size: 8.5pt; margin-top: 1pt; }
-  .titlebox .call { font-size: 22pt; font-weight: bold; background: #1d4ed8; color: #fff;
-                    display: inline-block; padding: 2pt 16pt; margin-top: 3pt; border-radius: 2pt; }
+  .top td { border: 0.5pt solid var(--line); }
+  .prod { width: 22%; font-size: 7pt; line-height: 1.4; color: var(--gray); }
+  .prod b { color: var(--ink); font-weight: 600; }
+  .titlebox { text-align: center; vertical-align: middle; padding: 5pt 4pt; }
+  .titlebox .name { font-size: 18pt; font-weight: 700; letter-spacing: -0.03em; }
+  .titlebox .sub { font-size: 7pt; margin-top: 1pt; color: var(--gray); font-weight: 600; letter-spacing: 0.04em; }
+  .titlebox .call { font-size: 20pt; font-weight: 700; letter-spacing: -0.02em; background: var(--accent); color: #fff;
+                    display: inline-block; padding: 2pt 16pt; margin-top: 4pt; border-radius: 12pt;
+                    font-variant-numeric: tabular-nums; }
   .datebox { width: 24%; text-align: center; }
-  .datebox .d { font-weight: bold; font-size: 8.5pt; }
-  .datebox .n { font-weight: bold; margin-top: 2pt; }
+  .datebox .d { font-weight: 600; font-size: 8.5pt; }
+  .datebox .n { font-weight: 600; margin-top: 2pt; color: var(--accent); }
   .times td { font-size: 7.2pt; }
-  .times .lbl { background: #eef2f7; }
+  .times .lbl { background: var(--fill); color: var(--gray); }
 
-  .safety { background: #000; color: #fff; text-align: center; font-weight: bold;
-            font-size: 7.2pt; letter-spacing: 0.03em; padding: 2.5pt; }
+  .safety { background: var(--ink); color: #fff; text-align: center; font-weight: 600;
+            font-size: 7pt; letter-spacing: 0.03em; padding: 3pt; margin: 3pt 0; border-radius: 3pt; }
 
   /* Szenen */
-  thead th { background: #dbe3ee; font-size: 6.8pt; text-transform: uppercase; letter-spacing: 0.03em; }
-  .set { font-size: 7.2pt; }
-  .set.int { border-left: 3pt solid #1d4ed8; }
-  .set.ext { border-left: 3pt solid #15803d; }
-  .desc { font-weight: normal; color: #333; font-size: 6.9pt; }
-  .sum td { background: #f1f5f9; font-weight: bold; }
-  .advhead td { background: #e2e8f0; font-weight: bold; font-size: 7.2pt; }
+  thead th { background: var(--fill); color: var(--gray); font-size: 6.6pt; font-weight: 600;
+             text-transform: uppercase; letter-spacing: 0.03em; }
+  .set { font-size: 7.2pt; font-weight: 600; }
+  .set.int { border-left: 3pt solid #0a84ff; }
+  .set.ext { border-left: 3pt solid #30a14e; }
+  .desc { font-weight: normal; color: #48484a; font-size: 6.9pt; }
+  .sum td { background: var(--fill); font-weight: 600; }
+  .advhead td { background: var(--hair); font-weight: 600; font-size: 7.2pt; }
 
-  .section { background: #cbd5e1; font-weight: bold; font-size: 7pt;
-             text-transform: uppercase; letter-spacing: 0.04em; padding: 2pt 3pt; }
-  .dept { width: 88pt; background: #f1f5f9; font-weight: bold; font-size: 6.9pt; }
+  .section { background: var(--ink); color: #fff; font-weight: 600; font-size: 6.8pt;
+             text-transform: uppercase; letter-spacing: 0.05em; padding: 2.5pt 4pt; }
+  .dept { width: 88pt; background: var(--fill); font-weight: 600; font-size: 6.9pt; color: var(--gray); }
 
-  .sign td { border: none; padding-top: 14pt; text-align: center; font-size: 7pt; }
-  .sign .line { border-top: 0.5pt solid #000; padding-top: 2pt; font-weight: bold; }
+  .sign td { border: none; padding-top: 16pt; text-align: center; font-size: 7pt; color: var(--gray); }
+  .sign .line { border-top: 0.5pt solid var(--ink); padding-top: 2.5pt; font-weight: 600; }
 
   /* Seite 2 */
   .page2 { page-break-before: always; }
   .crewcol { width: 33.33%; vertical-align: top; border: none; padding: 0 2pt; }
   .crewtab { margin-bottom: 5pt; }
-  .crewtab td { font-size: 6.8pt; padding: 1pt 2.5pt; }
-  .dept2 td, td.dept2 { background: #cbd5e1; font-weight: bold; text-align: center;
-                        font-size: 6.9pt; letter-spacing: 0.03em; }
-  .num { width: 12pt; color: #666; }
-  .ttl { width: 38%; }
-  .walkie { background: #000; color: #fff; font-size: 6.8pt; padding: 3pt; margin-top: 4pt; }
+  .crewtab td { font-size: 6.8pt; padding: 1.2pt 3pt; }
+  .dept2 td, td.dept2 { background: var(--ink); color: #fff; font-weight: 600; text-align: center;
+                        font-size: 6.8pt; letter-spacing: 0.04em; }
+  .num { width: 12pt; color: var(--gray); }
+  .ttl { width: 38%; color: #48484a; }
+  .walkie { background: var(--fill); color: var(--ink); font-size: 6.8pt; padding: 4pt 6pt; margin-top: 4pt; border-radius: 4pt; }
 </style>
 </head>
 <body>
