@@ -143,17 +143,17 @@ describe('analysePerformance', () => {
 
   it('warnt bei schwacher Klickrate', () => {
     const r = analysePerformance({ views: 100, impressions: 10000 })
-    expect(r.notes.some(n => n.includes('unter dem ueblichen'))).toBe(true)
+    expect(r.notes.some(n => n.includes('unter dem üblichen'))).toBe(true)
   })
 
   it('lobt eine starke Klickrate', () => {
     const r = analysePerformance({ views: 1500, impressions: 10000 })
-    expect(r.notes.some(n => n.includes('ueberdurchschnittlich'))).toBe(true)
+    expect(r.notes.some(n => n.includes('überdurchschnittlich'))).toBe(true)
   })
 
   it('warnt bei schwacher gesehener Laufzeit', () => {
     const r = analysePerformance({ avg_view_seconds: 30 }, 600)
-    expect(r.notes.some(n => n.includes('haelt nicht'))).toBe(true)
+    expect(r.notes.some(n => n.includes('hält nicht'))).toBe(true)
   })
 
   it('rechnet Likes je 1000 Aufrufe', () => {

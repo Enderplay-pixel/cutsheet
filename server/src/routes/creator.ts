@@ -122,6 +122,12 @@ const VIDEO_FIELDS = [
   'title_variants', 'thumbnail_ideas', 'description', 'tags', 'sort_order',
   'series', 'keyword', 'video_url', 'published_at', 'youtube_video_id',
   'views', 'impressions', 'avg_view_seconds', 'likes', 'comments', 'subs_gained',
+  // duration_seconds fehlte hier, obwohl die Spalte existiert und die
+  // Performance-Auswertung damit die Haltequote rechnet. Gemessen am
+  // 27.09.2026: 310 Sekunden gesehen bei Videolaenge 0 - die Haltequote war
+  // fuer jedes von Hand gepflegte Video leer, weil die Laenge nur ueber die
+  // YouTube-Anbindung hereinkam.
+  'duration_seconds',
   'sponsor_brand', 'sponsor_fee_cents', 'sponsor_deliverables', 'sponsor_deadline', 'sponsor_disclosed',
 ] as const
 

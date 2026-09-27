@@ -44,8 +44,8 @@ export const UPLOAD_CHECKLIST: string[] = [
   'Endcard gesetzt (letzte 20 Sekunden)',
   'Infokarten platziert',
   'Untertitel geprueft (automatische korrigiert)',
-  'Sichtbarkeit und Veroeffentlichungszeit gesetzt',
-  'Zielgruppe "nicht fuer Kinder" korrekt beantwortet',
+  'Sichtbarkeit und Veröffentlichungszeit gesetzt',
+  'Zielgruppe "nicht für Kinder" korrekt beantwortet',
   'Werbekennzeichnung gesetzt, falls bezahlt',
   'Angepinnter Kommentar vorbereitet',
   'Shorts-Auskopplung geplant',
@@ -87,7 +87,7 @@ export function checkClip(clip: Clip, videoSeconds?: number): ClipCheck {
     if (duration < 5) problems.push(`Mit ${duration}s zu kurz - unter 5s traegt kein Clip.`)
     const isShortFormat = /short|reel|tiktok/i.test(String(clip.platform ?? ''))
     if (isShortFormat && duration > SHORTS_MAX_SECONDS) {
-      problems.push(`${duration}s ueberschreitet das Limit von ${SHORTS_MAX_SECONDS}s fuer dieses Format.`)
+      problems.push(`${duration}s überschreitet das Limit von ${SHORTS_MAX_SECONDS}s für dieses Format.`)
     }
   }
 
@@ -185,12 +185,12 @@ export function analysePerformance(p: Performance, videoSeconds?: number): Perfo
 
   const notes: string[] = []
   if (ctr !== null) {
-    if (ctr < 2) notes.push(`Klickrate ${ctr} % liegt unter dem ueblichen Bereich - Titel und Thumbnail pruefen.`)
-    else if (ctr > 10) notes.push(`Klickrate ${ctr} % ist ueberdurchschnittlich - Titel und Thumbnail funktionieren.`)
-    else notes.push(`Klickrate ${ctr} % liegt im ueblichen Bereich von 2 bis 10 %.`)
+    if (ctr < 2) notes.push(`Klickrate ${ctr} % liegt unter dem üblichen Bereich - Titel und Thumbnail prüfen.`)
+    else if (ctr > 10) notes.push(`Klickrate ${ctr} % ist überdurchschnittlich - Titel und Thumbnail funktionieren.`)
+    else notes.push(`Klickrate ${ctr} % liegt im üblichen Bereich von 2 bis 10 %.`)
   }
   if (retention !== null) {
-    if (retention < 30) notes.push(`Im Schnitt nur ${retention} % gesehen - der Einstieg haelt nicht.`)
+    if (retention < 30) notes.push(`Im Schnitt nur ${retention} % gesehen - der Einstieg hält nicht.`)
     else if (retention >= 50) notes.push(`${retention} % gesehen - das ist ein guter Wert.`)
     else notes.push(`${retention} % gesehen - solide, Luft nach oben im Mittelteil.`)
   }
@@ -232,8 +232,8 @@ export function analyseCadence(dates: Array<string | null | undefined>): Cadence
       longestGapDays: null,
       count: times.length,
       notes: times.length === 0
-        ? ['Noch keine Veroeffentlichung geplant oder erfasst.']
-        : ['Erst eine Veroeffentlichung - fuer einen Rhythmus braucht es mindestens zwei.'],
+        ? ['Noch keine Veröffentlichung geplant oder erfasst.']
+        : ['Erst eine Veröffentlichung - für einen Rhythmus braucht es mindestens zwei.'],
     }
   }
 
@@ -249,7 +249,7 @@ export function analyseCadence(dates: Array<string | null | undefined>): Cadence
   // Bewusst laengste gegen kuerzeste Pause statt gegen den Schnitt: ein einzelner
   // Ausreisser zieht den Schnitt selbst mit hoch und wuerde sich so verstecken.
   if (longest >= shortest * 3 && longest - shortest > 7) {
-    notes.push('Der Rhythmus schwankt stark - Regelmaessigkeit wiegt bei YouTube schwerer als Frequenz.')
+    notes.push('Der Rhythmus schwankt stark - Regelmäßigkeit wiegt bei YouTube schwerer als Frequenz.')
   }
 
   return { averageDays: average, longestGapDays: longest, count: times.length, notes }

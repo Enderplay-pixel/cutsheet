@@ -784,6 +784,7 @@ export function Component() {
               {([
                 ['views', 'Aufrufe'],
                 ['impressions', 'Impressionen'],
+                ['duration_seconds', 'Videolänge (Sekunden)'],
                 ['avg_view_seconds', 'Ø gesehen (Sekunden)'],
                 ['likes', 'Likes'],
                 ['comments', 'Kommentare'],
