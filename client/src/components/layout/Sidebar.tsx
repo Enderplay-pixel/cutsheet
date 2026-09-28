@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { FeedbackWidget } from '@/components/shared/FeedbackWidget'
 import { AppIcon } from '@/components/shared/BrandMark'
+import { TestversionBadge } from '@/components/shared/TestversionBadge'
 import { useT } from '@/lib/useT'
 import { navT } from '@/lib/i18n'
 import { isCreatorProject } from '@/lib/projectKind'
@@ -325,7 +326,7 @@ export function Sidebar() {
         <AppIcon className="w-8 h-8" />
         {!sidebarCollapsed && (
           <div className="flex-1 min-w-0">
-            <span className="text-[14px] font-semibold tracking-[-0.02em] leading-none block">CutSheet</span>
+            <span className="text-[14px] font-semibold tracking-[-0.02em] leading-none flex items-center gap-1.5">CutSheet <TestversionBadge /></span>
             {project && (
               <span className="text-[12px] text-muted-foreground truncate block mt-1 leading-none">{project.title}</span>
             )}

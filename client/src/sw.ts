@@ -3,8 +3,8 @@
 // vorher via generateSW, plus Web-Push-Handler für Dispo-Benachrichtigungen.
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Parameters<typeof precacheAndRoute>[0] }
 
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching'
-import { registerRoute } from 'workbox-routing'
+import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching'
+import { registerRoute, NavigationRoute } from 'workbox-routing'
 import { NetworkFirst, CacheFirst } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
 import { clientsClaim } from 'workbox-core'
@@ -15,6 +15,29 @@ clientsClaim()
 
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
+
+// App-Seiten auch ohne Netz öffnen (/set, /projects/...): die SPA-Hülle
+// kommt aus dem Precache, die Daten aus den Caches unten.
+registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), {
+  denylist: [/^\/api\//, /^\/uploads\//, /^\/\.well-known\//],
+}))
+
+// Set-Daten: drei Tage offline verfügbar. Am Motiv gibt es oft kein Netz -
+// wer morgens die Dispo geladen hat, muss sie nachmittags noch sehen.
+// Mit einer Stunde (wie für den Rest der API) war sie bis Mittag weg.
+const SET_DATEN = [
+  /^\/api\/projects$/,
+  /^\/api\/projects\/\d+\/(shoot-days|shots|scenes|continuity)$/,
+  /^\/api\/shoot-days\/\d+\/call-sheet$/,
+]
+registerRoute(
+  ({ url, request }) => request.method === 'GET' && SET_DATEN.some(r => r.test(url.pathname)),
+  new NetworkFirst({
+    cacheName: 'set-offline',
+    networkTimeoutSeconds: 6,
+    plugins: [new ExpirationPlugin({ maxEntries: 300, maxAgeSeconds: 3 * 24 * 60 * 60 })],
+  })
+)
 
 // API: NetworkFirst (1 h Cache als Offline-Fallback)
 registerRoute(

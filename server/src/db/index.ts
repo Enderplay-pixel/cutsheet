@@ -1,14 +1,35 @@
 import { Pool, PoolClient } from 'pg'
+import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import { heuteISO } from '../lib/datum'
+import { ueberlastMelden } from '../lib/ueberlast'
 
 // ─── Connection pool ──────────────────────────────────────────────────────────
+// Groesse und Zeitgrenzen per Umgebung einstellbar. Die Vorgaben passen zu
+// einer kleinen gehosteten Postgres-Instanz (meist 25-100 Verbindungen).
+// Im Lasttest mit 150 gleichzeitigen Nutzern lief der Pool mit 20
+// Verbindungen und fuenf Sekunden Wartezeit ueber: Anfragen scheiterten, statt
+// kurz zu warten. Jetzt wird laenger gewartet, und wer trotzdem keine
+// Verbindung bekommt, erhaelt 503 mit Retry-After statt eines 500ers.
+const zahlAusEnv = (name: string, vorgabe: number) => {
+  const n = Number(process.env[name])
+  return Number.isFinite(n) && n > 0 ? n : vorgabe
+}
+
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://cutsheet:cutsheet@localhost:5432/cutsheet',
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 20,
+  max: zahlAusEnv('DB_POOL_MAX', 20),
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: zahlAusEnv('DB_CONNECT_TIMEOUT_MS', 15000),
+  // Eine einzelne entgleiste Abfrage darf keine Verbindung ewig blockieren.
+  statement_timeout: zahlAusEnv('DB_STATEMENT_TIMEOUT_MS', 30000),
 })
+
+// Ein Fehler auf einer ruhenden Verbindung (Neustart der Datenbank,
+// Netzwerk) darf den Prozess nicht beenden. pg meldet ihn als 'error'-Ereignis.
+pool.on('error', err => console.error('[DB] Verbindung verloren:', err.message))
+
+export { istUeberlastet } from '../lib/ueberlast'
 
 // ─── SQL helpers ──────────────────────────────────────────────────────────────
 // Converts SQLite-style `?` placeholders to PostgreSQL-style `$1, $2, …`
@@ -26,7 +47,12 @@ export function toPg(sql: string): string {
     .replace(/\bdate\('now'\)/gi, 'CURRENT_DATE')
     // Quote 'cast' table/column references - reserved word in PostgreSQL.
     // Negative lookbehind skips already-quoted "cast"; negative lookahead skips CAST( function calls.
-    .replace(/(?<!")\bcast\b(?!\()/gi, '"cast"')
+    // Nur ausserhalb von Textliteralen: aus person_type = 'cast' wurde sonst
+    // person_type = '"cast"' - der Lohnexport zaehlte fuer jeden Darsteller
+    // null Drehtage, der Morning Brief fand keine Catering-Angaben des Casts.
+    .split(/('(?:[^']|'')*')/)
+    .map((teil, j) => (j % 2 === 1 ? teil : teil.replace(/(?<!")\bcast\b(?!\()/gi, '"cast"')))
+    .join('')
     .replace(/\?/g, () => `$${++i}`)
 }
 
@@ -55,17 +81,28 @@ export class TxClient {
   }
 }
 
+// Jede Abfrage ueber den Pool laeuft hier durch: scheitert sie an Ueberlast,
+// erfaehrt die laufende Anfrage davon (siehe lib/ueberlast.ts).
+async function abfrage(sql: string, params?: any[]) {
+  try {
+    return await pool.query(sql, params)
+  } catch (e) {
+    ueberlastMelden(e)
+    throw e
+  }
+}
+
 // ─── Main DB wrapper ──────────────────────────────────────────────────────────
 class Db {
   /** SELECT → array of rows */
   async all(sql: string, params: any[] = []): Promise<any[]> {
-    const result = await pool.query(toPg(sql), params)
+    const result = await abfrage(toPg(sql), params)
     return result.rows
   }
 
   /** SELECT → first row or undefined */
   async get(sql: string, params: any[] = []): Promise<any | undefined> {
-    const result = await pool.query(toPg(sql), params)
+    const result = await abfrage(toPg(sql), params)
     return result.rows[0]
   }
 
@@ -80,29 +117,39 @@ class Db {
     if (/^INSERT\s/i.test(trimmed) && !/RETURNING/i.test(trimmed)) {
       pgSql += ' RETURNING id'
     }
-    const result = await pool.query(pgSql, params)
+    const result = await abfrage(pgSql, params)
     return { id: result.rows[0]?.id ?? 0, changes: result.rowCount ?? 0 }
   }
 
   /** DDL or parameterless statements (supports multi-statement strings via simple query protocol). */
   async exec(sql: string): Promise<void> {
-    await pool.query(sql)
+    await abfrage(sql)
   }
 
   /** Wraps fn in BEGIN / COMMIT / ROLLBACK. Passes a TxClient so helpers stay available. */
   async transaction<T>(fn: (tx: TxClient) => Promise<T>): Promise<T> {
-    const client = await pool.connect()
+    let client: PoolClient
+    try {
+      client = await pool.connect()
+    } catch (e) {
+      ueberlastMelden(e)
+      throw e
+    }
     const tx = new TxClient(client)
+    let kaputt = false
     try {
       await client.query('BEGIN')
       const result = await fn(tx)
       await client.query('COMMIT')
       return result
     } catch (e) {
-      await client.query('ROLLBACK')
+      ueberlastMelden(e)
+      // Scheitert auch das ROLLBACK, ist die Verbindung kaputt: nicht in den
+      // Pool zurueckgeben, sondern verwerfen.
+      await client.query('ROLLBACK').catch(() => { kaputt = true })
       throw e
     } finally {
-      client.release()
+      client.release(kaputt)
     }
   }
 }
@@ -776,19 +823,86 @@ const SCHEMA = `
 `
 
 // ─── Test admin seeder ────────────────────────────────────────────────────────
+/**
+ * Test-Admin fuer die Entwicklung — und NUR dort.
+ *
+ * Bisher lief das bei jedem Start, auch in der Produktion: admin@cutsheet.dev
+ * mit dem Passwort "admin1234" war dort ein globaler Admin, und das Passwort
+ * steht im Quelltext. Fuer den Launch heisst das:
+ *  - Entwicklung: wie bisher, admin@cutsheet.dev / admin1234.
+ *  - Produktion/Testversion: nur, wenn TEST_ADMIN_EMAIL und
+ *    TEST_ADMIN_PASSWORD gesetzt sind (Passwort mindestens 12 Zeichen).
+ *  - Ein Alt-Konto aus frueheren Deploys, das noch "admin1234" hat, bekommt in
+ *    der Produktion ein zufaelliges Passwort und verliert die Admin-Rolle.
+ */
 async function ensureTestAdmin() {
-  const bcrypt = await import('bcryptjs')
-  const existing = await db.get("SELECT id FROM users WHERE email = 'admin@cutsheet.dev'")
+  const prod = process.env.NODE_ENV === 'production'
+  const envEmail = process.env.TEST_ADMIN_EMAIL?.trim().toLowerCase()
+  const envPassword = process.env.TEST_ADMIN_PASSWORD
+
+  if (prod) {
+    const alt = await db.get("SELECT id, password_hash FROM users WHERE email = 'admin@cutsheet.dev'") as any
+    if (alt && envEmail !== 'admin@cutsheet.dev' && await pruefePasswort('admin1234', alt.password_hash)) {
+      const { randomBytes } = await import('crypto')
+      const hash = await hashPasswort(randomBytes(32).toString('hex'), 12)
+      await db.run("UPDATE users SET password_hash = ?, role = 'user' WHERE id = ?", [hash, alt.id])
+      console.warn('[DB] Sicherheit: Alt-Konto admin@cutsheet.dev mit bekanntem Passwort gesperrt.')
+    }
+    if (!envEmail || !envPassword) return
+    if (envPassword.length < 12) {
+      console.warn('[DB] TEST_ADMIN_PASSWORD ist kürzer als 12 Zeichen — Test-Admin wird nicht angelegt.')
+      return
+    }
+  }
+
+  const email = prod ? envEmail! : (envEmail || 'admin@cutsheet.dev')
+  const password = prod ? envPassword! : (envPassword || 'admin1234')
+  const existing = await db.get('SELECT id, password_hash FROM users WHERE email = ?', [email]) as any
   if (!existing) {
-    const hash = await bcrypt.hash('admin1234', 12)
+    const hash = await hashPasswort(password, 12)
     await db.run(
       "INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)",
-      ['admin@cutsheet.dev', hash, 'Test Admin', 'admin']
+      [email, hash, 'Test Admin', 'admin']
     )
-    console.log('[DB] Test-Admin erstellt: admin@cutsheet.dev / admin1234')
+    console.log(prod ? `[DB] Test-Admin erstellt: ${email}` : `[DB] Test-Admin erstellt: ${email} / ${password}`)
   } else {
-    await db.run("UPDATE users SET role = 'admin' WHERE email = 'admin@cutsheet.dev'")
+    await db.run("UPDATE users SET role = 'admin' WHERE id = ?", [existing.id])
+    // Ist das Passwort per Umgebung vorgegeben, gilt es auch fuer ein schon
+    // vorhandenes Konto - sonst waere nach einem Wechsel das alte weiter gueltig.
+    if (envPassword && !(await pruefePasswort(envPassword, existing.password_hash))) {
+      await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [await hashPasswort(envPassword, 12), existing.id])
+      console.log(`[DB] Test-Admin ${email}: Passwort aus TEST_ADMIN_PASSWORD übernommen`)
+    }
   }
+}
+
+/**
+ * Jeder Fremdschlüssel bekommt einen Index.
+ *
+ * Postgres legt Indizes nur für Primär- und Unique-Schlüssel an, nicht für
+ * Fremdschlüssel. Von 102 Fremdschlüsseln hatten 83 keinen — jede Abfrage
+ * "alle Dispo-Einträge dieses Drehtags" las die ganze Tabelle. Mit einem
+ * Projekt fällt das nicht auf; mit 150 Produktionen (740.000 Dispo-Einträge)
+ * brauchte das Dashboard unter Last 1,5 s und der Verbindungspool lief voll.
+ *
+ * Dynamisch statt als Liste: neue Tabellen sind automatisch abgedeckt.
+ * CREATE INDEX IF NOT EXISTS ist beim zweiten Start ein No-op.
+ */
+async function fremdschluesselIndizieren() {
+  const fehlend = await db.all(`
+    SELECT c.conrelid::regclass::text AS tbl, a.attname AS col
+    FROM pg_constraint c
+    JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+    WHERE c.contype = 'f' AND c.connamespace = 'public'::regnamespace
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_index i WHERE i.indrelid = c.conrelid AND i.indkey[0] = c.conkey[1]
+      )
+  `) as Array<{ tbl: string; col: string }>
+  for (const { tbl, col } of fehlend) {
+    const name = `idx_fk_${tbl.replace(/"/g, '')}_${col}`.slice(0, 63)
+    await db.exec(`CREATE INDEX IF NOT EXISTS "${name}" ON ${tbl} ("${col}")`)
+  }
+  if (fehlend.length) console.log(`[DB] ${fehlend.length} Fremdschlüssel-Indizes angelegt`)
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -1136,13 +1250,22 @@ export async function initDatabase() {
     WHERE owner_id IS NULL AND (SELECT COUNT(*) FROM users) > 0
   `)
 
-  // Fix roles: only first user keeps 'admin'
-  await db.exec(`
+  // Fix roles: only first user keeps 'admin' — ausser dem Konto aus
+  // ADMIN_EMAIL, das der Betreiber ausdruecklich als Admin festlegt
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase() || ''
+  await db.run(`
     UPDATE users SET role = 'user'
-    WHERE id != (SELECT MIN(id) FROM users) AND role = 'admin'
-  `)
+    WHERE id != (SELECT MIN(id) FROM users) AND role = 'admin' AND LOWER(email) != ?
+  `, [adminEmail])
 
   await ensureTestAdmin()
+
+  await fremdschluesselIndizieren()
+
+  if (adminEmail) {
+    const r = await db.run("UPDATE users SET role = 'admin' WHERE LOWER(email) = ?", [adminEmail])
+    if (!r.changes) console.warn(`[DB] ADMIN_EMAIL ${adminEmail} gehört zu keinem Konto — erst registrieren, dann neu starten.`)
+  }
 
   console.log('[DB] PostgreSQL-Datenbank initialisiert')
 }

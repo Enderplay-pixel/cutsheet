@@ -17,9 +17,14 @@ export default defineConfig({
       manifest: {
         name: 'CutSheet',
         short_name: 'CutSheet',
-        description: 'Professionelles Film-Produktions-Management',
-        theme_color: '#0D0D0F',
-        background_color: '#0D0D0F',
+        description: 'Produktionsmanagement für Film – vom Drehbuch bis zur letzten Klappe',
+        lang: 'de',
+        // Langes Drücken auf das App-Symbol: direkt ans Set
+        shortcuts: [
+          { name: 'Set-App', short_name: 'Set', description: 'Dispo, Shots und Check-in am Set', url: '/set', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+        ],
+        theme_color: '#131110',
+        background_color: '#131110',
         display: 'standalone',
         // Nicht auf Hochformat festnageln: am Tablet quer bekommt die App die
         // volle Sidebar und 804 px Inhalt — dort arbeitet sie am besten

@@ -18,11 +18,11 @@ function formatTimestamp(ts: string) {
 function ActionBadge({ action }: { action: string }) {
   const lower = (action || '').toLowerCase()
   let cls = 'bg-muted text-muted-foreground'
-  if (lower.includes('create') || lower.includes('add') || lower.includes('insert')) {
+  if (lower.includes('create') || lower.includes('add') || lower.includes('insert') || lower.includes('angelegt')) {
     cls = 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-  } else if (lower.includes('delete') || lower.includes('remove')) {
+  } else if (lower.includes('delete') || lower.includes('remove') || lower.includes('gelöscht')) {
     cls = 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
-  } else if (lower.includes('update') || lower.includes('edit') || lower.includes('change')) {
+  } else if (lower.includes('update') || lower.includes('edit') || lower.includes('change') || lower.includes('geändert')) {
     cls = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'
   }
   return (

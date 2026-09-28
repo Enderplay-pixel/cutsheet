@@ -88,7 +88,8 @@ export function Component() {
   })
 
   const addMutation = useMutation({
-    mutationFn: (data: any) => req<any>(`/projects/${pid}/blackout-dates`, { method: 'POST', body: JSON.stringify(data) }),
+    // Der Server legt Sperrtage je Darsteller an: /projects/:pid/cast/:castId/blackout-dates
+    mutationFn: ({ cast_id, ...data }: any) => req<any>(`/projects/${pid}/cast/${cast_id}/blackout-dates`, { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['blackout-dates', pid] })
       queryClient.invalidateQueries({ queryKey: ['blackout-conflicts', pid] })

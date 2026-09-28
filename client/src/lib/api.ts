@@ -1,17 +1,49 @@
 const API_BASE = '/api'
 
+// Bei Ueberlast antwortet der Server mit 503 und Retry-After. Lesende Anfragen
+// und die Anmeldung sind gefahrlos wiederholbar - dort wird bis zu dreimal
+// kurz gewartet, statt dem Nutzer sofort einen Fehler zu zeigen. Schreibende
+// Anfragen werden nicht still wiederholt.
+const WIEDERHOLBAR = (method: string, path: string) =>
+  method === 'GET' || method === 'HEAD' || path === '/auth/login'
+
+/** fetch mit Wiederholung bei 503 (nur fuer wiederholbare Anfragen). */
+export async function fetchMitWiederholung(url: string, init?: RequestInit): Promise<Response> {
+  const method = (init?.method ?? 'GET').toUpperCase()
+  const pfad = url.startsWith(API_BASE) ? url.slice(API_BASE.length) : url
+  for (let versuch = 0; ; versuch++) {
+    const res = await fetch(url, init)
+    if (res.status !== 503 || versuch >= 3 || !WIEDERHOLBAR(method, pfad)) return res
+    const sekunden = Number(res.headers.get('Retry-After')) || 1
+    // Etwas Streuung, damit nicht alle Clients im selben Takt wiederkommen
+    await new Promise(r => setTimeout(r, (sekunden * 1000) * (1 + versuch) * (0.75 + Math.random() * 0.5)))
+  }
+}
+
+/** Fehlermeldung aus einer Antwort, auch wenn ein Proxy HTML statt JSON liefert. */
+export async function antwortLesen(res: Response): Promise<{ data: any; error: string | null }> {
+  const json = await res.json().catch(() => null)
+  if (res.ok) return { data: json?.data, error: null }
+  return {
+    data: null,
+    error: json?.error || (res.status >= 500
+      ? 'Der Server ist gerade nicht erreichbar. Bitte gleich noch einmal versuchen.'
+      : 'Fehler beim Server-Request'),
+  }
+}
+
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('token')
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetchMitWiederholung(`${API_BASE}${path}`, {
     headers: { ...headers, ...options?.headers },
     ...options,
   })
-  const json = await res.json()
-  if (!res.ok) throw new Error(json.error || 'Fehler beim Server-Request')
-  return json.data
+  const { data, error } = await antwortLesen(res)
+  if (error) throw new Error(error)
+  return data
 }
 
 // ─── Projects ────────────────────────────────────────────────────────────────
@@ -484,10 +516,6 @@ export const api = {
     vapidKey: () => req<any>('/push/vapid-public-key'),
   },
 
-  // ─── Confirmation (C3) ─────────────────────────────────────────────────────
-  confirmation: {
-    confirm: (entryId: number) => req<any>(`/call-sheet-entries/${entryId}/confirm`, { method: 'POST' }),
-  },
 
   // ─── iCal (C4) ─────────────────────────────────────────────────────────────
   ical: {

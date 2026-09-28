@@ -203,7 +203,7 @@ export const entityPatterns: Array<[RegExp, string]> = [
      'SELECT sd.project_id FROM camera_takes ct JOIN camera_reports cr ON ct.camera_report_id = cr.id JOIN shoot_days sd ON cr.shoot_day_id = sd.id WHERE ct.id = ?'],
 ]
 
-async function extractProjectId(method: string, path: string, body: any): Promise<number | null> {
+export async function extractProjectId(method: string, path: string, body: any): Promise<number | null> {
   // /projects/5 or /projects/5/anything
   const projMatch = path.match(/^\/projects\/(\d+)/)
   if (projMatch) return Number(projMatch[1])
@@ -260,10 +260,14 @@ export async function projectWriteGuard(req: Request, res: Response, next: NextF
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
 
+  const projectId = await extractProjectId(req.method, path, req.body)
+  // Fuer das Aenderungsprotokoll (routes/audit.ts) - vor dem Loeschen
+  // aufgeloest, danach gaebe es die Zeile nicht mehr.
+  ;(req as any).auditProjektId = projectId
+
   // Global admins can do anything
   if (user.role === 'admin') return next()
 
-  const projectId = await extractProjectId(req.method, path, req.body)
   if (!projectId) return next() // can't determine project → pass through
 
   const role = await getUserProjectRole(user.id, projectId)

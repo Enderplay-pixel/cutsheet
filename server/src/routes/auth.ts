@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import bcrypt from 'bcryptjs'
+import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import crypto from 'crypto'
 import { z } from 'zod'
 import { db, seedDemoData } from '../db'
@@ -44,7 +44,7 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
     const userCount = Number(((await db.get('SELECT COUNT(*) as c FROM users', [])) as any)?.c ?? 0)
     const role = userCount === 0 ? 'admin' : 'user'
 
-    const password_hash = await bcrypt.hash(password, 12)
+    const password_hash = await hashPasswort(password, 12)
     const result = await db.run(
       'INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)',
       [email, password_hash, name || '', role]
@@ -73,7 +73,7 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response)
       return res.status(401).json({ data: null, error: 'Ungültige Anmeldedaten' })
     }
 
-    const valid = await bcrypt.compare(password, user.password_hash)
+    const valid = await pruefePasswort(password, user.password_hash)
     if (!valid) {
       return res.status(401).json({ data: null, error: 'Ungültige Anmeldedaten' })
     }
@@ -143,7 +143,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     ) as { id: number; user_id: number } | undefined
     if (!row) return res.status(400).json({ data: null, error: 'Link ungültig oder abgelaufen. Bitte fordere einen neuen an.' })
 
-    const hash = await bcrypt.hash(password, 12)
+    const hash = await hashPasswort(password, 12)
     await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [hash, row.user_id])
     await db.run('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = ?', [row.id])
     return res.json({ data: { success: true }, error: null })
@@ -200,7 +200,7 @@ router.delete('/me', requireAuth, async (req: Request, res: Response) => {
 
     const user = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]) as UserRow | undefined
     if (!user) return res.status(404).json({ data: null, error: 'Benutzer nicht gefunden' })
-    const valid = await bcrypt.compare(password, user.password_hash)
+    const valid = await pruefePasswort(password, user.password_hash)
     if (!valid) return res.status(400).json({ data: null, error: 'Passwort falsch' })
 
     // Eigene Projekte mit weiteren Mitgliedern blockieren die Löschung -
@@ -257,9 +257,9 @@ router.put('/me/password', requireAuth, async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
     const user = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]) as UserRow | undefined
     if (!user) return res.status(404).json({ data: null, error: 'Benutzer nicht gefunden' })
-    const valid = await bcrypt.compare(current_password, user.password_hash)
+    const valid = await pruefePasswort(current_password, user.password_hash)
     if (!valid) return res.status(400).json({ data: null, error: 'Aktuelles Passwort falsch' })
-    const hash = await bcrypt.hash(new_password, 12)
+    const hash = await hashPasswort(new_password, 12)
     await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [hash, req.user.id])
     return res.json({ data: { success: true }, error: null })
   } catch (err) {

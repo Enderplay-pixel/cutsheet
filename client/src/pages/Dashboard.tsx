@@ -26,8 +26,10 @@ function greeting(): string {
   return 'Guten Abend'
 }
 
-function Figure({ label, value, sub, onClick }: {
+function Figure({ label, value, sub, onClick, format }: {
   label: string; value: number | string; sub?: string; onClick?: () => void
+  /** Anzeige des hochgezählten Werts, etwa als Währung */
+  format?: (n: number) => string
 }) {
   const shown = useCountUp(value)
   return (
@@ -37,7 +39,7 @@ function Figure({ label, value, sub, onClick }: {
       className="group text-left bg-card px-5 py-5 sm:px-6 transition-colors duration-200 hover:bg-foreground/[0.025] focus-visible:bg-foreground/[0.04]"
     >
       <div className="eyebrow">{label}</div>
-      <div className="font-display text-[40px] leading-none mt-2.5 tabular-nums">{Math.round(shown)}</div>
+      <div className="font-display text-[40px] leading-none mt-2.5 tabular-nums">{format ? format(Math.round(shown)) : Math.round(shown).toLocaleString('de-DE')}</div>
       {sub && (
         <div className="text-[12px] text-muted-foreground mt-2 flex items-center gap-1">
           {sub}
@@ -96,6 +98,15 @@ export function Component() {
     queryFn: () => api.conflicts(Number(projectId))
   })
 
+  // Creator-Projekte zeigen Kanal-Kennzahlen statt Szenen und Drehtagen -
+  // vorher standen dort vier Nullen aus der Filmwelt.
+  const creatorProjekt = isCreatorProject(project)
+  const { data: kanal } = useQuery({
+    queryKey: ['creator-overview', projectId],
+    queryFn: () => api.creator.overview(Number(projectId)),
+    enabled: !!projectId && creatorProjekt,
+  })
+
   // Hooks vor dem frühen Return: Balken gleiten ein, Beträge zählen hoch
   const entered = useEntered(360)
   const budgetShown = useCountUp(stats?.budget_total_cents || 0, 1100)
@@ -141,7 +152,12 @@ export function Component() {
     .filter(Boolean)
   const go = (path: string) => navigate(`/projects/${projectId}/${path}`)
 
-  const isCreator = isCreatorProject(project)
+  const isCreator = creatorProjekt
+  const heuteIso = new Date().toISOString().slice(0, 10)
+  const naechstesVideo = (kanal?.calendar ?? []).find((e: any) => !e.published && e.date && e.date >= heuteIso)
+  const tageBisVideo = naechstesVideo ? differenceInCalendarDays(parseISO(naechstesVideo.date), new Date()) : null
+  const veroeffentlichtPct = kanal?.video_count ? Math.round((kanal.published_count / kanal.video_count) * 100) : 0
+  const geplantPct = kanal?.video_count ? Math.round((kanal.planned_count / kanal.video_count) * 100) : 0
   const filmJumps = [
     { label: 'Drehplan',   icon: Clapperboard, path: 'drehplan',   key: 'D', tint: 'bg-blue-500' },
     { label: 'Tagesdispo', icon: Calendar,     path: 'tagesdispo', key: 'T', tint: 'bg-red-500' },
@@ -229,6 +245,32 @@ export function Component() {
               <ArrowRight className="w-3.5 h-3.5" />
             </Button>
           </aside>
+        ) : isCreator && naechstesVideo ? (
+          <aside className="self-end rounded-2xl border border-border/60 bg-card p-5 shadow-md lift">
+            <div className="flex items-center justify-between">
+              <span className="eyebrow">Nächste Veröffentlichung</span>
+              <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-signal" aria-hidden />
+            </div>
+            <div className="flex items-end justify-between gap-4 mt-4">
+              <div className="min-w-0">
+                <div className="text-[19px] font-semibold leading-snug line-clamp-2">{naechstesVideo.title}</div>
+                <div className="text-[13px] text-muted-foreground mt-2">
+                  {formatDateLong(naechstesVideo.date)} · {naechstesVideo.status}
+                </div>
+              </div>
+              {tageBisVideo !== null && (
+                <div className="text-right shrink-0">
+                  <div className="font-display text-[34px] leading-none tabular-nums text-signal">{tageBisVideo}</div>
+                  <div className="text-[11px] text-muted-foreground mt-1.5">
+                    {tageBisVideo === 0 ? tt(dashT.today) : tageBisVideo === 1 ? tt(dashT.tomorrow) : tt(dashT.inDays).replace('{n}', String(tageBisVideo))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <Button className="w-full mt-5 justify-between" onClick={() => go(`creator/${naechstesVideo.id}`)}>
+              Video öffnen <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          </aside>
         ) : (
           <aside className="self-end rounded-2xl border border-dashed border-border p-5">
             <span className="eyebrow">{tt(dashT.nextShootDay)}</span>
@@ -245,6 +287,17 @@ export function Component() {
         aria-label="Kennzahlen"
         className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl border border-border/60 bg-border/70 overflow-hidden shadow-sm"
       >
+        {isCreator ? (<>
+        <Figure label="Videos" value={kanal?.video_count ?? 0}
+          sub={`${kanal?.published_count ?? 0} veröffentlicht`} onClick={() => go('creator')} />
+        <Figure label="Aufrufe" value={kanal?.totals?.views ?? 0}
+          sub="über alle Videos" onClick={() => go('creator/performance')} />
+        <Figure label="Abos gewonnen" value={kanal?.totals?.subs ?? 0}
+          sub={`${(kanal?.totals?.likes ?? 0).toLocaleString('de-DE')} Likes`} onClick={() => go('creator/kanal')} />
+        <Figure label="Sponsoring" value={Math.round((kanal?.sponsor_fee_cents ?? 0) / 100)}
+          format={n => `${n.toLocaleString('de-DE')} €`}
+          sub="Honorare gesamt" onClick={() => go('creator/sponsoren')} />
+        </>) : (<>
         <Figure label={tt(dashT.scenes)} value={stats?.total_scenes ?? 0}
           sub={`${stats?.scheduled_scenes ?? 0} ${tt(dashT.inPlan)}`} onClick={() => go('drehbuch')} />
         <Figure label={tt(dashT.shootDays)} value={stats?.total_shoot_days ?? 0}
@@ -253,6 +306,7 @@ export function Component() {
           sub={tt(dashT.mainCast)} onClick={() => go('besetzung')} />
         <Figure label={tt(dashT.team)} value={stats?.total_crew ?? 0}
           sub={tt(dashT.crewMembers)} onClick={() => go('stabliste')} />
+        </>)}
       </section>
 
       {/* ── Stand & Lage ─────────────────────────────────── */}
@@ -264,6 +318,14 @@ export function Component() {
             <span className="eyebrow">Stand heute</span>
           </div>
 
+          {isCreator ? (
+          <div className="space-y-6 mt-7">
+            <ProgressRow label="Videos veröffentlicht" tone="success"
+              done={kanal?.published_count ?? 0} total={kanal?.video_count ?? 0} pct={veroeffentlichtPct} />
+            <ProgressRow label="Mit Termin im Redaktionsplan" tone="info" delay={120}
+              done={kanal?.planned_count ?? 0} total={kanal?.video_count ?? 0} pct={geplantPct} />
+          </div>
+          ) : (
           <div className="space-y-6 mt-7">
             <ProgressRow label={tt(dashT.scheduleDone)} tone="ink"
               done={stats?.scheduled_scenes ?? 0} total={stats?.total_scenes ?? 0} pct={scheduleProgress} />
@@ -272,6 +334,7 @@ export function Component() {
             <ProgressRow label={tt(dashT.scenesShot)} tone="success" delay={240}
               done={stats?.shot_scenes ?? 0} total={stats?.total_scenes ?? 0} pct={shotScenesProgress} />
           </div>
+          )}
 
           {stats?.budget_total_cents > 0 && (
             <div className="mt-8 pt-6 border-t border-border/70 grid grid-cols-1 sm:grid-cols-2 gap-6">

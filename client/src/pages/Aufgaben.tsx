@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { cn, heuteISO } from '@/lib/utils'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
+import { feiern } from '@/lib/belohnung'
 
 // Abnahmeschleife wie bei PreProducer: offen → in Arbeit → Abnahme → erledigt
 const STATUS_META: Record<string, { label: string; icon: any; cls: string }> = {
@@ -168,7 +169,7 @@ function TaskList({ tasks, onCycle, onDelete, muted }: {
             )}
           >
             <button
-              onClick={() => onCycle(t)}
+              onClick={(e) => { if (nextStatus(t.status) === 'erledigt' && !muted) feiern(e.currentTarget); onCycle(t) }}
               title={`Status: ${meta.label} - klicken für nächsten Schritt`}
               className={cn('shrink-0 transition-transform duration-150 active:scale-[0.85]', meta.cls)}
             >
