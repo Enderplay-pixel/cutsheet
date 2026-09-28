@@ -1,0 +1,18 @@
+[
+{"system":"Material 3","sites":"Google, YouTube, Gemini, Gmail","body":16,"lh":24,"radius":[4,8,12,16,28],"space":4,"dur":[50,100,150,200,250,300,400,500],"focus":3,"control":40,"text":"#1d1b20","muted":"#49454f","accent":"#6750a4","ease":"0.2,0,0,1"},
+{"system":"Fluent 2","sites":"Bing, Microsoft 365, Outlook, LinkedIn-nah","body":14,"lh":20,"radius":[2,4,6,8],"space":4,"dur":[50,100,150,200,250,300,400,500],"focus":2,"control":32,"text":"#242424","muted":"#616161","accent":"#0f6cbd","ease":"0.33,0,0.67,1"},
+{"system":"Primer","sites":"GitHub","body":14,"lh":21,"radius":[3,6,12],"space":4,"dur":[50,100,200,300,400],"focus":2,"control":32,"text":"#1f2328","muted":"#59636e","accent":"#0969da","ease":"0.3,0.8,0.6,1"},
+{"system":"Codex","sites":"Wikipedia","body":16,"lh":26,"radius":[2],"space":4,"dur":[100,250],"focus":2,"control":32,"text":"#202122","muted":"#54595d","accent":"#3366cc","ease":"0.25,0.1,0.25,1"},
+{"system":"Evo","sites":"eBay","body":14,"lh":20,"radius":[8,16],"space":8,"dur":[167,250],"focus":2,"control":40,"text":"#191919","muted":"#707070","accent":"#0968f6","ease":"0.3,0,0,1"},
+{"system":"Gestalt","sites":"Pinterest","body":16,"lh":24,"radius":[8,16,24],"space":4,"dur":[150,300],"focus":2,"control":48,"text":"#000000","muted":"#636361","accent":"#e60023","ease":"0.05,0.7,0.1,1"},
+{"system":"Polaris","sites":"Shopify","body":13,"lh":20,"radius":[4,8,12],"space":4,"dur":[100,200],"focus":2,"control":32,"text":"#303030","muted":"#616161","accent":"#303030","ease":"0.25,0.1,0.25,1"},
+{"system":"VKUI","sites":"VK","body":16,"lh":20,"radius":[8,12],"space":4,"dur":[100,200,400],"focus":2,"control":44,"text":"#000000","muted":"#818c99","accent":"#2688eb","ease":"0.3,0.3,0.5,1"},
+{"system":"Gravity UI","sites":"Yandex","body":13,"lh":18,"radius":[5,6,8,10],"space":4,"dur":[100,200,300],"focus":2,"control":28,"text":"#000000","muted":"#7d7d7d","accent":"#ffbe5c","ease":"0.25,0.1,0.25,1"},
+{"system":"Spectrum","sites":"Adobe","body":14,"lh":21,"radius":[4,8,10],"space":4,"dur":[130,160,190],"focus":2,"control":32,"text":"#292929","muted":"#505050","accent":"#3b63fb","ease":"0.45,0,0.4,1"},
+{"system":"Cloudscape","sites":"Amazon/AWS","body":14,"lh":20,"radius":[8,16,20],"space":4,"dur":[115,165],"focus":2,"control":32,"text":"#0f141a","muted":"#424650","accent":"#006ce0","ease":"0,0,0,1"},
+{"system":"Ant Design","sites":"Alibaba, Taobao, AliExpress","body":14,"lh":22,"radius":[2,4,6,8],"space":4,"dur":[100,200,300],"focus":2,"control":32,"text":"#1f1f1f","muted":"#595959","accent":"#1677ff","ease":"0.215,0.61,0.355,1"},
+{"system":"Atlassian DS","sites":"Atlassian (Jira, Trello)","body":14,"lh":20,"radius":[4,6,8],"space":8,"dur":[50,100,150,200,250,400],"focus":2,"control":32,"text":"#292a2e","muted":"#505258","accent":"#1868db","ease":"0.15,1,0.3,1"},
+{"system":"TDesign","sites":"Tencent, QQ, WeChat","body":14,"lh":22,"radius":[3,6,9],"space":4,"dur":[200],"focus":2,"control":32,"text":"#1a1a1a","muted":"#666666","accent":"#0052d9","ease":"0.38,0,0.24,1"},
+{"system":"GOV.UK","sites":"Referenz (Barrierefreiheit)","body":19,"lh":25,"radius":[0],"space":5,"dur":[],"focus":3,"control":40,"text":"#0b0c0c","muted":"#505a5f","accent":"#1d70b8","ease":""},
+{"system":"Apple HIG","sites":"Apple, iCloud","body":17,"lh":22,"radius":[6,10,12,20],"space":4,"dur":[200,250,350,500],"focus":3,"control":44,"text":"#1d1d1f","muted":"#6e6e73","accent":"#0071e3","ease":"0.25,0.1,0.25,1"}
+]

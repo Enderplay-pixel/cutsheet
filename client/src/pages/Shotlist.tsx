@@ -16,6 +16,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
 import { debounce, getStripClass, eighthsToString, cn } from '@/lib/utils'
 import { Plus, Trash2, Camera, Film, Clock, Download, Check, Copy, Star } from 'lucide-react'
+import { feiern } from '@/lib/belohnung'
 
 const SHOT_SIZES = ['ECU', 'CU', 'MCU', 'MS', 'MWS', 'WS', 'EWS', 'Totale', 'Vogelperspektive', 'Froschperspektive']
 const MOVEMENTS = ['Statisch', 'Pan', 'Tilt', 'Pan + Tilt', 'Dolly', 'Fahrt', 'Gimbal', 'Handheld', 'Kran', 'Drohne', 'Zoom']
@@ -89,6 +90,7 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
   })
 
   const toggleDone = useMutation({
+    meta: { stumm: true },
     mutationFn: () => api.shots.toggleDone(shot.id),
     onSuccess: (data: any) => {
       setIsDone(!!data.done)
@@ -142,10 +144,10 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
         <div className="hidden md:block flex-1" />
 
         <button
-          onClick={() => toggleDone.mutate()}
+          onClick={(e) => { if (!isDone) feiern(e.currentTarget); toggleDone.mutate() }}
           className={cn(
-            'w-8 h-8 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0',
-            isDone ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground/40 hover:border-green-500/60'
+            'w-8 h-8 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-[background-color,border-color,transform] duration-300 ease-spring shrink-0',
+            isDone ? 'bg-success border-success text-success-foreground scale-110' : 'border-muted-foreground/40 hover:border-success/60'
           )}
           title={isDone ? 'Als offen markieren' : 'Als erledigt markieren'}
         >

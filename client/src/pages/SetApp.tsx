@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Moon, Sun, Clock, Users, List, Camera, FileText, Check, CheckCircle2 } from 'lucide-react'
 import { cn, heuteISO } from '@/lib/utils'
+import { feiern, gespeichert } from '@/lib/belohnung'
 
 const API_BASE = '/api'
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
@@ -74,6 +75,7 @@ function ShotlistTab({ projectId, dayId }: { projectId: string; dayId: string })
   })
 
   const toggleDone = useMutation({
+    meta: { stumm: true },
     mutationFn: (id: number) => req<any>(`/shots/${id}/done`, { method: 'PATCH' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['set-shots', projectId, dayId] }),
   })
@@ -88,21 +90,31 @@ function ShotlistTab({ projectId, dayId }: { projectId: string; dayId: string })
     <div className="space-y-3">
       <div className="flex items-center gap-3 py-2">
         <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
-          <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
+          <div className="h-full bg-success rounded-full transition-[width] duration-700 ease-spring" style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
         </div>
         <span className="text-sm font-semibold text-muted-foreground">{done}/{total}</span>
       </div>
       {shots.map((shot: any) => (
         <button
           key={shot.id}
-          onClick={() => toggleDone.mutate(shot.id)}
+          onClick={(e) => {
+            if (!shot.done) {
+              const kreis = e.currentTarget.querySelector('[data-kreis]') ?? e.currentTarget
+              feiern(kreis)
+              // Letzter offener Shot des Tages: der große Moment
+              if (done + 1 === total) {
+                window.setTimeout(() => { feiern({ x: window.innerWidth / 2, y: window.innerHeight / 3 }, true); gespeichert('Drehtag im Kasten') }, 180)
+              }
+            }
+            toggleDone.mutate(shot.id)
+          }}
           className={cn(
             'w-full text-left rounded-2xl border p-5 flex items-center gap-4 transition-colors',
-            shot.done ? 'border-green-500/30 bg-green-500/5' : 'border-border bg-card hover:border-primary/40'
+            shot.done ? 'border-success/30 bg-success/5' : 'border-border bg-card hover:border-primary/40'
           )}
         >
-          <div className={cn('w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
-            shot.done ? 'border-green-500 bg-green-500' : 'border-border'
+          <div data-kreis className={cn('w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 transition-[background-color,border-color,transform] duration-300 ease-spring',
+            shot.done ? 'border-success bg-success scale-110' : 'border-border'
           )}>
             {shot.done && <Check className="w-4 h-4 text-white" />}
           </div>
@@ -114,7 +126,7 @@ function ShotlistTab({ projectId, dayId }: { projectId: string; dayId: string })
               <div className="text-sm text-muted-foreground truncate">{shot.description}</div>
             )}
           </div>
-          {shot.done && <CheckCircle2 className="w-6 h-6 text-green-500 shrink-0" />}
+          {shot.done && <CheckCircle2 className="w-6 h-6 text-success shrink-0" />}
         </button>
       ))}
     </div>
