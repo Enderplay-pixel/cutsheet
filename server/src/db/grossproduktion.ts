@@ -302,7 +302,7 @@ export async function seedGrossproduktion(
       await tx.run('INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?) ON CONFLICT DO NOTHING', [pid, uid, rolle])
     }
     await tx.run('INSERT INTO project_settings (project_id, default_call_time, default_wrap_time, turnaround_hours, currency, country, header_color) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [pid, 390, 1170, 11, 'EUR', 'Deutschland', '#0071E3'])
+      [pid, 390, 1170, 11, 'EUR', 'Deutschland', '#C43D0B'])
 
     // Motive
     const locIds = await insertMany(tx, 'locations', ['project_id', 'name', 'address', 'city', 'zip', 'country', 'contact_name', 'contact_phone', 'contact_email', 'rental_fee', 'parking_info', 'power_available', 'notes'],

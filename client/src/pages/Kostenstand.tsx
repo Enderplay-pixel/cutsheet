@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
-import { Receipt, Plus, Trash2, TrendingDown, TrendingUp, Wallet, AlertTriangle } from 'lucide-react'
+import { Receipt, Plus, Trash2, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 // Kostenstand: Ist-Kosten (Belege) gegen die aktive Kalkulation - Soll/Ist je Kategorie
@@ -93,9 +93,6 @@ export function Component() {
   return (
     <div className="page-container animate-fade-up">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Wallet className="w-[17px] h-[17px] text-primary" />
-        </div>
         <div>
           <h1 className="font-display text-[28px] sm:text-[34px]">Kostenstand</h1>
           <p className="text-[12px] text-muted-foreground mt-1">
@@ -121,7 +118,7 @@ export function Component() {
                   <p className="font-semibold">
                     {overBudget
                       ? `Budget überzogen: ${usedPct} % der Kalkulation ausgegeben.`
-                      : `${usedPct} % der Kalkulation ausgegeben - Warnschwelle bei ${schwelle} %.`}
+                      : `${usedPct} % der Kalkulation ausgegeben – Warnschwelle bei ${schwelle} %.`}
                   </p>
                   <p className="text-muted-foreground">
                     {formatCurrency(totals.ist_cents)} von {formatCurrency(totals.soll_cents)}. Gezählt werden die

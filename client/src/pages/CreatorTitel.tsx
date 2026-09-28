@@ -23,7 +23,7 @@ export function Component() {
       <BereichKopf
         symbol={Type}
         titel="Titel & Thumbnails"
-        untertitel="Alle Varianten nebeneinander - Titel und Thumbnail entscheiden über die Klickrate"
+        untertitel="Alle Varianten nebeneinander – Titel und Thumbnail entscheiden über die Klickrate"
       />
 
       <Kennzahlen werte={[

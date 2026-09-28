@@ -45,7 +45,7 @@ function ContactRow({ name, role, dept, email, phone, type }: {
         <div className="flex items-center gap-2.5">
           <div className={cn(
             'w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0',
-            type === 'crew' ? 'bg-primary/10 text-primary' : 'bg-amber-500/10 text-amber-500'
+            'bg-foreground/[0.07] text-foreground/70'
           )}>
             {name?.[0]?.toUpperCase() || '?'}
           </div>
@@ -63,7 +63,7 @@ function ContactRow({ name, role, dept, email, phone, type }: {
       <td className="py-2.5 px-4">
         {email ? (
           <div className="flex items-center gap-1.5">
-            <a href={`mailto:${email}`} className="text-sm text-primary hover:underline truncate max-w-[200px]">{email}</a>
+            <a href={`mailto:${email}`} className="text-sm text-foreground/85 hover:text-primary hover:underline underline-offset-2 truncate max-w-[200px]">{email}</a>
             <CopyBtn text={email} />
           </div>
         ) : <span className="text-sm text-muted-foreground/40">—</span>}

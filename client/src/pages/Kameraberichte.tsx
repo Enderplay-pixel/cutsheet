@@ -9,6 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Plus, Trash2, Download, Camera, Check, Pencil, X, Film, CircleDot, VolumeX, Clapperboard } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { api } from '@/lib/api'
+import { useDownload } from '@/lib/useDownload'
 
 const API_BASE = '/api'
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
@@ -191,6 +193,7 @@ function AddTakeForm({ reportId, nextTakeNumber, onAdded }: { reportId: number; 
 }
 
 function CameraReport({ report, onDelete }: { report: any; onDelete: () => void }) {
+  const download = useDownload()
   const queryClient = useQueryClient()
   const c = CAMERA_COLORS[report.camera_letter] ?? CAMERA_COLORS['A']
 
@@ -245,7 +248,7 @@ function CameraReport({ report, onDelete }: { report: any; onDelete: () => void 
           )}
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => alert('PDF-Export: Kommt bald!')}
+              onClick={() => download(api.pdf.kameraberichte(report.shoot_day_id, report.id), 'kamerabericht.pdf')}
               className="h-7 px-2.5 flex items-center gap-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <Download className="w-3.5 h-3.5" />
@@ -324,6 +327,7 @@ export function Component() {
   const queryClient = useQueryClient()
 
   const [selectedDayId, setSelectedDayId] = useState<string>('')
+  const download = useDownload()
   const [newCameraLetter, setNewCameraLetter] = useState('A')
 
   const { data: shootDays, isLoading: daysLoading } = useQuery({
@@ -368,7 +372,7 @@ export function Component() {
           <h1 className="font-display text-[28px] sm:text-[34px]">Kameraberichte</h1>
           <p className="text-sm text-muted-foreground/60 mt-1.5">Takes und Kameraaufzeichnungen pro Drehtag</p>
         </div>
-        <Button variant="outline" size="sm" className="shrink-0 active:scale-[0.97]" onClick={() => alert('PDF-Export: Kommt bald!')}>
+        <Button variant="outline" size="sm" className="shrink-0 active:scale-[0.97]" disabled={!selectedDayId} onClick={() => download(api.pdf.kameraberichte(selectedDayId), 'kamerabericht.pdf')}>
           <Download className="w-4 h-4 mr-1.5" />
           PDF exportieren
         </Button>

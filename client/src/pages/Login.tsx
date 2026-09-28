@@ -45,7 +45,6 @@ export function Component() {
 
       {/* ── Links: ein Auszug aus einer Tagesdispo, wie gedruckt ── */}
       <aside className="hidden lg:flex flex-col justify-between flex-1 bg-canvas relative overflow-hidden select-none px-14 py-12">
-        <div aria-hidden className="ambient-glow absolute inset-0 pointer-events-none" />
         <div className="relative flex items-center gap-2.5">
           <AppIcon className="w-8 h-8" />
           <span className="text-[17px] font-semibold tracking-[-0.02em]">CutSheet</span>
@@ -57,7 +56,7 @@ export function Component() {
             Vom Drehbuch.<br /><span className="text-muted-foreground">Bis zur letzten Klappe.</span>
           </p>
           <p className="text-[17px] text-muted-foreground mt-6 max-w-[42ch] leading-relaxed">
-            {t(loginT.tagline, lang)} - Drehplan, Dispo, Besetzung und Budget in einem Dokument, das alle am Set lesen können.
+            Drehplan, Dispo, Besetzung und Budget in einem Dokument, das alle am Set lesen können.
           </p>
 
           {/* Dispo-Auszug */}
@@ -70,7 +69,7 @@ export function Component() {
               {[
                 ['Crew Call', '06:30'],
                 ['Drehbeginn', '08:15'],
-                ['Sonnenunterg.', '18:52'],
+                ['Sonnenuntergang', '18:52'],
               ].map(([k, v]) => (
                 <div key={k} className="rounded-2xl bg-foreground/[0.04] px-4 py-3">
                   <dt className="text-[12px] text-muted-foreground">{k}</dt>

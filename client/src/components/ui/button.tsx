@@ -8,8 +8,9 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:brightness-110 shadow-[0_1px_2px_hsl(var(--primary)/0.25)]',
-        destructive: 'bg-destructive text-destructive-foreground hover:brightness-110',
+        // Deaktiviert wie bei Apple: grau statt verblasstes Orange
+        default: 'bg-primary text-primary-foreground shadow-[0_1px_2px_hsl(var(--primary)/0.25)] disabled:bg-foreground/[0.08] disabled:text-foreground/40 disabled:opacity-100 disabled:shadow-none',
+        destructive: 'bg-destructive text-destructive-foreground disabled:bg-foreground/[0.08] disabled:text-foreground/40 disabled:opacity-100',
         outline: 'border border-border bg-card text-foreground shadow-sm hover:bg-muted',
         secondary: 'bg-foreground/[0.06] text-foreground hover:bg-foreground/[0.1]',
         ghost: 'text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground',

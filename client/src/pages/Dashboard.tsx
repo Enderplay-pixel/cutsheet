@@ -65,7 +65,7 @@ function ProgressRow({ label, done, total, pct, tone, delay = 0 }: {
       <div className="col-span-2 h-2 rounded-full bg-foreground/[0.07] overflow-hidden">
         <div
           className={cn('h-full rounded-full origin-left transition-transform duration-1000 ease-smooth',
-            tone === 'ink' ? 'bg-primary' : tone === 'info' ? 'bg-orange-500' : 'bg-success')}
+            tone === 'success' && pct >= 100 ? 'bg-success' : 'bg-foreground/80')}
           style={{ transform: `scaleX(${entered ? pct / 100 : 0})` }}
         />
       </div>
@@ -159,21 +159,21 @@ export function Component() {
   const veroeffentlichtPct = kanal?.video_count ? Math.round((kanal.published_count / kanal.video_count) * 100) : 0
   const geplantPct = kanal?.video_count ? Math.round((kanal.planned_count / kanal.video_count) * 100) : 0
   const filmJumps = [
-    { label: 'Drehplan',   icon: Clapperboard, path: 'drehplan',   key: 'D', tint: 'bg-blue-500' },
-    { label: 'Tagesdispo', icon: Calendar,     path: 'tagesdispo', key: 'T', tint: 'bg-red-500' },
-    { label: 'Szenen',     icon: Film,         path: 'drehbuch',   key: 'S', tint: 'bg-orange-500' },
-    { label: 'Besetzung',  icon: Users,        path: 'besetzung',  key: 'B', tint: 'bg-violet-500' },
-    { label: 'Motive',     icon: MapPin,       path: 'motive',     key: 'M', tint: 'bg-green-500' },
-    { label: 'Budget',     icon: DollarSign,   path: 'budget',     key: 'G', tint: 'bg-teal-500' },
+    { label: 'Drehplan',   icon: Clapperboard, path: 'drehplan',   key: 'D' },
+    { label: 'Tagesdispo', icon: Calendar,     path: 'tagesdispo', key: 'T' },
+    { label: 'Szenen',     icon: Film,         path: 'drehbuch',   key: 'S' },
+    { label: 'Besetzung',  icon: Users,        path: 'besetzung',  key: 'B' },
+    { label: 'Motive',     icon: MapPin,       path: 'motive',     key: 'M' },
+    { label: 'Budget',     icon: DollarSign,   path: 'budget',     key: 'G' },
   ]
   // Creator-Projekte haben eigene Bereiche; Drehplan und Szenen gibt es dort nicht
   const creatorJumps = [
-    { label: 'Videos',          icon: Video,        path: 'creator',                key: '', tint: 'bg-red-500' },
-    { label: 'Ideen',           icon: Lightbulb,    path: 'creator/ideen',          key: '', tint: 'bg-yellow-500' },
-    { label: 'Redaktionsplan',  icon: Calendar,     path: 'creator/redaktionsplan', key: '', tint: 'bg-blue-500' },
-    { label: 'Kanal',           icon: Activity,     path: 'creator/kanal',          key: '', tint: 'bg-violet-500' },
-    { label: 'Sponsoren',       icon: Megaphone,    path: 'creator/sponsoren',      key: '', tint: 'bg-green-500' },
-    { label: 'Budget',          icon: DollarSign,   path: 'budget',                 key: 'G', tint: 'bg-teal-500' },
+    { label: 'Videos',          icon: Video,        path: 'creator',                key: '' },
+    { label: 'Ideen',           icon: Lightbulb,    path: 'creator/ideen',          key: '' },
+    { label: 'Redaktionsplan',  icon: Calendar,     path: 'creator/redaktionsplan', key: '' },
+    { label: 'Kanal',           icon: Activity,     path: 'creator/kanal',          key: '' },
+    { label: 'Sponsoren',       icon: Megaphone,    path: 'creator/sponsoren',      key: '' },
+    { label: 'Budget',          icon: DollarSign,   path: 'budget',                 key: 'G' },
   ]
   const jumps = isCreator ? creatorJumps : filmJumps
 
@@ -347,7 +347,7 @@ export function Component() {
               <div>
                 <div className="flex items-center justify-between">
                   <div className="eyebrow">{tt(dashT.financing)}</div>
-                  <span className={cn('text-[12px] font-semibold tabular-nums', financingOk ? 'text-success' : 'text-danger')}>
+                  <span className={cn('text-[12px] font-semibold tabular-nums', financingOk ? 'text-success' : 'text-warning')}>
                     {financingPct}%
                   </span>
                 </div>
@@ -356,7 +356,7 @@ export function Component() {
                 </div>
                 <div className="h-2 bg-foreground/[0.07] rounded-full overflow-hidden mt-3">
                   <div
-                    className={cn('h-full rounded-full origin-left transition-transform duration-1000 ease-smooth', financingOk ? 'bg-success' : 'bg-danger')}
+                    className={cn('h-full rounded-full origin-left transition-transform duration-1000 ease-smooth', financingOk ? 'bg-success' : 'bg-foreground/80')}
                     style={{ transform: `scaleX(${entered ? financingPct / 100 : 0})` }}
                   />
                 </div>
@@ -422,7 +422,7 @@ export function Component() {
                     aria-label={`Zu ${item.label} navigieren`}
                     className="group w-full flex items-center gap-3 pl-3.5 pr-4 h-11 text-[14px] text-foreground hover:bg-foreground/[0.03] transition-colors duration-150"
                   >
-                    <span className={cn('w-7 h-7 rounded-[7px] flex items-center justify-center text-white shrink-0', item.tint)}>
+                    <span className="w-7 h-7 rounded-[7px] flex items-center justify-center shrink-0 bg-foreground/[0.06] text-foreground/75">
                       <item.icon className="w-4 h-4" />
                     </span>
                     <span className="flex-1 text-left">{item.label}</span>

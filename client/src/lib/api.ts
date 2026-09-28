@@ -286,6 +286,7 @@ export const api = {
     drehplan:       (projectId: number) => `/api/projects/${projectId}/pdf/drehplan`,
     tagesdispo:     (dayId: number)     => `/api/shoot-days/${dayId}/pdf/tagesdispo`,
     tagesbericht:   (dayId: number)     => `/api/shoot-days/${dayId}/pdf/tagesbericht`,
+    kameraberichte: (dayId: number | string, reportId?: number) => `/api/shoot-days/${dayId}/pdf/kameraberichte${reportId ? `?report=${reportId}` : ''}`,
     stabliste:      (projectId: number) => `/api/projects/${projectId}/pdf/stabliste`,
     besetzung:      (projectId: number) => `/api/projects/${projectId}/pdf/besetzungsliste`,
     motivliste:     (projectId: number) => `/api/projects/${projectId}/pdf/motivliste`,

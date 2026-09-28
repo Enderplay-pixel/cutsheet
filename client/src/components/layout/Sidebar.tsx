@@ -510,7 +510,7 @@ function NavItem({ item, to, end, collapsed }: {
           <item.icon className={cn(
             'shrink-0 transition-[color,transform] duration-150',
             collapsed ? 'w-[15px] h-[15px]' : 'w-[14px] h-[14px]',
-            'text-primary'
+            isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground/80'
           )} />
           {!collapsed && (
             <>
@@ -542,7 +542,7 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
   }
   return (
     <div className="px-3 py-2.5 flex items-center gap-2.5">
-      <div className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-b from-zinc-400 to-zinc-500 text-white flex items-center justify-center text-[11px] font-semibold" aria-hidden>
+      <div className="shrink-0 w-7 h-7 rounded-full bg-foreground/[0.1] text-foreground/80 flex items-center justify-center text-[11px] font-semibold" aria-hidden>
         {initials(user.name || user.email)}
       </div>
       {!collapsed && (

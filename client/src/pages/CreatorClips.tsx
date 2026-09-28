@@ -29,7 +29,7 @@ export function Component() {
       <BereichKopf
         symbol={Scissors}
         titel="Auskopplungen"
-        untertitel="Shorts, Reels und Clips aus den Langvideos - über den ganzen Kanal"
+        untertitel="Shorts, Reels und Clips aus den Langvideos – über den ganzen Kanal"
       />
 
       <Kennzahlen werte={[
@@ -45,7 +45,7 @@ export function Component() {
         <NichtsDa
           symbol={Scissors}
           titel="Noch keine Auskopplungen"
-          text="Clips werden beim jeweiligen Langvideo markiert. Hier stehen sie zusammen - mit Prüfung auf Länge und sinnvolle Grenzen."
+          text="Clips werden beim jeweiligen Langvideo markiert. Hier stehen sie zusammen – mit Prüfung auf Länge und sinnvolle Grenzen."
         />
       ) : (
         <BereichTabelle

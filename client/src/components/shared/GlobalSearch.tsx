@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Film, Users, Briefcase, MapPin, Clapperboard } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -21,7 +21,10 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
-  const { projectId } = useParams()
+  // Die Suche hängt im äußeren Layout; useParams sieht dort die Projekt-ID
+  // der Kindroute nicht. Deshalb direkt aus dem Pfad lesen.
+  const { pathname } = useLocation()
+  const projectId = pathname.match(/^\/projects\/(\d+)/)?.[1]
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -50,10 +53,10 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
   }
 
   return (
-    <CommandDialog open={open} onOpenChange={v => !v && onClose()}>
-      <CommandInput placeholder="Szenen, Darsteller, Locations suchen..." value={query} onValueChange={setQuery} />
+    <CommandDialog open={open} onOpenChange={v => !v && onClose()} shouldFilter={false}>
+      <CommandInput placeholder="Szenen, Darsteller, Motive suchen" value={query} onValueChange={setQuery} />
       <CommandList>
-        {loading && <div className="py-6 text-center text-sm text-muted-foreground">Suche läuft...</div>}
+        {loading && <div className="py-6 text-center text-sm text-muted-foreground">Suche läuft …</div>}
         {!loading && query && results.length === 0 && <CommandEmpty>Keine Ergebnisse für „{query}"</CommandEmpty>}
         {results.length > 0 && (
           <CommandGroup heading="Ergebnisse">

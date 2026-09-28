@@ -274,7 +274,7 @@ export function Component() {
       <PageHeader title="Kalkulation & Finanzierung" subtitle="Budget und Finanzierungsplan" />
 
       {vorschau && (
-        <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4">
+        <div className="mb-6 rounded-xl border border-border bg-foreground/[0.025] p-4">
           <p className="font-semibold text-sm">Das würde sich ändern</p>
           <p className="text-[13px] text-muted-foreground mt-1">
             {vorschau.neu} neue {vorschau.neu === 1 ? 'Position' : 'Positionen'},{' '}
@@ -361,7 +361,7 @@ export function Component() {
                 </div>
               ))}
               {totalBudget > 0 && (
-                <div className="flex items-center justify-between text-sm p-2 rounded bg-primary/20 font-bold mt-2">
+                <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-foreground/[0.06] font-semibold mt-2">
                   <span>Gesamt</span>
                   <span className="font-mono">{formatCurrency(totalBudget)}</span>
                 </div>

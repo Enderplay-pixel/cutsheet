@@ -131,7 +131,7 @@ export function Component() {
         <Textarea
           value={draft.note}
           onChange={e => setDraft(p => ({ ...p, note: e.target.value }))}
-          placeholder="Notiz - Winkel, Hook, Quelle (optional)"
+          placeholder="Notiz – Winkel, Hook, Quelle (optional)"
           rows={2}
           className="mt-3 text-sm"
         />

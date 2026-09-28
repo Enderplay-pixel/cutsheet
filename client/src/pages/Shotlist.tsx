@@ -171,7 +171,7 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
       <AutoTextarea
         value={form.notes || ''}
         onChange={v => update('notes', v)}
-        placeholder="Notiz (VFX, Requisite, Sicherheit) - erscheint im PDF"
+        placeholder="Notiz (VFX, Requisite, Sicherheit) – erscheint im PDF"
         className="text-xs text-muted-foreground"
       />
     </div>
@@ -303,12 +303,13 @@ export function Component() {
             const doneCount = sceneShots.filter((sh: any) => sh.done).length
 
             return (
-              <AccordionItem key={scene.id} value={String(scene.id)} className="border rounded-lg overflow-hidden">
-                <AccordionTrigger className={`px-4 py-3 hover:no-underline ${
-                  scene.int_ext === 'INT' && scene.day_night === 'TAG' ? 'bg-amber-500/5 hover:bg-amber-500/10' :
-                  scene.int_ext === 'EXT' && scene.day_night === 'TAG' ? 'bg-blue-500/5 hover:bg-blue-500/10' :
-                  scene.int_ext === 'INT' && scene.day_night === 'NACHT' ? 'bg-indigo-900/10 hover:bg-indigo-900/15' :
-                  'bg-teal-900/10 hover:bg-teal-900/15'
+              <AccordionItem key={scene.id} value={String(scene.id)} className="border border-border/60 rounded-xl overflow-hidden">
+                {/* Branchenkennung INT/EXT × Tag/Nacht nur als schmaler Streifen */}
+                <AccordionTrigger className={`px-4 py-3 hover:no-underline bg-card hover:bg-foreground/[0.02] border-l-[3px] ${
+                  scene.int_ext === 'INT' && scene.day_night === 'TAG' ? 'border-l-yellow-400' :
+                  scene.int_ext === 'EXT' && scene.day_night === 'TAG' ? 'border-l-sky-400' :
+                  scene.int_ext === 'INT' && scene.day_night === 'NACHT' ? 'border-l-orange-500' :
+                  'border-l-indigo-500'
                 }`}>
                   <div className="flex min-w-0 flex-wrap items-center gap-3 w-full mr-2">
                     <span className="font-mono text-sm font-bold w-8">{scene.scene_number}</span>

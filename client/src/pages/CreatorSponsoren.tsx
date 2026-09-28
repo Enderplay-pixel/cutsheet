@@ -63,7 +63,7 @@ export function Component() {
         <NichtsDa
           symbol={Megaphone}
           titel="Keine Integrationen erfasst"
-          text="Sobald bei einem Video eine Marke eingetragen ist, erscheint sie hier - mit Honorar, Leistungen, Frist und der Prüfung, ob gekennzeichnet wurde."
+          text="Sobald bei einem Video eine Marke eingetragen ist, erscheint sie hier – mit Honorar, Leistungen, Frist und der Prüfung, ob gekennzeichnet wurde."
         />
       ) : (
         <BereichTabelle

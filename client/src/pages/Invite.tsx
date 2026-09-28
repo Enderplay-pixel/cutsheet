@@ -122,7 +122,7 @@ export function Component() {
         {accepted && invite && (
           <div className="bg-card border border-green-500/40 rounded-xl p-8 text-center space-y-3">
             <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
-            <p className="text-lg font-semibold">Willkommen im Projekt!</p>
+            <p className="text-lg font-semibold">Willkommen im Projekt</p>
             <p className="text-sm text-muted-foreground">
               Du bist jetzt <span className={cn('font-semibold', role?.color)}>{role?.label}</span> in
               <span className="font-semibold text-foreground"> „{invite.project_title}"</span>

@@ -28,7 +28,7 @@ export function FeedbackWidget({ collapsed }: { collapsed: boolean }) {
       track('feedback_submitted', { category })
       setOpen(false)
       setMessage('')
-      toast({ title: 'Danke für dein Feedback!', description: 'Wir lesen jede Nachricht.' })
+      toast({ title: 'Danke für dein Feedback', description: 'Wir lesen jede Nachricht.' })
     },
     onError: (e: any) => toast({ variant: 'destructive', title: 'Fehler', description: e.message }),
   })

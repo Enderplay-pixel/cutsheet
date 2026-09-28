@@ -245,7 +245,7 @@ export function analyseCadence(dates: Array<string | null | undefined>): Cadence
   const longest = round1(Math.max(...gaps))
   const shortest = round1(Math.min(...gaps))
 
-  const notes: string[] = [`Im Schnitt alle ${average} Tage, laengste Pause ${longest} Tage.`]
+  const notes: string[] = [`Im Schnitt alle ${average} Tage, längste Pause ${longest} Tage.`]
   // Bewusst laengste gegen kuerzeste Pause statt gegen den Schnitt: ein einzelner
   // Ausreisser zieht den Schnitt selbst mit hoch und wuerde sich so verstecken.
   if (longest >= shortest * 3 && longest - shortest > 7) {

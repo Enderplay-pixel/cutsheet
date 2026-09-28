@@ -65,7 +65,6 @@ export function Component() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-1">
-          <Clock className="w-5 h-5 text-muted-foreground" />
           <h1 className="font-display text-[28px] sm:text-[34px]">Zeitanalyse</h1>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -85,8 +84,6 @@ export function Component() {
         </div>
         <div className={cn(
           'border rounded-xl p-4',
-          totalDiff > 0 ? 'bg-red-500/5 border-red-500/20' :
-          totalDiff < 0 ? 'bg-green-500/5 border-green-500/20' :
           'bg-card border-border/60'
         )}>
           <div className="text-xs text-muted-foreground mb-1">Differenz</div>
@@ -146,11 +143,11 @@ export function Component() {
                       <span className="text-[10px] text-muted-foreground/50 w-10 shrink-0">Plan</span>
                       <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-primary/40 rounded-full transition-all duration-500"
+                          className="h-full bg-foreground/20 rounded-full transition-all duration-500"
                           style={{ width: `${(row.estimated_minutes / maxVal) * 100}%` }}
                         />
                       </div>
-                      <span className="text-[10px] text-muted-foreground/60 w-14 text-right tabular-nums">
+                      <span className="text-[11px] text-muted-foreground w-24 text-right tabular-nums whitespace-nowrap">
                         {formatMinutes(row.estimated_minutes)}
                       </span>
                     </div>
@@ -163,15 +160,15 @@ export function Component() {
                             className={cn(
                               'h-full rounded-full transition-all duration-500',
                               row.difference_minutes > 5
-                                ? 'bg-red-500/70'
+                                ? 'bg-danger'
                                 : row.difference_minutes < -5
-                                  ? 'bg-green-500/70'
-                                  : 'bg-primary/70'
+                                  ? 'bg-success'
+                                  : 'bg-foreground/70'
                             )}
                             style={{ width: `${Math.min((row.actual_minutes / maxVal) * 100, 100)}%` }}
                           />
                         </div>
-                        <span className="text-[10px] text-muted-foreground/60 w-14 text-right tabular-nums">
+                        <span className="text-[11px] text-muted-foreground w-24 text-right tabular-nums whitespace-nowrap">
                           {formatMinutes(row.actual_minutes)}
                         </span>
                       </div>
@@ -184,15 +181,15 @@ export function Component() {
             {/* Legend */}
             <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border/40">
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-2 bg-primary/40 rounded-full" />
+                <div className="w-3 h-2 bg-foreground/20 rounded-full" />
                 <span className="text-[11px] text-muted-foreground">Geplant</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-2 bg-primary/70 rounded-full" />
+                <div className="w-3 h-2 bg-foreground/70 rounded-full" />
                 <span className="text-[11px] text-muted-foreground">Ist (im Plan)</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-2 bg-red-500/70 rounded-full" />
+                <div className="w-3 h-2 bg-danger rounded-full" />
                 <span className="text-[11px] text-muted-foreground">Ist (überzogen)</span>
               </div>
               <div className="flex items-center gap-1.5">

@@ -101,7 +101,6 @@ function AppShell() {
         <div className="flex h-dvh overflow-hidden bg-background">
           <Sidebar />
           <div className="flex flex-col flex-1 min-w-0 overflow-hidden relative">
-            <div className="ambient-glow absolute inset-x-0 top-0 h-[420px] pointer-events-none" aria-hidden />
             <TopBar onSearchOpen={() => setSearchVisible(true)} />
             {/* Read-only banner */}
             {projectId && myRole === 'read_only' && (

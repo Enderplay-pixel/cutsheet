@@ -146,8 +146,8 @@ function OverviewTab({ stats }: { stats: Stats }) {
         <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
           {stats.topUsers.map((u, i) => (
             <div key={u.id} className={cn('flex items-center gap-3 px-4 py-3', i < stats.topUsers.length - 1 && 'border-b border-border/40')}>
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <span className="text-xs font-bold text-primary">{(u.name || u.email)[0].toUpperCase()}</span>
+              <div className="w-8 h-8 rounded-full bg-foreground/[0.06] flex items-center justify-center shrink-0">
+                <span className="text-xs font-bold text-foreground/70">{(u.name || u.email)[0].toUpperCase()}</span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">{u.name || '–'}</p>
@@ -819,8 +819,8 @@ export function Component() {
       {/* Top bar */}
       <div className="border-b border-border/60 bg-card px-6 py-4 flex items-center gap-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Shield className="w-4 h-4 text-primary" />
+          <div className="w-8 h-8 rounded-lg bg-foreground/[0.06] flex items-center justify-center">
+            <Shield className="w-4 h-4 text-foreground/70" />
           </div>
           <div>
             <h1 className="text-sm font-semibold text-foreground leading-none">Admin Panel</h1>

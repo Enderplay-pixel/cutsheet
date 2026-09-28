@@ -132,7 +132,7 @@ router.put('/:id/settings', requireAuth, async (req, res) => {
     currency = 'EUR',
     country = 'Deutschland',
     logo_url = null,
-    header_color = '#0071E3',
+    header_color = '#C43D0B',
   } = req.body
 
   const existing = await db.get('SELECT id FROM project_settings WHERE project_id = ?', [req.params.id])

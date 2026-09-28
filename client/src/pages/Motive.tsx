@@ -257,8 +257,8 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
     )}>
       {/* Header */}
       <div className="flex items-center gap-3 p-4 cursor-pointer hover:bg-muted/20 transition-colors" onClick={() => setExpanded(!expanded)}>
-        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-          <MapPin className="w-4 h-4 text-primary" />
+        <div className="w-9 h-9 rounded-lg bg-foreground/[0.06] flex items-center justify-center shrink-0">
+          <MapPin className="w-4 h-4 text-muted-foreground" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold truncate">{form.name || '(Kein Name)'}</div>

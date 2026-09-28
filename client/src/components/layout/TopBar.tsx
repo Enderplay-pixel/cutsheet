@@ -82,18 +82,16 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
           onClick={() => navigate(`/projects/${projectId}/tagesdispo`)}
           title={`Drehtag ${stats.next_shoot_day.day_number} öffnen`}
           className={cn(
-            'hidden md:flex items-center gap-2 h-8 pl-3 pr-3.5 rounded-full text-xs font-medium tabular-nums',
-            'transition-[background-color,color] duration-150 active:scale-[0.97]',
-            daysUntilShoot === 0
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-signal-soft text-signal hover:brightness-95'
+            'hidden md:flex items-center gap-2 h-8 pl-3 pr-3.5 rounded-full text-[13px] font-medium tabular-nums',
+            'bg-foreground/[0.06] text-foreground hover:bg-foreground/[0.09]',
+            'transition-[background-color,color] duration-150 active:scale-[0.97]'
           )}
         >
-          <span className={cn('pulse-dot w-1.5 h-1.5 rounded-full shrink-0', daysUntilShoot === 0 ? 'bg-primary-foreground' : 'bg-signal')} aria-hidden />
+          <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', daysUntilShoot === 0 ? 'pulse-dot bg-primary' : 'bg-muted-foreground/60')} aria-hidden />
           {daysUntilShoot === 0
-            ? `Drehtag ${stats.next_shoot_day.day_number} - HEUTE`
+            ? `Drehtag ${stats.next_shoot_day.day_number} · heute`
             : daysUntilShoot === 1
-              ? `Drehtag ${stats.next_shoot_day.day_number} - morgen`
+              ? `Drehtag ${stats.next_shoot_day.day_number} · morgen`
               : `Drehtag ${stats.next_shoot_day.day_number} in ${daysUntilShoot} Tagen`}
         </button>
       )}

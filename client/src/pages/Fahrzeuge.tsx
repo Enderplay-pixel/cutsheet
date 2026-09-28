@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, Trash2, Pencil, Check, X, Car } from 'lucide-react'
+import { Plus, Trash2, Pencil, Check, X } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { useT } from '@/lib/useT'
 import { vehicleT, uiT } from '@/lib/i18n'
@@ -80,7 +80,7 @@ function VehicleFormRow({ initial, pid, onDone }: { initial?: Vehicle; pid: numb
   const c = 'py-1.5 px-3'
   const i = 'h-7 text-sm'
   return (
-    <tr className="border-b border-primary/20 bg-primary/5">
+    <tr className="border-b border-border bg-foreground/[0.025]">
       <td className={c}><Input className={i} placeholder="Fahrzeugname" value={form.name} onChange={e => set('name', e.target.value)} /></td>
       <td className={c}><Input className={i} placeholder="B-AB 1234" value={form.license_plate} onChange={e => set('license_plate', e.target.value)} /></td>
       <td className={c}><Input className={i} placeholder="Van, PKW, LKW…" value={form.type} onChange={e => set('type', e.target.value)} /></td>
@@ -118,7 +118,6 @@ export function Component() {
     <div className="px-5 py-6 sm:p-7 max-w-5xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
-          <Car className="w-5 h-5 text-muted-foreground" />
           <div>
             <h1 className="font-display text-[28px] sm:text-[34px]">{tt(vehicleT.title)}</h1>
             <p className="text-sm text-muted-foreground">{tt(vehicleT.subtitle).replace('{n}', String(vehicles?.length || 0))}</p>

@@ -84,9 +84,9 @@ function ActivityItem({ item }: { item: any }) {
     .slice(0, 2)
 
   return (
-    <div className="rounded-xl border border-border/40 bg-card p-4 hover:border-border/70 transition-colors flex items-start gap-3.5">
+    <div className="px-4 py-3.5 flex items-start gap-3.5">
       {/* Avatar */}
-      <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary shrink-0 mt-0.5">
+      <div className="w-8 h-8 rounded-full bg-foreground/[0.07] flex items-center justify-center text-xs font-semibold text-foreground/70 shrink-0 mt-0.5">
         {initials}
       </div>
 
@@ -98,13 +98,10 @@ function ActivityItem({ item }: { item: any }) {
           <span className="text-sm text-muted-foreground leading-snug">
             {item.description || item.action || item.entity_type}
           </span>
-          <Badge
-            variant="outline"
-            className={`text-[10px] h-4 px-1.5 border font-semibold ${config.color}`}
-          >
-            <Icon className="w-2.5 h-2.5 mr-1" />
+          <span className="inline-flex items-center gap-1 text-[12px] text-muted-foreground">
+            <Icon className="w-3 h-3" />
             {config.label}
-          </Badge>
+          </span>
         </div>
         <div className="text-[11px] text-muted-foreground/60 mt-1">
           {formatRelativeTime(item.created_at)}
@@ -199,15 +196,10 @@ export function Component() {
           {groups.map(group => (
             <div key={group.dateKey}>
               {/* Date group header */}
-              <div className="flex items-center gap-3 mb-3">
-                <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">
-                  {group.label}
-                </span>
-                <div className="flex-1 h-px bg-border/40" />
-              </div>
+              <h2 className="eyebrow px-4 mb-2">{group.label}</h2>
 
               {/* Activity items */}
-              <div className="space-y-2">
+              <div className="rounded-2xl border border-border/60 bg-card overflow-hidden divide-y divide-border/60">
                 {group.items.map((item: any, i: number) => (
                   <ActivityItem key={item.id ?? i} item={item} />
                 ))}

@@ -247,9 +247,9 @@ export function Component() {
                         <td key={wi} className="p-1 text-center">
                           <div className={`h-7 rounded-lg mx-0.5 transition-colors ${
                             isConflicted
-                              ? 'bg-destructive/60 border border-destructive/70'
+                              ? 'bg-danger/85'
                               : isBooked
-                              ? 'bg-blue-500/40 border border-blue-500/50'
+                              ? 'bg-foreground/[0.14]'
                               : 'bg-transparent'
                           }`} />
                         </td>
@@ -282,7 +282,7 @@ export function Component() {
           <div className="flex items-center gap-5 px-5 py-3 border-t border-border/30 bg-muted/20">
             <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">Legende</p>
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-3 rounded bg-blue-500/40 border border-blue-500/50" />
+              <div className="w-4 h-3 rounded bg-foreground/[0.14]" />
               <span className="text-[11px] text-muted-foreground">Gebucht</span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -313,7 +313,7 @@ export function Component() {
                   className={`flex items-center gap-4 px-5 py-3.5 hover:bg-muted/20 transition-colors ${isConflicted ? 'bg-destructive/5' : ''}`}
                 >
                   <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center shrink-0">
-                    <Package className="w-4 h-4 text-blue-500/70" />
+                    <Package className="w-4 h-4 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium flex items-center gap-2">

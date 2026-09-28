@@ -40,7 +40,7 @@ export function Component() {
         <NichtsDa
           symbol={Search}
           titel="Noch keine Videos"
-          text="Diese Seite prüft für jedes Video Zielbegriff, Schlagworte, Beschreibung und Titellänge - und sagt, was konkret fehlt."
+          text="Diese Seite prüft für jedes Video Zielbegriff, Schlagworte, Beschreibung und Titellänge – und sagt, was konkret fehlt."
         />
       ) : (
         <BereichTabelle

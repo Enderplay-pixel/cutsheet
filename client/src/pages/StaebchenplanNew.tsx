@@ -348,7 +348,6 @@ export function Component() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <LayoutGrid className="w-5 h-5 text-primary" />
               <h1 className="font-display text-[28px] sm:text-[34px]">Stäbchenplan</h1>
             </div>
             <p className="text-sm text-muted-foreground">

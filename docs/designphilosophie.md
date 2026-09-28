@@ -172,7 +172,7 @@ Unter den 16 gemessenen Systemen nutzt keines Orange als Hauptakzent. Die Farbe 
 | `foreground` | #F4F1EC | 37 26.7% 94.1% | 15,4:1 |
 | `muted-foreground` | #A69D94 | 30 9.2% 61.6% | 6,5:1 |
 | `border` | #34302C | 30 8.3% 18.8% | dekorativ |
-| **`primary` Tungsten 400** | **#FF8A4C** | 21 100% 64.9% | 7,4:1 (Tinte darauf 8,0:1) |
+| **`primary` Tungsten 400** | **#F2802E** | 24 88.3% 56.5% | 6,5:1 (Tinte darauf 7,0:1) |
 | `info` | #6CB4F5 | 208 87.3% 69.2% | 7,8:1 |
 | `success` | #5BCB7C | 138 51.9% 57.6% | 8,5:1 |
 | `warning` | #F2C14E | 42 86.3% 62.7% | 10,3:1 |
@@ -296,27 +296,27 @@ Am Touchscreen ist jedes reine Symbol mindestens 36 × 36 groß (siehe `index.cs
 
 ### 7.1 Zeit und Kurven
 
+Vorbild sind Apples eigene Werkzeuge: kurz, stark bremsend, **ohne Überschwingen**. Federn mit Nachwippen wirken verspielt und sind ein Erkennungszeichen generierter Oberflächen.
+
 | Token | Dauer | Kurve | Wofür |
 |---|---|---|---|
-| Druck | 90 ms | linear aus | Knopf gibt nach (scale 0,95) |
-| Mikro | 150–200 ms | `cubic-bezier(0.22,1,0.36,1)` | Hover, Farbe, Menüs |
-| Standard | 240–320 ms | `(0.22,1,0.36,1)` | Reiter, Zeilen, Seiten-Kaskade |
-| Feder | 360–520 ms | `(0.34,1.56,0.64,1)` | Häkchen, Schalter, Quittung, Toasts |
-| Sheet | 420 ms | `(0.34,1.3,0.64,1)` | Dialoge |
-| Welle | 620 ms | `(0.22,1,0.36,1)` | Berührungswelle |
-| Feier | 1400–1900 ms | `(0.22,1,0.36,1)` | nur echte Meilensteine |
+| Druck | 80 ms | linear aus | Knopf gibt nach (scale 0,97) |
+| Mikro | 150–180 ms | `cubic-bezier(0.32,0.72,0,1)` | Hover, Farbe, Menüs |
+| Standard | 240–360 ms | `(0.32,0.72,0,1)` | Seiten, Kaskade (6 px Weg), Schalter |
+| Sheet | 320 ms | `(0.32,0.72,0,1)` | Dialoge, Quittung |
+| Fortschritt | 700 ms | `(0.32,0.72,0,1)` | Balken gleiten an ihr Ziel |
+| Meilenstein | 1200–1600 ms | `(0.32,0.72,0,1)` | nur der letzte Shot eines Drehtags |
 
-Der Median der Top-Systeme liegt bei 200 ms. Unsere Alltagsdauern liegen im Band P25–P75 (115–300 ms). Länger dauern nur Rückmeldungen auf eine eigene Handlung, und die blockieren nie die nächste Eingabe.
+Der Median der Top-Systeme liegt bei 200 ms. Unsere Alltagsdauern liegen im Band P25–P75 (115–300 ms). Keine Animation blockiert die nächste Eingabe.
 
 ### 7.2 Die Rückmeldungs-Treppe
 
-Eine Rückmeldung ist so groß wie das, was geschafft wurde.
+Eine Rückmeldung ist so groß wie das, was geschafft wurde, und nie größer.
 
-1. **Berührung:** Welle vom Finger aus, Knopf gibt nach, am Telefon ein Haptik-Tick (8 ms).
-2. **Zeiger:** Karten heben sich, ein warmer Lichtkegel folgt der Maus, Pfeile nicken nach vorn, Navigationssymbole wippen.
-3. **Gespeichert:** Eine dunkle Pille gleitet unten ein und zeichnet ihr Häkchen. Das passiert nach *jedem* erfolgreichen Schreibvorgang, automatisch über den `MutationCache`.
-4. **Erledigt:** Ein Häkchen oder ein Shot als gedreht löst 14 Funken und einen Ring aus.
-5. **Meilenstein:** Beim letzten Shot des Drehtags kommen 42 Funken und Streifen sowie die Pille „Drehtag im Kasten“.
+1. **Berührung:** Der Knopf gibt nach (scale 0,97). Primärknöpfe werden beim Überfahren minimal dunkler. Es gibt keine Welle, kein Leuchten und kein Anheben.
+2. **Häkchen:** Der Kasten atmet einmal (260 ms). Am Telefon kommt ein Haptik-Tick (10 ms) dazu.
+3. **Gespeichert:** Ein HUD aus Material (Unschärfe, halbtransparent) gleitet unten ein und zeichnet sein Häkchen. Das passiert nach *jedem* erfolgreichen Schreibvorgang, automatisch über den `MutationCache`.
+4. **Meilenstein:** Beim letzten Shot des Drehtags gibt es einen kurzen Funkenregen in Tungsten und „Drehtag im Kasten“.
 
 Umsetzung: `client/src/lib/belohnung.ts`. Es gibt eine eigene feste Ebene, React-Knoten werden nicht angefasst.
 
@@ -325,7 +325,7 @@ Umsetzung: `client/src/lib/belohnung.ts`. Es gibt eine eigene feste Ebene, React
 - `feiern(element | {x,y}, stark?)`
 - `gespeichert(text?)`
 - `tippen(ms?)`
-- `data-feiern` oder `data-feiern="gross"` an jedem Element
+- `data-feiern="gross"` an einem Element
 - `meta: { stumm: true }` unterdrückt die Quittung für eine Mutation
 
 ### 7.3 Was wir bewusst nicht tun
@@ -341,7 +341,7 @@ Die App soll sich gut anfühlen, weil Arbeit sichtbar vorangeht, nicht weil sie 
 
 Bei `prefers-reduced-motion: reduce` gilt:
 
-- Welle, Funken, Lichtkegel, Federn und Kaskaden entfallen.
+- Funken, Kaskaden und jede Bewegung mit Weg entfallen.
 - Übergänge werden zu kurzem Überblenden (≤ 150 ms).
 - Die Quittung erscheint ohne Bewegung.
 - Die Haptik schweigt.
@@ -361,6 +361,27 @@ Bei `prefers-reduced-motion: reduce` gilt:
 | Warme Grautöne aus den Tokens | `gray-500`, `slate-*`, `zinc-*` direkt |
 | Feiern nur bei echtem Fortschritt | Konfetti beim Öffnen einer Seite |
 | Dauer 150–300 ms | Übergänge über 500 ms, die Eingaben blockieren |
+
+---
+
+## 9. Handwerk statt Generator
+
+Generierte Oberflächen erkennt man an wiederkehrenden Mustern. CutSheet vermeidet sie bewusst. Die Liste ist als Prüfliste für jede neue Seite gedacht.
+
+| Merkmal generierter Apps | So macht es CutSheet |
+|---|---|
+| Bunte Symbolkacheln, Farbverläufe, Leuchteffekte | Symbole neutral in `foreground/70` auf `foreground/6 %`, keine Verläufe, kein Glühen |
+| Jede Zeile eine eigene Karte mit Rand | Gruppierte Listen wie in den iOS-Einstellungen: eine Fläche, Trennlinien |
+| Kleine Versal-Etiketten mit Sperrung | Satzschreibung, 12–13 px, halbfett. Daten in Versalien (INT, EXT) bleiben |
+| Getönte Pillen mit Rand und Text in derselben Farbe | Status als Wort. Farbe nur, wo sie etwas bedeutet |
+| Monospace-Schrift für Zahlen und Zeiten | Systemschrift mit Tabellenziffern. Courier nur im Drehbuch |
+| Symbol vor jedem Seitentitel | Große Titel ohne Symbol |
+| Knöpfe, die „Kommt bald!“ melden | Jeder Knopf tut, was er sagt, oder er fehlt |
+| Ausrufezeichen, „leicht gemacht“, „Oops“ | Sachliche Sätze, Gedankenstrich statt Bindestrich |
+| Material-Wellen, Lichtkegel unter der Maus, Dauerglanz | Druck, Häkchen, HUD. Bewegung ohne Überschwingen |
+| Schwere Unschärfe hinter Dialogen | Leichtes Abdunkeln (Schwarz 30 %), keine Unschärfe |
+
+**Farbfamilien:** Alle Tailwind-Farben (rot bis pink, dazu ein warmes Grau) werden in `tailwind.config.ts` aus OKLCH neu erzeugt. Jede Familie hat die gleichen Helligkeitsstufen und eine gedämpfte Sättigung. Die Stufe 600 erreicht auf Weiß mindestens 4,6:1, die Stufe 400 auf der dunklen Karte mindestens 7:1.
 
 ---
 

@@ -35,8 +35,6 @@ Object.assign(STATUS_META, {
 })
 const DEFAULT_META = { text: 'text-muted-foreground', dot: 'bg-muted-foreground/60' }
 // Farbige App-Kacheln je Projekt, damit man Projekte auf einen Blick unterscheidet
-const TINTS = ['bg-blue-500', 'bg-orange-500', 'bg-violet-500', 'bg-green-500', 'bg-pink-500', 'bg-teal-500']
-
 const FORMATS = ALL_FORMATS
 
 /**
@@ -227,7 +225,7 @@ export function Component() {
         ) : (
           <>
             <ul className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden divide-y divide-border/70 stagger-sm">
-              {(projects || []).map((project: any, idx: number) => {
+              {(projects || []).map((project: any) => {
                 const meta = STATUS_META[project.status] || DEFAULT_META
                 const Icon = projectIcon(project)
                 return (
@@ -237,7 +235,7 @@ export function Component() {
                       onClick={() => navigate(`/projects/${project.id}`)}
                       className="w-full text-left grid grid-cols-[44px_minmax(0,1fr)] sm:grid-cols-[44px_minmax(0,1fr)_150px_120px_20px] items-center gap-x-4 gap-y-2 px-4 sm:px-5 py-4 pr-28 sm:pr-5 transition-colors duration-150 hover:bg-foreground/[0.025]"
                     >
-                      <span className={cn('w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-sm', TINTS[idx % TINTS.length])}>
+                      <span className="w-11 h-11 rounded-xl flex items-center justify-center bg-foreground/[0.06] text-foreground/75">
                         <Icon className="w-5 h-5" />
                       </span>
                       <span className="min-w-0">
@@ -261,7 +259,7 @@ export function Component() {
                       {project.is_demo && (
                         <span
                           className="text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 bg-info/15 text-info border border-info/25"
-                          title="Demo-Projekt zum Ausprobieren - kann jederzeit gelöscht werden"
+                          title="Demo-Projekt zum Ausprobieren – kann jederzeit gelöscht werden"
                         >
                           Demo
                         </span>

@@ -395,7 +395,7 @@ export function Component() {
         {/* ── Skript ── */}
         <TabsContent value="script" className="mt-5">
           <div className="mb-5">
-            <Label className="text-xs text-muted-foreground">Hook - die ersten Sekunden entscheiden</Label>
+            <Label className="text-xs text-muted-foreground">Hook – die ersten Sekunden entscheiden</Label>
             <Textarea
               defaultValue={video.hook} rows={2}
               onChange={e => saveHook(e.target.value)}

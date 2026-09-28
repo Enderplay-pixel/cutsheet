@@ -97,7 +97,7 @@ const ANNOTATION_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'
 // ─── Block styling ────────────────────────────────────────────────────────────
 
 function getBlockStyle(type: BlockType): string {
-  const base = 'w-full bg-transparent border-none outline-none resize-none font-mono text-sm leading-relaxed'
+  const base = 'w-full bg-transparent border-none outline-none resize-none font-script text-sm leading-relaxed'
   switch (type) {
     case 'scene_heading':
       return cn(base, 'uppercase font-bold text-foreground')
@@ -277,7 +277,7 @@ function BlockEditor({
 
       {/* Scene number on left of heading */}
       {block.block_type === 'scene_heading' && sceneNumber && (
-        <span className="absolute -left-8 top-3.5 text-[10px] font-mono text-muted-foreground/40 select-none">
+        <span className="absolute -left-8 top-3.5 text-[10px] font-script text-muted-foreground/40 select-none">
           {sceneNumber}.
         </span>
       )}
@@ -349,14 +349,14 @@ function SceneSection({
           className="mt-8 mb-1 pt-3 border-t border-border/30 relative cursor-text group"
           onClick={(e) => { e.stopPropagation(); onCreateFirstBlock(scene.id) }}
         >
-          <span className="absolute -left-8 top-3.5 text-[10px] font-mono text-muted-foreground/40 select-none">
+          <span className="absolute -left-8 top-3.5 text-[10px] font-script text-muted-foreground/40 select-none">
             {scene.scene_number}.
           </span>
-          <p className="font-mono text-sm font-bold uppercase text-foreground">
+          <p className="font-script text-sm font-bold uppercase text-foreground">
             {scene.int_ext}. {scene.title} – {scene.day_night}
           </p>
           {allBlocks.length === 0 && (
-            <p className="font-mono text-xs text-muted-foreground/30 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <p className="font-script text-xs text-muted-foreground/30 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
               Klicken um Inhalt hinzuzufügen…
             </p>
           )}
@@ -789,7 +789,7 @@ export function Component() {
                 onClick={() => scrollToScene(sd.scene.id)}
                 className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors group flex items-start gap-2"
               >
-                <span className="text-[10px] font-mono text-muted-foreground/50 shrink-0 w-5 mt-0.5">
+                <span className="text-[10px] font-script text-muted-foreground/50 shrink-0 w-5 mt-0.5">
                   {sd.scene.scene_number || i + 1}
                 </span>
                 <div className="min-w-0">
@@ -904,7 +904,7 @@ export function Component() {
                   {tt(screenplayT.none)}
                 </DropdownMenuItem>
                 {CHAR_SUFFIXES.map(s => (
-                  <DropdownMenuItem key={s} className="text-xs font-mono cursor-pointer" onClick={() => insertCharSuffix(s)}>
+                  <DropdownMenuItem key={s} className="text-xs font-script cursor-pointer" onClick={() => insertCharSuffix(s)}>
                     ({s})
                   </DropdownMenuItem>
                 ))}
@@ -923,7 +923,7 @@ export function Component() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="text-xs">
                 {TRANSITIONS.map(t => (
-                  <DropdownMenuItem key={t} className="text-xs font-mono cursor-pointer"
+                  <DropdownMenuItem key={t} className="text-xs font-script cursor-pointer"
                     onClick={() => handleContentChange(activeBlock.id, t)}>
                     {t}
                   </DropdownMenuItem>
@@ -1037,11 +1037,11 @@ export function Component() {
             >
               {/* Screenplay title */}
               <div className="text-center mb-12">
-                <p className="font-mono text-xs text-muted-foreground/50 uppercase tracking-widest">
+                <p className="font-script text-xs text-muted-foreground/50 uppercase tracking-widest">
                   {tt(screenplayT.script)}
                 </p>
                 {(projectData as any)?.title && (
-                  <p className="font-mono text-base font-bold uppercase mt-1 tracking-wide">
+                  <p className="font-script text-base font-bold uppercase mt-1 tracking-wide">
                     {(projectData as any).title}
                   </p>
                 )}

@@ -118,7 +118,6 @@ export function Component() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
-          <StickyNote className="w-5 h-5 text-muted-foreground" />
           <div>
             <h1 className="font-display text-[28px] sm:text-[34px]">Pinboard</h1>
             <p className="text-sm text-muted-foreground">{notes.length} Notiz{notes.length !== 1 ? 'en' : ''}</p>

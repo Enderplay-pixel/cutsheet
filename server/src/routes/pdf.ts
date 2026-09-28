@@ -829,6 +829,84 @@ router.get('/shoot-days/:dayId/pdf/tagesbericht', async (req: Request, res: Resp
 })
 
 // GET /api/projects/:projectId/pdf/shotlist?nach=szene|drehtag
+// ── Kameraberichte eines Drehtags ─────────────────────────────────────────
+// Ein Abschnitt je Kamera/Magazin mit allen Takes. ?report=<id> beschränkt
+// den Druck auf einen einzelnen Bericht.
+router.get('/shoot-days/:dayId/pdf/kameraberichte', async (req: Request, res: Response) => {
+  const user = (req as any).user
+  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+
+  const day = await db.get('SELECT sd.*, p.title as project_title, p.director, p.dop, p.id as project_id FROM shoot_days sd JOIN projects p ON sd.project_id = p.id WHERE sd.id = ?', [req.params.dayId]) as any
+  if (!day) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+
+  if (user.role !== 'admin' && await getUserProjectRole(user.id, day.project_id) === null)
+    return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+
+  const nurBericht = req.query.report ? Number(req.query.report) : null
+  const [{ accentColor }, berichte] = await Promise.all([
+    getProjectSettings(day.project_id),
+    db.all(
+      `SELECT * FROM camera_reports WHERE shoot_day_id = ?${nurBericht ? ' AND id = ?' : ''} ORDER BY camera ASC, id ASC`,
+      nurBericht ? [req.params.dayId, nurBericht] : [req.params.dayId],
+    ),
+  ]) as any[]
+  const takes = berichte.length
+    ? await db.all(`SELECT * FROM camera_takes WHERE camera_report_id IN (${berichte.map(() => '?').join(',')}) ORDER BY sort_order ASC, id ASC`, berichte.map((b: any) => b.id)) as any[]
+    : []
+
+  const meter = (v: any) => (v == null || v === '' ? '' : `${Number(v).toLocaleString('de-DE', { maximumFractionDigits: 1 })} m`)
+  const kennzeichen = (t: any) => [t.circle && 'Circle', t.directors_cut && 'Regie', t.false_start && 'Fehlstart', t.mute && 'MOS'].filter(Boolean).join(', ')
+  const alleTakes = takes.length
+  const circles = takes.filter(t => t.circle).length
+  const meterGesamt = takes.reduce((s, t) => s + (Number(t.meters) || 0), 0)
+
+  const body =
+    stats([
+      { label: 'Berichte', value: berichte.length },
+      { label: 'Takes', value: alleTakes },
+      { label: 'Circle Takes', value: circles },
+      { label: 'Material', value: meterGesamt ? meter(meterGesamt) : '—' },
+    ]) +
+    (berichte.length
+      ? berichte.map((b: any) => {
+          const eigene = takes.filter(t => t.camera_report_id === b.id)
+          return section(
+            `Kamera ${b.camera}${b.magazine ? ` · Magazin ${b.magazine}` : ''}`,
+            table({
+              columns: [
+                { header: 'Szene', value: (r: any) => r.scene_number, width: '11%' },
+                { header: 'Take', value: (r: any) => r.take_number, width: '8%', align: 'right' },
+                { header: 'TC In', value: (r: any) => r.timecode_in, width: '15%' },
+                { header: 'TC Out', value: (r: any) => r.timecode_out, width: '15%' },
+                { header: 'Meter', value: (r: any) => meter(r.meters), width: '10%', align: 'right' },
+                { header: 'Kennzeichen', value: (r: any) => kennzeichen(r), width: '17%' },
+                { header: 'Notiz', value: (r: any) => r.notes },
+              ],
+              rows: eigene,
+              empty: 'Keine Takes erfasst.',
+            }),
+            `${b.format || ''}${eigene.length ? ` · ${eigene.length} Takes` : ''}`,
+          )
+        }).join('')
+      : section('Kameraberichte', hint('Für diesen Drehtag sind noch keine Kameraberichte erfasst.')))
+
+  const html = renderDocument({
+    kind: 'Kamerabericht',
+    title: `Drehtag ${day.day_number}`,
+    project: day.project_title,
+    accent: accentColor,
+    subtitle: fmtDateLong(day.date),
+    meta: [
+      { label: 'Projekt', value: day.project_title },
+      { label: 'Kamera / DoP', value: day.dop },
+      { label: 'Stand', value: fmtDate(new Date().toISOString()) },
+    ],
+    body,
+  })
+
+  await sendPdf(res, html, `kamerabericht-tag${day.day_number}-${slug(day.project_title)}.pdf`)
+})
+
 router.get('/projects/:projectId/pdf/shotlist', async (req, res) => {
   const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]) as any
   if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })

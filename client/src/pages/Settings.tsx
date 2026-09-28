@@ -31,8 +31,8 @@ function Section({
   return (
     <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
       <div className="px-5 py-4 border-b border-border/40 flex items-start gap-3">
-        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-          <Icon className="w-4 h-4 text-primary" />
+        <div className="w-8 h-8 rounded-lg bg-foreground/[0.06] flex items-center justify-center shrink-0 mt-0.5">
+          <Icon className="w-4 h-4 text-foreground/70" />
         </div>
         <div>
           <h2 className="text-sm font-semibold text-foreground">{title}</h2>
@@ -295,7 +295,7 @@ function PushSection() {
             {state === 'subscribed'
               ? 'Aktiv auf diesem Gerät'
               : state === 'denied'
-                ? 'Im Browser blockiert - bitte in den Browser-Einstellungen erlauben'
+                ? 'Im Browser blockiert – bitte in den Browser-Einstellungen erlauben'
                 : 'Erhalte sofort Bescheid, wenn sich Drehzeiten ändern'}
           </p>
         </div>
@@ -362,7 +362,7 @@ function PrivacySection() {
   })
 
   return (
-    <Section icon={ShieldCheck} title="Datenschutz & Konto" description="Deine Daten gehören dir - Export und Löschung jederzeit">
+    <Section icon={ShieldCheck} title="Datenschutz & Konto" description="Deine Daten gehören dir – Export und Löschung jederzeit">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-foreground">Daten exportieren</p>
@@ -376,7 +376,7 @@ function PrivacySection() {
       <div className="flex items-center justify-between pt-4 border-t border-border/40">
         <div>
           <p className="text-sm font-medium text-destructive">Konto löschen</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Unwiderruflich - eigene Solo-Projekte werden mitgelöscht</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Unwiderruflich – eigene Solo-Projekte werden mitgelöscht</p>
         </div>
         <Button variant="destructive" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setDeleteOpen(true)}>
           <Trash2 className="w-3.5 h-3.5" /> Löschen

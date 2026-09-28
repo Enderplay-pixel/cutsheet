@@ -50,7 +50,7 @@ export function Component() {
         <NichtsDa
           symbol={TrendingUp}
           titel="Noch nichts veröffentlicht"
-          text="Sobald ein Video ein Veröffentlichungsdatum und Zahlen hat, wird es hier ausgewertet - Klickrate, Haltequote und Abos je Video."
+          text="Sobald ein Video ein Veröffentlichungsdatum und Zahlen hat, wird es hier ausgewertet – Klickrate, Haltequote und Abos je Video."
         />
       ) : (
         <BereichTabelle

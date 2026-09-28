@@ -24,7 +24,7 @@ export function Component() {
       <BereichKopf
         symbol={ListChecks}
         titel="Upload-Checklisten"
-        untertitel="Was vor dem Hochladen noch offen ist - für jedes Video"
+        untertitel="Was vor dem Hochladen noch offen ist – für jedes Video"
       />
 
       <Kennzahlen werte={[

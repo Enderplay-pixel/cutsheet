@@ -124,22 +124,13 @@ function sceneStripColor(int_ext: string, day_night: string) {
   return 'bg-indigo-500'  // EXT/NACHT
 }
 
-function sceneRowBg(int_ext: string, day_night: string) {
-  const ie = (int_ext || '').toUpperCase()
-  const dn = (day_night || '').toUpperCase()
-  if (ie === 'INT' && dn === 'TAG')   return 'bg-yellow-500/5'
-  if (ie === 'EXT' && dn === 'TAG')   return 'bg-sky-500/5'
-  if (ie === 'INT' && dn === 'NACHT') return 'bg-orange-500/5'
-  return 'bg-indigo-500/5'
+function sceneRowBg(_int_ext: string, _day_night: string) {
+  // Die Kennung trägt allein der Farbstreifen links; die Zeile bleibt ruhig
+  return ''
 }
 
-function sceneBadgeColor(int_ext: string, day_night: string) {
-  const ie = (int_ext || '').toUpperCase()
-  const dn = (day_night || '').toUpperCase()
-  if (ie === 'INT' && dn === 'TAG')   return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300'
-  if (ie === 'EXT' && dn === 'TAG')   return 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300'
-  if (ie === 'INT' && dn === 'NACHT') return 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300'
-  return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300'
+function sceneBadgeColor(_int_ext: string, _day_night: string) {
+  return 'bg-foreground/[0.06] text-foreground/80'
 }
 
 // ─── Add-person inline panel ─────────────────────────────────────────────────
@@ -705,7 +696,7 @@ export function Component() {
         title: `Sonne: ${auf} – ${unter}`,
         description: d.koordinaten === 'standard'
           // Nicht verschweigen: ohne Koordinaten am Motiv ist das geraten.
-          ? 'Ohne Koordinaten am Motiv gerechnet (Standardort München) - im Motiv Lat/Lng eintragen für genaue Zeiten.'
+          ? 'Ohne Koordinaten am Motiv gerechnet (Standardort München) – im Motiv Lat/Lng eintragen für genaue Zeiten.'
           : golden ? `Golden Hour abends ab ${golden}` : undefined,
       })
     } catch {
@@ -864,25 +855,25 @@ export function Component() {
             {/* ── Big call time cards ─────────────────────────────────────── */}
             <div className="grid grid-cols-2 gap-4">
               {/* General Call */}
-              <div className="bg-foreground/5 border border-border/60 rounded-xl p-5 text-center">
+              <div className="bg-foreground/[0.035] rounded-xl p-5 text-center">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
                   {tt(dispoT.generalCall)}
                 </p>
                 <TimeInput disabled={!darfSchreiben}
                   value={headerForm.general_call || 480}
                   onChange={v => updateHeader('general_call', v)}
-                  className="h-16 text-5xl font-black text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none"
+                  className="h-16 text-5xl !font-sans font-semibold tracking-[-0.03em] tabular-nums text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none"
                 />
               </div>
               {/* Shooting Call */}
-              <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 text-center">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-primary/60 mb-2">
+              <div className="bg-foreground/[0.035] rounded-xl p-5 text-center">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
                   {tt(dispoT.shootingCall)}
                 </p>
                 <TimeInput disabled={!darfSchreiben}
                   value={headerForm.shooting_call || 510}
                   onChange={v => updateHeader('shooting_call', v)}
-                  className="h-16 text-5xl font-black text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none text-primary"
+                  className="h-16 text-5xl !font-sans font-semibold tracking-[-0.03em] tabular-nums text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none text-primary"
                 />
               </div>
             </div>

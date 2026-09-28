@@ -187,7 +187,7 @@ const SCHEMA = `
     currency TEXT NOT NULL DEFAULT 'EUR',
     country TEXT NOT NULL DEFAULT 'Deutschland',
     logo_url TEXT,
-    header_color TEXT NOT NULL DEFAULT '#0071E3',
+    header_color TEXT NOT NULL DEFAULT '#C43D0B',
     vat_mode TEXT NOT NULL DEFAULT 'netto'
   );
 
