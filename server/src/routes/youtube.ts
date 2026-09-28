@@ -431,7 +431,8 @@ router.get('/projects/:projectId/creator/patterns', async (req, res) => {
     return {
       id: v.id,
       title: v.title,
-      seconds: t.totalSeconds,
+      // Echte Laufzeit von YouTube, sonst die aus dem Skript geschätzte
+      seconds: Number(v.duration_seconds) > 0 ? Number(v.duration_seconds) : t.totalSeconds,
       views: v.views,
       impressions: v.impressions,
       avg_view_seconds: v.avg_view_seconds,

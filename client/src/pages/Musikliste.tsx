@@ -86,7 +86,7 @@ function CueFormRow({ initial, pid, onDone }: { initial?: MusicCue; pid: number;
   const sel = 'h-7 text-sm w-full rounded-md border border-input bg-background px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring'
 
   return (
-    <tr className="border-b border-primary/20 bg-primary/5">
+    <tr className="border-b border-border bg-foreground/[0.025]">
       <td className={c}><Input className={i} placeholder="Titel" value={form.title} onChange={e => set('title', e.target.value)} /></td>
       <td className={c}><Input className={i} placeholder="Komponist" value={form.composer} onChange={e => set('composer', e.target.value)} /></td>
       <td className={c}><Input className={i} placeholder="Verlag" value={form.publisher} onChange={e => set('publisher', e.target.value)} /></td>
@@ -220,7 +220,6 @@ export function Component() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3 flex-wrap">
-          <Music className="w-5 h-5 text-muted-foreground" />
           <div>
             <h1 className="font-display text-[28px] sm:text-[34px]">Musikliste / GEMA-Cuesheet</h1>
             <p className="text-sm text-muted-foreground">

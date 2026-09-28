@@ -104,7 +104,7 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
             {(day.scenes || []).length === 0 ? (
               <div
                 className="flex items-center justify-center h-full text-xs text-muted-foreground italic"
-                aria-label="Keine Szenen - Szenen hierhin ziehen"
+                aria-label="Keine Szenen – Szenen hierhin ziehen"
               >
                 Szenen hierhin ziehen
               </div>

@@ -156,21 +156,32 @@ export function Component() {
         </div>
       </div>
 
-      {/* Conflicts panel */}
+      {/* Konflikte: ruhige Liste, Datum lesbar */}
       {conflicts && conflicts.length > 0 && (
-        <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-5 space-y-2">
-          <div className="flex items-center gap-2.5 text-destructive font-semibold text-sm">
-            <div className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-            {conflicts.length} Konflikt{conflicts.length !== 1 ? 'e' : ''} gefunden
-          </div>
-          {conflicts.map((c: any, i: number) => (
-            <div key={i} className="text-xs text-destructive/70 pl-11">
-              {c.cast_name || c.actor_name}: Drehtag {c.shoot_date} kollidiert mit Sperrtag ({c.start_date} – {c.end_date})
-            </div>
-          ))}
-        </div>
+        <section className="mb-6 rounded-2xl border border-border/60 bg-card overflow-hidden">
+          <header className="flex items-center gap-2 px-4 py-3 border-b border-border/60">
+            <AlertTriangle className="w-4 h-4 text-danger" />
+            <h2 className="text-[14px] font-semibold">
+              {conflicts.length} {conflicts.length === 1 ? 'Konflikt' : 'Konflikte'} mit Drehtagen
+            </h2>
+          </header>
+          <ul className="divide-y divide-border/60 max-h-72 overflow-y-auto">
+            {conflicts.map((c: any, i: number) => {
+              const datum = (d?: string) => d ? new Date(String(d).slice(0, 10) + 'T12:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '–'
+              const tag = c.shoot_day
+              const sperre = c.blackout ?? {}
+              return (
+                <li key={i} className="px-4 py-2.5 flex items-baseline gap-3 text-[13px]">
+                  <span className="font-medium min-w-0 truncate">{c.cast_name || sperre.cast_name || 'Unbekannt'}</span>
+                  <span className="text-muted-foreground tabular-nums">
+                    Drehtag {tag?.day_number ?? ''} am {datum(tag?.date)} · gesperrt {datum(sperre.start_date)}–{datum(sperre.end_date)}
+                  </span>
+                  {sperre.reason && <span className="ml-auto text-muted-foreground truncate">{sperre.reason}</span>}
+                </li>
+              )
+            })}
+          </ul>
+        </section>
       )}
 
       {/* Calendar grid */}
@@ -248,9 +259,9 @@ export function Component() {
                           <div
                             className={`h-7 rounded-lg mx-0.5 transition-colors ${
                               isBlocked
-                                ? 'bg-destructive/60 border border-destructive/70'
+                                ? 'bg-danger/85'
                                 : isShootDay
-                                ? 'bg-primary/15 border border-primary/25'
+                                ? 'bg-foreground/[0.08]'
                                 : 'bg-transparent'
                             }`}
                             title={isBlocked ? 'Gesperrt' : isShootDay ? 'Drehtag' : ''}
@@ -285,11 +296,11 @@ export function Component() {
           <div className="flex items-center gap-5 px-5 py-3 border-t border-border/30 bg-muted/20">
             <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">Legende</p>
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-3 rounded bg-destructive/60 border border-destructive/70" />
+              <div className="w-4 h-3 rounded bg-danger/85" />
               <span className="text-[11px] text-muted-foreground">Sperrtag</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-3 rounded bg-primary/15 border border-primary/25" />
+              <div className="w-4 h-3 rounded bg-foreground/[0.08]" />
               <span className="text-[11px] text-muted-foreground">Drehtag</span>
             </div>
             <div className="flex items-center gap-1.5">

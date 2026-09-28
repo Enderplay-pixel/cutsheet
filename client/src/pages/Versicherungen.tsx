@@ -247,7 +247,7 @@ function NewInsuranceForm({ pid, onDone }: { pid: number; onDone: () => void }) 
   const sel = 'h-7 text-sm w-full rounded-md border border-input bg-background px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring'
 
   return (
-    <div className="border border-primary/30 bg-primary/5 rounded-xl p-4 mb-4">
+    <div className="border border-border bg-foreground/[0.025] rounded-xl p-4 mb-4">
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Versicherungsart</label>
@@ -315,7 +315,6 @@ export function Component() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
-          <Shield className="w-5 h-5 text-muted-foreground" />
           <div>
             <h1 className="font-display text-[28px] sm:text-[34px]">Versicherungen</h1>
             <p className="text-sm text-muted-foreground">

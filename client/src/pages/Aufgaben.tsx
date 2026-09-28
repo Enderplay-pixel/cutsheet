@@ -72,9 +72,6 @@ export function Component() {
   return (
     <div className="page-container animate-fade-up">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-          <CheckSquare className="w-[17px] h-[17px] text-primary" />
-        </div>
         <div>
           <h1 className="font-display text-[28px] sm:text-[34px]">Aufgaben</h1>
           <p className="text-[12px] text-muted-foreground mt-1">
@@ -91,7 +88,7 @@ export function Component() {
         <Input disabled={!darfSchreiben}
           value={newTitle}
           onChange={e => setNewTitle(e.target.value)}
-          placeholder="Neue Aufgabe - z. B. „Drehgenehmigung Stadtpark einholen“"
+          placeholder="Neue Aufgabe – z. B. „Drehgenehmigung Stadtpark einholen“"
           className="flex-1"
         />
         <Input disabled={!darfSchreiben}
@@ -154,7 +151,7 @@ function TaskList({ tasks, onCycle, onDelete, muted }: {
 }) {
   const today = heuteISO()
   return (
-    <div className="space-y-1.5">
+    <div className="rounded-2xl border border-border/60 bg-card overflow-hidden divide-y divide-border/60">
       {tasks.map((t: any) => {
         const meta = STATUS_META[t.status] ?? STATUS_META.offen
         const Icon = meta.icon
@@ -163,8 +160,8 @@ function TaskList({ tasks, onCycle, onDelete, muted }: {
           <div
             key={t.id}
             className={cn(
-              'group flex items-center gap-3 px-4 py-3 rounded-xl border border-border/60 bg-card',
-              'transition-[border-color,background-color] duration-150 hover:border-border',
+              'group flex items-center gap-3 px-4 py-3',
+              'transition-colors duration-150 hover:bg-foreground/[0.02]',
               muted && 'opacity-55'
             )}
           >
@@ -179,7 +176,7 @@ function TaskList({ tasks, onCycle, onDelete, muted }: {
               <p className={cn('text-sm font-medium truncate', t.status === 'erledigt' && 'line-through text-muted-foreground')}>
                 {t.title}
               </p>
-              <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-[12px] text-muted-foreground [&>span]:whitespace-nowrap">
                 <span className={cn('flex items-center gap-1', meta.cls)}>{meta.label}</span>
                 {t.assignee && <span className="flex items-center gap-1"><User className="w-3 h-3" />{t.assignee}</span>}
                 {t.due_date && (
@@ -189,7 +186,7 @@ function TaskList({ tasks, onCycle, onDelete, muted }: {
                     {overdue && ' überfällig'}
                   </span>
                 )}
-                {t.department && <span>{t.department}</span>}
+                {t.department && <span className="hidden sm:inline">{t.department}</span>}
               </div>
             </div>
             <button

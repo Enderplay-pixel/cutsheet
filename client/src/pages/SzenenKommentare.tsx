@@ -41,7 +41,7 @@ function CommentItem({ comment, onResolve, onDelete }: { comment: any; onResolve
         : 'border-border/60 bg-card'
     )}>
       <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-foreground/[0.06] flex items-center justify-center text-[11px] font-bold text-foreground/75 shrink-0">
           {initials}
         </div>
         <div className="flex-1 min-w-0">
@@ -242,7 +242,7 @@ export function Component() {
         {/* Comments panel */}
         <div className="flex-1 min-w-0 flex flex-col gap-4">
           {!selectedSceneId ? (
-            <div className="flex-1 rounded-xl border border-border/60 bg-card flex items-center justify-center">
+            <div className="flex-1 rounded-xl border border-border/60 bg-card flex items-start justify-center pt-28">
               <div className="text-center">
                 <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-20" />
                 <p className="text-sm font-medium text-muted-foreground/60">

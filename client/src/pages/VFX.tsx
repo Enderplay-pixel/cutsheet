@@ -69,7 +69,7 @@ function VFXFormRow({ initial, pid, onDone }: { initial?: VFXShot; pid: number; 
   const sel = 'h-7 text-sm w-full rounded-md border border-input bg-background px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring'
 
   return (
-    <tr className="border-b border-primary/20 bg-primary/5">
+    <tr className="border-b border-border bg-foreground/[0.025]">
       <td className={c}><Input className={i} placeholder="VFX-001" value={form.shot_number} onChange={e => set('shot_number', e.target.value)} /></td>
       <td className={c}><Input className={i} placeholder="Szene #" type="number" value={form.scene_id ?? ''} onChange={e => set('scene_id', e.target.value ? Number(e.target.value) : null)} /></td>
       <td className={c}><Input className={i} placeholder="Beschreibung" value={form.description} onChange={e => set('description', e.target.value)} /></td>
@@ -194,7 +194,6 @@ export function Component() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
-          <Layers className="w-5 h-5 text-muted-foreground" />
           <div>
             <h1 className="font-display text-[28px] sm:text-[34px]">VFX-Tracking</h1>
             <p className="text-sm text-muted-foreground">{totalCount} VFX-Shots insgesamt</p>
@@ -211,9 +210,9 @@ export function Component() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
         {[
           { label: 'Gesamt', value: totalCount, cls: 'text-foreground' },
-          { label: 'In Arbeit', value: inProgressCount, cls: 'text-blue-400' },
-          { label: 'In Review', value: reviewCount, cls: 'text-amber-400' },
-          { label: 'Finalisiert', value: finalizedCount, cls: 'text-green-400' },
+          { label: 'In Arbeit', value: inProgressCount, cls: '' },
+          { label: 'In Review', value: reviewCount, cls: '' },
+          { label: 'Finalisiert', value: finalizedCount, cls: '' },
         ].map(stat => (
           <div key={stat.label} className="bg-card border border-border/60 rounded-xl p-4">
             <p className="text-xs text-muted-foreground mb-1">{stat.label}</p>

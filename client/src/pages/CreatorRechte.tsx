@@ -31,7 +31,7 @@ export function Component() {
       <BereichKopf
         symbol={ShieldCheck}
         titel="Rechte & Lizenzen"
-        untertitel="Musik, Material und Fremdaufnahmen über alle Videos - wo eine Lizenz fehlt"
+        untertitel="Musik, Material und Fremdaufnahmen über alle Videos – wo eine Lizenz fehlt"
       />
 
       <Kennzahlen werte={[

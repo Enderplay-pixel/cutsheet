@@ -6,20 +6,21 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, Trash2, Pencil, Check, X, Users } from 'lucide-react'
+import { Plus, Trash2, Pencil, Check, X } from 'lucide-react'
 
-const TARIFGRUPPEN = ['T1', 'T2', 'T3', 'T4', 'Sonstige']
+// Muss zu den Werten des Servers passen (extras.tariff_group, Standard: 'Standard')
+const TARIFGRUPPEN = ['Standard', 'Kleindarsteller', 'Spezial (eigenes Kfz)', 'Spezial (Uniform)', 'Sonstige']
 
 interface Extra {
   id: number
   name: string
-  telefon: string
+  phone: string
   email: string
-  tarifgruppe: string
-  notizen: string
+  tariff_group: string
+  notes: string
 }
 
-const EMPTY_EXTRA: Omit<Extra, 'id'> = { name: '', telefon: '', email: '', tarifgruppe: 'T1', notizen: '' }
+const EMPTY_EXTRA: Omit<Extra, 'id'> = { name: '', phone: '', email: '', tariff_group: 'Standard', notes: '' }
 
 function ExtraRow({ extra, pid, onEdit }: { extra: Extra; pid: number; onEdit: (e: Extra) => void }) {
   const queryClient = useQueryClient()
@@ -37,14 +38,12 @@ function ExtraRow({ extra, pid, onEdit }: { extra: Extra; pid: number; onEdit: (
   return (
     <tr className="border-b border-border/40 hover:bg-muted/30 transition-colors group">
       <td className="py-2.5 px-4 text-sm font-medium">{extra.name || '—'}</td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground">{extra.telefon || '—'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{extra.phone || '—'}</td>
       <td className="py-2.5 px-4 text-sm text-muted-foreground">{extra.email || '—'}</td>
       <td className="py-2.5 px-4">
-        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-          {extra.tarifgruppe || '—'}
-        </span>
+        <span className="text-[13px] text-foreground/85">{extra.tariff_group || '—'}</span>
       </td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground max-w-xs truncate">{extra.notizen || '—'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground max-w-xs truncate">{extra.notes || '—'}</td>
       <td className="py-2.5 px-3 text-right">
         <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
           <button
@@ -99,12 +98,12 @@ function ExtraFormRow({
   const inputClass = 'h-7 text-sm'
 
   return (
-    <tr className="border-b border-primary/20 bg-primary/5">
+    <tr className="border-b border-border bg-foreground/[0.025]">
       <td className={colClass}><Input className={inputClass} placeholder="Name" value={form.name} onChange={e => set('name', e.target.value)} /></td>
-      <td className={colClass}><Input className={inputClass} placeholder="+49…" value={form.telefon} onChange={e => set('telefon', e.target.value)} /></td>
+      <td className={colClass}><Input className={inputClass} placeholder="+49…" value={form.phone} onChange={e => set('phone', e.target.value)} /></td>
       <td className={colClass}><Input className={inputClass} placeholder="email@…" type="email" value={form.email} onChange={e => set('email', e.target.value)} /></td>
       <td className={colClass}>
-        <Select value={form.tarifgruppe} onValueChange={v => set('tarifgruppe', v)}>
+        <Select value={form.tariff_group} onValueChange={v => set('tariff_group', v)}>
           <SelectTrigger className="h-7 text-sm">
             <SelectValue />
           </SelectTrigger>
@@ -113,7 +112,7 @@ function ExtraFormRow({
           </SelectContent>
         </Select>
       </td>
-      <td className={colClass}><Input className={inputClass} placeholder="Notizen…" value={form.notizen} onChange={e => set('notizen', e.target.value)} /></td>
+      <td className={colClass}><Input className={inputClass} placeholder="Notizen…" value={form.notes} onChange={e => set('notes', e.target.value)} /></td>
       <td className="py-1.5 px-3">
         <div className="flex items-center gap-1 justify-end">
           <button
@@ -151,14 +150,13 @@ export function Component() {
 
   const filtered = filterTarif === 'alle'
     ? extras
-    : extras.filter((e: Extra) => e.tarifgruppe === filterTarif)
+    : extras.filter((e: Extra) => e.tariff_group === filterTarif)
 
   return (
     <div className="px-5 py-6 sm:p-7 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3 flex-wrap">
-          <Users className="w-5 h-5 text-muted-foreground" />
           <div>
             <h1 className="font-display text-[28px] sm:text-[34px]">Komparsen</h1>
             <p className="text-sm text-muted-foreground">{extras.length} Einträge</p>

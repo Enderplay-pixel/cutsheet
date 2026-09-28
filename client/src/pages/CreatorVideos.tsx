@@ -91,7 +91,7 @@ function NewVideoDialog({ open, onClose, projectId }: { open: boolean; onClose: 
             </div>
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">Hook - die ersten Sekunden entscheiden</Label>
+            <Label className="text-xs text-muted-foreground">Hook – die ersten Sekunden entscheiden</Label>
             <Textarea
               value={form.hook} rows={2} className="mt-1 text-sm"
               placeholder="Womit haeltst du die Leute in den ersten fuenf Sekunden?"

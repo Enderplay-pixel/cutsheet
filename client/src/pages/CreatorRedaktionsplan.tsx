@@ -38,7 +38,7 @@ export function Component() {
       <BereichKopf
         symbol={CalendarClock}
         titel="Redaktionsplan"
-        untertitel="Was wann rausgeht - über alle Videos des Kanals"
+        untertitel="Was wann rausgeht – über alle Videos des Kanals"
       />
 
       <Kennzahlen werte={[
@@ -53,7 +53,7 @@ export function Component() {
         <NichtsDa
           symbol={CalendarClock}
           titel="Noch nichts terminiert"
-          text="Sobald ein Video ein Veröffentlichungsdatum hat, erscheint es hier - nach Monat sortiert, mit allem was überfällig ist."
+          text="Sobald ein Video ein Veröffentlichungsdatum hat, erscheint es hier – nach Monat sortiert, mit allem was überfällig ist."
         />
       ) : (
         monate.map((m: any) => (

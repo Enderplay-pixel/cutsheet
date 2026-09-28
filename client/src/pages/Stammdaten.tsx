@@ -84,7 +84,7 @@ function InviteSection({ pid }: { pid: number }) {
       if (newEmail) {
         toast(inv?.email_sent
           ? { title: `Einladung an ${newEmail} versendet` }
-          : { title: 'Link erstellt', description: 'E-Mail-Versand ist auf diesem Server nicht konfiguriert - teile den Link manuell.' })
+          : { title: 'Link erstellt', description: 'E-Mail-Versand ist auf diesem Server nicht konfiguriert – teile den Link manuell.' })
       }
     },
     onError: (e: any) => toast({ variant: 'destructive', title: e.message }),
@@ -151,7 +151,7 @@ function InviteSection({ pid }: { pid: number }) {
           <Input disabled={!darfSchreiben}
             type="email"
             className="h-8 text-xs flex-1 min-w-40"
-            placeholder="E-Mail (optional - sendet Einladung direkt)"
+            placeholder="E-Mail (optional – sendet Einladung direkt)"
             value={newEmail}
             onChange={e => setNewEmail(e.target.value)}
           />
@@ -472,7 +472,7 @@ export function Component() {
                 value={accentOf(settingsData.header_color)}
                 onChange={e => updateSetting('header_color', e.target.value)}
                 className="h-9 font-mono"
-                placeholder="#0071E3"
+                placeholder="#C43D0B"
               />
             </div>
           </Field>
@@ -489,5 +489,5 @@ export function Component() {
 // verwenden dann das neue Standardblau, also zeigt die Einstellung es auch.
 function accentOf(color: string | null | undefined): string {
   const c = String(color ?? '').trim()
-  return !c || c.toLowerCase() === '#f59e0b' ? '#0071E3' : c
+  return !c || ['#f59e0b', '#0071e3'].includes(c.toLowerCase()) ? '#C43D0B' : c
 }

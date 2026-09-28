@@ -240,7 +240,7 @@ function StepDrehbuch({ projectId, onDone, onSkip }: {
         </div>
         <div>
           <h2 className="text-base font-semibold">Drehbuch importieren</h2>
-          <p className="text-xs text-muted-foreground">Final Draft, Celtx oder Fountain - Szenen entstehen automatisch.</p>
+          <p className="text-xs text-muted-foreground">Final Draft, Celtx oder Fountain – Szenen entstehen automatisch.</p>
         </div>
       </div>
 
@@ -313,7 +313,7 @@ function StepFertig({ title, importResult, onGo }: {
           <CheckCircle className="w-8 h-8 text-green-400" />
         </div>
       </div>
-      <h2 className="text-2xl font-bold tracking-tight mb-2">Dein Projekt ist bereit!</h2>
+      <h2 className="text-2xl font-bold tracking-tight mb-2">Dein Projekt ist bereit</h2>
       <p className="text-muted-foreground text-sm mb-1">
         <span className="font-medium text-foreground">"{title}"</span> wurde erfolgreich angelegt.
       </p>

@@ -40,7 +40,7 @@ export const PDF_SANS = `-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Geis
 export const PDF_MONO = `'SF Mono', 'Geist Mono', ui-monospace, Menlo, monospace`
 
 /** Standard-Akzent, wenn das Projekt keine eigene Kopffarbe gewählt hat. */
-export const PDF_DEFAULT_ACCENT = '#0071E3'
+export const PDF_DEFAULT_ACCENT = '#C43D0B' // Tungsten, siehe docs/designphilosophie.md
 
 /**
  * Kopffarbe eines Projekts für Dokumente.
@@ -49,9 +49,11 @@ export const PDF_DEFAULT_ACCENT = '#0071E3'
  * in jedem bestehenden Projekt — auch dort, wo niemand sie bewusst gewählt
  * hat. Diese alte Voreinstellung gilt deshalb als „nicht gewählt“ und folgt
  * dem neuen Standard; jede andere Farbe bleibt, wie sie eingestellt wurde.
+ * Dasselbe gilt für das System-Blau (#0071E3), die Voreinstellung vor
+ * „Tungsten“.
  */
 export function resolveAccent(color: string | null | undefined): string {
   const c = String(color ?? '').trim()
-  if (!c || c.toLowerCase() === '#f59e0b') return PDF_DEFAULT_ACCENT
+  if (!c || ['#f59e0b', '#0071e3'].includes(c.toLowerCase())) return PDF_DEFAULT_ACCENT
   return c
 }

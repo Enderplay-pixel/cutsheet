@@ -21,7 +21,7 @@ function Avatar({ name, color = 'primary' }: { name: string; color?: string }) {
   return (
     <div className={cn(
       'w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0',
-      color === 'primary' ? 'bg-primary/15 text-primary' : 'bg-amber-500/15 text-amber-400'
+      'bg-foreground/[0.07] text-foreground/70'
     )}>
       {name?.[0]?.toUpperCase() || '?'}
     </div>

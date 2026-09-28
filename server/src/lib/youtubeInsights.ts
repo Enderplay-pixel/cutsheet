@@ -203,7 +203,9 @@ export function findChannelPatterns(videos: VideoSummary[]): ChannelPatterns {
     ? round1(withCtr.reduce((n, v) => n + ((v.views as number) / (v.impressions as number)) * 100, 0) / withCtr.length)
     : null
 
-  const withRet = videos.filter(v => (v.seconds ?? 0) > 0 && (v.avg_view_seconds ?? 0) > 0)
+  // Mehr gesehene als vorhandene Sekunden heißt: die Laufzeit stimmt nicht
+  // (z. B. nur die Skriptlänge bekannt). Solche Videos verzerren den Schnitt.
+  const withRet = videos.filter(v => (v.seconds ?? 0) > 0 && (v.avg_view_seconds ?? 0) > 0 && (v.avg_view_seconds as number) <= (v.seconds as number))
   const averageRetention = withRet.length
     ? round1(withRet.reduce((n, v) => n + ((v.avg_view_seconds as number) / (v.seconds as number)) * 100, 0) / withRet.length)
     : null
@@ -233,11 +235,11 @@ export function findChannelPatterns(videos: VideoSummary[]): ChannelPatterns {
     if (avg > bestAverage) { bestAverage = avg; bestWeekday = WEEKDAYS[day] }
   }
 
-  if (averageCtr !== null) notes.push(`Klickrate im Schnitt ${averageCtr} % über ${withCtr.length} Videos.`)
-  if (averageRetention !== null) notes.push(`Im Schnitt werden ${averageRetention} % der Laufzeit gesehen.`)
+  if (averageCtr !== null) notes.push(`Klickrate im Schnitt ${averageCtr.toLocaleString('de-DE')} % über ${withCtr.length} Videos.`)
+  if (averageRetention !== null) notes.push(`Im Schnitt werden ${averageRetention.toLocaleString('de-DE')} % der Laufzeit gesehen.`)
   if (lengthVsRetention !== null) {
-    if (lengthVsRetention < -0.4) notes.push('Längere Videos werden anteilig deutlich schlechter zu Ende gesehen - kürzer schneiden lohnt.')
-    else if (lengthVsRetention > 0.4) notes.push('Längere Videos halten hier besser - das Publikum bleibt bei mehr Tiefe dran.')
+    if (lengthVsRetention < -0.4) notes.push('Längere Videos werden anteilig deutlich schlechter zu Ende gesehen – kürzer schneiden lohnt.')
+    else if (lengthVsRetention > 0.4) notes.push('Längere Videos halten hier besser – das Publikum bleibt bei mehr Tiefe dran.')
     else notes.push('Zwischen Länge und gesehenem Anteil zeigt sich kein klarer Zusammenhang.')
   }
   if (bestWeekday && byWeekday.size > 1) {

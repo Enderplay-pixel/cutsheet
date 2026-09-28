@@ -75,8 +75,6 @@ export function Component() {
       <main className="max-w-md mx-auto px-5 pt-6 space-y-4 animate-fade-up">
         {/* Persönliche Call Time - die eine Info, die zählt */}
         <div className="rounded-2xl border border-primary/25 bg-primary/5 p-6 text-center relative overflow-hidden">
-          <div className="absolute inset-0 pointer-events-none"
-            style={{ background: 'radial-gradient(ellipse at top, hsl(var(--signal)/0.06) 0%, transparent 60%)' }} />
           <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-primary mb-2">
             Deine Call Time{me.name ? ` - ${me.name}` : ''}
           </p>
