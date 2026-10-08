@@ -5,6 +5,18 @@ import { nettoDrehzeit } from '../lib/drehzeit'
 
 const router = Router()
 
+// Szenenlisten liegen als JSON-Text in der Datenbank. Ein kaputter oder
+// importierter Wert ("12, 13") darf nicht den ganzen Tagesbericht und die
+// Zeitanalyse mit 500 lahmlegen - dann gilt die Liste als leer.
+function idListe(roh: unknown): number[] {
+  try {
+    const liste = JSON.parse(String(roh || '[]'))
+    return Array.isArray(liste) ? liste.map(Number).filter(Number.isFinite) : []
+  } catch {
+    return []
+  }
+}
+
 // All /projects/:projectId/* routes require membership
 router.use('/projects/:projectId', requireMember)
 
@@ -20,8 +32,8 @@ async function getReport(id: number) {
   `, [id])
   return {
     ...report,
-    scenes_completed: JSON.parse(report.scenes_completed || '[]'),
-    scenes_partial: JSON.parse(report.scenes_partial || '[]'),
+    scenes_completed: idListe(report.scenes_completed),
+    scenes_partial: idListe(report.scenes_partial),
     cast,
   }
 }
@@ -56,8 +68,8 @@ router.get('/projects/:projectId/time-analysis', async (req, res) => {
   const geschaetzt = new Set<number>()
 
   for (const day of shootDays) {
-    const completedIds: number[] = JSON.parse(day.scenes_completed || '[]')
-    const partialIds: number[] = JSON.parse(day.scenes_partial || '[]')
+    const completedIds = idListe(day.scenes_completed)
+    const partialIds = idListe(day.scenes_partial)
     const allSceneIds = [...completedIds, ...partialIds]
 
     if (allSceneIds.length === 0) continue

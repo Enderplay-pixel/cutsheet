@@ -6,11 +6,13 @@ import { RouterProvider, createBrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
 import { initAnalytics } from './lib/analytics'
+import { belohnungInstallieren, gespeichert } from './lib/belohnung'
 import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
 import './index.css'
 
 initAnalytics()
+belohnungInstallieren()
 
 // Hell/Dunkel schon vor dem ersten Rendern setzen — sonst zeigen Login
 // und öffentliche Seiten (ausserhalb der AppShell) immer den Dunkelmodus.
@@ -41,6 +43,11 @@ const queryClient = new QueryClient({
   // Wer ein eigenes onError mitbringt, wird uebersprungen, sonst stuenden
   // zwei Meldungen uebereinander.
   mutationCache: new MutationCache({
+    // Jeder gelungene Schreibvorgang bekommt eine kurze Quittung.
+    // meta: { stumm: true } schaltet sie für einzelne Mutationen ab.
+    onSuccess: (_daten, _variablen, _kontext, mutation) => {
+      if (!mutation.meta?.stumm) gespeichert()
+    },
     onError: (fehler, _variablen, _kontext, mutation) => {
       if (mutation.options.onError) return
       const text = fehler instanceof Error ? fehler.message : String(fehler)

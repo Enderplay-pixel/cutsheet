@@ -40,6 +40,17 @@ router.post('/shoot-days/:dayId/camera-reports', async (req: Request, res: Respo
   return res.status(201).json({ data: report, error: null })
 })
 
+// GET /api/camera-reports/:reportId/takes
+// Die Seite laedt die Takes je Bericht einzeln. Diese Route fehlte - die
+// Kameraberichte zeigten deshalb nie einen Take, auch wenn welche da waren.
+router.get('/camera-reports/:reportId/takes', async (req: Request, res: Response) => {
+  const takes = await db.all(
+    'SELECT * FROM camera_takes WHERE camera_report_id = ? ORDER BY sort_order ASC, id ASC',
+    [req.params.reportId]
+  )
+  return res.json({ data: takes, error: null })
+})
+
 // PUT /api/camera-reports/:id
 router.put('/camera-reports/:id', async (req: Request, res: Response) => {
   const { camera, magazine, format } = req.body

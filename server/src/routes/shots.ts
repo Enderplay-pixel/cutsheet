@@ -26,7 +26,13 @@ router.get('/projects/:projectId/shots', async (req, res) => {
   const params: any[] = [req.params.projectId]
 
   if (sceneId) { query += ' AND sh.scene_id = ?'; params.push(sceneId) }
-  if (shootDayId) { query += ' AND sh.shoot_day_id = ?'; params.push(shootDayId) }
+  // Der Drehtag einer Einstellung ergibt sich aus dem Drehplan ihrer Szene.
+  // shots.shoot_day_id setzt keine Route - nur danach gefiltert, zeigte die
+  // Set-App an jedem Drehtag "Keine Shots".
+  if (shootDayId) {
+    query += ' AND (sh.shoot_day_id = ? OR sh.scene_id IN (SELECT scene_id FROM shoot_day_scenes WHERE shoot_day_id = ?))'
+    params.push(shootDayId, shootDayId)
+  }
   query += ' ORDER BY sh.sort_order ASC'
 
   res.json({ data: await db.all(query, params), error: null })

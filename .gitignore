@@ -35,3 +35,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Startfilm: Rohmaterial und Rendering liegen ausserhalb der Versionierung
+brag-output/

@@ -44,4 +44,10 @@ describe('toPg', () => {
   it('laesst CAST-Funktionsaufrufe in Ruhe', () => {
     expect(toPg('SELECT CAST(x AS INTEGER)')).toContain('CAST(')
   })
+
+  it('laesst cast in Textliteralen stehen', () => {
+    expect(toPg("SELECT * FROM cast c WHERE person_type = 'cast' AND c.id = ?"))
+      .toBe(`SELECT * FROM "cast" c WHERE person_type = 'cast' AND c.id = $1`)
+    expect(toPg("SELECT 'it''s cast' FROM cast")).toBe(`SELECT 'it''s cast' FROM "cast"`)
+  })
 })

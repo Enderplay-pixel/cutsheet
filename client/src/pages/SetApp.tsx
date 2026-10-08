@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Moon, Sun, Clock, Users, List, Camera, FileText, Check, CheckCircle2 } from 'lucide-react'
 import { cn, heuteISO } from '@/lib/utils'
+import { feiern, gespeichert } from '@/lib/belohnung'
 
 const API_BASE = '/api'
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
@@ -29,6 +30,7 @@ function formatMinutes(minutes: number): string {
 // ─── Tagesdispo Tab ───────────────────────────────────────────────────────────
 function TagesdispoTab({ dayId }: { dayId: string }) {
   const { data: callSheet, isLoading } = useQuery({
+    networkMode: 'offlineFirst',
     queryKey: ['set-call-sheet', dayId],
     queryFn: () => req<any>(`/shoot-days/${dayId}/call-sheet`),
     enabled: !!dayId,
@@ -66,12 +68,14 @@ function ShotlistTab({ projectId, dayId }: { projectId: string; dayId: string })
   const queryClient = useQueryClient()
 
   const { data: shots, isLoading } = useQuery({
+    networkMode: 'offlineFirst',
     queryKey: ['set-shots', projectId, dayId],
     queryFn: () => req<any[]>(`/projects/${projectId}/shots${dayId ? `?shootDayId=${dayId}` : ''}`),
     enabled: !!projectId,
   })
 
   const toggleDone = useMutation({
+    meta: { stumm: true },
     mutationFn: (id: number) => req<any>(`/shots/${id}/done`, { method: 'PATCH' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['set-shots', projectId, dayId] }),
   })
@@ -86,21 +90,31 @@ function ShotlistTab({ projectId, dayId }: { projectId: string; dayId: string })
     <div className="space-y-3">
       <div className="flex items-center gap-3 py-2">
         <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
-          <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
+          <div className="h-full bg-success rounded-full transition-[width] duration-700 ease-spring" style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
         </div>
         <span className="text-sm font-semibold text-muted-foreground">{done}/{total}</span>
       </div>
       {shots.map((shot: any) => (
         <button
           key={shot.id}
-          onClick={() => toggleDone.mutate(shot.id)}
+          onClick={(e) => {
+            if (!shot.done) {
+              const kreis = e.currentTarget.querySelector('[data-kreis]') ?? e.currentTarget
+              feiern(kreis)
+              // Letzter offener Shot des Tages: der große Moment
+              if (done + 1 === total) {
+                window.setTimeout(() => { feiern({ x: window.innerWidth / 2, y: window.innerHeight / 3 }, true); gespeichert('Drehtag im Kasten') }, 180)
+              }
+            }
+            toggleDone.mutate(shot.id)
+          }}
           className={cn(
             'w-full text-left rounded-2xl border p-5 flex items-center gap-4 transition-colors',
-            shot.done ? 'border-green-500/30 bg-green-500/5' : 'border-border bg-card hover:border-primary/40'
+            shot.done ? 'border-success/30 bg-success/5' : 'border-border bg-card hover:border-primary/40'
           )}
         >
-          <div className={cn('w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
-            shot.done ? 'border-green-500 bg-green-500' : 'border-border'
+          <div data-kreis className={cn('w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 transition-[background-color,border-color,transform] duration-300 ease-spring',
+            shot.done ? 'border-success bg-success scale-110' : 'border-border'
           )}>
             {shot.done && <Check className="w-4 h-4 text-white" />}
           </div>
@@ -112,7 +126,7 @@ function ShotlistTab({ projectId, dayId }: { projectId: string; dayId: string })
               <div className="text-sm text-muted-foreground truncate">{shot.description}</div>
             )}
           </div>
-          {shot.done && <CheckCircle2 className="w-6 h-6 text-green-500 shrink-0" />}
+          {shot.done && <CheckCircle2 className="w-6 h-6 text-success shrink-0" />}
         </button>
       ))}
     </div>
@@ -126,6 +140,7 @@ function CheckInTab({ dayId }: { dayId: string }) {
   const queryClient = useQueryClient()
 
   const { data: callSheet, isLoading } = useQuery({
+    networkMode: 'offlineFirst',
     queryKey: ['set-call-sheet', dayId],
     queryFn: () => req<any>(`/shoot-days/${dayId}/call-sheet`),
     enabled: !!dayId,
@@ -205,6 +220,7 @@ function ContinuityTab({ projectId }: { projectId: string }) {
   const [selectedSceneId, setSelectedSceneId] = useState<string>('')
 
   const { data: scenes } = useQuery({
+    networkMode: 'offlineFirst',
     queryKey: ['set-scenes', projectId],
     queryFn: () => req<any[]>(`/projects/${projectId}/scenes`),
     enabled: !!projectId,
@@ -278,10 +294,26 @@ function LoadingCards() {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
+function useOnline() {
+  const [online, setOnline] = useState(() => navigator.onLine)
+  useEffect(() => {
+    const an = () => setOnline(true), aus = () => setOnline(false)
+    window.addEventListener('online', an); window.addEventListener('offline', aus)
+    return () => { window.removeEventListener('online', an); window.removeEventListener('offline', aus) }
+  }, [])
+  return online
+}
+
 export function Component() {
   const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'))
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
-  const [selectedDayId, setSelectedDayId] = useState<string>('')
+  // Auswahl merken: offline neu geöffnet, soll die App direkt den Tag zeigen
+  const gemerkt = (() => { try { return JSON.parse(localStorage.getItem('set-auswahl') || '{}') } catch { return {} } })()
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(gemerkt.projekt ?? '')
+  const [selectedDayId, setSelectedDayId] = useState<string>(gemerkt.tag ?? '')
+  useEffect(() => {
+    try { localStorage.setItem('set-auswahl', JSON.stringify({ projekt: selectedProjectId, tag: selectedDayId })) } catch { /* privat */ }
+  }, [selectedProjectId, selectedDayId])
+  const online = useOnline()
 
   useEffect(() => { track('set_app_used') }, [])
 
@@ -294,11 +326,13 @@ export function Component() {
   }
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
+    networkMode: 'offlineFirst',
     queryKey: ['projects-set'],
     queryFn: () => req<any[]>('/projects'),
   })
 
   const { data: shootDays } = useQuery({
+    networkMode: 'offlineFirst',
     queryKey: ['shoot-days-set', selectedProjectId],
     queryFn: () => req<any[]>(`/projects/${selectedProjectId}/shoot-days`),
     enabled: !!selectedProjectId,
@@ -323,6 +357,12 @@ export function Component() {
             {darkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
           </button>
         </div>
+
+        {!online && (
+          <div role="status" className="rounded-2xl bg-warning/15 text-warning px-4 py-3 text-sm font-medium">
+            Offline – du siehst den zuletzt geladenen Stand. Änderungen wie Check-ins gehen erst wieder mit Netz.
+          </div>
+        )}
 
         {/* Project + Day selectors */}
         <div className="grid grid-cols-2 gap-3">

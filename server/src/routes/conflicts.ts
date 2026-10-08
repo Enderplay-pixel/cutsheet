@@ -138,7 +138,7 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
 
   // 7. Budget vs financing
   await pruefung('Budget gegen Finanzierung', conflicts, async () => {
-    const budget = await db.get(`SELECT COALESCE(total_cents, 0) as t FROM budget_versions WHERE project_id = ? ORDER BY created_at DESC LIMIT 1`, [pid]) as any
+    const budget = await db.get(`SELECT COALESCE(total_cents, 0) as t FROM budget_versions WHERE project_id = ? ORDER BY (status = 'Aktiv') DESC, created_at DESC LIMIT 1`, [pid]) as any
     const financing = await db.get(`SELECT COALESCE(total_cents, 0) as t FROM financing_plan_versions WHERE project_id = ? ORDER BY created_at DESC LIMIT 1`, [pid]) as any
     const gap = (budget?.t || 0) - (financing?.t || 0)
     if (gap > 5000) { // >50€ gap
@@ -214,7 +214,22 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
     const callByDate: Record<string, number> = {}
     reports.forEach((r: any) => { wrapByDate[r.date] = r.wrap; callByDate[r.date] = r.call_time })
 
+    // Namen einmal vorab laden statt je Verletzung eine Abfrage (N+1): bei
+    // einer Großproduktion waren das über 2.000 Abfragen je Aufruf, und die
+    // Seitenleiste fragt den Radar jede Minute ab.
+    const [castNamen, crewNamen] = await Promise.all([
+      db.all('SELECT id, actor_name AS name FROM cast WHERE project_id = ?', [pid]),
+      db.all('SELECT id, name FROM crew WHERE project_id = ?', [pid]),
+    ]) as [any[], any[]]
+    const namen = new Map<string, string>([
+      ...castNamen.map((c): [string, string] => [`cast:${c.id}`, c.name]),
+      ...crewNamen.map((c): [string, string] => [`crew:${c.id}`, c.name]),
+    ])
+
+    // Eine Meldung je Person, nicht je Nacht: 45 Drehtage × 100 Leute hätten
+    // sonst tausende Einzelwarnungen erzeugt, in denen die wichtigen untergehen.
     for (const [key, days] of Object.entries(byPerson)) {
+      const verletzungen: Array<{ von: string; bis: string; stunden: number }> = []
       for (let i = 0; i < days.length - 1; i++) {
         const today = days[i]
         const tomorrow = days[i + 1]
@@ -230,18 +245,20 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
         // Stunden Ruhezeit statt acht - die Verletzung blieb unentdeckt.
         const restMins = ruhezeit(wrapToday, callByDate[today.date] ?? today.general_call, tomorrow.call_time)
         if (restMins !== null && restMins < turnaroundMins) {
-          const [type, idStr] = key.split(':')
-          const person = type === 'cast'
-            ? await db.get('SELECT actor_name as name FROM cast WHERE id = ?', [idStr]) as any
-            : await db.get('SELECT name FROM crew WHERE id = ?', [idStr]) as any
-          conflicts.push({
-            severity: 'warning', category: 'Turnaround',
-            message: `Turnaround-Verletzung: ${person?.name || 'Unbekannt'}`,
-            detail: `${today.date} → ${tomorrow.date}: nur ${Math.round(restMins / 60 * 10) / 10}h Ruhezeit (Minimum: ${turnaroundMins / 60}h)`,
-            link: 'tagesdispo'
-          })
+          verletzungen.push({ von: today.date, bis: tomorrow.date, stunden: Math.round(restMins / 60 * 10) / 10 })
         }
       }
+      if (verletzungen.length === 0) continue
+      const kuerzeste = verletzungen.reduce((a, v) => (v.stunden < a.stunden ? v : a))
+      const liste = verletzungen.slice(0, 3).map(v => `${v.von} → ${v.bis}: ${v.stunden}h`).join('; ')
+      conflicts.push({
+        severity: 'warning', category: 'Turnaround',
+        message: verletzungen.length === 1
+          ? `Turnaround-Verletzung: ${namen.get(key) || 'Unbekannt'}`
+          : `Turnaround-Verletzung: ${namen.get(key) || 'Unbekannt'} (${verletzungen.length}×)`,
+        detail: `${liste}${verletzungen.length > 3 ? ` und ${verletzungen.length - 3} weitere` : ''}. Kürzeste Ruhezeit ${kuerzeste.stunden}h (Minimum: ${turnaroundMins / 60}h)`,
+        link: 'tagesdispo'
+      })
     }
   })
 

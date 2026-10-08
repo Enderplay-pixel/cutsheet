@@ -1,6 +1,8 @@
+import { dateiname } from '../lib/dateiname'
 import { Router, Request, Response } from 'express'
 import { resolveAccent } from '../lib/pdfFonts'
 import { db } from '../db'
+import { ueberlastMarkieren } from '../lib/ueberlast'
 import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
 import { renderCallSheetHtml } from '../lib/callSheetLayout'
 import { renderShotlistHtml, groupShots, type GroupMode } from '../lib/shotlist'
@@ -132,11 +134,49 @@ export interface PdfOptions {
   footer?: boolean
 }
 
-// Generic PDF generator using puppeteer (lazily loaded)
-export async function generatePdf(html: string, opts?: PdfOptions): Promise<Buffer> {
+// ─── Gemeinsamer Browser ──────────────────────────────────────────────────────
+// Frueher startete jeder Export ein eigenes Chromium (gut 1 s und 150-250 MB).
+// Zehn gleichzeitige Exporte am Drehtag-Morgen haetten eine kleine Instanz
+// aus dem Speicher geworfen. Jetzt teilen sich alle Exporte einen Browser,
+// hoechstens PDF_MAX_PARALLEL Seiten rendern gleichzeitig, der Rest wartet.
+// Nach einer Minute ohne Export wird der Browser geschlossen und gibt den
+// Speicher wieder frei.
+const PDF_MAX_PARALLEL = Math.max(1, Number(process.env.PDF_MAX_PARALLEL) || 2)
+const PDF_WARTESCHLANGE_MAX = 40
+const PDF_LEERLAUF_MS = 60_000
+
+let browserVersprechen: Promise<any> | null = null
+let leerlaufTimer: NodeJS.Timeout | null = null
+let aktiv = 0
+const wartend: Array<() => void> = []
+
+async function platzHolen() {
+  if (aktiv < PDF_MAX_PARALLEL) { aktiv++; return }
+  if (wartend.length >= PDF_WARTESCHLANGE_MAX) {
+    ueberlastMarkieren()
+    throw new Error('Zu viele PDF-Exporte gleichzeitig. Bitte gleich noch einmal versuchen.')
+  }
+  // Der Platz wird beim Freigeben direkt weitergereicht; aktiv bleibt gleich.
+  await new Promise<void>(r => wartend.push(r))
+}
+
+function platzFreigeben() {
+  const naechster = wartend.shift()
+  if (naechster) return naechster()
+  aktiv--
+  if (aktiv === 0) {
+    if (leerlaufTimer) clearTimeout(leerlaufTimer)
+    leerlaufTimer = setTimeout(() => { void pdfBrowserSchliessen() }, PDF_LEERLAUF_MS)
+    leerlaufTimer.unref()
+  }
+}
+
+function browserHolen(): Promise<any> {
+  if (leerlaufTimer) { clearTimeout(leerlaufTimer); leerlaufTimer = null }
+  if (browserVersprechen) return browserVersprechen
   const puppeteer = require('puppeteer')
   const executablePath = resolveChromium()
-  console.log('[PDF] Launching puppeteer, executablePath:', executablePath ?? '(bundled)')
+  console.log('[PDF] Starte Browser, executablePath:', executablePath ?? '(bundled)')
   const launchOptions: any = {
     headless: true,
     args: [
@@ -155,10 +195,12 @@ export async function generatePdf(html: string, opts?: PdfOptions): Promise<Buff
     ],
   }
   if (executablePath) launchOptions.executablePath = executablePath
-  let browser: any
-  try {
-    browser = await puppeteer.launch(launchOptions)
-  } catch (launchErr: any) {
+  const v: Promise<any> = puppeteer.launch(launchOptions).then((browser: any) => {
+    // Absturz oder Schliessen: beim naechsten Export neu starten
+    browser.on('disconnected', () => { if (browserVersprechen === v) browserVersprechen = null })
+    return browser
+  }).catch((launchErr: any) => {
+    if (browserVersprechen === v) browserVersprechen = null
     console.error('[PDF] puppeteer.launch failed:', launchErr.message)
     console.error('[PDF] durchsuchte Cache-Verzeichnisse:', lastProbedPaths)
     // Die durchsuchten Pfade mitgeben: ohne sie ist im Betrieb nicht zu
@@ -168,9 +210,26 @@ export async function generatePdf(html: string, opts?: PdfOptions): Promise<Buff
       `Chromium konnte nicht gestartet werden: ${launchErr.message}${probed}` +
       ' Abhilfe: "npm install" erneut ausfuehren (installiert Chromium ins Projekt) oder PUPPETEER_EXECUTABLE_PATH setzen.'
     )
-  }
+  })
+  browserVersprechen = v
+  return v
+}
+
+/** Fuer geordnetes Herunterfahren und nach Leerlauf. */
+export async function pdfBrowserSchliessen() {
+  const v = browserVersprechen
+  browserVersprechen = null
+  if (!v) return
+  try { await (await v).close() } catch { /* schon weg */ }
+}
+
+// Generic PDF generator using puppeteer (lazily loaded)
+export async function generatePdf(html: string, opts?: PdfOptions): Promise<Buffer> {
+  await platzHolen()
+  let page: any
   try {
-    const page = await browser.newPage()
+    const browser = await browserHolen()
+    page = await browser.newPage()
     // Optionales Wasserzeichen: position:fixed wiederholt sich beim Druck auf jeder Seite
     let content = html
     if (opts?.watermark) {
@@ -207,7 +266,8 @@ export async function generatePdf(html: string, opts?: PdfOptions): Promise<Buff
     })
     return pdf
   } finally {
-    await browser.close()
+    if (page) await page.close().catch(() => {})
+    platzFreigeben()
   }
 }
 
@@ -237,13 +297,7 @@ async function getProjectSettings(projectId: number | string): Promise<{ accentC
  * Anfuehrungszeichen im Projekttitel wuerden sonst den Content-Disposition-Header
  * zerlegen, Umlaute je nach Browser als Kauderwelsch ankommen.
  */
-function slug(value: string): string {
-  const out = String(value ?? '')
-    .normalize('NFKD')
-    .replace(/[^\w\s-]/g, '')
-    .trim().replace(/\s+/g, '-').toLowerCase()
-  return out || 'dokument'
-}
+const slug = (value: string) => dateiname(value)
 
 /**
  * PDF ausliefern - oder den Fehler als JSON melden, damit der Client ihn zeigen kann.
@@ -791,7 +845,16 @@ router.get('/projects/:projectId/pdf/shotlist', async (req, res) => {
       ORDER BY s.sort_order ASC
     `, [req.params.projectId]),
     db.all('SELECT id, day_number, date FROM shoot_days WHERE project_id = ? ORDER BY day_number ASC', [req.params.projectId]),
-    db.all('SELECT * FROM shots WHERE project_id = ? ORDER BY sort_order ASC, id ASC', [req.params.projectId]),
+    // Drehtag aus dem Drehplan der Szene ableiten (frueheste Zuordnung);
+    // shots.shoot_day_id bleibt im Normalfall leer, sonst landete in der
+    // Ansicht "nach Drehtagen" alles unter "ohne Drehtag".
+    db.all(`
+      SELECT sh.*, COALESCE(sh.shoot_day_id, (
+        SELECT sds.shoot_day_id FROM shoot_day_scenes sds JOIN shoot_days d ON d.id = sds.shoot_day_id
+        WHERE sds.scene_id = sh.scene_id ORDER BY d.day_number ASC LIMIT 1
+      )) AS shoot_day_id
+      FROM shots sh WHERE sh.project_id = ? ORDER BY sh.sort_order ASC, sh.id ASC
+    `, [req.params.projectId]),
   ]) as any[]
 
   // Storyboards als Daten-URI einbetten: Der Druck laeuft in einem eigenen
@@ -977,7 +1040,7 @@ router.get('/projects/:projectId/pdf/screenplay', async (req, res) => {
       footer: false,
     })
     const suffix = includeAnnotations ? '-mit-notizen' : ''
-    const slug = String(project.title || 'drehbuch').replace(/[^a-z0-9]/gi, '-').toLowerCase()
+    const slug = dateiname(project.title, 'drehbuch')
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="drehbuch-${slug}${suffix}.pdf"`)
     res.send(pdf)

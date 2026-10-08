@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
-import bcrypt from 'bcryptjs'
+import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import { db, seedDemoData } from '../db'
+import { seedGrossproduktion } from '../db/grossproduktion'
 import { requireAuth, requireRole } from '../middleware/auth'
 
 const router = Router()
@@ -153,7 +154,7 @@ router.post('/users/:id/reset-password', async (req: Request, res: Response) => 
   if (!new_password || new_password.length < 6) {
     return res.status(400).json({ data: null, error: 'Mindestens 6 Zeichen' })
   }
-  const hash = await bcrypt.hash(new_password, 12)
+  const hash = await hashPasswort(new_password, 12)
   await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [hash, id])
   res.json({ data: { success: true }, error: null })
 })
@@ -169,7 +170,7 @@ router.post('/users', async (req: Request, res: Response) => {
   const exists = await db.get('SELECT id FROM users WHERE email = ?', [email])
   if (exists) return res.status(409).json({ data: null, error: 'E-Mail bereits vergeben' })
 
-  const hash = await bcrypt.hash(password, 12)
+  const hash = await hashPasswort(password, 12)
   const valid = ['admin', 'user', 'producer', 'director', 'dept_head', 'read_only']
   const finalRole = valid.includes(role) ? role : 'user'
   const result = await db.run(
@@ -184,12 +185,24 @@ router.post('/users', async (req: Request, res: Response) => {
 // ─── POST /api/admin/reseed ───────────────────────────────────────────────────
 // Deletes the "Sprachlos" demo project and re-seeds all demo data fresh.
 router.post('/reseed', async (_req: Request, res: Response) => {
-  const existing = await db.get("SELECT id FROM projects WHERE title = 'Sprachlos'") as any
-  if (existing) {
-    await db.run('DELETE FROM projects WHERE id = ?', [existing.id])
-  }
+  // Das globale Demo-Projekt heisst "Sprachlos (Demo)" und hat keinen Besitzer.
+  // Die alte Abfrage suchte "Sprachlos" und fand es nie — jeder Reseed legte
+  // ein weiteres Demo-Projekt daneben.
+  const existing = await db.all(
+    "SELECT id FROM projects WHERE is_demo = TRUE AND owner_id IS NULL AND title IN ('Sprachlos', 'Sprachlos (Demo)')"
+  ) as any[]
+  for (const p of existing) await db.run('DELETE FROM projects WHERE id = ?', [p.id])
   await seedDemoData()
   res.json({ data: { ok: true }, error: null })
+})
+
+// ─── POST /api/admin/grossproduktion ─────────────────────────────────────────
+// Legt die Großproduktion "Nordlicht" für den anfragenden Admin an (ersetzt
+// eine vorhandene). Antwort enthält die Zahlen und einmalig die Passwörter
+// neu angelegter Teamkonten.
+router.post('/grossproduktion', async (req: Request, res: Response) => {
+  const ergebnis = await seedGrossproduktion((req as any).user.id)
+  res.status(201).json({ data: ergebnis, error: null })
 })
 
 export default router

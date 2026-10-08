@@ -103,7 +103,7 @@ function ContinuityCard({
       <p className="text-sm text-foreground/80 leading-relaxed flex-1">{entry.description}</p>
 
       {/* Photos */}
-      {entry.photos && entry.photos.length > 0 && (
+      {Array.isArray(entry.photos) && entry.photos.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {entry.photos.slice(0, 6).map((src, i) => (
             <PhotoThumb key={i} src={src} onClick={() => onPhotoClick(src)} />
@@ -175,7 +175,7 @@ function EntryDialog({
     cast_id: entry ? String(entry.cast_id ?? '') : '',
     category: entry?.category ?? 'kostüm',
     description: entry?.description ?? '',
-    photos: entry?.photos ?? [],
+    photos: Array.isArray(entry?.photos) ? entry.photos : [],
   })
 
   const token = localStorage.getItem('token')
@@ -190,11 +190,13 @@ function EntryDialog({
         description: form.description,
         photos: form.photos,
       }
+      // Bearbeiten laeuft ueber /continuity/:id (PUT) - der fruehere Pfad
+      // unter /projects/... existierte nicht, Aenderungen scheiterten mit 404
       const url = entry
-        ? `/api/projects/${pid}/continuity/${entry.id}`
+        ? `/api/continuity/${entry.id}`
         : `/api/projects/${pid}/continuity`
       const res = await fetch(url, {
-        method: entry ? 'PATCH' : 'POST',
+        method: entry ? 'PUT' : 'POST',
         headers,
         body: JSON.stringify(body),
       })
@@ -388,7 +390,7 @@ export function Component() {
 
   const deleteMutation = useMutation({
     mutationFn: async (entryId: number) => {
-      const res = await fetch(`/api/projects/${pid}/continuity/${entryId}`, {
+      const res = await fetch(`/api/continuity/${entryId}`, {
         method: 'DELETE',
         headers,
       })

@@ -3,6 +3,17 @@ import { db } from '../db'
 
 const router = Router()
 
+// photos liegt als JSON-Text in der Datenbank. Roh ausgeliefert war es für
+// die Seite ein String: "[]".slice().map() warf, und die ganze
+// Continuity-Seite fiel aus, sobald ein Eintrag je gespeichert worden war.
+function mitFotos<T extends { photos?: unknown }>(row: T): T & { photos: string[] } {
+  let fotos: unknown = row?.photos
+  if (typeof fotos === 'string') {
+    try { fotos = fotos.trim() ? JSON.parse(fotos) : [] } catch { fotos = [] }
+  }
+  return { ...row, photos: Array.isArray(fotos) ? fotos.filter(f => typeof f === 'string') : [] }
+}
+
 // GET /api/projects/:pid/continuity
 router.get('/projects/:pid/continuity', async (req: Request, res: Response) => {
   const user = (req as any).user
@@ -40,7 +51,7 @@ router.get('/projects/:pid/continuity', async (req: Request, res: Response) => {
     params
   ) as any[]
 
-  return res.json({ data: rows, error: null })
+  return res.json({ data: rows.map(mitFotos), error: null })
 })
 
 // POST /api/projects/:pid/continuity
@@ -78,7 +89,7 @@ router.post('/projects/:pid/continuity', async (req: Request, res: Response) => 
     [result.id]
   ) as any
 
-  return res.status(201).json({ data: row, error: null })
+  return res.status(201).json({ data: row && mitFotos(row), error: null })
 })
 
 // PUT /api/continuity/:id
@@ -120,7 +131,7 @@ router.put('/continuity/:id', async (req: Request, res: Response) => {
     [req.params.id]
   ) as any
 
-  return res.json({ data: row, error: null })
+  return res.json({ data: row && mitFotos(row), error: null })
 })
 
 // DELETE /api/continuity/:id

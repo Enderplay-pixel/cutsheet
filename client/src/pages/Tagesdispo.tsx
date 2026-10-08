@@ -13,7 +13,7 @@ import { formatDate, formatDateLong, debounce, cn, eighthsToString } from '@/lib
 import {
   ChevronLeft, ChevronRight, MapPin, Clock, Users,
   Plus, Minus, ClipboardList, Save, Download, Trash2, Clapperboard,
-  CloudSun, Sunrise, Sunset, Film, Send, Eye, CheckCircle2, AlertTriangle
+  CloudSun, Sunrise, Sunset, Film, Send, Eye, CheckCircle2, AlertTriangle, FileText
 } from 'lucide-react'
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
@@ -827,6 +827,14 @@ export function Component() {
           }}>
               <Download className="w-3.5 h-3.5" />PDF
             </Button>
+        )}
+
+        {/* Script Sides: die Drehbuchseiten nur der Szenen dieses Tages */}
+        {selectedDayId && (
+          <Button variant="outline" size="sm" className="gap-1.5" title="Drehbuchauszug mit allen Szenen des Tages"
+            onClick={() => download(api.scriptSides.pdf(selectedDayId), 'script-sides.pdf')}>
+            <FileText className="w-3.5 h-3.5" />Script Sides
+          </Button>
         )}
 
         {/* Dispo versenden */}

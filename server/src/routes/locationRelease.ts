@@ -1,3 +1,4 @@
+import { dateiname } from '../lib/dateiname'
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { generatePdf } from './pdf'
@@ -5,11 +6,7 @@ import { requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { renderDocument, section, definitions, paragraph, fmtMoney, fmtDate } from '../lib/documentLayout'
 
 /** Dateinamen von Zeichen befreien, die den Download-Header zerlegen. */
-function slugify(value: string): string {
-  const out = String(value ?? '').normalize('NFKD').replace(/[^\w\s-]/g, '')
-    .trim().replace(/\s+/g, '-').toLowerCase()
-  return out || 'dokument'
-}
+const slugify = (value: string) => dateiname(value)
 
 const router = Router()
 

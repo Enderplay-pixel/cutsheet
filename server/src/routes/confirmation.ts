@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import bcrypt from 'bcryptjs'
+import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import { db } from '../db'
 import { signToken, AuthUser } from '../middleware/auth'
 
@@ -136,7 +136,7 @@ router.post('/cse/t/:token/claim', async (req: Request, res: Response) => {
     const day = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [sheet?.shoot_day_id]) as any
     if (!day?.project_id) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
 
-    const password_hash = await bcrypt.hash(password, 12)
+    const password_hash = await hashPasswort(password, 12)
     const userName = (name || person?.name || '').trim()
     const result = await db.run(
       'INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)',

@@ -1,3 +1,4 @@
+import { dateiname } from '../lib/dateiname'
 import { Router, Request, Response } from 'express'
 import multer from 'multer'
 import path from 'path'
@@ -234,7 +235,7 @@ router.get('/floorplans/:planId/pdf', async (req, res) => {
       landscape: true,
       footer: false,
     })
-    const slug = String(plan.name || 'set-plan').replace(/[^a-z0-9]/gi, '-').toLowerCase()
+    const slug = dateiname(plan.name, 'set-plan')
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="set-plan-${slug}.pdf"`)
     res.send(pdf)
