@@ -162,7 +162,9 @@ router.delete('/creator/videos/:videoId', async (req, res) => {
   // auftauchen - die Loeschung ist eine Entscheidung, kein Versehen.
   if (video.youtube_video_id) {
     await db.run(
-      'INSERT INTO creator_youtube_ignored (project_id, youtube_video_id) VALUES (?, ?) ON CONFLICT DO NOTHING',
+      // RETURNING ausdruecklich: db.run haengt sonst "RETURNING id" an, und
+      // diese Tabelle hat keine Spalte id.
+      'INSERT INTO creator_youtube_ignored (project_id, youtube_video_id) VALUES (?, ?) ON CONFLICT DO NOTHING RETURNING project_id',
       [video.project_id, video.youtube_video_id]
     )
   }

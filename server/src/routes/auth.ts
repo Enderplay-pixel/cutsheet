@@ -3,7 +3,14 @@ import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import crypto from 'crypto'
 import { z } from 'zod'
 import { db, seedDemoData } from '../db'
-import { signToken, requireAuth, requireRole, AuthUser } from '../middleware/auth'
+import {
+  signToken, requireAuth, requireRole, AuthUser,
+  starteSitzung, beendeSitzung, beendeAlleSitzungen,
+} from '../middleware/auth'
+import {
+  erzeugeSchluessel, otpauthUrl, pruefeCode,
+  erzeugeWiederherstellungscodes, normalisiereCode,
+} from '../lib/zweiterFaktor'
 import { validate } from '../middleware/validate'
 import { sendEmail, isSmtpConfigured, appBaseUrl } from './emailService'
 
@@ -18,6 +25,10 @@ const RegisterSchema = z.object({
 const LoginSchema = z.object({
   email: z.string().email('Ungültige E-Mail-Adresse'),
   password: z.string().min(1, 'Passwort erforderlich'),
+  // Zweiter Faktor: Code aus der App oder ein Wiederherstellungscode. Muss
+  // hier stehen - `validate` ersetzt den Rumpf durch das geparste Objekt,
+  // und was nicht im Schema steht, faellt weg.
+  code: z.string().max(32).optional(),
 })
 
 interface UserRow {
@@ -79,12 +90,183 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response)
     }
 
     const authUser: AuthUser = { id: user.id, email: user.email, name: user.name, role: user.role }
-    const token = signToken(authUser)
+
+    // Zweiter Faktor, falls eingerichtet und bestaetigt.
+    const faktor = await db.get(
+      'SELECT secret, confirmed_at, recovery_codes FROM user_totp WHERE user_id = ? AND confirmed_at IS NOT NULL',
+      [user.id]
+    ) as any
+    if (faktor) {
+      const eingabe = String((req.body as any)?.code || '').trim()
+      if (!eingabe) {
+        await protokolliereAnmeldung(req, user.id, email, 'zweiter_faktor_noetig')
+        return res.status(401).json({
+          data: { zweiter_faktor: true },
+          error: 'Bitte den Code aus deiner Authenticator-App eingeben',
+        })
+      }
+      let erkannt = pruefeCode(faktor.secret, eingabe)
+      if (!erkannt) {
+        // Wiederherstellungscode? Er gilt genau einmal.
+        const codes: string[] = JSON.parse(faktor.recovery_codes || '[]')
+        const gesucht = normalisiereCode(eingabe)
+        const index = codes.findIndex(c => normalisiereCode(c) === gesucht)
+        if (index >= 0) {
+          codes.splice(index, 1)
+          await db.run('UPDATE user_totp SET recovery_codes = ? WHERE user_id = ?', [JSON.stringify(codes), user.id])
+          erkannt = true
+        }
+      }
+      if (!erkannt) {
+        await protokolliereAnmeldung(req, user.id, email, 'code_falsch')
+        return res.status(401).json({ data: { zweiter_faktor: true }, error: 'Der Code stimmt nicht' })
+      }
+    }
+
+    const { token } = await starteSitzung(authUser, {
+      device: String(req.headers['user-agent'] || ''),
+      ip: String(req.headers['x-forwarded-for'] || req.ip || ''),
+    })
+    await protokolliereAnmeldung(req, user.id, email, 'ok')
     return res.json({ data: { token, user: authUser }, error: null })
   } catch (err) {
     console.error('[auth/login]', err)
     return res.status(500).json({ data: null, error: 'Interner Serverfehler' })
   }
+})
+
+/** Haelt fest, wer sich wann angemeldet hat - und was schiefging. */
+async function protokolliereAnmeldung(req: Request, userId: number | null, email: string, ergebnis: string) {
+  try {
+    await db.run(
+      'INSERT INTO login_events (user_id, email, result, ip, device) VALUES (?, ?, ?, ?, ?)',
+      [
+        userId,
+        String(email || '').slice(0, 200),
+        ergebnis,
+        String(req.headers['x-forwarded-for'] || req.ip || '').slice(0, 60),
+        String(req.headers['user-agent'] || '').slice(0, 200),
+      ]
+    )
+  } catch {
+    // Das Protokoll darf keine Anmeldung verhindern.
+  }
+}
+
+// ─── Zweiter Faktor ───────────────────────────────────────────────────────────
+
+// POST /api/auth/2fa/setup - Schluessel erzeugen, noch nicht scharf
+router.post('/2fa/setup', requireAuth, async (req: Request, res: Response) => {
+  const user = req.user!
+  const vorhanden = await db.get('SELECT confirmed_at FROM user_totp WHERE user_id = ?', [user.id]) as any
+  if (vorhanden?.confirmed_at) {
+    return res.status(400).json({ data: null, error: 'Der zweite Faktor ist bereits eingerichtet' })
+  }
+  const schluessel = erzeugeSchluessel()
+  await db.run(
+    // RETURNING ausdruecklich: db.run haengt sonst "RETURNING id" an, und
+    // user_totp hat keine Spalte id - der Schluessel ist user_id.
+    `INSERT INTO user_totp (user_id, secret, confirmed_at, recovery_codes) VALUES (?, ?, NULL, '[]')
+     ON CONFLICT (user_id) DO UPDATE SET secret = EXCLUDED.secret, confirmed_at = NULL, recovery_codes = '[]'
+     RETURNING user_id`,
+    [user.id, schluessel]
+  )
+  return res.json({
+    data: { schluessel, url: otpauthUrl(schluessel, user.email) },
+    error: null,
+  })
+})
+
+// POST /api/auth/2fa/confirm - mit einem Code scharf schalten
+router.post('/2fa/confirm', requireAuth, async (req: Request, res: Response) => {
+  const user = req.user!
+  const zeile = await db.get('SELECT secret FROM user_totp WHERE user_id = ?', [user.id]) as any
+  if (!zeile) return res.status(400).json({ data: null, error: 'Richte den zweiten Faktor zuerst ein' })
+  if (!pruefeCode(zeile.secret, String((req.body as any)?.code || ''))) {
+    return res.status(400).json({ data: null, error: 'Der Code stimmt nicht. Geht die Uhr des Geraets richtig?' })
+  }
+  const codes = erzeugeWiederherstellungscodes()
+  await db.run(
+    'UPDATE user_totp SET confirmed_at = NOW(), recovery_codes = ? WHERE user_id = ?',
+    [JSON.stringify(codes), user.id]
+  )
+  return res.json({
+    data: {
+      aktiv: true,
+      wiederherstellungscodes: codes,
+      hinweis: 'Diese Codes jetzt notieren. Jeder gilt einmal und ersetzt die App, wenn das Geraet weg ist.',
+    },
+    error: null,
+  })
+})
+
+// DELETE /api/auth/2fa - abschalten, nur mit Passwort
+router.delete('/2fa', requireAuth, async (req: Request, res: Response) => {
+  const user = req.user!
+  const konto = await db.get('SELECT password_hash FROM users WHERE id = ?', [user.id]) as any
+  const passwort = String((req.body as any)?.password || '')
+  if (!konto || !(await pruefePasswort(passwort, konto.password_hash))) {
+    return res.status(401).json({ data: null, error: 'Das Passwort stimmt nicht' })
+  }
+  await db.run('DELETE FROM user_totp WHERE user_id = ?', [user.id])
+  return res.json({ data: { aktiv: false }, error: null })
+})
+
+// GET /api/auth/2fa - Stand
+router.get('/2fa', requireAuth, async (req: Request, res: Response) => {
+  const zeile = await db.get(
+    'SELECT confirmed_at, recovery_codes FROM user_totp WHERE user_id = ?',
+    [req.user!.id]
+  ) as any
+  return res.json({
+    data: {
+      aktiv: !!zeile?.confirmed_at,
+      eingerichtet: !!zeile,
+      codes_uebrig: zeile ? JSON.parse(zeile.recovery_codes || '[]').length : 0,
+    },
+    error: null,
+  })
+})
+
+// ─── Sitzungen ────────────────────────────────────────────────────────────────
+
+// GET /api/auth/sessions - angemeldete Geraete
+router.get('/sessions', requireAuth, async (req: Request, res: Response) => {
+  const zeilen = await db.all(
+    `SELECT id, device, ip, created_at, last_seen
+       FROM user_sessions
+      WHERE user_id = ? AND revoked_at IS NULL
+      ORDER BY last_seen DESC`,
+    [req.user!.id]
+  ) as any[]
+  const eigene = req.user!.sid
+  return res.json({
+    data: zeilen.map(z => ({ ...z, diese: z.id === eigene })),
+    error: null,
+  })
+})
+
+// DELETE /api/auth/sessions/:sid - ein Geraet abmelden
+router.delete('/sessions/:sid', requireAuth, async (req: Request, res: Response) => {
+  const ok = await beendeSitzung(String(req.params.sid), req.user!.id)
+  if (!ok) return res.status(404).json({ data: null, error: 'Diese Anmeldung gibt es nicht mehr' })
+  return res.json({ data: { beendet: true }, error: null })
+})
+
+// POST /api/auth/sessions/revoke-others - alle anderen abmelden
+router.post('/sessions/revoke-others', requireAuth, async (req: Request, res: Response) => {
+  const anzahl = await beendeAlleSitzungen(req.user!.id, req.user!.sid)
+  return res.json({ data: { beendet: anzahl }, error: null })
+})
+
+// GET /api/auth/login-events - Anmeldeverlauf des eigenen Kontos
+router.get('/login-events', requireAuth, async (req: Request, res: Response) => {
+  const zeilen = await db.all(
+    `SELECT result, ip, device, created_at FROM login_events
+      WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`,
+    [req.user!.id]
+  )
+  return res.json({ data: zeilen, error: null })
 })
 
 // POST /forgot-password - antwortet immer 200, verrät nie ob die E-Mail existiert

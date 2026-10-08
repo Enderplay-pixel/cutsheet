@@ -1248,6 +1248,48 @@ export async function initDatabase() {
     )
   `)
 
+  // ── Zweiter Faktor und Sitzungen ──────────────────────────────────────────
+  // Ein Passwort allein schuetzt Gagen, Telefonnummern und Drehorte einer
+  // ganzen Produktion. Wer will, haengt ein Geraet davor.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS user_totp (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      secret TEXT NOT NULL,
+      confirmed_at TIMESTAMPTZ,
+      recovery_codes TEXT NOT NULL DEFAULT '[]',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  // Jede Anmeldung bekommt eine Sitzung. Das Token traegt ihre Kennung, und
+  // ein Widerruf wirkt sofort - ein JWT allein laesst sich nicht zurueckholen.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS user_sessions (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      device TEXT NOT NULL DEFAULT '',
+      ip TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      revoked_at TIMESTAMPTZ
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS user_sessions_konto_idx ON user_sessions (user_id, revoked_at)`)
+
+  // Anmeldeversuche: wer sich wann angemeldet hat, und was schiefging.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS login_events (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      email TEXT NOT NULL DEFAULT '',
+      result TEXT NOT NULL DEFAULT 'ok',
+      ip TEXT NOT NULL DEFAULT '',
+      device TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS login_events_konto_idx ON login_events (user_id, created_at DESC)`)
+
   // ── Die Firma ueber den Projekten ─────────────────────────────────────────
   // Eine Produktionsfirma dreht mit denselben Leuten immer wieder. Bisher fing
   // jedes Projekt bei null an: dieselbe Kamerafrau stand in zehn Projekten

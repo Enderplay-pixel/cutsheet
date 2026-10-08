@@ -25,7 +25,9 @@ export async function antwortLesen(res: Response): Promise<{ data: any; error: s
   const json = await res.json().catch(() => null)
   if (res.ok) return { data: json?.data, error: null }
   return {
-    data: null,
+    // Der Rumpf bleibt erhalten: Manche Fehler tragen Angaben, die der
+    // Aufrufer braucht - etwa dass ein zweiter Faktor abgefragt wird.
+    data: json?.data ?? null,
     error: json?.error || (res.status >= 500
       ? 'Der Server ist gerade nicht erreichbar. Bitte gleich noch einmal versuchen.'
       : 'Fehler beim Server-Request'),
@@ -341,7 +343,7 @@ export const api = {
 
   // ─── Auth ──────────────────────────────────────────────────────────────────
   auth: {
-    login: (email: string, password: string) => req<{ token: string; user: any }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    login: (email: string, password: string, code?: string) => req<{ token: string; user: any }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password, code }) }),
     register: (email: string, password: string, name: string) => req<{ token: string; user: any }>('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, name }) }),
     me: () => req<any>('/auth/me'),
     updateMe: (data: { name?: string }) => req<any>('/auth/me', { method: 'PUT', body: JSON.stringify(data) }),
@@ -643,6 +645,22 @@ export const api = {
 
   // ─── Auth-Erweiterungen: Passwort-Reset + DSGVO ────────────────────────────
   authExtra: {
+    // Zweiter Faktor
+    zweiterFaktor: () => req<{ aktiv: boolean; eingerichtet: boolean; codes_uebrig: number }>('/auth/2fa'),
+    zweiterFaktorEinrichten: () =>
+      req<{ schluessel: string; url: string }>('/auth/2fa/setup', { method: 'POST' }),
+    zweiterFaktorBestaetigen: (code: string) =>
+      req<{ aktiv: boolean; wiederherstellungscodes: string[]; hinweis: string }>(
+        '/auth/2fa/confirm', { method: 'POST', body: JSON.stringify({ code }) }),
+    zweiterFaktorAus: (password: string) =>
+      req<{ aktiv: boolean }>('/auth/2fa', { method: 'DELETE', body: JSON.stringify({ password }) }),
+
+    // Angemeldete Geraete
+    sitzungen: () => req<any[]>('/auth/sessions'),
+    sitzungBeenden: (sid: string) => req<any>(`/auth/sessions/${sid}`, { method: 'DELETE' }),
+    andereBeenden: () => req<{ beendet: number }>('/auth/sessions/revoke-others', { method: 'POST' }),
+    anmeldeverlauf: () => req<any[]>('/auth/login-events'),
+
     forgotPassword: (email: string) =>
       req<{ ok: boolean; emailConfigured: boolean }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
     resetPassword: (token: string, password: string) =>
@@ -708,6 +726,19 @@ export const api = {
       req<any>(`/companies/${id}/rates`, { method: 'POST', body: JSON.stringify(daten) }),
     satzLoeschen: (id: number, rateId: number) =>
       req<any>(`/companies/${id}/rates/${rateId}`, { method: 'DELETE' }),
+  },
+
+  // ─── Datenschutz ───────────────────────────────────────────────────────────
+  datenschutz: {
+    auskunft: (projectId: number, art: string, person: number) =>
+      req<any>(`/projects/${projectId}/datenschutz/auskunft?art=${art}&person=${person}`),
+    anonymisieren: (projectId: number, art: string, personId: number, grund: string) =>
+      req<{ ersatzname: string; betroffen: Record<string, number>; hinweis: string }>(
+        `/projects/${projectId}/datenschutz/anonymisieren`,
+        { method: 'POST', body: JSON.stringify({ art, person_id: personId, grund }) }),
+    zugriff: (projectId: number) =>
+      req<{ mitglieder: any[]; gastzugaenge: number }>(`/projects/${projectId}/datenschutz/zugriff`),
+    verzeichnis: (companyId: number) => req<any>(`/companies/${companyId}/datenschutz/verzeichnis`),
   },
 
   // ─── Rechnungen und Auftraggeber ───────────────────────────────────────────

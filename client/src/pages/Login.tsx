@@ -15,6 +15,9 @@ export function Component() {
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  // Wird gesetzt, sobald der Server nach dem Code aus der App fragt.
+  const [code, setCode] = useState('')
+  const [codeNoetig, setCodeNoetig] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const { login, register } = useAuth()
@@ -28,13 +31,18 @@ export function Component() {
     setLoading(true)
     try {
       if (mode === 'login') {
-        await login(email, password)
+        await login(email, password, codeNoetig ? code : undefined)
       } else {
         await register(email, password, name)
       }
       navigate('/', { replace: true })
     } catch (err: any) {
-      setError(err.message || 'An error occurred')
+      if (err?.zweiterFaktor) {
+        setCodeNoetig(true)
+        setError(code ? err.message : null)
+      } else {
+        setError(err.message || 'An error occurred')
+      }
     } finally {
       setLoading(false)
     }
@@ -226,6 +234,28 @@ export function Component() {
                 {error}
               </div>
             )}
+            {codeNoetig && (
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-medium text-foreground/80" htmlFor="zweiter-faktor">
+                  Code aus deiner Authenticator-App
+                </label>
+                <Input
+                  id="zweiter-faktor"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="123456"
+                  className="tracking-[0.3em] font-mono text-center"
+                  value={code}
+                  onChange={e => setCode(e.target.value)}
+                  autoFocus
+                  required
+                />
+                <p className="text-[12px] text-muted-foreground">
+                  Kein Zugriff auf die App? Gib einen deiner Wiederherstellungscodes ein.
+                </p>
+              </div>
+            )}
+
 
             <Button type="submit" size="lg" className="w-full" disabled={loading}>
               {loading

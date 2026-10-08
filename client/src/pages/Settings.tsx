@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -182,6 +182,9 @@ export function Component() {
           </Button>
         </form>
       </Section>
+
+      {/* ── Zweiter Faktor und Geraete ── */}
+      <Sicherheitsabschnitt />
 
       {/* ── Language ── */}
       <Section icon={Globe} title={tt(settingsT.language)} description={tt(settingsT.languageDesc)}>
@@ -413,6 +416,233 @@ function PrivacySection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </Section>
+  )
+}
+
+
+/**
+ * Zweiter Faktor, angemeldete Geräte und Anmeldeverlauf.
+ *
+ * Ein Passwort allein schützt die Gagen, Telefonnummern und Drehorte einer
+ * ganzen Produktion. Wer will, hängt ein Gerät davor - und sieht hier, wo er
+ * überall angemeldet ist.
+ */
+function Sicherheitsabschnitt() {
+  const { toast } = useToast()
+  const qc = useQueryClient()
+  const [einrichtung, setEinrichtung] = useState<{ schluessel: string; url: string } | null>(null)
+  const [code, setCode] = useState('')
+  const [codes, setCodes] = useState<string[] | null>(null)
+  const [ausPasswort, setAusPasswort] = useState('')
+
+  const { data: stand } = useQuery({ queryKey: ['2fa'], queryFn: () => api.authExtra.zweiterFaktor() })
+  const { data: sitzungen } = useQuery({ queryKey: ['sitzungen'], queryFn: () => api.authExtra.sitzungen() })
+  const { data: verlauf } = useQuery({ queryKey: ['anmeldeverlauf'], queryFn: () => api.authExtra.anmeldeverlauf() })
+
+  const einrichten = useMutation({
+    mutationFn: () => api.authExtra.zweiterFaktorEinrichten(),
+    onSuccess: (daten: any) => setEinrichtung(daten),
+    onError: (fehler: any) => toast({ title: 'Nicht eingerichtet', description: fehler.message, variant: 'destructive' }),
+  })
+
+  const bestaetigen = useMutation({
+    mutationFn: () => api.authExtra.zweiterFaktorBestaetigen(code),
+    onSuccess: (daten: any) => {
+      setCodes(daten.wiederherstellungscodes)
+      setEinrichtung(null)
+      setCode('')
+      qc.invalidateQueries({ queryKey: ['2fa'] })
+      toast({ title: 'Zweiter Faktor ist aktiv' })
+    },
+    onError: (fehler: any) => toast({ title: 'Code stimmt nicht', description: fehler.message, variant: 'destructive' }),
+  })
+
+  const abschalten = useMutation({
+    mutationFn: () => api.authExtra.zweiterFaktorAus(ausPasswort),
+    onSuccess: () => {
+      setAusPasswort('')
+      qc.invalidateQueries({ queryKey: ['2fa'] })
+      toast({ title: 'Zweiter Faktor abgeschaltet' })
+    },
+    onError: (fehler: any) => toast({ title: 'Nicht abgeschaltet', description: fehler.message, variant: 'destructive' }),
+  })
+
+  const beenden = useMutation({
+    mutationFn: (sid: string) => api.authExtra.sitzungBeenden(sid),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sitzungen'] })
+      toast({ title: 'Gerät abgemeldet' })
+    },
+  })
+
+  const andereBeenden = useMutation({
+    mutationFn: () => api.authExtra.andereBeenden(),
+    onSuccess: (daten: any) => {
+      qc.invalidateQueries({ queryKey: ['sitzungen'] })
+      toast({ title: `${daten.beendet} andere Anmeldungen beendet` })
+    },
+  })
+
+  const geraet = (text: string) => {
+    const t = String(text || '')
+    if (/iPhone|iPad/i.test(t)) return 'iPhone oder iPad'
+    if (/Android/i.test(t)) return 'Android-Gerät'
+    if (/Macintosh|Mac OS/i.test(t)) return 'Mac'
+    if (/Windows/i.test(t)) return 'Windows-Rechner'
+    if (/Linux/i.test(t)) return 'Linux-Rechner'
+    return t.slice(0, 40) || 'Unbekanntes Gerät'
+  }
+
+  const zeitpunkt = (wert: string) =>
+    wert ? new Date(wert).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
+
+  const ERGEBNIS: Record<string, string> = {
+    ok: 'angemeldet',
+    code_falsch: 'Code falsch',
+    zweiter_faktor_noetig: 'Code abgefragt',
+  }
+
+  return (
+    <Section
+      icon={ShieldCheck}
+      title="Zweiter Faktor und Geräte"
+      description="Ein Code vom Handy zusätzlich zum Passwort - und der Überblick, wo du angemeldet bist"
+    >
+      <div className="space-y-5">
+        <div>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium">
+                Zweiter Faktor {stand?.aktiv ? 'aktiv' : 'nicht eingerichtet'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {stand?.aktiv
+                  ? `${stand.codes_uebrig} Wiederherstellungscodes übrig`
+                  : 'Mit einer Authenticator-App auf dem Handy'}
+              </p>
+            </div>
+            {!stand?.aktiv && !einrichtung && (
+              <Button size="sm" className="h-8 text-xs" onClick={() => einrichten.mutate()}>
+                Einrichten
+              </Button>
+            )}
+          </div>
+
+          {einrichtung && (
+            <div className="mt-3 space-y-3 rounded-lg border border-border/60 p-3">
+              <p className="text-xs text-muted-foreground">
+                Diesen Schlüssel in der Authenticator-App eintragen - oder den Link öffnen,
+                wenn die App auf demselben Gerät liegt.
+              </p>
+              <code className="block text-sm font-mono tracking-wider break-all bg-muted/40 rounded px-2 py-1.5">
+                {einrichtung.schluessel}
+              </code>
+              <a href={einrichtung.url} className="text-xs text-primary underline">
+                In der App öffnen
+              </a>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Code aus der App</Label>
+                <Input value={code} onChange={e => setCode(e.target.value)} inputMode="numeric"
+                  placeholder="123456" className="h-9 text-sm tracking-widest font-mono" />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" className="h-8 text-xs" disabled={code.length < 6}
+                  onClick={() => bestaetigen.mutate()}>
+                  Scharf schalten
+                </Button>
+                <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setEinrichtung(null)}>
+                  Abbrechen
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {codes && (
+            <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
+              <p className="text-sm font-medium">Wiederherstellungscodes</p>
+              <p className="text-xs text-muted-foreground">
+                Jetzt notieren. Jeder Code gilt einmal und ersetzt die App, wenn das Handy weg ist.
+                Sie werden nicht noch einmal angezeigt.
+              </p>
+              <div className="grid grid-cols-2 gap-1 font-mono text-sm">
+                {codes.map(c => <span key={c}>{c}</span>)}
+              </div>
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setCodes(null)}>
+                Notiert
+              </Button>
+            </div>
+          )}
+
+          {stand?.aktiv && (
+            <div className="mt-3 flex gap-2 items-end">
+              <div className="space-y-1.5 flex-1 max-w-xs">
+                <Label className="text-xs">Passwort, um abzuschalten</Label>
+                <Input type="password" value={ausPasswort} onChange={e => setAusPasswort(e.target.value)}
+                  className="h-9 text-sm" autoComplete="current-password" />
+              </div>
+              <Button variant="ghost" size="sm" className="h-9 text-xs text-destructive"
+                disabled={!ausPasswort} onClick={() => abschalten.mutate()}>
+                Abschalten
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-border/40 pt-4">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <p className="text-sm font-medium">Angemeldete Geräte</p>
+            {(sitzungen || []).length > 1 && (
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => andereBeenden.mutate()}>
+                Alle anderen abmelden
+              </Button>
+            )}
+          </div>
+          <div className="space-y-1">
+            {(sitzungen || []).map((s: any) => (
+              <div key={s.id} className="flex items-center gap-3 py-1.5 border-b border-border/40 last:border-0">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm truncate">
+                    {geraet(s.device)}
+                    {s.diese && <span className="text-xs text-muted-foreground ml-2">dieses Gerät</span>}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    zuletzt {zeitpunkt(s.last_seen)}{s.ip ? ` · ${s.ip}` : ''}
+                  </p>
+                </div>
+                {!s.diese && (
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive"
+                    onClick={() => beenden.mutate(s.id)}>
+                    Abmelden
+                  </Button>
+                )}
+              </div>
+            ))}
+            {(sitzungen || []).length === 0 && (
+              <p className="text-xs text-muted-foreground py-2">
+                Keine Sitzungen hinterlegt. Nach der nächsten Anmeldung steht hier dieses Gerät.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {(verlauf || []).length > 0 && (
+          <div className="border-t border-border/40 pt-4">
+            <p className="text-sm font-medium mb-2">Letzte Anmeldungen</p>
+            <div className="space-y-0.5">
+              {(verlauf || []).slice(0, 8).map((e: any, i: number) => (
+                <div key={i} className="flex items-center gap-3 text-xs py-1">
+                  <span className={e.result === 'ok' ? 'text-muted-foreground' : 'text-amber-600 dark:text-amber-400'}>
+                    {ERGEBNIS[e.result] || e.result}
+                  </span>
+                  <span className="text-muted-foreground">{zeitpunkt(e.created_at)}</span>
+                  <span className="text-muted-foreground truncate">{geraet(e.device)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </Section>
   )
 }

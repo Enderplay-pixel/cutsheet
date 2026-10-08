@@ -89,8 +89,10 @@ beforeAll(async () => {
   const { signToken } = await import('../middleware/auth')
   const { default: companiesRouter } = await import('../routes/companies')
   const { default: invoicesRouter } = await import('../routes/invoices')
+  const { default: authRouter } = await import('../routes/auth')
   const app = express()
   app.use(express.json())
+  app.use('/api/auth', authRouter)
   app.use('/api', companiesRouter)
   app.use('/api', invoicesRouter)
   await new Promise<void>((aufloesen) => {
@@ -758,5 +760,177 @@ describe('Rechnungen', () => {
       method: 'POST',
     })
     expect(fest.daten.number).toBe('2027-0001')
+  })
+})
+
+
+describe('Zweiter Faktor und Sitzungen', () => {
+  let totpModul: typeof import('../lib/zweiterFaktor')
+  let konto = { email: 'faktor@example.com', passwort: 'ein-langes-passwort-123' }
+  let token = ''
+  let schluessel = ''
+
+  beforeAll(async () => {
+    totpModul = await import('../lib/zweiterFaktor')
+    const { hashPasswort } = await import('../lib/passwort')
+    const hash = await hashPasswort(konto.passwort, 10)
+    await db.run(
+      "INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, 'user')",
+      [konto.email, hash, 'Faktor Test']
+    )
+  }, 60_000)
+
+  /** Anmeldung ohne Token - gibt die ganze Antwort zurück. */
+  async function melde(code?: string) {
+    const antwort = await fetch(`${basis}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: konto.email, password: konto.passwort, code }),
+    })
+    const rumpf: any = await antwort.json().catch(() => null)
+    return { status: antwort.status, daten: rumpf?.data, fehler: rumpf?.error }
+  }
+
+  it('meldet ohne zweiten Faktor wie bisher an', async () => {
+    const ergebnis = await melde()
+    expect(ergebnis.status).toBe(200)
+    expect(ergebnis.daten.token).toBeTruthy()
+    token = ergebnis.daten.token
+  })
+
+  it('legt bei der Anmeldung eine Sitzung an', async () => {
+    const sitzungen = await hole('/api/auth/sessions', token)
+    expect(sitzungen.status).toBe(200)
+    expect(sitzungen.daten.length).toBeGreaterThan(0)
+    expect(sitzungen.daten.some((s: any) => s.diese)).toBe(true)
+  })
+
+  it('richtet den zweiten Faktor ein, aber erst der Code schaltet ihn scharf', async () => {
+    const einrichtung = await hole('/api/auth/2fa/setup', token, { method: 'POST' })
+    expect(einrichtung.status).toBe(200)
+    schluessel = einrichtung.daten.schluessel
+    expect(einrichtung.daten.url).toContain('otpauth://totp/')
+
+    const stand = await hole('/api/auth/2fa', token)
+    expect(stand.daten.eingerichtet).toBe(true)
+    expect(stand.daten.aktiv, 'ohne Bestaetigung nicht scharf').toBe(false)
+
+    // Anmeldung geht weiterhin ohne Code
+    expect((await melde()).status).toBe(200)
+  })
+
+  it('weist einen falschen Code bei der Bestätigung zurück', async () => {
+    const versuch = await hole('/api/auth/2fa/confirm', token, {
+      method: 'POST',
+      body: JSON.stringify({ code: '000000' }),
+    })
+    // Eins zu einer Million, dass 000000 gerade stimmt - dann waere der Test
+    // zu Recht rot und beim naechsten Lauf wieder gruen.
+    expect(versuch.status).toBe(400)
+  })
+
+  it('schaltet mit richtigem Code scharf und gibt Wiederherstellungscodes aus', async () => {
+    const code = totpModul.totp(schluessel)
+    const bestaetigt = await hole('/api/auth/2fa/confirm', token, {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    })
+    expect(bestaetigt.status).toBe(200)
+    expect(bestaetigt.daten.wiederherstellungscodes).toHaveLength(8)
+    ;(globalThis as any).__codes = bestaetigt.daten.wiederherstellungscodes
+  })
+
+  it('verlangt ab jetzt den Code bei der Anmeldung', async () => {
+    const ohne = await melde()
+    expect(ohne.status).toBe(401)
+    expect(ohne.daten.zweiter_faktor).toBe(true)
+
+    const falsch = await melde('123456')
+    expect([400, 401]).toContain(falsch.status)
+
+    const richtig = await melde(totpModul.totp(schluessel))
+    expect(richtig.status).toBe(200)
+    expect(richtig.daten.token).toBeTruthy()
+    token = richtig.daten.token
+  })
+
+  it('nimmt einen Wiederherstellungscode an - und nur einmal', async () => {
+    const codes: string[] = (globalThis as any).__codes
+    const einer = codes[0]
+    expect((await melde(einer)).status).toBe(200)
+    expect((await melde(einer)).status, 'derselbe Code ein zweites Mal').toBe(401)
+
+    const stand = await hole('/api/auth/2fa', token)
+    expect(stand.daten.codes_uebrig).toBe(codes.length - 1)
+  })
+
+  it('hält den Anmeldeverlauf fest', async () => {
+    const verlauf = await hole('/api/auth/login-events', token)
+    expect(verlauf.status).toBe(200)
+    expect(verlauf.daten.length).toBeGreaterThan(2)
+    expect(verlauf.daten.some((e: any) => e.result === 'ok')).toBe(true)
+    expect(verlauf.daten.some((e: any) => e.result !== 'ok'), 'auch Fehlversuche').toBe(true)
+  })
+
+  it('beendet eine Sitzung, und das Token gilt sofort nicht mehr', async () => {
+    const zweite = await melde(totpModul.totp(schluessel))
+    const zweitesToken = zweite.daten.token
+
+    const sitzungen = await hole('/api/auth/sessions', token)
+    const andere = sitzungen.daten.find((s: any) => !s.diese)
+    expect(andere, 'es gibt eine zweite Sitzung').toBeTruthy()
+
+    const beendet = await hole(`/api/auth/sessions/${andere.id}`, token, { method: 'DELETE' })
+    expect(beendet.status).toBe(200)
+
+    // Das Token der beendeten Sitzung ist sofort wertlos - irgendeines der
+    // beiden muss es sein.
+    const eins = await hole('/api/auth/sessions', zweitesToken)
+    const zwei = await hole('/api/auth/sessions', token)
+    expect([eins.status, zwei.status]).toContain(401)
+  })
+
+  it('schaltet den zweiten Faktor nur mit Passwort ab', async () => {
+    const gueltig = await melde(totpModul.totp(schluessel))
+    const frisch = gueltig.daten.token
+
+    const ohne = await hole('/api/auth/2fa', frisch, {
+      method: 'DELETE',
+      body: JSON.stringify({ password: 'falsch' }),
+    })
+    expect(ohne.status).toBe(401)
+
+    const mit = await hole('/api/auth/2fa', frisch, {
+      method: 'DELETE',
+      body: JSON.stringify({ password: konto.passwort }),
+    })
+    expect(mit.status).toBe(200)
+    expect((await melde()).status, 'danach wieder ohne Code').toBe(200)
+  })
+})
+
+describe('Tabellen ohne Spalte id', () => {
+  /**
+   * `db.run` haengt an jedes INSERT ohne RETURNING ein `RETURNING id` an.
+   * Bei einer Tabelle mit zusammengesetztem Schluessel bricht das ab - zweimal
+   * schon passiert (invoice_counters, user_totp). Dieser Test zaehlt die
+   * betroffenen Tabellen auf, damit die naechste nicht erst in der Produktion
+   * auffaellt.
+   */
+  it('nennt jede Tabelle, deren INSERT ein eigenes RETURNING braucht', async () => {
+    const ohneId = await db.all(`
+      SELECT t.table_name
+        FROM information_schema.tables t
+       WHERE t.table_schema = 'public'
+         AND t.table_type = 'BASE TABLE'
+         AND NOT EXISTS (
+           SELECT 1 FROM information_schema.columns c
+            WHERE c.table_schema = 'public' AND c.table_name = t.table_name AND c.column_name = 'id'
+         )
+       ORDER BY t.table_name
+    `)
+    const namen = ohneId.map((z: any) => z.table_name)
+    // Wer hier etwas ergaenzt, muss im Code ein eigenes RETURNING setzen.
+    expect(namen).toEqual(['creator_youtube_ignored', 'invoice_counters', 'user_totp'])
   })
 })

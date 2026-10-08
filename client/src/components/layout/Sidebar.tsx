@@ -152,6 +152,7 @@ export function Sidebar() {
         { label: tt(navT.activityFeed), icon: Activity, path: 'aktivitaet' },
         { label: tt(navT.search), icon: Search, path: 'suche' },
         { label: tt(navT.auditLog), icon: History, path: 'audit' },
+        { label: 'Datenschutz', icon: ShieldCheck, path: 'datenschutz' },
       ]
     },
   ]
@@ -242,6 +243,7 @@ export function Sidebar() {
         { label: tt(navT.activityFeed), icon: Activity, path: 'aktivitaet' },
         { label: tt(navT.search), icon: Search, path: 'suche' },
         { label: tt(navT.auditLog), icon: History, path: 'audit' },
+        { label: 'Datenschutz', icon: ShieldCheck, path: 'datenschutz' },
       ]
     },
   ]

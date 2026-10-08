@@ -137,6 +137,7 @@ const router = createBrowserRouter([
           { path: 'tagesbericht', lazy: lazyPage(() => import('./pages/Tagesbericht')) },
           { path: 'budget', lazy: lazyPage(() => import('./pages/Budget')) },
           { path: 'email', lazy: lazyPage(() => import('./pages/EmailCenter')) },
+          { path: 'datenschutz', lazy: lazyPage(() => import('./pages/DatenschutzWerkzeuge')) },
           { path: 'kalender', lazy: lazyPage(() => import('./pages/Terminkalender')) },
           { path: 'konfliktradar', lazy: lazyPage(() => import('./pages/Konfliktradar')) },
           { path: 'pinboard', lazy: lazyPage(() => import('./pages/Pinboard')) },

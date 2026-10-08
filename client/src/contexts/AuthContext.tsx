@@ -12,7 +12,7 @@ interface User {
 interface AuthContextValue {
   user: User | null
   token: string | null
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string, code?: string) => Promise<void>
   register: (email: string, password: string, name: string) => Promise<void>
   logout: () => void
   updateUser: (partial: Partial<User>) => void
@@ -76,14 +76,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setIsLoading(false))
   }, [token, logout])
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, code?: string) => {
     const r = await fetchMitWiederholung('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password, code })
     })
     const { data, error } = await antwortLesen(r)
-    if (error) throw new Error(error)
+    if (error) {
+      // Der Server fragt nach dem zweiten Faktor. Die Anmeldeseite soll das
+      // Code-Feld zeigen statt eine Fehlermeldung.
+      const fehler: any = new Error(error)
+      if (data?.zweiter_faktor) fehler.zweiterFaktor = true
+      throw fehler
+    }
     setToken(data.token)
     setUser(data.user)
     localStorage.setItem('token', data.token)
