@@ -116,6 +116,8 @@ const router = createBrowserRouter([
       { path: 'settings', lazy: lazyPage(() => import('./pages/Settings')) },
       { path: 'firma', lazy: lazyPage(() => import('./pages/Firma')) },
       { path: 'firma/:companyId', lazy: lazyPage(() => import('./pages/Firma')) },
+      { path: 'firma/:companyId/rechnungen', lazy: lazyPage(() => import('./pages/Rechnungen')) },
+      { path: 'firma/:companyId/rechnungen/:invoiceId', lazy: lazyPage(() => import('./pages/Rechnungen')) },
       {
         path: 'projects/:projectId',
         children: [

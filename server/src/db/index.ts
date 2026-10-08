@@ -1,7 +1,17 @@
-import { Pool, PoolClient } from 'pg'
+import { Pool, PoolClient, types as pgTypes } from 'pg'
 import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import { heuteISO } from '../lib/datum'
 import { ueberlastMelden } from '../lib/ueberlast'
+
+// DATE-Spalten als Text lesen, nicht als JS-Datum.
+//
+// Der Treiber macht aus einer DATE-Spalte sonst ein Date-Objekt mit lokaler
+// Mitternacht. In JSON wird daraus die UTC-Zeit - aus dem 22.10. wird
+// "2026-10-21T22:00:00.000Z", und wer das vorne abschneidet, zeigt den
+// Vortag an. Ein Datum ohne Uhrzeit hat keine Zeitzone; als Text bleibt es,
+// was es ist.
+const PG_TYP_DATE = 1082
+pgTypes.setTypeParser(PG_TYP_DATE, (wert: string) => wert)
 
 // ─── Connection pool ──────────────────────────────────────────────────────────
 // Groesse und Zeitgrenzen per Umgebung einstellbar. Die Vorgaben passen zu
@@ -1321,6 +1331,89 @@ export async function initDatabase() {
   // so laesst sich eine Nummer an einer Stelle aendern und ueberall finden.
   await db.exec(`ALTER TABLE crew ADD COLUMN IF NOT EXISTS contact_id INTEGER REFERENCES company_contacts(id) ON DELETE SET NULL`)
   await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS contact_id INTEGER REFERENCES company_contacts(id) ON DELETE SET NULL`)
+
+  // ── Rechnungen und Honorare ───────────────────────────────────────────────
+  // Steuerart der Firma. Ein Einzelunternehmen nach Paragraf 19 UStG weist
+  // keine Umsatzsteuer aus und muss das auf der Rechnung begruenden.
+  await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS tax_mode TEXT NOT NULL DEFAULT 'regel'`)
+  await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS iban TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS bic TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS bank_name TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS payment_days INTEGER NOT NULL DEFAULT 14`)
+
+  // Auftraggeber: wer die Rechnung bekommt.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS company_clients (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      name TEXT NOT NULL DEFAULT '',
+      contact_name TEXT NOT NULL DEFAULT '',
+      address TEXT NOT NULL DEFAULT '',
+      zip TEXT NOT NULL DEFAULT '',
+      city TEXT NOT NULL DEFAULT '',
+      country TEXT NOT NULL DEFAULT 'Deutschland',
+      vat_id TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      archived BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  // Der Zaehler fuer die Rechnungsnummern. Eine Zeile je Firma und Jahr,
+  // hochgezaehlt in einer Transaktion: Rechnungsnummern muessen lueckenlos
+  // und einmalig sein, da hilft kein COUNT(*) + 1.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS invoice_counters (
+      company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      year INTEGER NOT NULL,
+      last_number INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (company_id, year)
+    )
+  `)
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS invoices (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      client_id INTEGER REFERENCES company_clients(id) ON DELETE SET NULL,
+      project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+      number TEXT NOT NULL DEFAULT '',
+      kind TEXT NOT NULL DEFAULT 'rechnung',
+      status TEXT NOT NULL DEFAULT 'entwurf',
+      issue_date DATE,
+      due_date DATE,
+      service_from DATE,
+      service_to DATE,
+      intro TEXT NOT NULL DEFAULT '',
+      outro TEXT NOT NULL DEFAULT '',
+      net_cents INTEGER NOT NULL DEFAULT 0,
+      tax_cents INTEGER NOT NULL DEFAULT 0,
+      gross_cents INTEGER NOT NULL DEFAULT 0,
+      paid_cents INTEGER NOT NULL DEFAULT 0,
+      paid_at DATE,
+      tax_mode TEXT NOT NULL DEFAULT 'regel',
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS invoices_firma_idx ON invoices (company_id, status, due_date)`)
+  await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS invoices_nummer_idx ON invoices (company_id, number) WHERE number <> ''`)
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS invoice_items (
+      id SERIAL PRIMARY KEY,
+      invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+      description TEXT NOT NULL DEFAULT '',
+      quantity_milli INTEGER NOT NULL DEFAULT 1000,
+      unit TEXT NOT NULL DEFAULT 'Tag',
+      unit_price_cents INTEGER NOT NULL DEFAULT 0,
+      tax_percent INTEGER NOT NULL DEFAULT 19,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `)
 
   // ── Mailbetrieb ───────────────────────────────────────────────────────────
   // Absender, Signatur und Farbe je Projekt. Eine Produktion schreibt unter

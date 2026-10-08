@@ -42,8 +42,19 @@ async function main() {
   }
   await postgres.start()
   if (frisch) {
-    await postgres.createDatabase('cutsheet')
-    console.log('[lokal] Datenbank "cutsheet" angelegt')
+    // Ueber den Client anlegen statt ueber createDatabase: nur so laesst sich
+    // die Kodierung setzen. template0 ist noetig, weil template1 die Kodierung
+    // des Clusters traegt.
+    const { Client } = require('pg')
+    const verwaltung = new Client({
+      connectionString: `postgresql://cutsheet:cutsheet@localhost:${PORT_DB}/postgres`,
+    })
+    await verwaltung.connect()
+    await verwaltung.query(
+      `CREATE DATABASE cutsheet WITH ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0`
+    )
+    await verwaltung.end()
+    console.log('[lokal] Datenbank "cutsheet" angelegt (UTF-8)')
   }
   console.log(`[lokal] PostgreSQL läuft auf Port ${PORT_DB}`)
 

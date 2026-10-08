@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Building2, Users, BookUser, Euro, Plus, Trash2, PenLine,
-  CalendarDays, ArrowRight, Search, Download, Mail,
+  CalendarDays, ArrowRight, Search, Download, Mail, Receipt,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 
@@ -145,6 +145,16 @@ function FirmenSeite({ id }: { id: number }) {
         title={firma?.name || 'Firma'}
         subtitle={`${eigeneProjekte.length} ${eigeneProjekte.length === 1 ? 'Projekt' : 'Projekte'} · ${FIRMENROLLEN[firma?.meine_rolle] || ''}`}
       />
+
+      {darfVerwalten && (
+        <div className="flex gap-2">
+          <Link to={`/firma/${id}/rechnungen`}>
+            <Button variant="outline" size="sm">
+              <Receipt className="w-3.5 h-3.5 mr-1.5" />Rechnungen
+            </Button>
+          </Link>
+        </div>
+      )}
 
       <Tabs defaultValue="adressbuch">
         <TabsList>

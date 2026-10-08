@@ -710,6 +710,41 @@ export const api = {
       req<any>(`/companies/${id}/rates/${rateId}`, { method: 'DELETE' }),
   },
 
+  // ─── Rechnungen und Auftraggeber ───────────────────────────────────────────
+  rechnungen: {
+    kunden: (firmaId: number) => req<any[]>(`/companies/${firmaId}/clients`),
+    kundeAnlegen: (firmaId: number, daten: any) =>
+      req<{ id: number }>(`/companies/${firmaId}/clients`, { method: 'POST', body: JSON.stringify(daten) }),
+    kundeSpeichern: (firmaId: number, kundeId: number, daten: any) =>
+      req<any>(`/companies/${firmaId}/clients/${kundeId}`, { method: 'PUT', body: JSON.stringify(daten) }),
+    kundeArchivieren: (firmaId: number, kundeId: number) =>
+      req<any>(`/companies/${firmaId}/clients/${kundeId}`, { method: 'DELETE' }),
+
+    liste: (firmaId: number, status?: string) =>
+      req<{ rechnungen: any[]; offene_posten: any }>(`/companies/${firmaId}/invoices${status ? `?status=${status}` : ''}`),
+    lesen: (firmaId: number, id: number) => req<any>(`/companies/${firmaId}/invoices/${id}`),
+    anlegen: (firmaId: number, daten: any) =>
+      req<{ id: number }>(`/companies/${firmaId}/invoices`, { method: 'POST', body: JSON.stringify(daten) }),
+    speichern: (firmaId: number, id: number, daten: any) =>
+      req<any>(`/companies/${firmaId}/invoices/${id}`, { method: 'PUT', body: JSON.stringify(daten) }),
+    positionen: (firmaId: number, id: number, items: any[]) =>
+      req<any>(`/companies/${firmaId}/invoices/${id}/items`, { method: 'PUT', body: JSON.stringify({ items }) }),
+    festschreiben: (firmaId: number, id: number) =>
+      req<{ number: string; status: string }>(`/companies/${firmaId}/invoices/${id}/issue`, { method: 'POST' }),
+    zahlung: (firmaId: number, id: number, daten: any) =>
+      req<any>(`/companies/${firmaId}/invoices/${id}/payment`, { method: 'POST', body: JSON.stringify(daten) }),
+    stornieren: (firmaId: number, id: number) =>
+      req<any>(`/companies/${firmaId}/invoices/${id}/cancel`, { method: 'POST' }),
+    loeschen: (firmaId: number, id: number) =>
+      req<any>(`/companies/${firmaId}/invoices/${id}`, { method: 'DELETE' }),
+    pdfUrl: (firmaId: number, id: number) => `/api/companies/${firmaId}/invoices/${id}/pdf`,
+
+    umsatzsteuer: (firmaId: number, von: string, bis: string) =>
+      req<any>(`/companies/${firmaId}/invoices/report/vat?von=${von}&bis=${bis}`),
+    exportUrl: (firmaId: number, von: string, bis: string) =>
+      `/api/companies/${firmaId}/invoices/report/export.csv?von=${von}&bis=${bis}`,
+  },
+
   // ─── Dispo-Versand ─────────────────────────────────────────────────────────
   callsheetSend: {
     send: (dayId: number, scheduledFor?: string) =>

@@ -63,6 +63,7 @@ import doodRouter from './routes/dood'
 import sunRouter from './routes/sun'
 import emailRoutesRouter from './routes/emailRoutes'
 import companiesRouter from './routes/companies'
+import invoicesRouter from './routes/invoices'
 import pushRouter from './routes/push'
 import confirmationRouter from './routes/confirmation'
 import icalRouter from './routes/ical'
@@ -252,6 +253,7 @@ app.use('/api', doodRouter)
 app.use('/api', sunRouter)
 app.use('/api', emailRoutesRouter)
 app.use('/api', companiesRouter)
+app.use('/api', invoicesRouter)
 app.use('/api', pushRouter)
 app.use('/api', confirmationRouter)
 app.use('/api', icalRouter)
