@@ -38,3 +38,6 @@ Thumbs.db
 
 # Startfilm: Rohmaterial und Rendering liegen ausserhalb der Versionierung
 brag-output/
+
+# lokale Entwicklungsdatenbank
+.lokale-datenbank/

@@ -62,6 +62,7 @@ import continuityRouter from './routes/continuity'
 import doodRouter from './routes/dood'
 import sunRouter from './routes/sun'
 import emailRoutesRouter from './routes/emailRoutes'
+import companiesRouter from './routes/companies'
 import pushRouter from './routes/push'
 import confirmationRouter from './routes/confirmation'
 import icalRouter from './routes/ical'
@@ -250,6 +251,7 @@ app.use('/api', continuityRouter)
 app.use('/api', doodRouter)
 app.use('/api', sunRouter)
 app.use('/api', emailRoutesRouter)
+app.use('/api', companiesRouter)
 app.use('/api', pushRouter)
 app.use('/api', confirmationRouter)
 app.use('/api', icalRouter)
@@ -266,6 +268,12 @@ app.use('/api', youtubeRouter)
 app.use('/api', floorplansRouter)
 app.use('/api', expensesRouter)
 app.use('/api', contactsExportRouter)
+
+// Unbekannter API-Pfad: 404 als JSON. Muss VOR dem SPA-Rueckfall stehen,
+// sonst beantwortet der jeden Tippfehler mit einer HTML-Seite und HTTP 200.
+app.use('/api', (req, res) => {
+  res.status(404).json({ data: null, error: `Unbekannter Endpunkt: ${req.method} /api${req.path}` })
+})
 
 // In production: serve index.html for all non-API routes (SPA fallback)
 if (isProd) {

@@ -1238,6 +1238,90 @@ export async function initDatabase() {
     )
   `)
 
+  // ── Die Firma ueber den Projekten ─────────────────────────────────────────
+  // Eine Produktionsfirma dreht mit denselben Leuten immer wieder. Bisher fing
+  // jedes Projekt bei null an: dieselbe Kamerafrau stand in zehn Projekten
+  // zehnmal drin, mit zehn verschiedenen Telefonnummern.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS companies (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL DEFAULT '',
+      legal_name TEXT NOT NULL DEFAULT '',
+      address TEXT NOT NULL DEFAULT '',
+      zip TEXT NOT NULL DEFAULT '',
+      city TEXT NOT NULL DEFAULT '',
+      country TEXT NOT NULL DEFAULT 'Deutschland',
+      tax_number TEXT NOT NULL DEFAULT '',
+      vat_id TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '',
+      website TEXT NOT NULL DEFAULT '',
+      logo_url TEXT NOT NULL DEFAULT '',
+      default_currency TEXT NOT NULL DEFAULT 'EUR',
+      owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  // Wer zur Firma gehoert. Das gibt Zugriff auf die Stammdaten der Firma -
+  // Adressbuch, Vorlagen, Gagensaetze -, aber ausdruecklich NICHT auf die
+  // Inhalte fremder Projekte. Projektzugriff bleibt bei project_members.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS company_members (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL DEFAULT 'mitarbeiter',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(company_id, user_id)
+    )
+  `)
+
+  // Das Adressbuch: eine Person, einmal gepflegt, in jedem Projekt nutzbar.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS company_contacts (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      name TEXT NOT NULL DEFAULT '',
+      role TEXT NOT NULL DEFAULT '',
+      department TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      city TEXT NOT NULL DEFAULT '',
+      day_rate_cents INTEGER NOT NULL DEFAULT 0,
+      notes TEXT NOT NULL DEFAULT '',
+      tags TEXT NOT NULL DEFAULT '',
+      kind TEXT NOT NULL DEFAULT 'crew',
+      archived BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS company_contacts_firma_idx ON company_contacts (company_id, archived)`)
+
+  // Standardgagen je Gewerk - Vorbelegung fuer neue Projekte, damit niemand
+  // den Tagessatz der Oberbeleuchterin jedes Mal neu nachschlaegt.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS company_rates (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      role TEXT NOT NULL DEFAULT '',
+      department TEXT NOT NULL DEFAULT '',
+      day_rate_cents INTEGER NOT NULL DEFAULT 0,
+      note TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  // Projekte haengen an einer Firma. Alte Projekte bleiben ohne - sie
+  // funktionieren weiter wie bisher.
+  await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL`)
+  // Wer aus dem Adressbuch uebernommen wurde, traegt den Verweis zurueck:
+  // so laesst sich eine Nummer an einer Stelle aendern und ueberall finden.
+  await db.exec(`ALTER TABLE crew ADD COLUMN IF NOT EXISTS contact_id INTEGER REFERENCES company_contacts(id) ON DELETE SET NULL`)
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS contact_id INTEGER REFERENCES company_contacts(id) ON DELETE SET NULL`)
+
   // ── Mailbetrieb ───────────────────────────────────────────────────────────
   // Absender, Signatur und Farbe je Projekt. Eine Produktion schreibt unter
   // ihrem eigenen Namen, nicht unter dem der Software.
@@ -1257,10 +1341,13 @@ export async function initDatabase() {
 
   // Vorlagen: project_id NULL waere global - gebraucht wird bisher nur die
   // Fassung je Projekt, damit eine Produktion ihren Ton behalten kann.
+  // Eine Vorlage gehoert entweder zu einem Projekt oder zur Firma. Die
+  // Firmenfassung ist die Vorlage der Vorlage: Sie wird in neue Projekte
+  // kopiert, und was dort geaendert wird, bleibt dort.
   await db.exec(`
     CREATE TABLE IF NOT EXISTS email_templates (
       id SERIAL PRIMARY KEY,
-      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
       template_key TEXT NOT NULL DEFAULT '',
       name TEXT NOT NULL DEFAULT '',
       subject TEXT NOT NULL DEFAULT '',
@@ -1269,6 +1356,8 @@ export async function initDatabase() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `)
+  await db.exec(`ALTER TABLE email_templates ALTER COLUMN project_id DROP NOT NULL`)
+  await db.exec(`ALTER TABLE email_templates ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE`)
 
   // Verteiler. `rule` haelt fest, wie sich die Liste fuellt: 'manuell' sind
   // feste Mitglieder, alles andere wird beim Senden frisch aus den Stammdaten

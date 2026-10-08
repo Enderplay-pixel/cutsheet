@@ -114,6 +114,8 @@ const router = createBrowserRouter([
     children: [
       { index: true, lazy: lazyPage(() => import('./pages/ProjectList')) },
       { path: 'settings', lazy: lazyPage(() => import('./pages/Settings')) },
+      { path: 'firma', lazy: lazyPage(() => import('./pages/Firma')) },
+      { path: 'firma/:companyId', lazy: lazyPage(() => import('./pages/Firma')) },
       {
         path: 'projects/:projectId',
         children: [

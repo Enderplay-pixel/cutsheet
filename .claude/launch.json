@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "cutsheet-lokal",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/lokal-starten.cjs"],
+      "port": 5173
+    },
+    {
       "name": "cutsheet-client",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace=client"],

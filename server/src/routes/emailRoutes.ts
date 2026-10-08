@@ -320,10 +320,21 @@ router.get('/projects/:pid/email/templates', requireAuth, async (req: Request, r
     'SELECT * FROM email_templates WHERE project_id = ? ORDER BY name ASC',
     [projectId]
   )) as any[]
-  // Beim ersten Aufruf die Standardvorlagen anlegen, damit niemand vor einem
-  // leeren Kasten sitzt.
+  // Beim ersten Aufruf Vorlagen anlegen, damit niemand vor einem leeren Kasten
+  // sitzt. Gehoert das Projekt zu einer Firma und hat die Firma eigene
+  // Vorlagen, gelten die - der Ton einer Produktionsfirma ist ihr eigener.
   if (zeilen.length === 0) {
-    for (const vorlage of STANDARDVORLAGEN) {
+    const projekt = (await db.get('SELECT company_id FROM projects WHERE id = ?', [projectId])) as any
+    const firmenvorlagen = projekt?.company_id
+      ? ((await db.all(
+          'SELECT template_key, name, subject, body FROM email_templates WHERE company_id = ? AND project_id IS NULL',
+          [projekt.company_id]
+        )) as any[])
+      : []
+    const quelle = firmenvorlagen.length > 0
+      ? firmenvorlagen.map((v) => ({ schluessel: v.template_key, name: v.name, betreff: v.subject, text: v.body }))
+      : STANDARDVORLAGEN
+    for (const vorlage of quelle) {
       await db.run(
         'INSERT INTO email_templates (project_id, template_key, name, subject, body) VALUES (?, ?, ?, ?, ?)',
         [projectId, vorlage.schluessel, vorlage.name, vorlage.betreff, vorlage.text]

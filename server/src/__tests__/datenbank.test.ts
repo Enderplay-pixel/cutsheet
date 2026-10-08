@@ -57,6 +57,7 @@ beforeAll(async () => {
   nutzerId = nutzer.id
   const projekt = await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Mailprojekt', nutzerId])
   projektId = projekt.id
+
 }, 180_000)
 
 afterAll(async () => {

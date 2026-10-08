@@ -82,6 +82,7 @@ beforeAll(async () => {
     import('../routes/activityFeed'), import('../routes/search'),
     import('../routes/contactsExport'), import('../routes/ical'),
     import('../routes/insurances'), import('../routes/vfx'),
+    import('../routes/companies'),
   ])
   const { projectWriteGuard } = await import('../middleware/projectAuth')
 

@@ -56,6 +56,42 @@ router.patch('/:id/archive', requireAuth, async (req, res) => {
   res.json({ data: project, error: null })
 })
 
+// PATCH /api/projects/:id/company - Projekt einer Firma zuordnen oder loesen.
+// Eigene Route, damit niemand den ganzen Projektdatensatz mitschicken muss,
+// nur um die Firma zu setzen.
+router.patch('/:id/company', requireAuth, async (req, res) => {
+  const user = (req as any).user
+  const projectId = Number(req.params.id)
+  const projekt = await db.get('SELECT owner_id FROM projects WHERE id = ?', [projectId]) as any
+  if (!projekt) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+
+  // Nur Besitz oder Projektadmin darf die Zuordnung aendern.
+  if (user.role !== 'admin' && projekt.owner_id !== user.id) {
+    const rolle = await getUserProjectRole(user.id, projectId)
+    if (rolle !== 'admin' && rolle !== 'producer') {
+      return res.status(403).json({ data: null, error: 'Dafuer fehlt dir die Berechtigung in diesem Projekt' })
+    }
+  }
+
+  const gewuenscht = req.body?.company_id == null ? null : Number(req.body.company_id)
+  if (gewuenscht === null) {
+    await db.run('UPDATE projects SET company_id = NULL, updated_at = NOW() WHERE id = ?', [projectId])
+    return res.json({ data: { company_id: null }, error: null })
+  }
+
+  const zugehoerig = await db.get(
+    `SELECT c.id FROM companies c
+      LEFT JOIN company_members m ON m.company_id = c.id AND m.user_id = ?
+     WHERE c.id = ? AND (c.owner_id = ? OR m.user_id IS NOT NULL)`,
+    [user.id, gewuenscht, user.id]
+  )
+  if (!zugehoerig && user.role !== 'admin') {
+    return res.status(403).json({ data: null, error: 'Du gehoerst nicht zu dieser Firma' })
+  }
+  await db.run('UPDATE projects SET company_id = ?, updated_at = NOW() WHERE id = ?', [gewuenscht, projectId])
+  return res.json({ data: { company_id: gewuenscht }, error: null })
+})
+
 // POST /api/projects - set owner, add creator as admin member
 router.post('/', validate(ProjectSchema), async (req, res) => {
   const userId = (req as any).user?.id
@@ -67,10 +103,26 @@ router.post('/', validate(ProjectSchema), async (req, res) => {
   // gesetzt, welcher Client das Projekt anlegt.
   const project_kind = req.body.project_kind ?? (isCreatorFormat(format) ? 'creator' : 'film')
 
+  // Firma: nur zulaessig, wenn die anlegende Person wirklich dazugehoert.
+  let companyId: number | null = null
+  if (req.body.company_id && userId) {
+    const gewuenscht = Number(req.body.company_id)
+    const zugehoerig = await db.get(
+      `SELECT c.id FROM companies c
+        LEFT JOIN company_members m ON m.company_id = c.id AND m.user_id = ?
+       WHERE c.id = ? AND (c.owner_id = ? OR m.user_id IS NOT NULL)`,
+      [userId, gewuenscht, userId]
+    )
+    if (!zugehoerig) {
+      return res.status(403).json({ data: null, error: 'Du gehoerst nicht zu dieser Firma' })
+    }
+    companyId = gewuenscht
+  }
+
   const result = await db.run(`
-    INSERT INTO projects (title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, owner_id, project_kind)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, userId || null, project_kind])
+    INSERT INTO projects (title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, owner_id, project_kind, company_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, userId || null, project_kind, companyId])
 
   const id = result.id
   await db.run('INSERT INTO project_settings (project_id) VALUES (?)', [id])
@@ -78,6 +130,24 @@ router.post('/', validate(ProjectSchema), async (req, res) => {
   // Add creator as project admin
   if (userId) {
     await db.run('INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?) ON CONFLICT (project_id, user_id) DO UPDATE SET role = EXCLUDED.role', [id, userId, 'admin'])
+  }
+
+  // Firmenleitung sichtbar eintragen, damit die Produktion Zugriff hat, ohne
+  // dass die Firmenzugehoerigkeit still an der Projektpruefung vorbeigeht.
+  if (companyId) {
+    const leitung = await db.all(
+      `SELECT user_id FROM company_members WHERE company_id = ? AND role IN ('inhaber', 'produktion')
+       UNION SELECT owner_id AS user_id FROM companies WHERE id = ? AND owner_id IS NOT NULL`,
+      [companyId, companyId]
+    ) as any[]
+    for (const person of leitung) {
+      if (!person.user_id || person.user_id === userId) continue
+      await db.run(
+        `INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, 'producer')
+         ON CONFLICT (project_id, user_id) DO NOTHING`,
+        [id, person.user_id]
+      )
+    }
   }
 
   const project = await db.get('SELECT * FROM projects WHERE id = ?', [id])
@@ -118,6 +188,7 @@ router.put('/:id', requireAuth, async (req, res) => {
     UPDATE projects SET title=?, genre=?, format=?, length_minutes=?, status=?, synopsis=?, director=?, producer=?, dop=?, production_company=?, shoot_start=?, shoot_end=?, project_kind=?, updated_at=NOW()
     WHERE id=?
   `, [title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, project_kind, req.params.id])
+
 
   const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.id])
   res.json({ data: project, error: null })

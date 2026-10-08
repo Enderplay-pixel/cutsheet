@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, Film, Copy, Trash2, ChevronRight, Archive, ArchiveRestore, Youtube, Smartphone, Mic, Radio } from 'lucide-react'
+import { Archive, ArchiveRestore, Building2, ChevronRight, Copy, Film, Mic, Plus, Radio, Smartphone, Trash2, Youtube } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { OnboardingWizard } from '@/components/OnboardingWizard'
@@ -56,14 +56,17 @@ function projectIcon(project: any) {
 }
 
 function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [form, setForm] = useState({ title: '', genre: '', format: 'Kurzfilm', director: '', producer: '' })
+  const [form, setForm] = useState({ title: '', genre: '', format: 'Kurzfilm', director: '', producer: '', company_id: '' })
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { toast } = useToast()
   const tt = useT()
 
+  const { data: firmen } = useQuery({ queryKey: ['firmen'], queryFn: () => api.firmen.liste() })
+
   const createMutation = useMutation({
-    mutationFn: (data: any) => api.projects.create(data),
+    mutationFn: (data: any) =>
+      api.projects.create({ ...data, company_id: data.company_id ? Number(data.company_id) : undefined }),
     onSuccess: (project) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       toast({ title: 'Projekt erstellt' })
@@ -115,6 +118,23 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
               <Input value={form.producer} onChange={e => f('producer', e.target.value)} className="mt-1" />
             </div>
           </div>
+          {(firmen || []).length > 0 && (
+            <div>
+              <Label className="text-xs text-muted-foreground">Firma</Label>
+              <Select value={form.company_id || 'keine'} onValueChange={v => f('company_id', v === 'keine' ? '' : v)}>
+                <SelectTrigger className="mt-1 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="keine" className="text-xs">Ohne Firma</SelectItem>
+                  {(firmen || []).map((firma: any) => (
+                    <SelectItem key={firma.id} value={String(firma.id)} className="text-xs">{firma.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Adressbuch und Gagensätze der Firma stehen dann in diesem Projekt bereit.
+              </p>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Abbrechen</Button>
@@ -193,6 +213,10 @@ export function Component() {
             <Button variant="ghost" size="sm" onClick={() => setShowArchived(!showArchived)} aria-pressed={showArchived}>
               <Archive className="w-3.5 h-3.5" />
               {showArchived ? tt(projectsT.hideArchive) : tt(projectsT.showArchive)}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/firma')}>
+              <Building2 className="w-3.5 h-3.5" />
+              Firma
             </Button>
             <Button onClick={() => setShowNew(true)}>
               <Plus className="w-4 h-4" />{tt(projectsT.newProject)}

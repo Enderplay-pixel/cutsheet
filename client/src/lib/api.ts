@@ -58,6 +58,8 @@ export const api = {
     stats: (id: number) => req<any>(`/projects/${id}/stats`),
     updateSettings: (id: number, data: any) => req<any>(`/projects/${id}/settings`, { method: 'PUT', body: JSON.stringify(data) }),
     archive: (id: number, archived: boolean) => req<any>(`/projects/${id}/archive`, { method: 'PATCH', body: JSON.stringify({ archived }) }),
+    firmaSetzen: (id: number, companyId: number | null) =>
+      req<{ company_id: number | null }>(`/projects/${id}/company`, { method: 'PATCH', body: JSON.stringify({ company_id: companyId }) }),
   },
 
   // ─── Creator-Modus (YouTube / Content) ─────────────────────────────────────
@@ -656,6 +658,56 @@ export const api = {
       req<{ scenes_created: number; blocks_created: number }>(
         `/projects/${projectId}/fdx-import`, { method: 'POST', body: JSON.stringify({ xml, filename }) }),
     fountainExportUrl: (projectId: number) => `/api/projects/${projectId}/screenplay/export.fountain`,
+  },
+
+  // ─── Die Firma ueber den Projekten ─────────────────────────────────────────
+  firmen: {
+    liste: () => req<any[]>('/companies'),
+    anlegen: (name: string) => req<{ id: number }>('/companies', { method: 'POST', body: JSON.stringify({ name }) }),
+    lesen: (id: number) => req<any>(`/companies/${id}`),
+    speichern: (id: number, daten: any) =>
+      req<any>(`/companies/${id}`, { method: 'PUT', body: JSON.stringify(daten) }),
+
+    mitglieder: (id: number) => req<any[]>(`/companies/${id}/members`),
+    aufnehmen: (id: number, email: string, role: string) =>
+      req<any>(`/companies/${id}/members`, { method: 'POST', body: JSON.stringify({ email, role }) }),
+    entfernen: (id: number, memberId: number) =>
+      req<any>(`/companies/${id}/members/${memberId}`, { method: 'DELETE' }),
+
+    kontakte: (id: number, suche?: string) =>
+      req<any[]>(`/companies/${id}/contacts${suche ? `?q=${encodeURIComponent(suche)}` : ''}`),
+    kontaktAnlegen: (id: number, daten: any) =>
+      req<any>(`/companies/${id}/contacts`, { method: 'POST', body: JSON.stringify(daten) }),
+    kontaktSpeichern: (id: number, kontaktId: number, daten: any) =>
+      req<any>(`/companies/${id}/contacts/${kontaktId}`, { method: 'PUT', body: JSON.stringify(daten) }),
+    kontaktArchivieren: (id: number, kontaktId: number) =>
+      req<any>(`/companies/${id}/contacts/${kontaktId}`, { method: 'DELETE' }),
+    verfuegbarkeit: (id: number, kontaktId: number) =>
+      req<any[]>(`/companies/${id}/contacts/${kontaktId}/availability`),
+    insProjekt: (id: number, projectId: number, kontaktIds: number[]) =>
+      req<{ stab: number; besetzung: number; uebersprungen: number }>(`/companies/${id}/contacts/import`, {
+        method: 'POST', body: JSON.stringify({ project_id: projectId, contact_ids: kontaktIds }),
+      }),
+    ausProjekt: (id: number, projectId: number) =>
+      req<{ uebernommen: number; verknuepft: number }>(`/companies/${id}/contacts/from-project`, {
+        method: 'POST', body: JSON.stringify({ project_id: projectId }),
+      }),
+
+    vorlagen: (id: number) => req<any[]>(`/companies/${id}/templates`),
+    vorlageAnlegen: (id: number, daten: any) =>
+      req<any>(`/companies/${id}/templates`, { method: 'POST', body: JSON.stringify(daten) }),
+    vorlageSpeichern: (id: number, vorlageId: number, daten: any) =>
+      req<any>(`/companies/${id}/templates/${vorlageId}`, { method: 'PUT', body: JSON.stringify(daten) }),
+    vorlageLoeschen: (id: number, vorlageId: number) =>
+      req<any>(`/companies/${id}/templates/${vorlageId}`, { method: 'DELETE' }),
+    standardvorlagen: (id: number) =>
+      req<{ angelegt: number }>(`/companies/${id}/templates/standard`, { method: 'POST' }),
+
+    saetze: (id: number) => req<any[]>(`/companies/${id}/rates`),
+    satzAnlegen: (id: number, daten: any) =>
+      req<any>(`/companies/${id}/rates`, { method: 'POST', body: JSON.stringify(daten) }),
+    satzLoeschen: (id: number, rateId: number) =>
+      req<any>(`/companies/${id}/rates/${rateId}`, { method: 'DELETE' }),
   },
 
   // ─── Dispo-Versand ─────────────────────────────────────────────────────────
