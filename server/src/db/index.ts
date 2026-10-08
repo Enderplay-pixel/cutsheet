@@ -1124,6 +1124,105 @@ export async function initDatabase() {
     )
   `)
 
+  // ── Mailbetrieb ───────────────────────────────────────────────────────────
+  // Absender, Signatur und Farbe je Projekt. Eine Produktion schreibt unter
+  // ihrem eigenen Namen, nicht unter dem der Software.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS email_identities (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
+      sender_name TEXT NOT NULL DEFAULT '',
+      reply_to TEXT NOT NULL DEFAULT '',
+      signature TEXT NOT NULL DEFAULT '',
+      logo_url TEXT NOT NULL DEFAULT '',
+      accent_color TEXT NOT NULL DEFAULT '#0A84FF',
+      footer_note TEXT NOT NULL DEFAULT '',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  // Vorlagen: project_id NULL waere global - gebraucht wird bisher nur die
+  // Fassung je Projekt, damit eine Produktion ihren Ton behalten kann.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS email_templates (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      template_key TEXT NOT NULL DEFAULT '',
+      name TEXT NOT NULL DEFAULT '',
+      subject TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  // Verteiler. `rule` haelt fest, wie sich die Liste fuellt: 'manuell' sind
+  // feste Mitglieder, alles andere wird beim Senden frisch aus den Stammdaten
+  // gezogen - so faellt niemand heraus, der spaeter dazukommt.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS email_groups (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      name TEXT NOT NULL DEFAULT '',
+      rule TEXT NOT NULL DEFAULT 'manuell',
+      parameter TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS email_group_members (
+      id SERIAL PRIMARY KEY,
+      group_id INTEGER NOT NULL REFERENCES email_groups(id) ON DELETE CASCADE,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL DEFAULT 'extern',
+      person_id INTEGER,
+      name TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT ''
+    )
+  `)
+
+  // Anhaenge liegen einmal je Versand, nicht einmal je Empfaenger: dasselbe
+  // Dispo-PDF an zwanzig Leute waere sonst zwanzigmal in der Datenbank.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS email_attachments (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+      filename TEXT NOT NULL DEFAULT '',
+      content BYTEA NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  // Der Postausgang. Eine Zeile je Empfaenger, damit Status, Quittung und
+  // persoenliche Call-Zeit an einer Person haengen und nicht an einem Stapel.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS email_outbox (
+      id SERIAL PRIMARY KEY,
+      -- ohne Projekt: Passwort-Mails gehoeren zu einem Konto, nicht zu einem Dreh
+      project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+      subject TEXT NOT NULL DEFAULT '',
+      html TEXT NOT NULL DEFAULT '',
+      recipient_email TEXT NOT NULL DEFAULT '',
+      recipient_name TEXT NOT NULL DEFAULT '',
+      purpose TEXT NOT NULL DEFAULT 'manuell',
+      reference_id INTEGER,
+      status TEXT NOT NULL DEFAULT 'wartet',
+      attempts INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT NOT NULL DEFAULT '',
+      next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      scheduled_for TIMESTAMPTZ,
+      sent_at TIMESTAMPTZ,
+      receipt_token TEXT,
+      read_at TIMESTAMPTZ,
+      attachment_id INTEGER REFERENCES email_attachments(id) ON DELETE SET NULL,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS email_outbox_faellig_idx ON email_outbox (status, next_attempt_at)`)
+  await db.exec(`CREATE INDEX IF NOT EXISTS email_outbox_projekt_idx ON email_outbox (project_id, created_at DESC)`)
+  await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS email_outbox_quittung_idx ON email_outbox (receipt_token) WHERE receipt_token IS NOT NULL`)
+
   // Check if empty - seed demo data on first run
   const count = await db.get('SELECT COUNT(*) as c FROM projects')
   if (!count || Number(count.c) === 0) {

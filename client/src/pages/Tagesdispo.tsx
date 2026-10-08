@@ -41,15 +41,27 @@ function SendDispoButton({ dayId, entries, onSent }: {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
+  // Leer heisst sofort. Mit Zeitpunkt wandert die Dispo in den Postausgang und
+  // geht am Vorabend raus, ohne dass jemand um 20 Uhr am Rechner sitzen muss.
+  const [zeitpunkt, setZeitpunkt] = useState('')
+
   const sendMutation = useMutation({
-    mutationFn: () => api.callsheetSend.send(dayId),
+    mutationFn: () => api.callsheetSend.send(dayId, zeitpunkt ? new Date(zeitpunkt).toISOString() : undefined),
     onSuccess: (result) => {
-      track('call_sheet_sent', { recipients: result.sent })
+      track('call_sheet_sent', { recipients: result.sent + (result.queued || 0) })
       setOpen(false)
       onSent()
+      if (result.scheduled_for) {
+        toast({
+          title: `Dispo für ${result.queued} ${result.queued === 1 ? 'Person' : 'Personen'} eingeplant`,
+          description: `Versand am ${new Date(result.scheduled_for).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} Uhr. Im E-Mail-Bereich lässt sie sich zurückziehen.`,
+        })
+        return
+      }
       toast({
         title: `Dispo an ${result.sent} ${result.sent === 1 ? 'Person' : 'Personen'} versendet`,
         description: [
+          result.queued > 0 && `${result.queued} in der Warteschlange - der Versand läuft weiter`,
           result.skipped_no_email.length > 0 && `Ohne E-Mail übersprungen: ${result.skipped_no_email.join(', ')}`,
           result.failed.length > 0 && `Fehlgeschlagen: ${result.failed.join(', ')}`,
         ].filter(Boolean).join(' · ') || 'Alle Empfänger erreicht.',
@@ -100,11 +112,21 @@ function SendDispoButton({ dayId, entries, onSent }: {
             <span>Personen ohne hinterlegte E-Mail-Adresse werden übersprungen und im Ergebnis aufgelistet.</span>
           </div>
 
+          <div className="space-y-1">
+            <label className="text-[12px] text-muted-foreground" htmlFor="dispo-zeitpunkt">
+              Später senden (leer lassen für sofort)
+            </label>
+            <Input id="dispo-zeitpunkt" type="datetime-local" value={zeitpunkt}
+              onChange={e => setZeitpunkt(e.target.value)} className="h-8 text-sm" />
+          </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Abbrechen</Button>
             <Button onClick={() => sendMutation.mutate()} disabled={sendMutation.isPending} className="gap-1.5">
               <Send className="w-3.5 h-3.5" />
-              {sendMutation.isPending ? 'Wird versendet…' : 'Jetzt versenden'}
+              {sendMutation.isPending
+                ? (zeitpunkt ? 'Wird eingeplant…' : 'Wird versendet…')
+                : (zeitpunkt ? 'Einplanen' : 'Jetzt versenden')}
             </Button>
           </DialogFooter>
         </DialogContent>

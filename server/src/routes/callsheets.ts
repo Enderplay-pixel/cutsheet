@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { db } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { sendEmail, isSmtpConfigured, appBaseUrl } from './emailService'
+import { reiheEin, sendeFaellige } from '../lib/mailversand'
 import { sendPushToUser } from './push'
 
 const router = Router()
@@ -192,7 +193,10 @@ router.post('/call-sheets/:id/shift-times', async (req, res) => {
 })
 
 // POST /api/shoot-days/:dayId/call-sheet/send - Dispo per E-Mail an alle Beteiligten.
-// Personalisierte Mail mit Call Time, Public-Link, Tracking-Pixel und PDF-Anhang.
+// Personalisierte Mail mit Call Time, Public-Link und PDF-Anhang. Der Versand
+// laeuft ueber den Postausgang: Was hier zurueckkommt, ist gemessen und nicht
+// geraten. Mit `scheduled_for` im Rumpf geht die Dispo erst spaeter raus -
+// der Vorabend-Versand um 20 Uhr ist der haeufigste Fall.
 router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Response) => {
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
@@ -210,7 +214,7 @@ router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Resp
   if (!smtpConfigured) {
     return res.status(400).json({
       data: { smtp_configured: false },
-      error: 'E-Mail-Versand ist nicht konfiguriert (SMTP-Einstellungen fehlen auf dem Server).',
+      error: 'Es ist kein Mailserver eingerichtet. Ohne SMTP-Zugang geht nichts raus - die Dispo laesst sich aber als PDF herunterladen und ueber den Link teilen.',
     })
   }
 
@@ -258,18 +262,25 @@ router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Resp
   const base = appBaseUrl()
   const dateStr = day.date ? new Date(day.date).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 
-  // Versand in Batches à 5 - Teilfehler werden gesammelt, nicht verschluckt
-  let sent = 0
-  const failed: string[] = []
-  for (let i = 0; i < recipients.length; i += 5) {
-    const batch = recipients.slice(i, i + 5)
-    const results = await Promise.allSettled(batch.map(async r => {
-      await sendEmail({
-        to: r.email,
-        subject: `Tagesdispo Drehtag ${day.day_number} - ${day.project_title}`,
-        projectId: day.project_id,
-        attachments: pdfBuffer ? [{ filename: `tagesdispo-tag${day.day_number}.pdf`, content: pdfBuffer }] : undefined,
-        html: `
+  // Geplanter Versand: ein Zeitpunkt im Rumpf schiebt die Mails in die
+  // Warteschlange, statt sie sofort rauszuschicken.
+  const geplant = req.body?.scheduled_for ? new Date(req.body.scheduled_for) : null
+  if (geplant && Number.isNaN(geplant.getTime())) {
+    return res.status(400).json({ data: null, error: 'Der Versandzeitpunkt ist kein gueltiges Datum' })
+  }
+
+  const eingereiht = await reiheEin({
+    projectId: day.project_id,
+    betreff: `Tagesdispo Drehtag ${day.day_number} - ${day.project_title}`,
+    anlass: 'dispo',
+    bezugId: Number(req.params.dayId),
+    geplantFuer: geplant,
+    erstelltVon: user.id,
+    anhang: pdfBuffer ? { dateiname: `tagesdispo-tag${day.day_number}.pdf`, inhalt: pdfBuffer } : null,
+    empfaenger: recipients.map(r => ({ email: r.email, name: r.name, werte: { token: r.token } })),
+    html: (person) => {
+      const r = recipients.find(x => x.email === person.email)!
+      return `
           <div style="font-family:Arial,sans-serif;max-width:520px;">
             <h2 style="color:#111;margin-bottom:4px;">Drehtag ${day.day_number} - ${day.project_title}</h2>
             <p style="color:#6b7280;margin-top:0;">${dateStr}</p>
@@ -284,19 +295,25 @@ router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Resp
                   <td style="padding:4px 0;">${r.entry.notes}</td></tr>` : ''}
             </table>
             <p style="margin:24px 0;">
-              <a href="${base}/dispo/${r.token}" style="background:#b45309;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Online ansehen &amp; bestätigen</a>
+              <a href="${base}/dispo/${r.token}" style="background:#0a84ff;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Online ansehen und bestaetigen</a>
             </p>
-            <p style="color:#6b7280;font-size:13px;">Die vollständige Dispo findest du im PDF-Anhang.</p>
-            <img src="${base}/api/cse/t/${r.token}/track.png" width="1" height="1" alt="" />
-          </div>`,
-      })
+            <p style="color:#6b7280;font-size:13px;">Die vollstaendige Dispo findest du im PDF-Anhang.</p>
+          </div>`
+    },
+  })
+
+  for (const r of recipients) {
+    if (eingereiht.some(e => e.email === r.email)) {
       await db.run('UPDATE call_sheet_entries SET sent_at = NOW() WHERE id = ?', [r.entry.id])
-    }))
-    results.forEach((result, idx) => {
-      if (result.status === 'fulfilled') sent++
-      else { failed.push(batch[idx].name); console.error('[callsheet/send]', result.reason) }
-    })
+    }
   }
+
+  // Sofort-Versand gleich anstossen, damit die Antwort den wahren Stand kennt
+  const lauf = geplant ? { gesendet: 0, fehlgeschlagen: 0, ohneVersand: 0 } : await sendeFaellige(eingereiht.length + 5)
+  const sent = lauf.gesendet
+  const failed = recipients
+    .filter(r => !eingereiht.some(e => e.email === r.email))
+    .map(r => r.name)
 
   // In-App-Push an alle Projektmitglieder
   notifyProjectMembers(day.project_id, user.id, {
@@ -306,7 +323,14 @@ router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Resp
   })
 
   return res.json({
-    data: { sent, failed, skipped_no_email: skipped, smtp_configured: true },
+    data: {
+      sent,
+      queued: eingereiht.length - sent,
+      failed,
+      skipped_no_email: skipped,
+      smtp_configured: true,
+      scheduled_for: geplant ? geplant.toISOString() : null,
+    },
     error: null,
   })
 })

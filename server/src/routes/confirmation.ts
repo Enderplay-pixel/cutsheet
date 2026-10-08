@@ -5,12 +5,6 @@ import { signToken, AuthUser } from '../middleware/auth'
 
 const router = Router()
 
-// 1x1 transparent PNG
-const TRACKING_PIXEL = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-  'base64'
-)
-
 // Alle Public-Endpoints laufen über zufällige 160-Bit-Tokens statt
 // enumerierbarer numerischer IDs (Sicherheit: Dispo-Links gehen per E-Mail raus).
 
@@ -47,6 +41,12 @@ async function getPersonForEntry(entry: EntryRow): Promise<{ name: string; role:
 router.get('/cse/t/:token', async (req: Request, res: Response) => {
   const entry = await getEntryByToken(req.params.token)
   if (!entry) return res.status(404).json({ data: null, error: 'Link ungültig' })
+
+  // Gesehen heisst: Der persoenliche Link wurde geoeffnet. Frueher stand hier
+  // ein Zaehlpixel in der Mail - das misst nur das Nachladen von Bildern.
+  if (!entry.viewed_at) {
+    await db.run('UPDATE call_sheet_entries SET viewed_at = NOW() WHERE id = ?', [entry.id])
+  }
 
   const sheet = await db.get('SELECT * FROM call_sheets WHERE id = ?', [entry.call_sheet_id]) as any
   if (!sheet) return res.status(404).json({ data: null, error: 'Dispo nicht gefunden' })
@@ -107,19 +107,6 @@ router.post('/cse/t/:token/confirm', async (req: Request, res: Response) => {
 
   await db.run('UPDATE call_sheet_entries SET confirmed_at = NOW() WHERE id = ?', [entry.id])
   return res.json({ data: { confirmed: true }, error: null })
-})
-
-// GET /api/cse/t/:token/track.png - E-Mail-Tracking-Pixel (setzt viewed_at einmalig)
-router.get('/cse/t/:token/track.png', async (req: Request, res: Response) => {
-  const entry = await getEntryByToken(req.params.token)
-  if (entry && !entry.viewed_at) {
-    await db.run('UPDATE call_sheet_entries SET viewed_at = NOW() WHERE id = ?', [entry.id])
-  }
-  res.set('Content-Type', 'image/png')
-  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-  res.set('Pragma', 'no-cache')
-  res.set('Expires', '0')
-  return res.send(TRACKING_PIXEL)
 })
 
 // POST /api/cse/t/:token/claim - One-Click-Account für Crew-Mitglieder.

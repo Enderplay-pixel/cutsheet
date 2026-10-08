@@ -475,6 +475,39 @@ export const api = {
     send: (projectId: number, data: any) => req<any>(`/projects/${projectId}/email/send`, { method: 'POST', body: JSON.stringify(data) }),
     status: (projectId: number) => req<any>(`/projects/${projectId}/email/status`),
     test: (projectId: number) => req<any>(`/projects/${projectId}/email/test`, { method: 'POST' }),
+
+    // Vorlagen
+    templates: (projectId: number) => req<any[]>(`/projects/${projectId}/email/templates`),
+    createTemplate: (projectId: number, data: any) =>
+      req<any>(`/projects/${projectId}/email/templates`, { method: 'POST', body: JSON.stringify(data) }),
+    updateTemplate: (projectId: number, id: number, data: any) =>
+      req<any>(`/projects/${projectId}/email/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteTemplate: (projectId: number, id: number) =>
+      req<any>(`/projects/${projectId}/email/templates/${id}`, { method: 'DELETE' }),
+    previewTemplate: (projectId: number, id: number, werte?: Record<string, string>) =>
+      req<any>(`/projects/${projectId}/email/templates/${id}/preview`, { method: 'POST', body: JSON.stringify({ werte }) }),
+
+    // Verteiler
+    groups: (projectId: number) => req<any[]>(`/projects/${projectId}/email/groups`),
+    createGroup: (projectId: number, data: any) =>
+      req<any>(`/projects/${projectId}/email/groups`, { method: 'POST', body: JSON.stringify(data) }),
+    deleteGroup: (projectId: number, id: number) =>
+      req<any>(`/projects/${projectId}/email/groups/${id}`, { method: 'DELETE' }),
+    groupRecipients: (projectId: number, id: number) =>
+      req<any[]>(`/projects/${projectId}/email/groups/${id}/recipients`),
+
+    // Postausgang
+    outbox: (projectId: number, status?: string) =>
+      req<{ mails: any[]; nach_status: any[] }>(`/projects/${projectId}/email/outbox${status ? `?status=${status}` : ''}`),
+    retry: (projectId: number, id: number) =>
+      req<any>(`/projects/${projectId}/email/outbox/${id}/retry`, { method: 'POST' }),
+    withdraw: (projectId: number, id: number) =>
+      req<any>(`/projects/${projectId}/email/outbox/${id}`, { method: 'DELETE' }),
+
+    // Absender und Signatur
+    identity: (projectId: number) => req<any>(`/projects/${projectId}/email/identity`),
+    saveIdentity: (projectId: number, data: any) =>
+      req<any>(`/projects/${projectId}/email/identity`, { method: 'PUT', body: JSON.stringify(data) }),
   },
 
   // ─── Push Notifications (C2) ───────────────────────────────────────────────
@@ -599,9 +632,13 @@ export const api = {
 
   // ─── Dispo-Versand ─────────────────────────────────────────────────────────
   callsheetSend: {
-    send: (dayId: number) =>
-      req<{ sent: number; failed: string[]; skipped_no_email: string[]; smtp_configured: boolean }>(
-        `/shoot-days/${dayId}/call-sheet/send`, { method: 'POST' }),
+    send: (dayId: number, scheduledFor?: string) =>
+      req<{
+        sent: number; queued: number; failed: string[]; skipped_no_email: string[]
+        smtp_configured: boolean; scheduled_for: string | null
+      }>(
+        `/shoot-days/${dayId}/call-sheet/send`,
+        { method: 'POST', body: JSON.stringify(scheduledFor ? { scheduled_for: scheduledFor } : {}) }),
   },
 
   // ─── Aufgaben (Tasks mit Abnahmeschleife) ──────────────────────────────────

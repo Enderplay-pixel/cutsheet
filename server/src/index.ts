@@ -5,6 +5,8 @@ import cors from 'cors'
 import path from 'path'
 import fs from 'fs'
 import { initDatabase } from './db'
+import { starteVersandSchleife } from './lib/mailversand'
+import { raeumeMailanhaengeAuf } from './lib/mailaufbewahrung'
 import { optionalAuth } from './middleware/auth'
 import { projectWriteGuard, requireMember } from './middleware/projectAuth'
 import { pruefeIdParameter, saeubereKoerper, uebersetzeDatenbankfehler } from './middleware/eingabe'
@@ -273,6 +275,11 @@ async function main() {
       await initDatabase()
       dbReady = true
       console.log('[DB] Datenbankverbindung hergestellt')
+      // Der Postausgang laeuft erst, wenn die Datenbank steht - vorher gibt es
+      // nichts abzuarbeiten, und jeder Versuch waere nur ein Fehler im Log.
+      starteVersandSchleife()
+      raeumeMailanhaengeAuf().catch(fehler =>
+        console.warn('[Mail] Anhaenge konnten nicht aufgeraeumt werden:', fehler?.message || fehler))
       return
     } catch (err: any) {
       if (attempt === MAX_RETRIES) {
