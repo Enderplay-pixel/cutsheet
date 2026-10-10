@@ -17,8 +17,28 @@ import path from 'path'
 import os from 'os'
 import fs from 'fs'
 
-const PORT = 55439
-const datenverzeichnis = path.join(os.tmpdir(), `cutsheet-dbtest-${process.pid}`)
+let PORT = 0
+const datenverzeichnis = path.join(os.tmpdir(), `cutsheet-dbtest-${process.pid}-${Date.now()}`)
+
+/**
+ * Einen freien Port vom Betriebssystem erfragen.
+ *
+ * Ein fester Port geht schief, sobald ein Postgres aus einem frueheren Lauf
+ * noch darauf liegt: Die neue Instanz startet nicht, und vitest meldet einen
+ * Fehler ohne Text.
+ */
+async function freierPort(): Promise<number> {
+  const net = await import('net')
+  return new Promise((aufloesen, ablehnen) => {
+    const horcher = net.createServer()
+    horcher.unref()
+    horcher.on('error', ablehnen)
+    horcher.listen(0, '127.0.0.1', () => {
+      const port = (horcher.address() as any).port
+      horcher.close(() => aufloesen(port))
+    })
+  })
+}
 
 let postgres: any
 let db: any
@@ -41,6 +61,7 @@ function mitZeitgrenze<T>(versprechen: Promise<T>, ms: number): Promise<T | 'abg
 }
 
 beforeAll(async () => {
+  PORT = await freierPort()
   const { default: EmbeddedPostgres } = await import('embedded-postgres')
   postgres = new EmbeddedPostgres({
     databaseDir: datenverzeichnis,
@@ -932,5 +953,97 @@ describe('Tabellen ohne Spalte id', () => {
     const namen = ohneId.map((z: any) => z.table_name)
     // Wer hier etwas ergaenzt, muss im Code ein eigenes RETURNING setzen.
     expect(namen).toEqual(['creator_youtube_ignored', 'invoice_counters', 'user_totp'])
+  })
+})
+
+
+describe('Papierkorb', () => {
+  let papierkorb: typeof import('../lib/papierkorb')
+
+  beforeAll(async () => {
+    papierkorb = await import('../lib/papierkorb')
+  })
+
+  /** Loeschen, wie es die Middleware tut: erst sichern, dann entfernen. */
+  async function loesche(tabelle: string, id: number) {
+    await papierkorb.inDenPapierkorb(tabelle, id, { userId: nutzerId })
+    await db.run(`DELETE FROM ${tabelle === 'cast' ? '"cast"' : tabelle} WHERE id = ?`, [id])
+  }
+
+  it('legt eine geloeschte Szene mit allen Feldern ab', async () => {
+    const szene = await db.run(
+      'INSERT INTO scenes (project_id, scene_number, title, int_ext, day_night) VALUES (?, ?, ?, ?, ?)',
+      [projektId, '12', 'Am Fluss, Abend', 'EXT', 'NACHT']
+    )
+    await loesche('scenes', szene.id)
+
+    expect(await db.get('SELECT id FROM scenes WHERE id = ?', [szene.id])).toBeUndefined()
+
+    const liste = await papierkorb.inhalt(projektId)
+    const eintrag = liste.find(e => e.row_id === szene.id)
+    expect(eintrag, 'die Szene liegt im Papierkorb').toBeTruthy()
+    expect(eintrag.bezeichnung).toBe('Szene')
+    expect(eintrag.label).toBe('Am Fluss, Abend')
+    ;(globalThis as any).__szene = szene.id
+  })
+
+  it('holt sie mit derselben Kennung zurueck', async () => {
+    const szeneId = (globalThis as any).__szene
+    const liste = await papierkorb.inhalt(projektId)
+    const eintrag = liste.find(e => e.row_id === szeneId)
+
+    const ergebnis = await papierkorb.ausDemPapierkorb(eintrag.id, projektId)
+    expect(ergebnis.wiederhergestellt).toBe(true)
+
+    // Dieselbe Kennung, damit alles, was auf sie zeigt, wieder passt.
+    const wieder = await db.get('SELECT * FROM scenes WHERE id = ?', [szeneId]) as any
+    expect(wieder).toBeTruthy()
+    expect(wieder.title).toBe('Am Fluss, Abend')
+    expect(wieder.int_ext).toBe('EXT')
+    expect(wieder.day_night).toBe('NACHT')
+    expect(wieder.scene_number).toBe('12')
+  })
+
+  it('zeigt den zurueckgeholten Eintrag nicht mehr', async () => {
+    const liste = await papierkorb.inhalt(projektId)
+    expect(liste.some(e => e.row_id === (globalThis as any).__szene)).toBe(false)
+  })
+
+  it('holt nichts zweimal zurueck', async () => {
+    const szene = await db.run(
+      'INSERT INTO scenes (project_id, scene_number, title) VALUES (?, ?, ?)',
+      [projektId, '13', 'Zweimal']
+    )
+    await loesche('scenes', szene.id)
+    const eintrag = (await papierkorb.inhalt(projektId)).find(e => e.row_id === szene.id)
+
+    expect((await papierkorb.ausDemPapierkorb(eintrag.id, projektId)).wiederhergestellt).toBe(true)
+    const zweiter = await papierkorb.ausDemPapierkorb(eintrag.id, projektId)
+    expect(zweiter.wiederhergestellt).toBe(false)
+  })
+
+  it('haelt die Papierkoerbe zweier Projekte auseinander', async () => {
+    const fremdesProjekt = await db.run(
+      'INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Fremd', fremdeId])
+    const szene = await db.run(
+      'INSERT INTO scenes (project_id, scene_number, title) VALUES (?, ?, ?)',
+      [fremdesProjekt.id, '1', 'Geheim'])
+    await loesche('scenes', szene.id)
+
+    const eigener = await papierkorb.inhalt(projektId)
+    expect(eigener.some(e => e.label === 'Geheim')).toBe(false)
+    const anderer = await papierkorb.inhalt(fremdesProjekt.id)
+    expect(anderer.some(e => e.label === 'Geheim')).toBe(true)
+  })
+
+  it('sichert nichts, was nicht beobachtet wird', async () => {
+    const vorher = await db.get('SELECT COUNT(*) AS c FROM deleted_items')
+    expect(await papierkorb.inDenPapierkorb('invoices', 1, {})).toBe(false)
+    const nachher = await db.get('SELECT COUNT(*) AS c FROM deleted_items')
+    expect(Number(nachher.c)).toBe(Number(vorher.c))
+  })
+
+  it('meldet ehrlich, wenn es nichts zu sichern gibt', async () => {
+    expect(await papierkorb.inDenPapierkorb('scenes', 999999, {})).toBe(false)
   })
 })

@@ -83,7 +83,7 @@ beforeAll(async () => {
     import('../routes/contactsExport'), import('../routes/ical'),
     import('../routes/insurances'), import('../routes/vfx'),
     import('../routes/companies'), import('../routes/invoices'),
-    import('../routes/datenschutz'),
+    import('../routes/datenschutz'), import('../routes/papierkorb'),
   ])
   const { projectWriteGuard } = await import('../middleware/projectAuth')
 

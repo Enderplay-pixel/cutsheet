@@ -61,6 +61,184 @@ router.get('/stats', async (_req: Request, res: Response) => {
 })
 
 // ─── GET /api/admin/users ─────────────────────────────────────────────────────
+/**
+ * Betriebsuebersicht: ein Blick auf alles, was im laufenden Betrieb schiefgehen
+ * kann.
+ *
+ * Nicht noch eine Zahlenwand, sondern Warnungen: Was ist auffaellig, und was
+ * waere zu tun. Keine Auffaelligkeit heisst, dass nichts zu tun ist.
+ */
+/**
+ * Welche Bereiche werden wirklich benutzt?
+ *
+ * Gezaehlt wird, in wie vielen Projekten ein Bereich ueberhaupt Daten hat -
+ * das ist messbar. Vorher standen hier erfundene Prozentzahlen mit dem
+ * Zusatz "Beispieldaten"; eine Zahl, die niemand nachrechnen kann, gehoert
+ * nicht in eine Betriebsuebersicht.
+ */
+router.get('/nutzung', async (_req: Request, res: Response) => {
+  const gesamt = Number(((await db.get('SELECT COUNT(*) AS c FROM projects')) as any)?.c ?? 0)
+
+  const bereiche: Array<{ name: string; tabelle: string }> = [
+    { name: 'Drehbuch',        tabelle: 'scenes' },
+    { name: 'Stab',            tabelle: 'crew' },
+    { name: 'Besetzung',       tabelle: 'cast' },
+    { name: 'Motive',          tabelle: 'locations' },
+    { name: 'Drehplan',        tabelle: 'shoot_days' },
+    { name: 'Shotlist',        tabelle: 'shots' },
+    { name: 'Budget',          tabelle: 'budget_lines' },
+    { name: 'Equipment',       tabelle: 'equipment_items' },
+    { name: 'Tagesberichte',   tabelle: 'daily_reports' },
+    { name: 'Arbeitszeiten',   tabelle: 'timesheets' },
+    { name: 'Kameraberichte',  tabelle: 'camera_reports' },
+    { name: 'Aufgaben',        tabelle: 'project_tasks' },
+  ]
+
+  const zeilen: Array<{ name: string; projekte: number; anteil: number }> = []
+  for (const bereich of bereiche) {
+    const tabelle = bereich.tabelle === 'cast' ? '"cast"' : bereich.tabelle
+    // daily_reports haengt am Drehtag, nicht direkt am Projekt
+    const abfrage = bereich.tabelle === 'daily_reports'
+      ? `SELECT COUNT(DISTINCT d.project_id) AS c FROM daily_reports r JOIN shoot_days d ON d.id = r.shoot_day_id`
+      : `SELECT COUNT(DISTINCT project_id) AS c FROM ${tabelle}`
+    try {
+      const treffer = Number(((await db.get(abfrage)) as any)?.c ?? 0)
+      zeilen.push({
+        name: bereich.name,
+        projekte: treffer,
+        anteil: gesamt > 0 ? Math.round((treffer / gesamt) * 100) : 0,
+      })
+    } catch {
+      // Eine Tabelle, die es (noch) nicht gibt, faellt still weg - lieber
+      // eine Zeile weniger als eine erfundene.
+    }
+  }
+  zeilen.sort((a, b) => b.projekte - a.projekte)
+
+  return res.json({ data: { projekte_gesamt: gesamt, bereiche: zeilen }, error: null })
+})
+
+router.get('/betrieb', async (_req: Request, res: Response) => {
+  const warnungen: Array<{ stufe: 'hoch' | 'mittel' | 'niedrig'; text: string; rat: string }> = []
+
+  // Mailserver
+  const mailserver = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+  if (!mailserver) {
+    warnungen.push({
+      stufe: 'mittel',
+      text: 'Es ist kein Mailserver eingerichtet.',
+      rat: 'SMTP_HOST, SMTP_USER und SMTP_PASS setzen - sonst geht keine Dispo raus.',
+    })
+  }
+
+  // Postausgang
+  const postausgang = await db.all(
+    'SELECT status, COUNT(*) AS anzahl FROM email_outbox GROUP BY status'
+  ) as any[]
+  const nachStatus = Object.fromEntries(postausgang.map(z => [z.status, Number(z.anzahl)]))
+  if ((nachStatus.fehlgeschlagen ?? 0) > 0) {
+    warnungen.push({
+      stufe: 'hoch',
+      text: nachStatus.fehlgeschlagen === 1
+        ? 'Eine Mail ist endgueltig gescheitert.'
+        : `${nachStatus.fehlgeschlagen} Mails sind endgueltig gescheitert.`,
+      rat: 'Im E-Mail-Bereich des Projekts nachsehen und erneut senden.',
+    })
+  }
+  const alteWartende = await db.get(
+    "SELECT COUNT(*) AS c FROM email_outbox WHERE status = 'wartet' AND created_at < NOW() - INTERVAL '1 hour' AND (scheduled_for IS NULL OR scheduled_for < NOW())"
+  ) as any
+  if (Number(alteWartende?.c ?? 0) > 0) {
+    warnungen.push({
+      stufe: 'hoch',
+      text: Number(alteWartende.c) === 1
+        ? 'Eine Mail wartet laenger als eine Stunde.'
+        : `${alteWartende.c} Mails warten laenger als eine Stunde.`,
+      rat: 'Der Versand kommt nicht durch - Zugangsdaten des Mailservers pruefen.',
+    })
+  }
+
+  // Sicherungen: wann wurde zuletzt eine gezogen?
+  const letzteSicherung = await db.get(
+    "SELECT MAX(created_at) AS zeitpunkt FROM audit_log WHERE action = 'backup_export'"
+  ) as any
+  if (!letzteSicherung?.zeitpunkt) {
+    warnungen.push({
+      stufe: 'mittel',
+      text: 'Es ist keine Sicherung verzeichnet.',
+      rat: 'In einem Projekt unter Sicherung einmal exportieren und die Datei ablegen.',
+    })
+  }
+
+  // Papierkorb: was bald endgueltig verschwindet
+  const baldWeg = await db.get(
+    "SELECT COUNT(*) AS c FROM deleted_items WHERE restored_at IS NULL AND deleted_at < NOW() - INTERVAL '23 days'"
+  ) as any
+  if (Number(baldWeg?.c ?? 0) > 0) {
+    warnungen.push({
+      stufe: 'niedrig',
+      text: Number(baldWeg.c) === 1
+        ? 'Ein Eintrag im Papierkorb verschwindet in den naechsten Tagen endgueltig.'
+        : `${baldWeg.c} Eintraege im Papierkorb verschwinden in den naechsten Tagen endgueltig.`,
+      rat: 'Zurueckholen, was noch gebraucht wird.',
+    })
+  }
+
+  // Konten ohne zweiten Faktor, die viel duerfen
+  const ohneFaktor = await db.get(`
+    SELECT COUNT(*) AS c FROM users u
+     WHERE u.role = 'admin'
+       AND NOT EXISTS (SELECT 1 FROM user_totp t WHERE t.user_id = u.id AND t.confirmed_at IS NOT NULL)
+  `) as any
+  if (Number(ohneFaktor?.c ?? 0) > 0) {
+    warnungen.push({
+      stufe: 'mittel',
+      text: Number(ohneFaktor.c) === 1
+        ? 'Ein Konto mit vollen Rechten hat keinen zweiten Faktor.'
+        : `${ohneFaktor.c} Konten mit vollen Rechten haben keinen zweiten Faktor.`,
+      rat: 'In den Einstellungen unter "Zweiter Faktor und Geraete" einrichten.',
+    })
+  }
+
+  // Datenbank
+  const beginn = Date.now()
+  let datenbankMs = -1
+  try {
+    await db.get('SELECT 1')
+    datenbankMs = Date.now() - beginn
+  } catch { /* bleibt -1 */ }
+  if (datenbankMs < 0) {
+    warnungen.push({
+      stufe: 'hoch',
+      text: 'Die Datenbank antwortet nicht.',
+      rat: 'Ohne sie laeuft nichts. Zustand beim Hoster pruefen.',
+    })
+  } else if (datenbankMs > 500) {
+    warnungen.push({
+      stufe: 'mittel',
+      text: `Die Datenbank braucht ${datenbankMs} ms fuer eine einfache Abfrage.`,
+      rat: 'Das ist langsam. Bei einem geteilten Plan kann das am Nachbarn liegen.',
+    })
+  }
+
+  const speicher = process.memoryUsage()
+
+  return res.json({
+    data: {
+      warnungen,
+      alles_in_ordnung: warnungen.length === 0,
+      mailserver,
+      postausgang: nachStatus,
+      letzte_sicherung: letzteSicherung?.zeitpunkt ?? null,
+      datenbank_ms: datenbankMs,
+      laufzeit_sekunden: Math.round(process.uptime()),
+      speicher_mb: Math.round(speicher.rss / 1024 / 1024),
+      node: process.version,
+    },
+    error: null,
+  })
+})
+
 router.get('/users', async (_req: Request, res: Response) => {
   const users = await db.all(`
     SELECT u.id, u.email, u.name, u.role, u.created_at,

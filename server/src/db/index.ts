@@ -1248,6 +1248,25 @@ export async function initDatabase() {
     )
   `)
 
+  // ── Papierkorb ────────────────────────────────────────────────────────────
+  // Die ganze Zeile als JSON, bevor sie geloescht wird. Wiederherstellen heisst
+  // dann: dieselbe Zeile mit derselben Kennung wieder einfuegen, damit alles,
+  // was auf sie zeigt, wieder passt.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS deleted_items (
+      id SERIAL PRIMARY KEY,
+      table_name TEXT NOT NULL,
+      row_id INTEGER NOT NULL,
+      project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+      label TEXT NOT NULL DEFAULT '',
+      payload TEXT NOT NULL,
+      deleted_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      restored_at TIMESTAMPTZ
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS deleted_items_projekt_idx ON deleted_items (project_id, restored_at, deleted_at DESC)`)
+
   // ── Zweiter Faktor und Sitzungen ──────────────────────────────────────────
   // Ein Passwort allein schuetzt Gagen, Telefonnummern und Drehorte einer
   // ganzen Produktion. Wer will, haengt ein Geraet davor.

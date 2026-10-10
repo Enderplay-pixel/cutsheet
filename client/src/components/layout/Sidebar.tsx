@@ -5,15 +5,7 @@ import { useProjectStore } from '@/store/useProjectStore'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
-import {
-  Film, LayoutDashboard, FileText, Users, Briefcase, MapPin, Calendar,
-  Camera, ClipboardList, FileCheck, DollarSign, Package, Mail, AlertTriangle,
-  Clapperboard, PanelLeftClose, PanelLeftOpen, ChevronRight,
-  StickyNote, Car, History, Search, FileEdit, LogOut, ShieldCheck, BookUser, Settings,
-  Layers, CalendarClock, Music, Shield, CheckSquare, Clock, UtensilsCrossed, Image, TableProperties,
-  MessageSquare, Activity, Video, CalendarOff, Wallet, LayoutGrid,
-  Type, Scissors, ListChecks, TrendingUp, Megaphone
-} from 'lucide-react'
+import { Activity, AlertTriangle, BookUser, Briefcase, Calendar, CalendarClock, CalendarOff, Camera, Car, CheckSquare, ChevronRight, Clapperboard, ClipboardList, Clock, DollarSign, FileCheck, FileEdit, FileText, Film, History, Image, Layers, LayoutDashboard, LayoutGrid, ListChecks, LogOut, Mail, MapPin, Megaphone, MessageSquare, Music, Package, PanelLeftClose, PanelLeftOpen, Scissors, Search, Settings, Shield, ShieldCheck, StickyNote, TableProperties, Trash2, TrendingUp, Type, Users, UtensilsCrossed, Video, Wallet } from 'lucide-react'
 import { FeedbackWidget } from '@/components/shared/FeedbackWidget'
 import { AppIcon } from '@/components/shared/BrandMark'
 import { TestversionBadge } from '@/components/shared/TestversionBadge'
@@ -153,6 +145,7 @@ export function Sidebar() {
         { label: tt(navT.search), icon: Search, path: 'suche' },
         { label: tt(navT.auditLog), icon: History, path: 'audit' },
         { label: 'Datenschutz', icon: ShieldCheck, path: 'datenschutz' },
+        { label: 'Papierkorb', icon: Trash2, path: 'papierkorb' },
       ]
     },
   ]
@@ -244,6 +237,7 @@ export function Sidebar() {
         { label: tt(navT.search), icon: Search, path: 'suche' },
         { label: tt(navT.auditLog), icon: History, path: 'audit' },
         { label: 'Datenschutz', icon: ShieldCheck, path: 'datenschutz' },
+        { label: 'Papierkorb', icon: Trash2, path: 'papierkorb' },
       ]
     },
   ]

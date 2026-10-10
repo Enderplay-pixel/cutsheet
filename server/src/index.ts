@@ -8,11 +8,13 @@ import fs from 'fs'
 import { initDatabase, pool } from './db'
 import { starteVersandSchleife } from './lib/mailversand'
 import { raeumeMailanhaengeAuf } from './lib/mailaufbewahrung'
+import { raeumeAuf as raeumePapierkorbAuf } from './lib/papierkorb'
 import { ueberlastKontext } from './lib/ueberlast'
 import { passwortPoolBeenden } from './lib/passwort'
 import { pdfBrowserSchliessen } from './routes/pdf'
 import { optionalAuth } from './middleware/auth'
 import { projectWriteGuard, requireMember } from './middleware/projectAuth'
+import { papierkorbWaechter } from './middleware/papierkorbWaechter'
 import { pruefeIdParameter, saeubereKoerper, uebersetzeDatenbankfehler } from './middleware/eingabe'
 import { schutzkoepfe, anmeldeBremse, apiGrenze, registrierGrenze, teuerGrenze } from './middleware/haertung'
 
@@ -65,6 +67,7 @@ import emailRoutesRouter from './routes/emailRoutes'
 import companiesRouter from './routes/companies'
 import invoicesRouter from './routes/invoices'
 import datenschutzRouter from './routes/datenschutz'
+import papierkorbRouter from './routes/papierkorb'
 import pushRouter from './routes/push'
 import confirmationRouter from './routes/confirmation'
 import icalRouter from './routes/ical'
@@ -152,6 +155,10 @@ app.use('/api', aenderungenProtokollieren)
 app.use('/api/projects/:projectId', pruefeIdParameter)
 app.use('/api/projects/:projectId', requireMember)
 
+// Vor dem Loeschen sichern. Steht nach den Rechtepruefungen - wer nicht
+// loeschen darf, legt auch nichts in den Papierkorb.
+app.use('/api', papierkorbWaechter)
+
 // Serve uploads
 const uploadsDir = path.join(__dirname, '../uploads')
 app.use('/uploads', express.static(uploadsDir))
@@ -197,6 +204,39 @@ app.get('/.well-known/assetlinks.json', (_req, res) => {
 // testversion: Kennzeichnung fuer die Testphase vor dem Launch (CUTSHEET_TESTVERSION=1)
 const testversion = /^(1|true|ja)$/i.test(process.env.CUTSHEET_TESTVERSION ?? '')
 app.get('/api/health', (_req, res) => res.json({ ok: true, db: dbReady, testversion }))
+
+/**
+ * Bereitschaft - im Gegensatz zu /api/health eine ehrliche Antwort.
+ *
+ * `/api/health` muss waehrend des Hochfahrens 200 liefern, sonst bricht der
+ * Hoster den Start ab. Genau deshalb taugt es nicht zur Ueberwachung: Es
+ * meldete auch dann Erfolg, wenn die Datenbank weg war. `/api/ready` prueft
+ * die Verbindung wirklich und antwortet mit 503, wenn etwas fehlt.
+ */
+app.get('/api/ready', async (_req, res) => {
+  const beginn = Date.now()
+  let datenbank = false
+  let fehler = ''
+  try {
+    const { pool } = await import('./db')
+    await pool.query('SELECT 1')
+    datenbank = true
+  } catch (e: any) {
+    fehler = String(e?.message || e).slice(0, 200)
+  }
+  const bereit = dbReady && datenbank
+  return res.status(bereit ? 200 : 503).json({
+    data: {
+      bereit,
+      datenbank,
+      start_abgeschlossen: dbReady,
+      antwortzeit_ms: Date.now() - beginn,
+      mailserver: !!process.env.SMTP_HOST,
+      testversion,
+    },
+    error: bereit ? null : (fehler || 'Die Anwendung ist noch nicht bereit'),
+  })
+})
 
 // Block all other API routes until DB is initialized
 app.use('/api', (req, res, next) => {
@@ -256,6 +296,7 @@ app.use('/api', emailRoutesRouter)
 app.use('/api', companiesRouter)
 app.use('/api', invoicesRouter)
 app.use('/api', datenschutzRouter)
+app.use('/api', papierkorbRouter)
 app.use('/api', pushRouter)
 app.use('/api', confirmationRouter)
 app.use('/api', icalRouter)
@@ -340,6 +381,8 @@ async function main() {
       starteVersandSchleife()
       raeumeMailanhaengeAuf().catch(fehler =>
         console.warn('[Mail] Anhaenge konnten nicht aufgeraeumt werden:', fehler?.message || fehler))
+      raeumePapierkorbAuf().catch(fehler =>
+        console.warn('[Papierkorb] konnte nicht aufgeraeumt werden:', fehler?.message || fehler))
       return
     } catch (err: any) {
       if (attempt === MAX_RETRIES) {

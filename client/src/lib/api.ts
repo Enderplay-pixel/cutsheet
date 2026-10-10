@@ -728,6 +728,30 @@ export const api = {
       req<any>(`/companies/${id}/rates/${rateId}`, { method: 'DELETE' }),
   },
 
+  // ─── Betrieb ───────────────────────────────────────────────────────────────
+  betrieb: {
+    uebersicht: () => req<{
+      warnungen: Array<{ stufe: string; text: string; rat: string }>
+      alles_in_ordnung: boolean
+      mailserver: boolean
+      postausgang: Record<string, number>
+      letzte_sicherung: string | null
+      datenbank_ms: number
+      laufzeit_sekunden: number
+      speicher_mb: number
+      node: string
+    }>('/admin/betrieb'),
+  },
+
+  // ─── Papierkorb ────────────────────────────────────────────────────────────
+  papierkorb: {
+    inhalt: (projectId: number) =>
+      req<{ eintraege: any[]; aufbewahrung_tage: number }>(`/projects/${projectId}/papierkorb`),
+    wiederherstellen: (projectId: number, id: number) =>
+      req<{ wiederhergestellt: boolean; tabelle: string; titel: string }>(
+        `/projects/${projectId}/papierkorb/${id}/wiederherstellen`, { method: 'POST' }),
+  },
+
   // ─── Datenschutz ───────────────────────────────────────────────────────────
   datenschutz: {
     auskunft: (projectId: number, art: string, person: number) =>

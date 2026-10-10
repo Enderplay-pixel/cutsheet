@@ -26,17 +26,6 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
   return json.data
 }
 
-const FEATURE_USAGE = [
-  { name: 'Drehplan',        usage: 94 },
-  { name: 'Shotlist',        usage: 87 },
-  { name: 'Tagesdispo',      usage: 82 },
-  { name: 'Budget',          usage: 71 },
-  { name: 'Besetzung',       usage: 68 },
-  { name: 'Equipment',       usage: 55 },
-  { name: 'Drehbuch-Editor', usage: 43 },
-  { name: 'Kameraberichte',  usage: 31 },
-]
-
 const STATUS_COLORS: Record<string, string> = {
   'Entwicklung':    'bg-blue-500/10 text-blue-600 border-blue-500/20',
   'Vorproduktion':  'bg-yellow-500/10 text-yellow-700 border-yellow-500/20',
@@ -138,6 +127,12 @@ export function Component() {
         </Badge>
       </div>
 
+      {/* Zuerst: ist etwas zu tun? */}
+      <div className="mb-8">
+        <h2 className="text-sm font-medium mb-3">Betrieb</h2>
+        <Betriebsuebersicht />
+      </div>
+
       {/* 4-column stat grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {projectsLoading || usersLoading ? (
@@ -168,33 +163,8 @@ export function Component() {
 
       {/* Feature usage + Project status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Feature usage - progress bar list */}
-        <div className="rounded-xl border border-border/60 bg-card p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-5">
-            Meistgenutzte Features
-          </p>
-          <div className="space-y-4">
-            {FEATURE_USAGE.map(f => (
-              <div key={f.name}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-sm font-medium">{f.name}</span>
-                  <span className="text-[11px] font-semibold text-muted-foreground/60 tabular-nums">
-                    {f.usage}%
-                  </span>
-                </div>
-                <div className="h-1.5 bg-muted/60 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary/50 rounded-full transition-all duration-500"
-                    style={{ width: `${f.usage}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="text-[11px] text-muted-foreground/40 mt-5">
-            * Statische Beispieldaten - Backend-Tracking folgt demnächst.
-          </p>
-        </div>
+        {/* Welche Bereiche werden wirklich benutzt - gezaehlt, nicht geschaetzt */}
+        <GenutzteBereiche />
 
         {/* Project status breakdown */}
         <div className="rounded-xl border border-border/60 bg-card p-5">
@@ -408,6 +378,127 @@ function FeedbackPanel() {
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+
+/**
+ * Betriebsübersicht: keine Zahlenwand, sondern Warnungen.
+ *
+ * Wer nachsieht, will wissen, ob etwas zu tun ist - nicht, wie viele Szenen
+ * es gibt. Keine Warnung heisst: nichts zu tun.
+ */
+export function Betriebsuebersicht() {
+  const { data } = useQuery({
+    queryKey: ['betrieb'],
+    queryFn: () => req<any>('/admin/betrieb'),
+    refetchInterval: 60_000,
+  })
+
+  if (!data) return null
+
+  const FARBE: Record<string, string> = {
+    hoch: 'border-destructive/40 bg-destructive/5',
+    mittel: 'border-amber-500/40 bg-amber-500/5',
+    niedrig: 'border-border/60',
+  }
+
+  const dauer = (sekunden: number) => {
+    if (sekunden < 60) return `${sekunden} s`
+    if (sekunden < 3600) return `${Math.round(sekunden / 60)} min`
+    if (sekunden < 86400) return `${Math.round(sekunden / 3600)} h`
+    return `${Math.round(sekunden / 86400)} Tage`
+  }
+
+  return (
+    <div className="space-y-3">
+      {data.alles_in_ordnung ? (
+        <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/5 px-4 py-3">
+          <p className="text-sm font-medium">Nichts zu tun</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Mailversand, Sicherung, Papierkorb und Datenbank sind unauffällig.
+          </p>
+        </div>
+      ) : (
+        data.warnungen.map((w: any, i: number) => (
+          <div key={i} className={`rounded-xl border px-4 py-3 ${FARBE[w.stufe] || FARBE.niedrig}`}>
+            <p className="text-sm font-medium">{w.text}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{w.rat}</p>
+          </div>
+        ))
+      )}
+
+      <div className="rounded-xl border border-border/60 bg-card px-4 py-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+          <div>
+            <p className="text-xs text-muted-foreground">Datenbank</p>
+            <p className="tabular-nums">{data.datenbank_ms < 0 ? 'keine Antwort' : `${data.datenbank_ms} ms`}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Läuft seit</p>
+            <p className="tabular-nums">{dauer(data.laufzeit_sekunden)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Arbeitsspeicher</p>
+            <p className="tabular-nums">{data.speicher_mb} MB</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Mailserver</p>
+            <p>{data.mailserver ? 'eingerichtet' : 'fehlt'}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+/**
+ * Welche Bereiche in wie vielen Projekten Daten haben.
+ *
+ * Gezählt, nicht geschätzt: Hier standen vorher acht erfundene Prozentzahlen
+ * mit dem Hinweis „Beispieldaten". Eine Zahl, die niemand nachrechnen kann,
+ * ist in einer Betriebsübersicht schlimmer als keine.
+ */
+export function GenutzteBereiche() {
+  const { data } = useQuery({
+    queryKey: ['admin-nutzung'],
+    queryFn: () => req<any>('/admin/nutzung'),
+  })
+
+  const bereiche = data?.bereiche || []
+  const gesamt = data?.projekte_gesamt ?? 0
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-card p-5">
+      <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-5">
+        Genutzte Bereiche
+      </p>
+      <div className="space-y-4">
+        {bereiche.map((b: any) => (
+          <div key={b.name}>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-sm font-medium">{b.name}</span>
+              <span className="text-[11px] font-semibold text-muted-foreground/60 tabular-nums">
+                {b.projekte} von {gesamt}
+              </span>
+            </div>
+            <div className="h-1.5 bg-muted/60 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary/50 rounded-full transition-all duration-500"
+                style={{ width: `${b.anteil}%` }}
+              />
+            </div>
+          </div>
+        ))}
+        {bereiche.length === 0 && (
+          <p className="text-sm text-muted-foreground">Noch keine Daten.</p>
+        )}
+      </div>
+      <p className="text-[11px] text-muted-foreground/40 mt-5">
+        In wie vielen Projekten der Bereich überhaupt Einträge hat.
+      </p>
     </div>
   )
 }
