@@ -68,6 +68,7 @@ import companiesRouter from './routes/companies'
 import invoicesRouter from './routes/invoices'
 import datenschutzRouter from './routes/datenschutz'
 import papierkorbRouter from './routes/papierkorb'
+import tabellenRouter from './routes/tabellen'
 import pushRouter from './routes/push'
 import confirmationRouter from './routes/confirmation'
 import icalRouter from './routes/ical'
@@ -297,6 +298,7 @@ app.use('/api', companiesRouter)
 app.use('/api', invoicesRouter)
 app.use('/api', datenschutzRouter)
 app.use('/api', papierkorbRouter)
+app.use('/api', tabellenRouter)
 app.use('/api', pushRouter)
 app.use('/api', confirmationRouter)
 app.use('/api', icalRouter)

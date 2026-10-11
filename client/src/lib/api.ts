@@ -743,6 +743,20 @@ export const api = {
     }>('/admin/betrieb'),
   },
 
+  // ─── Listen hinein und hinaus ──────────────────────────────────────────────
+  listen: {
+    importieren: (projectId: number, art: string, csv: string, anwenden: boolean) =>
+      req<{
+        befunde: Array<{ zeile: number; name: string; was: string; grund?: string; werte?: any }>
+        neu: number; ergaenzt: number; uebersprungen: number; angewendet: boolean
+      }>(`/projects/${projectId}/import/${art}`, {
+        method: 'POST',
+        body: JSON.stringify({ csv, anwenden }),
+      }),
+    vorlageUrl: (art: string) => `/api/import/${art}/vorlage.csv`,
+    exportUrl: (projectId: number, art: string) => `/api/projects/${projectId}/export/${art}.csv`,
+  },
+
   // ─── Papierkorb ────────────────────────────────────────────────────────────
   papierkorb: {
     inhalt: (projectId: number) =>
