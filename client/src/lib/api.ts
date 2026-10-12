@@ -809,6 +809,37 @@ export const api = {
   },
 
   // ─── Rechnungen und Auftraggeber ───────────────────────────────────────────
+  // ─── Unterkunft und Reisekosten ────────────────────────────────────────────
+  unterkuenfte: {
+    liste: (projektId: number) => req<any[]>(`/projects/${projektId}/unterkuenfte`),
+    anlegen: (projektId: number, daten: any) =>
+      req<any>(`/projects/${projektId}/unterkuenfte`, { method: 'POST', body: JSON.stringify(daten) }),
+    speichern: (projektId: number, id: number, daten: any) =>
+      req<any>(`/projects/${projektId}/unterkuenfte/${id}`, { method: 'PUT', body: JSON.stringify(daten) }),
+    loeschen: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/unterkuenfte/${id}`, { method: 'DELETE' }),
+    zimmer: (projektId: number, id: number, zimmer: any[]) =>
+      req<any>(`/projects/${projektId}/unterkuenfte/${id}/zimmer`, {
+        method: 'PUT', body: JSON.stringify({ zimmer }),
+      }),
+  },
+
+  reisen: {
+    liste: (projektId: number) => req<any>(`/projects/${projektId}/reisen`),
+    lesen: (projektId: number, id: number) => req<any>(`/projects/${projektId}/reisen/${id}`),
+    anlegen: (projektId: number, daten: any) =>
+      req<any>(`/projects/${projektId}/reisen`, { method: 'POST', body: JSON.stringify(daten) }),
+    speichern: (projektId: number, id: number, daten: any) =>
+      req<any>(`/projects/${projektId}/reisen/${id}`, { method: 'PUT', body: JSON.stringify(daten) }),
+    tag: (projektId: number, id: number, tagId: number, daten: any) =>
+      req<any>(`/projects/${projektId}/reisen/${id}/tage/${tagId}`, {
+        method: 'PUT', body: JSON.stringify(daten),
+      }),
+    loeschen: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/reisen/${id}`, { method: 'DELETE' }),
+    csvUrl: (projektId: number) => `/api/projects/${projektId}/reisen/export.csv`,
+  },
+
   // ─── Agenturen und Besetzungsanfragen ──────────────────────────────────────
   agenturen: {
     liste: (firmaId: number) => req<any[]>(`/companies/${firmaId}/agenturen`),

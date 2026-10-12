@@ -1517,6 +1517,84 @@ export async function initDatabase() {
     )
   `)
 
+  // ── Unterkunft und Reise ──────────────────────────────────────────────────
+  // Eine Produktion, die auswaerts dreht, bucht Zimmer und schuldet
+  // Verpflegungspauschalen. Beides stand bisher in Notizen oder gar nicht.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS accommodations (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      name TEXT NOT NULL DEFAULT '',
+      address TEXT NOT NULL DEFAULT '',
+      zip TEXT NOT NULL DEFAULT '',
+      city TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      check_in DATE,
+      check_out DATE,
+      price_per_night_cents INTEGER NOT NULL DEFAULT 0,
+      booking_ref TEXT NOT NULL DEFAULT '',
+      breakfast_included BOOLEAN NOT NULL DEFAULT false,
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS accommodations_projekt_idx ON accommodations (project_id)`)
+
+  // Wer in welchem Zimmer schlaeft. Ohne das ist die Unterkunft eine Adresse
+  // und keine Auskunft - und am Set fragt jemand genau danach.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS accommodation_rooms (
+      id SERIAL PRIMARY KEY,
+      accommodation_id INTEGER NOT NULL REFERENCES accommodations(id) ON DELETE CASCADE,
+      room_label TEXT NOT NULL DEFAULT '',
+      person_type TEXT NOT NULL DEFAULT 'crew',
+      person_id INTEGER,
+      person_name TEXT NOT NULL DEFAULT '',
+      nights INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS accommodation_rooms_idx ON accommodation_rooms (accommodation_id)`)
+
+  // Eine Reise je Person. Die Tage stehen einzeln, weil gestellte Mahlzeiten
+  // sich je Tag unterscheiden und die Kuerzung daran haengt.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS trips (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      person_type TEXT NOT NULL DEFAULT 'crew',
+      person_id INTEGER,
+      person_name TEXT NOT NULL DEFAULT '',
+      purpose TEXT NOT NULL DEFAULT '',
+      from_date DATE NOT NULL,
+      to_date DATE NOT NULL,
+      kilometers INTEGER NOT NULL DEFAULT 0,
+      vehicle_kind TEXT NOT NULL DEFAULT 'pkw',
+      lodging_cents INTEGER NOT NULL DEFAULT 0,
+      accommodation_id INTEGER REFERENCES accommodations(id) ON DELETE SET NULL,
+      status TEXT NOT NULL DEFAULT 'entwurf',
+      notes TEXT NOT NULL DEFAULT '',
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS trips_projekt_idx ON trips (project_id, person_type, person_id)`)
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS trip_days (
+      id SERIAL PRIMARY KEY,
+      trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+      day_date DATE NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'zwischentag',
+      minutes_away INTEGER NOT NULL DEFAULT 0,
+      breakfast BOOLEAN NOT NULL DEFAULT false,
+      lunch BOOLEAN NOT NULL DEFAULT false,
+      dinner BOOLEAN NOT NULL DEFAULT false
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS trip_days_reise_idx ON trip_days (trip_id, day_date)`)
+
   // ── Agenturen ─────────────────────────────────────────────────────────────
   // Auf Firmenebene, nicht je Projekt: Eine Agentur bleibt dieselbe, auch wenn
   // das naechste Projekt anfaengt. Die Freitextfelder an `cast` bleiben

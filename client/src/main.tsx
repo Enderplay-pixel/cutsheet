@@ -143,6 +143,7 @@ const router = createBrowserRouter([
           { path: 'stammdaten', lazy: lazyPage(() => import('./pages/Stammdaten')) },
           { path: 'vertraege', lazy: lazyPage(() => import('./pages/Vertraege')) },
           { path: 'agenturen', lazy: lazyPage(() => import('./pages/Agenturen')) },
+          { path: 'reise', lazy: lazyPage(() => import('./pages/Reise')) },
           { path: 'drehbuch', lazy: lazyPage(() => import('./pages/Drehbuch')) },
           { path: 'besetzung', lazy: lazyPage(() => import('./pages/Besetzung')) },
           { path: 'stabliste', lazy: lazyPage(() => import('./pages/Stabliste')) },

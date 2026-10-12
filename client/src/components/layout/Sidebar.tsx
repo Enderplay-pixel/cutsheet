@@ -5,7 +5,7 @@ import { useProjectStore } from '@/store/useProjectStore'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
-import { Activity, AlertTriangle, BookUser, Briefcase, Building2, Calendar, CalendarClock, CalendarOff, Camera, Car, CheckSquare, ChevronRight, Clapperboard, ClipboardList, Clock, DollarSign, FileCheck, FileEdit, FileSignature, FileSpreadsheet, FileText, Film, History, Image, Layers, LayoutDashboard, LayoutGrid, ListChecks, LogOut, Mail, MapPin, Megaphone, MessageSquare, Music, Package, PanelLeftClose, PanelLeftOpen, Scissors, Search, Settings, Shield, ShieldCheck, StickyNote, TableProperties, Trash2, TrendingUp, Type, Users, UtensilsCrossed, Video, Wallet } from 'lucide-react'
+import { Activity, AlertTriangle, BedDouble, BookUser, Briefcase, Building2, Calendar, CalendarClock, CalendarOff, Camera, Car, CheckSquare, ChevronRight, Clapperboard, ClipboardList, Clock, DollarSign, FileCheck, FileEdit, FileSignature, FileSpreadsheet, FileText, Film, History, Image, Layers, LayoutDashboard, LayoutGrid, ListChecks, LogOut, Mail, MapPin, Megaphone, MessageSquare, Music, Package, PanelLeftClose, PanelLeftOpen, Scissors, Search, Settings, Shield, ShieldCheck, StickyNote, TableProperties, Trash2, TrendingUp, Type, Users, UtensilsCrossed, Video, Wallet } from 'lucide-react'
 import { FeedbackWidget } from '@/components/shared/FeedbackWidget'
 import { AppIcon } from '@/components/shared/BrandMark'
 import { TestversionBadge } from '@/components/shared/TestversionBadge'
@@ -196,6 +196,7 @@ export function Sidebar() {
         { label: tt(navT.equipment), icon: Package, path: 'equipment' },
         { label: tt(navT.equipmentCal), icon: CalendarClock, path: 'equipment-kalender' },
         { label: tt(navT.vehicles), icon: Car, path: 'fahrzeuge' },
+        { label: 'Reise und Unterkunft', icon: BedDouble, path: 'reise' },
         { label: tt(navT.catering), icon: UtensilsCrossed, path: 'catering' },
         { label: tt(navT.budget), icon: DollarSign, path: 'budget' },
         { label: tt(navT.costStatus), icon: Wallet, path: 'kostenstand' },
