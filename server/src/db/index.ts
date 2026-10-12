@@ -941,6 +941,12 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE shots ADD COLUMN IF NOT EXISTS best_take TEXT NOT NULL DEFAULT ''`)
   // Geburtsdatum: ohne es laesst sich der Jugendarbeitsschutz nicht pruefen,
   // und bei einem Kind entscheidet ein Tag ueber zwei Stunden Drehzeit.
+  // Kuenstlersozialabgabe: Ob die Honorare dieser Person in die Meldung
+  // gehoeren. NULL heisst "noch nicht entschieden" - das ist etwas anderes als
+  // "nein", und die Auswertung sagt es getrennt. Die Kasse sieht auf die
+  // tatsaechliche Taetigkeit, nicht auf die Bezeichnung im Abspann.
+  await db.exec(`ALTER TABLE crew ADD COLUMN IF NOT EXISTS ksk_relevant BOOLEAN`)
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS ksk_relevant BOOLEAN`)
   // Ein eigenes Drehende je Person in der Disposition. NULL heisst "bis zum
   // Drehschluss des Projekts" - fuer ein Kind muss dagegen die Uhrzeit
   // dastehen, die die Behoerde bewilligt hat.
@@ -1610,6 +1616,10 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS base_rate_bp INTEGER NOT NULL DEFAULT 0`)
   await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS base_rate_date DATE`)
   await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS dunning_enabled BOOLEAN NOT NULL DEFAULT true`)
+  // Wie die Firma bei der Kuenstlersozialkasse gefuehrt wird. Eine
+  // Produktionsfirma ist Verwerter - fuer sie gibt es keine Bagatellgrenze.
+  await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS ksk_art TEXT NOT NULL DEFAULT 'verwerter'`)
+  await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS ksk_nummer TEXT NOT NULL DEFAULT ''`)
   // Ob der Auftraggeber Unternehmer ist, entscheidet ueber neun oder fuenf
   // Prozentpunkte Verzugszins (Paragraf 288 BGB) und ueber die
   // 40-Euro-Pauschale. Voreinstellung ist Unternehmer: Eine Produktionsfirma

@@ -129,6 +129,7 @@ const router = createBrowserRouter([
       { path: 'firma/:companyId/buchhaltung', lazy: lazyPage(() => import('./pages/Buchhaltung')) },
       { path: 'firma/:companyId/angebote', lazy: lazyPage(() => import('./pages/Angebote')) },
       { path: 'firma/:companyId/angebote/:quoteId', lazy: lazyPage(() => import('./pages/Angebote')) },
+      { path: 'firma/:companyId/auswertungen', lazy: lazyPage(() => import('./pages/Auswertungen')) },
       {
         path: 'projects/:projectId',
         children: [

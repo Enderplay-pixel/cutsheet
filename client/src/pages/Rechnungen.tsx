@@ -85,6 +85,9 @@ function Uebersicht({ firmaId }: { firmaId: number }) {
         <Link to={`/firma/${firmaId}/buchhaltung`}>
           <Button variant="outline" size="sm"><Landmark className="w-3.5 h-3.5 mr-1" />Buchhaltung</Button>
         </Link>
+        <Link to={`/firma/${firmaId}/auswertungen`}>
+          <Button variant="outline" size="sm"><BarChart3 className="w-3.5 h-3.5 mr-1" />Auswertungen</Button>
+        </Link>
       </div>
 
       {offen && offen.anzahl > 0 && (

@@ -809,6 +809,26 @@ export const api = {
   },
 
   // ─── Rechnungen und Auftraggeber ───────────────────────────────────────────
+  // ─── Auswertungen und Kuenstlersozialabgabe ────────────────────────────────
+  auswertungen: {
+    lesen: (firmaId: number, von: string, bis: string) =>
+      req<any>(`/companies/${firmaId}/auswertungen?von=${von}&bis=${bis}`),
+    csvUrl: (firmaId: number, von: string, bis: string) =>
+      `/api/companies/${firmaId}/auswertungen/export.csv?von=${von}&bis=${bis}`,
+  },
+
+  ksk: {
+    meldung: (firmaId: number, jahr: number) => req<any>(`/companies/${firmaId}/ksk?jahr=${jahr}`),
+    /** `relevant` darf null sein - das heisst "noch nicht entschieden". */
+    kennzeichnen: (firmaId: number, art: string, personId: number, relevant: boolean | null) =>
+      req<any>(`/companies/${firmaId}/ksk/${art}/${personId}`, {
+        method: 'PUT', body: JSON.stringify({ ksk_relevant: relevant }),
+      }),
+    einstellungen: (firmaId: number, daten: any) =>
+      req<any>(`/companies/${firmaId}/ksk/einstellungen`, { method: 'PUT', body: JSON.stringify(daten) }),
+    csvUrl: (firmaId: number, jahr: number) => `/api/companies/${firmaId}/ksk/export.csv?jahr=${jahr}`,
+  },
+
   // ─── Vertraege und Einverstaendnisse ───────────────────────────────────────
   vertraege: {
     vorlagen: (projektId: number) => req<any>(`/projects/${projektId}/vertragsvorlagen`),
