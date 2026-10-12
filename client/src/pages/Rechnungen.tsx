@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   FileText, Users, BarChart3, Plus, Trash2, PenLine, Download,
   CheckCircle2, AlertTriangle, Ban, ArrowLeft, Euro as EuroIcon,
+  BellRing, Landmark,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 
@@ -71,9 +72,18 @@ function Uebersicht({ firmaId }: { firmaId: number }) {
         subtitle={firma?.name || 'Rechnungsausgang und Auftraggeber'}
       />
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Link to={`/firma/${firmaId}`}>
           <Button variant="ghost" size="sm"><ArrowLeft className="w-3.5 h-3.5 mr-1" />Zur Firma</Button>
+        </Link>
+        <Link to={`/firma/${firmaId}/angebote`}>
+          <Button variant="outline" size="sm"><FileText className="w-3.5 h-3.5 mr-1" />Angebote</Button>
+        </Link>
+        <Link to={`/firma/${firmaId}/offene-posten`}>
+          <Button variant="outline" size="sm"><BellRing className="w-3.5 h-3.5 mr-1" />Offene Posten</Button>
+        </Link>
+        <Link to={`/firma/${firmaId}/buchhaltung`}>
+          <Button variant="outline" size="sm"><Landmark className="w-3.5 h-3.5 mr-1" />Buchhaltung</Button>
         </Link>
       </div>
 

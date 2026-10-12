@@ -119,6 +119,10 @@ const router = createBrowserRouter([
       { path: 'firma/:companyId', lazy: lazyPage(() => import('./pages/Firma')) },
       { path: 'firma/:companyId/rechnungen', lazy: lazyPage(() => import('./pages/Rechnungen')) },
       { path: 'firma/:companyId/rechnungen/:invoiceId', lazy: lazyPage(() => import('./pages/Rechnungen')) },
+      { path: 'firma/:companyId/offene-posten', lazy: lazyPage(() => import('./pages/OffenePosten')) },
+      { path: 'firma/:companyId/buchhaltung', lazy: lazyPage(() => import('./pages/Buchhaltung')) },
+      { path: 'firma/:companyId/angebote', lazy: lazyPage(() => import('./pages/Angebote')) },
+      { path: 'firma/:companyId/angebote/:quoteId', lazy: lazyPage(() => import('./pages/Angebote')) },
       {
         path: 'projects/:projectId',
         children: [

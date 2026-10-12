@@ -117,31 +117,77 @@ router.post('/companies/:companyId/clients', requireAuth, erfordereAbrechnung(),
     return res.status(400).json({ data: null, error: 'Der Auftraggeber braucht einen Namen' })
   }
   const zeile = await db.run(
-    `INSERT INTO company_clients (company_id, name, contact_name, address, zip, city, country, vat_id, email, phone, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO company_clients
+       (company_id, name, contact_name, address, zip, city, country, vat_id, email, phone, notes,
+        debitor_number, is_business, payment_days)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       Number(req.params.companyId), String(k.name).trim(), String(k.contact_name || ''), String(k.address || ''),
       String(k.zip || ''), String(k.city || ''), String(k.country || 'Deutschland'),
       String(k.vat_id || ''), String(k.email || ''), String(k.phone || ''), String(k.notes || ''),
+      String(k.debitor_number || ''),
+      // Voreinstellung Unternehmer: Eine Produktionsfirma rechnet selten
+      // gegen Verbraucher ab, und der Unterschied sind vier Prozentpunkte
+      // Verzugszins.
+      k.is_business !== false,
+      Number.isFinite(Number(k.payment_days)) && Number(k.payment_days) > 0
+        ? Math.trunc(Number(k.payment_days)) : null,
     ]
   )
   return res.json({ data: { id: zeile.id }, error: null })
 })
 
 // PUT /api/companies/:companyId/clients/:clientId
+/**
+ * Einen Auftraggeber aendern - nur die mitgeschickten Felder.
+ *
+ * Vorher setzte diese Route jedes Feld auf `String(k.x || '')`. Eine Anfrage,
+ * die nur die Debitorennummer aendern wollte, loeschte damit Name, Anschrift
+ * und Mailadresse - still, mit Status 200. Das Formular in der Oberflaeche
+ * sendet immer alle Felder, deshalb fiel es nicht auf; jede Teilaenderung von
+ * aussen lief hinein.
+ */
 router.put('/companies/:companyId/clients/:clientId', requireAuth, erfordereAbrechnung(), async (req: Request, res: Response) => {
   const k = req.body || {}
+  const felder: string[] = []
+  const werte: any[] = []
+  const text = (spalte: string, wert: any) => { felder.push(`${spalte} = ?`); werte.push(String(wert ?? '')) }
+
+  if ('name' in k) {
+    // Ein Auftraggeber ohne Namen ist in jeder Liste ein Leerfeld - das wird
+    // nicht gespeichert, auch nicht aus Versehen.
+    if (!String(k.name).trim()) {
+      return res.status(400).json({ data: null, error: 'Der Auftraggeber braucht einen Namen' })
+    }
+    text('name', String(k.name).trim())
+  }
+  if ('contact_name' in k) text('contact_name', k.contact_name)
+  if ('address' in k) text('address', k.address)
+  if ('zip' in k) text('zip', k.zip)
+  if ('city' in k) text('city', k.city)
+  if ('country' in k) text('country', k.country || 'Deutschland')
+  if ('vat_id' in k) text('vat_id', k.vat_id)
+  if ('email' in k) text('email', k.email)
+  if ('phone' in k) text('phone', k.phone)
+  if ('notes' in k) text('notes', k.notes)
+  // Debitorennummer fuer den DATEV-Export, `is_business` fuer den
+  // Verzugszinssatz nach Paragraf 288 BGB (neun oder fuenf Prozentpunkte),
+  // `payment_days` als eigenes Zahlungsziel dieses Auftraggebers.
+  if ('debitor_number' in k) text('debitor_number', k.debitor_number)
+  if ('is_business' in k) { felder.push('is_business = ?'); werte.push(k.is_business !== false) }
+  if ('payment_days' in k) {
+    felder.push('payment_days = ?')
+    const tage = Number(k.payment_days)
+    werte.push(Number.isFinite(tage) && tage > 0 ? Math.trunc(tage) : null)
+  }
+
+  if (felder.length === 0) {
+    return res.status(400).json({ data: null, error: 'Keine Angabe zum Aendern' })
+  }
+
   const zeile = await db.run(
-    `UPDATE company_clients
-        SET name = ?, contact_name = ?, address = ?, zip = ?, city = ?, country = ?,
-            vat_id = ?, email = ?, phone = ?, notes = ?
-      WHERE id = ? AND company_id = ?`,
-    [
-      String(k.name || ''), String(k.contact_name || ''), String(k.address || ''), String(k.zip || ''),
-      String(k.city || ''), String(k.country || 'Deutschland'), String(k.vat_id || ''),
-      String(k.email || ''), String(k.phone || ''), String(k.notes || ''),
-      Number(req.params.clientId), Number(req.params.companyId),
-    ]
+    `UPDATE company_clients SET ${felder.join(', ')} WHERE id = ? AND company_id = ?`,
+    [...werte, Number(req.params.clientId), Number(req.params.companyId)]
   )
   if (zeile.changes === 0) return res.status(404).json({ data: null, error: 'Auftraggeber nicht gefunden' })
   return res.json({ data: { gespeichert: true }, error: null })

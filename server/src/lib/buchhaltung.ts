@@ -219,11 +219,20 @@ export type Kontenrahmen = keyof typeof ERLOESKONTEN
  * Entscheidend ist der Steuersatz, nicht die Art der Leistung: Eine
  * Filmproduktion kann 19 Prozent, 7 Prozent (bei Einräumung urheberrechtlicher
  * Nutzungsrechte) oder gar keine Umsatzsteuer ausweisen.
+ *
+ * Die Steuerart der Firma hat Vorrang vor dem Satz an der Position. Eine
+ * Rechnung nach Paragraf 19 UStG weist keine Umsatzsteuer aus, auch wenn an
+ * den Positionen noch 19 Prozent stehen - und sie gehört auf das eigene
+ * Erlöskonto, sonst steht in der Buchhaltung Umsatzsteuer auf einem Umsatz,
+ * der keine ausweist.
+ *
+ * `steuerart` ist der Wert aus der Datenbank, also 'regel' oder
+ * 'kleinunternehmer' (siehe `Steuerart` in lib/rechnung.ts).
  */
 export function erloeskonto(rahmen: Kontenrahmen, steuerprozent: number, steuerart: string): string {
   const konten = ERLOESKONTEN[rahmen]
-  if (steuerart === 'klein') return konten.kleinunternehmer
-  if (steuerart === 'frei' || steuerprozent === 0) return konten.frei
+  if (steuerart === 'kleinunternehmer') return konten.kleinunternehmer
+  if (steuerprozent === 0) return konten.frei
   if (steuerprozent === 7) return konten.ermaessigt7
   return konten.regel19
 }

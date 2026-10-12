@@ -211,9 +211,11 @@ router.get('/companies/:companyId/buchhaltung/datev/pruefung', requireAuth, erfo
       bereit: fehlt.length === 0 && buchungen.length > 0,
       // Dieser Satz steht in der Oberflaeche ueber dem Knopf. Er gehoert dort
       // hin, bis der erste Probeimport in der Kanzlei gelaufen ist.
-      hinweis: 'Der Stapel wird ohne Festschreibung erzeugt und lässt sich in DATEV '
-        + 'ansehen und verwerfen. Bitte einmal mit der Kanzlei probeweise einlesen, '
-        + 'bevor er in die laufende Buchhaltung geht.',
+      hinweis: 'Der Stapel enthält die Erlösbuchungen der Rechnungen, keine '
+        + 'Zahlungseingänge - für die braucht die Kanzlei ihr eigenes Finanzkonto. '
+        + 'Er wird ohne Festschreibung erzeugt und lässt sich in DATEV ansehen und '
+        + 'verwerfen. Bitte einmal probeweise einlesen, bevor er in die laufende '
+        + 'Buchhaltung geht.',
     },
     error: null,
   })

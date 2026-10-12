@@ -809,6 +809,72 @@ export const api = {
   },
 
   // ─── Rechnungen und Auftraggeber ───────────────────────────────────────────
+  // ─── Offene Posten, Mahnwesen und Zahlungen ────────────────────────────────
+  mahnwesen: {
+    opos: (firmaId: number) => req<any>(`/companies/${firmaId}/opos`),
+    oposCsvUrl: (firmaId: number) => `/api/companies/${firmaId}/opos/export.csv`,
+
+    /** Was gemahnt würde, wenn man jetzt mahnte. Löst nichts aus. */
+    mahnlauf: (firmaId: number, stichtag?: string) =>
+      req<any>(`/companies/${firmaId}/mahnlauf${stichtag ? `?stichtag=${stichtag}` : ''}`),
+    mahnungPdfUrl: (firmaId: number, rechnungId: number) =>
+      `/api/companies/${firmaId}/invoices/${rechnungId}/mahnung.pdf`,
+    /** Mahnung festschreiben und die Mail einreihen. */
+    mahnen: (firmaId: number, rechnungId: number, mail = true) =>
+      req<any>(`/companies/${firmaId}/invoices/${rechnungId}/mahnung`, {
+        method: 'POST', body: JSON.stringify({ mail }),
+      }),
+    mahnungen: (firmaId: number, rechnungId: number) =>
+      req<any[]>(`/companies/${firmaId}/invoices/${rechnungId}/mahnungen`),
+
+    zahlungen: (firmaId: number, rechnungId: number) =>
+      req<any[]>(`/companies/${firmaId}/invoices/${rechnungId}/payments`),
+    zahlungErfassen: (firmaId: number, rechnungId: number, daten: any) =>
+      req<any>(`/companies/${firmaId}/invoices/${rechnungId}/payments`, {
+        method: 'POST', body: JSON.stringify(daten),
+      }),
+    zahlungLoeschen: (firmaId: number, rechnungId: number, zahlungId: number) =>
+      req<any>(`/companies/${firmaId}/invoices/${rechnungId}/payments/${zahlungId}`, { method: 'DELETE' }),
+  },
+
+  // ─── Übergabe an die Buchhaltung ───────────────────────────────────────────
+  buchhaltung: {
+    csvUrl: (firmaId: number, von: string, bis: string) =>
+      `/api/companies/${firmaId}/buchhaltung/export.csv?von=${von}&bis=${bis}`,
+    /** Prüfung vor dem DATEV-Export: was entsteht und was noch fehlt. */
+    datevPruefung: (firmaId: number, von: string, bis: string) =>
+      req<any>(`/companies/${firmaId}/buchhaltung/datev/pruefung?von=${von}&bis=${bis}`),
+    datevUrl: (firmaId: number, von: string, bis: string) =>
+      `/api/companies/${firmaId}/buchhaltung/datev?von=${von}&bis=${bis}`,
+    einstellungen: (firmaId: number, daten: any) =>
+      req<any>(`/companies/${firmaId}/buchhaltung/einstellungen`, {
+        method: 'PUT', body: JSON.stringify(daten),
+      }),
+  },
+
+  // ─── Angebote ──────────────────────────────────────────────────────────────
+  angebote: {
+    liste: (firmaId: number) => req<any[]>(`/companies/${firmaId}/quotes`),
+    lesen: (firmaId: number, id: number) => req<any>(`/companies/${firmaId}/quotes/${id}`),
+    anlegen: (firmaId: number, daten: any) =>
+      req<{ id: number }>(`/companies/${firmaId}/quotes`, { method: 'POST', body: JSON.stringify(daten) }),
+    speichern: (firmaId: number, id: number, daten: any) =>
+      req<any>(`/companies/${firmaId}/quotes/${id}`, { method: 'PUT', body: JSON.stringify(daten) }),
+    positionen: (firmaId: number, id: number, items: any[]) =>
+      req<any>(`/companies/${firmaId}/quotes/${id}/items`, { method: 'PUT', body: JSON.stringify({ items }) }),
+    festschreiben: (firmaId: number, id: number) =>
+      req<{ number: string; status: string }>(`/companies/${firmaId}/quotes/${id}/issue`, { method: 'POST' }),
+    annehmen: (firmaId: number, id: number, daten: any = {}) =>
+      req<any>(`/companies/${firmaId}/quotes/${id}/accept`, { method: 'POST', body: JSON.stringify(daten) }),
+    ablehnen: (firmaId: number, id: number, grund = '') =>
+      req<any>(`/companies/${firmaId}/quotes/${id}/decline`, {
+        method: 'POST', body: JSON.stringify({ reason: grund }),
+      }),
+    loeschen: (firmaId: number, id: number) =>
+      req<any>(`/companies/${firmaId}/quotes/${id}`, { method: 'DELETE' }),
+    pdfUrl: (firmaId: number, id: number) => `/api/companies/${firmaId}/quotes/${id}/pdf`,
+  },
+
   rechnungen: {
     kunden: (firmaId: number) => req<any[]>(`/companies/${firmaId}/clients`),
     kundeAnlegen: (firmaId: number, daten: any) =>
