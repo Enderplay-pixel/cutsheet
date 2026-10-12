@@ -18,6 +18,11 @@ function snippet(content: string, query: string, radius = 50): string {
   return prefix + content.slice(start, end) + suffix
 }
 
+/*
+ * ILIKE statt LIKE: In SQLite war `LIKE` fuer ASCII unempfindlich gegenueber
+ * Gross- und Kleinschreibung, in PostgreSQL ist es das nicht. Nach dem Umzug
+ * fand "Jana" fuenfzig Treffer und "jana" keinen.
+ */
 router.get('/projects/:projectId/search', async (req, res) => {
   const rawQ = String(req.query.q || '')
   if (!rawQ.trim()) {
@@ -28,26 +33,26 @@ router.get('/projects/:projectId/search', async (req, res) => {
 
   const [scenesRaw, screenplayRaw, castRaw, crewRaw, locationsRaw] = await Promise.all([
     db.all(
-      "SELECT id, scene_number, title as name FROM scenes WHERE project_id = ? AND (title LIKE ? OR scene_number LIKE ? OR description LIKE ?)",
+      "SELECT id, scene_number, title as name FROM scenes WHERE project_id = ? AND (title ILIKE ? OR scene_number ILIKE ? OR description ILIKE ?)",
       [pid, q, q, q]
     ),
     db.all(
       `SELECT sb.id, sb.content, sb.block_type, s.id as scene_id, s.scene_number, s.title
        FROM screenplay_blocks sb
        JOIN scenes s ON sb.scene_id = s.id
-       WHERE sb.project_id = ? AND sb.content LIKE ?`,
+       WHERE sb.project_id = ? AND sb.content ILIKE ?`,
       [pid, q]
     ),
     db.all(
-      "SELECT id, actor_name FROM cast WHERE project_id = ? AND actor_name LIKE ?",
+      "SELECT id, actor_name FROM cast WHERE project_id = ? AND actor_name ILIKE ?",
       [pid, q]
     ),
     db.all(
-      "SELECT id, name, role, department FROM crew WHERE project_id = ? AND (name LIKE ? OR role LIKE ?)",
+      "SELECT id, name, role, department FROM crew WHERE project_id = ? AND (name ILIKE ? OR role ILIKE ?)",
       [pid, q, q]
     ),
     db.all(
-      "SELECT id, name, city FROM locations WHERE project_id = ? AND (name LIKE ? OR city LIKE ? OR address LIKE ?)",
+      "SELECT id, name, city FROM locations WHERE project_id = ? AND (name ILIKE ? OR city ILIKE ? OR address ILIKE ?)",
       [pid, q, q, q]
     ),
   ])

@@ -216,6 +216,45 @@ function browserHolen(): Promise<any> {
 }
 
 /** Fuer geordnetes Herunterfahren und nach Leerlauf. */
+/**
+ * Fährt Chromium im Hintergrund hoch, damit der erste Export nicht darauf
+ * wartet.
+ *
+ * Gemessen: erstes PDF nach dem Start 37,7 Sekunden, jedes weitere rund 4.
+ * Der Unterschied ist allein der Start des Browsers.
+ *
+ * Fehler werden geschluckt: Lässt sich Chromium nicht starten, soll der
+ * Server trotzdem laufen - der erste Export versucht es dann erneut und
+ * meldet den Fehler dort, wo jemand ihn sieht.
+ */
+export function pdfBrowserVorwaermen(): void {
+  browserHolen()
+    .then(() => {
+      console.log('[PDF] Browser vorgewaermt')
+      // Der Leerlauf-Zaehler laeuft erst mit dem ersten Export. Ohne diesen
+      // Anstoss bliebe der vorgewaermte Browser fuer immer offen.
+      if (!leerlaufTimer) {
+        leerlaufTimer = setTimeout(() => { void pdfBrowserSchliessen() }, PDF_LEERLAUF_MS)
+        leerlaufTimer.unref()
+      }
+    })
+    .catch((fehler: any) => {
+      console.warn('[PDF] Vorwaermen fehlgeschlagen, der erste Export versucht es erneut:',
+        fehler?.message || fehler)
+    })
+}
+
+/**
+ * Was der PDF-Teil gerade tut - fuer die Bereitschaftsanzeige.
+ *
+ * `warm` heisst: Chromium laeuft und der naechste Export dauert Sekunden
+ * statt einer halben Minute. Nach einer Minute Leerlauf faellt das wieder auf
+ * `false`, das ist Absicht und kein Fehler.
+ */
+export function pdfBrowserZustand(): { warm: boolean; aktiv: number; wartend: number } {
+  return { warm: browserVersprechen !== null, aktiv, wartend: wartend.length }
+}
+
 export async function pdfBrowserSchliessen() {
   const v = browserVersprechen
   browserVersprechen = null

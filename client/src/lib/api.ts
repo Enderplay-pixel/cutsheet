@@ -48,6 +48,30 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
   return data
 }
 
+/**
+ * Wie `req`, gibt aber den ganzen Umschlag zurück - also auch `meta`.
+ *
+ * Seitenweise Listen brauchen neben den Zeilen die Gesamtzahl der Treffer.
+ * `req` wirft die weg, weil fast alle Routen nur `data` liefern.
+ */
+async function reqMitMeta<T>(path: string, options?: RequestInit): Promise<{ data: T; meta: any }> {
+  const token = localStorage.getItem('token')
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetchMitWiederholung(`${API_BASE}${path}`, {
+    headers: { ...headers, ...options?.headers },
+    ...options,
+  })
+  const json = await res.json().catch(() => null)
+  if (!res.ok) {
+    throw new Error(json?.error || (res.status >= 500
+      ? 'Der Server ist gerade nicht erreichbar. Bitte gleich noch einmal versuchen.'
+      : 'Fehler beim Server-Request'))
+  }
+  return { data: json?.data, meta: json?.meta ?? null }
+}
+
 // ─── Projects ────────────────────────────────────────────────────────────────
 export const api = {
   projects: {
@@ -405,7 +429,12 @@ export const api = {
 
   // ─── Audit Log ─────────────────────────────────────────────────────────────
   audit: {
-    list: (projectId: number) => req<any[]>(`/projects/${projectId}/audit`),
+    /** `abfrage` enthält Filter, Seitengrenze und Sprung - siehe AuditLog.tsx. */
+    list: (projectId: number, abfrage = '') =>
+      reqMitMeta<any[]>(`/projects/${projectId}/audit${abfrage}`),
+    werte: (projectId: number) => req<any>(`/projects/${projectId}/audit/werte`),
+    csvUrl: (projectId: number, abfrage = '') =>
+      `/api/projects/${projectId}/audit/export.csv${abfrage}`,
   },
 
   // ─── VFX ───────────────────────────────────────────────────────────────────

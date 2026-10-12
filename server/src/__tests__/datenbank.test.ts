@@ -1047,3 +1047,256 @@ describe('Papierkorb', () => {
     expect(await papierkorb.inDenPapierkorb('scenes', 999999, {})).toBe(false)
   })
 })
+
+describe('Suche', () => {
+  /**
+   * In SQLite war `LIKE` fuer ASCII unempfindlich gegenueber Gross- und
+   * Kleinschreibung, in PostgreSQL ist es das nicht. Nach dem Umzug fand
+   * "Jana" fuenfzig Treffer und "jana" keinen - gemessen an einer
+   * Grossproduktion mit 896 Drehbuchbloecken.
+   */
+  it('findet unabhaengig von Gross- und Kleinschreibung', async () => {
+    const projekt = await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Suchprojekt', nutzerId])
+    await db.run(
+      'INSERT INTO scenes (project_id, scene_number, title, description) VALUES (?, ?, ?, ?)',
+      [projekt.id, '1', 'Jana im Praesidium', 'Jana betritt das Polizeipraesidium']
+    )
+    await db.run(
+      'INSERT INTO crew (project_id, name, role) VALUES (?, ?, ?)',
+      [projekt.id, 'Mara Lindqvist', 'Szenenbild']
+    )
+
+    const treffer = async (wort: string) => {
+      const zeilen = await db.all(
+        `SELECT id FROM scenes WHERE project_id = ? AND (title ILIKE ? OR description ILIKE ?)`,
+        [projekt.id, `%${wort}%`, `%${wort}%`]
+      )
+      return zeilen.length
+    }
+
+    expect(await treffer('Jana')).toBe(1)
+    expect(await treffer('jana'), 'klein geschrieben').toBe(1)
+    expect(await treffer('JANA'), 'gross geschrieben').toBe(1)
+    expect(await treffer('praesidium'), 'mitten im Wort und klein').toBe(1)
+    expect(await treffer('gibtsnicht')).toBe(0)
+
+    // Zum Vergleich: so war es vorher
+    const empfindlich = await db.all(
+      `SELECT id FROM scenes WHERE project_id = ? AND title LIKE ?`,
+      [projekt.id, '%jana%']
+    )
+    expect(empfindlich.length, 'LIKE bleibt empfindlich - deshalb ILIKE').toBe(0)
+  })
+})
+
+describe('Drehplan laedt in zwei Abfragen', () => {
+  /**
+   * Vorher lief je Drehtag ein eigenes Laden, also zwei Abfragen pro Tag.
+   * Gemessen an 45 Drehtagen: 1,95 Sekunden. Mit zwei Abfragen sind es
+   * Millisekunden, und die Dauer waechst nicht mehr mit der Zahl der Tage.
+   */
+  it('ordnet jedem Tag seine Szenen zu und rechnet Achtel und Minuten', async () => {
+    const { ladeDrehtageMitSzenen } = await import('../routes/drehplan')
+    const projekt = await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Drehplanprojekt', nutzerId])
+
+    const motiv = await db.run('INSERT INTO locations (project_id, name) VALUES (?, ?)', [projekt.id, 'Wohnkueche'])
+    const szenen: number[] = []
+    for (const [nummer, achtel, minuten] of [['1', 4, 30], ['2', 8, 60], ['3', 2, 15]] as Array<[string, number, number]>) {
+      const s = await db.run(
+        'INSERT INTO scenes (project_id, scene_number, title, eighths, estimated_minutes, location_id) VALUES (?, ?, ?, ?, ?, ?)',
+        [projekt.id, nummer, `Szene ${nummer}`, achtel, minuten, motiv.id]
+      )
+      szenen.push(s.id)
+    }
+
+    const tag1 = await db.run('INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, ?)', [projekt.id, '2026-11-02'])
+    const tag2 = await db.run('INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 2, ?)', [projekt.id, '2026-11-03'])
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, 0)', [tag1.id, szenen[0]])
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, 1)', [tag1.id, szenen[1]])
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, 0)', [tag2.id, szenen[2]])
+
+    const tage = await ladeDrehtageMitSzenen(projekt.id)
+    expect(tage).toHaveLength(2)
+
+    expect(tage[0].scenes).toHaveLength(2)
+    expect(tage[0].total_eighths).toBe(12)
+    expect(tage[0].estimated_minutes).toBe(90)
+    expect(tage[0].scenes[0].location_name).toBe('Wohnkueche')
+
+    expect(tage[1].scenes).toHaveLength(1)
+    expect(tage[1].total_eighths).toBe(2)
+  })
+
+  it('gibt einen Tag ohne Szenen mit leerer Liste zurueck', async () => {
+    const { ladeDrehtageMitSzenen } = await import('../routes/drehplan')
+    const projekt = await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Leerer Plan', nutzerId])
+    await db.run('INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, ?)', [projekt.id, '2026-11-05'])
+
+    const tage = await ladeDrehtageMitSzenen(projekt.id)
+    expect(tage).toHaveLength(1)
+    expect(tage[0].scenes).toEqual([])
+    expect(tage[0].total_eighths).toBe(0)
+  })
+
+  it('gibt bei einem Projekt ohne Drehtage eine leere Liste zurueck', async () => {
+    const { ladeDrehtageMitSzenen } = await import('../routes/drehplan')
+    const projekt = await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Ohne Plan', nutzerId])
+    expect(await ladeDrehtageMitSzenen(projekt.id)).toEqual([])
+  })
+})
+
+describe('Abfragen zaehlen', () => {
+  /**
+   * Nicht die Laufzeit messen - die schwankt -, sondern die Zahl der
+   * Abfragen. Genau daran lagen die drei Flaschenhaelse: eine Abfrage je
+   * Zeile statt einer fuer alle.
+   *
+   * Gemessen an der Grossproduktion vor dem Umbau: Drehplan 1,95 s bei 45
+   * Tagen, Arbeitszeiten-Export 2,9 s bei 2060 Zeilen, Honoraruebersicht
+   * 1,3 s bei 135 Personen. Danach: 0,02 s, 0,06 s und 0,05 s.
+   */
+  async function zaehleAbfragen<T>(lauf: () => Promise<T>): Promise<{ ergebnis: T; abfragen: number }> {
+    const modul = await import('../db')
+    const echtesAll = modul.db.all.bind(modul.db)
+    const echtesGet = modul.db.get.bind(modul.db)
+    let abfragen = 0
+    ;(modul.db as any).all = (...args: any[]) => { abfragen++; return (echtesAll as any)(...args) }
+    ;(modul.db as any).get = (...args: any[]) => { abfragen++; return (echtesGet as any)(...args) }
+    try {
+      const ergebnis = await lauf()
+      return { ergebnis, abfragen }
+    } finally {
+      ;(modul.db as any).all = echtesAll
+      ;(modul.db as any).get = echtesGet
+    }
+  }
+
+  it('laedt den Drehplan mit zwei Abfragen, egal wie viele Tage', async () => {
+    const { ladeDrehtageMitSzenen } = await import('../routes/drehplan')
+    const projekt = await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Viele Tage', nutzerId])
+
+    // Je Tag eine eigene Szene: Eine Szene gehoert immer nur zu einem Drehtag,
+    // dafuer sorgt eine eindeutige Bedingung in der Datenbank.
+    for (let tag = 1; tag <= 30; tag++) {
+      const szene = await db.run(
+        'INSERT INTO scenes (project_id, scene_number, title, eighths) VALUES (?, ?, ?, 4)',
+        [projekt.id, String(tag), `Szene ${tag}`]
+      )
+      const d = await db.run(
+        'INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, ?, ?)',
+        [projekt.id, tag, `2026-11-${String(tag).padStart(2, '0')}`]
+      )
+      await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, 0)', [d.id, szene.id])
+    }
+
+    const { ergebnis, abfragen } = await zaehleAbfragen(() => ladeDrehtageMitSzenen(projekt.id))
+    expect(ergebnis).toHaveLength(30)
+    expect(abfragen, 'eine Abfrage fuer die Tage, eine fuer die Szenen').toBe(2)
+  })
+
+  it('zaehlt auch bei einem leeren Plan nicht mehr als noetig', async () => {
+    const { ladeDrehtageMitSzenen } = await import('../routes/drehplan')
+    const projekt = await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Leer', nutzerId])
+    const { abfragen } = await zaehleAbfragen(() => ladeDrehtageMitSzenen(projekt.id))
+    expect(abfragen, 'ohne Tage braucht es die zweite Abfrage nicht').toBe(1)
+  })
+})
+
+/**
+ * Die Protokollsuche.
+ *
+ * Das Protokoll lieferte vorher die letzten 200 Zeilen und sonst nichts. Bei
+ * einer Produktion mit taeglichen Aenderungen sind 200 Zeilen zwei Tage - was
+ * davor passiert ist, war von aussen nicht erreichbar, obwohl es in der
+ * Datenbank stand.
+ *
+ * Geprueft wird hier die Einschraenkung selbst, nicht die Route: Sie ist der
+ * Teil, der falsch sein kann, ohne dass es auffaellt - ein Filter, der
+ * stillschweigend zu viel oder zu wenig findet, sieht in der Oberflaeche aus
+ * wie eine korrekte Antwort.
+ */
+describe('Protokollsuche', () => {
+  let projekt: any
+
+  beforeAll(async () => {
+    projekt = await db.run('INSERT INTO projects (title) VALUES (?)', ['Protokollprojekt'])
+    const zeilen: Array<[string, string, string, string]> = [
+      ['2026-09-01 08:00:00+00', 'Jana Berg', 'update', 'shoot_days'],
+      ['2026-09-15 09:30:00+00', 'Jana Berg', 'create', 'scenes'],
+      ['2026-10-01 10:00:00+00', 'Tom Klein', 'delete', 'scenes'],
+      ['2026-10-12 23:30:00+00', 'Tom Klein', 'update', 'call_sheets'],
+    ]
+    for (const [wann, wer, was, wo] of zeilen) {
+      await db.run(
+        `INSERT INTO audit_log (project_id, user_name, action, entity_type, new_value, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [projekt.id, wer, was, wo, JSON.stringify({ title: `${was} in ${wo}` }), wann]
+      )
+    }
+  })
+
+  /** Dieselbe Einschraenkung wie die Route - als Abfrage nachgebaut. */
+  const finde = async (q: Record<string, string>) => {
+    const teile = ['project_id = ?']
+    const werte: any[] = [projekt.id]
+    if (q.nutzer) { teile.push('(user_name ILIKE ? OR user_id = ?)'); werte.push(`%${q.nutzer}%`, Number(q.nutzer) || -1) }
+    if (q.aktion) { teile.push('action ILIKE ?'); werte.push(`%${q.aktion}%`) }
+    if (q.bereich) { teile.push('entity_type ILIKE ?'); werte.push(`%${q.bereich}%`) }
+    if (q.von) { teile.push("created_at >= (?::timestamp AT TIME ZONE 'Europe/Berlin')"); werte.push(`${q.von} 00:00:00`) }
+    if (q.bis) { teile.push("created_at <= (?::timestamp AT TIME ZONE 'Europe/Berlin')"); werte.push(`${q.bis} 23:59:59.999`) }
+    return (await db.all(
+      `SELECT * FROM audit_log WHERE ${teile.join(' AND ')} ORDER BY created_at DESC`,
+      werte
+    )) as any[]
+  }
+
+  it('findet ohne Filter alles aus dem Projekt', async () => {
+    expect((await finde({})).length).toBe(4)
+  })
+
+  it('sucht Namen unabhaengig von Gross- und Kleinschreibung', async () => {
+    // Der Grund fuer ILIKE: In PostgreSQL findet LIKE 'jana%' niemanden, der
+    // Jana heisst. In SQLite fand es sie - deshalb fiel es lange nicht auf.
+    expect((await finde({ nutzer: 'jana' })).length).toBe(2)
+    expect((await finde({ nutzer: 'JANA' })).length).toBe(2)
+  })
+
+  it('grenzt den Tag in Berliner Zeit ab, nicht in der des Servers', async () => {
+    // Der letzte Eintrag steht auf 23:30 Uhr UTC - in Berlin ist das 01:30 am
+    // 13. Oktober. Er gehoert also **nicht** zum 12., und genau das ist der
+    // Punkt: Ohne `AT TIME ZONE` entscheidet die Zeitzone der Datenbank-
+    // sitzung darueber, und dieselbe Suche liefert lokal und beim Hoster
+    // verschiedene Mengen.
+    const bisZwoelfter = await finde({ von: '2026-10-01', bis: '2026-10-12' })
+    expect(bisZwoelfter.map((z) => z.entity_type)).toEqual(['scenes'])
+
+    const bisDreizehnter = await finde({ von: '2026-10-01', bis: '2026-10-13' })
+    expect(bisDreizehnter.map((z) => z.entity_type)).toEqual(['call_sheets', 'scenes'])
+  })
+
+  it('nimmt den ersten Tag des Zeitraums ganz mit', async () => {
+    // 00:00:00 als untere Grenze: Ein Eintrag um 08:00 Uhr am 1. September
+    // muss bei von=2026-09-01 dabei sein.
+    const treffer = await finde({ von: '2026-09-01', bis: '2026-09-01' })
+    expect(treffer.map((z) => z.entity_type)).toEqual(['shoot_days'])
+  })
+
+  it('verknuepft mehrere Angaben mit UND', async () => {
+    expect((await finde({ nutzer: 'Tom', aktion: 'update' })).length).toBe(1)
+    expect((await finde({ nutzer: 'Tom', bereich: 'scenes' })).length).toBe(1)
+    expect((await finde({ nutzer: 'Jana', aktion: 'delete' })).length).toBe(0)
+  })
+
+  it('zaehlt die Treffer unabhaengig von der Seitengrenze', async () => {
+    const summe = (await db.get('SELECT COUNT(*) AS anzahl FROM audit_log WHERE project_id = ?', [projekt.id])) as any
+    const seite = (await db.all(
+      'SELECT * FROM audit_log WHERE project_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+      [projekt.id, 2, 2]
+    )) as any[]
+    // Die Oberflaeche zeigt "2 von 4" - die Gesamtzahl darf nicht die
+    // Seitenlaenge sein.
+    expect(Number(summe.anzahl)).toBe(4)
+    expect(seite.length).toBe(2)
+    expect(seite[0].entity_type).toBe('scenes')
+  })
+})

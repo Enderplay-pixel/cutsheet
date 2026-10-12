@@ -33,6 +33,36 @@ async function enrichWithPersonName(entry: any): Promise<any> {
   }
 }
 
+/**
+ * Alle Namen eines Projekts auf einmal - für Listen.
+ *
+ * `enrichWithPersonName` macht je Zeile eine Abfrage. Bei einer einzelnen
+ * Zeile ist das richtig; bei 2060 Arbeitszeiten sind es 2060 Abfragen für
+ * Daten aus zwei Tabellen mit zusammen 135 Zeilen. Gemessen: 2,9 Sekunden
+ * für den CSV-Export.
+ *
+ * Der Schlüssel der Karte ist `art:kennung`, weil dieselbe Zahl einmal eine
+ * Person aus dem Stab und einmal aus der Besetzung sein kann.
+ */
+async function ladeNamen(projectId: number | string): Promise<Map<string, string>> {
+  const [stab, besetzung] = await Promise.all([
+    db.all('SELECT id, name FROM crew WHERE project_id = ?', [projectId]) as Promise<any[]>,
+    db.all('SELECT id, actor_name AS name FROM "cast" WHERE project_id = ?', [projectId]) as Promise<any[]>,
+  ])
+  const karte = new Map<string, string>()
+  for (const person of stab) karte.set(`crew:${person.id}`, person.name || '')
+  for (const person of besetzung) karte.set(`cast:${person.id}`, person.name || '')
+  return karte
+}
+
+/** Setzt die Namen aus einer vorab geladenen Karte ein. */
+function mitNamen(zeilen: any[], karte: Map<string, string>): any[] {
+  return zeilen.map((zeile) => ({
+    ...zeile,
+    person_name: karte.get(`${zeile.person_type}:${zeile.person_id}`) ?? '',
+  }))
+}
+
 // GET /api/shoot-days/:dayId/timesheets
 router.get('/shoot-days/:dayId/timesheets', async (req: Request, res: Response) => {
   const user = (req as any).user
@@ -43,7 +73,7 @@ router.get('/shoot-days/:dayId/timesheets', async (req: Request, res: Response) 
     [req.params.dayId]
   ) as any[]
 
-  const enriched = await Promise.all(rows.map(enrichWithPersonName))
+  const enriched = mitNamen(rows, await ladeNamen(req.params.pid))
   return res.json({ data: enriched, error: null })
 })
 
@@ -134,7 +164,7 @@ router.get('/projects/:pid/timesheets/export.csv', async (req: Request, res: Res
   ) as any[]
 
   // Enrich with person names
-  const enriched = await Promise.all(rows.map(enrichWithPersonName))
+  const enriched = mitNamen(rows, await ladeNamen(req.params.pid))
 
   const header = 'Name,Tag,Datum,Call,Wrap,Überstunden,Notizen'
   const lines = enriched.map((r: any) => {

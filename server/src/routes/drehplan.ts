@@ -47,11 +47,55 @@ async function getShootDayWithScenes(dayId: number | bigint) {
   return { ...day, scenes, total_eighths, estimated_minutes }
 }
 
+/**
+ * Alle Drehtage eines Projekts mit ihren Szenen - in zwei Abfragen.
+ *
+ * Vorher lief je Drehtag ein eigenes `getShootDayWithScenes`, also zwei
+ * Abfragen pro Tag. Gemessen an einer Produktion mit 45 Drehtagen: 1,95
+ * Sekunden, während jede andere Route desselben Projekts unter 0,2 Sekunden
+ * blieb. Mit zwei Abfragen und Zuordnung im Speicher sind es Millisekunden,
+ * und die Dauer wächst nicht mehr mit der Zahl der Drehtage.
+ */
+export async function ladeDrehtageMitSzenen(projectId: number | string) {
+  const tage = (await db.all(
+    'SELECT * FROM shoot_days WHERE project_id = ? ORDER BY date ASC, id ASC',
+    [projectId]
+  )) as any[]
+  if (tage.length === 0) return []
+
+  const szenen = (await db.all(
+    `SELECT sds.*, s.scene_number, s.title, s.int_ext, s.day_night, s.eighths,
+            s.estimated_minutes, s.description, s.notes, s.location_id, l.name as location_name
+       FROM shoot_day_scenes sds
+       JOIN scenes s ON sds.scene_id = s.id
+       LEFT JOIN locations l ON s.location_id = l.id
+       JOIN shoot_days d ON d.id = sds.shoot_day_id
+      WHERE d.project_id = ?
+      ORDER BY sds.sort_order ASC`,
+    [projectId]
+  )) as any[]
+
+  const jeTag = new Map<number, any[]>()
+  for (const szene of szenen) {
+    const liste = jeTag.get(szene.shoot_day_id)
+    if (liste) liste.push(szene)
+    else jeTag.set(szene.shoot_day_id, [szene])
+  }
+
+  return tage.map((tag) => {
+    const eigene = jeTag.get(tag.id) ?? []
+    return {
+      ...tag,
+      scenes: eigene,
+      total_eighths: eigene.reduce((summe, s) => summe + (s.eighths || 0), 0),
+      estimated_minutes: eigene.reduce((summe, s) => summe + (s.estimated_minutes || 0), 0),
+    }
+  })
+}
+
 // GET /api/projects/:projectId/shoot-days
 router.get('/projects/:projectId/shoot-days', async (req, res) => {
-  const days = await db.all('SELECT * FROM shoot_days WHERE project_id = ? ORDER BY date ASC, id ASC', [req.params.projectId])
-  const result = await Promise.all((days as any[]).map(d => getShootDayWithScenes(d.id)))
-  res.json({ data: result, error: null })
+  res.json({ data: await ladeDrehtageMitSzenen(req.params.projectId), error: null })
 })
 
 // POST /api/projects/:projectId/shoot-days
@@ -204,8 +248,7 @@ router.get('/projects/:projectId/drehplan/versions', async (req, res) => {
 // POST /api/projects/:projectId/drehplan/snapshot
 router.post('/projects/:projectId/drehplan/snapshot', async (req, res) => {
   const { name = `Snapshot ${new Date().toLocaleString('de-DE')}` } = req.body
-  const days = await db.all('SELECT * FROM shoot_days WHERE project_id = ? ORDER BY day_number', [req.params.projectId])
-  const fullDrehplan = await Promise.all((days as any[]).map(d => getShootDayWithScenes(d.id)))
+  const fullDrehplan = await ladeDrehtageMitSzenen(req.params.projectId)
   const result = await db.run('INSERT INTO drehplan_versions (project_id, name, snapshot_json) VALUES (?, ?, ?)', [req.params.projectId, name, JSON.stringify(fullDrehplan)])
   res.status(201).json({ data: await db.get('SELECT id, project_id, name, created_at FROM drehplan_versions WHERE id = ?', [result.id]), error: null })
 })

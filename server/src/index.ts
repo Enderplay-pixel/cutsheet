@@ -11,7 +11,7 @@ import { raeumeMailanhaengeAuf } from './lib/mailaufbewahrung'
 import { raeumeAuf as raeumePapierkorbAuf } from './lib/papierkorb'
 import { ueberlastKontext } from './lib/ueberlast'
 import { passwortPoolBeenden } from './lib/passwort'
-import { pdfBrowserSchliessen } from './routes/pdf'
+import { pdfBrowserSchliessen, pdfBrowserVorwaermen, pdfBrowserZustand } from './routes/pdf'
 import { optionalAuth } from './middleware/auth'
 import { projectWriteGuard, requireMember } from './middleware/projectAuth'
 import { papierkorbWaechter } from './middleware/papierkorbWaechter'
@@ -233,6 +233,9 @@ app.get('/api/ready', async (_req, res) => {
       start_abgeschlossen: dbReady,
       antwortzeit_ms: Date.now() - beginn,
       mailserver: !!process.env.SMTP_HOST,
+      // Chromium wird beim Start vorgewaermt. Steht hier `warm: false`, wartet
+      // der naechste Export auf den Browserstart - rund 30 Sekunden.
+      pdf: pdfBrowserZustand(),
       testversion,
     },
     error: bereit ? null : (fehler || 'Die Anwendung ist noch nicht bereit'),
@@ -385,6 +388,9 @@ async function main() {
         console.warn('[Mail] Anhaenge konnten nicht aufgeraeumt werden:', fehler?.message || fehler))
       raeumePapierkorbAuf().catch(fehler =>
         console.warn('[Papierkorb] konnte nicht aufgeraeumt werden:', fehler?.message || fehler))
+      // Chromium im Hintergrund hochfahren: Das erste PDF nach einem Neustart
+      // brauchte sonst 37 Sekunden statt vier.
+      pdfBrowserVorwaermen()
       return
     } catch (err: any) {
       if (attempt === MAX_RETRIES) {
