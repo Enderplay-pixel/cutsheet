@@ -809,6 +809,48 @@ export const api = {
   },
 
   // ─── Rechnungen und Auftraggeber ───────────────────────────────────────────
+  // ─── Vertraege und Einverstaendnisse ───────────────────────────────────────
+  vertraege: {
+    vorlagen: (projektId: number) => req<any>(`/projects/${projektId}/vertragsvorlagen`),
+    vorlageAnlegen: (projektId: number, daten: any) =>
+      req<any>(`/projects/${projektId}/vertragsvorlagen`, { method: 'POST', body: JSON.stringify(daten) }),
+    vorlageSpeichern: (projektId: number, id: number, daten: any) =>
+      req<any>(`/projects/${projektId}/vertragsvorlagen/${id}`, { method: 'PUT', body: JSON.stringify(daten) }),
+    vorlageLoeschen: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/vertragsvorlagen/${id}`, { method: 'DELETE' }),
+
+    uebersicht: (projektId: number) => req<any>(`/projects/${projektId}/vertraege`),
+    lesen: (projektId: number, id: number) => req<any>(`/projects/${projektId}/vertraege/${id}`),
+    /** Den Text mit den Daten der Person füllen - sagt auch, was fehlt. */
+    vorschau: (projektId: number, daten: any) =>
+      req<any>(`/projects/${projektId}/vertraege/vorschau`, { method: 'POST', body: JSON.stringify(daten) }),
+    anlegen: (projektId: number, daten: any) =>
+      req<any>(`/projects/${projektId}/vertraege`, { method: 'POST', body: JSON.stringify(daten) }),
+    speichern: (projektId: number, id: number, daten: any) =>
+      req<any>(`/projects/${projektId}/vertraege/${id}`, { method: 'PUT', body: JSON.stringify(daten) }),
+    loeschen: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/vertraege/${id}`, { method: 'DELETE' }),
+    senden: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/vertraege/${id}/senden`, { method: 'POST', body: '{}' }),
+    pdfUrl: (projektId: number, id: number) => `/api/projects/${projektId}/vertraege/${id}/pdf`,
+
+    // Der öffentliche Teil - ohne Anmeldung, über den Link aus der Mail
+    oeffentlich: (token: string) => req<any>(`/vertrag/${token}`),
+    bestaetigen: (token: string, name: string) =>
+      req<any>(`/vertrag/${token}/bestaetigen`, { method: 'POST', body: JSON.stringify({ name }) }),
+    ablehnen: (token: string, grund: string) =>
+      req<any>(`/vertrag/${token}/ablehnen`, { method: 'POST', body: JSON.stringify({ reason: grund }) }),
+    oeffentlichPdfUrl: (token: string) => `/api/vertrag/${token}/pdf`,
+  },
+
+  jugendschutz: {
+    pruefung: (projektId: number) => req<any>(`/projects/${projektId}/jugendschutz`),
+    speichern: (projektId: number, art: string, personId: number, daten: any) =>
+      req<any>(`/projects/${projektId}/jugendschutz/${art}/${personId}`, {
+        method: 'PUT', body: JSON.stringify(daten),
+      }),
+  },
+
   // ─── Offene Posten, Mahnwesen und Zahlungen ────────────────────────────────
   mahnwesen: {
     opos: (firmaId: number) => req<any>(`/companies/${firmaId}/opos`),

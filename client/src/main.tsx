@@ -91,6 +91,12 @@ const router = createBrowserRouter([
     lazy: lazyPage(() => import('./pages/Invite')),
   },
   {
+    // Ohne App-Rahmen: Wer hier landet, hat kein Konto und braucht keine
+    // Navigation - nur den Text und zwei Knoepfe.
+    path: '/vertrag/:token',
+    lazy: lazyPage(() => import('./pages/VertragBestaetigen')),
+  },
+  {
     path: '/set',
     lazy: lazyPage(() => import('./pages/SetApp')),
   },
@@ -128,6 +134,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, lazy: lazyPage(() => import('./pages/Dashboard')) },
           { path: 'stammdaten', lazy: lazyPage(() => import('./pages/Stammdaten')) },
+          { path: 'vertraege', lazy: lazyPage(() => import('./pages/Vertraege')) },
           { path: 'drehbuch', lazy: lazyPage(() => import('./pages/Drehbuch')) },
           { path: 'besetzung', lazy: lazyPage(() => import('./pages/Besetzung')) },
           { path: 'stabliste', lazy: lazyPage(() => import('./pages/Stabliste')) },

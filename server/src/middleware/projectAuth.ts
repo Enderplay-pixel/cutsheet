@@ -256,6 +256,10 @@ export async function projectWriteGuard(req: Request, res: Response, next: NextF
   if (path.match(/^\/invites\/[^/]+$/) && req.method === 'GET') return next()
   // Public Dispo-Links: Token-basiert (160-bit random), kein User nötig
   if (path.startsWith('/cse/t/')) return next()
+  // Vertragslinks: dieselbe Ueberlegung. Wer einen Vertrag bestaetigen soll,
+  // hat kein Konto und bekommt auch keins - die Zustimmung haengt an einem
+  // Token mit 192 Bit Zufall, nicht an einer Anmeldung.
+  if (path.startsWith('/vertrag/')) return next()
 
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })

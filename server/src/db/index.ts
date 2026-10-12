@@ -939,6 +939,26 @@ export async function initDatabase() {
   // Circle Take: welcher Take gedruckt wird. Freitext, weil in der Praxis auch
   // "3, 5" oder "2 (Ton ab 4)" darin steht.
   await db.exec(`ALTER TABLE shots ADD COLUMN IF NOT EXISTS best_take TEXT NOT NULL DEFAULT ''`)
+  // Geburtsdatum: ohne es laesst sich der Jugendarbeitsschutz nicht pruefen,
+  // und bei einem Kind entscheidet ein Tag ueber zwei Stunden Drehzeit.
+  // Ein eigenes Drehende je Person in der Disposition. NULL heisst "bis zum
+  // Drehschluss des Projekts" - fuer ein Kind muss dagegen die Uhrzeit
+  // dastehen, die die Behoerde bewilligt hat.
+  await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS wrap_time INTEGER`)
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS birthdate DATE`)
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS guardian_name TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS guardian_email TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS guardian_phone TEXT NOT NULL DEFAULT ''`)
+  // Die Bewilligung nach Paragraf 6 JArbSchG. Ohne sie darf ein Kind nicht
+  // mitwirken, und sie braucht je nach Land ein bis zwei Wochen Vorlauf.
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS permit_granted BOOLEAN NOT NULL DEFAULT false`)
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS permit_reference TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS permit_valid_until DATE`)
+  await db.exec(`ALTER TABLE extras ADD COLUMN IF NOT EXISTS birthdate DATE`)
+  await db.exec(`ALTER TABLE extras ADD COLUMN IF NOT EXISTS guardian_name TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE extras ADD COLUMN IF NOT EXISTS guardian_email TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE extras ADD COLUMN IF NOT EXISTS permit_granted BOOLEAN NOT NULL DEFAULT false`)
+  await db.exec(`ALTER TABLE crew ADD COLUMN IF NOT EXISTS birthdate DATE`)
   await db.exec(`ALTER TABLE screenplay_blocks ADD COLUMN IF NOT EXISTS annotation_color TEXT NOT NULL DEFAULT '#f59e0b'`)
   // Tatsaechlicher Drehaufwand je Szene und Drehtag. NULL heisst "nicht
   // gemessen" - nicht 0. Die Zeitanalyse faellt dann auf die Aufteilung der
@@ -1487,6 +1507,55 @@ export async function initDatabase() {
       sort_order INTEGER NOT NULL DEFAULT 0
     )
   `)
+
+  // ── Vertraege und Einverstaendnisse ───────────────────────────────────────
+  // Das Papier, das vor dem ersten Drehtag da sein muss. Eine Produktion
+  // scheitert selten an der Technik und oft daran, dass eine Unterschrift
+  // fehlt - und niemand weiss, welche.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS contract_templates (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+      project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL DEFAULT 'darsteller',
+      name TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL DEFAULT '',
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS contract_templates_firma_idx ON contract_templates (company_id, kind)`)
+
+  // Der Text wird beim Versand eingefroren. Aendert jemand spaeter die
+  // Vorlage, bleibt der Vertrag, der verschickt wurde, derselbe - sonst
+  // koennte niemand belegen, was unterschrieben wurde.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS contracts (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      template_id INTEGER REFERENCES contract_templates(id) ON DELETE SET NULL,
+      person_type TEXT NOT NULL DEFAULT 'cast',
+      person_id INTEGER NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'darsteller',
+      title TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'entwurf',
+      token TEXT,
+      fee_cents INTEGER NOT NULL DEFAULT 0,
+      sent_at TIMESTAMPTZ,
+      confirmed_at TIMESTAMPTZ,
+      confirmed_name TEXT NOT NULL DEFAULT '',
+      declined_at TIMESTAMPTZ,
+      decline_reason TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS contracts_projekt_idx ON contracts (project_id, person_type, person_id)`)
+  await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS contracts_token_idx ON contracts (token) WHERE token IS NOT NULL`)
 
   // ── Zahlungseingaenge ─────────────────────────────────────────────────────
   // `invoices.paid_cents` sagt, wie viel bezahlt ist. Das reicht fuer die

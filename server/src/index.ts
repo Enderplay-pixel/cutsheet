@@ -69,6 +69,7 @@ import invoicesRouter from './routes/invoices'
 import mahnwesenRouter from './routes/mahnwesen'
 import buchhaltungRouter from './routes/buchhaltung'
 import angeboteRouter from './routes/angebote'
+import vertraegeRouter from './routes/vertraege'
 import datenschutzRouter from './routes/datenschutz'
 import papierkorbRouter from './routes/papierkorb'
 import tabellenRouter from './routes/tabellen'
@@ -305,6 +306,7 @@ app.use('/api', invoicesRouter)
 app.use('/api', mahnwesenRouter)
 app.use('/api', buchhaltungRouter)
 app.use('/api', angeboteRouter)
+app.use('/api', vertraegeRouter)
 app.use('/api', datenschutzRouter)
 app.use('/api', papierkorbRouter)
 app.use('/api', tabellenRouter)
