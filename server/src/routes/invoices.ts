@@ -41,7 +41,7 @@ async function rolleInFirma(userId: number, companyId: number): Promise<string |
 }
 
 /** Rechnungen sind Sache der Produktion - Mitarbeit sieht sie nicht. */
-function erfordereAbrechnung(mindestens = 'produktion') {
+export function erfordereAbrechnung(mindestens = 'produktion') {
   return async (req: Request, res: Response, next: Function) => {
     const user = (req as any).user
     if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })

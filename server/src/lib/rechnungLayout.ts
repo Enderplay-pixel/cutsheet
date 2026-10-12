@@ -47,6 +47,10 @@ export type Rechnungsdaten = {
     number: string; issue_date?: string | null; due_date?: string | null
     service_from?: string | null; service_to?: string | null
     intro?: string; outro?: string; status: string; tax_mode?: string
+    /** 'rechnung' oder 'angebot'. Ein Angebot verlangt kein Geld. */
+    kind?: string
+    /** Bis wann ein Angebot gilt. */
+    valid_until?: string | null
   }
   positionen: Array<Position & { description?: string; unit?: string }>
   projekt?: string | null
@@ -54,6 +58,8 @@ export type Rechnungsdaten = {
 
 /** Baut das HTML der Rechnung. generatePdf macht daraus das Blatt. */
 export function renderRechnung(daten: Rechnungsdaten): string {
+  // Ein Angebot nutzt dasselbe Blatt, verlangt aber kein Geld.
+  const istAngebot = daten.rechnung.kind === 'angebot'
   const { firma, kunde, rechnung, positionen } = daten
   const steuerart = (rechnung.tax_mode || firma.tax_mode || 'regel') as Steuerart
   const summen = summiere(positionen, steuerart)
@@ -100,7 +106,7 @@ export function renderRechnung(daten: Rechnungsdaten): string {
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Rechnung ${esc(rechnung.number)}</title>
+<title>${istAngebot ? 'Angebot' : 'Rechnung'} ${esc(rechnung.number)}</title>
 <style>
 ${pdfFontFaces()}
   @page { size: A4; margin: 20mm 20mm 24mm 25mm; }
@@ -195,9 +201,10 @@ ${rechnung.status === 'storniert' ? '<div class="entwurf">STORNIERT</div>' : ''}
 </div>
 
 <div class="eckdaten">
-  <h1>Rechnung${rechnung.number ? ` ${esc(rechnung.number)}` : ''}</h1>
+  <h1>${istAngebot ? 'Angebot' : 'Rechnung'}${rechnung.number ? ` ${esc(rechnung.number)}` : ''}</h1>
   <div class="eck">
-    ${rechnung.issue_date ? `Rechnungsdatum: <b>${esc(datum(rechnung.issue_date))}</b><br>` : ''}
+    ${rechnung.issue_date ? `${istAngebot ? 'Datum' : 'Rechnungsdatum'}: <b>${esc(datum(rechnung.issue_date))}</b><br>` : ''}
+    ${istAngebot && rechnung.valid_until ? `Gültig bis: <b>${esc(datum(rechnung.valid_until))}</b><br>` : ''}
     ${leistungszeitraum ? `Leistungszeitraum: <b>${esc(leistungszeitraum)}</b><br>` : ''}
     ${firma.tax_number ? `Steuernummer: <b>${esc(firma.tax_number)}</b><br>` : ''}
     ${firma.vat_id ? `USt-IdNr.: <b>${esc(firma.vat_id)}</b><br>` : ''}
@@ -240,19 +247,28 @@ ${rechnung.outro ? `<div class="hinweis">${mehrzeilig(rechnung.outro)}</div>` : 
 
 <div class="zahlung">
   ${
-    rechnung.due_date
-      ? `Bitte überweisen Sie den Betrag bis zum <b>${esc(datum(rechnung.due_date))}</b>${
-          rechnung.number ? ` unter Angabe der Rechnungsnummer ${esc(rechnung.number)}` : ''
-        }.`
-      : ''
-  }
-  ${
-    firma.iban
-      ? `<div class="bank">
-           ${esc(firma.bank_name || '')}${firma.bank_name ? '<br>' : ''}
-           IBAN ${esc(firma.iban)}${firma.bic ? ` · BIC ${esc(firma.bic)}` : ''}
-         </div>`
-      : ''
+    istAngebot
+      // Ein Angebot nennt seine Gueltigkeit, nicht eine Zahlungsfrist. Die
+      // Bankverbindung bleibt weg: Niemand soll auf ein Angebot zahlen.
+      ? `Dieses Angebot ist ${rechnung.valid_until
+          ? `bis zum <b>${esc(datum(rechnung.valid_until))}</b> gültig`
+          : 'freibleibend'}.
+         Wir freuen uns über Ihre Rückmeldung.`
+      : `${
+          rechnung.due_date
+            ? `Bitte überweisen Sie den Betrag bis zum <b>${esc(datum(rechnung.due_date))}</b>${
+                rechnung.number ? ` unter Angabe der Rechnungsnummer ${esc(rechnung.number)}` : ''
+              }.`
+            : ''
+        }
+        ${
+          firma.iban
+            ? `<div class="bank">
+                 ${esc(firma.bank_name || '')}${firma.bank_name ? '<br>' : ''}
+                 IBAN ${esc(firma.iban)}${firma.bic ? ` · BIC ${esc(firma.bic)}` : ''}
+               </div>`
+            : ''
+        }`
   }
 </div>
 

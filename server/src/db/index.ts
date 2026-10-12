@@ -1434,6 +1434,18 @@ export async function initDatabase() {
     )
   `)
 
+  // Eigener Zaehler fuer Angebotsnummern. Getrennt von den Rechnungen, weil
+  // eine Rechnungsnummer fortlaufend und lueckenlos sein muss - ein Angebot,
+  // das nie zur Rechnung wird, darf keine verbrauchen.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS quote_counters (
+      company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      year INTEGER NOT NULL,
+      last_number INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (company_id, year)
+    )
+  `)
+
   await db.exec(`
     CREATE TABLE IF NOT EXISTS invoices (
       id SERIAL PRIMARY KEY,
@@ -1475,6 +1487,86 @@ export async function initDatabase() {
       sort_order INTEGER NOT NULL DEFAULT 0
     )
   `)
+
+  // ── Zahlungseingaenge ─────────────────────────────────────────────────────
+  // `invoices.paid_cents` sagt, wie viel bezahlt ist. Das reicht fuer die
+  // Ampel in der Liste und fuer nichts sonst: Ein Tippfehler laesst sich nicht
+  // zurueckdrehen, "welche Zahlungen kamen im September" ist nicht
+  // beantwortbar, und ein Kontoauszug laesst sich nicht gegenpruefen.
+  // Deshalb jede Zahlung als eigene Zeile; `paid_cents` bleibt die Summe
+  // daraus.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS invoice_payments (
+      id SERIAL PRIMARY KEY,
+      invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+      amount_cents INTEGER NOT NULL DEFAULT 0,
+      paid_on DATE NOT NULL,
+      method TEXT NOT NULL DEFAULT 'ueberweisung',
+      reference TEXT NOT NULL DEFAULT '',
+      note TEXT NOT NULL DEFAULT '',
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS invoice_payments_rechnung_idx ON invoice_payments (invoice_id, paid_on)`)
+
+  // ── Mahnungen ─────────────────────────────────────────────────────────────
+  // Eine Mahnung ist ein Vorgang mit Datum, Stufe und Frist, kein Vermerk.
+  // Ohne diese Zeile laesst sich spaeter nicht belegen, dass und wann gemahnt
+  // wurde - und genau darauf kommt es an, wenn es streitig wird.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS invoice_reminders (
+      id SERIAL PRIMARY KEY,
+      invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+      level INTEGER NOT NULL DEFAULT 1,
+      sent_on DATE NOT NULL,
+      due_on DATE,
+      open_cents INTEGER NOT NULL DEFAULT 0,
+      interest_cents INTEGER NOT NULL DEFAULT 0,
+      fee_cents INTEGER NOT NULL DEFAULT 0,
+      lump_sum_cents INTEGER NOT NULL DEFAULT 0,
+      total_cents INTEGER NOT NULL DEFAULT 0,
+      days_overdue INTEGER NOT NULL DEFAULT 0,
+      rate_bp INTEGER NOT NULL DEFAULT 0,
+      mail_id INTEGER,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS invoice_reminders_rechnung_idx ON invoice_reminders (invoice_id, level)`)
+
+  // Mahnwesen je Firma. Der Basiszins steht hier, weil er sich halbjaehrlich
+  // aendert und niemand ihn im Code nachfuehrt - 0 heisst "nicht eingetragen,
+  // nimm den Rueckfallwert aus lib/mahnwesen.ts".
+  await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS base_rate_bp INTEGER NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS base_rate_date DATE`)
+  await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS dunning_enabled BOOLEAN NOT NULL DEFAULT true`)
+  // Ob der Auftraggeber Unternehmer ist, entscheidet ueber neun oder fuenf
+  // Prozentpunkte Verzugszins (Paragraf 288 BGB) und ueber die
+  // 40-Euro-Pauschale. Voreinstellung ist Unternehmer: Eine Produktionsfirma
+  // rechnet selten gegen Verbraucher ab.
+  await db.exec(`ALTER TABLE company_clients ADD COLUMN IF NOT EXISTS is_business BOOLEAN NOT NULL DEFAULT true`)
+  await db.exec(`ALTER TABLE company_clients ADD COLUMN IF NOT EXISTS payment_days INTEGER`)
+  // Die hoechste bisher gemahnte Stufe - damit die Liste nicht jede Rechnung
+  // mit ihren Mahnungen verbinden muss, nur um eine Ampel zu zeichnen.
+  await db.exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS reminder_level INTEGER NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS reminded_on DATE`)
+  await db.exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS reminder_due_on DATE`)
+  // Ein Angebot wird zur Rechnung, und man will wissen, aus welchem.
+  await db.exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS from_quote_id INTEGER`)
+  await db.exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS accepted_on DATE`)
+  await db.exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS valid_until DATE`)
+
+  // Buchhaltung. Beraternummer, Mandantennummer und Sachkontenlaenge vergibt
+  // die Kanzlei - ohne sie wird kein DATEV-Stapel erzeugt, weil ein geratener
+  // Wert beim falschen Mandanten landet.
+  await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS datev_berater INTEGER`)
+  await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS datev_mandant INTEGER`)
+  await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS datev_sachkontenlaenge INTEGER NOT NULL DEFAULT 4`)
+  await db.exec(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS datev_kontenrahmen TEXT NOT NULL DEFAULT 'SKR03'`)
+  // Debitorennummer je Auftraggeber. Leer heisst: die Kanzlei hat noch keine
+  // vergeben, und der Export sagt das, statt sich eine auszudenken.
+  await db.exec(`ALTER TABLE company_clients ADD COLUMN IF NOT EXISTS debitor_number TEXT NOT NULL DEFAULT ''`)
 
   // ── Mailbetrieb ───────────────────────────────────────────────────────────
   // Absender, Signatur und Farbe je Projekt. Eine Produktion schreibt unter

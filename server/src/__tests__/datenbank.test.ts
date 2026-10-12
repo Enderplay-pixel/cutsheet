@@ -952,7 +952,7 @@ describe('Tabellen ohne Spalte id', () => {
     `)
     const namen = ohneId.map((z: any) => z.table_name)
     // Wer hier etwas ergaenzt, muss im Code ein eigenes RETURNING setzen.
-    expect(namen).toEqual(['creator_youtube_ignored', 'invoice_counters', 'user_totp'])
+    expect(namen).toEqual(['creator_youtube_ignored', 'invoice_counters', 'quote_counters', 'user_totp'])
   })
 })
 
