@@ -8,6 +8,8 @@ import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable
 import { clampPosition, normalizeRotation, clampSize, renderFloorplanHtml } from '../lib/floorplan'
 import { generatePdf } from './pdf'
 
+import { speichereDatei, dateiIdAus, MAX_BYTES } from '../lib/dateien'
+
 const router = Router()
 
 router.use('/projects/:projectId', requireMember)
@@ -16,12 +18,12 @@ const uploadsDir = path.join(__dirname, '../../uploads/floorplans')
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
 
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: uploadsDir,
-    // Zeitstempel voran, damit zwei gleichnamige Grundrisse sich nicht überschreiben
-    filename: (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname.replace(/[^\w.-]/g, '_')}`),
-  }),
-  limits: { fileSize: 20 * 1024 * 1024 },
+  // In den Arbeitsspeicher, nicht auf die Platte: Der Inhalt geht in die
+  // Datenbank. Beim Hoster ist das Dateisystem fluechtig - eine Datei dort
+  // waere nach dem naechsten Deploy weg, waehrend die Zeile in der Datenbank
+  // bleibt. Siehe lib/dateien.ts.
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     // Nur Bilder: Der Grundriss wird als Hintergrund gezeichnet, alles andere
     // ergäbe im Plan und im PDF eine leere Fläche
@@ -111,11 +113,9 @@ router.delete('/floorplans/:planId', async (req, res) => {
   const plan = await loadPlan(req, res)
   if (!plan) return
 
-  // Auch das Hintergrundbild wegräumen, sonst sammeln sich Waisen im Upload-Ordner
-  if (plan.image_url) {
-    const file = path.join(uploadsDir, path.basename(plan.image_url))
-    try { if (fs.existsSync(file)) fs.unlinkSync(file) } catch { /* nicht schlimm */ }
-  }
+  // Auch das Hintergrundbild wegräumen, sonst sammeln sich Waisen in der Ablage
+  const bildId = dateiIdAus(plan.image_url || '')
+  if (bildId) await db.run('DELETE FROM project_files WHERE id = ?', [bildId])
   await db.run('DELETE FROM floorplans WHERE id = ?', [req.params.planId])
   res.json({ data: { ok: true }, error: null })
 })
@@ -127,14 +127,20 @@ router.post('/floorplans/:planId/image', upload.single('image'), async (req, res
   if (!req.file) return res.status(400).json({ data: null, error: 'Kein Bild hochgeladen (nur Bilddateien)' })
 
   // Vorheriges Bild ersetzen, nicht anhäufen
-  if (plan.image_url) {
-    const old = path.join(uploadsDir, path.basename(plan.image_url))
-    try { if (fs.existsSync(old)) fs.unlinkSync(old) } catch { /* nicht schlimm */ }
-  }
+  const alteId = dateiIdAus(plan.image_url || '')
+  if (alteId) await db.run('DELETE FROM project_files WHERE id = ?', [alteId])
 
-  const url = `/uploads/floorplans/${req.file.filename}`
-  await db.run('UPDATE floorplans SET image_url = ?, updated_at = NOW() WHERE id = ?', [url, plan.id])
-  res.json({ data: { image_url: url }, error: null })
+  const gespeichert = await speichereDatei(db, {
+    projectId: plan.project_id,
+    art: 'grundriss',
+    datei: req.file,
+    bezugTyp: 'floorplan',
+    bezugId: plan.id,
+    nutzerId: (req as any).user?.id ?? null,
+  })
+  await db.run('UPDATE floorplans SET image_url = ?, updated_at = NOW() WHERE id = ?',
+    [gespeichert.url, plan.id])
+  res.json({ data: { image_url: gespeichert.url }, error: null })
 })
 
 // ─── Elemente ─────────────────────────────────────────────────────────────────
@@ -212,15 +218,28 @@ router.get('/floorplans/:planId/pdf', async (req, res) => {
   if (!plan) return
 
   // Bild als Daten-URI einbetten: Der Druck läuft in einem eigenen Browser
-  // ohne Sitzung und ohne Basis-URL, ein Link auf /uploads/... bliebe leer.
+  // ohne Sitzung, ein Link auf die geschützte Ausliefer-Route bliebe leer.
   let dataUri: string | null = null
   if (plan.image_url) {
     try {
-      const file = path.join(uploadsDir, path.basename(plan.image_url))
-      if (fs.existsSync(file)) {
-        const ext = path.extname(file).toLowerCase().replace('.', '') || 'png'
-        const mime = ext === 'jpg' ? 'jpeg' : ext
-        dataUri = `data:image/${mime};base64,${fs.readFileSync(file).toString('base64')}`
+      const dateiId = dateiIdAus(plan.image_url)
+      if (dateiId) {
+        const datei = await db.get(
+          'SELECT mime, content FROM project_files WHERE id = ?', [dateiId]
+        ) as any
+        if (datei?.content) {
+          dataUri = `data:${datei.mime || 'image/png'};base64,`
+            + Buffer.from(datei.content).toString('base64')
+        }
+      } else {
+        // Altbestand: Grundrisse von vor der Umstellung liegen noch als Datei
+        // auf der Platte - sofern der Container sie überlebt hat.
+        const file = path.join(uploadsDir, path.basename(plan.image_url))
+        if (fs.existsSync(file)) {
+          const ext = path.extname(file).toLowerCase().replace('.', '') || 'png'
+          const mime = ext === 'jpg' ? 'jpeg' : ext
+          dataUri = `data:image/${mime};base64,${fs.readFileSync(file).toString('base64')}`
+        }
       }
     } catch (err: any) {
       console.warn('[floorplan/pdf] Bild nicht lesbar:', err?.message)

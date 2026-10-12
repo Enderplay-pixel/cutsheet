@@ -144,6 +144,7 @@ const router = createBrowserRouter([
           { path: 'vertraege', lazy: lazyPage(() => import('./pages/Vertraege')) },
           { path: 'agenturen', lazy: lazyPage(() => import('./pages/Agenturen')) },
           { path: 'reise', lazy: lazyPage(() => import('./pages/Reise')) },
+          { path: 'ablage', lazy: lazyPage(() => import('./pages/Dateien')) },
           { path: 'drehbuch', lazy: lazyPage(() => import('./pages/Drehbuch')) },
           { path: 'besetzung', lazy: lazyPage(() => import('./pages/Besetzung')) },
           { path: 'stabliste', lazy: lazyPage(() => import('./pages/Stabliste')) },

@@ -22,6 +22,7 @@ import { requireAuth } from '../middleware/auth'
 import { erfordereFirma } from './companies'
 import { tageZwischen } from '../lib/mahnwesen'
 import { alterAm, KIND_BIS_ALTER } from '../lib/jugendschutz'
+import { fristStand } from '../lib/dateien'
 
 const router = Router()
 
@@ -31,7 +32,7 @@ function heuteISO(): string {
 
 export type Punkt = {
   /** Woher der Punkt kommt - für das Symbol und die Gruppierung. */
-  art: 'vertrag' | 'bewilligung' | 'rechnung' | 'casting' | 'ksk' | 'mail'
+  art: 'vertrag' | 'bewilligung' | 'rechnung' | 'casting' | 'ksk' | 'nachweis' | 'mail'
   /** 'dringend' sperrt etwas oder kostet Geld. 'offen' will nur erledigt werden. */
   stufe: 'dringend' | 'offen'
   titel: string
@@ -54,7 +55,7 @@ router.get('/companies/:companyId/anliegen', requireAuth, erfordereFirma('mitarb
   const heute = heuteISO()
   const punkte: Punkt[] = []
 
-  const [vertraege, kinder, rechnungen, anfragen, ksk, mails] = await Promise.all([
+  const [vertraege, kinder, rechnungen, anfragen, ksk, nachweise, mails] = await Promise.all([
     // Verträge, auf die seit mehr als fünf Tagen niemand geantwortet hat.
     db.all(
       `SELECT c.id, c.title, c.project_id, c.sent_at, p.title AS projekt
@@ -101,6 +102,15 @@ router.get('/companies/:companyId/anliegen', requireAuth, erfordereFirma('mitarb
                 WHERE p.company_id = ? AND c.ksk_relevant IS NULL AND c.fee_per_day > 0) AS anzahl`,
       [companyId, companyId]
     ) as Promise<any>,
+    // Nachweise mit Ablaufdatum. Eine Drehgenehmigung, die am Drehtag
+    // abgelaufen ist, hält den Dreh an.
+    db.all(
+      `SELECT f.id, f.kind, f.filename, f.title, f.valid_until, f.project_id, p.title AS projekt
+         FROM project_files f JOIN projects p ON f.project_id = p.id
+        WHERE p.company_id = ? AND f.valid_until IS NOT NULL
+        ORDER BY f.valid_until ASC`,
+      [companyId]
+    ) as Promise<any[]>,
     // Mails, die hängen geblieben sind.
     db.get(
       `SELECT COUNT(*) AS anzahl FROM email_outbox o
@@ -181,6 +191,23 @@ router.get('/companies/:companyId/anliegen', requireAuth, erfordereFirma('mitarb
       titel: `${kskOffen} ${kskOffen === 1 ? 'Person' : 'Personen'} ohne KSK-Entscheidung`,
       text: 'Solange nicht entschieden ist, wer künstlerisch tätig war, ist die Jahresmeldung nicht fertig.',
       pfad: `/firma/${companyId}/auswertungen`,
+    })
+  }
+
+  for (const n of nachweise) {
+    const stand = fristStand(n.valid_until, heute)
+    if (stand !== 'abgelaufen' && stand !== 'laeuft_ab') continue
+    const tage = tageZwischen(heute, String(n.valid_until).slice(0, 10))
+    punkte.push({
+      art: 'nachweis',
+      // Ein abgelaufener Nachweis sperrt etwas, ein ablaufender nicht.
+      stufe: stand === 'abgelaufen' ? 'dringend' : 'offen',
+      titel: `${n.title || n.filename}: ${stand === 'abgelaufen' ? 'abgelaufen' : 'läuft ab'}`,
+      text: stand === 'abgelaufen'
+        ? `Seit ${-tage} Tagen abgelaufen. ${n.projekt}.`
+        : `Noch ${tage} Tage gültig. Verlängern dauert. ${n.projekt}.`,
+      pfad: `/projects/${n.project_id}/ablage`,
+      tage: Math.abs(tage),
     })
   }
 

@@ -1517,6 +1517,35 @@ export async function initDatabase() {
     )
   `)
 
+  // ── Dateiablage ───────────────────────────────────────────────────────────
+  // Der Inhalt liegt als BYTEA in der Datenbank, nicht auf der Platte: Beim
+  // Hoster ist das Dateisystem fluechtig, und was zur Laufzeit geschrieben
+  // wird, ist nach dem naechsten Deploy weg. Die Mailanhaenge machen es seit
+  // Runde 1 genauso.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS project_files (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+      company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL DEFAULT 'sonstiges',
+      filename TEXT NOT NULL DEFAULT '',
+      mime TEXT NOT NULL DEFAULT 'application/octet-stream',
+      bytes INTEGER NOT NULL DEFAULT 0,
+      content BYTEA NOT NULL,
+      -- Woran die Datei haengt: 'location', 'shot', 'floorplan', 'cast', …
+      entity_type TEXT NOT NULL DEFAULT '',
+      entity_id INTEGER,
+      title TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      valid_until DATE,
+      uploaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS project_files_projekt_idx ON project_files (project_id, kind)`)
+  await db.exec(`CREATE INDEX IF NOT EXISTS project_files_bezug_idx ON project_files (entity_type, entity_id)`)
+  await db.exec(`CREATE INDEX IF NOT EXISTS project_files_frist_idx ON project_files (valid_until) WHERE valid_until IS NOT NULL`)
+
   // ── Unterkunft und Reise ──────────────────────────────────────────────────
   // Eine Produktion, die auswaerts dreht, bucht Zimmer und schuldet
   // Verpflegungspauschalen. Beides stand bisher in Notizen oder gar nicht.

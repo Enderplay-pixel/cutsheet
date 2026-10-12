@@ -809,6 +809,43 @@ export const api = {
   },
 
   // ─── Rechnungen und Auftraggeber ───────────────────────────────────────────
+  // ─── Dateiablage ───────────────────────────────────────────────────────────
+  dateien: {
+    liste: (projektId: number, filter: { art?: string; bezug?: string; bezug_id?: number } = {}) => {
+      const p = new URLSearchParams()
+      if (filter.art) p.set('art', filter.art)
+      if (filter.bezug) p.set('bezug', filter.bezug)
+      if (filter.bezug_id) p.set('bezug_id', String(filter.bezug_id))
+      const q = p.toString()
+      return req<any>(`/projects/${projektId}/dateien${q ? `?${q}` : ''}`)
+    },
+    /**
+     * Hochladen geht über FormData, nicht über JSON - deshalb hier `fetch`
+     * von Hand: `req` setzt Content-Type auf application/json, und damit
+     * käme die Datei nie an.
+     */
+    hochladen: async (projektId: number, datei: File, angaben: Record<string, string> = {}) => {
+      const form = new FormData()
+      form.append('datei', datei)
+      for (const [k, v] of Object.entries(angaben)) if (v) form.append(k, v)
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/projects/${projektId}/dateien`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(json?.error || 'Hochladen fehlgeschlagen')
+      return json?.data
+    },
+    speichern: (projektId: number, id: number, daten: any) =>
+      req<any>(`/projects/${projektId}/dateien/${id}`, { method: 'PUT', body: JSON.stringify(daten) }),
+    loeschen: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/dateien/${id}`, { method: 'DELETE' }),
+    inhaltUrl: (projektId: number, id: number) => `/api/projects/${projektId}/dateien/${id}/inhalt`,
+    fristen: (firmaId: number) => req<any>(`/companies/${firmaId}/dateien/fristen`),
+  },
+
   // ─── Unterkunft und Reisekosten ────────────────────────────────────────────
   unterkuenfte: {
     liste: (projektId: number) => req<any[]>(`/projects/${projektId}/unterkuenfte`),

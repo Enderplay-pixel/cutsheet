@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Building2, Users, BookUser, Euro, Plus, Trash2, PenLine,
-  CalendarDays, ArrowRight, Search, Download, Mail, Receipt,
+  CalendarDays, ArrowRight, Search, Download, FileText, Mail, Receipt,
   TrendingUp, FileSignature, ShieldAlert, Send, Palette, AlertTriangle
 } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
@@ -819,6 +819,7 @@ const ANLIEGEN_SYMBOL: Record<string, any> = {
   rechnung: Receipt,
   casting: Send,
   ksk: Palette,
+  nachweis: FileText,
   mail: Mail,
 }
 

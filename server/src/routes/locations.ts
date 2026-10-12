@@ -5,6 +5,8 @@ import path from 'path'
 import fs from 'fs'
 import { requireMember } from '../middleware/projectAuth'
 
+import { speichereDatei, MAX_BYTES } from '../lib/dateien'
+
 const router = Router()
 
 // All /projects/:projectId/* routes require membership
@@ -13,11 +15,8 @@ router.use('/projects/:projectId', requireMember)
 const uploadsDir = path.join(__dirname, '../../uploads/locations')
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
 
-const storage = multer.diskStorage({
-  destination: uploadsDir,
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
-})
-const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } })
+// In den Arbeitsspeicher, nicht auf die Platte - siehe lib/dateien.ts.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_BYTES } })
 
 // GET /api/projects/:projectId/locations
 router.get('/projects/:projectId/locations', async (req, res) => {
@@ -61,8 +60,16 @@ router.post('/locations/:id/photos', upload.single('photo'), async (req, res) =>
   if (!loc) return res.status(404).json({ data: null, error: 'Location nicht gefunden' })
   if (!req.file) return res.status(400).json({ data: null, error: 'Kein Foto hochgeladen' })
 
+  const gespeichert = await speichereDatei(db, {
+    projectId: loc.project_id,
+    art: 'foto',
+    datei: req.file,
+    bezugTyp: 'location',
+    bezugId: loc.id,
+    nutzerId: (req as any).user?.id ?? null,
+  })
   const photos = JSON.parse(loc.photos || '[]')
-  photos.push(`/uploads/locations/${req.file.filename}`)
+  photos.push(gespeichert.url)
   await db.run('UPDATE locations SET photos = ? WHERE id = ?', [JSON.stringify(photos), req.params.id])
   res.json({ data: { photos }, error: null })
 })

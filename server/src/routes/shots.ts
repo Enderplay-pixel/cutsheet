@@ -5,6 +5,8 @@ import path from 'path'
 import fs from 'fs'
 import { requireMember } from '../middleware/projectAuth'
 
+import { speichereDatei, dateiIdAus, MAX_BYTES } from '../lib/dateien'
+
 const router = Router()
 
 // All /projects/:projectId/* routes require membership
@@ -13,11 +15,8 @@ router.use('/projects/:projectId', requireMember)
 const uploadsDir = path.join(__dirname, '../../uploads/storyboard')
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
 
-const storage = multer.diskStorage({
-  destination: uploadsDir,
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
-})
-const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } })
+// In den Arbeitsspeicher, nicht auf die Platte - siehe lib/dateien.ts.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_BYTES } })
 
 // GET /api/projects/:projectId/shots
 router.get('/projects/:projectId/shots', async (req, res) => {
@@ -78,9 +77,24 @@ router.delete('/shots/:id', async (req, res) => {
 // POST /api/shots/:id/storyboard
 router.post('/shots/:id/storyboard', upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ data: null, error: 'Kein Bild hochgeladen' })
-  const url = `/uploads/storyboard/${req.file.filename}`
-  await db.run('UPDATE shots SET storyboard_url = ? WHERE id = ?', [url, req.params.id])
-  res.json({ data: { storyboard_url: url }, error: null })
+  const shot = await db.get('SELECT id, project_id, storyboard_url FROM shots WHERE id = ?',
+    [req.params.id]) as any
+  if (!shot) return res.status(404).json({ data: null, error: 'Einstellung nicht gefunden' })
+
+  // Das vorherige Blatt ersetzen, nicht anhaeufen.
+  const alteId = dateiIdAus(shot.storyboard_url || '')
+  if (alteId) await db.run('DELETE FROM project_files WHERE id = ?', [alteId])
+
+  const gespeichert = await speichereDatei(db, {
+    projectId: shot.project_id,
+    art: 'storyboard',
+    datei: req.file,
+    bezugTyp: 'shot',
+    bezugId: shot.id,
+    nutzerId: (req as any).user?.id ?? null,
+  })
+  await db.run('UPDATE shots SET storyboard_url = ? WHERE id = ?', [gespeichert.url, shot.id])
+  res.json({ data: { storyboard_url: gespeichert.url }, error: null })
 })
 
 export default router

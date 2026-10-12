@@ -74,6 +74,7 @@ import auswertungenRouter from './routes/auswertungen'
 import agenturenRouter from './routes/agenturen'
 import anliegenRouter from './routes/anliegen'
 import reiseRouter from './routes/reise'
+import dateienRouter from './routes/dateien'
 import datenschutzRouter from './routes/datenschutz'
 import papierkorbRouter from './routes/papierkorb'
 import tabellenRouter from './routes/tabellen'
@@ -169,8 +170,22 @@ app.use('/api/projects/:projectId', requireMember)
 app.use('/api', papierkorbWaechter)
 
 // Serve uploads
+//
+// Nur noch fuer Altbestand: Neue Dateien liegen in der Datenbank
+// (`project_files`), weil das Dateisystem beim Hoster fluechtig ist - siehe
+// lib/dateien.ts.
 const uploadsDir = path.join(__dirname, '../uploads')
 app.use('/uploads', express.static(uploadsDir))
+// Ein fehlendes Bild soll als fehlendes Bild erkennbar sein. Ohne diese Zeile
+// faellt die Anfrage auf die SPA durch und liefert HTML mit Status 200 - im
+// Browser steht dann ein kaputtes Bild ohne jeden Hinweis.
+app.use('/uploads', (req, res) => {
+  res.status(404).json({
+    data: null,
+    error: 'Diese Datei gibt es nicht mehr. Dateien aus der Zeit vor der '
+      + 'Umstellung auf die Datenbankablage haben einen Deploy nicht überlebt.',
+  })
+})
 
 // In production: serve the built Vite frontend
 if (isProd) {
@@ -315,6 +330,7 @@ app.use('/api', auswertungenRouter)
 app.use('/api', agenturenRouter)
 app.use('/api', anliegenRouter)
 app.use('/api', reiseRouter)
+app.use('/api', dateienRouter)
 app.use('/api', datenschutzRouter)
 app.use('/api', papierkorbRouter)
 app.use('/api', tabellenRouter)
