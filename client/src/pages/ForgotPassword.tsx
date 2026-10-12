@@ -63,8 +63,8 @@ export function Component() {
               neues Passwort festlegen kannst.
             </p>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">E-Mail</label>
-              <Input
+              <label htmlFor="vergessen-email-0" className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">E-Mail</label>
+              <Input id="vergessen-email-0"
                 type="email"
                 placeholder="name@example.com"
                 value={email}

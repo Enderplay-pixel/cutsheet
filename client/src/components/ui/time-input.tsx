@@ -9,6 +9,14 @@ interface TimeInputProps {
   placeholder?: string
   /** Bei Lesezugriff gesperrt - sonst tippt jemand eine Zeit, die nie ankommt. */
   disabled?: boolean
+  /**
+   * Wofür die Zeit gilt - "Crew Call", "Drehbeginn", "Call von Sarah Müller".
+   *
+   * Zeitfelder stehen in Tabellen und Rastern, wo keine Beschriftung daneben
+   * passt. Ohne diesen Namen sagt eine Vorleseanwendung nur "Eingabefeld,
+   * 08:00" und lässt offen, welche Zeit gemeint ist.
+   */
+  label?: string
 }
 
 /**
@@ -20,7 +28,7 @@ interface TimeInputProps {
  * nachgereicht: Wer eine Zeit eintippt und danach direkt druckt oder die Seite
  * wechselt, verlöre sie sonst stillschweigend.
  */
-export function TimeInput({ value, onChange, className, placeholder = '08:00', disabled }: TimeInputProps) {
+export function TimeInput({ value, onChange, className, placeholder = '08:00', disabled, label }: TimeInputProps) {
   const [str, setStr] = useState(formatTime(value || 0))
   useEffect(() => setStr(formatTime(value || 0)), [value])
 
@@ -63,6 +71,7 @@ export function TimeInput({ value, onChange, className, placeholder = '08:00', d
       className={cn('font-mono text-center', className)}
       placeholder={placeholder}
       disabled={disabled}
+      aria-label={label}
     />
   )
 }

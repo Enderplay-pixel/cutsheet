@@ -43,8 +43,8 @@ export function Component() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">Neues Passwort</label>
-            <Input
+            <label htmlFor="neues-passwort-0" className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">Neues Passwort</label>
+            <Input id="neues-passwort-0"
               type="password"
               placeholder="Mindestens 6 Zeichen"
               value={password}
@@ -56,8 +56,8 @@ export function Component() {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">Passwort wiederholen</label>
-            <Input
+            <label htmlFor="neues-passwort-1" className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">Passwort wiederholen</label>
+            <Input id="neues-passwort-1"
               type="password"
               placeholder="••••••••"
               value={confirm}

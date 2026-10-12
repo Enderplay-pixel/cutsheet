@@ -79,12 +79,12 @@ function VFXFormRow({ initial, pid, onDone }: { initial?: VFXShot; pid: number; 
         </select>
       </td>
       <td className={c}>
-        <select className={sel} value={form.status} onChange={e => set('status', e.target.value)}>
+        <select aria-label="Status der Einstellung" className={sel} value={form.status} onChange={e => set('status', e.target.value)}>
           {STATUSES.map(s => <option key={s}>{s}</option>)}
         </select>
       </td>
       <td className={c}>
-        <select className={sel} value={form.complexity} onChange={e => set('complexity', e.target.value)}>
+        <select aria-label="Aufwand" className={sel} value={form.complexity} onChange={e => set('complexity', e.target.value)}>
           {COMPLEXITIES.map(c => <option key={c}>{c}</option>)}
         </select>
       </td>

@@ -331,12 +331,14 @@ function PersonSection({
                     value={entry.call_time || 480}
                     onChange={v => onUpdate(entry._idx, 'call_time', v)}
                     className="w-20 h-7 text-xs font-mono font-bold"
+                    label={`Call-Zeit von ${entry.name || 'dieser Person'}`}
                   />
                 </td>
                 <td className="py-2.5 px-2">
                   <Input disabled={!darfSchreiben}
                     value={entry.pickup_location || ''}
                     onChange={e => onUpdate(entry._idx, 'pickup_location', e.target.value)}
+                    aria-label={`Abholort von ${entry.name || 'dieser Person'}`}
                     className="h-7 text-xs w-36"
                     placeholder="—"
                   />
@@ -344,6 +346,7 @@ function PersonSection({
                 <td className="py-2.5 px-2">
                   <Input disabled={!darfSchreiben}
                     value={entry.notes || ''}
+                    aria-label={`Hinweis zu ${entry.name || 'dieser Person'}`}
                     onChange={e => onUpdate(entry._idx, 'notes', e.target.value)}
                     className="h-7 text-xs w-44"
                     placeholder="—"
@@ -893,6 +896,7 @@ export function Component() {
                 <TimeInput disabled={!darfSchreiben}
                   value={headerForm.general_call || 480}
                   onChange={v => updateHeader('general_call', v)}
+                  label="General Call - wann die Crew am Set ist"
                   className="h-16 text-5xl font-black text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none"
                 />
               </div>
@@ -904,6 +908,7 @@ export function Component() {
                 <TimeInput disabled={!darfSchreiben}
                   value={headerForm.shooting_call || 510}
                   onChange={v => updateHeader('shooting_call', v)}
+                  label="Shooting Call - wann gedreht wird"
                   className="h-16 text-5xl font-black text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none text-primary"
                 />
               </div>
@@ -938,6 +943,7 @@ export function Component() {
                 </div>
                 <Input disabled={!darfSchreiben}
                   value={headerForm.weather_forecast || ''}
+                  aria-label="Wetterlage am Drehtag"
                   onChange={e => updateHeader('weather_forecast', e.target.value)}
                   className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-semibold shadow-none"
                   placeholder={tt(dispoT.weatherPlaceholder)}
@@ -960,6 +966,7 @@ export function Component() {
                 </div>
                 <Input disabled={!darfSchreiben}
                   value={headerForm.sunrise || ''}
+                  aria-label="Sonnenaufgang"
                   onChange={e => updateHeader('sunrise', e.target.value)}
                   className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono font-semibold shadow-none"
                   placeholder="05:30"
@@ -974,6 +981,7 @@ export function Component() {
                 </div>
                 <Input disabled={!darfSchreiben}
                   value={headerForm.sunset || ''}
+                  aria-label="Sonnenuntergang"
                   onChange={e => updateHeader('sunset', e.target.value)}
                   className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono font-semibold shadow-none"
                   placeholder="20:45"
@@ -1059,6 +1067,7 @@ export function Component() {
               </div>
               <Textarea disabled={!darfSchreiben}
                 value={headerForm?.notes || ''}
+                aria-label="Hinweise für alle auf der Dispo"
                 onChange={e => updateHeader('notes', e.target.value)}
                 rows={3}
                 className="text-sm resize-none"

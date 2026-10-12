@@ -10,6 +10,7 @@ import { belohnungInstallieren, gespeichert } from './lib/belohnung'
 import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
 import './index.css'
+import { starteBeschriftungen } from './lib/beschriftungen'
 
 initAnalytics()
 belohnungInstallieren()
@@ -187,6 +188,10 @@ const router = createBrowserRouter([
     ],
   },
 ])
+
+
+// Beschriftungen mit ihren Feldern verknuepfen - siehe lib/beschriftungen.ts
+starteBeschriftungen()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

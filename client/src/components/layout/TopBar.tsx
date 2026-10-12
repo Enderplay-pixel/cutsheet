@@ -110,6 +110,8 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
 
       <button
         onClick={onSearchOpen}
+        aria-label={tt(topBarT.searchBtn)}
+        title={tt(topBarT.searchBtn)}
         className="sm:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-foreground/[0.06] text-muted-foreground hover:text-foreground transition-[background-color,color] duration-150 active:scale-[0.97]"
       >
         <Search className="w-4 h-4" />

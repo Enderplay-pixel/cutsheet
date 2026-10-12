@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { NurVorlesen } from '@/components/ui/nur-vorlesen'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { tutorialT, t } from '@/lib/i18n'
@@ -33,6 +34,11 @@ export function TutorialModal({ open, onClose }: TutorialModalProps) {
         className="max-w-lg p-0 overflow-hidden gap-0"
         onInteractOutside={e => e.preventDefault()}
       >
+        {/* Unsichtbar, aber vorgelesen: der Dialog hat seine eigene Kopfzeile. */}
+        <DialogTitle asChild>
+          <NurVorlesen>Rundgang</NurVorlesen>
+        </DialogTitle>
+
         {/* Progress bar */}
         <div className="h-1 bg-muted w-full">
           <div

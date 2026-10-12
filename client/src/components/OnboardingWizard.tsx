@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { track } from '@/lib/analytics'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { NurVorlesen } from '@/components/ui/nur-vorlesen'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -438,6 +439,12 @@ export function OnboardingWizard({ kontoId }: { kontoId?: number }) {
           onInteractOutside={e => e.preventDefault()}
           onEscapeKeyDown={e => e.preventDefault()}
         >
+          {/* Der Titel bleibt unsichtbar - der Dialog hat seine eigene
+              Kopfzeile. Eine Vorleseanwendung braucht ihn trotzdem, sonst
+              kuendigt sie nur "Dialog" an. */}
+          <DialogTitle asChild>
+            <NurVorlesen>Einrichtung</NurVorlesen>
+          </DialogTitle>
           <StepIndicator current={step} />
 
           {step === 0 && (

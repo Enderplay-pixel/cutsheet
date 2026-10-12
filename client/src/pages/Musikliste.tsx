@@ -98,7 +98,7 @@ function CueFormRow({ initial, pid, onDone }: { initial?: MusicCue; pid: number;
         </select>
       </td>
       <td className={c}>
-        <select className={sel} value={form.usage_type} onChange={e => set('usage_type', e.target.value)}>
+        <select aria-label="Art der Nutzung" className={sel} value={form.usage_type} onChange={e => set('usage_type', e.target.value)}>
           {USAGE_TYPES.map(t => <option key={t}>{t}</option>)}
         </select>
       </td>

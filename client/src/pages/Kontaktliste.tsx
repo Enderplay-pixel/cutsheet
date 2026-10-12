@@ -180,7 +180,7 @@ export function Component() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={tt(contactsT.search)} className="pl-8 h-8 text-sm" />
+            placeholder={tt(contactsT.search)} aria-label={tt(contactsT.search)} className="pl-8 h-8 text-sm" />
         </div>
         <div className="flex gap-1 bg-muted/40 rounded-lg p-0.5">
           {(['all', 'crew', 'cast'] as const).map(f => (

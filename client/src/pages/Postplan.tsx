@@ -108,13 +108,13 @@ function PhaseRow({
             <Input className={i} value={form.phase} onChange={e => set('phase', e.target.value)} placeholder="Phasenname" />
           </div>
           <div className="col-span-2">
-            <Input className={i} type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
+            <Input aria-label="Beginn der Phase" className={i} type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
           </div>
           <div className="col-span-2">
-            <Input className={i} type="date" value={form.end_date} onChange={e => set('end_date', e.target.value)} />
+            <Input aria-label="Ende der Phase" className={i} type="date" value={form.end_date} onChange={e => set('end_date', e.target.value)} />
           </div>
           <div className="col-span-2">
-            <select className={sel} value={form.status} onChange={e => set('status', e.target.value)}>
+            <select aria-label="Status der Phase" className={sel} value={form.status} onChange={e => set('status', e.target.value)}>
               {STATUSES.map(s => <option key={s}>{s}</option>)}
             </select>
           </div>
@@ -291,13 +291,13 @@ export function Component() {
               <Input className={i} value={newForm.phase} onChange={e => setNewForm(f => ({ ...f, phase: e.target.value }))} placeholder="Phasenname" />
             </div>
             <div className="col-span-2">
-              <Input className={i} type="date" value={newForm.start_date} onChange={e => setNewForm(f => ({ ...f, start_date: e.target.value }))} />
+              <Input aria-label="Beginn der neuen Phase" className={i} type="date" value={newForm.start_date} onChange={e => setNewForm(f => ({ ...f, start_date: e.target.value }))} />
             </div>
             <div className="col-span-2">
-              <Input className={i} type="date" value={newForm.end_date} onChange={e => setNewForm(f => ({ ...f, end_date: e.target.value }))} />
+              <Input aria-label="Ende der neuen Phase" className={i} type="date" value={newForm.end_date} onChange={e => setNewForm(f => ({ ...f, end_date: e.target.value }))} />
             </div>
             <div className="col-span-2">
-              <select className={sel} value={newForm.status} onChange={e => setNewForm(f => ({ ...f, status: e.target.value as PostPhase['status'] }))}>
+              <select aria-label="Status der neuen Phase" className={sel} value={newForm.status} onChange={e => setNewForm(f => ({ ...f, status: e.target.value as PostPhase['status'] }))}>
                 {STATUSES.map(s => <option key={s}>{s}</option>)}
               </select>
             </div>

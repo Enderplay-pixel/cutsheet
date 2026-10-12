@@ -149,10 +149,11 @@ export function Component() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
               <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-foreground/80">
+                <label htmlFor="anmelde-name" className="text-[13px] font-medium text-foreground/80">
                   {t(loginT.labelName, lang)}
                 </label>
                 <Input
+                  id="anmelde-name"
                   type="text"
                   placeholder={t(loginT.placeholderName, lang)}
                   value={name}
@@ -164,10 +165,11 @@ export function Component() {
             )}
 
             <div className="space-y-1.5">
-              <label className="text-[13px] font-medium text-foreground/80">
+              <label htmlFor="anmelde-email" className="text-[13px] font-medium text-foreground/80">
                 {t(loginT.labelEmail, lang)}
               </label>
               <Input
+                id="anmelde-email"
                 type="email"
                 placeholder={t(loginT.placeholderEmail, lang)}
                 value={email}
@@ -178,10 +180,11 @@ export function Component() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[13px] font-medium text-foreground/80">
+              <label htmlFor="anmelde-passwort" className="text-[13px] font-medium text-foreground/80">
                 {t(loginT.labelPassword, lang)}
               </label>
               <Input
+                id="anmelde-passwort"
                 type="password"
                 placeholder={t(loginT.placeholderPw, lang)}
                 value={password}

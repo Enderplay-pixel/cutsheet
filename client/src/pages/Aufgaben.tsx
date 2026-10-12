@@ -92,12 +92,14 @@ export function Component() {
           value={newTitle}
           onChange={e => setNewTitle(e.target.value)}
           placeholder="Neue Aufgabe - z. B. „Drehgenehmigung Stadtpark einholen“"
+          aria-label="Neue Aufgabe"
           className="flex-1"
         />
         <Input disabled={!darfSchreiben}
           value={newAssignee}
           onChange={e => setNewAssignee(e.target.value)}
           placeholder="Zuständig"
+          aria-label="Zuständige Person"
           className="sm:w-36"
         />
         <Input disabled={!darfSchreiben}

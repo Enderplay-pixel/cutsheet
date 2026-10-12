@@ -30,11 +30,13 @@ const MOVEMENTS = ['Statisch', 'Pan', 'Tilt', 'Pan + Tilt', 'Dolly', 'Fahrt', 'G
  */
 const FIELD_SIZING = typeof CSS !== 'undefined' && CSS.supports?.('field-sizing', 'content')
 
-function AutoTextarea({ value, onChange, placeholder, className }: {
+function AutoTextarea({ value, onChange, placeholder, className, 'aria-label': ariaLabel }: {
   value: string
   onChange: (v: string) => void
   placeholder?: string
   className?: string
+  /** Wofuer das Feld steht - es hat keine Beschriftung daneben. */
+  'aria-label'?: string
 }) {
   const ref = useRef<HTMLTextAreaElement>(null)
 
@@ -71,6 +73,7 @@ function AutoTextarea({ value, onChange, placeholder, className }: {
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
+      aria-label={ariaLabel}
       className={cn('min-h-0 resize-none overflow-hidden py-1.5 leading-snug', className)}
       style={FIELD_SIZING ? ({ fieldSizing: 'content' } as React.CSSProperties) : undefined}
     />
@@ -124,13 +127,13 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
 
         <div className="flex items-center gap-1 shrink-0">
           <Input value={form.lens_mm || ''} onChange={e => update('lens_mm', e.target.value)}
-            className="h-7 w-16 text-xs" placeholder="mm" />
+            className="h-7 w-16 text-xs" placeholder="mm" aria-label="Brennweite in Millimetern" />
           <span className="text-xs text-muted-foreground">mm</span>
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
           <Input type="number" value={form.duration_seconds || ''} onChange={e => update('duration_seconds', Number(e.target.value))}
-            className="h-7 w-14 text-xs" placeholder="Sek" />
+            className="h-7 w-14 text-xs" placeholder="Sek" aria-label="Dauer in Sekunden" />
           <Clock className="w-3 h-3 text-muted-foreground" />
         </div>
 
@@ -138,7 +141,7 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
         <div className="flex items-center gap-1 shrink-0" title="Bester Take (Circle Take)">
           <Star className={cn('w-3 h-3', form.best_take ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground')} />
           <Input value={form.best_take || ''} onChange={e => update('best_take', e.target.value)}
-            className="h-7 w-16 text-xs" placeholder="Take" />
+            className="h-7 w-16 text-xs" placeholder="Take" aria-label="Bester Take" />
         </div>
 
         <div className="hidden md:block flex-1" />
@@ -166,12 +169,14 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
         value={form.description || ''}
         onChange={v => update('description', v)}
         placeholder="Beschreibung / Inhalt"
+        aria-label="Beschreibung der Einstellung"
         className="text-xs"
       />
       <AutoTextarea
         value={form.notes || ''}
         onChange={v => update('notes', v)}
         placeholder="Notiz (VFX, Requisite, Sicherheit) - erscheint im PDF"
+        aria-label="Notiz zur Einstellung, erscheint im PDF"
         className="text-xs text-muted-foreground"
       />
     </div>

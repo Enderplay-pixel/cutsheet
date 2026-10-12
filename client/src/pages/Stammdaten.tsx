@@ -144,6 +144,7 @@ function InviteSection({ pid }: { pid: number }) {
           </Select>
           <Input disabled={!darfSchreiben}
             className="h-8 text-xs flex-1 min-w-32"
+            aria-label="Beschriftung der Einladung"
             placeholder="Beschriftung (optional)"
             value={newLabel}
             onChange={e => setNewLabel(e.target.value)}
@@ -151,6 +152,7 @@ function InviteSection({ pid }: { pid: number }) {
           <Input disabled={!darfSchreiben}
             type="email"
             className="h-8 text-xs flex-1 min-w-40"
+            aria-label="E-Mail-Adresse für die Einladung"
             placeholder="E-Mail (optional - sendet Einladung direkt)"
             value={newEmail}
             onChange={e => setNewEmail(e.target.value)}
@@ -472,6 +474,7 @@ export function Component() {
                 value={accentOf(settingsData.header_color)}
                 onChange={e => updateSetting('header_color', e.target.value)}
                 className="h-9 font-mono"
+                aria-label="Akzentfarbe als Hex-Wert"
                 placeholder="#0071E3"
               />
             </div>
