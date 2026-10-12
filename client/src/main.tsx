@@ -97,6 +97,12 @@ const router = createBrowserRouter([
     lazy: lazyPage(() => import('./pages/VertragBestaetigen')),
   },
   {
+    // Ebenfalls ohne Rahmen: Eine Agentur legt sich kein Konto an, um auf
+    // eine Anfrage zu antworten.
+    path: '/casting/:token',
+    lazy: lazyPage(() => import('./pages/CastingAntwort')),
+  },
+  {
     path: '/set',
     lazy: lazyPage(() => import('./pages/SetApp')),
   },
@@ -136,6 +142,7 @@ const router = createBrowserRouter([
           { index: true, lazy: lazyPage(() => import('./pages/Dashboard')) },
           { path: 'stammdaten', lazy: lazyPage(() => import('./pages/Stammdaten')) },
           { path: 'vertraege', lazy: lazyPage(() => import('./pages/Vertraege')) },
+          { path: 'agenturen', lazy: lazyPage(() => import('./pages/Agenturen')) },
           { path: 'drehbuch', lazy: lazyPage(() => import('./pages/Drehbuch')) },
           { path: 'besetzung', lazy: lazyPage(() => import('./pages/Besetzung')) },
           { path: 'stabliste', lazy: lazyPage(() => import('./pages/Stabliste')) },

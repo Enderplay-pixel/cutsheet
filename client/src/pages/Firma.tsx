@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Building2, Users, BookUser, Euro, Plus, Trash2, PenLine,
   CalendarDays, ArrowRight, Search, Download, Mail, Receipt,
+  TrendingUp, FileSignature, ShieldAlert, Send, Palette, AlertTriangle
 } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 
@@ -147,14 +148,21 @@ function FirmenSeite({ id }: { id: number }) {
       />
 
       {darfVerwalten && (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link to={`/firma/${id}/rechnungen`}>
             <Button variant="outline" size="sm">
               <Receipt className="w-3.5 h-3.5 mr-1.5" />Rechnungen
             </Button>
           </Link>
+          <Link to={`/firma/${id}/auswertungen`}>
+            <Button variant="outline" size="sm">
+              <TrendingUp className="w-3.5 h-3.5 mr-1.5" />Auswertungen
+            </Button>
+          </Link>
         </div>
       )}
+
+      {darfVerwalten && <Anliegen firmaId={id} />}
 
       <Tabs defaultValue="adressbuch">
         <TabsList>
@@ -800,5 +808,89 @@ function Firmenvorlagen({ firmaId, darfVerwalten }: { firmaId: number; darfVerwa
         </Card>
       )}
     </div>
+  )
+}
+
+// ─── Was anliegt ─────────────────────────────────────────────────────────────
+
+const ANLIEGEN_SYMBOL: Record<string, any> = {
+  vertrag: FileSignature,
+  bewilligung: ShieldAlert,
+  rechnung: Receipt,
+  casting: Send,
+  ksk: Palette,
+  mail: Mail,
+}
+
+/**
+ * Die offenen Punkte über alle Projekte der Firma.
+ *
+ * Steht oben, weil es die einzige Ansicht ist, die man ansieht, ohne etwas
+ * Bestimmtes zu suchen. Ist nichts offen, verschwindet sie ganz - eine leere
+ * Liste, die trotzdem Platz nimmt, lernt man zu übersehen.
+ */
+function Anliegen({ firmaId }: { firmaId: number }) {
+  const [alleZeigen, setAlleZeigen] = useState(false)
+  const { data } = useQuery({
+    queryKey: ['anliegen', firmaId],
+    queryFn: () => api.anliegen(firmaId),
+  })
+
+  const punkte: any[] = data?.punkte ?? []
+  if (punkte.length === 0) return null
+
+  const gezeigt = alleZeigen ? punkte : punkte.slice(0, 5)
+
+  return (
+    <Card>
+      <CardContent className="pt-5">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">
+            Was anliegt
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {data.dringend > 0 && (
+              <span className="text-destructive font-medium">{data.dringend} dringend</span>
+            )}
+            {data.dringend > 0 && data.offen > 0 && ' · '}
+            {data.offen > 0 && `${data.offen} offen`}
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          {gezeigt.map((p, i) => {
+            const Symbol = ANLIEGEN_SYMBOL[p.art] ?? AlertTriangle
+            return (
+              <Link
+                key={i}
+                to={p.pfad}
+                className="flex items-start gap-2.5 rounded-lg p-2 -mx-2 hover:bg-muted/50 transition-colors"
+              >
+                <Symbol
+                  className={`w-4 h-4 shrink-0 mt-0.5 ${
+                    p.stufe === 'dringend' ? 'text-destructive' : 'text-muted-foreground'
+                  }`}
+                />
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">{p.titel}</div>
+                  <div className="text-xs text-muted-foreground">{p.text}</div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+
+        {punkte.length > 5 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2"
+            onClick={() => setAlleZeigen((v) => !v)}
+          >
+            {alleZeigen ? 'Weniger' : `Alle ${punkte.length} zeigen`}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   )
 }

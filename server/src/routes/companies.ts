@@ -37,7 +37,7 @@ async function rolleInFirma(userId: number, companyId: number): Promise<string |
 }
 
 /** Middleware: Zugehörigkeit zur Firma, optional ab einer Mindestrolle. */
-function erfordereFirma(mindestens = 'mitarbeiter') {
+export function erfordereFirma(mindestens = 'mitarbeiter') {
   return async (req: Request, res: Response, next: Function) => {
     const user = (req as any).user
     if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })

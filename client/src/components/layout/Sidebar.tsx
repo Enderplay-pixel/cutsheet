@@ -5,7 +5,7 @@ import { useProjectStore } from '@/store/useProjectStore'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
-import { Activity, AlertTriangle, BookUser, Briefcase, Calendar, CalendarClock, CalendarOff, Camera, Car, CheckSquare, ChevronRight, Clapperboard, ClipboardList, Clock, DollarSign, FileCheck, FileEdit, FileSignature, FileSpreadsheet, FileText, Film, History, Image, Layers, LayoutDashboard, LayoutGrid, ListChecks, LogOut, Mail, MapPin, Megaphone, MessageSquare, Music, Package, PanelLeftClose, PanelLeftOpen, Scissors, Search, Settings, Shield, ShieldCheck, StickyNote, TableProperties, Trash2, TrendingUp, Type, Users, UtensilsCrossed, Video, Wallet } from 'lucide-react'
+import { Activity, AlertTriangle, BookUser, Briefcase, Building2, Calendar, CalendarClock, CalendarOff, Camera, Car, CheckSquare, ChevronRight, Clapperboard, ClipboardList, Clock, DollarSign, FileCheck, FileEdit, FileSignature, FileSpreadsheet, FileText, Film, History, Image, Layers, LayoutDashboard, LayoutGrid, ListChecks, LogOut, Mail, MapPin, Megaphone, MessageSquare, Music, Package, PanelLeftClose, PanelLeftOpen, Scissors, Search, Settings, Shield, ShieldCheck, StickyNote, TableProperties, Trash2, TrendingUp, Type, Users, UtensilsCrossed, Video, Wallet } from 'lucide-react'
 import { FeedbackWidget } from '@/components/shared/FeedbackWidget'
 import { AppIcon } from '@/components/shared/BrandMark'
 import { TestversionBadge } from '@/components/shared/TestversionBadge'
@@ -180,6 +180,7 @@ export function Sidebar() {
         { label: tt(navT.extras), icon: Users, path: 'komparsen' },
         { label: tt(navT.crew), icon: Briefcase, path: 'stabliste' },
         { label: tt(navT.contacts), icon: BookUser, path: 'kontakte' },
+        { label: 'Agenturen', icon: Building2, path: 'agenturen' },
         { label: 'Verträge', icon: FileSignature, path: 'vertraege' },
       ]
     },

@@ -19,7 +19,7 @@ export type Versandstatus = 'wartet' | 'gesendet' | 'fehlgeschlagen' | 'ohne_ver
 
 /** Wofür die Mail steht - für Filter im Protokoll und für die Statistik. */
 export type Anlass = 'dispo' | 'einladung' | 'passwort' | 'manuell' | 'test' | 'system'
-  | 'rechnung' | 'mahnung' | 'vertrag'
+  | 'rechnung' | 'mahnung' | 'vertrag' | 'casting'
 
 export type Empfaenger = {
   email: string

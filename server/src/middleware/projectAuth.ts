@@ -244,6 +244,16 @@ function minRankForPath(path: string): number {
   return ROLE_RANK.dept_head
 }
 
+/**
+ * Pfade, die ohne Anmeldung schreiben duerfen, weil ein Token im Pfad die
+ * Berechtigung traegt. Siehe die Begruendung in `projectWriteGuard`.
+ */
+const OEFFENTLICHE_PFADE = [
+  '/cse/t/',      // Tagesdisposition bestaetigen
+  '/vertrag/',    // Vertrag zustimmen oder ablehnen
+  '/casting/',    // Agentur antwortet auf eine Besetzungsanfrage
+]
+
 // ─── The global middleware ─────────────────────────────────────────────────────
 export async function projectWriteGuard(req: Request, res: Response, next: NextFunction) {
   // Only intercept mutations
@@ -254,12 +264,20 @@ export async function projectWriteGuard(req: Request, res: Response, next: NextF
   // Bypass: auth routes, public invite info, invite accept is protected via requireAuth
   if (path.startsWith('/auth/')) return next()
   if (path.match(/^\/invites\/[^/]+$/) && req.method === 'GET') return next()
-  // Public Dispo-Links: Token-basiert (160-bit random), kein User nötig
-  if (path.startsWith('/cse/t/')) return next()
-  // Vertragslinks: dieselbe Ueberlegung. Wer einen Vertrag bestaetigen soll,
-  // hat kein Konto und bekommt auch keins - die Zustimmung haengt an einem
-  // Token mit 192 Bit Zufall, nicht an einer Anmeldung.
-  if (path.startsWith('/vertrag/')) return next()
+
+  // Oeffentliche Pfade: Hier haengt die Berechtigung an einem Token im Pfad,
+  // nicht an einer Anmeldung. Wer eine Dispo bestaetigt, einen Vertrag
+  // unterschreibt oder als Agentur auf eine Anfrage antwortet, hat kein Konto
+  // und bekommt auch keins - er wuerde sonst zurueckmailen, und dann steht
+  // die Antwort in einem Postfach statt im Projekt.
+  //
+  // Jeder Token hat mindestens 160 Bit Zufall und steht nur in der Mail, mit
+  // der er verschickt wurde.
+  //
+  // ACHTUNG: Wer eine neue solche Route baut, traegt sie hier ein. Fehlt der
+  // Eintrag, laedt die Seite, das Formular laesst sich ausfuellen - und beim
+  // Absenden kommt "Nicht authentifiziert". Das ist schon dreimal passiert.
+  if (OEFFENTLICHE_PFADE.some((praefix) => path.startsWith(praefix))) return next()
 
   const user = (req as any).user
   if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })

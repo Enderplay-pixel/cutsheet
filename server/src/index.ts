@@ -71,6 +71,8 @@ import buchhaltungRouter from './routes/buchhaltung'
 import angeboteRouter from './routes/angebote'
 import vertraegeRouter from './routes/vertraege'
 import auswertungenRouter from './routes/auswertungen'
+import agenturenRouter from './routes/agenturen'
+import anliegenRouter from './routes/anliegen'
 import datenschutzRouter from './routes/datenschutz'
 import papierkorbRouter from './routes/papierkorb'
 import tabellenRouter from './routes/tabellen'
@@ -309,6 +311,8 @@ app.use('/api', buchhaltungRouter)
 app.use('/api', angeboteRouter)
 app.use('/api', vertraegeRouter)
 app.use('/api', auswertungenRouter)
+app.use('/api', agenturenRouter)
+app.use('/api', anliegenRouter)
 app.use('/api', datenschutzRouter)
 app.use('/api', papierkorbRouter)
 app.use('/api', tabellenRouter)

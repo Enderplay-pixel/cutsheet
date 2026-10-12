@@ -809,6 +809,46 @@ export const api = {
   },
 
   // ─── Rechnungen und Auftraggeber ───────────────────────────────────────────
+  // ─── Agenturen und Besetzungsanfragen ──────────────────────────────────────
+  agenturen: {
+    liste: (firmaId: number) => req<any[]>(`/companies/${firmaId}/agenturen`),
+    anlegen: (firmaId: number, daten: any) =>
+      req<any>(`/companies/${firmaId}/agenturen`, { method: 'POST', body: JSON.stringify(daten) }),
+    speichern: (firmaId: number, id: number, daten: any) =>
+      req<any>(`/companies/${firmaId}/agenturen/${id}`, { method: 'PUT', body: JSON.stringify(daten) }),
+  },
+
+  casting: {
+    anfragen: (projektId: number) => req<any[]>(`/projects/${projektId}/casting-anfragen`),
+    lesen: (projektId: number, id: number) => req<any>(`/projects/${projektId}/casting-anfragen/${id}`),
+    anlegen: (projektId: number, daten: any) =>
+      req<any>(`/projects/${projektId}/casting-anfragen`, { method: 'POST', body: JSON.stringify(daten) }),
+    speichern: (projektId: number, id: number, daten: any) =>
+      req<any>(`/projects/${projektId}/casting-anfragen/${id}`, { method: 'PUT', body: JSON.stringify(daten) }),
+    rollen: (projektId: number, id: number, rollen: any[]) =>
+      req<any>(`/projects/${projektId}/casting-anfragen/${id}/rollen`, {
+        method: 'PUT', body: JSON.stringify({ rollen }),
+      }),
+    senden: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/casting-anfragen/${id}/senden`, { method: 'POST', body: '{}' }),
+    nachfassen: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/casting-anfragen/${id}/nachfassen`, { method: 'POST', body: '{}' }),
+    loeschen: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/casting-anfragen/${id}`, { method: 'DELETE' }),
+    uebernehmen: (projektId: number, vorschlagId: number) =>
+      req<any>(`/projects/${projektId}/casting-vorschlaege/${vorschlagId}/uebernehmen`, {
+        method: 'POST', body: '{}',
+      }),
+
+    // Der öffentliche Teil - ohne Anmeldung, über den Link aus der Mail
+    oeffentlich: (token: string) => req<any>(`/casting/${token}`),
+    antworten: (token: string, vorschlaege: any[]) =>
+      req<any>(`/casting/${token}/antwort`, { method: 'POST', body: JSON.stringify({ vorschlaege }) }),
+  },
+
+  /** Alle offenen Punkte einer Firma an einem Ort. */
+  anliegen: (firmaId: number) => req<any>(`/companies/${firmaId}/anliegen`),
+
   // ─── Auswertungen und Kuenstlersozialabgabe ────────────────────────────────
   auswertungen: {
     lesen: (firmaId: number, von: string, bis: string) =>

@@ -951,6 +951,9 @@ export async function initDatabase() {
   // Drehschluss des Projekts" - fuer ein Kind muss dagegen die Uhrzeit
   // dastehen, die die Behoerde bewilligt hat.
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS wrap_time INTEGER`)
+  // Verknuepfung zur Agentur. Die Freitextfelder `agent`, `agent_email` und
+  // `agency` bleiben: Wer nur schnell etwas notiert, soll das weiter koennen.
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS agency_id INTEGER`)
   await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS birthdate DATE`)
   await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS guardian_name TEXT NOT NULL DEFAULT ''`)
   await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS guardian_email TEXT NOT NULL DEFAULT ''`)
@@ -1513,6 +1516,88 @@ export async function initDatabase() {
       sort_order INTEGER NOT NULL DEFAULT 0
     )
   `)
+
+  // ── Agenturen ─────────────────────────────────────────────────────────────
+  // Auf Firmenebene, nicht je Projekt: Eine Agentur bleibt dieselbe, auch wenn
+  // das naechste Projekt anfaengt. Die Freitextfelder an `cast` bleiben
+  // bestehen - sie tragen die Faelle, in denen jemand nur schnell etwas
+  // notiert hat, und werden nicht angetastet.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS agencies (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      name TEXT NOT NULL DEFAULT '',
+      contact_name TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      address TEXT NOT NULL DEFAULT '',
+      city TEXT NOT NULL DEFAULT '',
+      website TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      archived BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS agencies_firma_idx ON agencies (company_id, archived)`)
+
+  // Eine Anfrage an eine Agentur. Der Text wird beim Versand eingefroren,
+  // damit spaeter nachvollziehbar ist, worauf geantwortet wurde.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS casting_requests (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      agency_id INTEGER REFERENCES agencies(id) ON DELETE SET NULL,
+      subject TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'entwurf',
+      token TEXT,
+      deadline DATE,
+      sent_at TIMESTAMPTZ,
+      answered_at TIMESTAMPTZ,
+      reminded_at TIMESTAMPTZ,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS casting_requests_projekt_idx ON casting_requests (project_id, status)`)
+  await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS casting_requests_token_idx ON casting_requests (token) WHERE token IS NOT NULL`)
+
+  // Die Rollen, nach denen gefragt wird. Eine Anfrage kann mehrere tragen -
+  // eine Agentur bekommt lieber ein Schreiben mit vier Rollen als vier
+  // Schreiben.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS casting_request_roles (
+      id SERIAL PRIMARY KEY,
+      request_id INTEGER NOT NULL REFERENCES casting_requests(id) ON DELETE CASCADE,
+      character_id INTEGER REFERENCES characters(id) ON DELETE SET NULL,
+      role_name TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      shoot_from DATE,
+      shoot_to DATE,
+      shoot_days INTEGER NOT NULL DEFAULT 0,
+      fee_per_day_cents INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `)
+
+  // Was die Agentur zurueckmeldet: Vorschlaege je Rolle.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS casting_proposals (
+      id SERIAL PRIMARY KEY,
+      request_id INTEGER NOT NULL REFERENCES casting_requests(id) ON DELETE CASCADE,
+      role_id INTEGER REFERENCES casting_request_roles(id) ON DELETE CASCADE,
+      actor_name TEXT NOT NULL DEFAULT '',
+      available BOOLEAN,
+      fee_per_day_cents INTEGER NOT NULL DEFAULT 0,
+      showreel_url TEXT NOT NULL DEFAULT '',
+      note TEXT NOT NULL DEFAULT '',
+      -- Wenn jemand uebernommen wird, steht hier die Kennung aus cast.
+      taken_cast_id INTEGER,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS casting_proposals_anfrage_idx ON casting_proposals (request_id, role_id)`)
 
   // ── Vertraege und Einverstaendnisse ───────────────────────────────────────
   // Das Papier, das vor dem ersten Drehtag da sein muss. Eine Produktion
