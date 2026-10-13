@@ -1517,6 +1517,72 @@ export async function initDatabase() {
     )
   `)
 
+  // ── Abnahme und Lieferung ─────────────────────────────────────────────────
+  // Das Ende der Kette: Eine Fassung geht an den Auftraggeber, er meldet sich
+  // mit Anmerkungen, irgendwann nimmt er ab. Erst danach wird abgerechnet.
+  // Bisher lief das ueber Mails, und wer gesagt hat "passt so", stand dann in
+  // einem Postfach.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS cuts (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      label TEXT NOT NULL DEFAULT '',
+      stage TEXT NOT NULL DEFAULT 'rohschnitt',
+      version INTEGER NOT NULL DEFAULT 1,
+      duration_seconds INTEGER NOT NULL DEFAULT 0,
+      -- Wo die Fassung liegt. Ein Link, kein Upload: Ein Schnitt ist
+      -- Gigabytes gross und gehoert nicht in eine Datenbankspalte.
+      watch_url TEXT NOT NULL DEFAULT '',
+      format TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS cuts_projekt_idx ON cuts (project_id, version)`)
+
+  // Eine Abnahmerunde: diese Fassung, dieser Auftraggeber, diese Frist.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS reviews (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      cut_id INTEGER REFERENCES cuts(id) ON DELETE SET NULL,
+      client_id INTEGER REFERENCES company_clients(id) ON DELETE SET NULL,
+      recipient_name TEXT NOT NULL DEFAULT '',
+      recipient_email TEXT NOT NULL DEFAULT '',
+      message TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'entwurf',
+      token TEXT,
+      deadline DATE,
+      sent_at TIMESTAMPTZ,
+      decided_at TIMESTAMPTZ,
+      decided_by TEXT NOT NULL DEFAULT '',
+      decision TEXT NOT NULL DEFAULT '',
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS reviews_projekt_idx ON reviews (project_id, status)`)
+  await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS reviews_token_idx ON reviews (token) WHERE token IS NOT NULL`)
+
+  // Eine Anmerkung, moeglichst mit Zeitstelle. "Bei 2:14 ist der Ton zu laut"
+  // ist brauchbar, "der Ton ist zu laut" nicht.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS review_notes (
+      id SERIAL PRIMARY KEY,
+      review_id INTEGER NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+      at_seconds INTEGER,
+      body TEXT NOT NULL DEFAULT '',
+      author TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'offen',
+      resolved_at TIMESTAMPTZ,
+      resolved_note TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS review_notes_runde_idx ON review_notes (review_id, status)`)
+
   // ── Dateiablage ───────────────────────────────────────────────────────────
   // Der Inhalt liegt als BYTEA in der Datenbank, nicht auf der Platte: Beim
   // Hoster ist das Dateisystem fluechtig, und was zur Laufzeit geschrieben

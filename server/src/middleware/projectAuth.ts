@@ -252,6 +252,7 @@ const OEFFENTLICHE_PFADE = [
   '/cse/t/',      // Tagesdisposition bestaetigen
   '/vertrag/',    // Vertrag zustimmen oder ablehnen
   '/casting/',    // Agentur antwortet auf eine Besetzungsanfrage
+  '/abnahme/',    // Auftraggeber kommentiert und nimmt eine Fassung ab
 ]
 
 // ─── The global middleware ─────────────────────────────────────────────────────

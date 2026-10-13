@@ -809,6 +809,41 @@ export const api = {
   },
 
   // ─── Rechnungen und Auftraggeber ───────────────────────────────────────────
+  // ─── Fassungen und Abnahme ─────────────────────────────────────────────────
+  fassungen: {
+    liste: (projektId: number) => req<any>(`/projects/${projektId}/fassungen`),
+    anlegen: (projektId: number, daten: any) =>
+      req<any>(`/projects/${projektId}/fassungen`, { method: 'POST', body: JSON.stringify(daten) }),
+    speichern: (projektId: number, id: number, daten: any) =>
+      req<any>(`/projects/${projektId}/fassungen/${id}`, { method: 'PUT', body: JSON.stringify(daten) }),
+    loeschen: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/fassungen/${id}`, { method: 'DELETE' }),
+  },
+
+  abnahmen: {
+    liste: (projektId: number) => req<any[]>(`/projects/${projektId}/abnahmen`),
+    lesen: (projektId: number, id: number) => req<any>(`/projects/${projektId}/abnahmen/${id}`),
+    anlegen: (projektId: number, daten: any) =>
+      req<any>(`/projects/${projektId}/abnahmen`, { method: 'POST', body: JSON.stringify(daten) }),
+    speichern: (projektId: number, id: number, daten: any) =>
+      req<any>(`/projects/${projektId}/abnahmen/${id}`, { method: 'PUT', body: JSON.stringify(daten) }),
+    senden: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/abnahmen/${id}/senden`, { method: 'POST', body: '{}' }),
+    anmerkung: (projektId: number, id: number, notizId: number, daten: any) =>
+      req<any>(`/projects/${projektId}/abnahmen/${id}/anmerkungen/${notizId}`, {
+        method: 'PUT', body: JSON.stringify(daten),
+      }),
+    protokollUrl: (projektId: number, id: number) =>
+      `/api/projects/${projektId}/abnahmen/${id}/protokoll.pdf`,
+
+    // Der öffentliche Teil - ohne Anmeldung, über den Link aus der Mail
+    oeffentlich: (token: string) => req<any>(`/abnahme/${token}`),
+    anmerken: (token: string, daten: any) =>
+      req<any>(`/abnahme/${token}/anmerkung`, { method: 'POST', body: JSON.stringify(daten) }),
+    entscheiden: (token: string, daten: any) =>
+      req<any>(`/abnahme/${token}/entscheiden`, { method: 'POST', body: JSON.stringify(daten) }),
+  },
+
   // ─── Dateiablage ───────────────────────────────────────────────────────────
   dateien: {
     liste: (projektId: number, filter: { art?: string; bezug?: string; bezug_id?: number } = {}) => {

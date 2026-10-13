@@ -103,6 +103,12 @@ const router = createBrowserRouter([
     lazy: lazyPage(() => import('./pages/CastingAntwort')),
   },
   {
+    // Der Auftraggeber sieht die Fassung, schreibt Anmerkungen und nimmt ab -
+    // auch ohne Konto.
+    path: '/abnahme/:token',
+    lazy: lazyPage(() => import('./pages/AbnahmeAnsicht')),
+  },
+  {
     path: '/set',
     lazy: lazyPage(() => import('./pages/SetApp')),
   },
@@ -145,6 +151,7 @@ const router = createBrowserRouter([
           { path: 'agenturen', lazy: lazyPage(() => import('./pages/Agenturen')) },
           { path: 'reise', lazy: lazyPage(() => import('./pages/Reise')) },
           { path: 'ablage', lazy: lazyPage(() => import('./pages/Dateien')) },
+          { path: 'abnahme', lazy: lazyPage(() => import('./pages/Abnahme')) },
           { path: 'drehbuch', lazy: lazyPage(() => import('./pages/Drehbuch')) },
           { path: 'besetzung', lazy: lazyPage(() => import('./pages/Besetzung')) },
           { path: 'stabliste', lazy: lazyPage(() => import('./pages/Stabliste')) },
