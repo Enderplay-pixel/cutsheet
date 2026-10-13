@@ -809,6 +809,18 @@ export const api = {
   },
 
   // ─── Rechnungen und Auftraggeber ───────────────────────────────────────────
+  // ─── Projektabschluss ──────────────────────────────────────────────────────
+  abschluss: {
+    pruefung: (projektId: number) => req<any>(`/projects/${projektId}/abschluss`),
+    /** `trotzdem` übergeht die blockierenden Punkte - ausdrücklich. */
+    abschliessen: (projektId: number, trotzdem = false) =>
+      req<any>(`/projects/${projektId}/abschluss`, {
+        method: 'POST', body: JSON.stringify({ trotzdem }),
+      }),
+    zuruecknehmen: (projektId: number) =>
+      req<any>(`/projects/${projektId}/abschluss/zuruecknehmen`, { method: 'POST', body: '{}' }),
+  },
+
   // ─── Fassungen und Abnahme ─────────────────────────────────────────────────
   fassungen: {
     liste: (projektId: number) => req<any>(`/projects/${projektId}/fassungen`),

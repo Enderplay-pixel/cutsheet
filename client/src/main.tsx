@@ -152,6 +152,7 @@ const router = createBrowserRouter([
           { path: 'reise', lazy: lazyPage(() => import('./pages/Reise')) },
           { path: 'ablage', lazy: lazyPage(() => import('./pages/Dateien')) },
           { path: 'abnahme', lazy: lazyPage(() => import('./pages/Abnahme')) },
+          { path: 'abschluss', lazy: lazyPage(() => import('./pages/Abschluss')) },
           { path: 'drehbuch', lazy: lazyPage(() => import('./pages/Drehbuch')) },
           { path: 'besetzung', lazy: lazyPage(() => import('./pages/Besetzung')) },
           { path: 'stabliste', lazy: lazyPage(() => import('./pages/Stabliste')) },

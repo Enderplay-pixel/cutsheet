@@ -76,6 +76,7 @@ import anliegenRouter from './routes/anliegen'
 import reiseRouter from './routes/reise'
 import dateienRouter from './routes/dateien'
 import abnahmeRouter from './routes/abnahme'
+import abschlussRouter from './routes/abschluss'
 import datenschutzRouter from './routes/datenschutz'
 import papierkorbRouter from './routes/papierkorb'
 import tabellenRouter from './routes/tabellen'
@@ -333,6 +334,7 @@ app.use('/api', anliegenRouter)
 app.use('/api', reiseRouter)
 app.use('/api', dateienRouter)
 app.use('/api', abnahmeRouter)
+app.use('/api', abschlussRouter)
 app.use('/api', datenschutzRouter)
 app.use('/api', papierkorbRouter)
 app.use('/api', tabellenRouter)
