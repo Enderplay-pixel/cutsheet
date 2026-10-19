@@ -7,7 +7,7 @@ Dieses Dokument beschreibt, was CutSheet ist, wofür es da ist und was es
 abdeckt. Es ist kein Handbuch und keine Installationsanleitung - technische
 Einzelheiten stehen in `README.md`.
 
-- **Stand:** 13. Oktober 2026
+- **Stand:** 19. Oktober 2026
 - **Läuft unter:** https://cutsheet.onrender.com
 - **Quelltext:** `C:\Users\flork\cutsheet` (npm-Workspaces, `client/` und `server/`)
 
@@ -24,7 +24,8 @@ Einzelheiten stehen in `README.md`.
 7. [Links für Menschen ohne Konto](#links-für-menschen-ohne-konto)
 8. [Technik in Kürze](#technik-in-kürze)
 9. [Was CutSheet absichtlich nicht tut](#was-cutsheet-absichtlich-nicht-tut)
-10. [Zahlen](#zahlen)
+10. [Wie geprüft wird](#wie-geprüft-wird)
+11. [Zahlen](#zahlen)
 
 ---
 
@@ -344,7 +345,7 @@ weil dreimal ein Eintrag vergessen wurde und der Fehler jedes Mal still war.
 | PDF | Puppeteer (Chromium wird beim Serverstart vorgewärmt) |
 | Mail | SMTP über eigene Warteschlange |
 | Betrieb | Render, freier Plan |
-| Mehrsprachig | Deutsch, Englisch, Französisch (56 von 87 Seiten) |
+| Mehrsprachig | Deutsch vollständig; Englisch und Französisch nur auf 14 von 87 Seiten |
 | Offline | PWA mit Service Worker, Auto-Update |
 
 Besonderheiten, die man wissen sollte:
@@ -387,20 +388,44 @@ Das ist kein Mangel, sondern Entscheidung:
 
 ---
 
+## Wie geprüft wird
+
+Zwei Messwerkzeuge liegen im Projekt und laufen gegen eine Wegwerf-Datenbank
+mit dem echten Server:
+
+- **`server/src/scripts/zugriffsscan.ts`** ruft jede der rund 490 Routen als
+  fremde Person auf, und quer: mit eigenem Projekt im Pfad und einer Kennung
+  aus einem fremden Projekt dahinter. Ein Schreibzugriff fällt am
+  Fingerabdruck der fremden Daten auf, nicht am Statuscode. Eine Gegenprobe
+  sorgt dafür, dass die Messung nicht blind ist. Am 19. Oktober 2026 hat er
+  zusammen mit einer Durchsicht der Anfragekörper 69 Wege in fremde Projekte
+  gefunden; alle sind geschlossen, jeder mit Test.
+- **`server/src/scripts/pdfprobe.ts`** erzeugt 14 Dokumente über die echten
+  Routen, mit langen Texten, Umlauten und krummen Beträgen, und legt sie zum
+  Ansehen ab. Dabei fiel auf, dass Beträge in Rechnung, Angebot und Mahnung
+  als Text nicht auslesbar waren - für jede Buchhaltung, die Beträge aus dem
+  PDF liest, ein Problem.
+
+Daneben gilt: Ein Fehler bekommt zuerst einen Test, der rot ist, dann den
+Fix. Das Rundenprotokoll steht in `docs/RUNDEN.md`, Entscheidungen, die nur
+Florian treffen kann, in `docs/ENTSCHEIDUNGEN-FLORIAN.md`.
+
+---
+
 ## Zahlen
 
-Gemessen am 13. Oktober 2026, Commit `7d37cf1`:
+Gemessen am 19. Oktober 2026, Commit `5773ab6`:
 
 | | |
 |---|---|
 | Datenbanktabellen | 103 |
-| API-Routen | 491 in 78 Dateien |
+| API-Routen | 494 in 78 Dateien |
 | Seiten in der Oberfläche | 87 |
-| Hilfsbibliotheken auf dem Server | 37 |
-| Automatische Tests | 903 in 43 Dateien |
-| Zeilen Serverquelltext | rund 40.000 |
-| Zeilen Oberfläche | rund 34.000 |
-| Commits | 147 |
+| Hilfsbibliotheken auf dem Server | 38 |
+| Automatische Tests | 1011 in 47 Dateien |
+| Zeilen Serverquelltext | rund 42.000 (mit Tests) |
+| Zeilen Oberfläche | rund 39.500 |
+| Commits | 164 |
 
 ### Gemessene Antwortzeiten
 
@@ -421,4 +446,4 @@ Kleinschreibung, SQLite tat das nicht. Still falsch, ohne Fehlermeldung.
 ---
 
 *Fragen oder Unstimmigkeiten in diesem Dokument: Es beschreibt den Stand vom
-13. Oktober 2026. Was im Code steht, hat Vorrang.*
+19. Oktober 2026. Was im Code steht, hat Vorrang.*
