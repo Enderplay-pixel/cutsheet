@@ -61,3 +61,21 @@ Alle Datums- und Zeitangaben im Server stehen jetzt ausdrücklich auf
 Europe/Berlin. Ob Render bisher in UTC lief (dann waren Sonnenzeiten im
 Morning Brief zwei Stunden zu früh), ist nicht gemessen - in `render.yaml`
 ist keine Zone gesetzt. Mit dem nächsten Deploy ist es so oder so richtig.
+
+## 4. Englisch und Französisch: ausbauen oder abschalten?
+
+Gemessen 19.10.2026: Nur 13 von 87 Seiten benutzen die Übersetzung
+(`useT()`), rund 74 stehen fest auf Deutsch - darunter alle Oktober-Module.
+`CUTSHEET.md` nennt "56 von 87", das deckt sich nicht mit dem Code. Die
+Sprachwahl sagt bei Englisch und Französisch ehrlich "teilweise".
+
+Vollständig wären das einige tausend Texte. Dagegen spricht: Der Kern ab
+Oktober ist deutsches Recht (DATEV, KSK, Jugendarbeitsschutz,
+Verpflegungspauschalen, Paragraf 14 UStG) und für eine Produktion im Ausland
+so nicht brauchbar. Dafür spricht: Drehplan, Dispo und Set-App wären für
+internationale Crews nützlich.
+
+Drei Wege: (a) alles übersetzen, (b) nur die Set-Seiten (Dispo, Set-App,
+Drehplan, Check-in) fertig übersetzen und die Sprachwahl darauf beschränken,
+(c) Englisch und Französisch vorerst ausblenden. Der Dauerlauf hat Punkt 7
+deshalb zurückgestellt.
