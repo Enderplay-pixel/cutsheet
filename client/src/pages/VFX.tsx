@@ -126,19 +126,19 @@ function VFXRow({ shot, pid, onEdit }: { shot: VFXShot; pid: number; onEdit: (s:
 
   return (
     <tr className="border-b border-border/40 hover:bg-muted/30 transition-colors group">
-      <td className="py-2.5 px-3 text-sm font-mono font-medium">{shot.shot_number || '—'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.scene_id ? `Szene ${shot.scene_id}` : '—'}</td>
-      <td className="py-2.5 px-3 text-sm max-w-[200px] truncate" title={shot.description}>{shot.description || '—'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.vfx_type || '—'}</td>
+      <td className="py-2.5 px-3 text-sm font-mono font-medium">{shot.shot_number || '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.scene_id ? `Szene ${shot.scene_id}` : '-'}</td>
+      <td className="py-2.5 px-3 text-sm max-w-[200px] truncate" title={shot.description}>{shot.description || '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.vfx_type || '-'}</td>
       <td className="py-2.5 px-3">
         <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', statusBadgeClass(shot.status))}>
           {shot.status}
         </span>
       </td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.complexity || '—'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.artist || '—'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.deadline || '—'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground max-w-[120px] truncate" title={shot.notes}>{shot.notes || '—'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.complexity || '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.artist || '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.deadline || '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground max-w-[120px] truncate" title={shot.notes}>{shot.notes || '-'}</td>
       <td className="py-2.5 px-3 text-right">
         <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
           {canEdit && (

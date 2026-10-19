@@ -37,12 +37,12 @@ function VehicleRow({ vehicle, pid, onEdit }: { vehicle: Vehicle; pid: number; o
   })
   return (
     <tr className="border-b border-border/40 hover:bg-muted/30 transition-colors group">
-      <td className="py-2.5 px-4 text-sm font-medium">{vehicle.name || '—'}</td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground font-mono">{vehicle.license_plate || '—'}</td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.type || '—'}</td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.capacity ?? '—'}</td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.driver_name || '—'}</td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.driver_phone || '—'}</td>
+      <td className="py-2.5 px-4 text-sm font-medium">{vehicle.name || '-'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground font-mono">{vehicle.license_plate || '-'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.type || '-'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.capacity ?? '-'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.driver_name || '-'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{vehicle.driver_phone || '-'}</td>
       <td className="py-2.5 px-3 text-right">
         <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
           {canEdit && (

@@ -64,5 +64,5 @@ export function toggleThemeWithReveal(toggle: () => void, origin?: { x: number; 
       { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
       { duration: 560, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', pseudoElement: '::view-transition-new(root)' },
     )
-  }).catch(() => { /* Übergang abgebrochen — Umschalten ist trotzdem erfolgt */ })
+  }).catch(() => { /* Übergang abgebrochen - Umschalten ist trotzdem erfolgt */ })
 }

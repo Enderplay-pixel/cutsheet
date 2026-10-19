@@ -247,10 +247,10 @@ export function Component() {
                     className="hover:bg-muted/20 transition-colors active:scale-[0.97]"
                   >
                     <td className="px-5 py-3 font-medium">
-                      {user.name || user.username || '–'}
+                      {user.name || user.username || '-'}
                     </td>
                     <td className="px-5 py-3 text-muted-foreground/70">
-                      {user.email || '–'}
+                      {user.email || '-'}
                     </td>
                     <td className="px-5 py-3">
                       {user.role === 'admin' ? (
@@ -269,7 +269,7 @@ export function Component() {
                     <td className="px-5 py-3 text-[11px] text-muted-foreground/60 tabular-nums">
                       {user.created_at
                         ? new Date(user.created_at).toLocaleDateString('de-DE')
-                        : '–'}
+                        : '-'}
                     </td>
                   </tr>
                 ))}

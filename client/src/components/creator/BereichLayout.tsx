@@ -56,7 +56,7 @@ export function Kennzahlen({ werte }: { werte: Kennzahl[] }) {
           )}>
             {/* Ein nicht erhobener Wert ist ein Strich, keine Null - sonst
                 behauptet die Kennzahl etwas, das nie gemessen wurde. */}
-            {k.wert === null || k.wert === undefined || k.wert === '' ? '—' : k.wert}
+            {k.wert === null || k.wert === undefined || k.wert === '' ? '-' : k.wert}
           </p>
           {k.hinweis && <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">{k.hinweis}</p>}
         </div>

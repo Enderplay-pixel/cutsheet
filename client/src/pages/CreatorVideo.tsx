@@ -800,10 +800,10 @@ export function Component() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
               {[
-                ['Klickrate', perf.ctr !== null && perf.ctr !== undefined ? `${perf.ctr} %` : '—'],
-                ['Gesehene Laufzeit', perf.retention !== null && perf.retention !== undefined ? `${perf.retention} %` : '—'],
-                ['Likes je 1000', perf.engagementPer1000 ?? '—'],
-                ['Aufrufe je Abo', perf.viewsPerSub ?? '—'],
+                ['Klickrate', perf.ctr !== null && perf.ctr !== undefined ? `${perf.ctr} %` : '-'],
+                ['Gesehene Laufzeit', perf.retention !== null && perf.retention !== undefined ? `${perf.retention} %` : '-'],
+                ['Likes je 1000', perf.engagementPer1000 ?? '-'],
+                ['Aufrufe je Abo', perf.viewsPerSub ?? '-'],
               ].map(([label, value]) => (
                 <div key={String(label)} className="px-3.5 py-2.5 rounded-lg border border-border/50 bg-card">
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70">{label}</div>

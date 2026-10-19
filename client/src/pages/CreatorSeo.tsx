@@ -53,7 +53,7 @@ export function Component() {
               <td className={cn('text-right tabular-nums', e.titel_laenge > TITEL_MAX && 'text-danger font-semibold')}>
                 {e.titel_laenge}
               </td>
-              <td className="text-[12px]">{e.zielbegriff || <span className="text-danger">—</span>}</td>
+              <td className="text-[12px]">{e.zielbegriff || <span className="text-danger">-</span>}</td>
               <td className="text-right tabular-nums">{e.tags.length}</td>
               <td className="text-right tabular-nums">{e.beschreibung_laenge}</td>
               <td className="text-[12px] leading-snug">

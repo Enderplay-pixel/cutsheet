@@ -211,7 +211,7 @@ export function Component() {
                           Szene {scene.scene_number}
                         </div>
                         <div className="text-sm font-medium truncate leading-snug">
-                          {scene.title || scene.location || '–'}
+                          {scene.title || scene.location || '-'}
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
@@ -263,7 +263,7 @@ export function Component() {
                       Szene {selectedScene?.scene_number}
                     </p>
                     <h2 className="text-sm font-semibold leading-snug">
-                      {selectedScene?.title || selectedScene?.location || '–'}
+                      {selectedScene?.title || selectedScene?.location || '-'}
                     </h2>
                   </div>
                   {unresolvedComments.length > 0 && (

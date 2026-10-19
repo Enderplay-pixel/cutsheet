@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 
 const datum = (wert: string | null | undefined) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '—'
+  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
 
 const FRIST: Record<string, { label: string; klasse: string }> = {
   gueltig:    { label: 'gültig',     klasse: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
@@ -179,7 +179,7 @@ export function Component() {
                             </span>
                           </>
                         ) : (
-                          <span className="text-muted-foreground">—</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </td>
                       <td className="py-2.5 px-4 text-right whitespace-nowrap">

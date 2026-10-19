@@ -21,7 +21,7 @@ const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
 
 const datum = (wert: string | null | undefined) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '—'
+  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
 
 /** Betrag aus einem Textfeld in Cent - ganzzahlig. */
 function alsCents(text: string): number {
@@ -159,13 +159,13 @@ function Reisen({ pid }: { pid: number }) {
                   {liste.map((r) => (
                     <tr key={r.id} className="border-b border-border/40">
                       <td className="py-2.5 px-4">
-                        {r.person_name || '—'}
+                        {r.person_name || '-'}
                         {r.purpose && <span className="text-xs text-muted-foreground block">{r.purpose}</span>}
                       </td>
                       <td className="py-2.5 px-4 whitespace-nowrap">
                         {datum(r.from_date)}
                         {String(r.to_date).slice(0, 10) !== String(r.from_date).slice(0, 10) &&
-                          ` – ${datum(r.to_date)}`}
+                          ` - ${datum(r.to_date)}`}
                         <span className="text-xs text-muted-foreground block">{r.tage} Tage</span>
                       </td>
                       <td className="py-2.5 px-4 text-right tabular-nums">{euro(r.verpflegung_cents)}</td>
@@ -628,7 +628,7 @@ function Unterkuenfte({ pid }: { pid: number }) {
                   <div className="grid gap-1 sm:grid-cols-2 text-sm">
                     {h.zimmer.map((z: any) => (
                       <div key={z.id} className="flex gap-2">
-                        <span className="text-muted-foreground w-16 shrink-0">{z.room_label || '—'}</span>
+                        <span className="text-muted-foreground w-16 shrink-0">{z.room_label || '-'}</span>
                         <span className="flex-1 truncate">{z.person_name}</span>
                         <span className="text-xs text-muted-foreground">{z.nights} N.</span>
                       </div>

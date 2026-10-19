@@ -107,16 +107,16 @@ function TakeRow({ take, onUpdate, onDelete }: { take: any; onUpdate: (data: any
     )}>
       <td className={cn('py-2.5 px-3 font-mono text-xs', take.false_start && 'line-through text-muted-foreground')}>{take.scene_number}</td>
       <td className="py-2.5 px-3 text-center font-mono text-xs font-semibold tabular-nums">{take.take_number}</td>
-      <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">{take.timecode_in || '–'}</td>
-      <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">{take.timecode_out || '–'}</td>
-      <td className="py-2.5 px-3 text-center text-xs tabular-nums">{take.meters || '–'}</td>
+      <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">{take.timecode_in || '-'}</td>
+      <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">{take.timecode_out || '-'}</td>
+      <td className="py-2.5 px-3 text-center text-xs tabular-nums">{take.meters || '-'}</td>
       <td className="py-2.5 px-3 text-center">
         {take.circle ? (
           <span className="inline-flex w-5 h-5 rounded-full bg-green-500 items-center justify-center shadow-sm">
             <Check className="w-2.5 h-2.5 text-white" />
           </span>
         ) : (
-          <span className="text-muted-foreground/20 text-xs">–</span>
+          <span className="text-muted-foreground/20 text-xs">-</span>
         )}
       </td>
       <td className="py-2.5 px-3 text-center">
@@ -125,7 +125,7 @@ function TakeRow({ take, onUpdate, onDelete }: { take: any; onUpdate: (data: any
             FS
           </span>
         ) : (
-          <span className="text-muted-foreground/20 text-xs">–</span>
+          <span className="text-muted-foreground/20 text-xs">-</span>
         )}
       </td>
       <td className="py-2.5 px-3 text-center">
@@ -134,7 +134,7 @@ function TakeRow({ take, onUpdate, onDelete }: { take: any; onUpdate: (data: any
             <VolumeX className="w-2.5 h-2.5" />
           </span>
         ) : (
-          <span className="text-muted-foreground/20 text-xs">–</span>
+          <span className="text-muted-foreground/20 text-xs">-</span>
         )}
       </td>
       <td className="py-2.5 px-3 text-xs text-muted-foreground max-w-[120px] truncate">{take.notes || ''}</td>

@@ -49,7 +49,7 @@ function callMinuten(val: number | string | null | undefined): number | null {
 
 function formatTime(val: number | string | null | undefined) {
   const min = callMinuten(val)
-  if (min == null) return '–'
+  if (min == null) return '-'
   const h = Math.floor(min / 60) % 24
   return `${String(h).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
 }
@@ -155,7 +155,7 @@ export function Component() {
               <div className="text-[2.25rem] font-bold tabular-nums leading-none">
                 {selectedDayId && !loadingSheet && callSheet
                   ? <><span className="text-green-500">{checkedIn}</span><span className="text-muted-foreground/40 text-2xl"> / {total}</span></>
-                  : <span className="text-muted-foreground/30">–</span>
+                  : <span className="text-muted-foreground/30">-</span>
                 }
               </div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.08em] mt-2 text-muted-foreground">Eingecheckt</div>
@@ -163,7 +163,7 @@ export function Component() {
           </div>
         </div>
 
-        {/* Progress bar – full width, below hero text */}
+        {/* Progress bar - full width, below hero text */}
         {selectedDayId && !loadingSheet && callSheet && (
           <div className="mt-6 space-y-1.5">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -199,7 +199,7 @@ export function Component() {
               <SelectContent>
                 {(shootDays ?? []).map(d => (
                   <SelectItem key={d.id} value={String(d.id)}>
-                    DT {d.day_number} – {formatDateShort(d.date)}
+                    DT {d.day_number} - {formatDateShort(d.date)}
                   </SelectItem>
                 ))}
               </SelectContent>

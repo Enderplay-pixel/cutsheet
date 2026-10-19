@@ -156,11 +156,11 @@ export function Component() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Kontenrahmen</span>
-              <span>{pruefung?.kontenrahmen ?? '—'}</span>
+              <span>{pruefung?.kontenrahmen ?? '-'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Erlöskonto 19 %</span>
-              <span className="font-mono">{pruefung?.erloeskonten?.regel19 ?? '—'}</span>
+              <span className="font-mono">{pruefung?.erloeskonten?.regel19 ?? '-'}</span>
             </div>
           </div>
 

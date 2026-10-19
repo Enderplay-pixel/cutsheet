@@ -44,6 +44,12 @@ hinten angehängt.
 - [ ] **3. Öffentliche Token-Seiten.** `/vertrag/:token`, `/casting/:token`,
   `/abnahme/:token`, Gast-Tokens: abgelaufene, widerrufene und erratene Tokens,
   doppelte Entscheidung, Ratenbegrenzung. Messen, Lücken schließen.
+- [ ] **3b. Gedankenstriche raus.** Florians Regel gilt ausnahmslos, auch in
+  der App: 195 Fundstellen von „—" und „–" in `client/src` (Stand 19.10.,
+  ohne Kommentare gezählt), meist als Platzhalter für leere Werte. Alle
+  sichtbaren durch "-" ersetzen, ebenso in Server-Texten, PDFs, Mails und
+  `i18n.ts`. Kommentare dürfen bleiben. Danach ein Test, der neue Fundstellen
+  in sichtbarem Text meldet.
 - [ ] **4. PDFs der Oktober-Module.** Rechnung, Storno, Mahnung, Angebot,
   Vertrag, Abnahmeprotokoll, Reisekostenabrechnung, Projektabschluss: gültige
   Datei, Umlaute, lange Texte, Seitenumbruch, Beträge in Cent korrekt. Jedes

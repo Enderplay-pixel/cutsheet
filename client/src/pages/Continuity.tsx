@@ -246,7 +246,7 @@ function EntryDialog({
                   <SelectItem value="">Keine</SelectItem>
                   {scenes.map(s => (
                     <SelectItem key={s.id} value={String(s.id)}>
-                      {s.scene_number}{s.title ? ` – ${s.title}` : ''}
+                      {s.scene_number}{s.title ? ` - ${s.title}` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>

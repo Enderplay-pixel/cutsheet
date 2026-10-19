@@ -139,15 +139,15 @@ function CueRow({ cue, pid, onEdit }: { cue: MusicCue; pid: number; onEdit: (c: 
 
   return (
     <tr className="border-b border-border/40 hover:bg-muted/30 transition-colors group">
-      <td className="py-2.5 px-3 text-sm font-medium">{cue.title || '—'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.composer || '—'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.publisher || '—'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.lyrics_author || '—'}</td>
+      <td className="py-2.5 px-3 text-sm font-medium">{cue.title || '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.composer || '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.publisher || '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.lyrics_author || '-'}</td>
       <td className="py-2.5 px-3 text-sm font-mono text-muted-foreground">{formatDuration(cue.duration_seconds)}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.cue_type || '—'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.usage_type || '—'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.scene_id ? `Szene ${cue.scene_id}` : '—'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground max-w-[120px] truncate" title={cue.notes}>{cue.notes || '—'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.cue_type || '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.usage_type || '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.scene_id ? `Szene ${cue.scene_id}` : '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground max-w-[120px] truncate" title={cue.notes}>{cue.notes || '-'}</td>
       <td className="py-2.5 px-3 text-right">
         <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
           {canEdit && (

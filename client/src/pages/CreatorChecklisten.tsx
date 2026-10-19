@@ -47,7 +47,7 @@ export function Component() {
           {liste.map((e: any) => (
             <tr key={e.id} className={e.punkte === 0 ? 'text-muted-foreground' : undefined}>
               <td><VideoLink projectId={pid} videoId={e.id}>{e.video}</VideoLink></td>
-              <td>{e.status ? <Marke text={e.status} /> : '—'}</td>
+              <td>{e.status ? <Marke text={e.status} /> : '-'}</td>
               <td>
                 {/* Ohne Punkte gibt es keinen Balken. Ein voller Balken wuerde
                     "fertig" behaupten, wo nur nichts angelegt wurde. */}
@@ -69,10 +69,10 @@ export function Component() {
                 )}
               </td>
               <td className="text-right tabular-nums whitespace-nowrap">
-                {e.punkte ? `${e.erledigt} / ${e.punkte}` : '—'}
+                {e.punkte ? `${e.erledigt} / ${e.punkte}` : '-'}
               </td>
               <td className="text-[12px] leading-snug text-muted-foreground">
-                {e.offen.length ? e.offen.join(' · ') : (e.punkte ? <Marke text="alles erledigt" ton="gut" /> : '—')}
+                {e.offen.length ? e.offen.join(' · ') : (e.punkte ? <Marke text="alles erledigt" ton="gut" /> : '-')}
               </td>
             </tr>
           ))}

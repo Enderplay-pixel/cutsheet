@@ -326,7 +326,7 @@ function ImportDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
           {tt(scenesT.importHint)}
         </p>
         <Textarea value={text} onChange={e => setText(e.target.value)} rows={10}
-          placeholder={"1 INT. WOHNKÜCHE – TAG\n2 EXT. PARK – TAG\n3 INT. CAFÉ – NACHT"} className="font-mono text-sm" />
+          placeholder={"1 INT. WOHNKÜCHE - TAG\n2 EXT. PARK - TAG\n3 INT. CAFÉ - NACHT"} className="font-mono text-sm" />
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{tt(uiT.cancel)}</Button>
           <Button onClick={() => importMutation.mutate()} disabled={!text.trim() || importMutation.isPending}>

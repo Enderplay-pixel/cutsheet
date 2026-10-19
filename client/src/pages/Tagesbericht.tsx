@@ -149,7 +149,7 @@ export function Component() {
             <SelectContent>
               {allDays.map((d: any, i: number) => (
                 <SelectItem key={d.id} value={String(i)} className="text-xs">
-                  Tag {d.day_number} – {formatDate(d.date)}
+                  Tag {d.day_number} - {formatDate(d.date)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -244,7 +244,7 @@ export function Component() {
             {shootRatioWarning && (
               <div className="mt-4 flex items-start gap-2 p-3 bg-warning/[0.08] border border-warning/20 rounded-lg">
                 <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-                <p className="text-xs text-warning">Mehr Seiten gedreht als geplant – Drehabweichung prüfen.</p>
+                <p className="text-xs text-warning">Mehr Seiten gedreht als geplant - Drehabweichung prüfen.</p>
               </div>
             )}
           </div>
@@ -285,7 +285,7 @@ export function Component() {
                       >
                         {/* Farbe allein sagt es nicht - der Stand steht als Wort dabei */}
                         {stand === 'fertig' ? '✓ ' : stand === 'teil' ? '· ' : ''}
-                        Sz. {s.scene_number} – {s.title}
+                        Sz. {s.scene_number} - {s.title}
                         {stand === 'teil' && <span className="ml-1 opacity-70">(angefangen)</span>}
                       </button>
                       <div className="flex items-center gap-1 shrink-0">
@@ -295,7 +295,7 @@ export function Component() {
                           inputMode="numeric"
                           value={istZeiten[String(s.scene_id)] ?? ''}
                           onChange={e => szeneZeitSetzen(s.scene_id, e.target.value)}
-                          placeholder={s.estimated_minutes ? String(s.estimated_minutes) : '—'}
+                          placeholder={s.estimated_minutes ? String(s.estimated_minutes) : '-'}
                           aria-label={`Tatsächliche Minuten für Szene ${s.scene_number}`}
                           className="w-20 h-9 text-sm text-right tabular-nums"
                         />

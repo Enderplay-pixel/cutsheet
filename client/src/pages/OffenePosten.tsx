@@ -23,7 +23,7 @@ const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
 
 const datum = (wert: string | null | undefined) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '—'
+  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
 
 const heute = () => new Date().toISOString().slice(0, 10)
 
@@ -256,7 +256,7 @@ function PostenListe({ firmaId }: { firmaId: number }) {
                             Stufe {p.reminder_level}
                             <span className="block">Frist {datum(p.reminder_due_on)}</span>
                           </>
-                        ) : '—'}
+                        ) : '-'}
                       </td>
                       <td className="py-2.5 px-4 text-right">
                         <Button variant="ghost" size="sm" onClick={() => setZahlungFuer(p)}>

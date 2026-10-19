@@ -8,7 +8,7 @@ import {
 } from '@/components/creator/BereichLayout'
 
 function tag(datum: string | null): string {
-  if (!datum) return '—'
+  if (!datum) return '-'
   const [j, m, t] = datum.split('-')
   return `${t}.${m}.${j}`
 }
@@ -75,10 +75,10 @@ export function Component() {
               <td className="font-semibold whitespace-nowrap">{s.marke}</td>
               <td><VideoLink projectId={pid} videoId={s.id}>{s.video}</VideoLink></td>
               <td className="text-muted-foreground text-[12px]">
-                {s.leistungen.length ? s.leistungen.join(' · ') : '—'}
+                {s.leistungen.length ? s.leistungen.join(' · ') : '-'}
               </td>
               <td className="text-right tabular-nums whitespace-nowrap">
-                {s.honorar_cent === null ? '—' : formatCurrency(s.honorar_cent)}
+                {s.honorar_cent === null ? '-' : formatCurrency(s.honorar_cent)}
               </td>
               <td className="tabular-nums whitespace-nowrap">
                 {tag(s.frist)}

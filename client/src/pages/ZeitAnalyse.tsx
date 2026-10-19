@@ -222,7 +222,7 @@ export function Component() {
                     return (
                       <tr key={row.scene_id} className="no-page-break">
                         <td className="font-mono text-xs">{row.scene_number}</td>
-                        <td className="max-w-[220px] truncate">{row.title || '—'}</td>
+                        <td className="max-w-[220px] truncate">{row.title || '-'}</td>
                         <td className="text-right tabular-nums text-sm">
                           {formatMinutes(row.estimated_minutes)}
                         </td>
@@ -234,7 +234,7 @@ export function Component() {
                               {row.geschaetzt && <span className="ml-1 text-[10px] uppercase tracking-wide opacity-60">gesch.</span>}
                             </span>
                           ) : (
-                            <span className="text-muted-foreground/40">—</span>
+                            <span className="text-muted-foreground/40">-</span>
                           )}
                         </td>
                         <td className="text-right tabular-nums text-sm">
@@ -254,7 +254,7 @@ export function Component() {
                               {diff >= 0 ? '+' : ''}{formatMinutes(diff)}
                             </span>
                           ) : (
-                            <span className="text-muted-foreground/40">—</span>
+                            <span className="text-muted-foreground/40">-</span>
                           )}
                         </td>
                       </tr>
@@ -270,7 +270,7 @@ export function Component() {
                       {formatMinutes(totalEstimated)}
                     </td>
                     <td className="text-right tabular-nums py-3 px-3">
-                      {totalActual > 0 ? formatMinutes(totalActual) : '—'}
+                      {totalActual > 0 ? formatMinutes(totalActual) : '-'}
                     </td>
                     <td className={cn(
                       'text-right tabular-nums py-3 px-3 pr-4',
@@ -278,7 +278,7 @@ export function Component() {
                       totalDiff < 0 ? 'text-green-400' :
                       ''
                     )}>
-                      {totalActual > 0 ? `${totalDiff >= 0 ? '+' : ''}${formatMinutes(totalDiff)}` : '—'}
+                      {totalActual > 0 ? `${totalDiff >= 0 ? '+' : ''}${formatMinutes(totalDiff)}` : '-'}
                     </td>
                   </tr>
                 </tfoot>

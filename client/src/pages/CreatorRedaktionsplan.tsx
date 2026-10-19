@@ -16,7 +16,7 @@ function monatsName(key: string): string {
 }
 
 function tag(datum: string | null): string {
-  if (!datum) return '—'
+  if (!datum) return '-'
   const [j, m, t] = datum.split('-')
   return `${t}.${m}.${j}`
 }
@@ -67,8 +67,8 @@ export function Component() {
                 <tr key={v.id} className={v.ueberfaellig ? 'bg-danger/5' : undefined}>
                   <td className="tabular-nums whitespace-nowrap">{tag(v.datum)}</td>
                   <td><VideoLink projectId={pid} videoId={v.id}>{v.titel}</VideoLink></td>
-                  <td className="text-muted-foreground">{v.serie || '—'}</td>
-                  <td className="text-muted-foreground">{v.plattform || '—'}</td>
+                  <td className="text-muted-foreground">{v.serie || '-'}</td>
+                  <td className="text-muted-foreground">{v.plattform || '-'}</td>
                   <td>
                     {v.veroeffentlicht
                       ? <Marke text="veröffentlicht" ton="gut" />

@@ -8,13 +8,13 @@ import {
 } from '@/components/creator/BereichLayout'
 
 function tag(datum: string): string {
-  if (!datum) return '—'
+  if (!datum) return '-'
   const [j, m, t] = datum.split('-')
   return `${t}.${m}.${j}`
 }
 
 function prozent(n: number | null): string {
-  return n === null ? '—' : `${n} %`
+  return n === null ? '-' : `${n} %`
 }
 
 export function Component() {
@@ -60,7 +60,7 @@ export function Component() {
           {liste.map((e: any) => (
             <tr key={e.id}>
               <td><VideoLink projectId={pid} videoId={e.id}>{e.video}</VideoLink></td>
-              <td className="text-muted-foreground text-[12px]">{e.serie || '—'}</td>
+              <td className="text-muted-foreground text-[12px]">{e.serie || '-'}</td>
               <td className="tabular-nums whitespace-nowrap">{tag(e.datum)}</td>
               <td className="text-right tabular-nums">{e.aufrufe.toLocaleString('de-DE')}</td>
               <td className={cn('text-right tabular-nums',
@@ -73,7 +73,7 @@ export function Component() {
                 e.haltequote !== null && e.haltequote >= 50 && 'text-success')}>
                 {prozent(e.haltequote)}
               </td>
-              <td className="text-right tabular-nums">{e.abos || '—'}</td>
+              <td className="text-right tabular-nums">{e.abos || '-'}</td>
             </tr>
           ))}
         </BereichTabelle>

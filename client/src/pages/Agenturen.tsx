@@ -22,7 +22,7 @@ const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
 
 const datum = (wert: string | null | undefined) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '—'
+  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
 
 const heute = () => new Date().toISOString().slice(0, 10)
 
@@ -576,7 +576,7 @@ function Adressen({ firmaId }: { firmaId: number }) {
                 {liste.map((a) => (
                   <tr key={a.id} className="border-b border-border/40">
                     <td className="py-2.5 px-4">{a.name}</td>
-                    <td className="py-2.5 px-4 text-muted-foreground">{a.contact_name || '—'}</td>
+                    <td className="py-2.5 px-4 text-muted-foreground">{a.contact_name || '-'}</td>
                     <td className="py-2.5 px-4 text-muted-foreground">
                       {a.email || <span className="text-amber-600 dark:text-amber-400">fehlt</span>}
                     </td>

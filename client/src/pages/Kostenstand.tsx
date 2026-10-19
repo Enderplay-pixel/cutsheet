@@ -258,11 +258,11 @@ export function Component() {
               {expenses.map((e: any) => (
                 <tr key={e.id} className="group">
                   <td className="tabular-nums text-muted-foreground">
-                    {e.expense_date ? new Date(e.expense_date).toLocaleDateString('de-DE') : '—'}
+                    {e.expense_date ? new Date(e.expense_date).toLocaleDateString('de-DE') : '-'}
                   </td>
-                  <td className="text-muted-foreground">{e.receipt_no || '—'}</td>
+                  <td className="text-muted-foreground">{e.receipt_no || '-'}</td>
                   <td className="font-medium">{e.description}</td>
-                  <td className="text-muted-foreground">{e.category || '—'}</td>
+                  <td className="text-muted-foreground">{e.category || '-'}</td>
                   <td className="text-right tabular-nums font-semibold">{formatCurrency(e.amount_cents)}</td>
                   <td className="w-8">
                     <button

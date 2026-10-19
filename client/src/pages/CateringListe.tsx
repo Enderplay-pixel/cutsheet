@@ -339,7 +339,7 @@ export function Component() {
                 <SelectContent>
                   {(shootDays ?? []).map(d => (
                     <SelectItem key={d.id} value={String(d.id)}>
-                      DT {d.day_number} – {formatDate(d.date)}
+                      DT {d.day_number} - {formatDate(d.date)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -429,11 +429,11 @@ export function Component() {
                                     {e.dietary}
                                   </Badge>
                                 ) : (
-                                  <span className="text-muted-foreground/40">–</span>
+                                  <span className="text-muted-foreground/40">-</span>
                                 )}
                               </td>
-                              <td className="px-4 py-2.5 text-muted-foreground text-sm">{e.allergies || <span className="text-muted-foreground/40">–</span>}</td>
-                              <td className="px-4 py-2.5 text-muted-foreground text-sm">{e.notes || <span className="text-muted-foreground/40">–</span>}</td>
+                              <td className="px-4 py-2.5 text-muted-foreground text-sm">{e.allergies || <span className="text-muted-foreground/40">-</span>}</td>
+                              <td className="px-4 py-2.5 text-muted-foreground text-sm">{e.notes || <span className="text-muted-foreground/40">-</span>}</td>
                             </tr>
                           ))}
                         </tbody>

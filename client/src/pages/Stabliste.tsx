@@ -111,7 +111,7 @@ function DepartmentSection({ dept, members, onAdd, onDelete, onCopyEmails }: {
 
   return (
     <div className="border border-border/60 rounded-xl overflow-hidden bg-card">
-      {/* Kopfzeile: Aufklappen und E-Mails-Kopieren sind zwei getrennte Knöpfe —
+      {/* Kopfzeile: Aufklappen und E-Mails-Kopieren sind zwei getrennte Knöpfe -
           ein Knopf im Knopf ist ungültiges HTML und für Screenreader stumm */}
       <div className="flex items-center hover:bg-muted/30 transition-colors">
         <button

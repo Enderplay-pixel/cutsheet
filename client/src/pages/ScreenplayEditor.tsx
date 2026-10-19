@@ -241,7 +241,7 @@ function BlockEditor({
   }
 
   const placeholder =
-    block.block_type === 'scene_heading' ? 'INT. LOCATION – DAY'
+    block.block_type === 'scene_heading' ? 'INT. LOCATION - DAY'
     : block.block_type === 'character' ? 'CHARACTER'
     : block.block_type === 'parenthetical' ? '(action)'
     : block.block_type === 'transition' ? 'CUT TO:'
@@ -353,7 +353,7 @@ function SceneSection({
             {scene.scene_number}.
           </span>
           <p className="font-mono text-sm font-bold uppercase text-foreground">
-            {scene.int_ext}. {scene.title} – {scene.day_night}
+            {scene.int_ext}. {scene.title} - {scene.day_night}
           </p>
           {allBlocks.length === 0 && (
             <p className="font-mono text-xs text-muted-foreground/30 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -551,7 +551,7 @@ export function Component() {
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
         createBlockMutation.mutate({
           sceneId: newScene.id,
-          data: { block_type: 'scene_heading', content: 'INT. NEW SCENE – DAY', sort_order: 0 },
+          data: { block_type: 'scene_heading', content: 'INT. NEW SCENE - DAY', sort_order: 0 },
         })
       }, 100)
     },
@@ -849,7 +849,7 @@ export function Component() {
           {/* Block type selector */}
           {(() => {
             const ActiveIcon = activeBlock ? blockTypeIcons[activeBlock.block_type] : AlignLeft
-            const activeLabel = activeBlock ? blockTypeLabels[activeBlock.block_type] : '—'
+            const activeLabel = activeBlock ? blockTypeLabels[activeBlock.block_type] : '-'
             return (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

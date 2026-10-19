@@ -88,8 +88,8 @@ export function Component() {
             </dl>
             <div className="border-t border-border/70">
               {[
-                ['12', 'Int. Schneideraum – Nacht', '2 ⅛'],
-                ['14A', 'Ext. Archiv, Hof – Tag', '⅝'],
+                ['12', 'Int. Schneideraum - Nacht', '2 ⅛'],
+                ['14A', 'Ext. Archiv, Hof - Tag', '⅝'],
               ].map(([sc, set, pg]) => (
                 <div key={sc} className="flex items-center gap-4 px-6 py-3 border-b border-border/70 last:border-0 text-[13px]">
                   <span className="w-9 font-semibold tabular-nums">{sc}</span>

@@ -49,10 +49,10 @@ function ContactRow({ name, role, dept, email, phone, type }: {
           )}>
             {name?.[0]?.toUpperCase() || '?'}
           </div>
-          <span className="text-sm font-medium">{name || '—'}</span>
+          <span className="text-sm font-medium">{name || '-'}</span>
         </div>
       </td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground">{role || '—'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{role || '-'}</td>
       <td className="py-2.5 px-4">
         {dept && (
           <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', DEPT_COLORS[dept] || 'bg-muted text-muted-foreground')}>
@@ -66,7 +66,7 @@ function ContactRow({ name, role, dept, email, phone, type }: {
             <a href={`mailto:${email}`} className="text-sm text-primary hover:underline truncate max-w-[200px]">{email}</a>
             <CopyBtn text={email} />
           </div>
-        ) : <span className="text-sm text-muted-foreground/40">—</span>}
+        ) : <span className="text-sm text-muted-foreground/40">-</span>}
       </td>
       <td className="py-2.5 px-4">
         {phone ? (
@@ -74,7 +74,7 @@ function ContactRow({ name, role, dept, email, phone, type }: {
             <a href={`tel:${phone}`} className="text-sm hover:text-primary transition-colors">{phone}</a>
             <CopyBtn text={phone} />
           </div>
-        ) : <span className="text-sm text-muted-foreground/40">—</span>}
+        ) : <span className="text-sm text-muted-foreground/40">-</span>}
       </td>
     </tr>
   )

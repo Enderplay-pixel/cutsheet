@@ -55,13 +55,13 @@ export function Component() {
               <td className="font-semibold">{s.name}</td>
               <td className="text-right tabular-nums">{s.videos}</td>
               <td className="text-right tabular-nums">{s.veroeffentlicht}</td>
-              <td className="text-right tabular-nums">{s.geplant || '—'}</td>
+              <td className="text-right tabular-nums">{s.geplant || '-'}</td>
               <td className="text-right tabular-nums">
                 {/* Ohne veröffentlichte Folge gibt es keinen Schnitt - eine 0
                     würde hier behaupten, die Serie liefe schlecht. */}
-                {s.aufrufe_schnitt === null ? '—' : s.aufrufe_schnitt.toLocaleString('de-DE')}
+                {s.aufrufe_schnitt === null ? '-' : s.aufrufe_schnitt.toLocaleString('de-DE')}
               </td>
-              <td className="text-[12px]">{s.beste ?? '—'}</td>
+              <td className="text-[12px]">{s.beste ?? '-'}</td>
             </tr>
           ))}
         </BereichTabelle>

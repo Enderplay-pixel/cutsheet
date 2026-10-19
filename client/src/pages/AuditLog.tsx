@@ -13,7 +13,7 @@ import { History, Download, Search, X } from 'lucide-react'
 const SEITE = 100
 
 function formatTimestamp(ts: string) {
-  if (!ts) return '—'
+  if (!ts) return '-'
   try {
     const d = new Date(ts)
     const pad = (n: number) => String(n).padStart(2, '0')
@@ -230,19 +230,19 @@ export function Component() {
                       {formatTimestamp(entry.created_at || entry.timestamp || '')}
                     </td>
                     <td className="py-2.5 px-4 text-sm">
-                      {entry.user_name || entry.user?.name || entry.user_email || '—'}
+                      {entry.user_name || entry.user?.name || entry.user_email || '-'}
                     </td>
                     <td className="py-2.5 px-4">
-                      <ActionBadge action={entry.action || entry.event_type || '—'} />
+                      <ActionBadge action={entry.action || entry.event_type || '-'} />
                     </td>
                     <td className="py-2.5 px-4 text-sm text-muted-foreground">
-                      {entry.entity_type || entry.table_name || '—'}
+                      {entry.entity_type || entry.table_name || '-'}
                       {entry.entity_id && (
                         <span className="text-xs text-muted-foreground/60 ml-1">#{entry.entity_id}</span>
                       )}
                     </td>
                     <td className="py-2.5 px-4 text-xs text-muted-foreground max-w-sm truncate" title={entry.details || ''}>
-                      {entry.details || '—'}
+                      {entry.details || '-'}
                     </td>
                   </tr>
                 ))
@@ -256,7 +256,7 @@ export function Component() {
       {gesamt > SEITE && (
         <div className="flex items-center justify-between mt-4">
           <span className="text-xs text-muted-foreground">
-            {(seite * SEITE + 1).toLocaleString('de-DE')}–
+            {(seite * SEITE + 1).toLocaleString('de-DE')}-
             {Math.min(gesamt, seite * SEITE + entries.length).toLocaleString('de-DE')} von{' '}
             {gesamt.toLocaleString('de-DE')}
           </span>

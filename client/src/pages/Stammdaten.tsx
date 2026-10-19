@@ -373,7 +373,7 @@ export function Component() {
         </Field>
         <Field label={tt(masterT.labelSynopsis)} full>
           <Textarea disabled={!darfSchreiben} value={formData.synopsis || ''} onChange={e => update('synopsis', e.target.value)}
-            rows={3} className="resize-none text-sm" placeholder="Worum geht es in dem Film? (1–2 Sätze)" />
+            rows={3} className="resize-none text-sm" placeholder="Worum geht es in dem Film? (1-2 Sätze)" />
         </Field>
       </FormSection>
 
@@ -408,7 +408,7 @@ export function Component() {
             <Calendar className="w-4 h-4 text-primary shrink-0" />
             <p className="text-sm text-primary">
               <span className="font-semibold">{shootDays} Drehtage</span>
-              <span className="text-primary/70"> · {formatDate(formData.shoot_start)} – {formatDate(formData.shoot_end)}</span>
+              <span className="text-primary/70"> · {formatDate(formData.shoot_start)} - {formatDate(formData.shoot_end)}</span>
             </p>
           </div>
         )}
@@ -445,10 +445,10 @@ export function Component() {
             <Select value={settingsData.currency || 'EUR'} onValueChange={v => updateSetting('currency', v)}>
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="EUR">EUR – Euro</SelectItem>
-                <SelectItem value="USD">USD – US-Dollar</SelectItem>
-                <SelectItem value="GBP">GBP – Britisches Pfund</SelectItem>
-                <SelectItem value="CHF">CHF – Schweizer Franken</SelectItem>
+                <SelectItem value="EUR">EUR - Euro</SelectItem>
+                <SelectItem value="USD">USD - US-Dollar</SelectItem>
+                <SelectItem value="GBP">GBP - Britisches Pfund</SelectItem>
+                <SelectItem value="CHF">CHF - Schweizer Franken</SelectItem>
               </SelectContent>
             </Select>
           </Field>

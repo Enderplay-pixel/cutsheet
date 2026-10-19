@@ -28,7 +28,7 @@ export function TestversionBadge({ className }: { className?: string }) {
         'inline-flex items-center rounded-full bg-orange-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-orange-500 leading-none',
         className,
       )}
-      title="Testversion vor dem Launch – Daten können zurückgesetzt werden"
+      title="Testversion vor dem Launch - Daten können zurückgesetzt werden"
     >
       Test
     </span>

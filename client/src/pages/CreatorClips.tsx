@@ -56,12 +56,12 @@ export function Component() {
             <tr key={c.id} className={c.probleme.length ? 'bg-warning/5' : undefined}>
               <td className="font-medium">{c.titel}</td>
               <td><VideoLink projectId={pid} videoId={c.video_id}>{c.aus_video}</VideoLink></td>
-              <td className="text-muted-foreground">{c.plattform || '—'}</td>
+              <td className="text-muted-foreground">{c.plattform || '-'}</td>
               <td className="text-right tabular-nums">{zeit(c.start)}</td>
               <td className="text-right tabular-nums">{zeit(c.dauer)}</td>
-              <td>{c.status ? <Marke text={c.status} /> : '—'}</td>
+              <td>{c.status ? <Marke text={c.status} /> : '-'}</td>
               <td className="text-[12px] leading-snug text-muted-foreground">
-                {c.probleme.length ? c.probleme.join(' · ') : '—'}
+                {c.probleme.length ? c.probleme.join(' · ') : '-'}
               </td>
             </tr>
           ))}

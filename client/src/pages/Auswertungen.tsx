@@ -24,7 +24,7 @@ const jahresanfang = () => `${new Date().getFullYear()}-01-01`
 /** Promille als Prozent mit einer Nachkommastelle: 723 wird zu "72,3 %". */
 const anteil = (promille: number | null) =>
   promille === null || promille === undefined
-    ? '—'
+    ? '-'
     : `${(promille / 10).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`
 
 const monatsname = (monat: string) => {
@@ -338,7 +338,7 @@ function Ksk({ firmaId }: { firmaId: number }) {
           <CardContent className="pt-5">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Abgabesatz {jahr}</div>
             <div className="text-xl font-semibold mt-1">
-              {data?.satz_text ? `${data.satz_text} %` : '—'}
+              {data?.satz_text ? `${data.satz_text} %` : '-'}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
               {data?.ksk_art === 'eigenwerber' ? 'Eigenwerber' : 'Verwerter'}
@@ -351,7 +351,7 @@ function Ksk({ firmaId }: { firmaId: number }) {
             <div className="text-xl font-semibold mt-1 tabular-nums">{euro(data?.abgabeCents ?? 0)}</div>
             <div className={`text-xs mt-1 ${data?.ueberfaellig ? 'text-destructive' : 'text-muted-foreground'}`}>
               {data?.ueberfaellig ? 'Frist war ' : 'Meldung bis '}
-              {data?.frist ? new Date(data.frist).toLocaleDateString('de-DE') : '—'}
+              {data?.frist ? new Date(data.frist).toLocaleDateString('de-DE') : '-'}
             </div>
           </CardContent>
         </Card>
@@ -410,7 +410,7 @@ function Ksk({ firmaId }: { firmaId: number }) {
                         <span className="text-xs text-muted-foreground block">{p.projekt}</span>
                       </td>
                       <td className="py-2.5 px-4 text-xs text-muted-foreground">
-                        {p.funktion || (p.art === 'cast' ? 'Darsteller' : '—')}
+                        {p.funktion || (p.art === 'cast' ? 'Darsteller' : '-')}
                         {p.ksk_relevant === null && p.vorschlag && (
                           <span className="block text-amber-600 dark:text-amber-400">Vorschlag: ja</span>
                         )}

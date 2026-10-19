@@ -150,7 +150,7 @@ function OverviewTab({ stats }: { stats: Stats }) {
                 <span className="text-xs font-bold text-primary">{(u.name || u.email)[0].toUpperCase()}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{u.name || '–'}</p>
+                <p className="text-sm font-medium text-foreground truncate">{u.name || '-'}</p>
                 <p className="text-xs text-muted-foreground truncate">{u.email}</p>
               </div>
               <RoleBadge role={u.role} />
@@ -562,7 +562,7 @@ function ProjectsTab() {
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <p className="text-xs font-medium text-foreground truncate max-w-[120px]">{p.owner_name || '—'}</p>
+                      <p className="text-xs font-medium text-foreground truncate max-w-[120px]">{p.owner_name || '-'}</p>
                       <p className="text-[11px] text-muted-foreground truncate max-w-[120px]">{p.owner_email}</p>
                     </td>
                     <td className="py-3 px-4 text-sm text-center">{p.member_count}</td>
@@ -698,7 +698,7 @@ function GrossproduktionKarte() {
             ))}
           </div>
           <div>
-            <p className="text-xs font-medium mb-1.5">Teamkonten – Passwörter werden nur jetzt angezeigt</p>
+            <p className="text-xs font-medium mb-1.5">Teamkonten - Passwörter werden nur jetzt angezeigt</p>
             <div className="rounded-lg border border-border/60 divide-y divide-border/60">
               {ergebnis.team.map(t => (
                 <div key={t.email} className="flex items-center gap-2 px-3 py-2 text-xs">

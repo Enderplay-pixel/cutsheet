@@ -86,12 +86,12 @@ function CharacterCard({ char, scenes, onDelete }: { char: any; scenes: any[]; o
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs text-muted-foreground">{tt(castT.labelAge)}</Label>
-              <Input value={form.age_range || ''} onChange={e => update('age_range', e.target.value)} className="mt-1 h-8 text-sm" placeholder="z.B. 25–35" />
+              <Input value={form.age_range || ''} onChange={e => update('age_range', e.target.value)} className="mt-1 h-8 text-sm" placeholder="z.B. 25-35" />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">{tt(castT.labelGender)}</Label>
               <Select value={form.gender || ''} onValueChange={v => update('gender', v)}>
-                <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder="–" /></SelectTrigger>
+                <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder="-" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Männlich" className="text-xs">{tt(castT.genderM)}</SelectItem>
                   <SelectItem value="Weiblich" className="text-xs">{tt(castT.genderF)}</SelectItem>

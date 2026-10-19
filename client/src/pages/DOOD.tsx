@@ -52,7 +52,7 @@ function statusCell(status: string) {
   if (!cfg) {
     return (
       <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground/30">
-        –
+        -
       </div>
     )
   }

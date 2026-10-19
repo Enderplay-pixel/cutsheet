@@ -36,15 +36,15 @@ function ExtraRow({ extra, pid, onEdit }: { extra: Extra; pid: number; onEdit: (
 
   return (
     <tr className="border-b border-border/40 hover:bg-muted/30 transition-colors group">
-      <td className="py-2.5 px-4 text-sm font-medium">{extra.name || '—'}</td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground">{extra.telefon || '—'}</td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground">{extra.email || '—'}</td>
+      <td className="py-2.5 px-4 text-sm font-medium">{extra.name || '-'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{extra.telefon || '-'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{extra.email || '-'}</td>
       <td className="py-2.5 px-4">
         <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-          {extra.tarifgruppe || '—'}
+          {extra.tarifgruppe || '-'}
         </span>
       </td>
-      <td className="py-2.5 px-4 text-sm text-muted-foreground max-w-xs truncate">{extra.notizen || '—'}</td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground max-w-xs truncate">{extra.notizen || '-'}</td>
       <td className="py-2.5 px-3 text-right">
         <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
           <button

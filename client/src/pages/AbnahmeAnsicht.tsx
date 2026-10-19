@@ -203,7 +203,7 @@ export function Component() {
                     {data.anmerkungen.map((a: any) => (
                       <div key={a.id} className="flex gap-2 text-sm">
                         <span className="font-mono text-xs text-muted-foreground w-14 shrink-0 pt-0.5">
-                          {a.zeitstelle || '—'}
+                          {a.zeitstelle || '-'}
                         </span>
                         <span className="flex-1">{a.body}</span>
                         {a.status === 'erledigt' && (

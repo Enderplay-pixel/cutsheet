@@ -157,7 +157,7 @@ function TimesheetRow({ ts, dayId }: { ts: Timesheet; dayId: number }) {
             {totalMinutesToH(overtime)}
           </span>
         ) : (
-          <span className="text-muted-foreground/40 text-sm">–</span>
+          <span className="text-muted-foreground/40 text-sm">-</span>
         )}
       </td>
       <td className="px-4 py-3 text-center">
@@ -384,7 +384,7 @@ export function Component() {
             variant="outline"
             size="sm"
             className="active:scale-[0.97]"
-            title="Drehtage laut Dispo × Tagesgage, plus Überstunden – für die Lohnbuchhaltung"
+            title="Drehtage laut Dispo × Tagesgage, plus Überstunden - für die Lohnbuchhaltung"
             onClick={() => download(api.payroll.export(pid), 'lohnexport.csv')}
           >
             <FileText className="mr-2 h-4 w-4" />
@@ -411,7 +411,7 @@ export function Component() {
               <SelectContent>
                 {(shootDays ?? []).map(d => (
                   <SelectItem key={d.id} value={String(d.id)}>
-                    DT {d.day_number} – {formatDate(d.date)}
+                    DT {d.day_number} - {formatDate(d.date)}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -241,7 +241,7 @@ export function Component() {
                 {tt(projectsT.empty)}
               </p>
               <p className="text-[15px] text-muted-foreground mt-4 max-w-[46ch] leading-relaxed">
-                Lege ein Projekt an — danach führt dich CutSheet vom Drehbuch über den Drehplan bis zur Tagesdispo.
+                Lege ein Projekt an - danach führt dich CutSheet vom Drehbuch über den Drehplan bis zur Tagesdispo.
               </p>
             </div>
             <Button size="lg" onClick={() => setShowNew(true)}>
@@ -268,7 +268,7 @@ export function Component() {
                         <span className="flex items-center gap-2.5">
                           <span className="text-[17px] font-semibold tracking-[-0.02em] truncate">{project.title}</span>
                           {project.is_demo && (
-                            <span className="chip shrink-0" title="Demo-Projekt zum Ausprobieren — kann jederzeit gelöscht werden">Demo</span>
+                            <span className="chip shrink-0" title="Demo-Projekt zum Ausprobieren - kann jederzeit gelöscht werden">Demo</span>
                           )}
                         </span>
                         <span className="mt-0.5 block text-[13px] text-muted-foreground truncate">
@@ -293,7 +293,7 @@ export function Component() {
                       <span className="hidden sm:block text-right text-[13px] text-muted-foreground tabular-nums">
                         {project.shoot_start
                           ? <>{formatDate(project.shoot_start)}{project.shoot_end ? <><br />{formatDate(project.shoot_end)}</> : null}</>
-                          : '—'}
+                          : '-'}
                       </span>
                       <ChevronRight className="hidden sm:block w-4 h-4 text-muted-foreground/50" />
                     </button>

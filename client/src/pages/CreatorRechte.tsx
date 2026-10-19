@@ -71,11 +71,11 @@ export function Component() {
               <td><VideoLink projectId={pid} videoId={e.id}>{e.video}</VideoLink></td>
               <td className="text-right tabular-nums">{e.material}</td>
               <td className="text-right tabular-nums">
-                {e.ohne_lizenz > 0 ? <span className="text-danger font-semibold">{e.ohne_lizenz}</span> : '—'}
+                {e.ohne_lizenz > 0 ? <span className="text-danger font-semibold">{e.ohne_lizenz}</span> : '-'}
               </td>
               <td><Marke text={RISIKO_TEXT[e.risiko] ?? e.risiko} ton={TON[e.risiko] ?? 'neutral'} /></td>
               <td className="text-muted-foreground text-[12px] leading-snug">
-                {e.probleme.length ? e.probleme.join(' · ') : '—'}
+                {e.probleme.length ? e.probleme.join(' · ') : '-'}
               </td>
             </tr>
           ))}

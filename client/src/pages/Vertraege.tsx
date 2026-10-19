@@ -21,12 +21,12 @@ import {
 } from 'lucide-react'
 
 const datum = (wert: string | null | undefined) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '—'
+  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
 
 const zeitpunkt = (wert: string | null | undefined) => {
-  if (!wert) return '—'
+  if (!wert) return '-'
   const d = new Date(wert)
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('de-DE')
+  return Number.isNaN(d.getTime()) ? '-' : d.toLocaleString('de-DE')
 }
 
 const STATUS: Record<string, { label: string; klasse: string }> = {

@@ -189,7 +189,7 @@ function InsuranceCard({ ins, pid, canEdit }: { ins: Insurance; pid: number; can
             {(ins.start_date || ins.end_date) && (
               <div>
                 <p className="text-xs text-muted-foreground">Laufzeit</p>
-                <p className="text-sm">{ins.start_date || '?'} – {ins.end_date || '?'}</p>
+                <p className="text-sm">{ins.start_date || '?'} - {ins.end_date || '?'}</p>
               </div>
             )}
           </div>

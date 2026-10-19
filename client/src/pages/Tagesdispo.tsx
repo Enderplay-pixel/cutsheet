@@ -99,7 +99,7 @@ function SendDispoButton({ dayId, entries, onSent }: {
           <div className="max-h-56 overflow-y-auto rounded-lg border border-border/60 divide-y divide-border/40">
             {previewEntries.map((e: any) => (
               <div key={e.id} className="flex items-center gap-2.5 px-3 py-2 text-sm">
-                <span className="font-medium flex-1 truncate">{e.person_name || e.name || '—'}</span>
+                <span className="font-medium flex-1 truncate">{e.person_name || e.name || '-'}</span>
                 <span className="text-[11px] text-muted-foreground tabular-nums">
                   {e.call_time != null ? `${String(Math.floor(e.call_time / 60)).padStart(2, '0')}:${String(e.call_time % 60).padStart(2, '0')}` : ''}
                 </span>
@@ -321,10 +321,10 @@ function PersonSection({
             {entries.map((entry: any) => (
               <tr key={entry.id} className="border-b border-border/20 last:border-0 hover:bg-muted/10 transition-colors group">
                 <td className="py-2.5 pl-4 pr-2">
-                  <span className="font-semibold text-sm">{entry.person_name || '–'}</span>
+                  <span className="font-semibold text-sm">{entry.person_name || '-'}</span>
                 </td>
                 <td className="py-2.5 px-2">
-                  <span className="text-sm text-muted-foreground">{entry.role || '–'}</span>
+                  <span className="text-sm text-muted-foreground">{entry.role || '-'}</span>
                 </td>
                 <td className="py-2.5 px-2">
                   <TimeInput disabled={!darfSchreiben}
@@ -340,7 +340,7 @@ function PersonSection({
                     onChange={e => onUpdate(entry._idx, 'pickup_location', e.target.value)}
                     aria-label={`Abholort von ${entry.name || 'dieser Person'}`}
                     className="h-7 text-xs w-36"
-                    placeholder="—"
+                    placeholder="-"
                   />
                 </td>
                 <td className="py-2.5 px-2">
@@ -349,13 +349,13 @@ function PersonSection({
                     aria-label={`Hinweis zu ${entry.name || 'dieser Person'}`}
                     onChange={e => onUpdate(entry._idx, 'notes', e.target.value)}
                     className="h-7 text-xs w-44"
-                    placeholder="—"
+                    placeholder="-"
                   />
                 </td>
                 <td className="py-2.5 px-2">
                   {(() => {
                     const st = entryStatus(entry)
-                    if (!st) return <span className="text-[11px] text-muted-foreground/30">–</span>
+                    if (!st) return <span className="text-[11px] text-muted-foreground/30">-</span>
                     const StIcon = st.icon
                     return (
                       <span
@@ -534,21 +534,21 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
                     </div>
                   </td>
                   <td className="py-3 px-3">
-                    <span className="font-medium">{s.title || '–'}</span>
+                    <span className="font-medium">{s.title || '-'}</span>
                   </td>
                   <td className="py-3 px-2 text-center">
                     <span className={cn('text-[11px] px-2 py-0.5 rounded font-bold uppercase', badgeColor)}>
-                      {s.int_ext || '–'}
+                      {s.int_ext || '-'}
                     </span>
                   </td>
                   <td className="py-3 px-2 text-center">
                     <span className="text-xs font-semibold text-muted-foreground uppercase">
-                      {s.day_night === 'TAG' ? 'Tag' : s.day_night === 'NACHT' ? 'Nacht' : (s.day_night || '–')}
+                      {s.day_night === 'TAG' ? 'Tag' : s.day_night === 'NACHT' ? 'Nacht' : (s.day_night || '-')}
                     </span>
                   </td>
                   <td className="py-3 px-2 text-center">
                     <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                      {s.eighths != null ? eighthsToString(s.eighths) : '–'}
+                      {s.eighths != null ? eighthsToString(s.eighths) : '-'}
                     </span>
                   </td>
                   <td className="py-3 px-2">
@@ -558,7 +558,7 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
                         {s.location_name}
                       </span>
                     ) : (
-                      <span className="text-muted-foreground/40 text-xs">–</span>
+                      <span className="text-muted-foreground/40 text-xs">-</span>
                     )}
                   </td>
                 </tr>
@@ -727,7 +727,7 @@ export function Component() {
       if (unter) updateHeader('sunset', unter)
       const golden = uhr(d.golden_hour_evening_start)
       toast({
-        title: `Sonne: ${auf} – ${unter}`,
+        title: `Sonne: ${auf} - ${unter}`,
         description: d.koordinaten === 'standard'
           // Nicht verschweigen: ohne Koordinaten am Motiv ist das geraten.
           ? 'Ohne Koordinaten am Motiv gerechnet (Standardort München) - im Motiv Lat/Lng eintragen für genaue Zeiten.'
@@ -766,7 +766,7 @@ export function Component() {
         75:'Starker Schnee', 80:'Regenschauer', 81:'Schauer', 82:'Starke Schauer', 95:'Gewitter', 99:'Starkes Gewitter'
       }
       const condition = WMO[code] ?? `Code ${code}`
-      const forecast = `${condition}, ${Math.round(min)}–${Math.round(max)}°C`
+      const forecast = `${condition}, ${Math.round(min)}-${Math.round(max)}°C`
       updateHeader('weather_forecast', forecast)
       toast({ title: `Wetter: ${forecast}` })
     } catch {
@@ -803,7 +803,7 @@ export function Component() {
             <SelectContent>
               {allDays.map((d: any) => (
                 <SelectItem key={d.id} value={String(d.id)} className="text-xs">
-                  {tt(dispoT.dayLabel)} {d.day_number} – {formatDate(d.date)}
+                  {tt(dispoT.dayLabel)} {d.day_number} - {formatDate(d.date)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -923,7 +923,7 @@ export function Component() {
                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 truncate min-w-0">{tt(dispoT.location)}</span>
                 </div>
                 <p className="text-sm font-semibold truncate">
-                  {locationName || <span className="text-muted-foreground font-normal">–</span>}
+                  {locationName || <span className="text-muted-foreground font-normal">-</span>}
                 </p>
               </div>
 

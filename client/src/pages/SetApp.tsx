@@ -49,12 +49,12 @@ function TagesdispoTab({ dayId }: { dayId: string }) {
         <div key={i} className="rounded-2xl border border-border bg-card p-5 flex items-center gap-5">
           <div className="text-center min-w-[80px]">
             <div className="text-3xl font-bold tabular-nums text-primary">
-              {entry.call_time != null ? formatMinutes(entry.call_time) : '–:––'}
+              {entry.call_time != null ? formatMinutes(entry.call_time) : '-:--'}
             </div>
             <div className="text-xs text-muted-foreground mt-1">Calltime</div>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xl font-semibold truncate">{entry.person_name || entry.name || '–'}</div>
+            <div className="text-xl font-semibold truncate">{entry.person_name || entry.name || '-'}</div>
             <div className="text-base text-muted-foreground">{entry.role || entry.department || entry.person_type || ''}</div>
           </div>
         </div>
@@ -237,7 +237,7 @@ function ContinuityTab({ projectId }: { projectId: string }) {
         <SelectContent>
           {(scenes || []).map((s: any) => (
             <SelectItem key={s.id} value={String(s.id)} className="text-sm">
-              Szene {s.scene_number}{s.title ? ` – ${s.title}` : ''}
+              Szene {s.scene_number}{s.title ? ` - ${s.title}` : ''}
             </SelectItem>
           ))}
         </SelectContent>
@@ -247,7 +247,7 @@ function ContinuityTab({ projectId }: { projectId: string }) {
         <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
           <div>
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Szene {selectedScene.scene_number}</div>
-            <div className="text-2xl font-bold">{selectedScene.title || selectedScene.location || '–'}</div>
+            <div className="text-2xl font-bold">{selectedScene.title || selectedScene.location || '-'}</div>
           </div>
           {selectedScene.continuity_notes && (
             <div>
@@ -360,7 +360,7 @@ export function Component() {
 
         {!online && (
           <div role="status" className="rounded-2xl bg-warning/15 text-warning px-4 py-3 text-sm font-medium">
-            Offline – du siehst den zuletzt geladenen Stand. Änderungen wie Check-ins gehen erst wieder mit Netz.
+            Offline - du siehst den zuletzt geladenen Stand. Änderungen wie Check-ins gehen erst wieder mit Netz.
           </div>
         )}
 
@@ -392,7 +392,7 @@ export function Component() {
               <SelectContent>
                 {(shootDays || []).map((d: any) => (
                   <SelectItem key={d.id} value={String(d.id)} className="text-sm">
-                    {d.date === today ? '● Heute – ' : ''}
+                    {d.date === today ? '● Heute - ' : ''}
                     {d.date ? new Date(d.date + 'T00:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' }) : `Tag #${d.id}`}
                   </SelectItem>
                 ))}

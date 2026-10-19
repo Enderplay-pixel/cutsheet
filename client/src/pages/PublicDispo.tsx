@@ -13,7 +13,7 @@ import { AppIcon } from '@/components/shared/BrandMark'
 import { cn } from '@/lib/utils'
 
 const fmtTime = (mins: number | null | undefined) =>
-  mins == null ? '—' : `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`
+  mins == null ? '-' : `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`
 
 export function Component() {
   const { token } = useParams<{ token: string }>()

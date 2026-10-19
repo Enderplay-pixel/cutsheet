@@ -20,12 +20,12 @@ import {
 } from 'lucide-react'
 
 const datum = (wert: string | null | undefined) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '—'
+  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
 
 const zeitpunkt = (wert: string | null | undefined) => {
-  if (!wert) return '—'
+  if (!wert) return '-'
   const d = new Date(wert)
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('de-DE')
+  return Number.isNaN(d.getTime()) ? '-' : d.toLocaleString('de-DE')
 }
 
 /** Sekunden als Zeitstelle: 734 wird zu "12:14". */
@@ -154,7 +154,7 @@ function Runden({ pid }: { pid: number }) {
                       </span>
                     )}
                   </div>
-                  <div className="text-sm mt-1">{r.kunde || r.recipient_name || '—'}</div>
+                  <div className="text-sm mt-1">{r.kunde || r.recipient_name || '-'}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {Number(r.anmerkungen) > 0
                       ? `${r.anmerkungen} Anmerkungen, ${r.offen} offen`
@@ -337,7 +337,7 @@ function RundeDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
             </span>
           </DialogTitle>
           <DialogDescription>
-            {runde.kunde || runde.recipient_name || '—'}
+            {runde.kunde || runde.recipient_name || '-'}
             {runde.recipient_email && ` · ${runde.recipient_email}`}
             {runde.deadline && ` · bis ${datum(runde.deadline)}`}
           </DialogDescription>
@@ -370,7 +370,7 @@ function RundeDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
                 <div key={a.id} className="border-b border-border/40 last:border-0 pb-2 last:pb-0">
                   <div className="flex flex-wrap items-start gap-2 text-sm">
                     <span className="font-mono text-xs text-muted-foreground w-14 shrink-0 pt-0.5">
-                      {a.zeitstelle || '—'}
+                      {a.zeitstelle || '-'}
                     </span>
                     <span className="flex-1 min-w-0">{a.body}</span>
                     <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${NOTIZSTAND[a.status]?.klasse ?? ''}`}>
@@ -521,7 +521,7 @@ function Fassungen({ pid }: { pid: number }) {
                     <td className="py-2.5 px-4 text-muted-foreground">
                       {stufen.find((s: any) => s.stufe === f.stage)?.name ?? f.stage}
                     </td>
-                    <td className="py-2.5 px-4 text-right tabular-nums">{f.dauer || '—'}</td>
+                    <td className="py-2.5 px-4 text-right tabular-nums">{f.dauer || '-'}</td>
                     <td className="py-2.5 px-4 text-right tabular-nums text-muted-foreground">{f.runden}</td>
                     <td className="py-2.5 px-4 text-right whitespace-nowrap">
                       {f.watch_url && (

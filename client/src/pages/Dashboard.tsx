@@ -206,7 +206,7 @@ export function Component() {
           )}
         </div>
 
-        {/* Nächster Drehtag — die Zahl, in der eine Produktion denkt */}
+        {/* Nächster Drehtag - die Zahl, in der eine Produktion denkt */}
         {stats?.next_shoot_day ? (
           <aside className="self-end rounded-2xl border border-border/60 bg-card p-5 shadow-md lift">
             <div className="flex items-center justify-between">

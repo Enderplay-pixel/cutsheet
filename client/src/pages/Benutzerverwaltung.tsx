@@ -130,7 +130,7 @@ export function Component() {
                     <td className="py-3 px-4 text-sm font-medium">
                       <div className="flex items-center gap-2">
                         {u.id === me?.id && <Crown className="w-3.5 h-3.5 text-amber-500" aria-label="Das bist du" />}
-                        {u.name || '—'}
+                        {u.name || '-'}
                       </div>
                     </td>
                     <td className="py-3 px-4 text-sm text-muted-foreground">{u.email}</td>
