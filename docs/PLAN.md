@@ -36,11 +36,6 @@ Reihenfolge ist Priorität. Der Lauf darf Punkte ergänzen, wenn eine Messung
 einen neuen Fehler zeigt - dann mit Beleg und an der passenden Stelle, nicht
 hinten angehängt.
 
-- [ ] **1. Zugriffsscan lesend fertig.** `server/src/scripts/zugriffsscan.ts`
-  laufen lassen (Stand: noch nicht mit Oktober-Daten gelaufen), Leck
-  `GET /companies/:companyId/dateien/fristen` (nur `requireAuth`) mit
-  `erfordereFirma()` schließen, Regressionstest in `datenbank.test.ts`, jeden
-  weiteren echten Befund schließen, Skript committen.
 - [ ] **2. Zugriffsscan schreibend.** Dasselbe für POST, PUT, PATCH, DELETE:
   fremde Person, und fremde Person mit eigenem Projekt im Pfad und Kind-ID der
   Inhaberin dahinter. Nur gegen die Wegwerf-Datenbank des Scans.
@@ -71,3 +66,5 @@ hinten angehängt.
 ## Erledigt
 
 (Der Lauf verschiebt Punkte hierher, mit Commit-Hash und Datum.)
+
+- [x] **1. Zugriffsscan lesend** - 19.10.2026, Leck `dateien/fristen` geschlossen, 192 Routen, 0 Befunde. Siehe RUNDEN.md Runde 1.

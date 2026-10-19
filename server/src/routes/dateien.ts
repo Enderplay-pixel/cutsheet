@@ -13,6 +13,7 @@ import { db } from '../db'
 import { requireAuth, AuthUser } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
 import { logAudit } from './audit'
+import { erfordereFirma } from './companies'
 import {
   ARTEN, MAX_BYTES, istArt, mitFrist, sichererName, typPasst, fristStand, groesse,
 } from '../lib/dateien'
@@ -207,7 +208,7 @@ router.get('/projects/:projectId/dateien/:id/inhalt', requireAuth, requireMember
  * Wird von der Sammelansicht gelesen. Eine Drehgenehmigung, die am Drehtag
  * abgelaufen ist, hält den Dreh an.
  */
-router.get('/companies/:companyId/dateien/fristen', requireAuth, async (req: Request, res: Response) => {
+router.get('/companies/:companyId/dateien/fristen', requireAuth, erfordereFirma(), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
   const heute = heuteISO()
   const zeilen = (await db.all(

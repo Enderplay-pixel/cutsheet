@@ -110,12 +110,14 @@ beforeAll(async () => {
   const { signToken } = await import('../middleware/auth')
   const { default: companiesRouter } = await import('../routes/companies')
   const { default: invoicesRouter } = await import('../routes/invoices')
+  const { default: dateienRouter } = await import('../routes/dateien')
   const { default: authRouter } = await import('../routes/auth')
   const app = express()
   app.use(express.json())
   app.use('/api/auth', authRouter)
   app.use('/api', companiesRouter)
   app.use('/api', invoicesRouter)
+  app.use('/api', dateienRouter)
   await new Promise<void>((aufloesen) => {
     server = app.listen(0, () => {
       basis = `http://127.0.0.1:${(server.address() as any).port}`
@@ -1298,5 +1300,40 @@ describe('Protokollsuche', () => {
     expect(Number(summe.anzahl)).toBe(4)
     expect(seite.length).toBe(2)
     expect(seite[0].entity_type).toBe('scenes')
+  })
+})
+
+describe('Ablaufende Nachweise einer Firma', () => {
+  // Gefunden mit src/scripts/zugriffsscan.ts: Die Route hatte nur requireAuth.
+  // Jede angemeldete Person sah Dateinamen und Projekttitel jeder Firma.
+  let firma = 0
+  let tokenAussen = ''
+
+  beforeAll(async () => {
+    firma = (await db.run('INSERT INTO companies (name, owner_id) VALUES (?, ?)', ['Nachweis GmbH', nutzerId])).id
+    const projekt = await db.run('INSERT INTO projects (title, owner_id, company_id) VALUES (?, ?, ?)', ['Nachtdreh', nutzerId, firma])
+    await db.run(
+      "INSERT INTO project_files (project_id, filename, title, content, bytes, valid_until) VALUES (?, 'genehmigung.pdf', 'Drehgenehmigung Hafen', ?, 4, CURRENT_DATE - 1)",
+      [projekt.id, Buffer.from('test')]
+    )
+    const aussen = await db.run(
+      "INSERT INTO users (email, password_hash, name, role) VALUES (?, 'x', 'Außenstehende', 'user')",
+      ['aussen@example.com']
+    )
+    const { signToken } = await import('../middleware/auth')
+    tokenAussen = signToken({ id: aussen.id, email: 'aussen@example.com', name: 'Außenstehende', role: 'user' })
+  })
+
+  it('zeigt der Inhaberin den abgelaufenen Nachweis', async () => {
+    const antwort = await hole(`/api/companies/${firma}/dateien/fristen`, tokenInhaber)
+    expect(antwort.status).toBe(200)
+    expect(antwort.daten.abgelaufen).toBe(1)
+    expect(antwort.daten.dateien[0].title).toBe('Drehgenehmigung Hafen')
+  })
+
+  it('verweigert ihn einer Person außerhalb der Firma', async () => {
+    const antwort = await hole(`/api/companies/${firma}/dateien/fristen`, tokenAussen)
+    expect(antwort.status).toBe(403)
+    expect(antwort.daten ?? null).toBeNull()
   })
 })
