@@ -71,7 +71,7 @@ router.get('/projects/:projectId/screenplay/export.fountain', async (req, res) =
   const lines: string[] = [
     `Title: ${project.title}`,
     project.director ? `Author: ${project.director}` : '',
-    `Draft date: ${new Date().toLocaleDateString('de-DE')}`,
+    `Draft date: ${new Date().toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}`,
     '',
   ].filter(l => l !== '')
   lines.push('')

@@ -179,7 +179,7 @@ function esc(value: any): string {
 function shotCell(shot: Shot): string {
   const beschreibung = String(shot.description ?? '').trim()
   const notiz = String(shot.notes ?? '').trim()
-  if (!beschreibung && !notiz) return '—'
+  if (!beschreibung && !notiz) return '-'
   return [
     beschreibung ? `<div>${esc(beschreibung).replace(/\n/g, '<br>')}</div>` : '',
     notiz ? `<div class="shot-note">${esc(notiz).replace(/\n/g, '<br>')}</div>` : '',

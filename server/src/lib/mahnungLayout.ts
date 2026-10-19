@@ -24,7 +24,7 @@ function datum(wert: string | null | undefined): string {
   if (!wert) return ''
   const d = new Date(`${String(wert).slice(0, 10)}T12:00:00Z`)
   if (Number.isNaN(d.getTime())) return String(wert)
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 /** Basispunkte als Prozentsatz: 1052 wird zu "10,52". */

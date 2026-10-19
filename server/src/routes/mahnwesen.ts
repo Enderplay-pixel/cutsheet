@@ -58,8 +58,9 @@ async function einstellungen(companyId: number) {
  * erfassten Zahlungen. Beides sollte gleich sein; wenn nicht, ist die Summe
  * der Zahlungen die Wahrheit, weil sie belegt ist.
  */
-const OFFENE_RECHNUNGEN = `
+export const OFFENE_RECHNUNGEN = `
   SELECT i.*, c.name AS client_name, c.email AS client_email, c.contact_name,
+         c.address, c.zip, c.city,
          c.is_business, c.payment_days AS client_payment_days,
          COALESCE(z.summe, 0) AS zahlungen_cents,
          p.title AS project_title
@@ -502,7 +503,7 @@ function mahnMailText(firma: any, rechnung: any, v: Vorschlag): string {
 <p>${einleitung}</p>
 <p>Offener Betrag: <strong>${euro(v.offenCents)}</strong>${zusatz.length ? `<br>${zusatz.join('<br>')}` : ''}
 <br>Zu zahlen: <strong>${euro(v.gesamtCents)}</strong></p>
-<p>Wir bitten um Zahlung bis zum ${new Date(`${v.neueFrist}T12:00:00Z`).toLocaleDateString('de-DE')}.
+<p>Wir bitten um Zahlung bis zum ${new Date(`${v.neueFrist}T12:00:00Z`).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}.
 Die Einzelheiten stehen im angehängten Schreiben.</p>
 <p>Sollte die Zahlung bereits unterwegs sein, betrachten Sie diese Nachricht als erledigt.</p>
 <p>Mit freundlichen Grüßen<br>${firma?.name || ''}</p>`

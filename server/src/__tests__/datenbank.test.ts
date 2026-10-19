@@ -1495,3 +1495,22 @@ describe('Löschen nur im eigenen Projekt', () => {
     })
   }
 })
+
+describe('Mahnung trägt die Anschrift', () => {
+  // Gefunden mit src/scripts/pdfprobe.ts: Die Mahnung druckte nur Name und
+  // Ansprechperson. Die Abfrage holte Straße, PLZ und Ort nicht ab - im
+  // Fensterumschlag käme der Brief nicht an.
+  it('liefert Straße, PLZ und Ort des Auftraggebers mit', async () => {
+    const { OFFENE_RECHNUNGEN } = await import('../routes/mahnwesen')
+    const firma = (await db.run('INSERT INTO companies (name, owner_id) VALUES (?, ?)', ['Mahn GmbH', nutzerId])).id
+    const kunde = await db.run(
+      "INSERT INTO company_clients (company_id, name, address, zip, city) VALUES (?, 'Stadtwerke', 'Königsstraße 12', '45879', 'Gelsenkirchen')",
+      [firma]
+    )
+    await db.run("INSERT INTO invoices (company_id, client_id, number, status) VALUES (?, ?, 'M-1', 'versendet')", [firma, kunde.id])
+    const zeile = (await db.get(OFFENE_RECHNUNGEN, [firma])) as any
+    expect(zeile.address).toBe('Königsstraße 12')
+    expect(zeile.zip).toBe('45879')
+    expect(zeile.city).toBe('Gelsenkirchen')
+  })
+})

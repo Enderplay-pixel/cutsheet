@@ -322,7 +322,7 @@ bereit. Über den folgenden Link können Sie sie ansehen, Anmerkungen mit Zeitst
 und abnehmen - ohne Anmeldung:</p>
 <p><a href="${link}">${link}</a></p>
 ${runde.deadline ? `<p>Wir freuen uns über Ihre Rückmeldung bis zum
-${new Date(`${String(runde.deadline).slice(0, 10)}T12:00:00Z`).toLocaleDateString('de-DE')}.</p>` : ''}
+${new Date(`${String(runde.deadline).slice(0, 10)}T12:00:00Z`).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}.</p>` : ''}
 <p>Beste Grüße</p>`,
     empfaenger: [{ email: empfaenger, name: runde.recipient_name || '' }],
     anlass: 'abnahme',
@@ -389,6 +389,17 @@ router.put('/projects/:projectId/abnahmen/:id/anmerkungen/:notizId', requireAuth
 })
 
 /**
+ * Wie der Stand im Protokoll heißt. Der Statuscode ("entwurf") gehört nicht
+ * auf ein Blatt, das jemand unterschreibt oder einer Rechnung beilegt.
+ */
+const STAND_IM_PROTOKOLL: Record<string, string> = {
+  entwurf: 'noch nicht vorgelegt',
+  versendet: 'liegt beim Auftraggeber',
+  nachbesserung: 'Nachbesserung verlangt',
+  zurueckgezogen: 'zurückgezogen',
+}
+
+/**
  * Das Abnahmeprotokoll.
  *
  * Ein Blatt, das sagt: Diese Fassung, dieser Stand, diese Person, dieser
@@ -402,9 +413,9 @@ router.get('/projects/:projectId/abnahmen/:id/protokoll.pdf', requireAuth, requi
   const esc = (w: any) => String(w ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   const datum = (w: any) => {
-    if (!w) return '—'
+    if (!w) return '-'
     const d = new Date(w)
-    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('de-DE')
+    return Number.isNaN(d.getTime()) ? '-' : d.toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })
   }
 
   const html = `<!DOCTYPE html>
@@ -435,12 +446,12 @@ ${pdfFontFaces()}
   <table class="angaben">
     <tr><td>Fassung</td><td><b>${esc(runde.fassung || `Fassung ${runde.version}`)}</b>
       (Nr. ${esc(runde.version)})</td></tr>
-    <tr><td>Auftraggeber</td><td>${esc(runde.kunde || runde.recipient_name || '—')}</td></tr>
+    <tr><td>Auftraggeber</td><td>${esc(runde.kunde || runde.recipient_name || '-')}</td></tr>
     <tr><td>Zur Abnahme vorgelegt</td><td>${datum(runde.sent_at)}</td></tr>
     <tr><td>Entscheidung</td><td>${
       runde.status === 'abgenommen'
         ? `<span class="stand ja">abgenommen</span>`
-        : `<span class="stand offen">${esc(runde.status)}</span>`
+        : `<span class="stand offen">${esc(STAND_IM_PROTOKOLL[runde.status] ?? runde.status)}</span>`
     }</td></tr>
     ${runde.decided_at ? `<tr><td>Am</td><td>${datum(runde.decided_at)}</td></tr>` : ''}
     ${runde.decided_by ? `<tr><td>Durch</td><td>${esc(runde.decided_by)}</td></tr>` : ''}
@@ -454,15 +465,17 @@ ${pdfFontFaces()}
     : `<table>
     <thead><tr><th style="width:18mm">Stelle</th><th>Anmerkung</th><th style="width:26mm">Stand</th></tr></thead>
     <tbody>${runde.anmerkungen.map((a: any) => `<tr>
-      <td>${esc(a.zeitstelle || '—')}</td>
+      <td>${esc(a.zeitstelle || '-')}</td>
       <td>${esc(a.body)}${a.author ? `<br><span style="color:#777;font-size:9pt">${esc(a.author)}</span>` : ''}
         ${a.resolved_note ? `<br><span style="color:#555;font-size:9pt">→ ${esc(a.resolved_note)}</span>` : ''}</td>
       <td>${esc(a.status)}</td></tr>`).join('')}</tbody>
   </table>`}
 
   <div class="fuss">
-    Erstellt am ${new Date().toLocaleString('de-DE')} aus CutSheet.
-    Die Zustimmung wurde in Textform über einen persönlichen Link erklärt.
+    Erstellt am ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} aus CutSheet.
+    ${runde.decided_at
+      ? 'Die Entscheidung wurde in Textform über einen persönlichen Link erklärt.'
+      : 'Eine Entscheidung liegt noch nicht vor.'}
   </div>
 </div></body></html>`
 

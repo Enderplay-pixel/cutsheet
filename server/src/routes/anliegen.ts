@@ -176,7 +176,7 @@ router.get('/companies/:companyId/anliegen', requireAuth, erfordereFirma('mitarb
       stufe: fristVorbei ? 'dringend' : 'offen',
       titel: `${a.agentur || 'Agentur'} hat nicht geantwortet`,
       text: fristVorbei
-        ? `Die Frist war am ${new Date(a.deadline).toLocaleDateString('de-DE')}. ${a.projekt}.`
+        ? `Die Frist war am ${new Date(a.deadline).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}. ${a.projekt}.`
         : `Seit ${tage} Tagen offen.${a.reminded_at ? ' Bereits nachgefasst.' : ' Noch nicht nachgefasst.'} ${a.projekt}.`,
       pfad: `/projects/${a.project_id}/agenturen`,
       tage,

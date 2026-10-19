@@ -65,21 +65,21 @@ const MOTIVE: Array<{ name: string; addr: string; city: string; zip: string; typ
   { name: 'Polizeipräsidium, Büro Mordkommission', addr: 'Bruno-Georges-Platz 1', city: 'Hamburg', zip: '22297', typ: 'INT', strom: 1, miete: 180000, parken: 'Innenhof, 12 Stellplätze', note: 'Drehzeit nur Sa/So, Ausweise am Empfang' },
   { name: 'Containerterminal Altenwerder', addr: 'Am Ballinkai 1', city: 'Hamburg', zip: '21129', typ: 'EXT', strom: 0, miete: 450000, parken: 'Besucherparkplatz Tor 3', note: 'Sicherheitseinweisung Pflicht, Warnwesten, max. 40 Personen' },
   { name: 'Jana Petersens Wohnung', addr: 'Marktstraße 104', city: 'Hamburg', zip: '20357', typ: 'INT', strom: 1, miete: 90000, parken: 'Halteverbot beantragt', note: '3. OG ohne Aufzug, Nachbarn informiert' },
-  { name: 'Fischmarkt, Altonaer Fischauktionshalle', addr: 'Große Elbstraße 9', city: 'Hamburg', zip: '22767', typ: 'INT', strom: 1, miete: 320000, parken: 'Elbparkplatz', note: 'Sonntags ab 5 Uhr Markt — nur Mo–Fr' },
-  { name: 'Köhlbrandbrücke, Standstreifen', addr: 'Köhlbrandbrücke', city: 'Hamburg', zip: '21107', typ: 'EXT', strom: 0, miete: 250000, parken: 'Nicht möglich, Shuttle', note: 'Vollsperrung 02–05 Uhr, Polizei begleitet' },
-  { name: 'Reederei Carstensen, Chefetage', addr: 'Ballindamm 17', city: 'Hamburg', zip: '20095', typ: 'INT', strom: 1, miete: 210000, parken: 'Tiefgarage Europa-Passage', note: 'Glasfront — Reflexionen beachten' },
-  { name: 'Hafenkneipe "Zum Anker"', addr: 'Hafenstraße 126', city: 'Hamburg', zip: '20359', typ: 'INT', strom: 1, miete: 120000, parken: 'Anwohnerzone, Sondergenehmigung', note: 'Kneipenbetrieb ab 18 Uhr — bis 17 Uhr fertig' },
+  { name: 'Fischmarkt, Altonaer Fischauktionshalle', addr: 'Große Elbstraße 9', city: 'Hamburg', zip: '22767', typ: 'INT', strom: 1, miete: 320000, parken: 'Elbparkplatz', note: 'Sonntags ab 5 Uhr Markt - nur Mo-Fr' },
+  { name: 'Köhlbrandbrücke, Standstreifen', addr: 'Köhlbrandbrücke', city: 'Hamburg', zip: '21107', typ: 'EXT', strom: 0, miete: 250000, parken: 'Nicht möglich, Shuttle', note: 'Vollsperrung 02-05 Uhr, Polizei begleitet' },
+  { name: 'Reederei Carstensen, Chefetage', addr: 'Ballindamm 17', city: 'Hamburg', zip: '20095', typ: 'INT', strom: 1, miete: 210000, parken: 'Tiefgarage Europa-Passage', note: 'Glasfront - Reflexionen beachten' },
+  { name: 'Hafenkneipe "Zum Anker"', addr: 'Hafenstraße 126', city: 'Hamburg', zip: '20359', typ: 'INT', strom: 1, miete: 120000, parken: 'Anwohnerzone, Sondergenehmigung', note: 'Kneipenbetrieb ab 18 Uhr - bis 17 Uhr fertig' },
   { name: 'Elbstrand Övelgönne', addr: 'Övelgönne 1', city: 'Hamburg', zip: '22605', typ: 'EXT', strom: 0, miete: 60000, parken: 'Museumshafen', note: 'Tide beachten, Niedrigwasser-Fenster im Plan' },
   { name: 'Lagerhalle Veddel', addr: 'Veddeler Damm 30', city: 'Hamburg', zip: '20539', typ: 'INT', strom: 1, miete: 150000, parken: 'Gelände, 30 Stellplätze', note: 'Basecamp und Garderobe hier' },
   { name: 'Krankenhaus St. Georg, Intensivstation (Nachbau)', addr: 'Studio Hamburg, Halle 4', city: 'Hamburg', zip: '22045', typ: 'INT', strom: 1, miete: 380000, parken: 'Studiogelände', note: 'Kulisse, Wände fliegend' },
-  { name: 'Speicherstadt, Kehrwiederfleet', addr: 'Kehrwieder 2', city: 'Hamburg', zip: '20457', typ: 'EXT', strom: 0, miete: 140000, parken: 'P+R Baumwall', note: 'Touristen — Absperrung mit Security' },
+  { name: 'Speicherstadt, Kehrwiederfleet', addr: 'Kehrwieder 2', city: 'Hamburg', zip: '20457', typ: 'EXT', strom: 0, miete: 140000, parken: 'P+R Baumwall', note: 'Touristen - Absperrung mit Security' },
   { name: 'Autobahnraststätte Stillhorn', addr: 'A1, Stillhorn West', city: 'Hamburg', zip: '21109', typ: 'EXT', strom: 1, miete: 95000, parken: 'LKW-Parkplatz Randbereich', note: 'Nachtdreh, Pächter informiert' },
-  { name: 'Leuchtturm Westerhever', addr: 'Leuchtturmweg', city: 'Westerhever', zip: '25881', typ: 'EXT', strom: 0, miete: 210000, parken: 'Parkplatz am Deich, 2 km Fußweg', note: 'Naturschutzgebiet — Drohne nur mit Genehmigung' },
+  { name: 'Leuchtturm Westerhever', addr: 'Leuchtturmweg', city: 'Westerhever', zip: '25881', typ: 'EXT', strom: 0, miete: 210000, parken: 'Parkplatz am Deich, 2 km Fußweg', note: 'Naturschutzgebiet - Drohne nur mit Genehmigung' },
   { name: 'Leuchtturmwärterhaus', addr: 'Leuchtturmweg 3', city: 'Westerhever', zip: '25881', typ: 'INT', strom: 1, miete: 110000, parken: 'Deich', note: 'Kleine Räume, max. 12 Personen am Set' },
-  { name: 'Fähre Glückstadt–Wischhafen', addr: 'Fähranleger', city: 'Glückstadt', zip: '25348', typ: 'EXT', strom: 0, miete: 280000, parken: 'Fährparkplatz', note: 'Fahrten 3x gebucht, Deck exklusiv' },
+  { name: 'Fähre Glückstadt-Wischhafen', addr: 'Fähranleger', city: 'Glückstadt', zip: '25348', typ: 'EXT', strom: 0, miete: 280000, parken: 'Fährparkplatz', note: 'Fahrten 3x gebucht, Deck exklusiv' },
   { name: 'Villa Carstensen, Blankenese', addr: 'Strandweg 88', city: 'Hamburg', zip: '22587', typ: 'INT', strom: 1, miete: 420000, parken: 'Elbchaussee, Sondergenehmigung', note: 'Parkett schützen, Filzgleiter Pflicht' },
   { name: 'Villa Carstensen, Garten', addr: 'Strandweg 88', city: 'Hamburg', zip: '22587', typ: 'EXT', strom: 1, miete: 0, parken: 'siehe Villa', note: 'Mit Villa gebucht' },
-  { name: 'U-Bahnhof Überseequartier', addr: 'Überseeboulevard', city: 'Hamburg', zip: '20457', typ: 'INT', strom: 1, miete: 300000, parken: 'Parkhaus Überseequartier', note: 'Betriebspause 01:30–04:00' },
+  { name: 'U-Bahnhof Überseequartier', addr: 'Überseeboulevard', city: 'Hamburg', zip: '20457', typ: 'INT', strom: 1, miete: 300000, parken: 'Parkhaus Überseequartier', note: 'Betriebspause 01:30-04:00' },
   { name: 'Reeperbahn, Seitenstraße', addr: 'Hamburger Berg 12', city: 'Hamburg', zip: '20359', typ: 'EXT', strom: 0, miete: 80000, parken: 'Spielbudenplatz', note: 'Nachtdreh, zwei Security' },
   { name: 'Werft Blohm+Voss, Dock 10 (Außengelände)', addr: 'Hermann-Blohm-Straße 3', city: 'Hamburg', zip: '20457', typ: 'EXT', strom: 1, miete: 520000, parken: 'Werksgelände', note: 'Sicherheitsschuhe, Helmpflicht' },
   { name: 'Verhörraum (Studio)', addr: 'Studio Hamburg, Halle 2', city: 'Hamburg', zip: '22045', typ: 'INT', strom: 1, miete: 160000, parken: 'Studiogelände', note: 'Spiegelglas als Kulisse' },
@@ -179,7 +179,7 @@ function stabKalkulation(): Array<[string, string, string, string, number, numbe
   let konto = 2100
   for (const [abt, pos, gage, anzahl] of STAB) {
     if (!gage) continue
-    out.push(['2000 - Stab', String(konto), `${pos}${anzahl > 1 ? ` (${anzahl}×)` : ''} — ${abt}`, 'Tage', 45 * anzahl + 8, gage])
+    out.push(['2000 - Stab', String(konto), `${pos}${anzahl > 1 ? ` (${anzahl}×)` : ''} - ${abt}`, 'Tage', 45 * anzahl + 8, gage])
     konto += 5
   }
   out.push(['2000 - Stab', '2900', 'Regie (Pauschalgage)', 'Pauschal', 1, 18000000])
@@ -293,7 +293,7 @@ export async function seedGrossproduktion(
     const p = await tx.run(`INSERT INTO projects (title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end, owner_id, is_demo, project_kind)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
       GROSSPRODUKTION_TITEL, 'Thriller / Drama', 'Kinofilm', 118, 'Produktion',
-      'Als ein Kranführer im Hamburger Hafen spurlos verschwindet, stößt Kommissarin Jana Petersen auf ein Netz aus Schmuggel, Schweigen und einer Reederfamilie, die seit Generationen über der Elbe thront. Die Spur führt bis zum Leuchtturm von Westerhever — und in Janas eigene Vergangenheit.',
+      'Als ein Kranführer im Hamburger Hafen spurlos verschwindet, stößt Kommissarin Jana Petersen auf ein Netz aus Schmuggel, Schweigen und einer Reederfamilie, die seit Generationen über der Elbe thront. Die Spur führt bis zum Leuchtturm von Westerhever - und in Janas eigene Vergangenheit.',
       'Svenja Lorenzen', 'Torben Feddersen', 'Nikolai Rasmussen', 'Elbwerk Film GmbH (fiktiv)', daten[0], daten[daten.length - 1], ownerId, false, 'film'])
     const pid = p.id
 
@@ -316,7 +316,7 @@ export async function seedGrossproduktion(
       const n = i < 4 ? ['Katharina Brodersen', 'Hans-Jürgen Iversen', 'Mats Ewers', 'Aylin Demir'][i] : person()
       const gage = i < 2 ? 650000 : i < 6 ? 280000 : i < 12 ? 140000 : i < 24 ? 80000 : 45000
       return [pid, charIds[i], n, mail(n, 'schauspiel-mail.de'), tel(), i < 12 ? person() : '', i < 12 ? mail('agent', 'agentur.test') : '', i < 12 ? pick(AGENTUREN) : '',
-        gage, i < 6 ? 'Pauschal + Tage' : 'Tagesgage', i % 5 === 0 ? 'Theaterverpflichtung donnerstags' : '', '', i < 2 ? 'Hauptrolle, Billing 1–2' : '']
+        gage, i < 6 ? 'Pauschal + Tage' : 'Tagesgage', i % 5 === 0 ? 'Theaterverpflichtung donnerstags' : '', '', i < 2 ? 'Hauptrolle, Billing 1-2' : '']
     })
     const castIds = await insertMany(tx, 'cast', ['project_id', 'character_id', 'actor_name', 'email', 'phone', 'agent', 'agent_email', 'agency', 'fee_per_day', 'contract_type', 'availability_notes', 'photo_url', 'notes'], darsteller)
     zahlen.darsteller = castIds.length
@@ -398,7 +398,7 @@ export async function seedGrossproduktion(
         shotsJeSzene[i].push(shotZeilen.length)
         const done = abgedrehteSzenen.includes(i) ? 1 : 0
         shotZeilen.push([pid, sid, null, `E${k + 1}`, k, pick(groessen), pick(bewegungen), String(pick([18, 25, 32, 40, 50, 75, 100, 135])),
-          `${pick(['Establishing', 'Reaktion', 'Insert', 'Over-shoulder', 'Gegenschuss', 'Detail Hände', 'Weg durchs Motiv'])} — ${ROLLEN[szenenMeta[i].chars[0]][0].split(' ')[0]}`,
+          `${pick(['Establishing', 'Reaktion', 'Insert', 'Over-shoulder', 'Gegenschuss', 'Detail Hände', 'Weg durchs Motiv'])} - ${ROLLEN[szenenMeta[i].chars[0]][0].split(' ')[0]}`,
           k === 0 && rnd() < 0.2 ? 'Regenmaschine' : '', '', between(4, 45), done, done ? `T${between(2, 7)}` : ''])
       }
     })
@@ -470,9 +470,9 @@ export async function seedGrossproduktion(
           // letzte Szene des Tages angedreht statt fertig
           ...(() => { const ids = s.map(i => sceneIds[i]); const teil = ids.length > 1 && rnd() < 0.2 ? ids.splice(-1) : []; return [JSON.stringify(ids), JSON.stringify(teil)] })(),
           s.reduce((a, i) => a + szenenMeta[i].eighths, 0), s.reduce((a, i) => a + shotsJeSzene[i].length, 0) + between(0, 6),
-          `A${d + 1}01–A${d + 1}0${between(3, 6)}`, `S${d + 1}01–S${d + 1}0${between(2, 4)}`,
+          `A${d + 1}01-A${d + 1}0${between(3, 6)}`, `S${d + 1}01-S${d + 1}0${between(2, 4)}`,
           pick(['Wetterumschwung ab 15 Uhr, zwei Einstellungen ins Studio verlegt.', 'Reibungsloser Tag, Overtime 25 Min. wegen Kranumbau.', 'Polizeiabsperrung verspätet, Drehbeginn +40 Min.', '']),
-          pick(['Catering gelobt.', 'Generator ausgefallen 11:20–11:45.', 'Stunt ohne Zwischenfall.', ''])]
+          pick(['Catering gelobt.', 'Generator ausgefallen 11:20-11:45.', 'Stunt ohne Zwischenfall.', ''])]
       }))
     zahlen.tagesberichte = berichtIds.length
     await insertMany(tx, 'daily_report_cast', ['daily_report_id', 'cast_id', 'call_time', 'makeup_in', 'on_set', 'wrap'],
@@ -529,13 +529,13 @@ export async function seedGrossproduktion(
       Array.from({ length: 280 }, (_, i) => {
         const li = between(0, alleZeilen.length - 1)
         const z = alleZeilen[li]
-        return [pid, lineIds[li], z[0], `${z[2]} — Rechnung ${pick(['Vorschuss', 'Teilrechnung', 'Schlussrechnung', 'Quittung'])}`, Math.round(z[5] * z[4] * (0.02 + rnd() * 0.12)),
+        return [pid, lineIds[li], z[0], `${z[2]} - Rechnung ${pick(['Vorschuss', 'Teilrechnung', 'Schlussrechnung', 'Quittung'])}`, Math.round(z[5] * z[4] * (0.02 + rnd() * 0.12)),
           `R-2026-${String(1000 + i)}`, tag(-between(0, 90)), rnd() < 0.8]
       }))).length
 
     // Equipment
     const listen: Array<[string, string, Array<[string, number, string, number]>]> = [
-      ['Kamera A+B', 'Kamera', [['ARRI Alexa 35 Body', 2, 'ARRI Rental Hamburg', 90000], ['Cooke S4/i Satz 18–135 mm', 1, 'ARRI Rental Hamburg', 65000], ['Angénieux Optimo 24–290', 1, 'ARRI Rental Hamburg', 38000], ['Teradek Bolt 6 Set', 2, 'Cine Support', 9000], ['Preston FIZ 3', 2, 'Cine Support', 7500], ['Codex Compact Drive 2 TB', 12, 'ARRI Rental Hamburg', 2500], ['Steadicam M-2', 1, 'Steady Crew Nord', 28000], ['Ronin 2 Gimbal', 1, 'Cine Support', 18000], ['Monitore SmallHD 24"', 3, 'Cine Support', 4500], ['DIT-Wagen komplett', 1, 'Data Boat', 22000]]],
+      ['Kamera A+B', 'Kamera', [['ARRI Alexa 35 Body', 2, 'ARRI Rental Hamburg', 90000], ['Cooke S4/i Satz 18-135 mm', 1, 'ARRI Rental Hamburg', 65000], ['Angénieux Optimo 24-290', 1, 'ARRI Rental Hamburg', 38000], ['Teradek Bolt 6 Set', 2, 'Cine Support', 9000], ['Preston FIZ 3', 2, 'Cine Support', 7500], ['Codex Compact Drive 2 TB', 12, 'ARRI Rental Hamburg', 2500], ['Steadicam M-2', 1, 'Steady Crew Nord', 28000], ['Ronin 2 Gimbal', 1, 'Cine Support', 18000], ['Monitore SmallHD 24"', 3, 'Cine Support', 4500], ['DIT-Wagen komplett', 1, 'Data Boat', 22000]]],
       ['Licht', 'Licht', [['ARRI SkyPanel S360-C', 4, 'Licht & Strom Nord', 16000], ['ARRI M90 HMI', 2, 'Licht & Strom Nord', 22000], ['Astera Titan Tubes (8er Set)', 3, 'Licht & Strom Nord', 6500], ['Aputure 1200d Pro', 4, 'Licht & Strom Nord', 5500], ['Ballon-Licht 4 kW', 2, 'Airstar (fiktiv)', 18000], ['Stromverteilung 125 A komplett', 1, 'Licht & Strom Nord', 12000], ['Frames 12×12, 20×20', 6, 'Licht & Strom Nord', 2500], ['Dimmerpult grandMA3 compact', 1, 'Licht & Strom Nord', 9000]]],
       ['Bühne', 'Sonstiges', [['Dolly Panther Evolution', 1, 'Grip Factory', 24000], ['Schienen 30 m', 1, 'Grip Factory', 6000], ['Technocrane 22 ft', 1, 'Grip Factory', 95000], ['Autohalterung Kamera', 2, 'Grip Factory', 8000], ['Sandsäcke, Stative, C-Stands', 1, 'Grip Factory', 5500]]],
       ['Ton', 'Ton', [['Sound Devices 888', 1, 'Tonverleih Hansen', 9500], ['Sennheiser MKH 50 / 416', 2, 'Tonverleih Hansen', 2800], ['Funkstrecken Wisycom (8 Kanäle)', 1, 'Tonverleih Hansen', 12000], ['Timecode Tentacle Sync', 6, 'Tonverleih Hansen', 800]]],
@@ -591,14 +591,14 @@ export async function seedGrossproduktion(
         ['Kostüm-Transporter', 'Transporter'], ['Darstellerfahrzeug A', 'PKW'], ['Darstellerfahrzeug B', 'PKW'], ['Spielfahrzeug: Streifenwagen', 'PKW (im Bild)'], ['Spielfahrzeug: Janas Volvo 240', 'PKW (im Bild)']]
         .map(([n, t], i) => [pid, n, `HH-NL ${100 + i}`, t, t === 'Kleinbus' ? 8 : t === 'Van' ? 7 : 3, stabNamen[between(0, stabNamen.length - 1)], tel(), '']))
     await insertMany(tx, 'location_releases', ['location_id', 'owner_name', 'owner_address', 'shoot_dates', 'fee_cents', 'special_conditions', 'signed_at', 'signed_by', 'signature_data', 'status'],
-      locIds.map((lid, i) => [lid, `${person()} (Eigentümer)`, `${MOTIVE[i].addr}, ${MOTIVE[i].zip} ${MOTIVE[i].city}`, `${daten[between(0, 20)]} – ${daten[between(21, 44)]}`, MOTIVE[i].miete,
+      locIds.map((lid, i) => [lid, `${person()} (Eigentümer)`, `${MOTIVE[i].addr}, ${MOTIVE[i].zip} ${MOTIVE[i].city}`, `${daten[between(0, 20)]} - ${daten[between(21, 44)]}`, MOTIVE[i].miete,
         MOTIVE[i].note, i % 4 ? new Date().toISOString() : null, i % 4 ? person() : '', '', i % 4 ? 'Unterschrieben' : 'Entwurf']))
     zahlen.aufgaben = (await insertMany(tx, 'project_tasks', ['project_id', 'title', 'description', 'status', 'department', 'assignee', 'due_date', 'sort_order', 'created_by'],
       Array.from({ length: 70 }, (_, i) => [pid, pick(['Drehgenehmigung Köhlbrandbrücke nachreichen', 'Waffenschein-Kopie an Versicherung', 'Hotelblock Westerhever bestätigen', 'Tidekalender in Drehplan übernehmen', 'Kostümprobe Katharina Brodersen', 'Stuntprobe Containerterminal', 'Catering-Mengen für Nachtdrehs anpassen', 'Musterabnahme mit Sender', 'Backup Codex-Drives prüfen', 'Polizeibegleitung Nachtdreh anfragen', 'Anwohnerbriefe Marktstraße verteilen', 'Drohnengenehmigung Westerhever']) + ` (${i + 1})`,
         '', pick(['offen', 'offen', 'in_arbeit', 'abnahme', 'erledigt', 'erledigt']), pick(['Produktion', 'Aufnahmeleitung', 'Kamera', 'Kostüm', 'Ausstattung', 'Regie']), stabNamen[between(0, stabNamen.length - 1)], tag(between(-10, 30)), i, ownerId]))).length
     await insertMany(tx, 'comments', ['project_id', 'entity_type', 'entity_id', 'author', 'content', 'resolved'],
       Array.from({ length: 90 }, () => [pid, 'scene', sceneIds[between(0, sceneIds.length - 1)], pick(stabNamen.slice(0, 30)),
-        pick(['Können wir die Szene auf den Nachtblock legen?', 'Dialog kürzen — Laufzeit!', 'Motiv hier doch Villa statt Büro?', 'Stunt nötig, bitte mit Koordination klären.', 'Regenmaschine eingeplant?', 'Anschluss an 45A beachten.']), rnd() < 0.4 ? 1 : 0]))
+        pick(['Können wir die Szene auf den Nachtblock legen?', 'Dialog kürzen - Laufzeit!', 'Motiv hier doch Villa statt Büro?', 'Stunt nötig, bitte mit Koordination klären.', 'Regenmaschine eingeplant?', 'Anschluss an 45A beachten.']), rnd() < 0.4 ? 1 : 0]))
     await insertMany(tx, 'project_events', ['project_id', 'title', 'start_date', 'end_date', 'type', 'color', 'notes', 'all_day'],
       [['Leseprobe', -40, 'Meeting'], ['Kostümprobe Hauptcast', -35, 'Casting'], ['Technische Motivbesichtigung Hafen', -30, 'Locationscout'], ['Technische Motivbesichtigung Westerhever', -28, 'Locationscout'],
         ['Stuntprobe', -27, 'Probe'], ['Produktionsbesprechung Woche 1', -25, 'Meeting'], ['Musterabnahme Sender', 3, 'Meeting'], ['Produktionsbesprechung Woche 5', 5, 'Meeting'], ['Reisetag Westerhever', 12, 'Reise'], ['Abschlussfeier (Wrap Party)', 30, 'Sonstiges']]
@@ -607,7 +607,7 @@ export async function seedGrossproduktion(
       ['Köhlbrandbrücke: Sperrung nur Nacht 12→13 bestätigt!', 'Tide Westerhever: Niedrigwasser Drehtag 31 um 11:40', 'Ersatzmotiv bei Sturm: Lagerhalle Veddel', 'Katharina: keine Nachtdrehs vor Theaterabenden (Do)', 'Codex-Drives: 4 in Reserve', 'Drohne: Kennzeichen am Gerät!', 'Shuttle-Plan hängt am Basecamp', 'Wrap-Party: Hafenkneipe gebucht'].map((c, i) => [pid, c, ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6'][i % 4], (i % 4) * 220, Math.floor(i / 4) * 220, ownerId]))
     await insertMany(tx, 'moodboard_items', ['project_id', 'image_url', 'title', 'notes', 'category', 'position_x', 'position_y', 'width'],
       [['#0B1D2A', 'Nachtblau Hafen', 'Grundton aller Nachtszenen'], ['#C9A227', 'Natriumdampf', 'Hafenbeleuchtung'], ['#5C6B73', 'Elbgrau', 'Tagszenen Hamburg'], ['#E8E4DA', 'Leuchtturmweiß', 'Westerhever'],
-        ['', 'Bildsprache', 'Lange Brennweiten im Hafen, weitwinklig im Watt. Keine Handkamera außer in Szene 88–92.'], ['', 'Referenz', 'Nordic Noir, aber wärmer im Innenlicht der Villa.'], ['', 'Farbdramaturgie', 'Je näher Jana der Wahrheit kommt, desto kälter.']]
+        ['', 'Bildsprache', 'Lange Brennweiten im Hafen, weitwinklig im Watt. Keine Handkamera außer in Szene 88-92.'], ['', 'Referenz', 'Nordic Noir, aber wärmer im Innenlicht der Villa.'], ['', 'Farbdramaturgie', 'Je näher Jana der Wahrheit kommt, desto kälter.']]
         .map(([u, t, n], i) => [pid, u, t, n, u ? 'Farbe' : 'Notiz', 80 + (i % 4) * 260, 80 + Math.floor(i / 4) * 240, 220]))
     await insertMany(tx, 'camera_presets', ['project_id', 'name', 'camera', 'lenses', 'notes'],
       [['Hafen Nacht', 'Alexa 35', 'Cooke 75 mm T2', 'ISO 1600, 2,8 ND'], ['Watt Weite', 'Alexa 35', 'Cooke 18 mm T5.6', 'ISO 800, Polfilter'], ['Verhör', 'Alexa 35', 'Cooke 50 mm T2.8', 'ISO 800, leicht untersättigt'], ['Steadicam Villa', 'Alexa 35 Mini LF', 'Cooke 32 mm', 'ISO 800']].map(r => [pid, ...r]))

@@ -48,7 +48,7 @@ router.post('/projects/:pid/drehplan/ai-optimize', async (req: Request, res: Res
   }
   await db.run(
     'INSERT INTO drehplan_versions (project_id, name, snapshot_json) VALUES (?, ?, ?)',
-    [pid, `Vor KI-Optimierung ${new Date().toLocaleDateString('de-DE')}`, JSON.stringify(snapshot)]
+    [pid, `Vor KI-Optimierung ${new Date().toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}`, JSON.stringify(snapshot)]
   )
 
   // Build scene list for AI

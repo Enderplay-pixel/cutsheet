@@ -55,7 +55,7 @@ export function dayNightCode(intExt: string | null | undefined, dayNight: string
 export function fmtSheetDate(date: string | null | undefined): string {
   const d = new Date(String(date ?? ''))
   if (Number.isNaN(d.getTime())) return String(date ?? '')
-  return d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  return d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 function esc(s: any): string {
@@ -314,7 +314,7 @@ export function renderCallSheetHtml(data: CallSheetData): string {
     <td class="titlebox">
       <div class="name">${esc(project?.title)}</div>
       <div class="sub">CALL SHEET · ALLGEMEINER CREW-CALL</div>
-      <div class="call">${esc(fmtCallTime(s.general_call) || '—')}</div>
+      <div class="call">${esc(fmtCallTime(s.general_call) || '-')}</div>
     </td>
     <td class="datebox">
       <div class="d">${esc(fmtSheetDate(day?.date))}</div>
@@ -334,8 +334,8 @@ export function renderCallSheetHtml(data: CallSheetData): string {
     <td style="width:26%"><b>Nächstes Krankenhaus</b><br>${esc(s.hospital_name || '')}<br>${esc(s.hospital_address || '')}</td>
     <td style="width:26%"><b>Crew-Parken</b><br>${esc(s.crew_parking || '')}</td>
     <td><b>Wetter</b><br>${esc(s.weather_forecast || '')}
-      ${(s.weather_high || s.weather_low) ? `<br>Max ${esc(s.weather_high || '—')} · Min ${esc(s.weather_low || '—')}` : ''}
-      ${(s.sunrise || s.sunset) ? `<br>SA ${esc(s.sunrise || '—')} · SU ${esc(s.sunset || '—')}` : ''}
+      ${(s.weather_high || s.weather_low) ? `<br>Max ${esc(s.weather_high || '-')} · Min ${esc(s.weather_low || '-')}` : ''}
+      ${(s.sunrise || s.sunset) ? `<br>SA ${esc(s.sunrise || '-')} · SU ${esc(s.sunset || '-')}` : ''}
     </td>
   </tr>
 </table>

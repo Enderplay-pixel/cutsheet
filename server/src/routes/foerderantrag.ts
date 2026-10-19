@@ -113,7 +113,7 @@ router.get('/projects/:pid/foerderantrag/export', async (req: Request, res: Resp
           { label: 'Finanzierung', value: fmtMoney(finTotal), hint: `davon ${fmtMoney(confirmed)} bestätigt` },
           {
             label: gap !== null && gap > 0 ? 'Finanzierungslücke' : 'Deckung',
-            value: gap === null ? '—' : fmtMoney(Math.abs(gap)),
+            value: gap === null ? '-' : fmtMoney(Math.abs(gap)),
             hint: gap === null ? undefined : gap > 0 ? 'noch offen' : 'vollständig finanziert',
           },
           { label: 'Drehtage', value: shootDays.length },
@@ -127,7 +127,7 @@ router.get('/projects/:pid/foerderantrag/export', async (req: Request, res: Resp
           { label: 'Produktion', value: project.producer },
           { label: 'Produktionsfirma', value: project.production_company },
           { label: 'Drehzeitraum', value: [project.shoot_start, project.shoot_end].filter(Boolean).length === 2
-              ? `${fmtDate(project.shoot_start)} – ${fmtDate(project.shoot_end)}` : null },
+              ? `${fmtDate(project.shoot_start)} - ${fmtDate(project.shoot_end)}` : null },
           { label: 'Synopsis', value: project.synopsis, wide: true },
         ])) +
         section('Schlüsselpositionen', table({

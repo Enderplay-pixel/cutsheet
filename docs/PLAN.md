@@ -41,16 +41,6 @@ hinten angehängt.
   Tabelle eine Zeile der Inhaberin anlegen und melden, welche Routen der Scan
   nicht mit einer echten ID treffen konnte. Danach muss der Scan die Lücken aus
   Runde 3 mit zurückgenommenen Fixes finden - sonst ist er weiter blind.
-- [ ] **3b. Gedankenstriche raus.** Florians Regel gilt ausnahmslos, auch in
-  der App: 195 Fundstellen von „—" und „–" in `client/src` (Stand 19.10.,
-  ohne Kommentare gezählt), meist als Platzhalter für leere Werte. Alle
-  sichtbaren durch "-" ersetzen, ebenso in Server-Texten, PDFs, Mails und
-  `i18n.ts`. Kommentare dürfen bleiben. Danach ein Test, der neue Fundstellen
-  in sichtbarem Text meldet.
-- [ ] **4. PDFs der Oktober-Module.** Rechnung, Storno, Mahnung, Angebot,
-  Vertrag, Abnahmeprotokoll, Reisekostenabrechnung, Projektabschluss: gültige
-  Datei, Umlaute, lange Texte, Seitenumbruch, Beträge in Cent korrekt. Jedes
-  PDF einmal erzeugen und ansehen.
 - [ ] **5. Geld rechnet richtig.** Rechnungssummen, Teilzahlungen,
   Mahngebühren, Umsatzsteuer, KSK, Verpflegungspauschalen: Grenzfälle mit
   Tests (Rundung, 0 Cent, negative Beträge, Storno nach Teilzahlung).
@@ -76,3 +66,5 @@ hinten angehängt.
 - [x] **2. Zugriffsscan schreibend** - 19.10.2026, 339 Aufrufe, ein Leck (Sperrzeiten mit fremder castId) geschlossen. Siehe RUNDEN.md Runde 2.
 - [x] **2b. Fremdschlüssel im Anfragekörper** - 19.10.2026, 57 Lücken plus 9 DELETE-Routen geschlossen. Siehe RUNDEN.md Runde 3.
 - [x] **3. Öffentliche Token-Seiten** - 19.10.2026, Zurückziehen für Vertrag, Abnahme, Casting; Rollenprüfung. Siehe RUNDEN.md Runde 3.
+- [x] **3b. Gedankenstriche** - 19.10.2026, 211 im Client (7aecd5e), 60 im Server (Runde 4). Wächtertest für sichtbaren Text steht noch aus.
+- [x] **4. PDFs** - 19.10.2026, Textebene, Mahnungsanschrift, Abnahmeprotokoll, Zeitzone. Siehe RUNDEN.md Runde 4.

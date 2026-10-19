@@ -363,7 +363,7 @@ async function sendPdf(res: Response, html: string, filename: string, opts?: Pdf
 
 /** INT/EXT als Marke - auf einen Blick unterscheidbar. */
 function ieBadge(value: string): string {
-  return badge(String(value || '—'), String(value).toUpperCase() === 'INT' ? 'warn' : 'info')
+  return badge(String(value || '-'), String(value).toUpperCase() === 'INT' ? 'warn' : 'info')
 }
 
 // All /projects/:projectId/* PDF routes require membership
@@ -748,7 +748,7 @@ router.get('/projects/:projectId/pdf/kalkulation/:versionId', async (req, res) =
     total: items.reduce((sum: number, i: any) => sum + (Number(i.total_cents) || 0), 0),
   }))
   const grandTotal = catTotals.reduce((sum, c) => sum + c.total, 0)
-  const share = (cents: number) => (grandTotal > 0 ? `${Math.round((cents / grandTotal) * 100)} %` : '—')
+  const share = (cents: number) => (grandTotal > 0 ? `${Math.round((cents / grandTotal) * 100)} %` : '-')
 
   // Übersicht zuerst: die Frage "wo steckt das Geld?" ohne Blättern beantworten
   const overview = section('Übersicht', table({
@@ -838,12 +838,12 @@ router.get('/shoot-days/:dayId/pdf/tagesbericht', async (req: Request, res: Resp
         { label: 'Drehzeit brutto', value: fmtDuration(gross) },
         { label: 'Netto ohne Pause', value: fmtDuration(netto), hint: lunch > 0 ? `${fmtDuration(lunch)} Pause` : 'keine Pause erfasst' },
         { label: 'Gedrehte Seiten', value: fmtEighths(report?.pages_shot) , hint: `${fmtEighths(plannedEighths)} geplant` },
-        { label: 'Setups', value: report?.total_setups ?? '—' },
+        { label: 'Setups', value: report?.total_setups ?? '-' },
       ]) +
       section('Zeiten', definitions([
         { label: 'Crew Call', value: fmtTime(report?.call_time) },
         { label: 'First Shot', value: fmtTime(report?.first_shot) },
-        { label: 'Mittagspause', value: lunch > 0 ? `${fmtTime(report.lunch_in)} – ${fmtTime(report.lunch_out)}` : null },
+        { label: 'Mittagspause', value: lunch > 0 ? `${fmtTime(report.lunch_in)} - ${fmtTime(report.lunch_out)}` : null },
         { label: 'Drehschluss', value: fmtTime(report?.wrap) },
       ]) || hint('Für diesen Tag sind noch keine Zeiten erfasst.')) +
       section('Material', definitions([
@@ -1044,7 +1044,7 @@ router.get('/projects/:projectId/pdf/screenplay', async (req, res) => {
     const heading = [
       `${intExt}.`,
       String(scene.title || `SZENE ${scene.scene_number}`).toUpperCase(),
-      scene.day_night ? `– ${String(scene.day_night).toUpperCase()}` : '',
+      scene.day_night ? `- ${String(scene.day_night).toUpperCase()}` : '',
     ].filter(Boolean).join(' ')
     return {
       scene_number: scene.scene_number,
@@ -1059,7 +1059,7 @@ router.get('/projects/:projectId/pdf/screenplay', async (req, res) => {
       title: project.title || 'Drehbuch',
       author: project.director || undefined,
       producer: project.producer || undefined,
-      dateLine: `Stand: ${new Date().toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}`,
+      dateLine: `Stand: ${new Date().toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: 'long', year: 'numeric' })}`,
       draftNote: includeAnnotations ? 'Fassung mit Notizen' : undefined,
     }),
   ]
@@ -1068,7 +1068,7 @@ router.get('/projects/:projectId/pdf/screenplay', async (req, res) => {
 
   const html = renderScreenplayHtml([...front, ...scriptPages], {
     paper,
-    docTitle: `${project.title || 'Drehbuch'} – Drehbuch`,
+    docTitle: `${project.title || 'Drehbuch'} - Drehbuch`,
   })
 
   try {

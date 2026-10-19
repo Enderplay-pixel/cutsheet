@@ -61,7 +61,7 @@ function buildSidesHtml(shootDay: any, scenes: Array<{ scene: any; blocks: any[]
   })
 
   const datum = shootDay.date
-    ? new Date(shootDay.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    ? new Date(shootDay.date).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' })
     : ''
   const nummern = scenes.map(({ scene }) => scene.scene_number).filter(Boolean).join(', ')
   const kopf = [

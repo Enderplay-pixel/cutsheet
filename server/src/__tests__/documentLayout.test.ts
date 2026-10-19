@@ -13,9 +13,9 @@ describe('Formatierung', () => {
   it('markiert fehlende Betraege statt 0 zu behaupten', () => {
     // Number(null) ist 0 - auf einem Kalkulationsblatt waere "0,00 €" eine
     // Behauptung, wo in Wahrheit nichts erfasst ist
-    expect(fmtMoney(null)).toBe('—')
-    expect(fmtMoney(undefined)).toBe('—')
-    expect(fmtMoney('' as any)).toBe('—')
+    expect(fmtMoney(null)).toBe('-')
+    expect(fmtMoney(undefined)).toBe('-')
+    expect(fmtMoney('' as any)).toBe('-')
   })
 
   it('unterscheidet eine echte 0 von einer fehlenden Angabe', () => {
@@ -30,16 +30,16 @@ describe('Formatierung', () => {
   })
 
   it('markiert fehlende Zeiten', () => {
-    expect(fmtTime(null)).toBe('—')
-    expect(fmtTime(undefined)).toBe('—')
+    expect(fmtTime(null)).toBe('-')
+    expect(fmtTime(undefined)).toBe('-')
   })
 
   it('schreibt Minuten als Dauer', () => {
     expect(fmtDuration(405)).toBe('6h 45min')
     expect(fmtDuration(120)).toBe('2h')
     expect(fmtDuration(45)).toBe('45min')
-    expect(fmtDuration(0)).toBe('—')
-    expect(fmtDuration(null)).toBe('—')
+    expect(fmtDuration(0)).toBe('-')
+    expect(fmtDuration(null)).toBe('-')
   })
 
   it('formatiert Datumsangaben', () => {
@@ -49,14 +49,14 @@ describe('Formatierung', () => {
 
   it('gibt unbrauchbare Datumsangaben unveraendert zurueck', () => {
     expect(fmtDate('kein datum')).toBe('kein datum')
-    expect(fmtDate(null)).toBe('—')
+    expect(fmtDate(null)).toBe('-')
   })
 
   it('schreibt Achtel als Seitenangabe', () => {
     expect(fmtEighths(19)).toBe('2 3/8')
     expect(fmtEighths(8)).toBe('1')
     expect(fmtEighths(3)).toBe('3/8')
-    expect(fmtEighths(0)).toBe('—')
+    expect(fmtEighths(0)).toBe('-')
   })
 })
 
@@ -86,7 +86,7 @@ describe('table', () => {
 
   it('ersetzt leere Zellen durch einen Strich', () => {
     const html = table({ columns: [{ header: 'X', value: () => '' }], rows: [{}] })
-    expect(html).toContain('>—<')
+    expect(html).toContain('>-<')
   })
 
   it('setzt eine Summenzeile', () => {

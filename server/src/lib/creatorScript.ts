@@ -187,7 +187,7 @@ function esc(s: string): string {
 /** Absätze zu HTML, Zeilenumbrüche bleiben erhalten. */
 function paragraphs(text: string): string {
   const t = String(text ?? '').trim()
-  if (!t) return '<span class="empty">—</span>'
+  if (!t) return '<span class="empty">-</span>'
   return esc(t).replace(/\n/g, '<br>')
 }
 
@@ -255,7 +255,7 @@ export function renderCreatorScriptHtml(
 
   const list = (text: string) => {
     const items = String(text ?? '').split('\n').map(l => l.trim()).filter(Boolean)
-    if (items.length === 0) return '<span class="empty">—</span>'
+    if (items.length === 0) return '<span class="empty">-</span>'
     return `<ul>${items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`
   }
 
@@ -267,7 +267,7 @@ export function renderCreatorScriptHtml(
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>${esc(video.title)} – Videoskript</title>
+<title>${esc(video.title)} - Videoskript</title>
 <style>
   ${pdfFontFaces()}
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -325,7 +325,7 @@ export function renderCreatorScriptHtml(
   <div class="meta">
     ${esc(video.platform || 'YouTube')}
     ${video.status ? ` · ${esc(video.status)}` : ''}
-    ${video.publish_at ? ` · geplant für ${esc(new Date(video.publish_at).toLocaleDateString('de-DE'))}` : ''}
+    ${video.publish_at ? ` · geplant für ${esc(new Date(video.publish_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' }))}` : ''}
     ${opts.projectTitle ? ` · ${esc(opts.projectTitle)}` : ''}
   </div>
   ${video.hook ? `<div class="hook"><b>Hook</b>${esc(video.hook)}</div>` : ''}
@@ -361,13 +361,13 @@ ${rows || '<tr><td colspan="3" class="empty">Noch keine Abschnitte angelegt.</td
 
   <div class="block">
     <h3>Kapitelmarken für die Beschreibung</h3>
-    <div class="chapters">${chapters.lines.length ? esc(chapters.lines.join('\n')).replace(/\n/g, '<br>') : '<span class="empty">—</span>'}</div>
+    <div class="chapters">${chapters.lines.length ? esc(chapters.lines.join('\n')).replace(/\n/g, '<br>') : '<span class="empty">-</span>'}</div>
     ${chapters.problems.length ? `<ul class="warn">${chapters.problems.map(p => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
   </div>
 
   <div class="block">
     <h3>Videobeschreibung</h3>
-    <div class="desc">${video.description ? esc(video.description) : '<span class="empty">—</span>'}</div>
+    <div class="desc">${video.description ? esc(video.description) : '<span class="empty">-</span>'}</div>
   </div>
 
   <div class="block">
@@ -380,7 +380,7 @@ ${rows || '<tr><td colspan="3" class="empty">Noch keine Abschnitte angelegt.</td
     <h3>Sponsoring</h3>
     <div><b>${esc(video.sponsor_brand)}</b>${
       video.sponsor_fee_cents ? ` · ${(video.sponsor_fee_cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}` : ''
-    }${video.sponsor_deadline ? ` · Deadline ${esc(new Date(video.sponsor_deadline).toLocaleDateString('de-DE'))}` : ''}</div>
+    }${video.sponsor_deadline ? ` · Deadline ${esc(new Date(video.sponsor_deadline).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' }))}` : ''}</div>
     ${video.sponsor_deliverables ? `<div style="margin-top:3px;">${paragraphs(video.sponsor_deliverables)}</div>` : ''}
     <div style="margin-top:3px;" class="${video.sponsor_disclosed ? '' : 'warn'}">
       ${video.sponsor_disclosed ? 'Werbung gekennzeichnet.' : 'Achtung: Werbekennzeichnung noch nicht gesetzt.'}
@@ -413,10 +413,10 @@ ${(opts.assets?.length || opts.clips?.length || opts.checklist?.length) ? `
   <div class="block">
     <h3>Auskopplungen</h3>
     <table>
-      <thead><tr><th>Von–bis</th><th>Titel</th><th>Plattform</th><th>Status</th></tr></thead>
+      <thead><tr><th>Von-bis</th><th>Titel</th><th>Plattform</th><th>Status</th></tr></thead>
       <tbody>
         ${opts.clips.map(c => `<tr>
-          <td>${formatTimecode(c.start_seconds ?? 0)}–${formatTimecode(c.end_seconds ?? 0)}</td>
+          <td>${formatTimecode(c.start_seconds ?? 0)}-${formatTimecode(c.end_seconds ?? 0)}</td>
           <td>${esc(c.title ?? '')}</td>
           <td>${esc(c.platform ?? '')}</td>
           <td>${esc(c.status ?? '')}</td>

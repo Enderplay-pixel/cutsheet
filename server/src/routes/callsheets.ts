@@ -27,7 +27,7 @@ export async function notifyProjectMembers(projectId: number, actorUserId: numbe
 }
 
 const fmtCallTime = (mins: number | null) =>
-  mins == null ? '—' : `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')} Uhr`
+  mins == null ? '-' : `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')} Uhr`
 
 async function getCallSheet(id: number) {
   const sheet = await db.get('SELECT cs.*, l.name as location_name FROM call_sheets cs LEFT JOIN locations l ON cs.location_id = l.id WHERE cs.id = ?', [id]) as any
@@ -292,7 +292,7 @@ router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Resp
   }
 
   const base = appBaseUrl()
-  const dateStr = day.date ? new Date(day.date).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
+  const dateStr = day.date ? new Date(day.date).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 
   // Geplanter Versand: ein Zeitpunkt im Rumpf schiebt die Mails in die
   // Warteschlange, statt sie sofort rauszuschicken.

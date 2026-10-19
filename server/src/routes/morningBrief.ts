@@ -107,10 +107,10 @@ router.get('/shoot-days/:dayId/morning-brief', async (req: Request, res: Respons
       crew_count: enrichedEntries.filter((e: any) => e.person_type === 'crew').length,
       cast_count: enrichedEntries.filter((e: any) => e.person_type === 'cast').length,
       weather: callSheet?.weather_forecast || '',
-      sunrise: callSheet?.sunrise || (sunData ? new Date(sunData.sunrise).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : ''),
-      sunset: callSheet?.sunset || (sunData ? new Date(sunData.sunset).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : ''),
-      golden_hour_morning: sunData ? new Date(sunData.golden_hour_morning).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '',
-      golden_hour_evening: sunData ? new Date(sunData.golden_hour_evening).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '',
+      sunrise: callSheet?.sunrise || (sunData ? new Date(sunData.sunrise).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }) : ''),
+      sunset: callSheet?.sunset || (sunData ? new Date(sunData.sunset).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }) : ''),
+      golden_hour_morning: sunData ? new Date(sunData.golden_hour_morning).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }) : '',
+      golden_hour_evening: sunData ? new Date(sunData.golden_hour_evening).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }) : '',
       catering_summary: cateringSummary,
       call_sheet: callSheet,
       top_entries: enrichedEntries.slice(0, 8),
@@ -146,14 +146,14 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
   const enriched = await Promise.all(entries.map(async (e: any) => {
     if (e.person_type === 'cast') {
       const p = await db.get('SELECT c.actor_name as name, ch.name as role FROM "cast" c LEFT JOIN characters ch ON c.character_id = ch.id WHERE c.id = ?', [e.person_id]) as any
-      return { ...e, name: p?.name || '–', role: p?.role || '' }
+      return { ...e, name: p?.name || '-', role: p?.role || '' }
     }
     const p = await db.get('SELECT name, role FROM crew WHERE id = ?', [e.person_id]) as any
-    return { ...e, name: p?.name || '–', role: p?.role || '' }
+    return { ...e, name: p?.name || '-', role: p?.role || '' }
   }))
 
   const dateStr = shootDay.date
-    ? new Date(shootDay.date).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+    ? new Date(shootDay.date).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
     : ''
 
   // Nach location_name vergleichen, nicht nach name: abgelegt wird die Szene,
@@ -165,10 +165,10 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
   }, [])
 
   const sceneList = scenes.map((s: any) => `<tr>
-    <td>${s.scene_number || '–'}</td>
+    <td>${s.scene_number || '-'}</td>
     <td>${s.int_ext || ''} / ${s.day_night || ''}</td>
     <td>${s.title || ''}</td>
-    <td>${s.location_name || '–'}</td>
+    <td>${s.location_name || '-'}</td>
     <td class="center">${((s.eighths || 0) / 8).toFixed(2)}</td>
   </tr>`).join('')
 
@@ -201,7 +201,7 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
     ],
     body:
       stats([
-        { label: 'General Call', value: callSheet ? fmtTime(callSheet.general_call) : '—' },
+        { label: 'General Call', value: callSheet ? fmtTime(callSheet.general_call) : '-' },
         { label: 'Szenen', value: scenes.length, hint: scenes.map((s: any) => s.scene_number).filter(Boolean).join(', ') || undefined },
         { label: 'Seiten', value: fmtEighths(seitenAchtel) },
         { label: 'Crew / Cast', value: `${crewZahl} / ${castZahl}` },

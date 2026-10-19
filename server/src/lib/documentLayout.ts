@@ -42,13 +42,13 @@ function givenNumber(value: unknown): number | null {
 
 export function fmtMoney(cents: number | null | undefined, currency = 'EUR'): string {
   const n = givenNumber(cents)
-  if (n === null) return '—'
+  if (n === null) return '-'
   return (n / 100).toLocaleString('de-DE', { style: 'currency', currency })
 }
 
 export function fmtTime(minutes: number | null | undefined): string {
   const n = givenNumber(minutes)
-  if (n === null) return '—'
+  if (n === null) return '-'
   const total = Math.max(0, Math.floor(n))
   return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
@@ -56,7 +56,7 @@ export function fmtTime(minutes: number | null | undefined): string {
 /** Minuten als Dauer: 405 → "6h 45min". */
 export function fmtDuration(minutes: number | null | undefined): string {
   const n = givenNumber(minutes)
-  if (n === null || n <= 0) return '—'
+  if (n === null || n <= 0) return '-'
   const total = Math.round(n)
   const h = Math.floor(total / 60)
   const m = total % 60
@@ -67,20 +67,20 @@ export function fmtDuration(minutes: number | null | undefined): string {
 
 export function fmtDate(value: string | null | undefined): string {
   const d = new Date(String(value ?? ''))
-  if (Number.isNaN(d.getTime())) return String(value ?? '') || '—'
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  if (Number.isNaN(d.getTime())) return String(value ?? '') || '-'
+  return d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 export function fmtDateLong(value: string | null | undefined): string {
   const d = new Date(String(value ?? ''))
-  if (Number.isNaN(d.getTime())) return String(value ?? '') || '—'
-  return d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  if (Number.isNaN(d.getTime())) return String(value ?? '') || '-'
+  return d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 /** Achtel als Seitenangabe der Branche: 19 → "2 3/8". */
 export function fmtEighths(eighths: number | null | undefined): string {
   const total = Math.max(0, Math.round(Number(eighths) || 0))
-  if (total === 0) return '—'
+  if (total === 0) return '-'
   const pages = Math.floor(total / 8)
   const rest = total % 8
   if (pages === 0) return `${rest}/8`
@@ -128,7 +128,7 @@ export function table<T>(opts: TableOptions<T>): string {
     ? `<tr><td colspan="${columns.length}" class="empty">${esc(empty)}</td></tr>`
     : rows.map((row, i) => `<tr>${columns.map(c => {
         const raw = c.value(row, i)
-        const content = raw === null || raw === undefined || raw === '' ? '—' : (c.html ? String(raw) : esc(raw))
+        const content = raw === null || raw === undefined || raw === '' ? '-' : (c.html ? String(raw) : esc(raw))
         const cls = [c.align === 'right' ? 'r' : c.align === 'center' ? 'c' : '', c.muted ? 'muted' : '']
           .filter(Boolean).join(' ')
         return `<td${cls ? ` class="${cls}"` : ''}>${content}</td>`
@@ -250,7 +250,7 @@ export const FOOT_RIGHT = 'cutsheet-foot-right'
  */
 export function renderDocument(opts: DocumentOptions): string {
   const accent = resolveAccent(opts.accent)
-  const today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const today = new Date().toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' })
 
   return `<!DOCTYPE html>
 <html lang="de">

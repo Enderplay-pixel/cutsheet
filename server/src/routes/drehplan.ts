@@ -254,7 +254,7 @@ router.get('/projects/:projectId/drehplan/versions', async (req, res) => {
 
 // POST /api/projects/:projectId/drehplan/snapshot
 router.post('/projects/:projectId/drehplan/snapshot', async (req, res) => {
-  const { name = `Snapshot ${new Date().toLocaleString('de-DE')}` } = req.body
+  const { name = `Snapshot ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}` } = req.body
   const fullDrehplan = await ladeDrehtageMitSzenen(req.params.projectId)
   const result = await db.run('INSERT INTO drehplan_versions (project_id, name, snapshot_json) VALUES (?, ?, ?)', [req.params.projectId, name, JSON.stringify(fullDrehplan)])
   res.status(201).json({ data: await db.get('SELECT id, project_id, name, created_at FROM drehplan_versions WHERE id = ?', [result.id]), error: null })
