@@ -1889,6 +1889,9 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS reminder_level INTEGER NOT NULL DEFAULT 0`)
   await db.exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS reminded_on DATE`)
   await db.exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS reminder_due_on DATE`)
+  // Wann storniert wurde: Der Storno bucht zu diesem Datum zurück, nicht zum
+  // Rechnungsdatum. Leer bei Stornos von vor dem 19.10.2026 - dann gilt updated_at.
+  await db.exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS cancelled_on DATE`)
   // Ein Angebot wird zur Rechnung, und man will wissen, aus welchem.
   await db.exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS from_quote_id INTEGER`)
   await db.exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS accepted_on DATE`)

@@ -15,6 +15,7 @@ import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { heuteISO } from '../lib/datum'
+import { zahlungenVerrechnen } from '../lib/zahlungen'
 import {
   summiere,
   faelligkeit,
@@ -264,25 +265,46 @@ router.get('/companies/:companyId/invoices', requireAuth, erfordereAbrechnung(),
 /** Umsatzsteuer je Zeitraum - was abzuführen wäre, nach Sätzen getrennt. */
 router.get('/companies/:companyId/invoices/report/vat', requireAuth, erfordereAbrechnung(), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
-  const von = String(req.query.von || `${new Date().getFullYear()}-01-01`)
+  const von = String(req.query.von || `${heuteISO().slice(0, 4)}-01-01`)
   const bis = String(req.query.bis || heuteISO())
 
+  // Wie im Buchhaltungsexport: Die Rechnung zählt in ihrem Monat, der
+  // Storno mindert in seinem. Vorher fiel eine stornierte Rechnung ganz
+  // heraus - auch aus dem Monat, in dem sie längst angemeldet war.
   const rechnungen = (await db.all(
-    `SELECT id, number, issue_date, net_cents, tax_cents, gross_cents, tax_mode
+    `SELECT id, number, issue_date, status, tax_mode,
+            COALESCE(cancelled_on, updated_at::date) AS stornodatum
        FROM invoices
-      WHERE company_id = ? AND status IN ('versendet', 'bezahlt')
-        AND issue_date >= ? AND issue_date <= ?
+      WHERE company_id = ? AND kind = 'rechnung' AND status IN ('versendet', 'bezahlt', 'storniert')
+        AND ((issue_date >= ? AND issue_date <= ?)
+          OR (status = 'storniert' AND COALESCE(cancelled_on, updated_at::date) >= ?
+                                   AND COALESCE(cancelled_on, updated_at::date) <= ?))
       ORDER BY issue_date ASC`,
-    [companyId, von, bis]
+    [companyId, von, bis, von, bis]
   )) as any[]
 
   const proSatz = new Map<number, { netto: number; steuer: number }>()
+  const summe = { netto: 0, steuer: 0, brutto: 0 }
+  let anzahl = 0
   for (const rechnung of rechnungen) {
+    const ausgestellt = String(rechnung.issue_date || '').slice(0, 10)
+    const storno = String(rechnung.stornodatum || '').slice(0, 10)
+    const faktoren = [
+      ...(ausgestellt >= von && ausgestellt <= bis ? [1] : []),
+      ...(rechnung.status === 'storniert' && storno >= von && storno <= bis ? [-1] : []),
+    ]
+    if (faktoren.length === 0) continue
     const positionen = (await db.all('SELECT * FROM invoice_items WHERE invoice_id = ?', [rechnung.id])) as Position[]
     const summen = summiere(positionen, (rechnung.tax_mode as Steuerart) || 'regel')
-    for (const zeile of summen.nachSatz) {
-      const bisher = proSatz.get(zeile.satz) ?? { netto: 0, steuer: 0 }
-      proSatz.set(zeile.satz, { netto: bisher.netto + zeile.netto, steuer: bisher.steuer + zeile.steuer })
+    for (const faktor of faktoren) {
+      anzahl += faktor === 1 ? 1 : 0
+      summe.netto += faktor * summen.netto
+      summe.steuer += faktor * summen.steuer
+      summe.brutto += faktor * summen.brutto
+      for (const zeile of summen.nachSatz) {
+        const bisher = proSatz.get(zeile.satz) ?? { netto: 0, steuer: 0 }
+        proSatz.set(zeile.satz, { netto: bisher.netto + faktor * zeile.netto, steuer: bisher.steuer + faktor * zeile.steuer })
+      }
     }
   }
 
@@ -290,10 +312,10 @@ router.get('/companies/:companyId/invoices/report/vat', requireAuth, erfordereAb
     data: {
       von,
       bis,
-      anzahl: rechnungen.length,
-      netto_cents: rechnungen.reduce((s, r) => s + Number(r.net_cents || 0), 0),
-      steuer_cents: rechnungen.reduce((s, r) => s + Number(r.tax_cents || 0), 0),
-      brutto_cents: rechnungen.reduce((s, r) => s + Number(r.gross_cents || 0), 0),
+      anzahl,
+      netto_cents: summe.netto,
+      steuer_cents: summe.steuer,
+      brutto_cents: summe.brutto,
       nach_satz: [...proSatz.entries()]
         .sort((a, b) => a[0] - b[0])
         .map(([satz, werte]) => ({ satz, ...werte })),
@@ -544,21 +566,26 @@ router.post('/companies/:companyId/invoices/:invoiceId/payment', requireAuth, er
     return res.status(400).json({ data: null, error: 'Auf einen Entwurf kann niemand zahlen' })
   }
 
-  const betrag = Math.round(Number(req.body?.amount_cents ?? rechnung.gross_cents - rechnung.paid_cents))
+  // Ohne Betrag: der offene Rest laut Zahlungszeilen, nicht laut paid_cents
+  const bisher = (await db.get(
+    'SELECT COALESCE(SUM(amount_cents), 0) AS summe FROM invoice_payments WHERE invoice_id = ?', [invoiceId]
+  )) as any
+  const betrag = Math.round(Number(req.body?.amount_cents ?? Number(rechnung.gross_cents) - Number(bisher?.summe ?? 0)))
   if (!Number.isFinite(betrag) || betrag === 0) {
     return res.status(400).json({ data: null, error: 'Kein gültiger Betrag' })
   }
-  const bezahlt = Math.max(0, Number(rechnung.paid_cents) + betrag)
-  const stand = zahlungsstand(rechnung.gross_cents, bezahlt)
+  const datum = String(req.body?.paid_at || heuteISO()).slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
+    return res.status(400).json({ data: null, error: 'Kein gültiges Datum' })
+  }
+  // Eine Zeile wie auf der Offene-Posten-Seite: sonst sähen Mahnwesen und
+  // Offene Posten diese Zahlung nicht und schlügen eine Mahnung vor.
   await db.run(
-    `UPDATE invoices SET paid_cents = ?, paid_at = ?, status = ?, updated_at = NOW() WHERE id = ?`,
-    [
-      bezahlt,
-      stand === 'bezahlt' ? String(req.body?.paid_at || heuteISO()) : null,
-      stand === 'bezahlt' ? 'bezahlt' : rechnung.status,
-      invoiceId,
-    ]
+    `INSERT INTO invoice_payments (invoice_id, amount_cents, paid_on, method, created_by)
+     VALUES (?, ?, ?, 'ueberweisung', ?)`,
+    [invoiceId, betrag, datum, (req as any).user?.id ?? null]
   )
+  await zahlungenVerrechnen(invoiceId)
   return res.json({ data: await ladeRechnung(companyId, invoiceId), error: null })
 })
 
@@ -575,7 +602,10 @@ router.post('/companies/:companyId/invoices/:invoiceId/cancel', requireAuth, erf
   }
   // Die Nummer bleibt stehen: eine stornierte Rechnung verschwindet nicht,
   // sonst entstuende genau die Luecke, die es nicht geben darf.
-  await db.run("UPDATE invoices SET status = 'storniert', updated_at = NOW() WHERE id = ?", [invoiceId])
+  await db.run(
+    "UPDATE invoices SET status = 'storniert', cancelled_on = ?, updated_at = NOW() WHERE id = ?",
+    [heuteISO(), invoiceId]
+  )
   return res.json({ data: { storniert: true }, error: null })
 })
 

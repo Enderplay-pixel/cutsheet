@@ -41,9 +41,6 @@ hinten angehängt.
   Tabelle eine Zeile der Inhaberin anlegen und melden, welche Routen der Scan
   nicht mit einer echten ID treffen konnte. Danach muss der Scan die Lücken aus
   Runde 3 mit zurückgenommenen Fixes finden - sonst ist er weiter blind.
-- [ ] **5. Geld rechnet richtig.** Rechnungssummen, Teilzahlungen,
-  Mahngebühren, Umsatzsteuer, KSK, Verpflegungspauschalen: Grenzfälle mit
-  Tests (Rundung, 0 Cent, negative Beträge, Storno nach Teilzahlung).
 - [ ] **6. Oktober-Seiten im Browser.** Jede neue Seite lokal mit
   Großproduktion aufrufen: Leerzustand, Ladezustand, Fehlermeldung bei
   Serverfehler, Telefonbreite 375 px ohne Seitenscrollen.
@@ -68,3 +65,4 @@ hinten angehängt.
 - [x] **3. Öffentliche Token-Seiten** - 19.10.2026, Zurückziehen für Vertrag, Abnahme, Casting; Rollenprüfung. Siehe RUNDEN.md Runde 3.
 - [x] **3b. Gedankenstriche** - 19.10.2026, 211 im Client (7aecd5e), 60 im Server (Runde 4). Wächtertest für sichtbaren Text steht noch aus.
 - [x] **4. PDFs** - 19.10.2026, Textebene, Mahnungsanschrift, Abnahmeprotokoll, Zeitzone. Siehe RUNDEN.md Runde 4.
+- [x] **5. Geld** - 19.10.2026, Rundung im Minus, Zahlungen an einer Stelle, Storno zum eigenen Datum. Offene Entscheidung zu Altdaten in ENTSCHEIDUNGEN-FLORIAN.md.

@@ -1514,3 +1514,88 @@ describe('Mahnung trägt die Anschrift', () => {
     expect(zeile.city).toBe('Gelsenkirchen')
   })
 })
+
+describe('Eine Zahlung zählt überall gleich', () => {
+  // Die Rechnungsseite erfasste über POST .../payment nur paid_cents, ohne
+  // Zeile in invoice_payments. Offene Posten und Mahnwesen rechnen aber mit
+  // invoice_payments - die bezahlte Rechnung stand dort weiter offen und
+  // wurde zur Mahnung vorgeschlagen. Die nächste Teilzahlung über die
+  // Offene-Posten-Seite überschrieb paid_cents dann mit der eigenen Summe.
+  let firma = 0
+  let rechnung = 0
+  beforeAll(async () => {
+    firma = (await db.run('INSERT INTO companies (name, owner_id) VALUES (?, ?)', ['Zahl GmbH', nutzerId])).id
+    const kunde = await db.run("INSERT INTO company_clients (company_id, name) VALUES (?, 'Kunde')", [firma])
+    rechnung = (await db.run(
+      "INSERT INTO invoices (company_id, client_id, number, status, gross_cents, net_cents, due_date) VALUES (?, ?, 'Z-1', 'versendet', 11900, 10000, CURRENT_DATE - 40)",
+      [firma, kunde.id]
+    )).id
+  })
+
+  it('der Knopf auf der Rechnung legt eine Zahlungszeile an', async () => {
+    const antwort = await hole(`/api/companies/${firma}/invoices/${rechnung}/payment`, tokenInhaber, { method: 'POST', body: '{}' })
+    expect(antwort.status).toBe(200)
+    const zeilen = (await db.all('SELECT amount_cents FROM invoice_payments WHERE invoice_id = ?', [rechnung])) as any[]
+    expect(zeilen.map((z) => Number(z.amount_cents))).toEqual([11900])
+    const stand = (await db.get('SELECT paid_cents, status FROM invoices WHERE id = ?', [rechnung])) as any
+    expect(Number(stand.paid_cents)).toBe(11900)
+    expect(stand.status).toBe('bezahlt')
+  })
+})
+
+
+describe('DATEV: Storno bucht zum eigenen Datum zurück', () => {
+  // Vorher: Eine stornierte Rechnung stand nur noch als Habenbuchung zum
+  // Rechnungsdatum im Export. Ein neuer Export des Rechnungsmonats zeigte
+  // negativen Umsatz statt null, und im Monat des Stornos fehlte er ganz.
+  let firma = 0
+  beforeAll(async () => {
+    firma = (await db.run(
+      "INSERT INTO companies (name, owner_id, datev_berater, datev_mandant) VALUES ('Storno GmbH', ?, 1001, 1)",
+      [nutzerId]
+    )).id
+    const kunde = await db.run("INSERT INTO company_clients (company_id, name, debitor_number) VALUES (?, 'Kunde', '10001')", [firma])
+    const rechnung = await db.run(
+      "INSERT INTO invoices (company_id, client_id, number, status, issue_date, tax_mode) VALUES (?, ?, 'S-1', 'versendet', '2026-09-15', 'regel')",
+      [firma, kunde.id]
+    )
+    await db.run(
+      'INSERT INTO invoice_items (invoice_id, quantity_milli, unit_price_cents, tax_percent) VALUES (?, 1000, 10000, 19)',
+      [rechnung.id]
+    )
+    // Storniert im Oktober, über die echte Route
+    const antwort = await hole(`/api/companies/${firma}/invoices/${rechnung.id}/cancel`, tokenInhaber, { method: 'POST', body: '{}' })
+    expect(antwort.status).toBe(200)
+    await db.run("UPDATE invoices SET cancelled_on = '2026-10-05' WHERE id = ?", [rechnung.id])
+  })
+
+  it('September: die Rechnung im Soll, wie damals gebucht', async () => {
+    const { buchungenBauen } = await import('../routes/buchhaltung')
+    const { buchungen } = await buchungenBauen(firma, '2026-09-01', '2026-09-30')
+    expect(buchungen.map((b: any) => [b.sollHaben, b.betragCents, b.datum])).toEqual([['S', 11900, '2026-09-15']])
+  })
+
+  it('Oktober: der Storno im Haben, zum Datum des Stornos', async () => {
+    const { buchungenBauen } = await import('../routes/buchhaltung')
+    const { buchungen } = await buchungenBauen(firma, '2026-10-01', '2026-10-31')
+    expect(buchungen.map((b: any) => [b.sollHaben, b.betragCents, b.datum])).toEqual([['H', 11900, '2026-10-05']])
+  })
+})
+
+describe('Umsatzsteuer: Storno mindert im eigenen Monat', () => {
+  it('September behält die Steuer, Oktober zieht sie ab', async () => {
+    const firma = (await db.run("INSERT INTO companies (name, owner_id) VALUES ('USt GmbH', ?)", [nutzerId])).id
+    const kunde = await db.run("INSERT INTO company_clients (company_id, name) VALUES (?, 'Kunde')", [firma])
+    const r = await db.run(
+      "INSERT INTO invoices (company_id, client_id, number, status, issue_date, tax_mode, cancelled_on) VALUES (?, ?, 'U-1', 'storniert', '2026-09-15', 'regel', '2026-10-05')",
+      [firma, kunde.id]
+    )
+    await db.run('INSERT INTO invoice_items (invoice_id, quantity_milli, unit_price_cents, tax_percent) VALUES (?, 1000, 10000, 19)', [r.id])
+    const sept = await hole(`/api/companies/${firma}/invoices/report/vat?von=2026-09-01&bis=2026-09-30`, tokenInhaber)
+    const okt = await hole(`/api/companies/${firma}/invoices/report/vat?von=2026-10-01&bis=2026-10-31`, tokenInhaber)
+    const beide = await hole(`/api/companies/${firma}/invoices/report/vat?von=2026-09-01&bis=2026-10-31`, tokenInhaber)
+    expect(sept.daten.steuer_cents).toBe(1900)
+    expect(okt.daten.steuer_cents).toBe(-1900)
+    expect(beide.daten.steuer_cents).toBe(0)
+  })
+})

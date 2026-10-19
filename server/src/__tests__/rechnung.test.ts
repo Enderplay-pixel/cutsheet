@@ -133,3 +133,27 @@ describe('Darstellung', () => {
     expect(menge(2500)).toBe('2,5')
   })
 })
+
+describe('Kaufmännisch runden, auch negativ', () => {
+  // Math.round(-2.5) ist -2: zur Null hin statt vom Betrag weg. Ein Rabatt
+  // oder eine Gutschrift rundete dadurch anders als der gleiche positive
+  // Betrag, und eine gespiegelte Rechnung hob die ursprüngliche nicht auf.
+  it('rundet einen halben Cent im Minus vom Betrag weg', () => {
+    expect(positionsNetto({ quantity_milli: 500, unit_price_cents: -5, tax_percent: 19 })).toBe(-3)
+    expect(positionsNetto({ quantity_milli: 500, unit_price_cents: 5, tax_percent: 19 })).toBe(3)
+  })
+
+  it('eine gespiegelte Rechnung ergibt genau das Gegenteil', () => {
+    const positionen = [
+      { quantity_milli: 2500, unit_price_cents: 123457, tax_percent: 19 },
+      { quantity_milli: 7333, unit_price_cents: 8500, tax_percent: 19 },
+      { quantity_milli: 500, unit_price_cents: 1, tax_percent: 7 },
+      { quantity_milli: 1000, unit_price_cents: 50, tax_percent: 7 },
+    ]
+    const hin = summiere(positionen)
+    const zurueck = summiere(positionen.map((p) => ({ ...p, unit_price_cents: -p.unit_price_cents })))
+    expect(zurueck.netto).toBe(-hin.netto)
+    expect(zurueck.steuer).toBe(-hin.steuer)
+    expect(zurueck.brutto).toBe(-hin.brutto)
+  })
+})

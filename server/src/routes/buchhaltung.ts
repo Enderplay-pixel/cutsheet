@@ -16,6 +16,8 @@ import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { erfordereAbrechnung } from './invoices'
 import { schreibeCsv, cents } from '../lib/tabelle'
+import { heuteISO } from '../lib/datum'
+import { summiere } from '../lib/rechnung'
 import {
   datevStapel, datevKodieren, erloeskonto, ERLOESKONTEN,
   type Buchung, type Kontenrahmen,
@@ -23,48 +25,63 @@ import {
 
 const router = Router()
 
-function heuteISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
 /** Zeitraum aus der Abfrage, mit dem laufenden Jahr als Rückfall. */
 function zeitraum(req: Request): { von: string; bis: string } {
-  const jahr = new Date().getFullYear()
-  const von = String(req.query.von || `${jahr}-01-01`).slice(0, 10)
-  const bis = String(req.query.bis || heuteISO()).slice(0, 10)
+  const heute = heuteISO()
+  const von = String(req.query.von || `${heute.slice(0, 4)}-01-01`).slice(0, 10)
+  const bis = String(req.query.bis || heute).slice(0, 10)
   return { von, bis }
 }
 
+/** Ein Geschäftsvorfall: die Rechnung zu ihrem Datum, der Storno zu seinem. */
+type Vorgang = { r: any; art: 'rechnung' | 'storno'; datum: string }
+
+/** Storno-Datum; Stornos von vor dem 19.10.2026 haben nur updated_at. */
+const STORNODATUM = `COALESCE(i.cancelled_on, i.updated_at::date)`
+
 /**
- * Die Rechnungen eines Zeitraums samt Positionen.
+ * Die Geschäftsvorfälle eines Zeitraums samt Positionen.
  *
- * Entwürfe bleiben draußen - ein Entwurf ist kein Geschäftsvorfall. Stornos
- * kommen mit: Eine stornierte Rechnung ist gebucht worden und wird
- * ausgebucht, sie verschwindet nicht.
+ * Entwürfe bleiben draußen - ein Entwurf ist kein Geschäftsvorfall. Eine
+ * Rechnung bucht immer zu ihrem Rechnungsdatum, auch wenn sie später
+ * storniert wurde; der Storno bucht zu seinem eigenen Datum zurück. Vorher
+ * stand eine stornierte Rechnung nur noch im Haben zum Rechnungsdatum: Ein
+ * neuer Export des Rechnungsmonats zeigte negativen Umsatz statt null, und im
+ * Monat des Stornos fehlte er.
  */
 async function rechnungenLaden(companyId: number, von: string, bis: string) {
+  const bedingung = `i.company_id = ? AND i.kind = 'rechnung' AND i.status <> 'entwurf'
+        AND ((i.issue_date >= ? AND i.issue_date <= ?)
+          OR (i.status = 'storniert' AND ${STORNODATUM} >= ? AND ${STORNODATUM} <= ?))`
+  const werte = [companyId, von, bis, von, bis]
   const rechnungen = (await db.all(
-    `SELECT i.*, c.name AS client_name, c.debitor_number, c.vat_id AS client_vat_id,
+    `SELECT i.*, ${STORNODATUM} AS stornodatum,
+            c.name AS client_name, c.debitor_number, c.vat_id AS client_vat_id,
             p.title AS project_title
        FROM invoices i
        LEFT JOIN company_clients c ON i.client_id = c.id
        LEFT JOIN projects p ON i.project_id = p.id
-      WHERE i.company_id = ?
-        AND i.kind = 'rechnung'
-        AND i.status <> 'entwurf'
-        AND i.issue_date >= ? AND i.issue_date <= ?
+      WHERE ${bedingung}
       ORDER BY i.issue_date ASC, i.number ASC`,
-    [companyId, von, bis]
+    werte
   )) as any[]
-  if (rechnungen.length === 0) return { rechnungen, positionen: new Map<number, any[]>() }
+
+  const vorgaenge: Vorgang[] = []
+  for (const r of rechnungen) {
+    const ausgestellt = String(r.issue_date || '').slice(0, 10)
+    if (ausgestellt >= von && ausgestellt <= bis) vorgaenge.push({ r, art: 'rechnung', datum: ausgestellt })
+    const storno = String(r.stornodatum || '').slice(0, 10)
+    if (r.status === 'storniert' && storno >= von && storno <= bis) vorgaenge.push({ r, art: 'storno', datum: storno })
+  }
+  vorgaenge.sort((x, y) => x.datum.localeCompare(y.datum) || String(x.r.number).localeCompare(String(y.r.number)))
+  if (vorgaenge.length === 0) return { rechnungen, vorgaenge, positionen: new Map<number, any[]>() }
 
   // Eine Abfrage für alle Positionen, nicht eine je Rechnung.
   const alle = (await db.all(
     `SELECT it.* FROM invoice_items it
-       JOIN invoices i ON it.invoice_id = i.id
-      WHERE i.company_id = ? AND i.issue_date >= ? AND i.issue_date <= ?
+      WHERE it.invoice_id IN (SELECT i.id FROM invoices i WHERE ${bedingung})
       ORDER BY it.sort_order ASC`,
-    [companyId, von, bis]
+    werte
   )) as any[]
   const positionen = new Map<number, any[]>()
   for (const p of alle) {
@@ -72,7 +89,23 @@ async function rechnungenLaden(companyId: number, von: string, bis: string) {
     if (liste) liste.push(p)
     else positionen.set(p.invoice_id, [p])
   }
-  return { rechnungen, positionen }
+  return { rechnungen, vorgaenge, positionen }
+}
+
+/**
+ * Netto und Steuer je Satz, genau wie auf dem Beleg (`summiere`), höchster
+ * Satz zuerst. Vorher rechnete der Export mit eigenem Runden nach und wich
+ * bei negativen Positionen vom Rechnungsbetrag ab.
+ */
+function jeSatz(r: any, eigene: any[]): Array<{ satz: number; netto: number; steuer: number }> {
+  const summen = summiere(eigene.map((p) => ({
+    quantity_milli: Number(p.quantity_milli),
+    unit_price_cents: Number(p.unit_price_cents),
+    tax_percent: Number(p.tax_percent ?? 0),
+  })))
+  return summen.nachSatz
+    .map((z) => ({ ...z, steuer: r.tax_mode === 'regel' ? z.steuer : 0 }))
+    .sort((x, y) => y.satz - x.satz)
 }
 
 // ─── Der einfache Export ─────────────────────────────────────────────────────
@@ -87,35 +120,28 @@ async function rechnungenLaden(companyId: number, von: string, bis: string) {
 router.get('/companies/:companyId/buchhaltung/export.csv', requireAuth, erfordereAbrechnung('produktion'), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
   const { von, bis } = zeitraum(req)
-  const { rechnungen, positionen } = await rechnungenLaden(companyId, von, bis)
+  const { vorgaenge, positionen } = await rechnungenLaden(companyId, von, bis)
 
   const zeilen: Array<Array<string | number>> = []
-  for (const r of rechnungen) {
-    const eigene = positionen.get(r.id) ?? []
-    // Nach Steuersatz zusammenfassen
-    const jeSatz = new Map<number, number>()
-    for (const p of eigene) {
-      const netto = Math.round((Number(p.quantity_milli) * Number(p.unit_price_cents)) / 1000)
-      const satz = Number(p.tax_percent ?? 0)
-      jeSatz.set(satz, (jeSatz.get(satz) ?? 0) + netto)
-    }
-    if (jeSatz.size === 0) jeSatz.set(0, 0)
-
-    for (const [satz, netto] of [...jeSatz.entries()].sort((a, b) => b[0] - a[0])) {
-      const steuer = r.tax_mode === 'regel' ? Math.round((netto * satz) / 100) : 0
+  for (const { r, art, datum } of vorgaenge) {
+    // Der Storno steht mit umgekehrtem Vorzeichen da: Rechnung plus Storno ist null
+    const vorzeichen = art === 'storno' ? -1 : 1
+    const saetze = jeSatz(r, positionen.get(r.id) ?? [])
+    if (saetze.length === 0) saetze.push({ satz: 0, netto: 0, steuer: 0 })
+    for (const { satz, netto, steuer } of saetze) {
       zeilen.push([
-        String(r.issue_date || '').slice(0, 10),
+        datum,
         r.number || '',
         r.client_name || '',
         r.debitor_number || '',
         r.project_title || '',
         satz,
-        cents(netto),
-        cents(steuer),
-        cents(netto + steuer),
-        r.status === 'storniert' ? 'storniert' : r.status,
+        cents(vorzeichen * netto),
+        cents(vorzeichen * steuer),
+        cents(vorzeichen * (netto + steuer)),
+        art === 'storno' ? 'Storno' : r.status,
         String(r.due_date || '').slice(0, 10),
-        cents(Number(r.paid_cents || 0)),
+        cents(art === 'storno' ? 0 : Number(r.paid_cents || 0)),
       ])
     }
   }
@@ -133,12 +159,12 @@ router.get('/companies/:companyId/buchhaltung/export.csv', requireAuth, erforder
 // ─── DATEV ───────────────────────────────────────────────────────────────────
 
 /** Die Buchungen eines Zeitraums - und was dem Export noch fehlt. */
-async function buchungenBauen(companyId: number, von: string, bis: string) {
+export async function buchungenBauen(companyId: number, von: string, bis: string) {
   const firma = (await db.get('SELECT * FROM companies WHERE id = ?', [companyId])) as any
   const rahmen = (String(firma?.datev_kontenrahmen || 'SKR03') as Kontenrahmen) in ERLOESKONTEN
     ? (String(firma?.datev_kontenrahmen || 'SKR03') as Kontenrahmen)
     : 'SKR03'
-  const { rechnungen, positionen } = await rechnungenLaden(companyId, von, bis)
+  const { rechnungen, vorgaenge, positionen } = await rechnungenLaden(companyId, von, bis)
 
   const fehlt: string[] = []
   if (!firma?.datev_berater) fehlt.push('Beraternummer der Kanzlei')
@@ -147,34 +173,27 @@ async function buchungenBauen(companyId: number, von: string, bis: string) {
   const ohneDebitor = new Set<string>()
   const buchungen: Buchung[] = []
 
-  for (const r of rechnungen) {
+  for (const { r, art, datum } of vorgaenge) {
     const debitor = String(r.debitor_number || '').trim()
     if (!debitor) {
       ohneDebitor.add(r.client_name || `Auftraggeber #${r.client_id}`)
       continue
     }
-    const eigene = positionen.get(r.id) ?? []
-    const jeSatz = new Map<number, number>()
-    for (const p of eigene) {
-      const netto = Math.round((Number(p.quantity_milli) * Number(p.unit_price_cents)) / 1000)
-      const satz = Number(p.tax_percent ?? 0)
-      jeSatz.set(satz, (jeSatz.get(satz) ?? 0) + netto)
-    }
-
-    for (const [satz, netto] of [...jeSatz.entries()].sort((a, b) => b[0] - a[0])) {
-      const steuer = r.tax_mode === 'regel' ? Math.round((netto * satz) / 100) : 0
+    for (const { satz, netto, steuer } of jeSatz(r, positionen.get(r.id) ?? [])) {
       const brutto = netto + steuer
       if (brutto === 0) continue
+      // Eine Erlösbuchung steht im Soll auf dem Debitor: Der Auftraggeber
+      // schuldet. Der Storno kehrt die Richtung um. Bei negativem Betrag
+      // (Gutschrift) dreht sich die Seite ebenfalls.
+      const soll = (art === 'rechnung') === (brutto > 0)
       buchungen.push({
         betragCents: Math.abs(brutto),
-        // Eine Erlösbuchung steht im Soll auf dem Debitor: Der Auftraggeber
-        // schuldet. Beim Storno kehrt sich die Richtung um.
-        sollHaben: r.status === 'storniert' ? 'H' : 'S',
+        sollHaben: soll ? 'S' : 'H',
         konto: debitor,
         gegenkonto: erloeskonto(rahmen, satz, String(r.tax_mode || 'regel')),
-        datum: String(r.issue_date || von).slice(0, 10),
+        datum,
         belegfeld1: String(r.number || ''),
-        text: [r.client_name, r.project_title].filter(Boolean).join(' / ') || 'Rechnung',
+        text: [art === 'storno' ? 'Storno' : '', r.client_name, r.project_title].filter(Boolean).join(' / ') || 'Rechnung',
       })
     }
   }

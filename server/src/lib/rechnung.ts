@@ -28,10 +28,19 @@ export type Summen = {
   nachSatz: Array<{ satz: number; netto: number; steuer: number }>
 }
 
+/**
+ * Kaufmännisch runden: ab einem halben Cent vom Betrag weg, auch im Minus.
+ * Math.round(-2.5) ergibt -2 - ein Rabatt oder eine Gutschrift rundete sonst
+ * anders als derselbe positive Betrag.
+ */
+export function kaufmaennisch(wert: number): number {
+  return Math.sign(wert) * Math.round(Math.abs(wert))
+}
+
 /** Netto einer einzelnen Position, kaufmännisch gerundet. */
 export function positionsNetto(position: Position): number {
   const roh = (Number(position.quantity_milli || 0) * Number(position.unit_price_cents || 0)) / 1000
-  return Math.round(roh)
+  return kaufmaennisch(roh)
 }
 
 /**
@@ -57,7 +66,7 @@ export function summiere(positionen: Position[], steuerart: Steuerart = 'regel')
     .map(([satz, grundlage]) => ({
       satz,
       netto: grundlage,
-      steuer: Math.round((grundlage * satz) / 100),
+      steuer: kaufmaennisch((grundlage * satz) / 100),
     }))
 
   const steuer = nachSatz.reduce((summe, zeile) => summe + zeile.steuer, 0)

@@ -16,7 +16,7 @@ import { db } from '../db'
 import { requireAuth, AuthUser } from '../middleware/auth'
 import { logAudit } from './audit'
 import { schreibeCsv, cents } from '../lib/tabelle'
-import { euro, zahlungsstand } from '../lib/rechnung'
+import { euro } from '../lib/rechnung'
 import {
   STUFEN, PAUSCHALE_CENTS, BASISZINS_RUECKFALL_BP, BASISZINS_STAND,
   zinsSatzVeraltet, verzugssatzBp, naechsterSchritt,
@@ -27,6 +27,7 @@ import { erfordereAbrechnung } from './invoices'
 import { reiheEin } from '../lib/mailversand'
 import { generatePdf } from './pdf'
 import { renderMahnung } from '../lib/mahnungLayout'
+import { zahlungenVerrechnen } from '../lib/zahlungen'
 
 const router = Router()
 
@@ -171,27 +172,6 @@ router.get('/companies/:companyId/opos/export.csv', requireAuth, erfordereAbrech
 })
 
 // ─── Zahlungseingänge ────────────────────────────────────────────────────────
-
-/** Die Summe der Zahlungen zurück in die Rechnung schreiben. */
-async function zahlungenVerrechnen(invoiceId: number): Promise<any> {
-  const rechnung = (await db.get('SELECT gross_cents, status FROM invoices WHERE id = ?', [invoiceId])) as any
-  const summe = (await db.get(
-    'SELECT COALESCE(SUM(amount_cents), 0) AS summe, MAX(paid_on) AS letzte FROM invoice_payments WHERE invoice_id = ?',
-    [invoiceId]
-  )) as any
-  const bezahlt = Number(summe?.summe ?? 0)
-  const stand = zahlungsstand(Number(rechnung?.gross_cents ?? 0), bezahlt)
-  // Eine stornierte Rechnung bleibt storniert, auch wenn später noch etwas
-  // eingeht - sonst stünde eine Gutschrift plötzlich wieder als Forderung da.
-  const status = rechnung?.status === 'storniert'
-    ? 'storniert'
-    : stand === 'bezahlt' ? 'bezahlt' : 'versendet'
-  await db.run(
-    'UPDATE invoices SET paid_cents = ?, paid_at = ?, status = ?, updated_at = NOW() WHERE id = ?',
-    [bezahlt, stand === 'bezahlt' ? (summe?.letzte ?? null) : null, status, invoiceId]
-  )
-  return { bezahlt_cents: bezahlt, stand, status }
-}
 
 router.get('/companies/:companyId/invoices/:invoiceId/payments', requireAuth, erfordereAbrechnung('mitarbeiter'), async (req: Request, res: Response) => {
   const rechnung = (await db.get('SELECT id FROM invoices WHERE id = ? AND company_id = ?', [
