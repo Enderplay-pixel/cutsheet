@@ -36,11 +36,6 @@ Reihenfolge ist Priorität. Der Lauf darf Punkte ergänzen, wenn eine Messung
 einen neuen Fehler zeigt - dann mit Beleg und an der passenden Stelle, nicht
 hinten angehängt.
 
-- [ ] **2c. Zugriffsscan ohne blinde Flecken.** Kind-IDs für jeden
-  Pfadabschnitt aus dem Schema ableiten (Abschnitt → Tabelle), für jede
-  Tabelle eine Zeile der Inhaberin anlegen und melden, welche Routen der Scan
-  nicht mit einer echten ID treffen konnte. Danach muss der Scan die Lücken aus
-  Runde 3 mit zurückgenommenen Fixes finden - sonst ist er weiter blind.
 - [ ] **6. Oktober-Seiten im Browser.** Jede neue Seite lokal mit
   Großproduktion aufrufen: Leerzustand, Ladezustand, Fehlermeldung bei
   Serverfehler, Telefonbreite 375 px ohne Seitenscrollen.
@@ -64,3 +59,4 @@ hinten angehängt.
 - [x] **3b. Gedankenstriche** - 19.10.2026, 211 im Client (7aecd5e), 60 im Server (Runde 4). Wächtertest für sichtbaren Text steht noch aus.
 - [x] **4. PDFs** - 19.10.2026, Textebene, Mahnungsanschrift, Abnahmeprotokoll, Zeitzone. Siehe RUNDEN.md Runde 4.
 - [x] **5. Geld** - 19.10.2026, Rundung im Minus, Zahlungen an einer Stelle, Storno zum eigenen Datum. Offene Entscheidung zu Altdaten in ENTSCHEIDUNGEN-FLORIAN.md.
+- [x] **2c. Scan ohne blinde Flecken** - 19.10.2026, findet die Lücken aus Runde 3 nachweislich, 1 Route ohne echte ID. Siehe RUNDEN.md Runde 6.
