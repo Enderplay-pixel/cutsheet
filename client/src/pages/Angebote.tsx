@@ -301,7 +301,13 @@ function AngebotBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
               Blatt
             </Button>
             {istEntwurf && (
-              <Button size="sm" onClick={() => festschreiben.mutate()} disabled={festschreiben.isPending}>
+              <Button
+                size="sm"
+                disabled={festschreiben.isPending}
+                onClick={() => {
+                  if (confirm('Angebot festschreiben? Es bekommt seine Nummer und lässt sich danach nicht mehr ändern.')) festschreiben.mutate()
+                }}
+              >
                 <Lock className="w-4 h-4 mr-1.5" />
                 Festschreiben
               </Button>

@@ -463,7 +463,13 @@ function RechnungBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
             <Button variant="outline" size="sm" onClick={() => speichern.mutate()} disabled={speichern.isPending}>
               Speichern
             </Button>
-            <Button size="sm" onClick={() => festschreiben.mutate()} disabled={festschreiben.isPending}>
+            <Button
+              size="sm"
+              disabled={festschreiben.isPending}
+              onClick={() => {
+                if (confirm('Rechnung festschreiben? Sie bekommt ihre Nummer und lässt sich danach nur noch stornieren, nicht mehr ändern.')) festschreiben.mutate()
+              }}
+            >
               <CheckCircle2 className="w-3.5 h-3.5 mr-1" />Festschreiben
             </Button>
           </>
@@ -473,7 +479,14 @@ function RechnungBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
             <Button variant="outline" size="sm" onClick={() => zahlung.mutate()}>
               <EuroIcon className="w-3.5 h-3.5 mr-1" />Als bezahlt erfassen
             </Button>
-            <Button variant="ghost" size="sm" className="text-destructive" onClick={() => stornieren.mutate()}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive"
+              onClick={() => {
+                if (confirm(`Rechnung ${rechnung.number} stornieren? Das ist endgültig - die Nummer bleibt vergeben, der Betrag wird ausgebucht.`)) stornieren.mutate()
+              }}
+            >
               <Ban className="w-3.5 h-3.5 mr-1" />Stornieren
             </Button>
           </>

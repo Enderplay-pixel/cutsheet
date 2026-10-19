@@ -423,7 +423,9 @@ function ZahlungenDialog({ firmaId, posten, schliessen }: { firmaId: number; pos
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => loeschen.mutate(z.id)}
+                    onClick={() => {
+                      if (confirm(`Zahlung über ${euro(z.amount_cents)} entfernen? Nur bei einem Erfassungsfehler - die Rechnung gilt danach wieder als offen.`)) loeschen.mutate(z.id)
+                    }}
                     aria-label="Zahlung entfernen"
                   >
                     <Trash2 className="w-3.5 h-3.5" />

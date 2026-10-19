@@ -264,3 +264,32 @@ Zeitlimit.
 Seitentitel.
 
 **Tests:** 1001 → 1010, alle grün.
+
+## Runde 8 - 19.10.2026 14:30
+
+**Punkt:** 6. Oktober-Seiten im Browser.
+
+**Gemessen:** Lokal mit Testkonto, eigener Firma und der Großproduktion. Zwölf
+Seiten (Firma, Rechnungen, Offene Posten, Buchhaltung, Angebote,
+Auswertungen, Verträge, Agenturen, Reise, Ablage, Abnahme, Abschluss) bei
+375 px Breite aufgerufen: kein Element ragt über den Rand, kein
+API-Aufruf scheitert. Messaufbau geprüft: Breite war 375, ein absichtlich
+600 px breites Probeelement wurde erkannt. `scrollWidth` taugt dafür nicht -
+`main` schneidet seitliches Scrollen ab.
+
+**Ende zu Ende:** Auftraggeber in der Oberfläche angelegt, Rechnung
+festgeschrieben, "Als bezahlt erfassen" geklickt - Offene Posten zeigt
+"Nichts offen". Vor Runde 5 stand die Rechnung dort als überfällig.
+
+**Befund:** Festschreiben (Rechnung, Angebot), Stornieren und Zahlung
+löschen wirkten auf einen Klick, ohne Rückfrage - obwohl Festschreiben und
+Storno endgültig sind. Jetzt mit Rückfrage, die sagt, was passiert.
+Nachgeprüft: Mit "Nein" bleibt die Rechnung versendet.
+
+**3b Rest:** Gedankenstriche aus Seitentitel, Beschreibung und
+PWA-Manifest.
+
+**Nicht gemessen:** Die Seiten mit vielen echten Daten bei 375 px (die
+Firma hatte nur zwei Rechnungen). Leerzustände sind geprüft.
+
+**Tests:** 1010, alle grün.

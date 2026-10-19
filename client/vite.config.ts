@@ -17,7 +17,7 @@ export default defineConfig({
       manifest: {
         name: 'CutSheet',
         short_name: 'CutSheet',
-        description: 'Produktionsmanagement für Film – vom Drehbuch bis zur letzten Klappe',
+        description: 'Produktionsmanagement für Film - vom Drehbuch bis zur letzten Klappe',
         lang: 'de',
         // Langes Drücken auf das App-Symbol: direkt ans Set
         shortcuts: [
