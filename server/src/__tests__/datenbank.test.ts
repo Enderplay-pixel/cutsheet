@@ -1655,3 +1655,42 @@ describe('Drehbuch-Import gegen echte Datenbank', () => {
     expect(nummern).toEqual(['1', '2', '3', '4'])
   })
 })
+
+describe('Auswertungen ohne Abfrage je Zeile', () => {
+  async function zaehle(lauf: () => Promise<unknown>): Promise<number> {
+    const modul = await import('../db')
+    const echtesAll = modul.db.all.bind(modul.db)
+    const echtesGet = modul.db.get.bind(modul.db)
+    let abfragen = 0
+    ;(modul.db as any).all = (...args: any[]) => { abfragen++; return (echtesAll as any)(...args) }
+    ;(modul.db as any).get = (...args: any[]) => { abfragen++; return (echtesGet as any)(...args) }
+    try { await lauf() } finally {
+      ;(modul.db as any).all = echtesAll
+      ;(modul.db as any).get = echtesGet
+    }
+    return abfragen
+  }
+
+  it('Umsatzsteuer: gleich viele Abfragen bei 5 und bei 40 Rechnungen', async () => {
+    const firma = (await db.run("INSERT INTO companies (name, owner_id) VALUES ('Last GmbH', ?)", [nutzerId])).id
+    const kunde = await db.run("INSERT INTO company_clients (company_id, name) VALUES (?, 'Kunde')", [firma])
+    const anlegen = async (n: number) => {
+      for (let i = 0; i < n; i++) {
+        const r = await db.run(
+          "INSERT INTO invoices (company_id, client_id, number, status, issue_date, tax_mode) VALUES (?, ?, ?, 'versendet', '2026-06-15', 'regel')",
+          [firma, kunde.id, `L-${Math.random()}`]
+        )
+        await db.run('INSERT INTO invoice_items (invoice_id, quantity_milli, unit_price_cents, tax_percent) VALUES (?, 1000, 1000, 19)', [r.id])
+      }
+    }
+    const pfad = `/api/companies/${firma}/invoices/report/vat?von=2026-06-01&bis=2026-06-30`
+    await anlegen(5)
+    const bei5 = await zaehle(() => hole(pfad, tokenInhaber))
+    await anlegen(35)
+    let antwort: any
+    const bei40 = await zaehle(async () => { antwort = await hole(pfad, tokenInhaber) })
+    expect(antwort.daten.anzahl).toBe(40)
+    expect(antwort.daten.steuer_cents).toBe(40 * 190)
+    expect(bei40).toBe(bei5)
+  })
+})

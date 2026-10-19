@@ -37,8 +37,6 @@ einen neuen Fehler zeigt - dann mit Beleg und an der passenden Stelle, nicht
 hinten angehängt.
 
 - [ ] **7. Übersetzung - zurückgestellt.** Gemessen: nur 14 von 87 Seiten übersetzt, nicht 56. Umfang und Sinn sind Florians Entscheidung, siehe ENTSCHEIDUNGEN-FLORIAN.md Punkt 4. Nicht anfangen, bis er entschieden hat.
-- [ ] **9. Leistung der Oktober-Module** mit der Großproduktion messen
-  (Abfragen je Anfrage, Antwortzeit), Ausreißer beheben.
 - [ ] **10. `CUTSHEET.md` auf Stand bringen** - Zahlen neu messen, neue
   Abschnitte für das, was im Dauerlauf entstanden ist.
 
@@ -56,3 +54,4 @@ hinten angehängt.
 - [x] **2c. Scan ohne blinde Flecken** - 19.10.2026, findet die Lücken aus Runde 3 nachweislich, 1 Route ohne echte ID. Siehe RUNDEN.md Runde 6.
 - [x] **8. Erste fünf Minuten** - 19.10.2026, Drehbuch-Import (jede vierte Datei scheiterte), Parser, Transaktion, Nummern, Admin-Statistik. Siehe RUNDEN.md Runde 7.
 - [x] **6. Oktober-Seiten im Browser** - 19.10.2026, 12 Seiten bei 375 px ohne Überlauf, Rückfragen für endgültige Geld-Aktionen. Siehe RUNDEN.md Runde 8.
+- [x] **9. Leistung** - 19.10.2026, zwei lesende Abfragen je Zeile beseitigt. Siehe RUNDEN.md Runde 9.

@@ -75,10 +75,10 @@ router.get('/companies/:companyId/auswertungen', requireAuth, erfordereAbrechnun
     ) as Promise<any[]>,
     // Ausgaben je Projekt - die andere Seite des Deckungsbeitrags.
     db.all(
-      `SELECT e.project_id, SUM(e.amount_cents) AS summe
+      `SELECT e.project_id, p.title, SUM(e.amount_cents) AS summe
          FROM expenses e JOIN projects p ON e.project_id = p.id
         WHERE p.company_id = ? AND e.expense_date >= ? AND e.expense_date <= ?
-        GROUP BY e.project_id`,
+        GROUP BY e.project_id, p.title`,
       [companyId, von, bis]
     ) as Promise<any[]>,
     db.all(
@@ -120,11 +120,12 @@ router.get('/companies/:companyId/auswertungen', requireAuth, erfordereAbrechnun
 
   // Projekte mit Kosten, aber ohne Rechnung - die fehlen sonst völlig, und
   // genau sie sind interessant.
+  // Den Titel bringt die Kostenabfrage mit - vorher eine Abfrage je Projekt.
+  const titelJeProjekt = new Map<number, string>(kosten.map((k) => [Number(k.project_id), String(k.title || '')]))
   for (const [projektId, summe] of kostenJeProjekt) {
     if (projekte.some((p) => Number(p.id) === projektId)) continue
-    const titel = (await db.get('SELECT title FROM projects WHERE id = ?', [projektId])) as any
     projekte.push({
-      id: projektId, titel: titel?.title || `Projekt ${projektId}`,
+      id: projektId, titel: titelJeProjekt.get(projektId) || `Projekt ${projektId}`,
       umsatz_cents: 0, kosten_cents: summe, deckungsbeitrag_cents: -summe,
       marge_promille: null, rechnungen: 0,
     })

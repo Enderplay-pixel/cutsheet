@@ -283,6 +283,18 @@ router.get('/companies/:companyId/invoices/report/vat', requireAuth, erfordereAb
     [companyId, von, bis, von, bis]
   )) as any[]
 
+  // Alle Positionen in einer Abfrage, nicht eine je Rechnung
+  const ids = rechnungen.map((r) => Number(r.id))
+  const allePositionen = ids.length === 0 ? [] : (await db.all(
+    `SELECT * FROM invoice_items WHERE invoice_id IN (${ids.map(() => '?').join(', ')})`, ids
+  )) as any[]
+  const positionenJeRechnung = new Map<number, Position[]>()
+  for (const p of allePositionen) {
+    const liste = positionenJeRechnung.get(Number(p.invoice_id))
+    if (liste) liste.push(p)
+    else positionenJeRechnung.set(Number(p.invoice_id), [p])
+  }
+
   const proSatz = new Map<number, { netto: number; steuer: number }>()
   const summe = { netto: 0, steuer: 0, brutto: 0 }
   let anzahl = 0
@@ -294,7 +306,7 @@ router.get('/companies/:companyId/invoices/report/vat', requireAuth, erfordereAb
       ...(rechnung.status === 'storniert' && storno >= von && storno <= bis ? [-1] : []),
     ]
     if (faktoren.length === 0) continue
-    const positionen = (await db.all('SELECT * FROM invoice_items WHERE invoice_id = ?', [rechnung.id])) as Position[]
+    const positionen = positionenJeRechnung.get(Number(rechnung.id)) ?? []
     const summen = summiere(positionen, (rechnung.tax_mode as Steuerart) || 'regel')
     for (const faktor of faktoren) {
       anzahl += faktor === 1 ? 1 : 0

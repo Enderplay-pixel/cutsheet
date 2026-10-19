@@ -293,3 +293,26 @@ PWA-Manifest.
 Firma hatte nur zwei Rechnungen). Leerzustände sind geprüft.
 
 **Tests:** 1010, alle grün.
+
+## Runde 9 - 19.10.2026 15:00
+
+**Punkt:** 9. Leistung der Oktober-Module.
+
+**Gemessen:** Alle Datenbankaufrufe innerhalb von Schleifen in den 16
+Oktober-Routern gesucht. Lesend betroffen waren zwei Stellen, schreibend
+einige (Positionen speichern, Kontakte übernehmen) - die betreffen wenige
+Zeilen auf einmal und bleiben.
+
+**Befunde und Änderungen:**
+1. *Umsatzsteuer-Auswertung:* eine Abfrage je Rechnung. Gemessen: 42
+   Abfragen bei 40 Rechnungen, 7 bei 5. Jetzt alle Positionen in einer
+   Abfrage - 7, gleich wie viele Rechnungen. Test hält das fest.
+2. *Auswertungen:* je Projekt mit Kosten, aber ohne Rechnung, eine eigene
+   Abfrage nach dem Titel. Den bringt jetzt die Kostenabfrage mit.
+
+**Nicht gemessen:** Antwortzeiten mit großen Mengen echter Oktober-Daten -
+die Großproduktion hat keine Rechnungen und Verträge. Die Zahl der Abfragen
+ist die verlässlichere Größe (siehe "Abfragen zaehlen" in
+datenbank.test.ts).
+
+**Tests:** 1010 → 1011, alle grün.
