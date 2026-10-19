@@ -262,8 +262,7 @@ export function renderCallSheetHtml(data: CallSheetData): string {
   .titlebox .name { font-size: 18pt; font-weight: 700; letter-spacing: -0.03em; }
   .titlebox .sub { font-size: 7pt; margin-top: 1pt; color: var(--gray); font-weight: 600; letter-spacing: 0.04em; }
   .titlebox .call { font-size: 20pt; font-weight: 700; letter-spacing: -0.02em; background: var(--accent); color: #fff;
-                    display: inline-block; padding: 2pt 16pt; margin-top: 4pt; border-radius: 12pt;
-                    font-variant-numeric: tabular-nums; }
+                    display: inline-block; padding: 2pt 16pt; margin-top: 4pt; border-radius: 12pt; }
   .datebox { width: 24%; text-align: center; }
   .datebox .d { font-weight: 600; font-size: 8.5pt; }
   .datebox .n { font-weight: 600; margin-top: 2pt; color: var(--accent); }

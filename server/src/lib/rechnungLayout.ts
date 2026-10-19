@@ -143,13 +143,12 @@ ${pdfFontFaces()}
   table.posten td { padding: 7px 6px; border-bottom: 0.4pt solid #ddd; vertical-align: top; }
   table.posten tr { page-break-inside: avoid; }
   table.posten thead { display: table-header-group; }
-  .zahl { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .zahl { text-align: right; white-space: nowrap; }
   .nr { color: #888; width: 7mm; }
 
   .summen { margin-top: 6mm; display: flex; justify-content: flex-end; page-break-inside: avoid; }
   .summen table { border-collapse: collapse; min-width: 75mm; }
   .summen td { padding: 4px 8px; }
-  .summen td.zahl { font-variant-numeric: tabular-nums; }
   .summen tr.gesamt td {
     border-top: 0.8pt solid #333; font-weight: 700; font-size: 12pt; padding-top: 7px;
   }
@@ -157,7 +156,7 @@ ${pdfFontFaces()}
   .hinweis { margin-top: 8mm; font-size: 9.5pt; }
   .zahlung { margin-top: 6mm; font-size: 9.5pt; }
   .zahlung b { font-weight: 600; }
-  .bank { margin-top: 3mm; font-variant-numeric: tabular-nums; }
+  .bank { margin-top: 3mm; }
 
   .fuss {
     margin-top: 12mm; padding-top: 4mm; border-top: 0.4pt solid #ccc;

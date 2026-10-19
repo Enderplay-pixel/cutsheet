@@ -292,8 +292,7 @@ export function renderDocument(opts: DocumentOptions): string {
   .stats { display: flex; flex-wrap: wrap; gap: 6pt; margin-bottom: 16pt; }
   .stat { flex: 1; min-width: 90pt; border-radius: 8pt; padding: 7pt 10pt 8pt; background: var(--fill); }
   .stat .k { font-size: 7.5pt; color: var(--gray); }
-  .stat .v { font-size: 15pt; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin-top: 1pt;
-             font-variant-numeric: tabular-nums; }
+  .stat .v { font-size: 15pt; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin-top: 1pt; }
   .stat .h { font-size: 7.5pt; color: var(--faint); }
   .stat:first-child .v { color: var(--accent); }
 
@@ -327,13 +326,14 @@ export function renderDocument(opts: DocumentOptions): string {
   table.zebra tbody tr:nth-child(even) td { background: #fafafc; }
   td.r, th[style*="right"] { text-align: right; }
   td.c { text-align: center; }
-  /* Zahlen mit gleicher Ziffernbreite: nur so stehen sie untereinander */
-  td.r { font-variant-numeric: tabular-nums; }
+  /* Kein tabular-nums in PDFs: Chromium bettet die Ersatzziffern ohne
+     Unicode-Zuordnung ein, Beträge sind dann nicht mehr kopier- oder
+     auslesbar (gemessen 19.10.2026). Siehe pdfTextebene.test.ts. */
   td.muted { color: var(--gray); font-size: 8pt; }
   td.empty { text-align: center; color: var(--faint); padding: 14pt; }
   tfoot td { border-top: 0.8pt solid var(--ink); border-bottom: none; padding-top: 6pt; font-weight: 600; }
   tfoot .sumlabel { color: var(--gray); font-weight: 500; }
-  tfoot .sumvalue { font-size: 11pt; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  tfoot .sumvalue { font-size: 11pt; font-weight: 700; letter-spacing: -0.01em; }
 
   /* ── Eckdaten ── */
   .defs { display: flex; flex-wrap: wrap; gap: 8pt 18pt; margin-bottom: 12pt; }
