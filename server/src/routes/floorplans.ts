@@ -75,6 +75,16 @@ router.get('/projects/:projectId/floorplans', async (req, res) => {
 // POST /api/projects/:projectId/floorplans
 router.post('/projects/:projectId/floorplans', async (req, res) => {
   const { name = '', scene_id = null, location_id = null, notes = '' } = req.body
+  // Die Liste holt Szenennummer und Motivnamen per JOIN dazu - Kennungen aus
+  // einem fremden Projekt machten diese Angaben sichtbar.
+  if (scene_id) {
+    const szene = await db.get('SELECT id FROM scenes WHERE id = ? AND project_id = ?', [scene_id, req.params.projectId])
+    if (!szene) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+  }
+  if (location_id) {
+    const motiv = await db.get('SELECT id FROM locations WHERE id = ? AND project_id = ?', [location_id, req.params.projectId])
+    if (!motiv) return res.status(404).json({ data: null, error: 'Motiv nicht gefunden' })
+  }
   const result = await db.run(
     'INSERT INTO floorplans (project_id, name, scene_id, location_id, notes) VALUES (?, ?, ?, ?, ?)',
     [req.params.projectId, String(name).trim() || 'Neuer Set-Plan', scene_id || null, location_id || null, notes]
@@ -91,7 +101,18 @@ router.get('/floorplans/:planId', requireMemberVia(projectIdFromTable('floorplan
 
 // PUT /api/floorplans/:planId
 router.put('/floorplans/:planId', async (req, res) => {
-  if (!await loadPlan(req, res)) return
+  const plan = await loadPlan(req, res)
+  if (!plan) return
+
+  // Wie beim Anlegen: nur Szene und Motiv aus dem Projekt des Plans
+  if (req.body.scene_id) {
+    const szene = await db.get('SELECT id FROM scenes WHERE id = ? AND project_id = ?', [req.body.scene_id, plan.project_id])
+    if (!szene) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+  }
+  if (req.body.location_id) {
+    const motiv = await db.get('SELECT id FROM locations WHERE id = ? AND project_id = ?', [req.body.location_id, plan.project_id])
+    if (!motiv) return res.status(404).json({ data: null, error: 'Motiv nicht gefunden' })
+  }
 
   const sets: string[] = []
   const params: any[] = []

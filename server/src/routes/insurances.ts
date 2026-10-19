@@ -61,7 +61,9 @@ router.post('/projects/:projectId/insurances', requireAuth, async (req: Request,
 router.put('/projects/:projectId/insurances/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const existing = await db.get('SELECT * FROM insurances WHERE id = ?', [id])
+    // Nur eine Zeile aus dem Projekt im Pfad. Sonst ließ sich über eine
+    // fremde Kennung die Zeile eines anderen Projekts ändern und auslesen.
+    const existing = await db.get('SELECT * FROM insurances WHERE id = ? AND project_id = ?', [id, Number(req.params.projectId)])
     if (!existing) return res.status(404).json({ data: null, error: 'Versicherung nicht gefunden' })
 
     const {
@@ -123,7 +125,8 @@ router.put('/projects/:projectId/insurances/:id', requireAuth, async (req: Reque
 router.delete('/projects/:projectId/insurances/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const result = await db.run('DELETE FROM insurances WHERE id = ?', [id])
+    // Nur aus dem Projekt im Pfad: sonst löschte eine fremde Kennung im fremden Projekt
+    const result = await db.run('DELETE FROM insurances WHERE id = ? AND project_id = ?', [id, Number(req.params.projectId)])
     if (result.changes === 0) return res.status(404).json({ data: null, error: 'Versicherung nicht gefunden' })
     return res.json({ data: { id }, error: null })
   } catch (err) {

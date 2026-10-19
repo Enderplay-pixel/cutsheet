@@ -107,6 +107,16 @@ router.post('/camera-reports/:reportId/takes', async (req: Request, res: Respons
     sort_order = 0,
   } = req.body
 
+  // Nur eine Einstellung aus dem Projekt dieses Kameraberichts
+  if (shot_id) {
+    const einstellung = await db.get(
+      `SELECT sh.id FROM shots sh JOIN shoot_days sd ON sd.project_id = sh.project_id
+         JOIN camera_reports cr ON cr.shoot_day_id = sd.id WHERE sh.id = ? AND cr.id = ?`,
+      [shot_id, req.params.reportId]
+    )
+    if (!einstellung) return res.status(404).json({ data: null, error: 'Einstellung nicht gefunden' })
+  }
+
   const result = await db.run(
     `INSERT INTO camera_takes
       (camera_report_id, shot_id, scene_number, take_number, timecode_in, timecode_out,
@@ -143,6 +153,17 @@ router.put('/camera-takes/:id', async (req: Request, res: Response) => {
       fields.push(`${key} = ?`)
       values.push(req.body[key])
     }
+  }
+
+  // Nur eine Einstellung aus dem Projekt dieses Takes
+  if (req.body.shot_id) {
+    const einstellung = await db.get(
+      `SELECT sh.id FROM shots sh JOIN shoot_days sd ON sd.project_id = sh.project_id
+         JOIN camera_reports cr ON cr.shoot_day_id = sd.id
+         JOIN camera_takes ct ON ct.camera_report_id = cr.id WHERE sh.id = ? AND ct.id = ?`,
+      [req.body.shot_id, req.params.id]
+    )
+    if (!einstellung) return res.status(404).json({ data: null, error: 'Einstellung nicht gefunden' })
   }
 
   if (fields.length > 0) {

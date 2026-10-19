@@ -51,6 +51,12 @@ router.get('/projects/:projectId/cast', async (req, res) => {
 // POST /api/projects/:projectId/cast
 router.post('/projects/:projectId/cast', async (req, res) => {
   const { character_id = null, actor_name = '', email = '', phone = '', agent = '', agent_email = '', agency = '', fee_per_day = 0, contract_type = 'Tagesgage', availability_notes = '', notes = '' } = req.body
+  // Die Besetzungsliste holt den Figurennamen per JOIN - eine Figur aus einem
+  // fremden Projekt stünde sonst mit Namen in dieser Besetzung.
+  if (character_id) {
+    const figur = await db.get('SELECT id FROM characters WHERE id = ? AND project_id = ?', [character_id, req.params.projectId])
+    if (!figur) return res.status(404).json({ data: null, error: 'Figur nicht gefunden' })
+  }
   const result = await db.run(`
     INSERT INTO cast (project_id, character_id, actor_name, email, phone, agent, agent_email, agency, fee_per_day, contract_type, availability_notes, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -63,6 +69,14 @@ router.post('/projects/:projectId/cast', async (req, res) => {
 // PUT /api/cast/:id
 router.put('/cast/:id', async (req, res) => {
   const { character_id, actor_name, email, phone, agent, agent_email, agency, fee_per_day, contract_type, availability_notes, notes } = req.body
+  // Nur eine Figur aus dem Projekt dieses Besetzungseintrags
+  if (character_id) {
+    const figur = await db.get(
+      'SELECT ch.id FROM characters ch JOIN "cast" c ON c.project_id = ch.project_id WHERE ch.id = ? AND c.id = ?',
+      [character_id, req.params.id]
+    )
+    if (!figur) return res.status(404).json({ data: null, error: 'Figur nicht gefunden' })
+  }
   await db.run(`
     UPDATE cast SET character_id=?, actor_name=?, email=?, phone=?, agent=?, agent_email=?, agency=?, fee_per_day=?, contract_type=?, availability_notes=?, notes=?
     WHERE id=?

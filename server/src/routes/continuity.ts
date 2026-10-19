@@ -68,6 +68,21 @@ router.post('/projects/:pid/continuity', async (req: Request, res: Response) => 
     shoot_day_id = null,
   } = req.body
 
+  // Die Liste holt Szenentitel, Darstellername und Drehtag per JOIN dazu.
+  // Kennungen aus einem fremden Projekt machten diese Angaben sichtbar.
+  if (scene_id) {
+    const szene = await db.get('SELECT id FROM scenes WHERE id = ? AND project_id = ?', [scene_id, req.params.pid])
+    if (!szene) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+  }
+  if (cast_id) {
+    const darsteller = await db.get('SELECT id FROM "cast" WHERE id = ? AND project_id = ?', [cast_id, req.params.pid])
+    if (!darsteller) return res.status(404).json({ data: null, error: 'Darsteller nicht gefunden' })
+  }
+  if (shoot_day_id) {
+    const drehtag = await db.get('SELECT id FROM shoot_days WHERE id = ? AND project_id = ?', [shoot_day_id, req.params.pid])
+    if (!drehtag) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+  }
+
   const photosJson = Array.isArray(photos) ? JSON.stringify(photos) : photos
 
   const result = await db.run(
@@ -108,6 +123,20 @@ router.put('/continuity/:id', async (req: Request, res: Response) => {
     photos = existing.photos,
     shoot_day_id = existing.shoot_day_id,
   } = req.body
+
+  // Wie beim Anlegen: nur Kennungen aus dem Projekt der Notiz
+  if (scene_id) {
+    const szene = await db.get('SELECT id FROM scenes WHERE id = ? AND project_id = ?', [scene_id, existing.project_id])
+    if (!szene) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+  }
+  if (cast_id) {
+    const darsteller = await db.get('SELECT id FROM "cast" WHERE id = ? AND project_id = ?', [cast_id, existing.project_id])
+    if (!darsteller) return res.status(404).json({ data: null, error: 'Darsteller nicht gefunden' })
+  }
+  if (shoot_day_id) {
+    const drehtag = await db.get('SELECT id FROM shoot_days WHERE id = ? AND project_id = ?', [shoot_day_id, existing.project_id])
+    if (!drehtag) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+  }
 
   const photosJson = Array.isArray(photos) ? JSON.stringify(photos) : photos
 

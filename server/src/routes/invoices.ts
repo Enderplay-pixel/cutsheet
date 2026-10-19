@@ -368,6 +368,12 @@ router.post('/companies/:companyId/invoices', requireAuth, erfordereAbrechnung()
       return res.status(400).json({ data: null, error: 'Dieses Projekt gehört nicht zu dieser Firma' })
     }
   }
+  // Die Rechnung lädt den Kunden samt Anschrift über die Kennung - ein Kunde
+  // einer fremden Firma stünde sonst mit Adresse auf dieser Rechnung.
+  if (k.client_id) {
+    const kunde = await db.get('SELECT id FROM company_clients WHERE id = ? AND company_id = ?', [Number(k.client_id), companyId])
+    if (!kunde) return res.status(404).json({ data: null, error: 'Kunde nicht gefunden' })
+  }
 
   const zeile = await db.run(
     `INSERT INTO invoices (company_id, client_id, project_id, status, issue_date, due_date,
@@ -406,6 +412,15 @@ router.put('/companies/:companyId/invoices/:invoiceId', requireAuth, erfordereAb
   }
 
   const k = req.body || {}
+  // Wie beim Anlegen: nur Kunde und Projekt dieser Firma
+  if (k.client_id) {
+    const kunde = await db.get('SELECT id FROM company_clients WHERE id = ? AND company_id = ?', [Number(k.client_id), companyId])
+    if (!kunde) return res.status(404).json({ data: null, error: 'Kunde nicht gefunden' })
+  }
+  if (k.project_id) {
+    const projekt = await db.get('SELECT id FROM projects WHERE id = ? AND company_id = ?', [Number(k.project_id), companyId])
+    if (!projekt) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+  }
   const firma = (await db.get('SELECT payment_days FROM companies WHERE id = ?', [companyId])) as any
   const ausstellung = String(k.issue_date || heuteISO())
   await db.run(

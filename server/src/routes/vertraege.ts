@@ -108,6 +108,16 @@ router.post('/projects/:projectId/vertragsvorlagen', requireAuth, requireMember,
 })
 
 router.put('/projects/:projectId/vertragsvorlagen/:id', requireAuth, requireMember, async (req: Request, res: Response) => {
+  // Das UPDATE geht über die Kennung der Vorlage. Ohne diese Prüfung ließ sich
+  // die Vorlage eines fremden Projekts oder einer fremden Firma umschreiben.
+  const projektId = Number(req.params.projectId)
+  const vorlage = await db.get(
+    `SELECT id FROM contract_templates
+      WHERE id = ? AND (project_id = ? OR company_id = (SELECT company_id FROM projects WHERE id = ?))`,
+    [Number(req.params.id), projektId, projektId]
+  )
+  if (!vorlage) return res.status(404).json({ data: null, error: 'Vorlage nicht gefunden' })
+
   const felder: string[] = []
   const werte: any[] = []
   if ('name' in req.body) { felder.push('name = ?'); werte.push(String(req.body.name || '')) }
@@ -124,7 +134,14 @@ router.put('/projects/:projectId/vertragsvorlagen/:id', requireAuth, requireMemb
 })
 
 router.delete('/projects/:projectId/vertragsvorlagen/:id', requireAuth, requireMember, async (req: Request, res: Response) => {
-  const zeile = await db.run('DELETE FROM contract_templates WHERE id = ?', [Number(req.params.id)])
+  // Nur Vorlagen dieses Projekts oder seiner Firma: sonst löschte eine fremde
+  // Kennung die Vorlage eines fremden Projekts oder einer fremden Firma
+  const projektId = Number(req.params.projectId)
+  const zeile = await db.run(
+    `DELETE FROM contract_templates
+      WHERE id = ? AND (project_id = ? OR company_id = (SELECT company_id FROM projects WHERE id = ?))`,
+    [Number(req.params.id), projektId, projektId]
+  )
   if (zeile.changes === 0) return res.status(404).json({ data: null, error: 'Vorlage nicht gefunden' })
   return res.json({ data: { geloescht: true }, error: null })
 })
@@ -293,6 +310,16 @@ router.post('/projects/:projectId/vertraege', requireAuth, requireMember, async 
   const vorlage = String(req.body?.body || '')
   if (!vorlage.trim()) return res.status(400).json({ data: null, error: 'Ohne Text kein Vertrag' })
 
+  // Nur eine Vorlage dieses Projekts oder seiner Firma
+  if (req.body?.template_id) {
+    const eigeneVorlage = await db.get(
+      `SELECT id FROM contract_templates
+        WHERE id = ? AND (project_id = ? OR company_id = (SELECT company_id FROM projects WHERE id = ?))`,
+      [Number(req.body.template_id), projectId, projectId]
+    )
+    if (!eigeneVorlage) return res.status(404).json({ data: null, error: 'Vorlage nicht gefunden' })
+  }
+
   const zeile = await db.run(
     `INSERT INTO contracts
        (project_id, template_id, person_type, person_id, kind, title, body, status, fee_cents, created_by)
@@ -443,6 +470,9 @@ router.post('/projects/:projectId/vertraege/:id/senden', requireAuth, requireMem
   if (vertrag.status === 'bestaetigt') {
     return res.status(400).json({ data: null, error: 'Dieser Vertrag ist bereits bestätigt' })
   }
+  if (vertrag.status === 'zurueckgezogen') {
+    return res.status(400).json({ data: null, error: 'Dieser Vertrag ist zurückgezogen. Für einen neuen Versand einen neuen anlegen.' })
+  }
 
   const daten = await werteFuer(projectId, vertrag.person_type, vertrag.person_id)
   if (!daten) return res.status(404).json({ data: null, error: 'Person nicht gefunden' })
@@ -502,6 +532,28 @@ router.post('/projects/:projectId/vertraege/:id/senden', requireAuth, requireMem
     data: { status: 'versendet', an: empfaengerAdresse, mail_id: eingereiht[0]?.id ?? null, link },
     error: null,
   })
+})
+
+/**
+ * Einen verschickten Vertrag zurückziehen - falsche Adresse, oder eine neue
+ * Fassung ersetzt ihn. Ohne das bliebe der alte Text für immer bestätigbar.
+ *
+ * Endgültig: Der Token wird gelöscht. Ein bestätigter Vertrag bleibt, wie er
+ * ist - die Zustimmung ist der Nachweis.
+ */
+router.post('/projects/:projectId/vertraege/:id/zurueckziehen', requireAuth, requireMember, async (req: Request, res: Response) => {
+  const projectId = Number(req.params.projectId)
+  const id = Number(req.params.id)
+  const zeile = await db.run(
+    `UPDATE contracts SET status = 'zurueckgezogen', token = NULL, updated_at = NOW()
+      WHERE id = ? AND project_id = ? AND status IN ('versendet', 'abgelehnt')`,
+    [id, projectId]
+  )
+  if (zeile.changes === 0) {
+    return res.status(400).json({ data: null, error: 'Zurückziehen geht nur bei verschickten, noch nicht bestätigten Verträgen' })
+  }
+  logAudit(projectId, (req as any).user as AuthUser, 'vertrag zurückgezogen', 'contracts', id, null, null)
+  return res.json({ data: { status: 'zurueckgezogen' }, error: null })
 })
 
 // ─── Der öffentliche Teil ────────────────────────────────────────────────────

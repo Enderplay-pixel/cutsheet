@@ -60,6 +60,12 @@ router.get('/projects/:projectId/scenes', async (req, res) => {
 // POST /api/projects/:projectId/scenes
 router.post('/projects/:projectId/scenes', async (req, res) => {
   const { scene_number = '', title = '', description = '', location_id = null, int_ext = 'INT', day_night = 'TAG', eighths = 8, estimated_minutes = 60, notes = '' } = req.body
+  // Die Szenenliste holt den Motivnamen per JOIN - ein Motiv aus einem
+  // fremden Projekt stünde sonst mit Namen in diesem Drehbuch.
+  if (location_id) {
+    const motiv = await db.get('SELECT id FROM locations WHERE id = ? AND project_id = ?', [location_id, req.params.projectId])
+    if (!motiv) return res.status(404).json({ data: null, error: 'Motiv nicht gefunden' })
+  }
   const maxSortRow = await db.get('SELECT COALESCE(MAX(sort_order), -1) as m FROM scenes WHERE project_id = ?', [req.params.projectId])
   const maxSort = (maxSortRow as any).m
   const result = await db.run(`
@@ -77,6 +83,15 @@ router.post('/projects/:projectId/scenes', async (req, res) => {
 // PUT /api/scenes/:id
 router.put('/scenes/:id', async (req, res) => {
   const { scene_number, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes, sort_order, shot_status, updated_at } = req.body
+
+  // Nur ein Motiv aus dem Projekt der Szene
+  if (location_id) {
+    const motiv = await db.get(
+      'SELECT l.id FROM locations l JOIN scenes s ON s.project_id = l.project_id WHERE l.id = ? AND s.id = ?',
+      [location_id, req.params.id]
+    )
+    if (!motiv) return res.status(404).json({ data: null, error: 'Motiv nicht gefunden' })
+  }
 
   // Optimistisches Sperren. Ohne das ueberschreibt der zweite Speichervorgang
   // den ersten stillschweigend: nachgemessen am 23.09.2026 - A aenderte den
@@ -147,6 +162,12 @@ router.delete('/scenes/:id', async (req, res) => {
 // POST /api/scenes/:id/characters
 router.post('/scenes/:id/characters', async (req, res) => {
   const { character_id, role_in_scene = '' } = req.body
+  // Die Antwort und die Szenenliste holen den Figurennamen per JOIN dazu
+  const figur = await db.get(
+    'SELECT ch.id FROM characters ch JOIN scenes s ON s.project_id = ch.project_id WHERE ch.id = ? AND s.id = ?',
+    [character_id, req.params.id]
+  )
+  if (!figur) return res.status(404).json({ data: null, error: 'Figur nicht gefunden' })
   await db.run('INSERT INTO scene_characters (scene_id, character_id, role_in_scene) VALUES (?, ?, ?) ON CONFLICT DO NOTHING', [req.params.id, character_id, role_in_scene])
   const chars = await db.all(`SELECT sc.*, c.name as character_name FROM scene_characters sc JOIN characters c ON sc.character_id = c.id WHERE sc.scene_id = ?`, [req.params.id])
   res.json({ data: chars, error: null })

@@ -295,6 +295,11 @@ router.post('/projects/:projectId/reisen', requireAuth, requireMember, async (re
         [Number(req.body.accommodation_id), projectId]
       )) as any)
     : null
+  // Die Abfrage oben fand eine fremde Unterkunft nicht, gespeichert wurde die
+  // Kennung trotzdem - und die Reiseliste holte den Namen per JOIN dazu.
+  if (req.body?.accommodation_id && !haus) {
+    return res.status(404).json({ data: null, error: 'Unterkunft nicht gefunden' })
+  }
 
   const id = await db.transaction(async (tx) => {
     const zeile = await tx.run(
@@ -364,6 +369,11 @@ router.put('/projects/:projectId/reisen/:id', requireAuth, requireMember, async 
     werte.push(Math.max(0, Math.round(Number(req.body.lodging_cents) || 0)))
   }
   if ('accommodation_id' in req.body) {
+    // Nur eine Unterkunft aus diesem Projekt - der Name kommt per JOIN dazu
+    if (req.body.accommodation_id) {
+      const haus = await db.get('SELECT id FROM accommodations WHERE id = ? AND project_id = ?', [Number(req.body.accommodation_id), projectId])
+      if (!haus) return res.status(404).json({ data: null, error: 'Unterkunft nicht gefunden' })
+    }
     felder.push('accommodation_id = ?')
     werte.push(req.body.accommodation_id ? Number(req.body.accommodation_id) : null)
   }

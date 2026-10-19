@@ -16,6 +16,11 @@ router.get('/projects/:projectId/equipment-lists', async (req, res) => {
 // POST /api/projects/:projectId/equipment-lists
 router.post('/projects/:projectId/equipment-lists', async (req, res) => {
   const { name = '', department = '', shoot_day_id = null, notes = '' } = req.body
+  // Nur ein Drehtag aus diesem Projekt
+  if (shoot_day_id) {
+    const drehtag = await db.get('SELECT id FROM shoot_days WHERE id = ? AND project_id = ?', [shoot_day_id, req.params.projectId])
+    if (!drehtag) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+  }
   const result = await db.run('INSERT INTO equipment_lists (project_id, name, department, shoot_day_id, notes) VALUES (?, ?, ?, ?, ?)', [req.params.projectId, name, department, shoot_day_id, notes])
   res.status(201).json({ data: await db.get('SELECT * FROM equipment_lists WHERE id = ?', [result.id]), error: null })
 })

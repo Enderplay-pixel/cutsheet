@@ -46,6 +46,12 @@ router.post('/projects/:pid/catering-preferences', async (req: Request, res: Res
     return res.status(400).json({ data: null, error: 'person_type und person_id erforderlich' })
   }
 
+  // Die Liste holt den Namen über die Kennung dazu - eine Person aus einem
+  // fremden Projekt stünde sonst mit Namen in dieser Verpflegungsliste.
+  const personenTabelle = person_type === 'cast' ? '"cast"' : 'crew'
+  const person = await db.get(`SELECT id FROM ${personenTabelle} WHERE id = ? AND project_id = ?`, [person_id, req.params.pid])
+  if (!person) return res.status(404).json({ data: null, error: 'Person nicht gefunden' })
+
   // Upsert: INSERT ... ON CONFLICT DO UPDATE
   const result = await db.run(
     `INSERT INTO catering_preferences (project_id, person_type, person_id, dietary, allergies, notes)

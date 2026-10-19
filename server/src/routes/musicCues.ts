@@ -47,6 +47,11 @@ router.post('/projects/:projectId/music-cues', requireAuth, async (req: Request,
       notes?: string
       sort_order?: number
     }
+    // Nur eine Szene aus diesem Projekt
+    if (scene_id) {
+      const szene = await db.get('SELECT id FROM scenes WHERE id = ? AND project_id = ?', [scene_id, projectId])
+      if (!szene) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+    }
     const result = await db.run(`
       INSERT INTO music_cues (project_id, scene_id, title, composer, publisher, duration_seconds, cue_type, usage_type, lyrics_author, notes, sort_order)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -63,7 +68,9 @@ router.post('/projects/:projectId/music-cues', requireAuth, async (req: Request,
 router.put('/projects/:projectId/music-cues/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const existing = await db.get('SELECT * FROM music_cues WHERE id = ?', [id])
+    // Nur eine Zeile aus dem Projekt im Pfad. Sonst ließ sich über eine
+    // fremde Kennung die Zeile eines anderen Projekts ändern und auslesen.
+    const existing = await db.get('SELECT * FROM music_cues WHERE id = ? AND project_id = ?', [id, Number(req.params.projectId)])
     if (!existing) return res.status(404).json({ data: null, error: 'Music-Cue nicht gefunden' })
 
     const {
@@ -88,6 +95,12 @@ router.put('/projects/:projectId/music-cues/:id', requireAuth, async (req: Reque
       lyrics_author?: string
       notes?: string
       sort_order?: number
+    }
+
+    // Nur eine Szene aus diesem Projekt
+    if (scene_id) {
+      const szene = await db.get('SELECT id FROM scenes WHERE id = ? AND project_id = ?', [scene_id, Number(req.params.projectId)])
+      if (!szene) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
     }
 
     await db.run(`
@@ -129,7 +142,8 @@ router.put('/projects/:projectId/music-cues/:id', requireAuth, async (req: Reque
 router.delete('/projects/:projectId/music-cues/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const result = await db.run('DELETE FROM music_cues WHERE id = ?', [id])
+    // Nur aus dem Projekt im Pfad: sonst löschte eine fremde Kennung im fremden Projekt
+    const result = await db.run('DELETE FROM music_cues WHERE id = ? AND project_id = ?', [id, Number(req.params.projectId)])
     if (result.changes === 0) return res.status(404).json({ data: null, error: 'Music-Cue nicht gefunden' })
     return res.json({ data: { id }, error: null })
   } catch (err) {

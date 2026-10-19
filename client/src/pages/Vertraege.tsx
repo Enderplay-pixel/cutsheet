@@ -34,6 +34,7 @@ const STATUS: Record<string, { label: string; klasse: string }> = {
   versendet:  { label: 'Versendet',  klasse: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
   bestaetigt: { label: 'Bestätigt',  klasse: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
   abgelehnt:  { label: 'Abgelehnt',  klasse: 'bg-destructive/15 text-destructive' },
+  zurueckgezogen: { label: 'Zurückgezogen', klasse: 'bg-muted text-muted-foreground line-through' },
 }
 
 const PERSONENART: Record<string, string> = { cast: 'Besetzung', crew: 'Stab', extra: 'Komparsen' }
@@ -94,6 +95,17 @@ function Personen({ pid }: { pid: number }) {
       toast({ title: 'Verschickt', description: `An ${e.an}` })
     },
     onError: (f: any) => toast({ title: 'Nicht verschickt', description: f.message, variant: 'destructive' }),
+  })
+
+  // Ein verschickter Link gilt, bis er zurückgezogen wird - etwa wenn er an die
+  // falsche Adresse ging oder eine neue Fassung den Vertrag ersetzt.
+  const zurueckziehen = useMutation({
+    mutationFn: (id: number) => api.vertraege.zurueckziehen(pid, id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vertraege', pid] })
+      toast({ title: 'Zurückgezogen', description: 'Der Link gilt nicht mehr.' })
+    },
+    onError: (f: any) => toast({ title: 'Nicht zurückgezogen', description: f.message, variant: 'destructive' }),
   })
 
   const personen: any[] = data?.personen ?? []
@@ -202,6 +214,18 @@ function Personen({ pid }: { pid: number }) {
                         >
                           <FileText className="w-3.5 h-3.5" />
                         </Button>
+                        {(v.status === 'versendet' || v.status === 'abgelehnt') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={zurueckziehen.isPending}
+                            onClick={() => {
+                              if (confirm(`„${v.title}" zurückziehen? Der Link in der Mail gilt danach nicht mehr.`)) zurueckziehen.mutate(v.id)
+                            }}
+                          >
+                            Zurückziehen
+                          </Button>
+                        )}
                         {v.status === 'entwurf' && (
                           <Button size="sm" onClick={() => senden.mutate(v.id)} disabled={senden.isPending}>
                             <Send className="w-3.5 h-3.5 mr-1" />

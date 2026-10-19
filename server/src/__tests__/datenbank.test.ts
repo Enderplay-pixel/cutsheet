@@ -122,6 +122,15 @@ beforeAll(async () => {
   // Der echte Server setzt req.user global per optionalAuth; dieser Router verlässt sich darauf
   const { optionalAuth } = await import('../middleware/auth')
   app.use('/api', optionalAuth, sperrzeitenRouter)
+  const { default: vertraegeRouter } = await import('../routes/vertraege')
+  const { default: abnahmeRouter } = await import('../routes/abnahme')
+  const { default: agenturenRouter } = await import('../routes/agenturen')
+  app.use('/api', optionalAuth, vertraegeRouter, abnahmeRouter, agenturenRouter)
+  const loeschRouter = await Promise.all(
+    ['cameraPresets', 'extras', 'insurances', 'musicCues', 'postplan', 'stickyNotes', 'vehicles', 'vfx']
+      .map(async (name) => (await import(`../routes/${name}`)).default)
+  )
+  app.use('/api', optionalAuth, ...loeschRouter)
   await new Promise<void>((aufloesen) => {
     server = app.listen(0, () => {
       basis = `http://127.0.0.1:${(server.address() as any).port}`
@@ -1370,4 +1379,119 @@ describe('Sperrzeiten nur für die eigene Besetzung', () => {
     })
     expect(antwort.status).toBe(201)
   })
+})
+
+describe('Verschickte Links zurückziehen', () => {
+  // Vorher gab es keinen Weg zurück: Ein Vertrag an die falsche Adresse oder
+  // ein überholter Text blieb über den Link für immer bestätigbar.
+  let projekt = 0
+  beforeAll(async () => {
+    projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Links zurück', nutzerId])).id
+  })
+
+  it('Vertrag: zurückgezogen gilt der Link nicht mehr und lässt sich nicht neu schicken', async () => {
+    const vertrag = await db.run(
+      "INSERT INTO contracts (project_id, person_type, person_id, title, status, token) VALUES (?, 'cast', 1, 'Darstellervertrag', 'versendet', ?)",
+      [projekt, 'v'.repeat(48)]
+    )
+    expect((await hole(`/api/vertrag/${'v'.repeat(48)}`, '')).status).toBe(200)
+    const zurueck = await hole(`/api/projects/${projekt}/vertraege/${vertrag.id}/zurueckziehen`, tokenInhaber, { method: 'POST', body: '{}' })
+    expect(zurueck.status).toBe(200)
+    expect((await hole(`/api/vertrag/${'v'.repeat(48)}`, '')).status).toBe(404)
+    const bestaetigen = await hole(`/api/vertrag/${'v'.repeat(48)}/bestaetigen`, '', { method: 'POST', body: JSON.stringify({ name: 'Zu spät' }) })
+    expect(bestaetigen.status).toBe(404)
+    const neu = await hole(`/api/projects/${projekt}/vertraege/${vertrag.id}/senden`, tokenInhaber, { method: 'POST', body: '{}' })
+    expect(neu.status).toBe(400)
+  })
+
+  it('Vertrag: ein bestätigter bleibt, wie er ist', async () => {
+    const vertrag = await db.run(
+      "INSERT INTO contracts (project_id, person_type, person_id, title, status) VALUES (?, 'cast', 1, 'Bestätigt', 'bestaetigt')",
+      [projekt]
+    )
+    const zurueck = await hole(`/api/projects/${projekt}/vertraege/${vertrag.id}/zurueckziehen`, tokenInhaber, { method: 'POST', body: '{}' })
+    expect(zurueck.status).toBe(400)
+    expect((await db.get('SELECT status FROM contracts WHERE id = ?', [vertrag.id])).status).toBe('bestaetigt')
+  })
+
+  it('Vertrag: Fremde können nicht zurückziehen', async () => {
+    const vertrag = await db.run(
+      "INSERT INTO contracts (project_id, person_type, person_id, title, status) VALUES (?, 'cast', 1, 'Fremd', 'versendet')",
+      [projekt]
+    )
+    const zurueck = await hole(`/api/projects/${projekt}/vertraege/${vertrag.id}/zurueckziehen`, tokenFremd, { method: 'POST', body: '{}' })
+    expect(zurueck.status).toBe(403)
+  })
+
+  it('Abnahme: zurückgezogen gilt der Link nicht mehr', async () => {
+    const runde = await db.run(
+      "INSERT INTO reviews (project_id, recipient_name, status, token) VALUES (?, 'Kundin', 'versendet', ?)",
+      [projekt, 'a'.repeat(48)]
+    )
+    expect((await hole(`/api/abnahme/${'a'.repeat(48)}`, '')).status).toBe(200)
+    const zurueck = await hole(`/api/projects/${projekt}/abnahmen/${runde.id}/zurueckziehen`, tokenInhaber, { method: 'POST', body: '{}' })
+    expect(zurueck.status).toBe(200)
+    expect((await hole(`/api/abnahme/${'a'.repeat(48)}`, '')).status).toBe(404)
+    const entscheiden = await hole(`/api/abnahme/${'a'.repeat(48)}/entscheiden`, '', { method: 'POST', body: JSON.stringify({ name: 'X', abgenommen: true }) })
+    expect(entscheiden.status).toBe(404)
+  })
+
+  it('Casting: Link weg nach Zurückziehen, fremde role_id wird nicht übernommen', async () => {
+    const anfrage = await db.run(
+      "INSERT INTO casting_requests (project_id, subject, status, token) VALUES (?, 'Hauptrolle', 'versendet', ?)",
+      [projekt, 'c'.repeat(48)]
+    )
+    const rolle = await db.run("INSERT INTO casting_request_roles (request_id, role_name) VALUES (?, 'Lena')", [anfrage.id])
+    const andere = await db.run("INSERT INTO casting_requests (project_id, subject) VALUES (?, 'Andere')", [projekt])
+    const fremdeRolle = await db.run("INSERT INTO casting_request_roles (request_id, role_name) VALUES (?, 'Fremd')", [andere.id])
+
+    const antwort = await hole(`/api/casting/${'c'.repeat(48)}/antwort`, '', {
+      method: 'POST',
+      body: JSON.stringify({ vorschlaege: [
+        { role_id: rolle.id, actor_name: 'Passt' },
+        { role_id: fremdeRolle.id, actor_name: 'Daneben' },
+      ] }),
+    })
+    expect(antwort.status).toBe(200)
+    const gespeichert = (await db.all('SELECT actor_name, role_id FROM casting_proposals WHERE request_id = ? ORDER BY id', [anfrage.id])) as any[]
+    expect(gespeichert).toEqual([
+      { actor_name: 'Passt', role_id: rolle.id },
+      { actor_name: 'Daneben', role_id: null },
+    ])
+
+    const zurueck = await hole(`/api/projects/${projekt}/casting-anfragen/${anfrage.id}/zurueckziehen`, tokenInhaber, { method: 'POST', body: '{}' })
+    expect(zurueck.status).toBe(200)
+    expect((await hole(`/api/casting/${'c'.repeat(48)}`, '')).status).toBe(404)
+  })
+})
+
+describe('Löschen nur im eigenen Projekt', () => {
+  // Gemeldet vom Arbeiter in Runde 3: Diese Routen löschten per
+  // `DELETE ... WHERE id = ?`. Wer in irgendeinem Projekt Mitglied war, konnte
+  // über das eigene Projekt im Pfad Zeilen fremder Projekte löschen.
+  const faelle: Array<[string, string]> = [
+    ['camera-presets', 'camera_presets'], ['extras', 'extras'], ['insurances', 'insurances'],
+    ['music-cues', 'music_cues'], ['post-phases', 'post_phases'], ['sticky-notes', 'sticky_notes'],
+    ['vehicles', 'vehicles'], ['vfx', 'vfx_shots'], ['vertragsvorlagen', 'contract_templates'],
+  ]
+  let opferProjekt = 0
+  let eigenesProjekt = 0
+  beforeAll(async () => {
+    opferProjekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Opfer', nutzerId])).id
+    eigenesProjekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Täter', fremdeId])).id
+  })
+
+  for (const [pfad, tabelle] of faelle) {
+    it(`${pfad}: fremde Zeile bleibt stehen, eigene lässt sich löschen`, async () => {
+      const fremd = await db.run(`INSERT INTO ${tabelle} (project_id) VALUES (?)`, [opferProjekt])
+      const quer = await hole(`/api/projects/${eigenesProjekt}/${pfad}/${fremd.id}`, tokenFremd, { method: 'DELETE' })
+      expect(quer.status).not.toBe(200)
+      expect(await db.get(`SELECT id FROM ${tabelle} WHERE id = ?`, [fremd.id])).toBeTruthy()
+
+      const eigen = await db.run(`INSERT INTO ${tabelle} (project_id) VALUES (?)`, [eigenesProjekt])
+      const weg = await hole(`/api/projects/${eigenesProjekt}/${pfad}/${eigen.id}`, tokenFremd, { method: 'DELETE' })
+      expect(weg.status).toBe(200)
+      expect(await db.get(`SELECT id FROM ${tabelle} WHERE id = ?`, [eigen.id])).toBeFalsy()
+    })
+  }
 })

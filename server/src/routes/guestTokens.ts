@@ -14,6 +14,15 @@ router.post('/projects/:projectId/guest-tokens', requireAuth, async (req: Reques
       expires_at?: string
     }
 
+    // Der Gastlink zeigt ohne Anmeldung die Dispo dieses Drehtags. Ein Drehtag
+    // aus einem fremden Projekt machte dessen Dispo samt Namen öffentlich.
+    if (shoot_day_id) {
+      const drehtag = await db.get('SELECT id FROM shoot_days WHERE id = ? AND project_id = ?', [shoot_day_id, projectId])
+      if (!drehtag) {
+        return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+      }
+    }
+
     const token = randomBytes(32).toString('hex')
 
     const result = await db.run(`

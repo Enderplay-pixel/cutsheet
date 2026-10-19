@@ -217,6 +217,19 @@ router.post('/projects/:projectId/abnahmen', requireAuth, requireMember, async (
   const projectId = Number(req.params.projectId)
   if (!req.body?.cut_id) return res.status(400).json({ data: null, error: 'Ohne Fassung keine Abnahme' })
 
+  // Die Runde holt Sichtungslink und Fassung per JOIN dazu und schickt den
+  // Link an den Auftraggeber - eine fremde Fassung wäre so herausgegangen.
+  const fassung = await db.get('SELECT id FROM cuts WHERE id = ? AND project_id = ?', [Number(req.body.cut_id), projectId])
+  if (!fassung) return res.status(404).json({ data: null, error: 'Fassung nicht gefunden' })
+  // Kunden gehören der Firma - nur einer aus der Firma dieses Projekts
+  if (req.body?.client_id) {
+    const kunde = await db.get(
+      'SELECT k.id FROM company_clients k JOIN projects p ON p.company_id = k.company_id WHERE k.id = ? AND p.id = ?',
+      [Number(req.body.client_id), projectId]
+    )
+    if (!kunde) return res.status(404).json({ data: null, error: 'Kunde nicht gefunden' })
+  }
+
   const zeile = await db.run(
     `INSERT INTO reviews
        (project_id, cut_id, client_id, recipient_name, recipient_email, message, deadline, created_by)
@@ -252,6 +265,14 @@ router.put('/projects/:projectId/abnahmen/:id', requireAuth, requireMember, asyn
     if (feld in req.body) { felder.push(`${feld} = ?`); werte.push(String(req.body[feld] ?? '')) }
   }
   if ('client_id' in req.body) {
+    // Nur ein Kunde aus der Firma dieses Projekts - der Name kommt per JOIN dazu
+    if (req.body.client_id) {
+      const kunde = await db.get(
+        'SELECT k.id FROM company_clients k JOIN projects p ON p.company_id = k.company_id WHERE k.id = ? AND p.id = ?',
+        [Number(req.body.client_id), projectId]
+      )
+      if (!kunde) return res.status(404).json({ data: null, error: 'Kunde nicht gefunden' })
+    }
     felder.push('client_id = ?')
     werte.push(req.body.client_id ? Number(req.body.client_id) : null)
   }
@@ -275,6 +296,9 @@ router.post('/projects/:projectId/abnahmen/:id/senden', requireAuth, requireMemb
   if (!runde) return res.status(404).json({ data: null, error: 'Abnahmerunde nicht gefunden' })
   if (runde.status === 'abgenommen') {
     return res.status(400).json({ data: null, error: 'Diese Fassung ist bereits abgenommen' })
+  }
+  if (runde.status === 'zurueckgezogen') {
+    return res.status(400).json({ data: null, error: 'Diese Abnahmerunde ist zurückgezogen. Für einen neuen Versand eine neue Runde anlegen.' })
   }
   const empfaenger = String(runde.recipient_email || '').trim()
   if (!empfaenger) return res.status(400).json({ data: null, error: 'Keine Mailadresse eingetragen' })
@@ -314,6 +338,27 @@ ${new Date(`${String(runde.deadline).slice(0, 10)}T12:00:00Z`).toLocaleDateStrin
     null, { fassung: runde.fassung, an: empfaenger })
 
   return res.json({ data: { status: 'versendet', an: empfaenger, mail_id: eingereiht[0]?.id ?? null, link }, error: null })
+})
+
+/**
+ * Den Link zurückziehen - etwa weil er an die falsche Adresse ging.
+ *
+ * Endgültig: Der Token wird gelöscht, der Link sagt danach "gilt nicht mehr".
+ * Eine abgenommene Runde bleibt, wie sie ist - die Abnahme ist der Nachweis.
+ */
+router.post('/projects/:projectId/abnahmen/:id/zurueckziehen', requireAuth, requireMember, async (req: Request, res: Response) => {
+  const projectId = Number(req.params.projectId)
+  const id = Number(req.params.id)
+  const zeile = await db.run(
+    `UPDATE reviews SET status = 'zurueckgezogen', token = NULL, updated_at = NOW()
+      WHERE id = ? AND project_id = ? AND status IN ('versendet', 'nachbesserung')`,
+    [id, projectId]
+  )
+  if (zeile.changes === 0) {
+    return res.status(400).json({ data: null, error: 'Zurückziehen geht nur, solange die Runde beim Kunden liegt' })
+  }
+  logAudit(projectId, (req as any).user as AuthUser, 'abnahme zurückgezogen', 'reviews', id, null, null)
+  return res.json({ data: { status: 'zurueckgezogen' }, error: null })
 })
 
 /** Eine Anmerkung als erledigt (oder wieder offen) kennzeichnen. */

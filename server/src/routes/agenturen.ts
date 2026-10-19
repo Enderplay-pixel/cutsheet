@@ -164,6 +164,16 @@ router.get('/projects/:projectId/casting-anfragen/:id', requireAuth, requireMemb
 
 router.post('/projects/:projectId/casting-anfragen', requireAuth, requireMember, async (req: Request, res: Response) => {
   const projectId = Number(req.params.projectId)
+  // Agenturen gehören der Firma. Die Anfrage holt Name und Mailadresse der
+  // Agentur per JOIN und verschickt an sie - nur eine aus der Firma dieses
+  // Projekts.
+  if (req.body?.agency_id) {
+    const agentur = await db.get(
+      'SELECT a.id FROM agencies a JOIN projects p ON p.company_id = a.company_id WHERE a.id = ? AND p.id = ?',
+      [Number(req.body.agency_id), projectId]
+    )
+    if (!agentur) return res.status(404).json({ data: null, error: 'Agentur nicht gefunden' })
+  }
   const zeile = await db.run(
     `INSERT INTO casting_requests (project_id, agency_id, subject, body, deadline, created_by)
      VALUES (?, ?, ?, ?, ?, ?)`,
@@ -196,6 +206,14 @@ router.put('/projects/:projectId/casting-anfragen/:id', requireAuth, requireMemb
   const felder: string[] = []
   const werte: any[] = []
   if ('agency_id' in req.body) {
+    // Wie beim Anlegen: nur eine Agentur aus der Firma dieses Projekts
+    if (req.body.agency_id) {
+      const agentur = await db.get(
+        'SELECT a.id FROM agencies a JOIN projects p ON p.company_id = a.company_id WHERE a.id = ? AND p.id = ?',
+        [Number(req.body.agency_id), projectId]
+      )
+      if (!agentur) return res.status(404).json({ data: null, error: 'Agentur nicht gefunden' })
+    }
     felder.push('agency_id = ?')
     werte.push(req.body.agency_id ? Number(req.body.agency_id) : null)
   }
@@ -227,6 +245,12 @@ router.put('/projects/:projectId/casting-anfragen/:id/rollen', requireAuth, requ
   }
 
   const rollen = Array.isArray(req.body?.rollen) ? req.body.rollen : []
+  // Die Anfrage holt den Figurennamen per JOIN - nur Figuren aus diesem Projekt
+  for (const r of rollen) {
+    if (!r?.character_id) continue
+    const figur = await db.get('SELECT id FROM characters WHERE id = ? AND project_id = ?', [Number(r.character_id), projectId])
+    if (!figur) return res.status(404).json({ data: null, error: 'Figur nicht gefunden' })
+  }
   await db.transaction(async (tx) => {
     await tx.run('DELETE FROM casting_request_roles WHERE request_id = ?', [id])
     for (let i = 0; i < rollen.length; i++) {
@@ -297,6 +321,9 @@ router.post('/projects/:projectId/casting-anfragen/:id/senden', requireAuth, req
   if (anfrage.status === 'beantwortet') {
     return res.status(400).json({ data: null, error: 'Diese Anfrage ist bereits beantwortet' })
   }
+  if (anfrage.status === 'zurueckgezogen') {
+    return res.status(400).json({ data: null, error: 'Diese Anfrage ist zurückgezogen. Für einen neuen Versand eine neue anlegen.' })
+  }
   if (anfrage.rollen.length === 0) {
     return res.status(400).json({ data: null, error: 'Ohne Rolle keine Anfrage' })
   }
@@ -326,6 +353,25 @@ router.post('/projects/:projectId/casting-anfragen/:id/senden', requireAuth, req
     null, { agentur: anfrage.agentur, rollen: anfrage.rollen.length })
 
   return res.json({ data: { status: 'versendet', an: empfaenger, mail_id: eingereiht[0]?.id ?? null, link }, error: null })
+})
+
+/**
+ * Den Link zurückziehen - die Rolle ist besetzt, oder die Anfrage ging an die
+ * falsche Agentur. Endgültig: Der Token wird gelöscht. Übernommene Vorschläge
+ * bleiben in der Besetzung.
+ */
+router.post('/projects/:projectId/casting-anfragen/:id/zurueckziehen', requireAuth, requireMember, async (req: Request, res: Response) => {
+  const projectId = Number(req.params.projectId)
+  const id = Number(req.params.id)
+  const zeile = await db.run(
+    `UPDATE casting_requests SET status = 'zurueckgezogen', token = NULL, updated_at = NOW()
+      WHERE id = ? AND project_id = ? AND status IN ('versendet', 'beantwortet')`,
+    [id, projectId]
+  )
+  if (zeile.changes === 0) {
+    return res.status(400).json({ data: null, error: 'Zurückziehen geht nur bei verschickten Anfragen' })
+  }
+  return res.json({ data: { status: 'zurueckgezogen' }, error: null })
 })
 
 /** Nachfassen - derselbe Link, neue Mail. */
@@ -472,6 +518,12 @@ router.post('/casting/:token/antwort', async (req: Request, res: Response) => {
     return res.status(400).json({ data: null, error: 'Bitte mindestens einen Vorschlag eintragen' })
   }
 
+  // Nur Rollen dieser Anfrage: Der Link ist öffentlich, die role_id kommt
+  // ungeprüft aus dem Formular.
+  const eigeneRollen = new Set(
+    ((await db.all('SELECT id FROM casting_request_roles WHERE request_id = ?', [anfrage.id])) as any[]).map((r) => Number(r.id))
+  )
+
   await db.transaction(async (tx) => {
     await tx.run('DELETE FROM casting_proposals WHERE request_id = ? AND taken_cast_id IS NULL', [anfrage.id])
     for (const v of vorschlaege) {
@@ -483,7 +535,7 @@ router.post('/casting/:token/antwort', async (req: Request, res: Response) => {
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           anfrage.id,
-          v?.role_id ? Number(v.role_id) : null,
+          eigeneRollen.has(Number(v?.role_id)) ? Number(v.role_id) : null,
           name.slice(0, 200),
           v?.available === undefined || v?.available === null ? null : v.available === true,
           Math.max(0, Math.round(Number(v?.fee_per_day_cents ?? 0))),

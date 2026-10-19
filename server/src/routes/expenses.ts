@@ -21,6 +21,14 @@ router.post('/projects/:projectId/expenses', requireAuth, requireMember, async (
   const { description, category, amount_cents, receipt_no, expense_date, budget_line_id, paid } = req.body as any
   if (!description?.trim()) return res.status(400).json({ data: null, error: 'Beschreibung erforderlich' })
   const amount = Math.round(Number(amount_cents) || 0)
+  // Nur eine Kalkulationszeile aus diesem Projekt
+  if (budget_line_id) {
+    const zeile = await db.get(
+      'SELECT bl.id FROM budget_lines bl JOIN budget_versions bv ON bl.budget_version_id = bv.id WHERE bl.id = ? AND bv.project_id = ?',
+      [budget_line_id, req.params.projectId]
+    )
+    if (!zeile) return res.status(404).json({ data: null, error: 'Kalkulationszeile nicht gefunden' })
+  }
 
   const result = await db.run(
     `INSERT INTO expenses (project_id, description, category, amount_cents, receipt_no, expense_date, budget_line_id, paid)
@@ -38,6 +46,14 @@ router.put('/expenses/:id', requireAuth, async (req: Request, res: Response) => 
   if (!existing) return res.status(404).json({ data: null, error: 'Beleg nicht gefunden' })
 
   const { description, category, amount_cents, receipt_no, expense_date, budget_line_id, paid } = req.body as any
+  // Nur eine Kalkulationszeile aus dem Projekt des Belegs
+  if (budget_line_id) {
+    const zeile = await db.get(
+      'SELECT bl.id FROM budget_lines bl JOIN budget_versions bv ON bl.budget_version_id = bv.id WHERE bl.id = ? AND bv.project_id = ?',
+      [budget_line_id, existing.project_id]
+    )
+    if (!zeile) return res.status(404).json({ data: null, error: 'Kalkulationszeile nicht gefunden' })
+  }
   await db.run(
     `UPDATE expenses SET description = ?, category = ?, amount_cents = ?, receipt_no = ?, expense_date = ?, budget_line_id = ?, paid = ?
      WHERE id = ?`,

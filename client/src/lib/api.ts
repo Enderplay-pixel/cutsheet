@@ -841,6 +841,8 @@ export const api = {
       req<any>(`/projects/${projektId}/abnahmen/${id}`, { method: 'PUT', body: JSON.stringify(daten) }),
     senden: (projektId: number, id: number) =>
       req<any>(`/projects/${projektId}/abnahmen/${id}/senden`, { method: 'POST', body: '{}' }),
+    zurueckziehen: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/abnahmen/${id}/zurueckziehen`, { method: 'POST', body: '{}' }),
     anmerkung: (projektId: number, id: number, notizId: number, daten: any) =>
       req<any>(`/projects/${projektId}/abnahmen/${id}/anmerkungen/${notizId}`, {
         method: 'PUT', body: JSON.stringify(daten),
@@ -946,6 +948,8 @@ export const api = {
       }),
     senden: (projektId: number, id: number) =>
       req<any>(`/projects/${projektId}/casting-anfragen/${id}/senden`, { method: 'POST', body: '{}' }),
+    zurueckziehen: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/casting-anfragen/${id}/zurueckziehen`, { method: 'POST', body: '{}' }),
     nachfassen: (projektId: number, id: number) =>
       req<any>(`/projects/${projektId}/casting-anfragen/${id}/nachfassen`, { method: 'POST', body: '{}' }),
     loeschen: (projektId: number, id: number) =>
@@ -1007,6 +1011,8 @@ export const api = {
       req<any>(`/projects/${projektId}/vertraege/${id}`, { method: 'DELETE' }),
     senden: (projektId: number, id: number) =>
       req<any>(`/projects/${projektId}/vertraege/${id}/senden`, { method: 'POST', body: '{}' }),
+    zurueckziehen: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/vertraege/${id}/zurueckziehen`, { method: 'POST', body: '{}' }),
     pdfUrl: (projektId: number, id: number) => `/api/projects/${projektId}/vertraege/${id}/pdf`,
 
     // Der öffentliche Teil - ohne Anmeldung, über den Link aus der Mail

@@ -159,6 +159,13 @@ router.delete('/shoot-days/:id', async (req, res) => {
 // POST /api/shoot-days/:id/scenes
 router.post('/shoot-days/:id/scenes', async (req, res) => {
   const { scene_id, sort_order = 0, estimated_minutes = null } = req.body
+  // Der Drehtag holt die Szenen per JOIN dazu - eine Szene aus einem fremden
+  // Projekt stünde sonst mit Titel und Motiv in diesem Drehplan.
+  const szene = await db.get(
+    'SELECT s.id FROM scenes s JOIN shoot_days sd ON sd.project_id = s.project_id WHERE s.id = ? AND sd.id = ?',
+    [scene_id, req.params.id]
+  )
+  if (!szene) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
   try {
     await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order, estimated_minutes) VALUES (?, ?, ?, ?)', [req.params.id, scene_id, sort_order, estimated_minutes])
   } catch (e: any) {

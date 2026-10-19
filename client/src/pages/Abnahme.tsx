@@ -55,6 +55,7 @@ const STATUS: Record<string, { label: string; klasse: string }> = {
   versendet:     { label: 'Beim Kunden',    klasse: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
   nachbesserung: { label: 'Nachbesserung',  klasse: 'bg-amber-500/15 text-amber-600 dark:text-amber-400' },
   abgenommen:    { label: 'Abgenommen',     klasse: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
+  zurueckgezogen: { label: 'Zurückgezogen', klasse: 'bg-muted text-muted-foreground line-through' },
 }
 
 const NOTIZSTAND: Record<string, { label: string; klasse: string }> = {
@@ -308,6 +309,12 @@ function RundeDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
     onError: (f: any) => toast({ title: 'Nicht verschickt', description: f.message, variant: 'destructive' }),
   })
 
+  const zurueckziehen = useMutation({
+    mutationFn: () => api.abnahmen.zurueckziehen(pid, id),
+    onSuccess: () => { neuLaden(); toast({ title: 'Zurückgezogen', description: 'Der Link gilt nicht mehr.' }) },
+    onError: (f: any) => toast({ title: 'Nicht zurückgezogen', description: f.message, variant: 'destructive' }),
+  })
+
   const anmerkung = useMutation({
     mutationFn: ({ notizId, daten }: { notizId: number; daten: any }) =>
       api.abnahmen.anmerkung(pid, id, notizId, daten),
@@ -440,7 +447,18 @@ function RundeDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
             Protokoll
           </Button>
           <Button variant="ghost" onClick={schliessen}>Schließen</Button>
-          {runde.status !== 'abgenommen' && (
+          {(runde.status === 'versendet' || runde.status === 'nachbesserung') && (
+            <Button
+              variant="outline"
+              disabled={zurueckziehen.isPending}
+              onClick={() => {
+                if (confirm('Abnahmerunde zurückziehen? Der Link beim Kunden gilt danach nicht mehr.')) zurueckziehen.mutate()
+              }}
+            >
+              Zurückziehen
+            </Button>
+          )}
+          {runde.status !== 'abgenommen' && runde.status !== 'zurueckgezogen' && (
             <Button onClick={() => senden.mutate()} disabled={senden.isPending}>
               <Send className="w-4 h-4 mr-1.5" />
               {runde.status === 'entwurf' ? 'Verschicken' : 'Erneut schicken'}

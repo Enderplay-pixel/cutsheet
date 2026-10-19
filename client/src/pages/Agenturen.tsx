@@ -41,6 +41,7 @@ const STATUS: Record<string, { label: string; klasse: string }> = {
   entwurf:     { label: 'Entwurf',     klasse: 'bg-muted text-muted-foreground' },
   versendet:   { label: 'Wartet',      klasse: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
   beantwortet: { label: 'Beantwortet', klasse: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
+  zurueckgezogen: { label: 'Zurückgezogen', klasse: 'bg-muted text-muted-foreground line-through' },
 }
 
 export function Component() {
@@ -240,6 +241,15 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
       toast({ title: 'Verschickt', description: `An ${e.an}` })
     },
     onError: (f: any) => toast({ title: 'Nicht verschickt', description: f.message, variant: 'destructive' }),
+  })
+
+  const zurueckziehen = useMutation({
+    mutationFn: () => api.casting.zurueckziehen(pid, id),
+    onSuccess: () => {
+      neuLaden()
+      toast({ title: 'Zurückgezogen', description: 'Der Link gilt nicht mehr.' })
+    },
+    onError: (f: any) => toast({ title: 'Nicht zurückgezogen', description: f.message, variant: 'destructive' }),
   })
 
   const uebernehmen = useMutation({
@@ -509,6 +519,17 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
             </Button>
           )}
           <Button variant="ghost" onClick={schliessen}>Schließen</Button>
+          {(anfrage.status === 'versendet' || anfrage.status === 'beantwortet') && (
+            <Button
+              variant="outline"
+              disabled={zurueckziehen.isPending}
+              onClick={() => {
+                if (confirm('Anfrage zurückziehen? Der Link bei der Agentur gilt danach nicht mehr. Übernommene Vorschläge bleiben in der Besetzung.')) zurueckziehen.mutate()
+              }}
+            >
+              Zurückziehen
+            </Button>
+          )}
           {bearbeitbar && (
             <Button onClick={() => senden.mutate()} disabled={senden.isPending || liste.length === 0}>
               <Send className="w-4 h-4 mr-1.5" />

@@ -127,6 +127,17 @@ router.post('/companies/:companyId/quotes', requireAuth, erfordereAbrechnung(), 
   const ausstellung = String(req.body?.issue_date || heuteISO()).slice(0, 10)
   const firma = (await db.get('SELECT tax_mode FROM companies WHERE id = ?', [companyId])) as any
 
+  // Das Angebot holt Kundenname und Projekttitel per JOIN dazu - nur Kunde
+  // und Projekt dieser Firma.
+  if (req.body?.client_id) {
+    const kunde = await db.get('SELECT id FROM company_clients WHERE id = ? AND company_id = ?', [Number(req.body.client_id), companyId])
+    if (!kunde) return res.status(404).json({ data: null, error: 'Kunde nicht gefunden' })
+  }
+  if (req.body?.project_id) {
+    const projekt = await db.get('SELECT id FROM projects WHERE id = ? AND company_id = ?', [Number(req.body.project_id), companyId])
+    if (!projekt) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+  }
+
   const zeile = await db.run(
     `INSERT INTO invoices
        (company_id, client_id, project_id, kind, status, issue_date, valid_until,
@@ -162,6 +173,15 @@ router.put('/companies/:companyId/quotes/:quoteId', requireAuth, erfordereAbrech
   const felder: string[] = []
   const werte: any[] = []
   const setze = (spalte: string, wert: any) => { felder.push(`${spalte} = ?`); werte.push(wert) }
+  // Wie beim Anlegen: nur Kunde und Projekt dieser Firma
+  if (req.body.client_id) {
+    const kunde = await db.get('SELECT id FROM company_clients WHERE id = ? AND company_id = ?', [Number(req.body.client_id), companyId])
+    if (!kunde) return res.status(404).json({ data: null, error: 'Kunde nicht gefunden' })
+  }
+  if (req.body.project_id) {
+    const projekt = await db.get('SELECT id FROM projects WHERE id = ? AND company_id = ?', [Number(req.body.project_id), companyId])
+    if (!projekt) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+  }
   if ('client_id' in req.body) setze('client_id', req.body.client_id ? Number(req.body.client_id) : null)
   if ('project_id' in req.body) setze('project_id', req.body.project_id ? Number(req.body.project_id) : null)
   if ('issue_date' in req.body) setze('issue_date', String(req.body.issue_date).slice(0, 10) || null)

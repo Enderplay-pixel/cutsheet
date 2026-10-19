@@ -87,6 +87,14 @@ router.post('/projects/:projectId/equipment-bookings', async (req: Request, res:
     if (new Date(end_date) < new Date(start_date)) {
       return res.status(400).json({ data: null, error: 'end_date darf nicht vor start_date liegen' })
     }
+    // Nur ein Equipment-Posten aus diesem Projekt
+    if (equipment_item_id) {
+      const posten = await db.get(
+        'SELECT ei.id FROM equipment_items ei JOIN equipment_lists el ON ei.equipment_list_id = el.id WHERE ei.id = ? AND el.project_id = ?',
+        [equipment_item_id, projectId]
+      )
+      if (!posten) return res.status(404).json({ data: null, error: 'Equipment-Posten nicht gefunden' })
+    }
 
     const result = await db.run(`
       INSERT INTO equipment_bookings (project_id, equipment_item_id, item_name, start_date, end_date, notes)
@@ -111,6 +119,15 @@ router.put('/equipment-bookings/:id', async (req: Request, res: Response) => {
 
     if (start_date && end_date && new Date(end_date) < new Date(start_date)) {
       return res.status(400).json({ data: null, error: 'end_date darf nicht vor start_date liegen' })
+    }
+    // Nur ein Equipment-Posten aus dem Projekt dieser Buchung
+    if (equipment_item_id) {
+      const posten = await db.get(
+        `SELECT ei.id FROM equipment_items ei JOIN equipment_lists el ON ei.equipment_list_id = el.id
+           JOIN equipment_bookings b ON b.project_id = el.project_id WHERE ei.id = ? AND b.id = ?`,
+        [equipment_item_id, req.params.id]
+      )
+      if (!posten) return res.status(404).json({ data: null, error: 'Equipment-Posten nicht gefunden' })
     }
 
     await db.run(`

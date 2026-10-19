@@ -51,7 +51,9 @@ router.post('/projects/:projectId/camera-presets', requireAuth, async (req: Requ
 router.put('/projects/:projectId/camera-presets/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const existing = await db.get('SELECT * FROM camera_presets WHERE id = ?', [id])
+    // Nur eine Zeile aus dem Projekt im Pfad. Sonst ließ sich über eine
+    // fremde Kennung die Zeile eines anderen Projekts ändern und auslesen.
+    const existing = await db.get('SELECT * FROM camera_presets WHERE id = ? AND project_id = ?', [id, Number(req.params.projectId)])
     if (!existing) return res.status(404).json({ data: null, error: 'Kamera-Preset nicht gefunden' })
 
     const { name, camera, lenses, notes } = req.body as {
@@ -82,7 +84,8 @@ router.put('/projects/:projectId/camera-presets/:id', requireAuth, async (req: R
 router.delete('/projects/:projectId/camera-presets/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id)
-    const result = await db.run('DELETE FROM camera_presets WHERE id = ?', [id])
+    // Nur aus dem Projekt im Pfad: sonst löschte eine fremde Kennung im fremden Projekt
+    const result = await db.run('DELETE FROM camera_presets WHERE id = ? AND project_id = ?', [id, Number(req.params.projectId)])
     if (result.changes === 0) return res.status(404).json({ data: null, error: 'Kamera-Preset nicht gefunden' })
     return res.json({ data: { id }, error: null })
   } catch (err) {

@@ -92,6 +92,18 @@ router.post('/shoot-days/:dayId/call-sheet', async (req, res) => {
     dept_notes = '',
   } = req.body
 
+  // Die Dispo holt den Motivnamen per JOIN. Ein Motiv aus einem fremden
+  // Projekt stünde sonst mit Namen auf dieser Dispo.
+  if (location_id) {
+    const motiv = await db.get(
+      'SELECT l.id FROM locations l JOIN shoot_days sd ON sd.project_id = l.project_id WHERE l.id = ? AND sd.id = ?',
+      [location_id, req.params.dayId]
+    )
+    if (!motiv) {
+      return res.status(404).json({ data: null, error: 'Motiv nicht gefunden' })
+    }
+  }
+
   const extraCols = [hospital_name, hospital_address, crew_parking, basecamp,
     breakfast_call, lunch_call, weather_high, weather_low, walkie_channels, dept_notes]
 
@@ -141,6 +153,14 @@ router.post('/shoot-days/:dayId/call-sheet', async (req, res) => {
 // PUT /api/call-sheets/:id/entries
 router.put('/call-sheets/:id/entries', async (req, res) => {
   const { entries } = req.body // array of entry objects
+  // Das UPDATE geht über die Eintrags-Kennung. Ohne diese Prüfung ließen sich
+  // Call-Zeiten und Notizen in der Dispo eines fremden Projekts ändern.
+  for (const e of entries as any[]) {
+    const eintrag = await db.get('SELECT id FROM call_sheet_entries WHERE id = ? AND call_sheet_id = ?', [e.id, req.params.id])
+    if (!eintrag) {
+      return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
+    }
+  }
   await db.transaction(async (tx) => {
     for (const e of entries as any[]) {
       await tx.run('UPDATE call_sheet_entries SET call_time=?, pickup_location=?, notes=? WHERE id=?', [e.call_time, e.pickup_location || '', e.notes || '', e.id])
@@ -154,6 +174,18 @@ router.post('/call-sheets/:id/entries/add', async (req, res) => {
   const { person_type, person_id, call_time = 480 } = req.body
   const sheet = await db.get('SELECT id FROM call_sheets WHERE id = ?', [req.params.id]) as any
   if (!sheet) return res.status(404).json({ data: null, error: 'Call Sheet nicht gefunden' })
+
+  // Die Dispo holt Name und Rolle der Person per Kennung dazu, der Versand
+  // ihre Mailadresse. Eine Person aus einem fremden Projekt wäre so sichtbar.
+  const personenTabelle = person_type === 'cast' ? '"cast"' : 'crew'
+  const person = await db.get(
+    `SELECT p.id FROM ${personenTabelle} p JOIN shoot_days sd ON sd.project_id = p.project_id
+       JOIN call_sheets cs ON cs.shoot_day_id = sd.id WHERE p.id = ? AND cs.id = ?`,
+    [person_id, req.params.id]
+  )
+  if (!person) {
+    return res.status(404).json({ data: null, error: 'Person nicht gefunden' })
+  }
 
   // Check not already on sheet
   const existing = await db.get('SELECT id FROM call_sheet_entries WHERE call_sheet_id = ? AND person_type = ? AND person_id = ?', [req.params.id, person_type, person_id])

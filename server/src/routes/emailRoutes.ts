@@ -529,6 +529,14 @@ router.post('/projects/:pid/email/groups', requireAuth, async (req: Request, res
   }
   const erlaubt = ['manuell', 'crew_alle', 'crew_abteilung', 'cast_alle', 'komparsen', 'mitglieder', 'drehtag']
   const regel = erlaubt.includes(String(rule)) ? String(rule) : 'manuell'
+  // Beim Verteiler "drehtag" ist der Parameter eine Drehtag-Kennung. Ein
+  // fremder Drehtag lieferte Namen und Adressen aus einem fremden Projekt.
+  if (regel === 'drehtag') {
+    const drehtag = await db.get('SELECT id FROM shoot_days WHERE id = ? AND project_id = ?', [Number(parameter), projectId])
+    if (!drehtag) {
+      return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+    }
+  }
   const zeile = await db.run(
     'INSERT INTO email_groups (project_id, name, rule, parameter) VALUES (?, ?, ?, ?)',
     [projectId, String(name), regel, String(parameter ?? '')]

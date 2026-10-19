@@ -34,6 +34,10 @@ router.post('/projects/:projectId/scenes/:sceneId/comments', async (req: Request
       return res.status(400).json({ data: null, error: 'Inhalt darf nicht leer sein' })
     }
 
+    // Nur eine Szene aus dem Projekt im Pfad
+    const szene = await db.get('SELECT id FROM scenes WHERE id = ? AND project_id = ?', [req.params.sceneId, req.params.projectId])
+    if (!szene) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+
     const author = user.name || user.email || 'Unbekannt'
 
     const result = await db.run(`

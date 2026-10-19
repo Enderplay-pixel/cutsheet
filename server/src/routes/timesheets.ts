@@ -98,6 +98,11 @@ router.post('/shoot-days/:dayId/timesheets', async (req: Request, res: Response)
     return res.status(400).json({ data: null, error: 'person_type und person_id erforderlich' })
   }
 
+  // Antwort, Liste und Gagen-Export holen den Namen über die Kennung dazu
+  const personenTabelle = person_type === 'cast' ? '"cast"' : 'crew'
+  const person = await db.get(`SELECT id FROM ${personenTabelle} WHERE id = ? AND project_id = ?`, [person_id, day.project_id])
+  if (!person) return res.status(404).json({ data: null, error: 'Person nicht gefunden' })
+
   const overtime_hours = calcOvertimeHours(call_time, wrap_time)
 
   const result = await db.run(
