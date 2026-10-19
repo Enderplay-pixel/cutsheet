@@ -44,7 +44,7 @@ hinten angehängt.
 - [ ] **6. Oktober-Seiten im Browser.** Jede neue Seite lokal mit
   Großproduktion aufrufen: Leerzustand, Ladezustand, Fehlermeldung bei
   Serverfehler, Telefonbreite 375 px ohne Seitenscrollen.
-- [ ] **7. Übersetzung - zurückgestellt.** Gemessen: nur 13 von 87 Seiten übersetzt, nicht 56. Umfang und Sinn sind Florians Entscheidung, siehe ENTSCHEIDUNGEN-FLORIAN.md Punkt 4. Nicht anfangen, bis er entschieden hat.
+- [ ] **7. Übersetzung - zurückgestellt.** Gemessen: nur 14 von 87 Seiten übersetzt, nicht 56. Umfang und Sinn sind Florians Entscheidung, siehe ENTSCHEIDUNGEN-FLORIAN.md Punkt 4. Nicht anfangen, bis er entschieden hat.
 - [ ] **8. Erste fünf Minuten, noch einmal.** Neues Konto, neue Firma, erstes
   Projekt, erste Rechnung - ohne Vorwissen durchspielen und alles beheben, was
   hakt.

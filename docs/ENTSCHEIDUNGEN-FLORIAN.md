@@ -64,8 +64,8 @@ ist keine Zone gesetzt. Mit dem nächsten Deploy ist es so oder so richtig.
 
 ## 4. Englisch und Französisch: ausbauen oder abschalten?
 
-Gemessen 19.10.2026: Nur 13 von 87 Seiten benutzen die Übersetzung
-(`useT()`), rund 74 stehen fest auf Deutsch - darunter alle Oktober-Module.
+Gemessen 19.10.2026: Nur 14 von 87 Seiten benutzen die Übersetzung
+(`useT()` oder `i18n` direkt), 73 stehen fest auf Deutsch - darunter alle Oktober-Module.
 `CUTSHEET.md` nennt "56 von 87", das deckt sich nicht mit dem Code. Die
 Sprachwahl sagt bei Englisch und Französisch ehrlich "teilweise".
 
