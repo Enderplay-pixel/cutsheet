@@ -93,6 +93,7 @@ async function main() {
   await zeile("INSERT INTO casting_requests (project_id, subject) VALUES (?, 'Anfrage')", [p])
   await zeile("INSERT INTO floorplans (project_id, name) VALUES (?, 'Grundriss')", [p])
   await zeile("INSERT INTO creator_videos (project_id, title) VALUES (?, 'Video')", [p])
+  await zeile("INSERT INTO drehplan_versions (project_id, name) VALUES (?, 'Stand 1')", [p])
 
   // Kind-ID je Pfadabschnitt: kleinste Zeile, die der Inhaberin gehört
   const tabellen: Record<string, [string, 'project_id' | 'company_id']> = {
@@ -105,6 +106,7 @@ async function main() {
     dateien: ['project_files', 'project_id'], abnahmen: ['reviews', 'project_id'], 'casting-anfragen': ['casting_requests', 'project_id'],
     videos: ['creator_videos', 'project_id'], cast: ['"cast"', 'project_id'], crew: ['crew', 'project_id'],
     groups: ['email_groups', 'project_id'],
+    'drehplan-versions': ['drehplan_versions', 'project_id'],
   }
   const idFuer: Record<string, string> = {}
   for (const [abschnitt, [tabelle, spalte]] of Object.entries(tabellen)) {
@@ -118,13 +120,18 @@ async function main() {
   // Alle GET-Routen aus allen Routern einsammeln
   const routenDir = path.join(__dirname, '..', 'routes')
   const routen = new Set<string>()
+  const schreibRouten = new Set<string>()
   for (const datei of fs.readdirSync(routenDir).filter((d) => d.endsWith('.ts'))) {
     const modul = require(path.join(routenDir, datei))
     const router = modul.default
     if (!router?.stack) continue
     const praefix = datei === 'projects.ts' ? '/projects' : datei === 'admin.ts' ? '/admin' : datei === 'auth.ts' ? '/auth' : ''
     for (const schicht of router.stack) {
-      if (schicht.route?.methods?.get && typeof schicht.route.path === 'string') routen.add(praefix + schicht.route.path)
+      if (typeof schicht.route?.path !== 'string') continue
+      if (schicht.route.methods?.get) routen.add(praefix + schicht.route.path)
+      for (const m of ['post', 'put', 'patch', 'delete']) {
+        if (schicht.route.methods?.[m]) schreibRouten.add(`${m.toUpperCase()} ${praefix}${schicht.route.path}`)
+      }
     }
   }
 
@@ -176,7 +183,87 @@ async function main() {
     }
   }
 
-  console.log(`\n${routen.size} GET-Routen, ${lecks.length} Verdachtsfälle, ${ungemessen.length} ungemessen\n`)
+  // ─── Schreibend ───────────────────────────────────────────────────────────
+  // Ein Leck zeigt sich hier nicht am Status allein: Ob die Daten der
+  // Inhaberin sich geändert haben, sagt der Fingerabdruck ihrer Zeilen.
+  // Kind-Tabellen ohne project_id/company_id sieht er nicht.
+  const eigeneTabellen = (await db.all(
+    `SELECT table_name, column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND column_name IN ('project_id', 'company_id')
+        AND table_name NOT IN ('audit_log', 'email_outbox', 'email_log')`
+  )) as Array<{ table_name: string; column_name: string }>
+  async function fingerabdruck(): Promise<Map<string, string>> {
+    const m = new Map<string, string>()
+    for (const { table_name, column_name } of eigeneTabellen) {
+      const wert = column_name === 'project_id' ? p : f
+      const z = (await db.get(
+        `SELECT md5(coalesce(string_agg(t::text, '|' ORDER BY t::text), '')) AS h FROM "${table_name}" t WHERE ${column_name} = ?`,
+        [wert]
+      ).catch(() => null)) as any
+      m.set(`${table_name}.${column_name}`, z?.h ?? '')
+    }
+    return m
+  }
+  const unterschied = (a: Map<string, string>, b: Map<string, string>) =>
+    [...a].filter(([k, v]) => b.get(k) !== v).map(([k]) => k)
+
+  // Textfelder mit Kennung: Ein erlaubtes PUT ändert sonst nichts Sichtbares
+  const koerper = JSON.stringify({
+    name: 'SCAN', title: 'SCAN', label: 'SCAN', notes: 'SCAN', description: 'SCAN',
+    subject: 'SCAN', body: 'SCAN', text: 'SCAN', comment: 'SCAN', content: 'SCAN',
+  })
+  async function schicke(methode: string, pfad: string, token: string) {
+    const r = await fetch(`${basis}/api${pfad}`, {
+      method: methode,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: methode === 'DELETE' ? undefined : koerper,
+    }).catch(() => null)
+    return r?.status ?? 0
+  }
+
+  // Gegenprobe: Sieht der Fingerabdruck eine erlaubte Änderung der Inhaberin
+  // nicht, ist der ganze schreibende Teil blind und sein "0" nichts wert.
+  const opfer = await db.run("INSERT INTO floorplans (project_id, name) VALUES (?, 'Gegenprobe')", [p])
+  const probeVorher = await fingerabdruck()
+  const probeStatus = await schicke('DELETE', `/floorplans/${opfer.id}`, tokI)
+  const probe = unterschied(probeVorher, await fingerabdruck())
+  console.log(`GEGENPROBE DELETE /floorplans/${opfer.id} als Inhaberin: ${probeStatus}, geändert: ${probe.join(', ') || 'NICHTS - MESSUNG BLIND'}`)
+
+  const harmlosSchreibend = new Set(['POST /companies', 'POST /projects/'])
+  const schreibLecks: string[] = []
+  let geprueft = 0
+  const verdeckt: string[] = []
+  let vorher = await fingerabdruck()
+  for (const eintrag of [...schreibRouten].sort()) {
+    const [methode, roh] = eintrag.split(' ')
+    if (roh.includes(':token') || roh.startsWith('/auth') || roh.startsWith('/admin')) continue
+    if (/push|ai-|optimize|email\/send|email\/test/.test(roh)) continue
+    const ziele = [{ art: 'FREMD', pfad: fuelle(roh, p, f) }]
+    const mitKind = /:[A-Za-z]+/.test(roh.replace(/:projectId|:companyId|:pid|:art/g, ''))
+    if (mitKind && /:projectId|:companyId|:pid/.test(roh)) {
+      ziele.push({ art: 'QUER', pfad: fuelle(roh, fremdesProjekt.id, fremdeFirma.id) })
+    }
+    for (const ziel of ziele) {
+      const status = await schicke(methode, ziel.pfad, tokF)
+      geprueft++
+      const nachher = await fingerabdruck()
+      const geaendert = unterschied(vorher, nachher)
+      if (geaendert.length > 0) {
+        schreibLecks.push(`${ziel.art} ÄNDERT  ${methode} ${roh}  (${status}) ${geaendert.join(', ')}`)
+        vorher = nachher
+      } else if (ziel.art === 'QUER' && status === 400) {
+        verdeckt.push(`${methode} ${roh}`)
+      } else if (ziel.art === 'FREMD' && status >= 200 && status < 300 && !harmlosSchreibend.has(eintrag)) {
+        schreibLecks.push(`FREMD ${status}  ${methode} ${roh}  (keine Änderung an Daten der Inhaberin gesehen)`)
+      }
+    }
+  }
+  console.log(`\n${schreibRouten.size} schreibende Routen, ${geprueft} Aufrufe, ${schreibLecks.length} Verdachtsfälle\n`)
+  for (const l of schreibLecks) console.log(l)
+  console.log(`VERDECKT ${verdeckt.length} Querzugriffe scheiterten an der Eingabeprüfung (400), bevor die Zugehörigkeit geprüft wurde`)
+  fs.writeFileSync(path.join(os.tmpdir(), 'cutsheet-scan-verdeckt.txt'), verdeckt.join('\n'))
+
+  console.log(`\n${routen.size} GET-Routen,${lecks.length} Verdachtsfälle, ${ungemessen.length} ungemessen\n`)
   for (const l of lecks) console.log(l)
   fs.writeFileSync(path.join(os.tmpdir(), 'cutsheet-scan-ungemessen.txt'), ungemessen.join('\n'))
   console.log(`\nUngemessen: ${path.join(os.tmpdir(), 'cutsheet-scan-ungemessen.txt')}`)

@@ -36,9 +36,11 @@ Reihenfolge ist Priorität. Der Lauf darf Punkte ergänzen, wenn eine Messung
 einen neuen Fehler zeigt - dann mit Beleg und an der passenden Stelle, nicht
 hinten angehängt.
 
-- [ ] **2. Zugriffsscan schreibend.** Dasselbe für POST, PUT, PATCH, DELETE:
-  fremde Person, und fremde Person mit eigenem Projekt im Pfad und Kind-ID der
-  Inhaberin dahinter. Nur gegen die Wegwerf-Datenbank des Scans.
+- [ ] **2b. Fremdschlüssel im Anfragekörper.** Jede schreibende Route, die
+  eine ID aus dem Körper übernimmt (`cast_id`, `location_id`, `scene_id`,
+  `budget_line_id`, `client_id`, `cut_id`, `contact_id` …), muss prüfen, dass
+  der Datensatz zum selben Projekt bzw. zur selben Firma gehört. Fund aus
+  Runde 2: Sperrzeiten nahmen eine fremde `castId` an und zeigten deren Namen.
 - [ ] **3. Öffentliche Token-Seiten.** `/vertrag/:token`, `/casting/:token`,
   `/abnahme/:token`, Gast-Tokens: abgelaufene, widerrufene und erratene Tokens,
   doppelte Entscheidung, Ratenbegrenzung. Messen, Lücken schließen.
@@ -68,3 +70,4 @@ hinten angehängt.
 (Der Lauf verschiebt Punkte hierher, mit Commit-Hash und Datum.)
 
 - [x] **1. Zugriffsscan lesend** - 19.10.2026, Leck `dateien/fristen` geschlossen, 192 Routen, 0 Befunde. Siehe RUNDEN.md Runde 1.
+- [x] **2. Zugriffsscan schreibend** - 19.10.2026, 339 Aufrufe, ein Leck (Sperrzeiten mit fremder castId) geschlossen. Siehe RUNDEN.md Runde 2.

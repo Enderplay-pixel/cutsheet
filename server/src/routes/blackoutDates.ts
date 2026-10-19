@@ -115,6 +115,12 @@ router.post('/projects/:projectId/cast/:castId/blackout-dates', async (req: Requ
     if (new Date(end_date) < new Date(start_date)) {
       return res.status(400).json({ data: null, error: 'end_date darf nicht vor start_date liegen' })
     }
+    // Nur die eigene Besetzung: Die Listen holen den Namen per JOIN dazu, eine
+    // fremde castId brächte den Namen aus einem fremden Projekt hierher.
+    const darsteller = await db.get('SELECT id FROM "cast" WHERE id = ? AND project_id = ?', [req.params.castId, req.params.projectId])
+    if (!darsteller) {
+      return res.status(404).json({ data: null, error: 'Darsteller nicht gefunden' })
+    }
 
     const result = await db.run(`
       INSERT INTO cast_blackout_dates (project_id, cast_id, start_date, end_date, reason)

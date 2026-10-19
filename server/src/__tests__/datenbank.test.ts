@@ -111,6 +111,7 @@ beforeAll(async () => {
   const { default: companiesRouter } = await import('../routes/companies')
   const { default: invoicesRouter } = await import('../routes/invoices')
   const { default: dateienRouter } = await import('../routes/dateien')
+  const { default: sperrzeitenRouter } = await import('../routes/blackoutDates')
   const { default: authRouter } = await import('../routes/auth')
   const app = express()
   app.use(express.json())
@@ -118,6 +119,9 @@ beforeAll(async () => {
   app.use('/api', companiesRouter)
   app.use('/api', invoicesRouter)
   app.use('/api', dateienRouter)
+  // Der echte Server setzt req.user global per optionalAuth; dieser Router verlässt sich darauf
+  const { optionalAuth } = await import('../middleware/auth')
+  app.use('/api', optionalAuth, sperrzeitenRouter)
   await new Promise<void>((aufloesen) => {
     server = app.listen(0, () => {
       basis = `http://127.0.0.1:${(server.address() as any).port}`
@@ -1335,5 +1339,35 @@ describe('Ablaufende Nachweise einer Firma', () => {
     const antwort = await hole(`/api/companies/${firma}/dateien/fristen`, tokenAussen)
     expect(antwort.status).toBe(403)
     expect(antwort.daten ?? null).toBeNull()
+  })
+})
+
+describe('Sperrzeiten nur für die eigene Besetzung', () => {
+  // Gefunden mit dem schreibenden Teil von src/scripts/zugriffsscan.ts: Die
+  // Route nahm jede castId an. Die Liste holt den Namen per JOIN dazu - so
+  // landete der Name einer fremden Darstellerin im eigenen Projekt.
+  it('lehnt eine Darstellerin aus einem fremden Projekt ab', async () => {
+    const fremdesProjekt = await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Geheimdreh', nutzerId])
+    const darstellerin = await db.run('INSERT INTO "cast" (project_id, actor_name) VALUES (?, ?)', [fremdesProjekt.id, 'Geheime Hauptrolle'])
+    const eigenes = await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Eigener Dreh', fremdeId])
+
+    const antwort = await hole(`/api/projects/${eigenes.id}/cast/${darstellerin.id}/blackout-dates`, tokenFremd, {
+      method: 'POST',
+      body: JSON.stringify({ start_date: '2026-11-01', end_date: '2026-11-02' }),
+    })
+    expect(antwort.status).toBe(404)
+
+    const liste = await hole(`/api/projects/${eigenes.id}/blackout-dates`, tokenFremd)
+    expect(JSON.stringify(liste.daten)).not.toContain('Geheime Hauptrolle')
+  })
+
+  it('nimmt die eigene Darstellerin an', async () => {
+    const projekt = await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Mit Besetzung', nutzerId])
+    const darstellerin = await db.run('INSERT INTO "cast" (project_id, actor_name) VALUES (?, ?)', [projekt.id, 'Lena Hoffmann'])
+    const antwort = await hole(`/api/projects/${projekt.id}/cast/${darstellerin.id}/blackout-dates`, tokenInhaber, {
+      method: 'POST',
+      body: JSON.stringify({ start_date: '2026-11-01', end_date: '2026-11-02' }),
+    })
+    expect(antwort.status).toBe(201)
   })
 })
