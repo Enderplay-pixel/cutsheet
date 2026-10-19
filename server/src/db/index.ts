@@ -47,8 +47,10 @@ export { istUeberlastet } from '../lib/ueberlast'
 export function toPg(sql: string): string {
   let i = 0
   return sql
-    // Multi-arg datetime: datetime('now', '-7 days') → NOW() - INTERVAL '7 days'
-    .replace(/datetime\('now'\s*,\s*'([+-]?\d+)\s+(\w+)'\)/gi, "NOW() - INTERVAL '$1 $2'")
+    // Multi-arg datetime: datetime('now', '-7 days') → (NOW() + INTERVAL '-7 days').
+    // Das Vorzeichen steht schon im Intervall, also Plus. Vorher stand hier
+    // Minus - aus "vor sieben Tagen" wurde "in sieben Tagen" (19.10.2026).
+    .replace(/datetime\('now'\s*,\s*'([+-]?\d+)\s+(\w+)'\)/gi, "(NOW() + INTERVAL '$1 $2')")
     .replace(/datetime\('now'\)/gi, 'NOW()')
     // Auch die doppelt gequotete Form abfangen: In Postgres waere "now" ein
     // Bezeichner und die Abfrage schluege fehl. Genau daran ist das Speichern

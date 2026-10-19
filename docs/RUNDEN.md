@@ -222,3 +222,45 @@ Eingabeprüfung scheitern.
 vorübergehend alten Routen mitcommittet. Sofort bemerkt, mit
 `reset --soft` zurückgenommen, nie gepusht. Vault-Notiz
 `Fehler/commit -a bei paralleler Arbeit.md`.
+
+## Runde 7 - 19.10.2026 13:40
+
+**Punkt:** 8. Erste fünf Minuten - lokal im Browser mit einem frischen Konto
+durchgespielt: registrieren, Rundgang, Einrichtungsassistent, Drehbuch
+importieren.
+
+**Befunde und Änderungen** (jeder mit Test, der vor dem Fix rot war):
+1. *Jedes vierte Drehbuch ließ sich nicht importieren.* Gemessen im
+   Assistenten mit einer Fountain-Datei: "Der Text enthält ein Zeichen, das
+   nicht gespeichert werden kann." Die Route hielt jeden Text ohne "<" mit
+   durch 4 teilbarer Länge für Base64 und machte daraus Datenmüll. Die Datei
+   hatte 264 Zeichen. Jetzt nur noch echtes Base64.
+2. *Phantomszene "Import"* aus dem Fountain-Titelblock (`Title: …`).
+3. *Dialog wurde zu Handlung:* Der Parser übersprang Leerzeilen, bevor er den
+   Typ bestimmte; die Zeile unter einer Rolle galt nie als Dialog.
+4. *Halbe Importe:* Ohne Transaktion blieb nach einem Abbruch eine Szene
+   liegen (Gegenprobe ohne Transaktion: 1 Szene, mit: 0).
+5. *Doppelte Szenennummern:* Jeder Import begann bei 1.
+6. *Admin-Statistik "neu in 7 Tagen" immer 0:* `toPg` übersetzte
+   `datetime('now', '-7 days')` in einen Zeitpunkt sieben Tage in der
+   Zukunft. Der vorhandene Test prüfte nur den Text, nicht die Bedeutung;
+   neuer Test rechnet in echter Postgres nach.
+7. *Zweimal "Willkommen":* Nach dem Rundgang ("Du bist startklar!") begrüßte
+   der Assistent noch einmal mit "Willkommen bei CutSheet". Jetzt "Dein
+   erstes Projekt".
+
+**Geprüft, kein Fehler:** Die Versprechen im Rundgang (QR-Einladung,
+Taste "?", Wetterabruf) gibt es wirklich. "ca. 300 Min." für fünf Szenen ist
+die geschätzte Drehzeit (60 Min. je Szene), nicht die Filmlänge. Der
+Schließen-Knopf hat einen versteckten Namen, das Werkzeug zeigte ihn nur
+nicht an.
+
+**Messaufbau:** Der Test-Server in `datenbank.test.ts` hat jetzt dieselbe
+Fehlerbehandlung wie der echte (`express-async-errors`,
+`uebersetzeDatenbankfehler`). Ohne sie hing eine werfende Route bis zum
+Zeitlimit.
+
+**Offen für Punkt 3b:** `client/index.html` hat noch einen Gedankenstrich im
+Seitentitel.
+
+**Tests:** 1001 → 1010, alle grün.

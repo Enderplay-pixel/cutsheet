@@ -342,13 +342,29 @@ function parseFdxXml(xml: string): Array<{ type: BlockType; content: string }> {
   return parsePlainText(normalized)
 }
 
-function parsePlainText(text: string): Array<{ type: BlockType; content: string }> {
+export function parsePlainText(text: string): Array<{ type: BlockType; content: string }> {
   const blocks: Array<{ type: BlockType; content: string }> = []
-  const lines = text.split('\n')
+  let lines = text.split('\n')
+
+  // Fountain-Titelblock ("Title: …", "Author: …") bis zur ersten Leerzeile.
+  // Er gehört nicht ins Drehbuch - vorher wurde daraus eine Szene "Import".
+  const erste = lines.findIndex((l) => l.trim() !== '')
+  if (erste !== -1 && /^[A-Za-z][A-Za-z ]*:\s*\S/.test(lines[erste].trim()) && !/^(INT|EXT)\b/i.test(lines[erste].trim())) {
+    const ende = lines.findIndex((l, i) => i > erste && l.trim() === '')
+    lines = ende === -1 ? [] : lines.slice(ende + 1)
+  }
+
+  // Im Dialog ist, wer direkt (ohne Leerzeile) unter einer Rolle steht.
+  // Vorher wurden Leerzeilen übersprungen, bevor der Typ feststand - so
+  // wurde jeder Dialog zur Handlung.
+  let imDialog = false
 
   for (const rawLine of lines) {
     const line = rawLine.trim()
-    if (!line) continue
+    if (!line) {
+      imDialog = false
+      continue
+    }
 
     let blockType: BlockType = 'action'
 
@@ -358,10 +374,13 @@ function parsePlainText(text: string): Array<{ type: BlockType; content: string 
       blockType = 'transition'
     } else if (/^\(/.test(line)) {
       blockType = 'parenthetical'
-    } else if (line === line.toUpperCase() && line.length < 60 && /[A-Z]/.test(line)) {
+    } else if (imDialog) {
+      blockType = 'dialogue'
+    } else if (line === line.toUpperCase() && line.length < 60 && /[A-ZÄÖÜ]/.test(line)) {
       blockType = 'character'
     }
 
+    imDialog = blockType === 'character' || blockType === 'parenthetical' || blockType === 'dialogue'
     blocks.push({ type: blockType, content: line })
   }
 
@@ -391,6 +410,19 @@ function parseSceneHeading(heading: string): { int_ext: string; title: string; d
   return { int_ext, title, day_night }
 }
 
+/**
+ * Base64 nur entpacken, wenn der Text ausschließlich aus Base64-Zeichen
+ * besteht. Vorher genügte "kein < und Länge durch 4 teilbar" - das traf jedes
+ * vierte Fountain- oder TXT-Drehbuch und machte daraus Datenmüll.
+ */
+export function entpackeImport(text: string): string {
+  const kompakt = text.replace(/\s+/g, '')
+  if (kompakt.length === 0 || kompakt.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(kompakt)) return text
+  const entpackt = Buffer.from(kompakt, 'base64').toString('utf-8')
+  // Kein lesbarer Text dabei herausgekommen: dann war es doch keins
+  return entpackt.includes('�') || entpackt.includes('\u0000') ? text : entpackt
+}
+
 // ─── POST /api/projects/:projectId/fdx-import ────────────────────────────────
 router.post('/projects/:projectId/fdx-import', async (req, res) => {
   const { projectId } = req.params
@@ -400,81 +432,79 @@ router.post('/projects/:projectId/fdx-import', async (req, res) => {
     return res.status(400).json({ data: null, error: 'Kein XML-Inhalt angegeben' })
   }
 
-  // Decode base64 if necessary
-  let xmlContent = xml
-  if (!xml.includes('<') && xml.length % 4 === 0) {
-    try {
-      xmlContent = Buffer.from(xml, 'base64').toString('utf-8')
-    } catch {
-      xmlContent = xml
-    }
-  }
-
-  const parsedBlocks = parseFdxXml(xmlContent)
+  const parsedBlocks = parseFdxXml(entpackeImport(xml))
 
   if (parsedBlocks.length === 0) {
     return res.status(400).json({ data: null, error: 'Keine Inhalte im Skript gefunden' })
   }
 
-  // Get current max sort_order
-  const maxSortRow = await db.get('SELECT COALESCE(MAX(sort_order), -1) as m FROM scenes WHERE project_id = ?', [projectId]) as { m: number }
-  let sortCounter = maxSortRow.m + 1
-
-  let currentSceneId: number | null = null
-  let blockSortOrder = 0
+  // Alles oder nichts: Vorher ließ ein Abbruch mitten im Import halbe
+  // Szenen zurück, und ein zweiter Versuch legte alles noch einmal an.
   let scenesCreated = 0
   let blocksCreated = 0
+  await db.transaction(async (tx) => {
+    // Get current max sort_order
+    const maxSortRow = await tx.get('SELECT COALESCE(MAX(sort_order), -1) as m FROM scenes WHERE project_id = ?', [projectId]) as { m: number }
+    let sortCounter = maxSortRow.m + 1
+    // Weiterzählen hinter den vorhandenen Szenen: Vorher begann jeder Import
+    // bei 1, ein zweiter ergab doppelte Szenennummern.
+    const vorhanden = await tx.get('SELECT COUNT(*) AS anzahl FROM scenes WHERE project_id = ?', [projectId]) as { anzahl: number }
+    const nummerBasis = Number(vorhanden?.anzahl ?? 0)
 
-  for (const block of parsedBlocks) {
-    if (block.type === 'scene_heading') {
-      // Create a new scene
-      const { int_ext, title, day_night } = parseSceneHeading(block.content)
-      const sceneNumber = String(scenesCreated + 1)
+    let currentSceneId: number | null = null
+    let blockSortOrder = 0
 
-      const sceneResult = await db.run(`
-        INSERT INTO scenes (project_id, scene_number, sort_order, title, int_ext, day_night, description)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `, [projectId, sceneNumber, sortCounter, title, int_ext, day_night, ''])
+    for (const block of parsedBlocks) {
+      if (block.type === 'scene_heading') {
+        // Create a new scene
+        const { int_ext, title, day_night } = parseSceneHeading(block.content)
+        const sceneNumber = String(nummerBasis + scenesCreated + 1)
 
-      currentSceneId = sceneResult.id
-      sortCounter++
-      scenesCreated++
-      blockSortOrder = 0
+        const sceneResult = await tx.run(`
+          INSERT INTO scenes (project_id, scene_number, sort_order, title, int_ext, day_night, description)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [projectId, sceneNumber, sortCounter, title, int_ext, day_night, ''])
 
-      // Also store scene_heading as a block for display in editor
-      await db.run(`
-        INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
-        VALUES (?, ?, ?, ?, ?)
-      `, [currentSceneId, projectId, blockSortOrder, 'scene_heading', block.content])
-      blockSortOrder++
-      blocksCreated++
-    } else {
-      // If no scene exists yet, create a default one
-      if (currentSceneId === null) {
-        const sceneResult = await db.run(`
-          INSERT INTO scenes (project_id, scene_number, sort_order, title, int_ext, day_night)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `, [projectId, '1', sortCounter, 'Import', 'INT', 'TAG'])
         currentSceneId = sceneResult.id
         sortCounter++
         scenesCreated++
         blockSortOrder = 0
+
+        // Also store scene_heading as a block for display in editor
+        await tx.run(`
+          INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
+          VALUES (?, ?, ?, ?, ?)
+        `, [currentSceneId, projectId, blockSortOrder, 'scene_heading', block.content])
+        blockSortOrder++
+        blocksCreated++
+      } else {
+        // If no scene exists yet, create a default one
+        if (currentSceneId === null) {
+          const sceneResult = await tx.run(`
+            INSERT INTO scenes (project_id, scene_number, sort_order, title, int_ext, day_night)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `, [projectId, String(nummerBasis + scenesCreated + 1), sortCounter, 'Import', 'INT', 'TAG'])
+          currentSceneId = sceneResult.id
+          sortCounter++
+          scenesCreated++
+          blockSortOrder = 0
+        }
+
+        await tx.run(`
+          INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
+          VALUES (?, ?, ?, ?, ?)
+        `, [currentSceneId, projectId, blockSortOrder, block.type, block.content])
+        blockSortOrder++
+        blocksCreated++
       }
-
-      await db.run(`
-        INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
-        VALUES (?, ?, ?, ?, ?)
-      `, [currentSceneId, projectId, blockSortOrder, block.type, block.content])
-      blockSortOrder++
-      blocksCreated++
     }
-  }
 
-  // Record the import
-  await db.run(`
-    INSERT INTO fdx_imports (project_id, filename, scene_count)
-    VALUES (?, ?, ?)
-  `, [projectId, filename, scenesCreated])
+    // Record the import
+    await tx.run(`
+      INSERT INTO fdx_imports (project_id, filename, scene_count)
+      VALUES (?, ?, ?)
+    `, [projectId, filename, scenesCreated])
+  })
 
   res.json({ data: { scenes_created: scenesCreated, blocks_created: blocksCreated }, error: null })
 })

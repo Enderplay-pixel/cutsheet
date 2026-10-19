@@ -54,12 +54,14 @@ function StepWillkommen({ onNext, onSkip }: { onNext: () => void; onSkip: () => 
       <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-5">
         <Clapperboard className="w-8 h-8 text-primary" />
       </div>
-      <h2 className="text-2xl font-bold tracking-tight mb-2">Willkommen bei CutSheet</h2>
+      {/* Kein zweites "Willkommen": Direkt nach der Registrierung kommt der
+          Assistent gleich hinter dem Rundgang, der schon begrüßt hat. */}
+      <h2 className="text-2xl font-bold tracking-tight mb-2">Dein erstes Projekt</h2>
       <p className="text-muted-foreground text-sm max-w-xs mx-auto mb-2">
-        Die Filmproduktions-Management-App für professionelle Produktionen.
+        Titel, Team, Drehbuch - in drei kurzen Schritten.
       </p>
       <p className="text-muted-foreground/70 text-sm mb-8">
-        Lass uns dein erstes Projekt anlegen.
+        Alles lässt sich später ändern.
       </p>
       <Button onClick={onNext} className="w-full">
         Los geht's

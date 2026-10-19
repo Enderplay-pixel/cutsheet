@@ -106,7 +106,9 @@ beforeAll(async () => {
   projektId = projekt.id
 
   // Echter Server mit echten Tokens: so läuft die ganze Kette mit - Token
-  // prüfen, Rolle bestimmen, Abfrage ausführen.
+  // prüfen, Rolle bestimmen, Abfrage ausführen. Fehlerbehandlung wie in
+  // index.ts, sonst hängt eine Anfrage, deren Route wirft, bis zum Zeitlimit.
+  await import('express-async-errors')
   const { signToken } = await import('../middleware/auth')
   const { default: companiesRouter } = await import('../routes/companies')
   const { default: invoicesRouter } = await import('../routes/invoices')
@@ -131,6 +133,10 @@ beforeAll(async () => {
       .map(async (name) => (await import(`../routes/${name}`)).default)
   )
   app.use('/api', optionalAuth, ...loeschRouter)
+  const { default: drehbuchRouter } = await import('../routes/screenplay')
+  app.use('/api', optionalAuth, drehbuchRouter)
+  const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
+  app.use(uebersetzeDatenbankfehler)
   await new Promise<void>((aufloesen) => {
     server = app.listen(0, () => {
       basis = `http://127.0.0.1:${(server.address() as any).port}`
@@ -1597,5 +1603,55 @@ describe('Umsatzsteuer: Storno mindert im eigenen Monat', () => {
     expect(sept.daten.steuer_cents).toBe(1900)
     expect(okt.daten.steuer_cents).toBe(-1900)
     expect(beide.daten.steuer_cents).toBe(0)
+  })
+})
+
+describe('SQLite-Zeitangaben bedeuten in Postgres dasselbe', () => {
+  // toPg machte aus datetime('now', '-7 days') ein NOW() - INTERVAL '-7 days',
+  // also sieben Tage in der Zukunft. Die Admin-Statistik "neu in den letzten
+  // sieben Tagen" zählte damit nie jemanden.
+  it("datetime('now', '-7 days') liegt sieben Tage in der Vergangenheit", async () => {
+    const { toPg } = await import('../db')
+    const zeile = (await db.get(
+      toPg("SELECT EXTRACT(EPOCH FROM (NOW() - (datetime('now', '-7 days')))) / 86400 AS tage")
+    )) as any
+    expect(Math.round(Number(zeile.tage))).toBe(7)
+  })
+})
+
+describe('Drehbuch-Import gegen echte Datenbank', () => {
+  const fountain = 'Title: Nachtfalter\n\nINT. WOHNKÜCHE - NACHT\n\nLena sitzt am Tisch.\n\nLENA\nHörst du das?\n\nEXT. HINTERHOF - NACHT\n\nEin Falter.\n'
+  let projekt = 0
+  beforeAll(async () => {
+    projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Import', nutzerId])).id
+  })
+
+  it('legt genau die Szenen des Drehbuchs an, ohne Phantomszene', async () => {
+    const antwort = await hole(`/api/projects/${projekt}/fdx-import`, tokenInhaber, {
+      method: 'POST', body: JSON.stringify({ xml: fountain, filename: 'nachtfalter.fountain' }),
+    })
+    expect(antwort.status).toBe(200)
+    const szenen = (await db.all('SELECT scene_number, title FROM scenes WHERE project_id = ? ORDER BY sort_order', [projekt])) as any[]
+    expect(szenen).toEqual([{ scene_number: '1', title: 'WOHNKÜCHE' }, { scene_number: '2', title: 'HINTERHOF' }])
+  })
+
+  it('hinterlässt bei einem Abbruch mittendrin keine halben Szenen', async () => {
+    const leer = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Abbruch', nutzerId])).id
+    // Szenenkopf geht durch, der Absatz danach scheitert in Postgres am Nullbyte
+    const antwort = await hole(`/api/projects/${leer}/fdx-import`, tokenInhaber, {
+      method: 'POST', body: JSON.stringify({ xml: 'INT. FLUR - TAG\n\nText\u0000kaputt\n', filename: 'kaputt.txt' }),
+    })
+    expect(antwort.status).toBe(400)
+    const anzahl = (await db.get('SELECT COUNT(*) AS c FROM scenes WHERE project_id = ?', [leer])) as any
+    expect(Number(anzahl.c)).toBe(0)
+  })
+
+  it('nummeriert einen zweiten Import weiter statt doppelt', async () => {
+    await hole(`/api/projects/${projekt}/fdx-import`, tokenInhaber, {
+      method: 'POST', body: JSON.stringify({ xml: fountain, filename: 'nochmal.fountain' }),
+    })
+    const nummern = ((await db.all('SELECT scene_number FROM scenes WHERE project_id = ? ORDER BY sort_order', [projekt])) as any[])
+      .map((z) => z.scene_number)
+    expect(nummern).toEqual(['1', '2', '3', '4'])
   })
 })

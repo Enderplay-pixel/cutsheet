@@ -30,7 +30,7 @@ describe('toPg', () => {
 
   it('uebersetzt relative Zeitangaben', () => {
     expect(toPg("SELECT * FROM t WHERE d > datetime('now', '-7 days')"))
-      .toContain("NOW() - INTERVAL '-7 days'")
+      .toContain("(NOW() + INTERVAL '-7 days')")
   })
 
   it('setzt date(now) auf CURRENT_DATE', () => {

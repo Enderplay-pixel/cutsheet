@@ -40,9 +40,6 @@ hinten angehängt.
   Großproduktion aufrufen: Leerzustand, Ladezustand, Fehlermeldung bei
   Serverfehler, Telefonbreite 375 px ohne Seitenscrollen.
 - [ ] **7. Übersetzung - zurückgestellt.** Gemessen: nur 14 von 87 Seiten übersetzt, nicht 56. Umfang und Sinn sind Florians Entscheidung, siehe ENTSCHEIDUNGEN-FLORIAN.md Punkt 4. Nicht anfangen, bis er entschieden hat.
-- [ ] **8. Erste fünf Minuten, noch einmal.** Neues Konto, neue Firma, erstes
-  Projekt, erste Rechnung - ohne Vorwissen durchspielen und alles beheben, was
-  hakt.
 - [ ] **9. Leistung der Oktober-Module** mit der Großproduktion messen
   (Abfragen je Anfrage, Antwortzeit), Ausreißer beheben.
 - [ ] **10. `CUTSHEET.md` auf Stand bringen** - Zahlen neu messen, neue
@@ -60,3 +57,4 @@ hinten angehängt.
 - [x] **4. PDFs** - 19.10.2026, Textebene, Mahnungsanschrift, Abnahmeprotokoll, Zeitzone. Siehe RUNDEN.md Runde 4.
 - [x] **5. Geld** - 19.10.2026, Rundung im Minus, Zahlungen an einer Stelle, Storno zum eigenen Datum. Offene Entscheidung zu Altdaten in ENTSCHEIDUNGEN-FLORIAN.md.
 - [x] **2c. Scan ohne blinde Flecken** - 19.10.2026, findet die Lücken aus Runde 3 nachweislich, 1 Route ohne echte ID. Siehe RUNDEN.md Runde 6.
+- [x] **8. Erste fünf Minuten** - 19.10.2026, Drehbuch-Import (jede vierte Datei scheiterte), Parser, Transaktion, Nummern, Admin-Statistik. Siehe RUNDEN.md Runde 7.
