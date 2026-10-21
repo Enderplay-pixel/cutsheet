@@ -183,7 +183,7 @@ router.post('/2fa/confirm', requireAuth, async (req: Request, res: Response) => 
   const zeile = await db.get('SELECT secret FROM user_totp WHERE user_id = ?', [user.id]) as any
   if (!zeile) return res.status(400).json({ data: null, error: 'Richte den zweiten Faktor zuerst ein' })
   if (!pruefeCode(zeile.secret, String((req.body as any)?.code || ''))) {
-    return res.status(400).json({ data: null, error: 'Der Code stimmt nicht. Geht die Uhr des Geraets richtig?' })
+    return res.status(400).json({ data: null, error: 'Der Code stimmt nicht. Geht die Uhr des Geräts richtig?' })
   }
   const codes = erzeugeWiederherstellungscodes()
   await db.run(

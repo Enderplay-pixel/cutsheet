@@ -345,7 +345,7 @@ weil dreimal ein Eintrag vergessen wurde und der Fehler jedes Mal still war.
 | PDF | Puppeteer (Chromium wird beim Serverstart vorgewärmt) |
 | Mail | SMTP über eigene Warteschlange |
 | Betrieb | Render, freier Plan |
-| Mehrsprachig | Deutsch vollständig; Englisch und Französisch nur auf 14 von 87 Seiten |
+| Mehrsprachig | Deutsch vollständig; Englisch und Französisch auf 74 von 87 Seiten angebunden, davon 46 ohne Rest (gemessen 21.10.2026 mit `scripts/texte-pruefen.py`) |
 | Offline | PWA mit Service Worker, Auto-Update |
 
 Besonderheiten, die man wissen sollte:

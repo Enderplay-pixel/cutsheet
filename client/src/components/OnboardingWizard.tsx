@@ -11,6 +11,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Clapperboard, Film, Users, CheckCircle, FileUp, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/useT'
+import { onboardingT, onboardingGenreT } from '@/lib/texte/komponenten/OnboardingWizard'
 
 const TOTAL_STEPS = 5
 
@@ -49,6 +51,7 @@ function StepIndicator({ current }: StepIndicatorProps) {
 
 // ─── Step 1: Willkommen ───────────────────────────────────────────────────────
 function StepWillkommen({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) {
+  const tt = useT()
   return (
     <div className="text-center py-4">
       <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-5">
@@ -56,21 +59,21 @@ function StepWillkommen({ onNext, onSkip }: { onNext: () => void; onSkip: () => 
       </div>
       {/* Kein zweites "Willkommen": Direkt nach der Registrierung kommt der
           Assistent gleich hinter dem Rundgang, der schon begrüßt hat. */}
-      <h2 className="text-2xl font-bold tracking-tight mb-2">Dein erstes Projekt</h2>
+      <h2 className="text-2xl font-bold tracking-tight mb-2">{tt(onboardingT.erstesProjekt)}</h2>
       <p className="text-muted-foreground text-sm max-w-xs mx-auto mb-2">
-        Titel, Team, Drehbuch - in drei kurzen Schritten.
+        {tt(onboardingT.dreiSchritte)}
       </p>
       <p className="text-muted-foreground/70 text-sm mb-8">
-        Alles lässt sich später ändern.
+        {tt(onboardingT.spaeterAendern)}
       </p>
       <Button onClick={onNext} className="w-full">
-        Los geht's
+        {tt(onboardingT.losGehts)}
       </Button>
       <button
         onClick={onSkip}
         className="mt-4 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
       >
-        Überspringen
+        {tt(onboardingT.ueberspringen)}
       </button>
     </div>
   )
@@ -88,6 +91,7 @@ function StepProjekt({
   onNext: () => void
   onBack: () => void
 }) {
+  const tt = useT()
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
@@ -95,42 +99,42 @@ function StepProjekt({
           <Film className="w-4 h-4 text-primary" />
         </div>
         <div>
-          <h2 className="text-base font-semibold">Projektdetails</h2>
-          <p className="text-xs text-muted-foreground">Wie heißt dein Film?</p>
+          <h2 className="text-base font-semibold">{tt(onboardingT.projektdetails)}</h2>
+          <p className="text-xs text-muted-foreground">{tt(onboardingT.filmName)}</p>
         </div>
       </div>
 
       <div className="space-y-4">
         <div>
-          <Label className="text-xs text-muted-foreground">Titel *</Label>
+          <Label className="text-xs text-muted-foreground">{tt(onboardingT.titelPflicht)}</Label>
           <Input
             value={data.title}
             onChange={e => onChange('title', e.target.value)}
-            placeholder="Mein Film"
+            placeholder={tt(onboardingT.meinFilm)}
             className="mt-1 h-9"
-            autoFocus
+            autoFocus // texte-ok: Attribut, kein Text
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs text-muted-foreground">Genre</Label>
+            <Label className="text-xs text-muted-foreground">{tt(onboardingT.genre)}</Label>
             <Select value={data.genre} onValueChange={v => onChange('genre', v)}>
               <SelectTrigger className="mt-1 h-8 text-xs">
-                <SelectValue placeholder="Genre wählen" />
+                <SelectValue placeholder={tt(onboardingT.genreWaehlen)} />
               </SelectTrigger>
               <SelectContent>
                 {['Spielfilm', 'Dokumentation', 'Kurzfilm', 'Serie', 'Werbefilm'].map(g => (
-                  <SelectItem key={g} value={g} className="text-xs">{g}</SelectItem>
+                  <SelectItem key={g} value={g} className="text-xs">{tt(onboardingGenreT[g])}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">Format</Label>
+            <Label className="text-xs text-muted-foreground">{tt(onboardingT.format)}</Label>
             <Input
               value={data.format}
               onChange={e => onChange('format', e.target.value)}
-              placeholder="z.B. 4K, 16mm"
+              placeholder={tt(onboardingT.formatBeispiel)}
               className="mt-1 h-8 text-xs"
             />
           </div>
@@ -138,8 +142,8 @@ function StepProjekt({
       </div>
 
       <div className="flex gap-2 mt-6">
-        <Button variant="outline" onClick={onBack} className="flex-1">Zurück</Button>
-        <Button onClick={onNext} disabled={!data.title.trim()} className="flex-1">Weiter</Button>
+        <Button variant="outline" onClick={onBack} className="flex-1">{tt(onboardingT.zurueck)}</Button>
+        <Button onClick={onNext} disabled={!data.title.trim()} className="flex-1">{tt(onboardingT.weiter)}</Button>
       </div>
     </div>
   )
@@ -157,6 +161,7 @@ function StepTeam({
   onNext: () => void
   onBack: () => void
 }) {
+  const tt = useT()
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
@@ -164,44 +169,44 @@ function StepTeam({
           <Users className="w-4 h-4 text-primary" />
         </div>
         <div>
-          <h2 className="text-base font-semibold">Dein Team</h2>
-          <p className="text-xs text-muted-foreground">Wer steckt hinter dem Projekt?</p>
+          <h2 className="text-base font-semibold">{tt(onboardingT.deinTeam)}</h2>
+          <p className="text-xs text-muted-foreground">{tt(onboardingT.werSteckt)}</p>
         </div>
       </div>
 
       <div className="space-y-4">
         <div>
-          <Label className="text-xs text-muted-foreground">Regisseur/in</Label>
+          <Label className="text-xs text-muted-foreground">{tt(onboardingT.regie)}</Label>
           <Input
             value={data.director}
             onChange={e => onChange('director', e.target.value)}
-            placeholder="Name der Regie"
+            placeholder={tt(onboardingT.regieName)}
             className="mt-1 h-8"
           />
         </div>
         <div>
-          <Label className="text-xs text-muted-foreground">Produzent/in</Label>
+          <Label className="text-xs text-muted-foreground">{tt(onboardingT.produktion)}</Label>
           <Input
             value={data.producer}
             onChange={e => onChange('producer', e.target.value)}
-            placeholder="Name des Produzenten"
+            placeholder={tt(onboardingT.produktionName)}
             className="mt-1 h-8"
           />
         </div>
         <div>
-          <Label className="text-xs text-muted-foreground">DOP (Director of Photography)</Label>
+          <Label className="text-xs text-muted-foreground">{tt(onboardingT.dop)}</Label>
           <Input
             value={data.dop}
             onChange={e => onChange('dop', e.target.value)}
-            placeholder="Name des DOP"
+            placeholder={tt(onboardingT.dopName)}
             className="mt-1 h-8"
           />
         </div>
       </div>
 
       <div className="flex gap-2 mt-6">
-        <Button variant="outline" onClick={onBack} className="flex-1">Zurück</Button>
-        <Button onClick={onNext} className="flex-1">Projekt erstellen</Button>
+        <Button variant="outline" onClick={onBack} className="flex-1">{tt(onboardingT.zurueck)}</Button>
+        <Button onClick={onNext} className="flex-1">{tt(onboardingT.projektErstellen)}</Button>
       </div>
     </div>
   )
@@ -213,6 +218,7 @@ function StepDrehbuch({ projectId, onDone, onSkip }: {
   onDone: (result: { scenes_created: number; blocks_created: number }) => void
   onSkip: () => void
 }) {
+  const tt = useT()
   const fileInput = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -226,7 +232,7 @@ function StepDrehbuch({ projectId, onDone, onSkip }: {
       track('screenplay_imported', { scenes_created: result.scenes_created, source: file.name.split('.').pop() })
       onDone(result)
     },
-    onError: (e: any) => setError(e.message || 'Import fehlgeschlagen'),
+    onError: (e: any) => setError(e.message || tt(onboardingT.importFehler)),
   })
 
   const handleFile = (file: File | undefined | null) => {
@@ -242,16 +248,16 @@ function StepDrehbuch({ projectId, onDone, onSkip }: {
           <FileUp className="w-4 h-4 text-primary" />
         </div>
         <div>
-          <h2 className="text-base font-semibold">Drehbuch importieren</h2>
-          <p className="text-xs text-muted-foreground">Final Draft, Celtx oder Fountain - Szenen entstehen automatisch.</p>
+          <h2 className="text-base font-semibold">{tt(onboardingT.drehbuchImport)}</h2>
+          <p className="text-xs text-muted-foreground">{tt(onboardingT.formate)}</p>
         </div>
       </div>
 
       {importMutation.isPending ? (
         <div className="flex flex-col items-center justify-center py-10 text-center">
           <Loader2 className="w-7 h-7 text-primary animate-spin mb-3" />
-          <p className="text-sm font-medium">Drehbuch wird analysiert…</p>
-          <p className="text-xs text-muted-foreground mt-1">Szenen, Motive und Figuren werden extrahiert.</p>
+          <p className="text-sm font-medium">{tt(onboardingT.analysiert)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{tt(onboardingT.extrahiert)}</p>
         </div>
       ) : (
         <>
@@ -264,14 +270,14 @@ function StepDrehbuch({ projectId, onDone, onSkip }: {
             className={cn(
               'w-full flex flex-col items-center justify-center gap-2 py-10 rounded-xl border-2 border-dashed',
               'transition-[border-color,background-color] duration-150 cursor-pointer',
-              dragging
+              dragging // texte-ok: Variable, kein Text
                 ? 'border-primary bg-primary/8'
                 : 'border-border hover:border-primary/50 hover:bg-primary/4'
             )}
           >
             <FileUp className={cn('w-7 h-7', dragging ? 'text-primary' : 'text-muted-foreground/50')} />
-            <p className="text-sm font-medium">Datei hierher ziehen oder klicken</p>
-            <p className="text-[11px] text-muted-foreground">.fdx · .celtx · .fountain · .txt</p>
+            <p className="text-sm font-medium">{tt(onboardingT.dateiZiehen)}</p>
+            <p className="text-[11px] text-muted-foreground" /* texte-ok: Dateiendungen */>.fdx · .celtx · .fountain · .txt</p>
           </button>
           <input
             ref={fileInput}
@@ -289,7 +295,7 @@ function StepDrehbuch({ projectId, onDone, onSkip }: {
             onClick={onSkip}
             className="mt-5 w-full text-center text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
           >
-            Überspringen - ich lege Szenen später an
+            {tt(onboardingT.spaeterSzenen)}
           </button>
         </>
       )}
@@ -303,6 +309,7 @@ function StepFertig({ title, importResult, onGo }: {
   importResult: { scenes_created: number; blocks_created: number } | null
   onGo: () => void
 }) {
+  const tt = useT()
   return (
     <div className="text-center py-4">
       {/* CSS-only confetti */}
@@ -316,24 +323,24 @@ function StepFertig({ title, importResult, onGo }: {
           <CheckCircle className="w-8 h-8 text-green-400" />
         </div>
       </div>
-      <h2 className="text-2xl font-bold tracking-tight mb-2">Dein Projekt ist bereit!</h2>
+      <h2 className="text-2xl font-bold tracking-tight mb-2">{tt(onboardingT.bereit)}</h2>
       <p className="text-muted-foreground text-sm mb-1">
-        <span className="font-medium text-foreground">"{title}"</span> wurde erfolgreich angelegt.
+        <span className="font-medium text-foreground">"{title}"</span> {tt(onboardingT.angelegt)}
       </p>
       {importResult ? (
         <p className="text-sm mb-8">
-          <span className="text-success font-semibold">{importResult.scenes_created} Szenen</span>
-          <span className="text-muted-foreground"> und </span>
-          <span className="text-success font-semibold">{importResult.blocks_created} Absätze</span>
-          <span className="text-muted-foreground"> aus deinem Drehbuch importiert.</span>
+          <span className="text-success font-semibold">{tt(onboardingT.szenenN).replace('{n}', String(importResult.scenes_created))}</span>
+          <span className="text-muted-foreground">{tt(onboardingT.und)}</span>
+          <span className="text-success font-semibold">{tt(onboardingT.absaetzeN).replace('{n}', String(importResult.blocks_created))}</span>
+          <span className="text-muted-foreground">{tt(onboardingT.ausDrehbuch)}</span>
         </p>
       ) : (
         <p className="text-muted-foreground/70 text-xs mb-8">
-          Du kannst jetzt loslegen und Szenen, Team und Drehtage verwalten.
+          {tt(onboardingT.loslegen)}
         </p>
       )}
       <Button onClick={onGo} className="w-full">
-        {importResult ? 'Zum Drehbuch' : 'Zum Projekt Dashboard'}
+        {importResult ? tt(onboardingT.zumDrehbuch) : tt(onboardingT.zumDashboard)}
       </Button>
     </div>
   )
@@ -353,6 +360,7 @@ function StepFertig({ title, importResult, onGo }: {
  * Browser dafür wieder - auch mit zwanzig Projekten.
  */
 export function OnboardingWizard({ kontoId }: { kontoId?: number }) {
+  const tt = useT()
   const navigate = useNavigate()
   const schluessel = `onboarding_done_${kontoId ?? 'unbekannt'}`
   const [open, setOpen] = useState(() => localStorage.getItem(schluessel) !== '1')
@@ -442,10 +450,10 @@ export function OnboardingWizard({ kontoId }: { kontoId?: number }) {
           onEscapeKeyDown={e => e.preventDefault()}
         >
           {/* Der Titel bleibt unsichtbar - der Dialog hat seine eigene
-              Kopfzeile. Eine Vorleseanwendung braucht ihn trotzdem, sonst
+              Kopfzeile. Eine Vorleseanwendung braucht ihn trotzdem, sonst (texte-ok: Kommentar)
               kuendigt sie nur "Dialog" an. */}
           <DialogTitle asChild>
-            <NurVorlesen>Einrichtung</NurVorlesen>
+            <NurVorlesen>{tt(onboardingT.einrichtung)}</NurVorlesen>
           </DialogTitle>
           <StepIndicator current={step} />
 
@@ -488,7 +496,7 @@ export function OnboardingWizard({ kontoId }: { kontoId?: number }) {
 
           {createMutation.isPending && step === 2 && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/60 rounded-lg">
-              <div className="text-sm text-muted-foreground animate-pulse">Projekt wird erstellt…</div>
+              <div className="text-sm text-muted-foreground animate-pulse">{tt(onboardingT.wirdErstellt)}</div>
             </div>
           )}
         </DialogContent>

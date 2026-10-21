@@ -17,6 +17,13 @@ import { useDownload } from '@/lib/useDownload'
 import { debounce, getStripClass, eighthsToString, cn } from '@/lib/utils'
 import { Plus, Trash2, Camera, Film, Clock, Download, Check, Copy, Star } from 'lucide-react'
 import { feiern } from '@/lib/belohnung'
+import type { Lang } from '@/lib/i18n'
+import { useT } from '@/lib/useT'
+import { shotlistT as st, shotGroesseT, shotBewegungT, tagNachtT } from '@/lib/texte/Shotlist'
+
+/** Beschriftung eines gespeicherten Werts; was keine Übersetzung hat, erscheint, wie es ist. */
+type Uebersetzer = (map: Record<Lang, string>) => string
+const beschriftung = (tabelle: Record<string, Record<Lang, string>>, wert: string, tt: Uebersetzer) => (tabelle[wert] ? tt(tabelle[wert]) : wert)
 
 const SHOT_SIZES = ['ECU', 'CU', 'MCU', 'MS', 'MWS', 'WS', 'EWS', 'Totale', 'Vogelperspektive', 'Froschperspektive']
 const MOVEMENTS = ['Statisch', 'Pan', 'Tilt', 'Pan + Tilt', 'Dolly', 'Fahrt', 'Gimbal', 'Handheld', 'Kran', 'Drohne', 'Zoom']
@@ -86,6 +93,7 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
   const queryClient = useQueryClient()
   const { projectId } = useParams()
   const pid = Number(projectId)
+  const tt = useT()
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.shots.update(shot.id, data),
@@ -116,32 +124,32 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
         <span className="font-mono text-xs text-muted-foreground w-8 shrink-0">{shot.shot_number}</span>
 
         <Select value={form.size || 'MS'} onValueChange={v => update('size', v)}>
-          <SelectTrigger aria-label="Einstellungsgröße" className="w-20 h-7 text-xs shrink-0"><SelectValue /></SelectTrigger>
-          <SelectContent>{SHOT_SIZES.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}</SelectContent>
+          <SelectTrigger aria-label={tt(st.groesseAria)} className="w-20 h-7 text-xs shrink-0"><SelectValue /></SelectTrigger>
+          <SelectContent>{SHOT_SIZES.map(g => <SelectItem key={g} value={g} className="text-xs">{beschriftung(shotGroesseT, g, tt)}</SelectItem>)}</SelectContent>
         </Select>
 
         <Select value={form.movement || 'Statisch'} onValueChange={v => update('movement', v)}>
-          <SelectTrigger aria-label="Kamerabewegung" className="w-24 h-7 text-xs shrink-0"><SelectValue /></SelectTrigger>
-          <SelectContent>{MOVEMENTS.map(m => <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>)}</SelectContent>
+          <SelectTrigger aria-label={tt(st.bewegungAria)} className="w-24 h-7 text-xs shrink-0"><SelectValue /></SelectTrigger>
+          <SelectContent>{MOVEMENTS.map(m => <SelectItem key={m} value={m} className="text-xs">{beschriftung(shotBewegungT, m, tt)}</SelectItem>)}</SelectContent>
         </Select>
 
         <div className="flex items-center gap-1 shrink-0">
           <Input value={form.lens_mm || ''} onChange={e => update('lens_mm', e.target.value)}
-            className="h-7 w-16 text-xs" placeholder="mm" aria-label="Brennweite in Millimetern" />
+            className="h-7 w-16 text-xs" placeholder="mm" aria-label={tt(st.brennweiteAria)} />
           <span className="text-xs text-muted-foreground">mm</span>
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
           <Input type="number" value={form.duration_seconds || ''} onChange={e => update('duration_seconds', Number(e.target.value))}
-            className="h-7 w-14 text-xs" placeholder="Sek" aria-label="Dauer in Sekunden" />
+            className="h-7 w-14 text-xs" placeholder={tt(st.sek)} aria-label={tt(st.dauerAria)} />
           <Clock className="w-3 h-3 text-muted-foreground" />
         </div>
 
         {/* Circle Take - Freitext, weil in der Praxis auch "3, 5" darin steht */}
-        <div className="flex items-center gap-1 shrink-0" title="Bester Take (Circle Take)">
+        <div className="flex items-center gap-1 shrink-0" title={tt(st.besterTakeTitel)}>
           <Star className={cn('w-3 h-3', form.best_take ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground')} />
           <Input value={form.best_take || ''} onChange={e => update('best_take', e.target.value)}
-            className="h-7 w-16 text-xs" placeholder="Take" aria-label="Bester Take" />
+            className="h-7 w-16 text-xs" placeholder={tt(st.take)} aria-label={tt(st.besterTake)} />
         </div>
 
         <div className="hidden md:block flex-1" />
@@ -152,14 +160,14 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
             'w-8 h-8 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-[background-color,border-color,transform] duration-300 ease-spring shrink-0',
             isDone ? 'bg-success border-success text-success-foreground scale-110' : 'border-muted-foreground/40 hover:border-success/60'
           )}
-          title={isDone ? 'Als offen markieren' : 'Als erledigt markieren'}
+          title={isDone ? tt(st.alsOffen) : tt(st.alsErledigt)}
         >
           {isDone && <Check className="w-3 h-3" />}
         </button>
-        <button onClick={onDuplicate} className="text-muted-foreground hover:text-primary shrink-0" title="Einstellung duplizieren">
+        <button onClick={onDuplicate} className="text-muted-foreground hover:text-primary shrink-0" title={tt(st.duplizieren)}>
           <Copy className="w-3.5 h-3.5" />
         </button>
-        <button onClick={onDelete} aria-label="Einstellung löschen" title="Einstellung löschen" className="text-muted-foreground hover:text-destructive shrink-0">
+        <button onClick={onDelete} aria-label={tt(st.loeschen)} title={tt(st.loeschen)} className="text-muted-foreground hover:text-destructive shrink-0">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -168,15 +176,15 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
       <AutoTextarea
         value={form.description || ''}
         onChange={v => update('description', v)}
-        placeholder="Beschreibung / Inhalt"
-        aria-label="Beschreibung der Einstellung"
+        placeholder={tt(st.beschreibungPlatzh)}
+        aria-label={tt(st.beschreibungAria)}
         className="text-xs"
       />
       <AutoTextarea
         value={form.notes || ''}
         onChange={v => update('notes', v)}
-        placeholder="Notiz (VFX, Requisite, Sicherheit) - erscheint im PDF"
-        aria-label="Notiz zur Einstellung, erscheint im PDF"
+        placeholder={tt(st.notizPlatzh)}
+        aria-label={tt(st.notizAria)}
         className="text-xs text-muted-foreground"
       />
     </div>
@@ -189,6 +197,7 @@ export function Component() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const download = useDownload()
+  const tt = useT()
 
   const { data: scenes, isLoading: scenesLoading } = useQuery({
     queryKey: ['scenes', pid],
@@ -231,7 +240,7 @@ export function Component() {
         size: shot.size,
         movement: shot.movement,
         lens_mm: shot.lens_mm,
-        description: shot.description ? `${shot.description} (Kopie)` : '',
+        description: shot.description ? tt(st.kopie).replace('{text}', shot.description) : '',
         duration_seconds: shot.duration_seconds,
       })
     },
@@ -243,7 +252,7 @@ export function Component() {
   const shotsByScene = (shots || []).reduce((acc: Record<number, any[]>, shot: any) => {
     const key = shot.scene_id || 0
     if (!acc[key]) acc[key] = []
-    acc[key].push(shot)
+    acc[key].push(shot) // texte-ok
     return acc
   }, {} as Record<number, any[]>)
 
@@ -267,16 +276,16 @@ export function Component() {
   return (
     <div className="px-5 py-6 sm:p-6 max-w-5xl mx-auto space-y-4">
       <PageHeader
-        title="Auflösung & Shotlist"
-        subtitle={`${totalShots} Einstellungen · ${totalDone} erledigt · ${Math.round(totalDuration / 60)} Min.`}
+        title={tt(st.titel)}
+        subtitle={tt(st.untertitel).replace('{n}', String(totalShots)).replace('{d}', String(totalDone)).replace('{m}', String(Math.round(totalDuration / 60)))}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => download(api.pdf.shotlist(pid), 'shotlist-szenen.pdf')}>
-              <Download className="w-4 h-4 mr-2" />PDF nach Szenen
+              <Download className="w-4 h-4 mr-2" />{tt(st.pdfSzenen)}
             </Button>
             {/* Am Drehtag zaehlt nicht die Auflösung, sondern was heute ansteht */}
             <Button variant="outline" size="sm" onClick={() => download(api.pdf.shotlist(pid, 'drehtag'), 'shotlist-drehtage.pdf')}>
-              <Download className="w-4 h-4 mr-2" />PDF nach Drehtagen
+              <Download className="w-4 h-4 mr-2" />{tt(st.pdfDrehtage)}
             </Button>
           </div>
         }
@@ -285,7 +294,7 @@ export function Component() {
       {scenesWithNoShots.length > 0 && (
         <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/30 rounded-lg text-sm text-warning">
           <Camera className="w-4 h-4 shrink-0" />
-          <span>{scenesWithNoShots.length} Szene(n) ohne Einstellungen: {scenesWithNoShots.map(s => `Sz. ${s.scene_number}`).join(', ')}</span>
+          <span>{tt(st.ohneEinstellungen).replace('{n}', String(scenesWithNoShots.length)).replace('{liste}', scenesWithNoShots.map((sz: any) => tt(st.szKurz).replace('{n}', String(sz.scene_number))).join(', '))}</span>
         </div>
       )}
 
@@ -295,10 +304,10 @@ export function Component() {
         <>
         {vieleSzenen && (
           <div className="flex flex-wrap items-center gap-2">
-            <Input value={suche} onChange={e => setSuche(e.target.value)} placeholder="Szene suchen (Nummer oder Titel)" aria-label="Szene suchen" className="h-9 w-full sm:w-72" />
-            <Button variant="outline" size="sm" onClick={() => setOffen(sichtbareSzenen.map((s: any) => String(s.id)))}>Alle aufklappen</Button>
-            <Button variant="ghost" size="sm" onClick={() => setOffen([])}>Alle zuklappen</Button>
-            <span className="text-xs text-muted-foreground">{sichtbareSzenen.length} Szenen</span>
+            <Input value={suche} onChange={e => setSuche(e.target.value)} placeholder={tt(st.suchen)} aria-label={tt(st.suchenAria)} className="h-9 w-full sm:w-72" />
+            <Button variant="outline" size="sm" onClick={() => setOffen(sichtbareSzenen.map((s: any) => String(s.id)))}>{tt(st.aufklappen)}</Button>
+            <Button variant="ghost" size="sm" onClick={() => setOffen([])}>{tt(st.zuklappen)}</Button>
+            <span className="text-xs text-muted-foreground">{tt(st.szenenN).replace('{n}', String(sichtbareSzenen.length))}</span>
           </div>
         )}
         <Accordion type="multiple" value={offeneSzenen} onValueChange={setOffen} className="space-y-2">
@@ -319,7 +328,7 @@ export function Component() {
                     <span className="font-mono text-sm font-bold w-8">{scene.scene_number}</span>
                     <div className="flex gap-1">
                       <Badge variant="outline" className="text-xs px-1.5 py-0">{scene.int_ext}</Badge>
-                      <Badge variant="outline" className="text-xs px-1.5 py-0">{scene.day_night}</Badge>
+                      <Badge variant="outline" className="text-xs px-1.5 py-0">{beschriftung(tagNachtT, scene.day_night, tt)}</Badge>
                     </div>
                     <span className="font-medium text-sm min-w-0 basis-full sm:basis-auto sm:flex-1 text-left whitespace-normal break-words">{scene.title}</span>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -333,23 +342,23 @@ export function Component() {
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pb-4 space-y-2">
                   {/* Spaltenkoepfe, ausgerichtet an der Kopfzeile von ShotRow. Die
-                      Breiten entsprechen den Gruppen dort: Feld + Einheit bzw.
-                      Symbol. Am Telefon umbrechen die Zeilen, dort gibt es
+                      Breiten entsprechen den Gruppen dort: Feld + Einheit bzw. // texte-ok
+                      Symbol. Am Telefon umbrechen die Zeilen, dort gibt es // texte-ok
                       keine Spalten, an denen sich Koepfe ausrichten koennten. */}
                   <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground px-2.5 pb-1 border-b border-border/50">
-                    <span className="w-8 shrink-0">Nr.</span>
-                    <span className="w-20 shrink-0">Größe</span>
-                    <span className="w-24 shrink-0">Bewegung</span>
-                    <span className="w-[5.5rem] shrink-0">Objektiv</span>
-                    <span className="w-[4.5rem] shrink-0">Dauer</span>
-                    <span className="w-[5rem] shrink-0">Bester Take</span>
+                    <span className="w-8 shrink-0">{tt(st.spalteNr)}</span>
+                    <span className="w-20 shrink-0">{tt(st.spalteGroesse)}</span>
+                    <span className="w-24 shrink-0">{tt(st.spalteBewegung)}</span>
+                    <span className="w-[5.5rem] shrink-0">{tt(st.spalteObjektiv)}</span>
+                    <span className="w-[4.5rem] shrink-0">{tt(st.spalteDauer)}</span>
+                    <span className="w-[5rem] shrink-0">{tt(st.besterTake)}</span>
                   </div>
                   {sceneShots.map((shot: any) => (
                     <ShotRow key={shot.id} shot={shot} onDelete={() => deleteShot.mutate(shot.id)} onDuplicate={() => duplicateShot.mutate(shot)} />
                   ))}
                   <Button variant="ghost" size="sm" className="text-xs w-full mt-1"
                     onClick={() => createShot.mutate(scene.id)} disabled={createShot.isPending}>
-                    <Plus className="w-3 h-3 mr-1" />Einstellung hinzufügen
+                    <Plus className="w-3 h-3 mr-1" />{tt(st.hinzufuegen)}
                   </Button>
                 </AccordionContent>
               </AccordionItem>

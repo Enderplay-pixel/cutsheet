@@ -11,12 +11,16 @@ import {
 } from 'lucide-react'
 import { AppIcon } from '@/components/shared/BrandMark'
 import { cn } from '@/lib/utils'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { publicDispoT as T } from '@/lib/texte/PublicDispo'
 
 const fmtTime = (mins: number | null | undefined) =>
   mins == null ? '-' : `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`
 
 export function Component() {
   const { token } = useParams<{ token: string }>()
+  const tt = useT()
+  const gebietsschema = useGebietsschema()
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['public-dispo', token],
@@ -45,9 +49,9 @@ export function Component() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-5 text-center">
         <Clapperboard className="w-10 h-10 text-muted-foreground/30 mb-4" />
-        <h1 className="font-display text-[28px] sm:text-[34px] mb-1">Link ungültig</h1>
+        <h1 className="font-display text-[28px] sm:text-[34px] mb-1">{tt(T.linkUngueltig)}</h1>
         <p className="text-sm text-muted-foreground max-w-xs">
-          Dieser Dispo-Link existiert nicht oder wurde zurückgezogen. Bitte wende dich an deine Produktionsleitung.
+          {tt(T.linkUngueltigText)}
         </p>
       </div>
     )
@@ -56,7 +60,7 @@ export function Component() {
   const { project, day, sheet, location, me, schedule, has_account } = data
   const confirmed = !!me.confirmed_at
   const dateStr = day.date
-    ? new Date(day.date).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    ? new Date(day.date).toLocaleDateString(gebietsschema, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
     : ''
 
   return (
@@ -67,7 +71,7 @@ export function Component() {
           <AppIcon className="w-7 h-7" />
           <div className="min-w-0">
             <p className="text-sm font-bold tracking-tight truncate leading-none">{project.title}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Drehtag {day.day_number} · {dateStr}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{tt(T.drehtag).replace('{n}', String(day.day_number))} · {dateStr}</p>
           </div>
         </div>
       </header>
@@ -78,7 +82,7 @@ export function Component() {
           <div className="absolute inset-0 pointer-events-none"
             style={{ background: 'radial-gradient(ellipse at top, hsl(var(--signal)/0.06) 0%, transparent 60%)' }} />
           <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-primary mb-2">
-            Deine Call Time{me.name ? ` - ${me.name}` : ''}
+            {tt(T.deineCallTime)}{me.name ? ` - ${me.name}` : ''}
           </p>
           <div className="text-6xl font-black tabular-nums tracking-tight leading-none">
             {fmtTime(me.call_time)}
@@ -93,7 +97,7 @@ export function Component() {
           <div className="mt-5">
             {confirmed ? (
               <div className="flex items-center justify-center gap-2 text-success font-semibold text-sm">
-                <CheckCircle2 className="w-4 h-4" /> Zusage bestätigt
+                <CheckCircle2 className="w-4 h-4" /> {tt(T.zusageBestaetigt)}
               </div>
             ) : (
               <Button
@@ -102,7 +106,7 @@ export function Component() {
                 disabled={confirmMutation.isPending}
               >
                 <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                {confirmMutation.isPending ? 'Wird bestätigt…' : 'Zusage bestätigen'}
+                {confirmMutation.isPending ? tt(T.wirdBestaetigt) : tt(T.zusageBestaetigen)}
               </Button>
             )}
           </div>
@@ -124,8 +128,8 @@ export function Component() {
           <div className="flex items-center gap-2.5">
             <Clock className="w-4 h-4 text-muted-foreground/60 shrink-0" />
             <p className="text-muted-foreground text-[13px]">
-              Allgemeiner Call: <span className="text-foreground font-medium tabular-nums">{fmtTime(sheet.general_call)}</span>
-              {' · '}Drehbeginn: <span className="text-foreground font-medium tabular-nums">{fmtTime(sheet.shooting_call)}</span>
+              {tt(T.allgemeinerCall)} <span className="text-foreground font-medium tabular-nums">{fmtTime(sheet.general_call)}</span>
+              {' · '}{tt(T.drehbeginn)} <span className="text-foreground font-medium tabular-nums">{fmtTime(sheet.shooting_call)}</span>
             </p>
           </div>
           {sheet.weather_forecast && (
@@ -147,7 +151,7 @@ export function Component() {
         {schedule?.length > 0 && (
           <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
             <p className="px-4 pt-3.5 pb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground/60">
-              Tagesplan
+              {tt(T.tagesplan)}
             </p>
             <div className="divide-y divide-border/40">
               {schedule.map((s: any, i: number) => (
@@ -155,7 +159,7 @@ export function Component() {
                   <span className="text-sm font-bold tabular-nums w-12 shrink-0">{fmtTime(s.call_time)}</span>
                   <div className="min-w-0 flex-1">
                     <p className={cn('text-sm truncate', s.is_me && 'font-semibold text-primary')}>
-                      {s.name}{s.is_me ? ' (du)' : ''}
+                      {s.name}{s.is_me ? tt(T.du) : ''}
                     </p>
                     {s.role && <p className="text-[11px] text-muted-foreground truncate">{s.role}</p>}
                   </div>
@@ -169,14 +173,14 @@ export function Component() {
         {!has_account && me.email && <ClaimCard token={token!} project={project} myName={me.name} email={me.email} />}
         {has_account && (
           <p className="text-center text-[13px] text-muted-foreground">
-            Du hast bereits ein CutSheet-Konto - <Link to="/login" className="text-primary hover:underline">hier anmelden</Link>, um das ganze Projekt zu sehen.
+            {tt(T.kontoVorhanden)} <Link to="/login" className="text-primary hover:underline">{tt(T.hierAnmelden)}</Link>{tt(T.ganzesProjekt)}
           </p>
         )}
 
         <p className="text-center text-[11px] text-muted-foreground/40 pt-4 space-x-3">
-          <span>Erstellt mit CutSheet</span>
-          <Link to="/impressum" className="hover:text-muted-foreground">Impressum</Link>
-          <Link to="/datenschutz" className="hover:text-muted-foreground">Datenschutz</Link>
+          <span>{tt(T.erstelltMit)}</span>
+          <Link to="/impressum" className="hover:text-muted-foreground">{tt(T.impressum)}</Link>
+          <Link to="/datenschutz" className="hover:text-muted-foreground">{tt(T.datenschutz)}</Link>
         </p>
       </main>
     </div>
@@ -187,6 +191,7 @@ function ClaimCard({ token, project, myName, email }: { token: string; project: 
   const [password, setPassword] = useState('')
   const [name, setName] = useState(myName || '')
   const [error, setError] = useState<string | null>(null)
+  const tt = useT()
 
   const claimMutation = useMutation({
     mutationFn: () => api.publicDispo.claim(token, { password, name }),
@@ -196,29 +201,29 @@ function ClaimCard({ token, project, myName, email }: { token: string; project: 
       // Voller Reload, damit der AuthContext den neuen Token sauber lädt
       window.location.href = `/projects/${data.project_id}`
     },
-    onError: (err: any) => setError(err.message || 'Ein Fehler ist aufgetreten'),
+    onError: (err: any) => setError(err.message || tt(T.fehlerAufgetreten)),
   })
 
   return (
     <div className="rounded-xl border border-border/60 bg-card p-5">
       <div className="flex items-center gap-2 mb-2">
         <UserPlus className="w-4 h-4 text-primary" />
-        <p className="text-sm font-semibold">Du bist Teil der Crew von „{project.title}"</p>
+        <p className="text-sm font-semibold">{tt(T.teilDerCrew).replace('{titel}', project.title)}</p>
       </div>
       <p className="text-[13px] text-muted-foreground leading-relaxed mb-4">
-        Erstelle dein kostenloses Konto, um Drehplan, Shotlist und Check-in des Projekts zu sehen.
+        {tt(T.kontoText)}
       </p>
       <form
         onSubmit={e => { e.preventDefault(); setError(null); claimMutation.mutate() }}
         className="space-y-3"
       >
-        <Input value={name} onChange={e => setName(e.target.value)} placeholder="Dein Name" autoComplete="name" />
+        <Input value={name} onChange={e => setName(e.target.value)} placeholder={tt(T.deinName)} autoComplete="name" />
         <Input value={email} disabled readOnly className="opacity-60" />
         <Input
           type="password"
           value={password}
           onChange={e => setPassword(e.target.value)}
-          placeholder="Passwort wählen (min. 6 Zeichen)"
+          placeholder={tt(T.passwortWaehlen)}
           minLength={6}
           required
           autoComplete="new-password"
@@ -229,7 +234,7 @@ function ClaimCard({ token, project, myName, email }: { token: string; project: 
           </div>
         )}
         <Button type="submit" className="w-full h-10 text-sm font-semibold" disabled={claimMutation.isPending || password.length < 6}>
-          {claimMutation.isPending ? 'Konto wird erstellt…' : 'Konto erstellen & Projekt öffnen'}
+          {claimMutation.isPending ? tt(T.kontoWirdErstellt) : tt(T.kontoErstellen)}
         </Button>
       </form>
     </div>

@@ -183,7 +183,7 @@ router.put('/companies/:companyId/clients/:clientId', requireAuth, erfordereAbre
   }
 
   if (felder.length === 0) {
-    return res.status(400).json({ data: null, error: 'Keine Angabe zum Aendern' })
+    return res.status(400).json({ data: null, error: 'Keine Angabe zum Ändern' })
   }
 
   const zeile = await db.run(

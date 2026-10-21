@@ -4,15 +4,18 @@ import { api } from '@/lib/api'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Clock, TrendingDown, TrendingUp, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/useT'
+import type { Lang } from '@/lib/i18n'
+import { zeitAnalyseT as T } from '@/lib/texte/ZeitAnalyse'
 
-function formatMinutes(minutes: number): string {
-  if (minutes === 0) return '0 Min.'
+function formatMinutes(minutes: number, tt: (map: Record<Lang, string>) => string): string {
+  if (minutes === 0) return tt(T.minuten).replace('{n}', '0')
   const h = Math.floor(Math.abs(minutes) / 60)
   const m = Math.abs(minutes) % 60
   const sign = minutes < 0 ? '-' : ''
-  if (h === 0) return `${sign}${m} Min.`
-  if (m === 0) return `${sign}${h} Std.`
-  return `${sign}${h} Std. ${m} Min.`
+  if (h === 0) return sign + tt(T.minuten).replace('{n}', String(m))
+  if (m === 0) return sign + tt(T.stunden).replace('{n}', String(h))
+  return sign + tt(T.stundenMinuten).replace('{h}', String(h)).replace('{m}', String(m))
 }
 
 interface SceneRow {
@@ -28,6 +31,7 @@ interface SceneRow {
 
 export function Component() {
   const { projectId } = useParams()
+  const tt = useT()
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ['time-analysis', projectId],
@@ -66,22 +70,22 @@ export function Component() {
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-1">
           <Clock className="w-5 h-5 text-muted-foreground" />
-          <h1 className="font-display text-[28px] sm:text-[34px]">Zeitanalyse</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">{tt(T.titel)}</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          Vergleich von geplantem und tatsächlichem Drehaufwand pro Szene
+          {tt(T.untertitel)}
         </p>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
         <div className="bg-card border border-border/60 rounded-xl p-4">
-          <div className="text-xs text-muted-foreground mb-1">Gesamt Geplant</div>
-          <div className="text-xl font-bold tabular-nums">{formatMinutes(totalEstimated)}</div>
+          <div className="text-xs text-muted-foreground mb-1">{tt(T.gesamtGeplant)}</div>
+          <div className="text-xl font-bold tabular-nums">{formatMinutes(totalEstimated, tt)}</div>
         </div>
         <div className="bg-card border border-border/60 rounded-xl p-4">
-          <div className="text-xs text-muted-foreground mb-1">Gesamt Ist</div>
-          <div className="text-xl font-bold tabular-nums">{formatMinutes(totalActual)}</div>
+          <div className="text-xs text-muted-foreground mb-1">{tt(T.gesamtIst)}</div>
+          <div className="text-xl font-bold tabular-nums">{formatMinutes(totalActual, tt)}</div>
         </div>
         <div className={cn(
           'border rounded-xl p-4',
@@ -89,21 +93,21 @@ export function Component() {
           totalDiff < 0 ? 'bg-green-500/5 border-green-500/20' :
           'bg-card border-border/60'
         )}>
-          <div className="text-xs text-muted-foreground mb-1">Differenz</div>
+          <div className="text-xs text-muted-foreground mb-1">{tt(T.differenz)}</div>
           <div className={cn(
             'text-xl font-bold tabular-nums',
             totalDiff > 0 ? 'text-red-400' : totalDiff < 0 ? 'text-green-400' : ''
           )}>
-            {totalDiff >= 0 ? '+' : ''}{formatMinutes(totalDiff)}
+            {totalDiff >= 0 ? '+' : ''}{formatMinutes(totalDiff, tt)}
           </div>
         </div>
         <div className="bg-card border border-border/60 rounded-xl p-4">
-          <div className="text-xs text-muted-foreground mb-1">Szenen Abgedreht</div>
+          <div className="text-xs text-muted-foreground mb-1">{tt(T.szenenAbgedreht)}</div>
           <div className="text-xl font-bold tabular-nums">{shotScenes.length}</div>
           <div className="text-xs text-muted-foreground mt-1">
-            {overBudgetCount > 0 && <span className="text-red-400">{overBudgetCount} überzogen</span>}
+            {overBudgetCount > 0 && <span className="text-red-400">{tt(T.ueberzogen).replace('{n}', String(overBudgetCount))}</span>}
             {overBudgetCount > 0 && underBudgetCount > 0 && ' · '}
-            {underBudgetCount > 0 && <span className="text-green-400">{underBudgetCount} im Zeitplan</span>}
+            {underBudgetCount > 0 && <span className="text-green-400">{tt(T.imZeitplan).replace('{n}', String(underBudgetCount))}</span>}
           </div>
         </div>
       </div>
@@ -111,22 +115,22 @@ export function Component() {
       {data.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <Clock className="w-10 h-10 text-muted-foreground/30 mb-4" />
-          <p className="text-sm text-muted-foreground">Noch keine Szenen vorhanden.</p>
+          <p className="text-sm text-muted-foreground">{tt(T.leerTitel)}</p>
           <p className="text-xs text-muted-foreground/60 mt-1">
-            Füge Szenen hinzu und trage Tagesberichte ein, um die Zeitanalyse zu sehen.
+            {tt(T.leerText)}
           </p>
         </div>
       ) : (
         <>
           {/* Visual bar chart */}
           <div className="bg-card border border-border/60 rounded-xl p-5 mb-6">
-            <h2 className="text-sm font-medium mb-4">Zeitverteilung pro Szene</h2>
+            <h2 className="text-sm font-medium mb-4">{tt(T.verteilung)}</h2>
             <div className="space-y-3">
               {data.map(row => (
                 <div key={row.scene_id} className="group">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs text-muted-foreground w-12 shrink-0 tabular-nums">
-                      Sz. {row.scene_number}
+                      {tt(T.szKurz).replace('{n}', row.scene_number)}
                     </span>
                     <span className="text-xs text-muted-foreground/70 truncate max-w-[200px]">{row.title}</span>
                     {row.actual_minutes > 0 && (
@@ -136,14 +140,14 @@ export function Component() {
                         row.difference_minutes < 0 ? 'text-green-400' :
                         'text-muted-foreground'
                       )}>
-                        {row.difference_minutes > 0 ? '+' : ''}{row.difference_minutes} Min.
+                        {row.difference_minutes > 0 ? '+' : ''}{tt(T.minuten).replace('{n}', String(row.difference_minutes))}
                       </span>
                     )}
                   </div>
                   <div className="flex flex-col gap-0.5">
                     {/* Estimated bar */}
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-muted-foreground/50 w-10 shrink-0">Plan</span>
+                      <span className="text-[10px] text-muted-foreground/50 w-10 shrink-0">{tt(T.plan)}</span>
                       <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                         <div
                           className="h-full bg-primary/40 rounded-full transition-all duration-500"
@@ -151,13 +155,13 @@ export function Component() {
                         />
                       </div>
                       <span className="text-[10px] text-muted-foreground/60 w-14 text-right tabular-nums">
-                        {formatMinutes(row.estimated_minutes)}
+                        {formatMinutes(row.estimated_minutes, tt)}
                       </span>
                     </div>
                     {/* Actual bar */}
                     {row.actual_minutes > 0 && (
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-muted-foreground/50 w-10 shrink-0">Ist</span>
+                        <span className="text-[10px] text-muted-foreground/50 w-10 shrink-0">{tt(T.ist)}</span>
                         <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                           <div
                             className={cn(
@@ -172,7 +176,7 @@ export function Component() {
                           />
                         </div>
                         <span className="text-[10px] text-muted-foreground/60 w-14 text-right tabular-nums">
-                          {formatMinutes(row.actual_minutes)}
+                          {formatMinutes(row.actual_minutes, tt)}
                         </span>
                       </div>
                     )}
@@ -185,19 +189,19 @@ export function Component() {
             <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border/40">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-2 bg-primary/40 rounded-full" />
-                <span className="text-[11px] text-muted-foreground">Geplant</span>
+                <span className="text-[11px] text-muted-foreground">{tt(T.geplant)}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-2 bg-primary/70 rounded-full" />
-                <span className="text-[11px] text-muted-foreground">Ist (im Plan)</span>
+                <span className="text-[11px] text-muted-foreground">{tt(T.istImPlan)}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-2 bg-red-500/70 rounded-full" />
-                <span className="text-[11px] text-muted-foreground">Ist (überzogen)</span>
+                <span className="text-[11px] text-muted-foreground">{tt(T.istUeberzogen)}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-2 bg-green-500/70 rounded-full" />
-                <span className="text-[11px] text-muted-foreground">Ist (gespart)</span>
+                <span className="text-[11px] text-muted-foreground">{tt(T.istGespart)}</span>
               </div>
             </div>
           </div>
@@ -208,11 +212,11 @@ export function Component() {
               <table className="data-table min-w-[520px]">
                 <thead>
                   <tr>
-                    <th>Szene</th>
-                    <th>Titel</th>
-                    <th className="text-right">Geplant</th>
-                    <th className="text-right">Ist</th>
-                    <th className="text-right">Differenz</th>
+                    <th>{tt(T.szene)}</th>
+                    <th>{tt(T.titelSpalte)}</th>
+                    <th className="text-right">{tt(T.geplant)}</th>
+                    <th className="text-right">{tt(T.ist)}</th>
+                    <th className="text-right">{tt(T.differenz)}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -224,14 +228,14 @@ export function Component() {
                         <td className="font-mono text-xs">{row.scene_number}</td>
                         <td className="max-w-[220px] truncate">{row.title || '-'}</td>
                         <td className="text-right tabular-nums text-sm">
-                          {formatMinutes(row.estimated_minutes)}
+                          {formatMinutes(row.estimated_minutes, tt)}
                         </td>
                         <td className="text-right tabular-nums text-sm">
                           {hasActual ? (
                             <span className={row.geschaetzt ? 'text-muted-foreground' : undefined}>
-                              {formatMinutes(row.actual_minutes)}
+                              {formatMinutes(row.actual_minutes, tt)}
                               {/* Eine abgeleitete Zahl darf nicht aussehen wie eine gemessene */}
-                              {row.geschaetzt && <span className="ml-1 text-[10px] uppercase tracking-wide opacity-60">gesch.</span>}
+                              {row.geschaetzt && <span className="ml-1 text-[10px] uppercase tracking-wide opacity-60">{tt(T.geschKurz)}</span>}
                             </span>
                           ) : (
                             <span className="text-muted-foreground/40">-</span>
@@ -251,7 +255,7 @@ export function Component() {
                                   ? <TrendingDown className="w-3 h-3" />
                                   : <Minus className="w-3 h-3" />
                               }
-                              {diff >= 0 ? '+' : ''}{formatMinutes(diff)}
+                              {diff >= 0 ? '+' : ''}{formatMinutes(diff, tt)}
                             </span>
                           ) : (
                             <span className="text-muted-foreground/40">-</span>
@@ -264,13 +268,13 @@ export function Component() {
                 <tfoot>
                   <tr className="border-t-2 border-border font-semibold">
                     <td colSpan={2} className="py-3 px-3 pl-4 text-xs uppercase tracking-wide text-muted-foreground">
-                      Gesamt
+                      {tt(T.gesamt)}
                     </td>
                     <td className="text-right tabular-nums py-3 px-3">
-                      {formatMinutes(totalEstimated)}
+                      {formatMinutes(totalEstimated, tt)}
                     </td>
                     <td className="text-right tabular-nums py-3 px-3">
-                      {totalActual > 0 ? formatMinutes(totalActual) : '-'}
+                      {totalActual > 0 ? formatMinutes(totalActual, tt) : '-'}
                     </td>
                     <td className={cn(
                       'text-right tabular-nums py-3 px-3 pr-4',
@@ -278,7 +282,7 @@ export function Component() {
                       totalDiff < 0 ? 'text-green-400' :
                       ''
                     )}>
-                      {totalActual > 0 ? `${totalDiff >= 0 ? '+' : ''}${formatMinutes(totalDiff)}` : '-'}
+                      {totalActual > 0 ? `${totalDiff >= 0 ? '+' : ''}${formatMinutes(totalDiff, tt)}` : '-'}
                     </td>
                   </tr>
                 </tfoot>
@@ -286,9 +290,7 @@ export function Component() {
             </div>
             {geschaetzteZeilen > 0 && (
               <p className="text-[11px] text-muted-foreground/70 mt-4 leading-relaxed">
-                <b>gesch.</b> heißt: für diese {geschaetzteZeilen === 1 ? 'Szene' : `${geschaetzteZeilen} Szenen`} wurde
-                keine Zeit gemessen. Der Wert ist die Drehzeit des Tages, verteilt nach geplanter
-                Dauer. Gemessene Minuten trägst du im Tagesbericht bei der jeweiligen Szene ein.
+                <b>{tt(T.geschKurz)}</b>{tt(T.fussnote).replace('{szenen}', geschaetzteZeilen === 1 ? tt(T.fussnoteEine) : tt(T.fussnoteMehr).replace('{n}', String(geschaetzteZeilen)))}
               </p>
             )}
           </div>

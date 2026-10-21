@@ -16,6 +16,7 @@ import { optionalAuth } from './middleware/auth'
 import { projectWriteGuard, requireMember } from './middleware/projectAuth'
 import { papierkorbWaechter } from './middleware/papierkorbWaechter'
 import { pruefeIdParameter, saeubereKoerper, uebersetzeDatenbankfehler } from './middleware/eingabe'
+import { meldungenUebersetzen } from './middleware/sprache'
 import { schutzkoepfe, anmeldeBremse, apiGrenze, registrierGrenze, teuerGrenze } from './middleware/haertung'
 
 // Route imports
@@ -135,6 +136,9 @@ app.use('/api', ueberlastKontext)
 
 // Apply optional auth globally so req.user is populated when token is present
 app.use(optionalAuth)
+
+// Fehlermeldungen in der Sprache der Oberfläche (Kopf X-Sprache)
+app.use('/api', meldungenUebersetzen)
 
 // Mengenbremsen (nach optionalAuth, damit nach Konto gezaehlt wird)
 app.use('/api', apiGrenze)

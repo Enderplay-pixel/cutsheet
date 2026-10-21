@@ -6,6 +6,8 @@ import { TrendingUp } from 'lucide-react'
 import {
   BereichKopf, Kennzahlen, BereichLaden, NichtsDa, VideoLink, BereichTabelle,
 } from '@/components/creator/BereichLayout'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { creatorPerformanceT as pt } from '@/lib/texte/CreatorPerformance'
 
 function tag(datum: string): string {
   if (!datum) return '-'
@@ -20,6 +22,8 @@ function prozent(n: number | null): string {
 export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
+  const tt = useT()
+  const gs = useGebietsschema()
   const { data, isLoading } = useQuery({
     queryKey: ['creator-performance', pid],
     queryFn: () => api.creator.performance(pid),
@@ -33,36 +37,36 @@ export function Component() {
     <div className="page-container animate-fade-up">
       <BereichKopf
         symbol={TrendingUp}
-        titel="Video-Performance"
-        untertitel="Aufrufe, Klickrate und Haltequote der veröffentlichten Videos"
+        titel={tt(pt.titel)}
+        untertitel={tt(pt.untertitel)}
       />
 
       <Kennzahlen werte={[
-        { label: 'Veröffentlicht', wert: data?.veroeffentlicht ?? 0 },
-        { label: 'Aufrufe gesamt', wert: (data?.aufrufe_gesamt ?? 0).toLocaleString('de-DE') },
-        { label: 'Klickrate im Schnitt', wert: prozent(data?.ctr_schnitt ?? null),
-          hinweis: 'üblich sind 2 bis 10 %' },
-        { label: 'Haltequote im Schnitt', wert: prozent(data?.haltequote_schnitt ?? null),
-          hinweis: 'ab 50 % gilt als gut' },
+        { label: tt(pt.veroeffentlicht), wert: data?.veroeffentlicht ?? 0 },
+        { label: tt(pt.aufrufeGesamt), wert: (data?.aufrufe_gesamt ?? 0).toLocaleString(gs) },
+        { label: tt(pt.klickrateSchnitt), wert: prozent(data?.ctr_schnitt ?? null),
+          hinweis: tt(pt.klickrateHinweis) },
+        { label: tt(pt.haltequoteSchnitt), wert: prozent(data?.haltequote_schnitt ?? null),
+          hinweis: tt(pt.haltequoteHinweis) },
       ]} />
 
       {liste.length === 0 ? (
         <NichtsDa
           symbol={TrendingUp}
-          titel="Noch nichts veröffentlicht"
-          text="Sobald ein Video ein Veröffentlichungsdatum und Zahlen hat, wird es hier ausgewertet - Klickrate, Haltequote und Abos je Video."
+          titel={tt(pt.nichtsVeroeffentlicht)}
+          text={tt(pt.nichtsVeroeffentlichtText)}
         />
       ) : (
         <BereichTabelle
           minBreite={800}
-          kopf={<tr><th>Video</th><th>Serie</th><th>Datum</th><th className="text-right">Aufrufe</th><th className="text-right">Klickrate</th><th className="text-right">Haltequote</th><th className="text-right">Abos</th></tr>}
+          kopf={<tr><th>{tt(pt.video)}</th><th>{tt(pt.serie)}</th><th>{tt(pt.datum)}</th><th className="text-right">{tt(pt.aufrufe)}</th><th className="text-right">{tt(pt.klickrate)}</th><th className="text-right">{tt(pt.haltequote)}</th><th className="text-right">{tt(pt.abos)}</th></tr>}
         >
           {liste.map((e: any) => (
             <tr key={e.id}>
               <td><VideoLink projectId={pid} videoId={e.id}>{e.video}</VideoLink></td>
               <td className="text-muted-foreground text-[12px]">{e.serie || '-'}</td>
               <td className="tabular-nums whitespace-nowrap">{tag(e.datum)}</td>
-              <td className="text-right tabular-nums">{e.aufrufe.toLocaleString('de-DE')}</td>
+              <td className="text-right tabular-nums">{e.aufrufe.toLocaleString(gs)}</td>
               <td className={cn('text-right tabular-nums',
                 e.ctr !== null && e.ctr < 2 && 'text-danger',
                 e.ctr !== null && e.ctr > 10 && 'text-success')}>
@@ -81,7 +85,7 @@ export function Component() {
 
       {liste.some((e: any) => e.hinweise.length > 0) && (
         <div className="mt-8">
-          <p className="section-label mb-3">Einordnung</p>
+          <p className="section-label mb-3">{tt(pt.einordnung)}</p>
           <div className="space-y-3">
             {liste.filter((e: any) => e.hinweise.length).slice(0, 8).map((e: any) => (
               <div key={e.id} className="stat-card">

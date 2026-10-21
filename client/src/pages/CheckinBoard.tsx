@@ -8,6 +8,8 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { CheckCircle2, Circle, QrCode, Clock, Users } from 'lucide-react'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { checkinBoardT as ct } from '@/lib/texte/CheckinBoard'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -54,20 +56,20 @@ function formatTime(val: number | string | null | undefined) {
   return `${String(h).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
 }
 
-function formatDateTime(iso: string | undefined) {
+function formatDateTime(iso: string | undefined, gebietsschema: string) {
   if (!iso) return ''
   const d = new Date(iso)
-  return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleTimeString(gebietsschema, { hour: '2-digit', minute: '2-digit' })
 }
 
-function formatDateLong(iso: string) {
+function formatDateLong(iso: string, gebietsschema: string) {
   if (!iso) return ''
-  return new Date(iso).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+  return new Date(iso).toLocaleDateString(gebietsschema, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
 }
 
-function formatDateShort(iso: string) {
+function formatDateShort(iso: string, gebietsschema: string) {
   if (!iso) return ''
-  return new Date(iso).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })
+  return new Date(iso).toLocaleDateString(gebietsschema, { weekday: 'short', day: '2-digit', month: '2-digit' })
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -78,6 +80,8 @@ export function Component() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [selectedDayId, setSelectedDayId] = useState<number | null>(null)
+  const tt = useT()
+  const gs = useGebietsschema()
 
   const token = localStorage.getItem('token')
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
@@ -118,10 +122,10 @@ export function Component() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })
-      toast({ title: 'Erfolgreich eingecheckt' })
+      toast({ title: tt(ct.erfolgreich) })
     },
     onError: () => {
-      toast({ variant: 'destructive', title: 'Fehler beim Einchecken' })
+      toast({ variant: 'destructive', title: tt(ct.fehlerEinchecken) })
     },
   })
 
@@ -142,8 +146,8 @@ export function Component() {
       <div className="mb-8 pb-7 border-b border-border/40">
         <div className="flex items-start justify-between gap-6 flex-wrap">
           <div>
-            <h1 className="font-display text-[28px] sm:text-[34px]">Check-in Board</h1>
-            <p className="text-sm text-muted-foreground/60 mt-1.5">Anwesenheit live verfolgen und bestätigen</p>
+            <h1 className="font-display text-[28px] sm:text-[34px]">{tt(ct.titel)}</h1>
+            <p className="text-sm text-muted-foreground/60 mt-1.5">{tt(ct.untertitel)}</p>
           </div>
 
           {/* Stat card */}
@@ -158,7 +162,7 @@ export function Component() {
                   : <span className="text-muted-foreground/30">-</span>
                 }
               </div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] mt-2 text-muted-foreground">Eingecheckt</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] mt-2 text-muted-foreground">{tt(ct.eingechecktZahl)}</div>
             </div>
           </div>
         </div>
@@ -167,8 +171,8 @@ export function Component() {
         {selectedDayId && !loadingSheet && callSheet && (
           <div className="mt-6 space-y-1.5">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span className="font-medium">{progressPct}% anwesend</span>
-              <span>{checkedIn} von {total} Personen</span>
+              <span className="font-medium">{tt(ct.anwesend).replace('{pct}', String(progressPct))}</span>
+              <span>{tt(ct.vonPersonen).replace('{n}', String(checkedIn)).replace('{total}', String(total))}</span>
             </div>
             <div className="h-2 w-full rounded-full bg-muted/40 overflow-hidden">
               <div
@@ -183,7 +187,7 @@ export function Component() {
       {/* Day selector card */}
       <div className="rounded-xl border border-border/60 bg-card p-5 mb-6">
         <div className="mb-3">
-          <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">Drehtag</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">{tt(ct.drehtag)}</span>
         </div>
         {loadingDays ? (
           <Skeleton className="h-10 w-64 rounded-lg" />
@@ -194,18 +198,18 @@ export function Component() {
               onValueChange={v => setSelectedDayId(Number(v))}
             >
               <SelectTrigger className="w-72">
-                <SelectValue placeholder="Drehtag auswählen…" />
+                <SelectValue placeholder={tt(ct.drehtagWaehlen)} />
               </SelectTrigger>
               <SelectContent>
                 {(shootDays ?? []).map(d => (
                   <SelectItem key={d.id} value={String(d.id)}>
-                    DT {d.day_number} - {formatDateShort(d.date)}
+                    {tt(ct.drehtagKurz).replace('{n}', String(d.day_number))} - {formatDateShort(d.date, gs)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {selectedDay && (
-              <span className="text-sm text-muted-foreground">{formatDateLong(selectedDay.date)}</span>
+              <span className="text-sm text-muted-foreground">{formatDateLong(selectedDay.date, gs)}</span>
             )}
           </div>
         )}
@@ -214,7 +218,7 @@ export function Component() {
         {selectedDayId && (
           <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2 w-fit">
             <QrCode className="h-3.5 w-3.5 shrink-0" />
-            <span>Gastlink: <code className="font-mono">/guest/checkin/{selectedDayId}</code></span>
+            <span>{tt(ct.gastlink)} <code className="font-mono">/guest/checkin/{selectedDayId}</code></span>
           </div>
         )}
       </div>
@@ -223,7 +227,7 @@ export function Component() {
       {!selectedDayId && (
         <div className="rounded-xl border border-border/60 bg-card p-16 flex flex-col items-center justify-center gap-3">
           <CheckCircle2 className="h-10 w-10 opacity-20" />
-          <p className="text-sm text-muted-foreground">Bitte einen Drehtag auswählen.</p>
+          <p className="text-sm text-muted-foreground">{tt(ct.bitteDrehtag)}</p>
         </div>
       )}
 
@@ -238,7 +242,7 @@ export function Component() {
       {selectedDayId && !loadingSheet && callSheet === null && (
         <div className="rounded-xl border border-border/60 bg-card p-16 flex flex-col items-center justify-center gap-3">
           <Circle className="h-10 w-10 opacity-20" />
-          <p className="text-sm text-muted-foreground">Keine Tagesdispo für diesen Drehtag.</p>
+          <p className="text-sm text-muted-foreground">{tt(ct.keineDispo)}</p>
         </div>
       )}
 
@@ -247,7 +251,7 @@ export function Component() {
           {entries.length === 0 && (
             <div className="rounded-xl border border-border/60 bg-card p-16 flex flex-col items-center justify-center gap-3">
               <Circle className="h-10 w-10 opacity-20" />
-              <p className="text-sm text-muted-foreground">Keine Einträge in dieser Tagesdispo.</p>
+              <p className="text-sm text-muted-foreground">{tt(ct.keineEintraege)}</p>
             </div>
           )}
 
@@ -280,7 +284,7 @@ export function Component() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-[0.95rem]">{entry.person_name ?? entry.name}</span>
                     <Badge variant={entry.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px]">
-                      {entry.person_type === 'cast' ? 'Darsteller' : 'Crew'}
+                      {entry.person_type === 'cast' ? tt(ct.darsteller) : tt(ct.crew)}
                     </Badge>
                     {entry.role && (
                       <span className="text-xs text-muted-foreground/60">{entry.role}</span>
@@ -289,11 +293,11 @@ export function Component() {
                   <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
-                      <span>Call: <span className="font-medium tabular-nums">{formatTime(entry.call_time)}</span></span>
+                      <span>{tt(ct.call)} <span className="font-medium tabular-nums">{formatTime(entry.call_time)}</span></span>
                     </div>
                     {entry.checked_in && entry.checked_in_at && (
                       <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                        Eingecheckt um {formatDateTime(entry.checked_in_at)}
+                        {tt(ct.eingechecktUm).replace('{zeit}', formatDateTime(entry.checked_in_at, gs))}
                       </span>
                     )}
                   </div>
@@ -302,17 +306,17 @@ export function Component() {
                 {/* Status pill + action */}
                 <div className="shrink-0 flex items-center gap-3">
                   {entry.checked_in ? (
-                    <Badge variant="green" className="text-[11px] px-2.5 py-0.5">Eingecheckt</Badge>
+                    <Badge variant="green" className="text-[11px] px-2.5 py-0.5">{tt(ct.eingecheckt)}</Badge>
                   ) : (
                     <>
-                      <Badge variant="secondary" className="text-muted-foreground text-[11px] px-2.5 py-0.5">Ausstehend</Badge>
+                      <Badge variant="secondary" className="text-muted-foreground text-[11px] px-2.5 py-0.5">{tt(ct.ausstehend)}</Badge>
                       <Button
                         size="sm"
                         onClick={() => checkinMutation.mutate(entry.id)}
                         disabled={checkinMutation.isPending}
                         className="active:scale-[0.97] shrink-0"
                       >
-                        Einchecken
+                        {tt(ct.einchecken)}
                       </Button>
                     </>
                   )}

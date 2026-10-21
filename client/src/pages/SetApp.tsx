@@ -8,6 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Moon, Sun, Clock, Users, List, Camera, FileText, Check, CheckCircle2 } from 'lucide-react'
 import { cn, heuteISO } from '@/lib/utils'
 import { feiern, gespeichert } from '@/lib/belohnung'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { setAppT as T } from '@/lib/texte/SetApp'
 
 const API_BASE = '/api'
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
@@ -29,6 +31,7 @@ function formatMinutes(minutes: number): string {
 
 // ─── Tagesdispo Tab ───────────────────────────────────────────────────────────
 function TagesdispoTab({ dayId }: { dayId: string }) {
+  const tt = useT()
   const { data: callSheet, isLoading } = useQuery({
     networkMode: 'offlineFirst',
     queryKey: ['set-call-sheet', dayId],
@@ -36,7 +39,7 @@ function TagesdispoTab({ dayId }: { dayId: string }) {
     enabled: !!dayId,
   })
 
-  if (!dayId) return <EmptyState text="Drehtag auswählen" />
+  if (!dayId) return <EmptyState text={tt(T.drehtagAuswaehlen)} />
   if (isLoading) return <LoadingCards />
 
   const entries = callSheet?.entries || []
@@ -44,14 +47,14 @@ function TagesdispoTab({ dayId }: { dayId: string }) {
 
   return (
     <div className="space-y-3">
-      {sorted.length === 0 && <EmptyState text="Keine Einträge in der Disposition" />}
+      {sorted.length === 0 && <EmptyState text={tt(T.keineEintraege)} />}
       {sorted.map((entry: any, i: number) => (
         <div key={i} className="rounded-2xl border border-border bg-card p-5 flex items-center gap-5">
           <div className="text-center min-w-[80px]">
             <div className="text-3xl font-bold tabular-nums text-primary">
               {entry.call_time != null ? formatMinutes(entry.call_time) : '-:--'}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">Calltime</div>
+            <div className="text-xs text-muted-foreground mt-1">{tt(T.calltime)}</div>
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xl font-semibold truncate">{entry.person_name || entry.name || '-'}</div>
@@ -66,6 +69,7 @@ function TagesdispoTab({ dayId }: { dayId: string }) {
 // ─── Shotlist Tab ─────────────────────────────────────────────────────────────
 function ShotlistTab({ projectId, dayId }: { projectId: string; dayId: string }) {
   const queryClient = useQueryClient()
+  const tt = useT()
 
   const { data: shots, isLoading } = useQuery({
     networkMode: 'offlineFirst',
@@ -81,7 +85,7 @@ function ShotlistTab({ projectId, dayId }: { projectId: string; dayId: string })
   })
 
   if (isLoading) return <LoadingCards />
-  if (!shots || shots.length === 0) return <EmptyState text="Keine Shots für diesen Tag" />
+  if (!shots || shots.length === 0) return <EmptyState text={tt(T.keineShots)} />
 
   const done = shots.filter((s: any) => s.done).length
   const total = shots.length
@@ -103,7 +107,7 @@ function ShotlistTab({ projectId, dayId }: { projectId: string; dayId: string })
               feiern(kreis)
               // Letzter offener Shot des Tages: der große Moment
               if (done + 1 === total) {
-                window.setTimeout(() => { feiern({ x: window.innerWidth / 2, y: window.innerHeight / 3 }, true); gespeichert('Drehtag im Kasten') }, 180)
+                window.setTimeout(() => { feiern({ x: window.innerWidth / 2, y: window.innerHeight / 3 }, true); gespeichert(tt(T.imKasten)) }, 180)
               }
             }
             toggleDone.mutate(shot.id)
@@ -120,7 +124,7 @@ function ShotlistTab({ projectId, dayId }: { projectId: string; dayId: string })
           </div>
           <div className="flex-1 min-w-0">
             <div className={cn('text-lg font-semibold', shot.done && 'line-through text-muted-foreground')}>
-              {shot.shot_number || shot.description || `Shot #${shot.id}`}
+              {shot.shot_number || shot.description || tt(T.shotNr).replace('{n}', String(shot.id))}
             </div>
             {shot.description && shot.shot_number && (
               <div className="text-sm text-muted-foreground truncate">{shot.description}</div>
@@ -138,6 +142,7 @@ function ShotlistTab({ projectId, dayId }: { projectId: string; dayId: string })
 // damit Set-App und Check-in-Board dasselbe sehen.
 function CheckInTab({ dayId }: { dayId: string }) {
   const queryClient = useQueryClient()
+  const tt = useT()
 
   const { data: callSheet, isLoading } = useQuery({
     networkMode: 'offlineFirst',
@@ -168,7 +173,7 @@ function CheckInTab({ dayId }: { dayId: string }) {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['set-call-sheet', dayId] }),
   })
 
-  if (!dayId) return <EmptyState text="Drehtag auswählen" />
+  if (!dayId) return <EmptyState text={tt(T.drehtagAuswaehlen)} />
   if (isLoading) return <LoadingCards />
 
   const entries = callSheet?.entries || []
@@ -178,9 +183,9 @@ function CheckInTab({ dayId }: { dayId: string }) {
   return (
     <div className="space-y-3">
       <div className="text-base font-medium text-muted-foreground pb-1">
-        {done}/{total} eingecheckt
+        {tt(T.eingechecktAnzahl).replace('{done}', String(done)).replace('{total}', String(total))}
       </div>
-      {entries.length === 0 && <EmptyState text="Keine Personen in der Disposition" />}
+      {entries.length === 0 && <EmptyState text={tt(T.keinePersonen)} />}
       {entries.map((entry: any) => {
         // entry.id statt person_id: Cast- und Crew-IDs kollidieren sonst
         const isIn = !!entry.checked_in
@@ -205,7 +210,7 @@ function CheckInTab({ dayId }: { dayId: string }) {
             {isIn && (
               <Badge className="bg-green-500 text-white border-0 text-sm px-3 py-1">
                 <Check className="w-3.5 h-3.5 mr-1" />
-                Eingecheckt
+                {tt(T.eingecheckt)}
               </Badge>
             )}
           </button>
@@ -218,6 +223,7 @@ function CheckInTab({ dayId }: { dayId: string }) {
 // ─── Continuity Tab ───────────────────────────────────────────────────────────
 function ContinuityTab({ projectId }: { projectId: string }) {
   const [selectedSceneId, setSelectedSceneId] = useState<string>('')
+  const tt = useT()
 
   const { data: scenes } = useQuery({
     networkMode: 'offlineFirst',
@@ -232,12 +238,12 @@ function ContinuityTab({ projectId }: { projectId: string }) {
     <div className="space-y-4">
       <Select value={selectedSceneId} onValueChange={setSelectedSceneId}>
         <SelectTrigger className="h-12 text-base">
-          <SelectValue placeholder="Szene auswählen" />
+          <SelectValue placeholder={tt(T.szeneAuswaehlen)} />
         </SelectTrigger>
         <SelectContent>
           {(scenes || []).map((s: any) => (
             <SelectItem key={s.id} value={String(s.id)} className="text-sm">
-              Szene {s.scene_number}{s.title ? ` - ${s.title}` : ''}
+              {tt(T.szeneNr).replace('{n}', String(s.scene_number))}{s.title ? ` - ${s.title}` : ''}
             </SelectItem>
           ))}
         </SelectContent>
@@ -246,33 +252,33 @@ function ContinuityTab({ projectId }: { projectId: string }) {
       {selectedScene ? (
         <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
           <div>
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Szene {selectedScene.scene_number}</div>
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{tt(T.szeneNr).replace('{n}', String(selectedScene.scene_number))}</div>
             <div className="text-2xl font-bold">{selectedScene.title || selectedScene.location || '-'}</div>
           </div>
           {selectedScene.continuity_notes && (
             <div>
-              <div className="text-sm font-semibold text-muted-foreground mb-2">Continuity-Notizen</div>
+              <div className="text-sm font-semibold text-muted-foreground mb-2">{tt(T.continuityNotizen)}</div>
               <div className="text-base leading-relaxed whitespace-pre-wrap">{selectedScene.continuity_notes}</div>
             </div>
           )}
           {selectedScene.wardrobe_notes && (
             <div>
-              <div className="text-sm font-semibold text-muted-foreground mb-2">Kostüm</div>
+              <div className="text-sm font-semibold text-muted-foreground mb-2">{tt(T.kostuem)}</div>
               <div className="text-base leading-relaxed whitespace-pre-wrap">{selectedScene.wardrobe_notes}</div>
             </div>
           )}
           {selectedScene.hair_makeup_notes && (
             <div>
-              <div className="text-sm font-semibold text-muted-foreground mb-2">Maske / Haare</div>
+              <div className="text-sm font-semibold text-muted-foreground mb-2">{tt(T.maskeHaare)}</div>
               <div className="text-base leading-relaxed whitespace-pre-wrap">{selectedScene.hair_makeup_notes}</div>
             </div>
           )}
           {!selectedScene.continuity_notes && !selectedScene.wardrobe_notes && !selectedScene.hair_makeup_notes && (
-            <div className="text-muted-foreground text-base">Keine Continuity-Notizen vorhanden.</div>
+            <div className="text-muted-foreground text-base">{tt(T.keineContinuity)}</div>
           )}
         </div>
       ) : (
-        <EmptyState text="Szene auswählen um Continuity anzuzeigen" />
+        <EmptyState text={tt(T.szeneFuerContinuity)} />
       )}
     </div>
   )
@@ -314,6 +320,8 @@ export function Component() {
     try { localStorage.setItem('set-auswahl', JSON.stringify({ projekt: selectedProjectId, tag: selectedDayId })) } catch { /* privat */ }
   }, [selectedProjectId, selectedDayId])
   const online = useOnline()
+  const tt = useT()
+  const gebietsschema = useGebietsschema()
 
   useEffect(() => { track('set_app_used') }, [])
 
@@ -347,8 +355,8 @@ export function Component() {
         {/* Header */}
         <div className="flex items-center justify-between py-2">
           <div>
-            <h1 className="font-display text-[28px] sm:text-[34px]">Set-App</h1>
-            <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+            <h1 className="font-display text-[28px] sm:text-[34px]">{tt(T.titel)}</h1>
+            <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString(gebietsschema, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
           <button
             onClick={toggleDark}
@@ -360,20 +368,20 @@ export function Component() {
 
         {!online && (
           <div role="status" className="rounded-2xl bg-warning/15 text-warning px-4 py-3 text-sm font-medium">
-            Offline - du siehst den zuletzt geladenen Stand. Änderungen wie Check-ins gehen erst wieder mit Netz.
+            {tt(T.offline)}
           </div>
         )}
 
         {/* Project + Day selectors */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <div className="text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Projekt</div>
+            <div className="text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{tt(T.projekt)}</div>
             {projectsLoading ? (
               <Skeleton className="h-12 rounded-xl" />
             ) : (
               <Select value={selectedProjectId} onValueChange={v => { setSelectedProjectId(v); setSelectedDayId('') }}>
                 <SelectTrigger className="h-12 text-base rounded-xl">
-                  <SelectValue placeholder="Projekt wählen" />
+                  <SelectValue placeholder={tt(T.projektWaehlen)} />
                 </SelectTrigger>
                 <SelectContent>
                   {(projects || []).map((p: any) => (
@@ -384,16 +392,16 @@ export function Component() {
             )}
           </div>
           <div>
-            <div className="text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Drehtag</div>
+            <div className="text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{tt(T.drehtag)}</div>
             <Select value={selectedDayId} onValueChange={setSelectedDayId} disabled={!selectedProjectId}>
               <SelectTrigger className="h-12 text-base rounded-xl">
-                <SelectValue placeholder="Drehtag wählen" />
+                <SelectValue placeholder={tt(T.drehtagWaehlen)} />
               </SelectTrigger>
               <SelectContent>
                 {(shootDays || []).map((d: any) => (
                   <SelectItem key={d.id} value={String(d.id)} className="text-sm">
-                    {d.date === today ? '● Heute - ' : ''}
-                    {d.date ? new Date(d.date + 'T00:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' }) : `Tag #${d.id}`}
+                    {d.date === today ? tt(T.heute) : ''}
+                    {d.date ? new Date(d.date + 'T00:00:00').toLocaleDateString(gebietsschema, { weekday: 'short', day: 'numeric', month: 'short' }) : tt(T.tagNr).replace('{n}', String(d.id))}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -406,19 +414,19 @@ export function Component() {
           <TabsList className="grid grid-cols-4 h-12 rounded-2xl">
             <TabsTrigger value="dispo" className="flex flex-col gap-0.5 text-xs rounded-xl">
               <Clock className="w-4 h-4" />
-              Dispo
+              {tt(T.tabDispo)}
             </TabsTrigger>
             <TabsTrigger value="shotlist" className="flex flex-col gap-0.5 text-xs rounded-xl">
               <List className="w-4 h-4" />
-              Shots
+              {tt(T.tabShots)}
             </TabsTrigger>
             <TabsTrigger value="checkin" className="flex flex-col gap-0.5 text-xs rounded-xl">
               <Users className="w-4 h-4" />
-              Check-in
+              {tt(T.tabCheckin)}
             </TabsTrigger>
             <TabsTrigger value="continuity" className="flex flex-col gap-0.5 text-xs rounded-xl">
               <FileText className="w-4 h-4" />
-              Continuity
+              {tt(T.tabContinuity)}
             </TabsTrigger>
           </TabsList>
 

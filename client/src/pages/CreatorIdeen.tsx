@@ -12,6 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { Plus, Trash2, Lightbulb, ArrowRight, Flame } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/useT'
+import { creatorIdeenT as T } from '@/lib/texte/CreatorIdeen'
 
 const STATUS = ['offen', 'geplant', 'verworfen'] as const
 
@@ -19,6 +21,12 @@ const STATUS_STYLE: Record<string, string> = {
   offen: 'bg-amber-500/10 text-amber-400 border-amber-500/25',
   geplant: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25',
   verworfen: 'bg-muted/50 text-muted-foreground border-border',
+}
+
+const STATUS_LABEL: Record<string, Record<'de' | 'en' | 'fr', string>> = {
+  offen: T.statusOffen,
+  geplant: T.statusGeplant,
+  verworfen: T.statusVerworfen,
 }
 
 /** Farbe nach Prioritaet - hohe Werte sollen ins Auge springen. */
@@ -34,6 +42,7 @@ export function Component() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
 
   const [draft, setDraft] = useState({ title: '', note: '', impact: '3', effort: '3' })
 
@@ -54,19 +63,19 @@ export function Component() {
       effort: Number(draft.effort),
     }),
     onSuccess: () => { setDraft({ title: '', note: '', impact: '3', effort: '3' }); invalidate() },
-    onError: fail('Idee nicht gespeichert'),
+    onError: fail(tt(T.ideeNichtGesp)),
   })
 
   const update = useMutation({
     mutationFn: ({ id, patch }: { id: number; patch: any }) => api.creator.updateIdea(id, patch),
     onSuccess: invalidate,
-    onError: fail('Änderung nicht gespeichert'),
+    onError: fail(tt(T.aenderungNicht)),
   })
 
   const remove = useMutation({
     mutationFn: (id: number) => api.creator.deleteIdea(id),
     onSuccess: invalidate,
-    onError: fail('Löschen fehlgeschlagen'),
+    onError: fail(tt(T.loeschenFehl)),
   })
 
   const convert = useMutation({
@@ -76,7 +85,7 @@ export function Component() {
       invalidate()
       navigate(`/projects/${pid}/creator/${video.id}`)
     },
-    onError: fail('Umwandeln fehlgeschlagen'),
+    onError: fail(tt(T.umwandelnFehl)),
   })
 
   const list = (ideas || []) as any[]
@@ -85,11 +94,11 @@ export function Component() {
   return (
     <div className="p-6 max-w-[1100px]">
       <PageHeader
-        title="Ideen"
+        title={tt(T.titel)}
         subtitle={
           list.length === 0
-            ? 'Der Vorrat, aus dem die Videos kommen'
-            : `${open.length} offen von ${list.length} · sortiert nach Wirkung im Verhältnis zum Aufwand`
+            ? tt(T.untertitelLeer)
+            : tt(T.untertitel).replace('{offen}', String(open.length)).replace('{n}', String(list.length))
         }
       />
 
@@ -97,17 +106,17 @@ export function Component() {
       <div className="p-4 rounded-lg border border-border/50 bg-card mb-6">
         <div className="flex gap-3 items-end flex-wrap">
           <div className="flex-1 min-w-[240px]">
-            <Label className="text-xs text-muted-foreground">Idee</Label>
+            <Label className="text-xs text-muted-foreground">{tt(T.idee)}</Label>
             <Input
               value={draft.title}
               onChange={e => setDraft(p => ({ ...p, title: e.target.value }))}
               onKeyDown={e => { if (e.key === 'Enter' && draft.title.trim()) create.mutate() }}
-              placeholder="Worum geht es?"
+              placeholder={tt(T.ideePlatzhalter)}
               className="mt-1"
             />
           </div>
           <div className="w-[110px]">
-            <Label className="text-xs text-muted-foreground">Wirkung</Label>
+            <Label className="text-xs text-muted-foreground">{tt(T.wirkung)}</Label>
             <Select value={draft.impact} onValueChange={v => setDraft(p => ({ ...p, impact: v }))}>
               <SelectTrigger className="mt-1 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -116,7 +125,7 @@ export function Component() {
             </Select>
           </div>
           <div className="w-[110px]">
-            <Label className="text-xs text-muted-foreground">Aufwand</Label>
+            <Label className="text-xs text-muted-foreground">{tt(T.aufwand)}</Label>
             <Select value={draft.effort} onValueChange={v => setDraft(p => ({ ...p, effort: v }))}>
               <SelectTrigger className="mt-1 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -125,13 +134,13 @@ export function Component() {
             </Select>
           </div>
           <Button onClick={() => create.mutate()} disabled={!draft.title.trim() || create.isPending}>
-            <Plus className="w-4 h-4 mr-1.5" />Aufnehmen
+            <Plus className="w-4 h-4 mr-1.5" />{tt(T.aufnehmen)}
           </Button>
         </div>
         <Textarea
           value={draft.note}
           onChange={e => setDraft(p => ({ ...p, note: e.target.value }))}
-          placeholder="Notiz - Winkel, Hook, Quelle (optional)"
+          placeholder={tt(T.notizPlatzhalter)}
           rows={2}
           className="mt-3 text-sm"
         />
@@ -142,10 +151,9 @@ export function Component() {
       ) : list.length === 0 ? (
         <div className="border border-dashed border-border/60 rounded-lg py-14 text-center">
           <Lightbulb className="w-9 h-9 mx-auto text-muted-foreground/40" />
-          <p className="mt-3 text-sm font-medium">Noch keine Ideen gesammelt</p>
+          <p className="mt-3 text-sm font-medium">{tt(T.leerTitel)}</p>
           <p className="mt-1 text-xs text-muted-foreground/70 max-w-md mx-auto">
-            Wirkung und Aufwand von 1 bis 5. Die Reihenfolge ergibt sich aus dem Verhältnis -
-            eine kleine Idee mit großer Wirkung landet vor einem aufwendigen Großprojekt.
+            {tt(T.leerText)}
           </p>
         </div>
       ) : (
@@ -160,7 +168,7 @@ export function Component() {
             >
               <div className="w-11 shrink-0 text-center">
                 <div className={cn('text-lg font-bold leading-none', scoreStyle(idea.score))}>{idea.score}</div>
-                <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 mt-0.5">Prio</div>
+                <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 mt-0.5">{tt(T.prio)}</div>
               </div>
 
               <div className="min-w-0 flex-1">
@@ -172,7 +180,7 @@ export function Component() {
                 {idea.note && <div className="text-xs text-muted-foreground/70 mt-0.5 whitespace-pre-wrap">{idea.note}</div>}
                 <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <Flame className="w-3 h-3" />Wirkung
+                    <Flame className="w-3 h-3" />{tt(T.wirkung)}
                     <Select value={String(idea.impact)} onValueChange={v => update.mutate({ id: idea.id, patch: { impact: Number(v) } })}>
                       <SelectTrigger className="h-5 w-11 px-1 text-[11px]"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -181,7 +189,7 @@ export function Component() {
                     </Select>
                   </span>
                   <span className="flex items-center gap-1">
-                    Aufwand
+                    {tt(T.aufwand)}
                     <Select value={String(idea.effort)} onValueChange={v => update.mutate({ id: idea.id, patch: { effort: Number(v) } })}>
                       <SelectTrigger className="h-5 w-11 px-1 text-[11px]"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -198,20 +206,20 @@ export function Component() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {STATUS.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}
+                    {STATUS.map(s => <SelectItem key={s} value={s} className="text-xs">{tt(STATUS_LABEL[s])}</SelectItem>)}
                   </SelectContent>
                 </Select>
 
                 {idea.video_id ? (
                   <Button variant="ghost" size="sm" className="h-7 text-xs"
                     onClick={() => navigate(`/projects/${pid}/creator/${idea.video_id}`)}>
-                    Zum Video<ArrowRight className="w-3 h-3 ml-1" />
+                    {tt(T.zumVideo)}<ArrowRight className="w-3 h-3 ml-1" />
                   </Button>
                 ) : (
                   <Button variant="outline" size="sm" className="h-7 text-xs"
                     disabled={convert.isPending}
                     onClick={() => convert.mutate(idea.id)}>
-                    Video daraus<ArrowRight className="w-3 h-3 ml-1" />
+                    {tt(T.videoDaraus)}<ArrowRight className="w-3 h-3 ml-1" />
                   </Button>
                 )}
 

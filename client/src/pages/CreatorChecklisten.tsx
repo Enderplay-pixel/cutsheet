@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { ListChecks } from 'lucide-react'
+import { useT } from '@/lib/useT'
+import { creatorChecklistenT as T } from '@/lib/texte/CreatorChecklisten'
 import {
   BereichKopf, Kennzahlen, BereichLaden, NichtsDa, VideoLink, Marke, BereichTabelle,
 } from '@/components/creator/BereichLayout'
@@ -10,6 +12,7 @@ import {
 export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
+  const tt = useT()
   const { data, isLoading } = useQuery({
     queryKey: ['creator-checklisten', pid],
     queryFn: () => api.creator.checklisten(pid),
@@ -23,26 +26,26 @@ export function Component() {
     <div className="page-container animate-fade-up">
       <BereichKopf
         symbol={ListChecks}
-        titel="Upload-Checklisten"
-        untertitel="Was vor dem Hochladen noch offen ist - für jedes Video"
+        titel={tt(T.titel)}
+        untertitel={tt(T.untertitel)}
       />
 
       <Kennzahlen werte={[
-        { label: 'Videos', wert: liste.length },
-        { label: 'Bereit zum Upload', wert: data?.bereit ?? 0 },
-        { label: 'Ohne Checkliste', wert: data?.ohne_checkliste ?? 0, warnung: true },
+        { label: tt(T.videos), wert: liste.length },
+        { label: tt(T.bereit), wert: data?.bereit ?? 0 },
+        { label: tt(T.ohneCheckliste), wert: data?.ohne_checkliste ?? 0, warnung: true },
       ]} />
 
       {liste.length === 0 ? (
         <NichtsDa
           symbol={ListChecks}
-          titel="Noch keine Videos"
-          text="Jedes Video bekommt eine eigene Upload-Checkliste. Diese Seite zeigt über den ganzen Kanal, was noch fehlt."
+          titel={tt(T.leerTitel)}
+          text={tt(T.leerText)}
         />
       ) : (
         <BereichTabelle
           minBreite={700}
-          kopf={<tr><th>Video</th><th>Status</th><th className="w-40">Fortschritt</th><th className="text-right">Erledigt</th><th>Noch offen</th></tr>}
+          kopf={<tr><th>{tt(T.video)}</th><th>{tt(T.status)}</th><th className="w-40">{tt(T.fortschritt)}</th><th className="text-right">{tt(T.erledigt)}</th><th>{tt(T.nochOffen)}</th></tr>}
         >
           {liste.map((e: any) => (
             <tr key={e.id} className={e.punkte === 0 ? 'text-muted-foreground' : undefined}>
@@ -52,7 +55,7 @@ export function Component() {
                 {/* Ohne Punkte gibt es keinen Balken. Ein voller Balken wuerde
                     "fertig" behaupten, wo nur nichts angelegt wurde. */}
                 {e.fortschritt === null ? (
-                  <span className="text-[12px]">keine Checkliste</span>
+                  <span className="text-[12px]">{tt(T.keineCheckliste)}</span>
                 ) : (
                   <div className="flex items-center gap-2">
                     <div className="h-1.5 flex-1 bg-muted/50 rounded-full overflow-hidden">
@@ -72,7 +75,7 @@ export function Component() {
                 {e.punkte ? `${e.erledigt} / ${e.punkte}` : '-'}
               </td>
               <td className="text-[12px] leading-snug text-muted-foreground">
-                {e.offen.length ? e.offen.join(' · ') : (e.punkte ? <Marke text="alles erledigt" ton="gut" /> : '-')}
+                {e.offen.length ? e.offen.join(' · ') : (e.punkte ? <Marke text={tt(T.allesErledigt)} ton="gut" /> : '-')}
               </td>
             </tr>
           ))}

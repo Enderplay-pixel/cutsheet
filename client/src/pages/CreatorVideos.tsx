@@ -13,6 +13,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { Plus, Clock, Type, Trash2, ChevronRight, Youtube } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/useT'
+import { creatorVideosT as vt, creatorVideosStatusT } from '@/lib/texte/CreatorVideos'
 
 /** Pipeline-Stufen in Workflow-Reihenfolge - Serverseite kennt dieselbe Liste. */
 const STATUS = ['Idee', 'Skript', 'Dreh', 'Schnitt', 'Thumbnail', 'Upload', 'Veröffentlicht'] as const
@@ -43,10 +45,11 @@ function NewVideoDialog({ open, onClose, projectId }: { open: boolean; onClose: 
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { toast } = useToast()
+  const tt = useT()
 
   const create = useMutation({
     mutationFn: () => api.creator.createVideo(projectId, {
-      title: form.title.trim() || 'Neues Video',
+      title: form.title.trim() || tt(vt.neuesVideo),
       platform: form.platform,
       hook: form.hook,
       target_seconds: Math.round((Number(form.targetMinutes) || 0) * 60),
@@ -56,25 +59,25 @@ function NewVideoDialog({ open, onClose, projectId }: { open: boolean; onClose: 
       onClose()
       navigate(`/projects/${projectId}/creator/${video.id}`)
     },
-    onError: (err: any) => toast({ title: 'Video konnte nicht angelegt werden', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: tt(vt.anlegenFehler), description: err?.message, variant: 'destructive' }),
   })
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Neues Video</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{tt(vt.neuesVideo)}</DialogTitle></DialogHeader>
         <div className="space-y-4 py-2">
           <div>
-            <Label className="text-xs text-muted-foreground">Arbeitstitel</Label>
+            <Label className="text-xs text-muted-foreground">{tt(vt.arbeitstitel)}</Label>
             <Input
               value={form.title} autoFocus className="mt-1 h-10 text-base font-medium"
-              placeholder="Wie ich in 30 Tagen …"
+              placeholder={tt(vt.titelPlatzhalter)}
               onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-muted-foreground">Plattform</Label>
+              <Label className="text-xs text-muted-foreground">{tt(vt.plattform)}</Label>
               <Select value={form.platform} onValueChange={v => setForm(p => ({ ...p, platform: v }))}>
                 <SelectTrigger className="mt-1 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -83,7 +86,7 @@ function NewVideoDialog({ open, onClose, projectId }: { open: boolean; onClose: 
               </Select>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Ziel-Laufzeit (Minuten)</Label>
+              <Label className="text-xs text-muted-foreground">{tt(vt.zielLaufzeit)}</Label>
               <Input
                 type="number" min="0" step="0.5" value={form.targetMinutes} className="mt-1"
                 onChange={e => setForm(p => ({ ...p, targetMinutes: e.target.value }))}
@@ -91,21 +94,21 @@ function NewVideoDialog({ open, onClose, projectId }: { open: boolean; onClose: 
             </div>
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">Hook - die ersten Sekunden entscheiden</Label>
+            <Label className="text-xs text-muted-foreground">{tt(vt.hook)}</Label>
             <Textarea
               value={form.hook} rows={2} className="mt-1 text-sm"
-              placeholder="Womit haeltst du die Leute in den ersten fuenf Sekunden?"
+              placeholder={tt(vt.hookPlatzhalter)}
               onChange={e => setForm(p => ({ ...p, hook: e.target.value }))}
             />
           </div>
           <p className="text-xs text-muted-foreground/70">
-            Das Skript wird mit der ueblichen Gliederung angelegt: Hook, Intro, zwei Hauptteile, Call to Action, Outro.
+            {tt(vt.gliederung)}
           </p>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+          <Button variant="ghost" onClick={onClose}>{tt(vt.abbrechen)}</Button>
           <Button onClick={() => create.mutate()} disabled={create.isPending}>
-            {create.isPending ? 'Wird angelegt…' : 'Anlegen'}
+            {create.isPending ? tt(vt.wirdAngelegt) : tt(vt.anlegen)}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -122,6 +125,7 @@ export function Component() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const tt = useT()
 
   const { data: videos, isLoading } = useQuery({
     queryKey: ['creator-videos', pid],
@@ -131,16 +135,16 @@ export function Component() {
   const setStatus = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => api.creator.updateVideo(id, { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['creator-videos', pid] }),
-    onError: (err: any) => toast({ title: 'Status nicht gespeichert', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: tt(vt.statusFehler), description: err?.message, variant: 'destructive' }),
   })
 
   const remove = useMutation({
     mutationFn: (id: number) => api.creator.deleteVideo(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['creator-videos', pid] })
-      toast({ title: 'Video gelöscht' })
+      toast({ title: tt(vt.videoGeloescht) })
     },
-    onError: (err: any) => toast({ title: 'Löschen fehlgeschlagen', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: tt(vt.loeschenFehler), description: err?.message, variant: 'destructive' }),
   })
 
   const list = (videos || []) as any[]
@@ -150,15 +154,16 @@ export function Component() {
   return (
     <div className="p-6 max-w-[1400px]">
       <PageHeader
-        title="Videos"
+        title={tt(vt.titel)}
         subtitle={
           list.length === 0
-            ? 'Noch keine Videos angelegt'
-            : `${list.length} Video${list.length === 1 ? '' : 's'} · ${published} veröffentlicht · ${timecode(totalSeconds)} Material geskriptet`
+            ? tt(vt.nochKeine)
+            : tt(list.length === 1 ? vt.untertitelEins : vt.untertitelMehr)
+                .replace('{n}', String(list.length)).replace('{pub}', String(published)).replace('{zeit}', timecode(totalSeconds))
         }
         actions={
           <Button size="sm" onClick={() => setDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-1.5" />Neues Video
+            <Plus className="w-4 h-4 mr-1.5" />{tt(vt.neuesVideo)}
           </Button>
         }
       />
@@ -170,13 +175,12 @@ export function Component() {
       ) : list.length === 0 ? (
         <div className="border border-dashed border-border/60 rounded-lg py-16 text-center">
           <Youtube className="w-10 h-10 mx-auto text-muted-foreground/40" />
-          <p className="mt-3 text-sm font-medium">Leg dein erstes Video an</p>
+          <p className="mt-3 text-sm font-medium">{tt(vt.erstesVideo)}</p>
           <p className="mt-1 text-xs text-muted-foreground/70 max-w-md mx-auto">
-            Jedes Video bekommt ein Skript in Abschnitten, eine geschätzte Laufzeit
-            aus dem Sprechtext und ein Upload-Paket mit Titeln, Thumbnail-Ideen und Kapitelmarken.
+            {tt(vt.erstesVideoText)}
           </p>
           <Button size="sm" className="mt-4" onClick={() => setDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-1.5" />Neues Video
+            <Plus className="w-4 h-4 mr-1.5" />{tt(vt.neuesVideo)}
           </Button>
         </div>
       ) : (
@@ -188,7 +192,7 @@ export function Component() {
               onClick={() => navigate(`/projects/${pid}/creator/${v.id}`)}
             >
               <div className="min-w-0 flex-1">
-                <div className="font-medium truncate">{v.title || 'Unbenanntes Video'}</div>
+                <div className="font-medium truncate">{v.title || tt(vt.unbenannt)}</div>
                 <div className="text-xs text-muted-foreground/70 mt-0.5 truncate">
                   {v.platform}
                   {v.hook ? ` · ${v.hook}` : ''}
@@ -196,7 +200,7 @@ export function Component() {
               </div>
 
               <div className="flex items-center gap-4 shrink-0 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1" title="Geschätzte Laufzeit aus dem Sprechtext">
+                <span className="flex items-center gap-1" title={tt(vt.laufzeitTitel)}>
                   <Clock className="w-3.5 h-3.5" />{timecode(v.total_seconds)}
                   {v.target_seconds > 0 && (
                     <span className={cn(
@@ -207,7 +211,7 @@ export function Component() {
                     </span>
                   )}
                 </span>
-                <span className="flex items-center gap-1" title="Wörter im Sprechtext">
+                <span className="flex items-center gap-1" title={tt(vt.woerterTitel)}>
                   <Type className="w-3.5 h-3.5" />{v.total_words}
                 </span>
               </div>
@@ -218,7 +222,7 @@ export function Component() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {STATUS.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}
+                    {STATUS.map(s => <SelectItem key={s} value={s} className="text-xs">{tt(creatorVideosStatusT[s])}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -228,7 +232,7 @@ export function Component() {
                 className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
                 onClick={e => {
                   e.stopPropagation()
-                  if (confirm(`"${v.title || 'Video'}" mit allen Skript-Abschnitten löschen?`)) remove.mutate(v.id)
+                  if (confirm(tt(vt.loeschenFrage).replace('{titel}', v.title || tt(vt.videoErsatz)))) remove.mutate(v.id)
                 }}
               >
                 <Trash2 className="w-3.5 h-3.5" />

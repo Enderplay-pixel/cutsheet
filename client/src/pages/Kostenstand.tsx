@@ -9,6 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { Receipt, Plus, Trash2, TrendingDown, TrendingUp, Wallet, AlertTriangle } from 'lucide-react'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { kostenstandT as T } from '@/lib/texte/Kostenstand'
 
 // Kostenstand: Ist-Kosten (Belege) gegen die aktive Kalkulation - Soll/Ist je Kategorie
 
@@ -18,6 +20,8 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
+  const gs = useGebietsschema()
 
   const [desc, setDesc] = useState('')
   const [category, setCategory] = useState('')
@@ -51,7 +55,7 @@ export function Component() {
       queryClient.invalidateQueries({ queryKey: ['budget-alerts', pid] })
       setSchwelleBearbeiten(false)
     },
-    onError: (e: any) => toast({ variant: 'destructive', title: 'Nicht gespeichert', description: e.message }),
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(T.nichtGespeichert), description: e.message }),
   })
 
   const invalidate = () => {
@@ -68,7 +72,7 @@ export function Component() {
       expense_date: date || null,
     }),
     onSuccess: () => { setDesc(''); setAmount(''); setReceiptNo(''); invalidate() },
-    onError: (e: any) => toast({ variant: 'destructive', title: 'Fehler', description: e.message }),
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(T.fehler), description: e.message }),
   })
 
   const deleteMutation = useMutation({
@@ -97,9 +101,9 @@ export function Component() {
           <Wallet className="w-[17px] h-[17px] text-primary" />
         </div>
         <div>
-          <h1 className="font-display text-[28px] sm:text-[34px]">Kostenstand</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">{tt(T.titel)}</h1>
           <p className="text-[12px] text-muted-foreground mt-1">
-            Ist-Kosten gegen {kostenstand?.budget_version ? `Kalkulation „${kostenstand.budget_version.name}"` : 'die Kalkulation'}
+            {kostenstand?.budget_version ? tt(T.istGegenVersion).replace('{name}', kostenstand.budget_version.name) : tt(T.istGegen)}
           </p>
         </div>
       </div>
@@ -120,19 +124,18 @@ export function Component() {
                 <div className="text-[13px] leading-relaxed">
                   <p className="font-semibold">
                     {overBudget
-                      ? `Budget überzogen: ${usedPct} % der Kalkulation ausgegeben.`
-                      : `${usedPct} % der Kalkulation ausgegeben - Warnschwelle bei ${schwelle} %.`}
+                      ? tt(T.ueberzogen).replace('{p}', String(usedPct))
+                      : tt(T.schwelleErreicht).replace('{p}', String(usedPct)).replace('{s}', String(schwelle))}
                   </p>
                   <p className="text-muted-foreground">
-                    {formatCurrency(totals.ist_cents)} von {formatCurrency(totals.soll_cents)}. Gezählt werden die
-                    erfassten Belege, nicht die Kalkulationszeilen.
+                    {tt(T.gezaehlt).replace('{ist}', formatCurrency(totals.ist_cents)).replace('{soll}', formatCurrency(totals.soll_cents))}
                   </p>
                 </div>
               </div>
             )}
 
             <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
-              <span>Warnung bei</span>
+              <span>{tt(T.warnungBei)}</span>
               {schwelleBearbeiten ? (
                 <>
                   <Input disabled={!darfSchreiben}
@@ -145,22 +148,22 @@ export function Component() {
                     }}
                     id="warnschwelle"
                   />
-                  <span>% der Kalkulation</span>
+                  <span>{tt(T.prozentKalk)}</span>
                   <Button size="sm" variant="outline" className="h-7 text-[12px]"
                     onClick={() => {
                       const feld = document.getElementById('warnschwelle') as HTMLInputElement | null
                       warnungSpeichern.mutate({ threshold_percent: Number(feld?.value) || 80, enabled: true })
-                    }}>Speichern</Button>
+                    }}>{tt(T.speichern)}</Button>
                 </>
               ) : (
                 <>
-                  <span className="font-semibold text-foreground">{an ? `${schwelle} %` : 'aus'}</span>
+                  <span className="font-semibold text-foreground">{an ? `${schwelle} %` : tt(T.aus)}</span>
                   <Button size="sm" variant="ghost" className="h-7 text-[12px]"
-                    onClick={() => setSchwelleBearbeiten(true)}>ändern</Button>
+                    onClick={() => setSchwelleBearbeiten(true)}>{tt(T.aendern)}</Button>
                   {an && (
                     <Button size="sm" variant="ghost" className="h-7 text-[12px]"
                       onClick={() => warnungSpeichern.mutate({ threshold_percent: schwelle, enabled: false })}>
-                      abschalten
+                      {tt(T.abschalten)}
                     </Button>
                   )}
                 </>
@@ -173,11 +176,11 @@ export function Component() {
       {/* Summen */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-7 stagger-sm">
         <div className="stat-card">
-          <p className="section-label mb-2">Kalkuliert (Soll)</p>
+          <p className="section-label mb-2">{tt(T.kalkuliert)}</p>
           <p className="text-2xl font-bold tabular-nums tracking-tight">{formatCurrency(totals.soll_cents)}</p>
         </div>
         <div className="stat-card">
-          <p className="section-label mb-2">Ausgegeben (Ist)</p>
+          <p className="section-label mb-2">{tt(T.ausgegeben)}</p>
           <p className="text-2xl font-bold tabular-nums tracking-tight">{formatCurrency(totals.ist_cents)}</p>
           <div className="h-1.5 bg-muted/50 rounded-full overflow-hidden mt-3">
             <div
@@ -187,7 +190,7 @@ export function Component() {
           </div>
         </div>
         <div className={cn('stat-card', overBudget ? 'border-danger/30' : 'border-success/25')}>
-          <p className="section-label mb-2">{overBudget ? 'Überzogen' : 'Verbleibend'}</p>
+          <p className="section-label mb-2">{overBudget ? tt(T.ueberzogenKurz) : tt(T.verbleibend)}</p>
           <p className={cn('text-2xl font-bold tabular-nums tracking-tight flex items-center gap-2', overBudget ? 'text-danger' : 'text-success')}>
             {overBudget ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
             {formatCurrency(Math.abs(totals.diff_cents))}
@@ -198,16 +201,16 @@ export function Component() {
       {/* Soll/Ist je Kategorie */}
       {rows.length > 0 && (
         <div className="mb-8">
-          <p className="section-label mb-3">Soll / Ist je Kategorie</p>
+          <p className="section-label mb-3">{tt(T.sollIstJe)}</p>
           <div className="overflow-x-auto">
             <table className="data-table min-w-[480px]">
               <thead>
-                <tr><th>Kategorie</th><th className="text-right">Soll</th><th className="text-right">Ist</th><th className="text-right">Differenz</th></tr>
+                <tr><th>{tt(T.kategorie)}</th><th className="text-right">{tt(T.soll)}</th><th className="text-right">{tt(T.ist)}</th><th className="text-right">{tt(T.differenz)}</th></tr>
               </thead>
               <tbody>
                 {rows.map((r: any) => (
                   <tr key={r.category}>
-                    <td className="font-medium">{r.category || 'Ohne Kategorie'}</td>
+                    <td className="font-medium">{r.category || tt(T.ohneKategorie)}</td>
                     <td className="text-right tabular-nums">{formatCurrency(r.soll_cents)}</td>
                     <td className="text-right tabular-nums">{formatCurrency(r.ist_cents)}</td>
                     <td className={cn('text-right tabular-nums font-semibold', r.diff_cents < 0 ? 'text-danger' : 'text-success')}>
@@ -222,21 +225,21 @@ export function Component() {
       )}
 
       {/* Beleg erfassen */}
-      <p className="section-label mb-3">Beleg erfassen</p>
+      <p className="section-label mb-3">{tt(T.belegErfassen)}</p>
       <form
         onSubmit={e => { e.preventDefault(); if (desc.trim() && amount) createMutation.mutate() }}
         className="grid grid-cols-2 lg:grid-cols-6 gap-2 mb-6"
       >
-        <Input disabled={!darfSchreiben} value={desc} onChange={e => setDesc(e.target.value)} placeholder="Beschreibung" className="col-span-2" required />
-        <Input disabled={!darfSchreiben} value={category} onChange={e => setCategory(e.target.value)} placeholder="Kategorie" list="kostenstand-categories" />
+        <Input disabled={!darfSchreiben} value={desc} onChange={e => setDesc(e.target.value)} placeholder={tt(T.beschreibung)} className="col-span-2" required />
+        <Input disabled={!darfSchreiben} value={category} onChange={e => setCategory(e.target.value)} placeholder={tt(T.kategorie)} list="kostenstand-categories" />
         <datalist id="kostenstand-categories">
           {rows.map((r: any) => <option key={r.category} value={r.category} />)}
         </datalist>
-        <Input disabled={!darfSchreiben} value={amount} onChange={e => setAmount(e.target.value)} placeholder="Betrag €" inputMode="decimal" required />
-        <Input disabled={!darfSchreiben} value={date} onChange={e => setDate(e.target.value)} type="date" aria-label="Belegdatum" />
+        <Input disabled={!darfSchreiben} value={amount} onChange={e => setAmount(e.target.value)} placeholder={tt(T.betragEuro)} inputMode="decimal" required />
+        <Input disabled={!darfSchreiben} value={date} onChange={e => setDate(e.target.value)} type="date" aria-label={tt(T.belegdatum)} />
         <div className="flex gap-2">
-          <Input disabled={!darfSchreiben} value={receiptNo} onChange={e => setReceiptNo(e.target.value)} placeholder="Beleg-Nr." className="flex-1" />
-          <Button type="submit" size="icon" disabled={createMutation.isPending} title="Beleg hinzufügen">
+          <Input disabled={!darfSchreiben} value={receiptNo} onChange={e => setReceiptNo(e.target.value)} placeholder={tt(T.belegNr)} className="flex-1" />
+          <Button type="submit" size="icon" disabled={createMutation.isPending} title={tt(T.belegHinzufuegen)}>
             <Plus className="w-4 h-4" />
           </Button>
         </div>
@@ -246,19 +249,19 @@ export function Component() {
       {expenses.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Receipt className="w-10 h-10 mx-auto mb-3 opacity-20" />
-          <p className="text-sm font-medium">Noch keine Belege erfasst</p>
+          <p className="text-sm font-medium">{tt(T.keineBelege)}</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="data-table min-w-[560px]">
             <thead>
-              <tr><th>Datum</th><th>Beleg-Nr.</th><th>Beschreibung</th><th>Kategorie</th><th className="text-right">Betrag</th><th></th></tr>
+              <tr><th>{tt(T.datum)}</th><th>{tt(T.belegNr)}</th><th>{tt(T.beschreibung)}</th><th>{tt(T.kategorie)}</th><th className="text-right">{tt(T.betrag)}</th><th></th></tr>
             </thead>
             <tbody>
               {expenses.map((e: any) => (
                 <tr key={e.id} className="group">
                   <td className="tabular-nums text-muted-foreground">
-                    {e.expense_date ? new Date(e.expense_date).toLocaleDateString('de-DE') : '-'}
+                    {e.expense_date ? new Date(e.expense_date).toLocaleDateString(gs) : '-'}
                   </td>
                   <td className="text-muted-foreground">{e.receipt_no || '-'}</td>
                   <td className="font-medium">{e.description}</td>
@@ -268,7 +271,7 @@ export function Component() {
                     <button
                       onClick={() => deleteMutation.mutate(e.id)}
                       className="p-1.5 rounded-md text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-[color,background-color,opacity] duration-150 active:scale-[0.88]"
-                      title="Beleg löschen"
+                      title={tt(T.belegLoeschen)}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

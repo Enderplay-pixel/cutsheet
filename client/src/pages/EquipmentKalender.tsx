@@ -10,9 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertTriangle, Plus, Trash2, Package, CalendarDays } from 'lucide-react'
+import { useT } from '@/lib/useT'
+import { equipmentKalenderT as T, MONATE_KURZ } from '@/lib/texte/EquipmentKalender'
 
 const API_BASE = '/api'
-async function req<T>(path: string, options?: RequestInit): Promise<T> {
+async function req<T>(path: string, options?: RequestInit): Promise<T> { // texte-ok
   const token = localStorage.getItem('token')
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
@@ -59,20 +61,21 @@ export function Component() {
   const { projectId: id } = useParams<{ projectId: string }>()
   const pid = Number(id)
   const queryClient = useQueryClient()
+  const tt = useT()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState({ equipment_item_id: '', start_date: '', end_date: '', notes: '' })
 
   const { data: equipmentLists, isLoading: listsLoading } = useQuery({
     queryKey: ['equipment-lists', pid],
-    queryFn: () => req<any[]>(`/projects/${pid}/equipment-lists`),
+    queryFn: () => req<any[]>(`/projects/${pid}/equipment-lists`), // texte-ok
   })
 
   const listIds = (equipmentLists || []).map((l: any) => l.id)
   const itemQueries = useQuery({
     queryKey: ['equipment-all-items', pid, listIds],
     queryFn: async () => {
-      const results = await Promise.all(listIds.map((lid: number) => req<any[]>(`/equipment-lists/${lid}/items`)))
+      const results = await Promise.all(listIds.map((lid: number) => req<any[]>(`/equipment-lists/${lid}/items`))) // texte-ok
       return results.flat()
     },
     enabled: listIds.length > 0,
@@ -80,16 +83,16 @@ export function Component() {
 
   const { data: bookings, isLoading: bookingsLoading } = useQuery({
     queryKey: ['equipment-bookings', pid],
-    queryFn: () => req<any[]>(`/projects/${pid}/equipment-bookings`),
+    queryFn: () => req<any[]>(`/projects/${pid}/equipment-bookings`), // texte-ok
   })
 
   const { data: conflicts } = useQuery({
     queryKey: ['equipment-booking-conflicts', pid],
-    queryFn: () => req<any[]>(`/projects/${pid}/equipment-bookings/conflicts`),
+    queryFn: () => req<any[]>(`/projects/${pid}/equipment-bookings/conflicts`), // texte-ok
   })
 
   const addMutation = useMutation({
-    mutationFn: (data: any) => req<any>(`/projects/${pid}/equipment-bookings`, { method: 'POST', body: JSON.stringify(data) }),
+    mutationFn: (data: any) => req<any>(`/projects/${pid}/equipment-bookings`, { method: 'POST', body: JSON.stringify(data) }), // texte-ok
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['equipment-bookings', pid] })
       queryClient.invalidateQueries({ queryKey: ['equipment-booking-conflicts', pid] })
@@ -99,7 +102,7 @@ export function Component() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => req<any>(`/equipment-bookings/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: number) => req<any>(`/equipment-bookings/${id}`, { method: 'DELETE' }), // texte-ok
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['equipment-bookings', pid] })
       queryClient.invalidateQueries({ queryKey: ['equipment-booking-conflicts', pid] })
@@ -117,8 +120,6 @@ export function Component() {
   const timelineEnd = allDates.length ? new Date(Math.max(...allDates.map(d => d.getTime()))) : addDays(new Date(), 30)
   const weeks = buildWeeks(timelineStart, timelineEnd)
 
-  const MONTH_NAMES = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
-
   const isLoading = listsLoading || bookingsLoading
 
   const bookedItemIds = new Set((bookings || []).map((b: any) => b.equipment_item_id))
@@ -130,20 +131,20 @@ export function Component() {
       <div className="mb-8 pb-7 border-b border-border/40">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="font-display text-[28px] sm:text-[34px]">Equipment-Kalender</h1>
+            <h1 className="font-display text-[28px] sm:text-[34px]">{tt(T.titel)}</h1>
             <p className="text-sm text-muted-foreground/60 mt-1.5">
-              Buchungszeiträume für Equipment-Positionen
+              {tt(T.untertitel)}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <div className="flex items-center gap-5">
               <div className="text-right">
                 <div className="text-[2.25rem] font-bold tabular-nums tracking-tight leading-none">{allItems.length}</div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mt-1">Positionen</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mt-1">{tt(T.positionen)}</div>
               </div>
               <div className="text-right">
                 <div className="text-[2.25rem] font-bold tabular-nums tracking-tight leading-none">{weeks.length}</div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mt-1">Wochen</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mt-1">{tt(T.wochen)}</div>
               </div>
             </div>
             <Button
@@ -152,7 +153,7 @@ export function Component() {
               className="active:scale-[0.97] ml-4"
             >
               <Plus className="w-4 h-4 mr-1.5" />
-              Neue Buchung
+              {tt(T.neueBuchung)}
             </Button>
           </div>
         </div>
@@ -165,11 +166,11 @@ export function Component() {
             <div className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
               <AlertTriangle className="w-4 h-4" />
             </div>
-            {conflicts.length} Doppelbuchung{conflicts.length !== 1 ? 'en' : ''} gefunden
+            {tt(conflicts.length !== 1 ? T.doppelbuchungen : T.doppelbuchung).replace('{n}', String(conflicts.length))}
           </div>
           {conflicts.map((c: any, i: number) => (
             <div key={i} className="text-xs text-destructive/70 pl-11">
-              {c.item_name || `Equipment #${c.equipment_item_id}`}: Überlappung {c.start_date} - {c.end_date}
+              {c.item_name || tt(T.equipmentNr).replace('{id}', String(c.equipment_item_id))}: {tt(T.ueberlappung)} {c.start_date} - {c.end_date}
             </div>
           ))}
         </div>
@@ -186,12 +187,12 @@ export function Component() {
             <thead>
               <tr className="border-b border-border/40">
                 <th className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground bg-muted/30 w-48 min-w-[192px] sticky left-0 z-10">
-                  Equipment
+                  {tt(T.equipment)}
                 </th>
                 {weeks.map((w, i) => (
                   <th key={i} className="p-1.5 text-center text-muted-foreground min-w-[52px] bg-muted/30">
                     <div className="text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground/50 leading-none mb-0.5">
-                      {MONTH_NAMES[w.getMonth()]}
+                      {tt(MONATE_KURZ[w.getMonth()])}
                     </div>
                     <div className="text-[11px] font-semibold tabular-nums">
                       {w.getDate()}.-{addDays(w, 6).getDate()}.
@@ -199,7 +200,7 @@ export function Component() {
                   </th>
                 ))}
                 <th className="px-3 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground bg-muted/30 w-24 text-center">
-                  Aktionen
+                  {tt(T.aktionen)}
                 </th>
               </tr>
             </thead>
@@ -209,7 +210,7 @@ export function Component() {
                   <td colSpan={weeks.length + 2} className="py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Package className="w-10 h-10 opacity-20" />
-                      <p className="text-sm text-muted-foreground">Noch keine Buchungen vorhanden</p>
+                      <p className="text-sm text-muted-foreground">{tt(T.keineBuchungen)}</p>
                     </div>
                   </td>
                 </tr>
@@ -245,8 +246,7 @@ export function Component() {
                       const isConflicted = hasConflict && isBooked
                       return (
                         <td key={wi} className="p-1 text-center">
-                          <div className={`h-7 rounded-lg mx-0.5 transition-colors ${
-                            isConflicted
+                          <div className={`h-7 rounded-lg mx-0.5 transition-colors ${isConflicted
                               ? 'bg-destructive/60 border border-destructive/70'
                               : isBooked
                               ? 'bg-blue-500/40 border border-blue-500/50'
@@ -280,14 +280,14 @@ export function Component() {
 
           {/* Legend */}
           <div className="flex items-center gap-5 px-5 py-3 border-t border-border/30 bg-muted/20">
-            <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">Legende</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">{tt(T.legende)}</p>
             <div className="flex items-center gap-1.5">
               <div className="w-4 h-3 rounded bg-blue-500/40 border border-blue-500/50" />
-              <span className="text-[11px] text-muted-foreground">Gebucht</span>
+              <span className="text-[11px] text-muted-foreground">{tt(T.gebucht)}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-4 h-3 rounded bg-destructive/60 border border-destructive/70" />
-              <span className="text-[11px] text-muted-foreground">Konflikt</span>
+              <span className="text-[11px] text-muted-foreground">{tt(T.konflikt)}</span>
             </div>
           </div>
         </div>
@@ -297,9 +297,9 @@ export function Component() {
       {(bookings || []).length > 0 && (
         <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
           <div className="px-5 py-4 border-b border-border/40">
-            <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-0.5">Buchungsübersicht</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-0.5">{tt(T.uebersicht)}</p>
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold">Alle Buchungen</h2>
+              <h2 className="text-sm font-semibold">{tt(T.alleBuchungen)}</h2>
               <span className="text-[11px] text-muted-foreground/50 tabular-nums">({bookings!.length})</span>
             </div>
           </div>
@@ -317,9 +317,9 @@ export function Component() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium flex items-center gap-2">
-                      {item?.item || `Equipment #${b.equipment_item_id}`}
+                      {item?.item || tt(T.equipmentNr).replace('{id}', String(b.equipment_item_id))}
                       {isConflicted && (
-                        <Badge variant="destructive" className="text-[10px] h-4 px-1.5">Konflikt</Badge>
+                        <Badge variant="destructive" className="text-[10px] h-4 px-1.5">{tt(T.konflikt)}</Badge>
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground/60 mt-0.5 tabular-nums">
@@ -348,15 +348,15 @@ export function Component() {
               <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center">
                 <CalendarDays className="w-4 h-4 text-muted-foreground" />
               </div>
-              <DialogTitle>Buchung hinzufügen</DialogTitle>
+              <DialogTitle>{tt(T.hinzufuegen)}</DialogTitle>
             </div>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <Label className="text-sm font-medium">Equipment-Position</Label>
+              <Label className="text-sm font-medium">{tt(T.position)}</Label>
               <Select value={form.equipment_item_id} onValueChange={v => setForm(f => ({ ...f, equipment_item_id: v }))}>
                 <SelectTrigger className="mt-1.5">
-                  <SelectValue placeholder="Position wählen" />
+                  <SelectValue placeholder={tt(T.positionWaehlen)} />
                 </SelectTrigger>
                 <SelectContent>
                   {allItems.map((item: any) => (
@@ -369,7 +369,7 @@ export function Component() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-sm font-medium">Von</Label>
+                <Label className="text-sm font-medium">{tt(T.von)}</Label>
                 <Input
                   type="date"
                   value={form.start_date}
@@ -378,7 +378,7 @@ export function Component() {
                 />
               </div>
               <div>
-                <Label className="text-sm font-medium">Bis</Label>
+                <Label className="text-sm font-medium">{tt(T.bis)}</Label>
                 <Input
                   type="date"
                   value={form.end_date}
@@ -388,18 +388,18 @@ export function Component() {
               </div>
             </div>
             <div>
-              <Label className="text-sm font-medium">Notizen <span className="text-muted-foreground/50 font-normal">(optional)</span></Label>
+              <Label className="text-sm font-medium">{tt(T.notizen)} <span className="text-muted-foreground/50 font-normal">{tt(T.optional)}</span></Label>
               <Textarea
                 value={form.notes}
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 rows={2}
                 className="mt-1.5 resize-none"
-                placeholder="Lieferdetails, Abholung, ..."
+                placeholder={tt(T.notizenPlatz)}
               />
             </div>
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="outline" onClick={() => setDialogOpen(false)} className="active:scale-[0.97]">
-                Abbrechen
+                {tt(T.abbrechen)}
               </Button>
               <Button
                 onClick={() => addMutation.mutate({
@@ -411,7 +411,7 @@ export function Component() {
                 disabled={!form.equipment_item_id || !form.start_date || !form.end_date || addMutation.isPending}
                 className="active:scale-[0.97]"
               >
-                Buchung speichern
+                {tt(T.speichern)}
               </Button>
             </div>
           </div>

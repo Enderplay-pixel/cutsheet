@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { History, Download, Search, X } from 'lucide-react'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { auditLogT as T } from '@/lib/texte/AuditLog'
 
 /** Wie viele Zeilen eine Seite zeigt. */
 const SEITE = 100
@@ -66,6 +68,8 @@ export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
   const download = useDownload()
+  const tt = useT()
+  const gs = useGebietsschema()
 
   // `entwurf` ist, was in den Feldern steht, `filter` ist, wonach gesucht
   // wird. Ohne die Trennung würde jeder Tastendruck eine Abfrage auslösen.
@@ -117,16 +121,16 @@ export function Component() {
         <div className="flex items-center gap-3">
           <History className="w-5 h-5 text-muted-foreground" />
           <div>
-            <h1 className="font-display text-[28px] sm:text-[34px]">Protokoll</h1>
+            <h1 className="font-display text-[28px] sm:text-[34px]">{tt(T.titel)}</h1>
             <p className="text-sm text-muted-foreground">
               {isLoading
-                ? 'Lade…'
+                ? tt(T.lade)
                 : gefiltert
-                  ? `${gesamt.toLocaleString('de-DE')} Treffer`
-                  : `${gesamt.toLocaleString('de-DE')} Einträge`}
+                  ? tt(T.treffer).replace('{n}', gesamt.toLocaleString(gs))
+                  : tt(T.eintraege).replace('{n}', gesamt.toLocaleString(gs))}
               {werte?.erste && !gefiltert && (
                 <span className="text-muted-foreground/70">
-                  {' '}· seit {formatTimestamp(werte.erste).slice(0, 10)}
+                  {' '}· {tt(T.seit).replace('{d}', formatTimestamp(werte.erste).slice(0, 10))}
                 </span>
               )}
             </p>
@@ -139,7 +143,7 @@ export function Component() {
           disabled={gesamt === 0}
         >
           <Download className="w-4 h-4 mr-1.5" />
-          {gefiltert ? 'Treffer als CSV' : 'Als CSV'}
+          {gefiltert ? tt(T.trefferCsv) : tt(T.alsCsv)}
         </Button>
       </div>
 
@@ -147,46 +151,46 @@ export function Component() {
       <div className="bg-card border border-border/60 rounded-xl p-4 mb-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <Label htmlFor="protokoll-suche">Volltext</Label>
-            <Input id="protokoll-suche" placeholder="Name, Aktion, Inhalt…" {...feld('suche')} />
+            <Label htmlFor="protokoll-suche">{tt(T.volltext)}</Label>
+            <Input id="protokoll-suche" placeholder={tt(T.volltextPlatz)} {...feld('suche')} />
           </div>
           <div>
-            <Label htmlFor="protokoll-nutzer">Benutzer</Label>
-            <Input id="protokoll-nutzer" list="protokoll-nutzer-liste" placeholder="alle" {...feld('nutzer')} />
+            <Label htmlFor="protokoll-nutzer">{tt(T.benutzer)}</Label>
+            <Input id="protokoll-nutzer" list="protokoll-nutzer-liste" placeholder={tt(T.alle)} {...feld('nutzer')} />
             {liste('protokoll-nutzer-liste', werte?.nutzer)}
           </div>
           <div>
-            <Label htmlFor="protokoll-aktion">Aktion</Label>
-            <Input id="protokoll-aktion" list="protokoll-aktion-liste" placeholder="alle" {...feld('aktion')} />
+            <Label htmlFor="protokoll-aktion">{tt(T.aktion)}</Label>
+            <Input id="protokoll-aktion" list="protokoll-aktion-liste" placeholder={tt(T.alle)} {...feld('aktion')} />
             {liste('protokoll-aktion-liste', werte?.aktionen)}
           </div>
           <div>
-            <Label htmlFor="protokoll-bereich">Bereich</Label>
-            <Input id="protokoll-bereich" list="protokoll-bereich-liste" placeholder="alle" {...feld('bereich')} />
+            <Label htmlFor="protokoll-bereich">{tt(T.bereich)}</Label>
+            <Input id="protokoll-bereich" list="protokoll-bereich-liste" placeholder={tt(T.alle)} {...feld('bereich')} />
             {liste('protokoll-bereich-liste', werte?.bereiche)}
           </div>
           <div>
-            <Label htmlFor="protokoll-von">Von</Label>
+            <Label htmlFor="protokoll-von">{tt(T.von)}</Label>
             <Input id="protokoll-von" type="date" {...feld('von')} />
           </div>
           <div>
-            <Label htmlFor="protokoll-bis">Bis</Label>
+            <Label htmlFor="protokoll-bis">{tt(T.bis)}</Label>
             <Input id="protokoll-bis" type="date" {...feld('bis')} />
           </div>
         </div>
         <div className="flex items-center gap-2 mt-3">
           <Button size="sm" onClick={suchen}>
             <Search className="w-4 h-4 mr-1.5" />
-            Suchen
+            {tt(T.suchen)}
           </Button>
           {gefiltert && (
             <Button size="sm" variant="ghost" onClick={zurücksetzen}>
               <X className="w-4 h-4 mr-1.5" />
-              Filter löschen
+              {tt(T.filterLoeschen)}
             </Button>
           )}
           <span className="text-xs text-muted-foreground ml-auto">
-            Tage werden in deutscher Zeit abgegrenzt
+            {tt(T.zeitzone)}
           </span>
         </div>
       </div>
@@ -197,11 +201,11 @@ export function Component() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/60 bg-muted/30">
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Zeitpunkt</th>
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Benutzer</th>
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Aktion</th>
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bereich</th>
-                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Details</th>
+                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(T.zeitpunkt)}</th>
+                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(T.benutzer)}</th>
+                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(T.aktion)}</th>
+                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(T.bereich)}</th>
+                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(T.details)}</th>
               </tr>
             </thead>
             <tbody>
@@ -219,8 +223,8 @@ export function Component() {
                 <tr>
                   <td colSpan={5} className="py-16 text-center text-muted-foreground text-sm">
                     {gefiltert
-                      ? 'Keine Einträge zu dieser Suche. Weniger Filter setzen oder den Zeitraum weiten.'
-                      : 'Noch keine Einträge. Hier erscheint jede Änderung mit Zeitpunkt und Benutzer.'}
+                      ? tt(T.keineTreffer)
+                      : tt(T.leer)}
                   </td>
                 </tr>
               ) : (
@@ -256,13 +260,14 @@ export function Component() {
       {gesamt > SEITE && (
         <div className="flex items-center justify-between mt-4">
           <span className="text-xs text-muted-foreground">
-            {(seite * SEITE + 1).toLocaleString('de-DE')}-
-            {Math.min(gesamt, seite * SEITE + entries.length).toLocaleString('de-DE')} von{' '}
-            {gesamt.toLocaleString('de-DE')}
+            {tt(T.bereichVon)
+              .replace('{a}', (seite * SEITE + 1).toLocaleString(gs))
+              .replace('{b}', Math.min(gesamt, seite * SEITE + entries.length).toLocaleString(gs))
+              .replace('{n}', gesamt.toLocaleString(gs))}
           </span>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" disabled={seite === 0} onClick={() => setSeite(s => s - 1)}>
-              Zurück
+              {tt(T.zurueck)}
             </Button>
             <Button
               size="sm"
@@ -270,7 +275,7 @@ export function Component() {
               disabled={(seite + 1) * SEITE >= gesamt}
               onClick={() => setSeite(s => s + 1)}
             >
-              Weiter
+              {tt(T.weiter)}
             </Button>
           </div>
         </div>

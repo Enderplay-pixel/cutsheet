@@ -2,6 +2,14 @@ import * as React from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/useT'
+import { uiT } from '@/lib/i18n'
+
+/** Unsichtbarer Name des Schließen-Knopfs - Hooks gehen im forwardRef-Pfeil unten nicht ohne Umbau. */
+function SchliessenText() {
+  const tt = useT()
+  return <>{tt(uiT.close)}</>
+}
 
 const Dialog = DialogPrimitive.Root
 const DialogTrigger = DialogPrimitive.Trigger
@@ -54,7 +62,7 @@ const DialogContent = React.forwardRef<
         'disabled:pointer-events-none',
       )}>
         <X className="h-4 w-4" />
-        <span className="sr-only">Schließen</span>
+        <span className="sr-only"><SchliessenText /></span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>

@@ -6,6 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { Search, Film, FileText, Users, Briefcase, MapPin } from 'lucide-react'
+import { useT } from '@/lib/useT'
+import type { Lang } from '@/lib/i18n'
+import { sucheT } from '@/lib/texte/Suche'
 
 type ResultItem = {
   type: 'scene' | 'screenplay' | 'cast' | 'crew' | 'location'
@@ -16,12 +19,12 @@ type ResultItem = {
   snippet?: string
 }
 
-const TYPE_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
-  scene:      { label: 'Szenen',    icon: Film,     color: 'text-amber-400' },
-  screenplay: { label: 'Drehbuch',  icon: FileText,  color: 'text-blue-400' },
-  cast:       { label: 'Darsteller', icon: Users,    color: 'text-green-400' },
-  crew:       { label: 'Crew',      icon: Briefcase, color: 'text-purple-400' },
-  location:   { label: 'Motive',    icon: MapPin,    color: 'text-rose-400' },
+const TYPE_CONFIG: Record<string, { label: Record<Lang, string>; icon: any; color: string }> = {
+  scene:      { label: sucheT.szenen,    icon: Film,     color: 'text-amber-400' },
+  screenplay: { label: sucheT.drehbuch,  icon: FileText,  color: 'text-blue-400' },
+  cast:       { label: sucheT.darsteller, icon: Users,    color: 'text-green-400' },
+  crew:       { label: sucheT.crew,      icon: Briefcase, color: 'text-purple-400' },
+  location:   { label: sucheT.motive,    icon: MapPin,    color: 'text-rose-400' },
 }
 
 const GROUP_ORDER = ['scene', 'screenplay', 'cast', 'crew', 'location']
@@ -36,6 +39,7 @@ function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): T {
 
 function ResultRow({ item, onClick }: { item: ResultItem; onClick: () => void }) {
   const cfg = TYPE_CONFIG[item.type]
+  const tt = useT()
   const Icon = cfg?.icon || Search
   return (
     <button
@@ -52,7 +56,7 @@ function ResultRow({ item, onClick }: { item: ResultItem; onClick: () => void })
         )}
       </div>
       <div className="text-[10px] text-muted-foreground/50 uppercase tracking-wider shrink-0 mt-0.5">
-        {cfg?.label}
+        {cfg && tt(cfg.label)}
       </div>
     </button>
   )
@@ -68,13 +72,14 @@ function ResultGroup({
   onNavigate: (url: string) => void
 }) {
   const cfg = TYPE_CONFIG[type]
+  const tt = useT()
   const Icon = cfg?.icon || Search
   return (
     <div className="mb-4">
       <div className="flex items-center gap-2 px-4 py-2 mb-1">
         <Icon className={cn('w-3.5 h-3.5', cfg?.color || 'text-muted-foreground')} />
         <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          {cfg?.label || type}
+          {cfg ? tt(cfg.label) : type}
         </span>
         <span className="text-[10px] text-muted-foreground/50 ml-1">({items.length})</span>
       </div>
@@ -95,6 +100,7 @@ export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
   const navigate = useNavigate()
+  const tt = useT()
 
   const [inputValue, setInputValue] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
@@ -137,16 +143,16 @@ export function Component() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="px-7 pt-7 pb-4 border-b border-border/40 shrink-0">
-        <h1 className="font-display text-[28px] sm:text-[34px] mb-4">Suche</h1>
+        <h1 className="font-display text-[28px] sm:text-[34px] mb-4">{tt(sucheT.titel)}</h1>
         <div className="relative max-w-xl">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             ref={inputRef}
             value={inputValue}
             onChange={handleChange}
-            placeholder="Szenen, Darsteller, Crew, Motive…"
+            placeholder={tt(sucheT.platzhalter)}
             className="pl-9 h-10 text-sm"
-            aria-label="Volltext-Suche"
+            aria-label={tt(sucheT.volltext)}
           />
         </div>
       </div>
@@ -172,7 +178,7 @@ export function Component() {
         {!isFetching && !isSearching && (
           <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
             <Search className="w-10 h-10 mb-3 opacity-20" />
-            <p className="text-sm">Suchbegriff eingeben…</p>
+            <p className="text-sm">{tt(sucheT.eingeben)}</p>
           </div>
         )}
 
@@ -180,7 +186,7 @@ export function Component() {
         {!isFetching && isSearching && !hasResults && (
           <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
             <Search className="w-10 h-10 mb-3 opacity-20" />
-            <p className="text-sm">Keine Ergebnisse für &lsquo;{debouncedQ}&rsquo;</p>
+            <p className="text-sm">{tt(sucheT.keineTreffer).replace('{q}', debouncedQ)}</p>
           </div>
         )}
 

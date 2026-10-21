@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { tutorialT, t } from '@/lib/i18n'
 import { useProjectStore } from '@/store/useProjectStore'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { tutorialModalT } from '@/lib/texte/komponenten/Shared'
 
 const STEPS = tutorialT.steps
 
@@ -36,7 +37,7 @@ export function TutorialModal({ open, onClose }: TutorialModalProps) {
       >
         {/* Unsichtbar, aber vorgelesen: der Dialog hat seine eigene Kopfzeile. */}
         <DialogTitle asChild>
-          <NurVorlesen>Rundgang</NurVorlesen>
+          <NurVorlesen>{t(tutorialModalT.rundgang, lang)}</NurVorlesen>
         </DialogTitle>
 
         {/* Progress bar */}

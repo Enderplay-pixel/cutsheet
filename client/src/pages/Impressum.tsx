@@ -1,51 +1,46 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { AppIcon } from '@/components/shared/BrandMark'
+import { useT } from '@/lib/useT'
+import { impressumT } from '@/lib/texte/Impressum'
 
 // HINWEIS FÜR DEN BETREIBER: Platzhalter in [ECKIGEN KLAMMERN] vor dem
 // öffentlichen Betrieb durch echte Angaben ersetzen (§ 5 TMG / § 18 MStV).
 
 export function Component() {
+  const tt = useT()
+  const hinweis = tt(impressumT.hinweis)
   return (
-    <LegalLayout title="Impressum">
-      <h2>Angaben gemäß § 5 TMG</h2>
+    <LegalLayout title={tt(impressumT.titel)}>
+      {hinweis && <p className="italic">{hinweis}</p>}
+      <h2>{tt(impressumT.angaben)}</h2>
       <p>
-        [VOR- UND NACHNAME DES BETREIBERS]<br />
-        [STRASSE UND HAUSNUMMER]<br />
-        [PLZ UND ORT]<br />
-        Deutschland
+        {tt(impressumT.betreiberName)}<br />
+        {tt(impressumT.strasse)}<br />
+        {tt(impressumT.ort)}<br />
+        {tt(impressumT.land)}
       </p>
 
-      <h2>Kontakt</h2>
+      <h2>{tt(impressumT.kontakt)}</h2>
       <p>
-        E-Mail: [KONTAKT-E-MAIL]<br />
-        Telefon: [TELEFONNUMMER, optional]
+        {tt(impressumT.email)}<br />
+        {tt(impressumT.telefon)}
       </p>
 
-      <h2>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h2>
-      <p>[VOR- UND NACHNAME], Anschrift wie oben.</p>
+      <h2>{tt(impressumT.verantwortlich)}</h2>
+      <p>{tt(impressumT.verantwortlichName)}</p>
 
-      <h2>Haftung für Inhalte</h2>
-      <p>
-        Als Diensteanbieter sind wir gemäß § 7 Abs. 1 TMG für eigene Inhalte auf diesen
-        Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind
-        wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte
-        fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine
-        rechtswidrige Tätigkeit hinweisen.
-      </p>
+      <h2>{tt(impressumT.haftungInhalte)}</h2>
+      <p>{tt(impressumT.haftungInhalteText)}</p>
 
-      <h2>Haftung für Links</h2>
-      <p>
-        Unser Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte wir
-        keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine
-        Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige
-        Anbieter oder Betreiber der Seiten verantwortlich.
-      </p>
+      <h2>{tt(impressumT.haftungLinks)}</h2>
+      <p>{tt(impressumT.haftungLinksText)}</p>
     </LegalLayout>
   )
 }
 
 export function LegalLayout({ title, children }: { title: string; children: React.ReactNode }) {
+  const tt = useT()
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
@@ -68,7 +63,7 @@ export function LegalLayout({ title, children }: { title: string; children: Reac
           to="/login"
           className="mt-12 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ArrowLeft className="w-3.5 h-3.5" /> Zurück zur Anmeldung
+          <ArrowLeft className="w-3.5 h-3.5" /> {tt(impressumT.zurueck)}
         </Link>
       </main>
     </div>

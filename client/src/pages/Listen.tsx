@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import type { Lang } from '@/lib/i18n'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -12,24 +13,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Download, Upload, FileSpreadsheet, Check, AlertTriangle, Plus } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { listenT } from '@/lib/texte/Listen'
 
 const LISTEN = [
-  { wert: 'crew', label: 'Stab' },
-  { wert: 'cast', label: 'Besetzung' },
-  { wert: 'extras', label: 'Komparserie' },
+  { wert: 'crew', label: listenT.stab },
+  { wert: 'cast', label: listenT.besetzung },
+  { wert: 'extras', label: listenT.komparserie },
 ]
 
 const AUSGABEN = [
-  { wert: 'crew', label: 'Stab' },
-  { wert: 'cast', label: 'Besetzung' },
-  { wert: 'scenes', label: 'Szenen' },
-  { wert: 'shoot-days', label: 'Drehplan' },
+  { wert: 'crew', label: listenT.stab },
+  { wert: 'cast', label: listenT.besetzung },
+  { wert: 'scenes', label: listenT.szenen },
+  { wert: 'shoot-days', label: listenT.drehplan },
 ]
 
-const WAS: Record<string, { label: string; klasse: string }> = {
-  neu:           { label: 'neu',           klasse: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
-  ergaenzt:      { label: 'ergänzt',       klasse: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
-  uebersprungen: { label: 'übersprungen',  klasse: 'bg-muted text-muted-foreground' },
+const WAS: Record<string, { label: Record<Lang, string>; klasse: string }> = {
+  neu:           { label: listenT.neu,           klasse: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
+  ergaenzt:      { label: listenT.ergaenzt,      klasse: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
+  uebersprungen: { label: listenT.uebersprungen, klasse: 'bg-muted text-muted-foreground' },
 }
 
 export function Component() {
@@ -37,6 +40,8 @@ export function Component() {
   const pid = Number(projectId)
   const qc = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
+  const gebietsschema = useGebietsschema()
 
   const [art, setArt] = useState('crew')
   const [csv, setCsv] = useState('')
@@ -46,7 +51,7 @@ export function Component() {
     mutationFn: () => api.listen.importieren(pid, art, csv, false),
     onSuccess: (daten: any) => setVorschau(daten),
     onError: (fehler: any) =>
-      toast({ title: 'Die Datei ließ sich nicht lesen', description: fehler.message, variant: 'destructive' }),
+      toast({ title: tt(listenT.nichtLesbar), description: fehler.message, variant: 'destructive' }),
   })
 
   const uebernehmen = useMutation({
@@ -56,12 +61,12 @@ export function Component() {
       setVorschau(null)
       setCsv('')
       toast({
-        title: `${daten.neu} angelegt, ${daten.ergaenzt} ergänzt`,
-        description: daten.uebersprungen > 0 ? `${daten.uebersprungen} Zeilen übersprungen.` : undefined,
+        title: tt(listenT.angelegtErgaenzt).replace('{neu}', String(daten.neu)).replace('{ergaenzt}', String(daten.ergaenzt)),
+        description: daten.uebersprungen > 0 ? tt(listenT.zeilenUebersprungen).replace('{n}', String(daten.uebersprungen)) : undefined,
       })
     },
     onError: (fehler: any) =>
-      toast({ title: 'Nicht übernommen', description: fehler.message, variant: 'destructive' }),
+      toast({ title: tt(listenT.nichtUebernommen), description: fehler.message, variant: 'destructive' }),
   })
 
   const dateiLesen = async (datei: File) => {
@@ -73,41 +78,41 @@ export function Component() {
   return (
     <div className="px-5 py-6 sm:p-6 max-w-4xl mx-auto space-y-4">
       <PageHeader
-        title="Listen"
-        subtitle="Tabellen aus Excel einlesen und Listen ausgeben"
+        title={tt(listenT.titel)}
+        subtitle={tt(listenT.untertitel)}
       />
 
       <Tabs defaultValue="einlesen">
         <TabsList>
-          <TabsTrigger value="einlesen"><Upload className="w-3.5 h-3.5 mr-1.5" />Einlesen</TabsTrigger>
-          <TabsTrigger value="ausgeben"><Download className="w-3.5 h-3.5 mr-1.5" />Ausgeben</TabsTrigger>
+          <TabsTrigger value="einlesen"><Upload className="w-3.5 h-3.5 mr-1.5" />{tt(listenT.einlesen)}</TabsTrigger>
+          <TabsTrigger value="ausgeben"><Download className="w-3.5 h-3.5 mr-1.5" />{tt(listenT.ausgeben)}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="einlesen" className="mt-4 space-y-4">
           <Card>
-            <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm">Datei</CardTitle></CardHeader>
+            <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm">{tt(listenT.datei)}</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs">Was wird eingelesen</Label>
+                  <Label className="text-xs">{tt(listenT.wasEingelesen)}</Label>
                   <Select value={art} onValueChange={v => { setArt(v); setVorschau(null) }}>
                     <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {LISTEN.map(l => <SelectItem key={l.wert} value={l.wert}>{l.label}</SelectItem>)}
+                      {LISTEN.map(l => <SelectItem key={l.wert} value={l.wert}>{tt(l.label)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="flex items-end">
                   <a href={api.listen.vorlageUrl(art)} download className="w-full">
                     <Button variant="outline" size="sm" className="w-full h-8 text-xs">
-                      <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />Vorlage herunterladen
+                      <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />{tt(listenT.vorlageHerunterladen)}
                     </Button>
                   </a>
                 </div>
               </div>
 
               <div>
-                <Label className="text-xs" htmlFor="datei">CSV-Datei wählen</Label>
+                <Label className="text-xs" htmlFor="datei">{tt(listenT.csvWaehlen)}</Label>
                 <input
                   id="datei"
                   type="file"
@@ -116,13 +121,12 @@ export function Component() {
                   onChange={e => { const d = e.target.files?.[0]; if (d) dateiLesen(d) }}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Aus Excel: Datei - Speichern unter - CSV. Semikolon, Umlaute und Beträge
-                  mit Komma werden erkannt.
+                  {tt(listenT.ausExcel)}
                 </p>
               </div>
 
               <div>
-                <Label className="text-xs" htmlFor="csv">oder Inhalt einfügen</Label>
+                <Label className="text-xs" htmlFor="csv">{tt(listenT.inhaltEinfuegen)}</Label>
                 <Textarea
                   id="csv"
                   value={csv}
@@ -135,13 +139,13 @@ export function Component() {
 
               <div className="flex gap-2">
                 <Button size="sm" disabled={!csv.trim() || pruefen.isPending} onClick={() => pruefen.mutate()}>
-                  Vorschau
+                  {tt(listenT.vorschau)}
                 </Button>
                 {vorschau && (
                   <Button size="sm" variant="default" disabled={uebernehmen.isPending || vorschau.neu + vorschau.ergaenzt === 0}
                     onClick={() => uebernehmen.mutate()}>
                     <Check className="w-4 h-4 mr-1.5" />
-                    {vorschau.neu + vorschau.ergaenzt} übernehmen
+                    {tt(listenT.uebernehmen).replace('{n}', String(vorschau.neu + vorschau.ergaenzt))}
                   </Button>
                 )}
               </div>
@@ -152,32 +156,31 @@ export function Component() {
             <Card>
               <CardHeader className="pb-2 pt-3">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  Vorschau
-                  <Badge variant="secondary" className="text-xs font-normal">{vorschau.neu} neu</Badge>
-                  <Badge variant="secondary" className="text-xs font-normal">{vorschau.ergaenzt} ergänzt</Badge>
+                  {tt(listenT.vorschau)}
+                  <Badge variant="secondary" className="text-xs font-normal">{tt(listenT.anzahlNeu).replace('{n}', String(vorschau.neu))}</Badge>
+                  <Badge variant="secondary" className="text-xs font-normal">{tt(listenT.anzahlErgaenzt).replace('{n}', String(vorschau.ergaenzt))}</Badge>
                   {vorschau.uebersprungen > 0 && (
                     <Badge variant="secondary" className="text-xs font-normal">
-                      {vorschau.uebersprungen} übersprungen
+                      {tt(listenT.anzahlUebersprungen).replace('{n}', String(vorschau.uebersprungen))}
                     </Badge>
                   )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Nichts ist gespeichert. Erst „Übernehmen" schreibt - und dann entweder alles
-                  oder nichts.
+                  {tt(listenT.nichtsGespeichert)}
                 </p>
                 <div className="space-y-0.5 max-h-96 overflow-y-auto">
                   {vorschau.befunde.map((b: any) => (
                     <div key={b.zeile} className="flex items-center gap-3 py-1.5 border-b border-border/60 last:border-0 text-sm">
                       <span className="text-xs text-muted-foreground tabular-nums w-10 shrink-0">
-                        Z{b.zeile}
+                        {tt(listenT.zeile).replace('{n}', String(b.zeile))}
                       </span>
                       <span className={`px-2 py-0.5 rounded text-xs shrink-0 ${WAS[b.was]?.klasse || ''}`}>
-                        {WAS[b.was]?.label || b.was}
+                        {WAS[b.was] ? tt(WAS[b.was].label) : b.was}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate">{b.name || <span className="text-muted-foreground">ohne Namen</span>}</p>
+                        <p className="truncate">{b.name || <span className="text-muted-foreground">{tt(listenT.ohneNamen)}</span>}</p>
                         {b.grund && (
                           <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3 shrink-0" />{b.grund}
@@ -186,7 +189,7 @@ export function Component() {
                       </div>
                       {b.werte?.fee_per_day != null && (
                         <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                          {(b.werte.fee_per_day / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                          {(b.werte.fee_per_day / 100).toLocaleString(gebietsschema, { style: 'currency', currency: 'EUR' })}
                         </span>
                       )}
                     </div>
@@ -199,17 +202,16 @@ export function Component() {
 
         <TabsContent value="ausgeben" className="mt-4">
           <Card>
-            <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm">Als CSV ausgeben</CardTitle></CardHeader>
+            <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm">{tt(listenT.alsCsv)}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                Öffnet sich in Excel, Numbers und LibreOffice. Semikolon getrennt, Beträge
-                mit Komma.
+                {tt(listenT.oeffnetSich)}
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
                 {AUSGABEN.map(a => (
                   <a key={a.wert} href={api.listen.exportUrl(pid, a.wert)} download>
                     <Button variant="outline" size="sm" className="w-full h-8 text-xs">
-                      <Download className="w-3.5 h-3.5 mr-1.5" />{a.label}
+                      <Download className="w-3.5 h-3.5 mr-1.5" />{tt(a.label)}
                     </Button>
                   </a>
                 ))}

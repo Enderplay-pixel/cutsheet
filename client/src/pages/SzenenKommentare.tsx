@@ -7,9 +7,12 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { MessageSquare, Check, Trash2, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { Lang } from '@/lib/i18n'
+import { useT } from '@/lib/useT'
+import { szenenKommentareT as sk } from '@/lib/texte/SzenenKommentare'
 
 const API_BASE = '/api'
-async function req<T>(path: string, options?: RequestInit): Promise<T> {
+async function req<T>(path: string, options?: RequestInit): Promise<T> { // texte-ok
   const token = localStorage.getItem('token')
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
@@ -19,24 +22,25 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
   return json.data
 }
 
-function formatRelativeTime(ts: string): string {
+function formatRelativeTime(ts: string, tt: (map: Record<Lang, string>) => string): string {
   const now = Date.now()
   const then = new Date(ts).getTime()
   const diff = Math.floor((now - then) / 1000)
-  if (diff < 60) return 'gerade eben'
-  if (diff < 3600) return `vor ${Math.floor(diff / 60)} Min.`
-  if (diff < 86400) return `vor ${Math.floor(diff / 3600)} Std.`
-  return `vor ${Math.floor(diff / 86400)} Tagen`
+  if (diff < 60) return tt(sk.geradeEben)
+  if (diff < 3600) return tt(sk.vorMin).replace('{n}', String(Math.floor(diff / 60)))
+  if (diff < 86400) return tt(sk.vorStd).replace('{n}', String(Math.floor(diff / 3600)))
+  return tt(sk.vorTagen).replace('{n}', String(Math.floor(diff / 86400)))
 }
 
 function CommentItem({ comment, onResolve, onDelete }: { comment: any; onResolve: () => void; onDelete: () => void }) {
-  const authorName = comment.author_name || comment.user_name || 'Unbekannt'
+  const tt = useT()
+  const authorName = comment.author_name || comment.user_name || tt(sk.unbekannt)
   const initials = authorName.split(' ').map((p: string) => p[0]).join('').slice(0, 2).toUpperCase()
 
   return (
     <div className={cn(
       'rounded-xl border p-4 transition-all',
-      comment.resolved
+      comment.resolved // texte-ok
         ? 'border-border/30 bg-muted/10 opacity-50'
         : 'border-border/60 bg-card'
     )}>
@@ -47,11 +51,11 @@ function CommentItem({ comment, onResolve, onDelete }: { comment: any; onResolve
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="text-sm font-semibold">{authorName}</span>
-            <span className="text-[11px] text-muted-foreground/50 tabular-nums">{formatRelativeTime(comment.created_at)}</span>
+            <span className="text-[11px] text-muted-foreground/50 tabular-nums">{formatRelativeTime(comment.created_at, tt)}</span>
             {comment.resolved && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-600 bg-green-500/10 border border-green-500/20 rounded-full px-2 py-0.5">
                 <Check className="w-2.5 h-2.5" />
-                Gelöst
+                {tt(sk.geloest)}
               </span>
             )}
           </div>
@@ -67,7 +71,7 @@ function CommentItem({ comment, onResolve, onDelete }: { comment: any; onResolve
             <button
               onClick={onResolve}
               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-500/10 text-muted-foreground/30 hover:text-green-600 transition-colors active:scale-[0.97]"
-              title="Als gelöst markieren"
+              title={tt(sk.alsGeloest)}
             >
               <Check className="w-3.5 h-3.5" />
             </button>
@@ -75,7 +79,7 @@ function CommentItem({ comment, onResolve, onDelete }: { comment: any; onResolve
           <button
             onClick={onDelete}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors active:scale-[0.97]"
-            title="Kommentar löschen"
+            title={tt(sk.loeschen)}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -89,18 +93,19 @@ export function Component() {
   const { projectId: id } = useParams<{ projectId: string }>()
   const pid = Number(id)
   const queryClient = useQueryClient()
+  const tt = useT()
 
   const [selectedSceneId, setSelectedSceneId] = useState<number | null>(null)
   const [newComment, setNewComment] = useState('')
 
   const { data: scenes, isLoading: scenesLoading } = useQuery({
     queryKey: ['scenes', pid],
-    queryFn: () => req<any[]>(`/projects/${pid}/scenes`),
+    queryFn: () => req<any[]>(`/projects/${pid}/scenes`), // texte-ok
   })
 
   const { data: comments, isLoading: commentsLoading } = useQuery({
     queryKey: ['scene-comments', selectedSceneId],
-    queryFn: () => req<any[]>(`/projects/${pid}/scenes/${selectedSceneId}/comments`),
+    queryFn: () => req<any[]>(`/projects/${pid}/scenes/${selectedSceneId}/comments`), // texte-ok
     enabled: selectedSceneId !== null,
   })
 
@@ -109,7 +114,7 @@ export function Component() {
     queryFn: async () => {
       const sceneIds = (scenes || []).map((s: any) => s.id)
       const results = await Promise.all(
-        sceneIds.map((sid: number) => req<any[]>(`/projects/${pid}/scenes/${sid}/comments`).catch(() => []))
+        sceneIds.map((sid: number) => req<any[]>(`/projects/${pid}/scenes/${sid}/comments`).catch(() => [])) // texte-ok
       )
       const counts: Record<number, number> = {}
       sceneIds.forEach((sid: number, i: number) => {
@@ -121,7 +126,7 @@ export function Component() {
   })
 
   const addCommentMutation = useMutation({
-    mutationFn: (content: string) => req<any>(`/projects/${pid}/scenes/${selectedSceneId}/comments`, {
+    mutationFn: (content: string) => req<any>(`/projects/${pid}/scenes/${selectedSceneId}/comments`, { // texte-ok
       method: 'POST',
       body: JSON.stringify({ content }),
     }),
@@ -133,7 +138,7 @@ export function Component() {
   })
 
   const resolveMutation = useMutation({
-    mutationFn: (commentId: number) => req<any>(`/comments/${commentId}/resolve`, { method: 'PATCH' }),
+    mutationFn: (commentId: number) => req<any>(`/comments/${commentId}/resolve`, { method: 'PATCH' }), // texte-ok
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scene-comments', selectedSceneId] })
       queryClient.invalidateQueries({ queryKey: ['all-comment-counts', pid] })
@@ -141,7 +146,7 @@ export function Component() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (commentId: number) => req<any>(`/comments/${commentId}`, { method: 'DELETE' }),
+    mutationFn: (commentId: number) => req<any>(`/comments/${commentId}`, { method: 'DELETE' }), // texte-ok
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scene-comments', selectedSceneId] })
       queryClient.invalidateQueries({ queryKey: ['all-comment-counts', pid] })
@@ -159,9 +164,9 @@ export function Component() {
       <div className="mb-8 pb-7 border-b border-border/40">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="font-display text-[28px] sm:text-[34px]">Szenen-Kommentare</h1>
+            <h1 className="font-display text-[28px] sm:text-[34px]">{tt(sk.titel)}</h1>
             <p className="text-sm text-muted-foreground/60 mt-1.5">
-              Projektweite Übersicht aller Kommentare
+              {tt(sk.untertitel)}
             </p>
           </div>
           {totalUnresolved > 0 && (
@@ -170,7 +175,7 @@ export function Component() {
                 {totalUnresolved}
               </div>
               <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mt-1">
-                Ungelöst
+                {tt(sk.ungeloest)}
               </div>
             </div>
           )}
@@ -182,8 +187,8 @@ export function Component() {
         {/* Scene list sidebar */}
         <div className="w-full md:w-64 md:shrink-0 max-h-72 md:max-h-none rounded-xl border border-border/60 bg-card overflow-hidden flex flex-col">
           <div className="px-4 py-3.5 border-b border-border/40 bg-muted/20">
-            <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-0.5">Szenen</p>
-            <span className="text-sm font-semibold tabular-nums">{scenes?.length || 0} gesamt</span>
+            <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-0.5">{tt(sk.szenen)}</p>
+            <span className="text-sm font-semibold tabular-nums">{tt(sk.gesamt).replace('{n}', String(scenes?.length || 0))}</span>
           </div>
           <div className="flex-1 overflow-y-auto">
             {scenesLoading ? (
@@ -201,14 +206,14 @@ export function Component() {
                       onClick={() => setSelectedSceneId(scene.id)}
                       className={cn(
                         'w-full text-left px-4 py-3 flex items-center gap-2 transition-colors group',
-                        isSelected
+                        isSelected // texte-ok
                           ? 'bg-primary/8 border-l-2 border-primary'
                           : 'hover:bg-muted/30 border-l-2 border-transparent'
                       )}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="text-[10px] font-bold uppercase tracking-[0.07em] text-muted-foreground/40 mb-0.5">
-                          Szene {scene.scene_number}
+                          {tt(sk.szeneN).replace('{n}', String(scene.scene_number))}
                         </div>
                         <div className="text-sm font-medium truncate leading-snug">
                           {scene.title || scene.location || '-'}
@@ -231,7 +236,7 @@ export function Component() {
                 {(!scenes || scenes.length === 0) && (
                   <div className="p-8 text-center">
                     <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                    <p className="text-sm text-muted-foreground">Keine Szenen</p>
+                    <p className="text-sm text-muted-foreground">{tt(sk.keineSzenen)}</p>
                   </div>
                 )}
               </div>
@@ -246,7 +251,7 @@ export function Component() {
               <div className="text-center">
                 <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-20" />
                 <p className="text-sm font-medium text-muted-foreground/60">
-                  Szene auswählen, um Kommentare anzuzeigen
+                  {tt(sk.auswaehlen)}
                 </p>
               </div>
             </div>
@@ -260,7 +265,7 @@ export function Component() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-0.5">
-                      Szene {selectedScene?.scene_number}
+                      {tt(sk.szeneN).replace('{n}', String(selectedScene?.scene_number ?? ''))}
                     </p>
                     <h2 className="text-sm font-semibold leading-snug">
                       {selectedScene?.title || selectedScene?.location || '-'}
@@ -268,7 +273,7 @@ export function Component() {
                   </div>
                   {unresolvedComments.length > 0 && (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-destructive bg-destructive/8 border border-destructive/20 rounded-full px-2.5 py-1">
-                      {unresolvedComments.length} offen
+                      {tt(sk.offenN).replace('{n}', String(unresolvedComments.length))}
                     </span>
                   )}
                 </div>
@@ -283,14 +288,14 @@ export function Component() {
                 ) : unresolvedComments.length === 0 && resolvedComments.length === 0 ? (
                   <div className="rounded-xl border border-border/60 bg-card flex flex-col items-center justify-center py-16">
                     <MessageSquare className="w-10 h-10 opacity-20 mb-3" />
-                    <p className="text-sm text-muted-foreground/60">Noch keine Kommentare für diese Szene</p>
+                    <p className="text-sm text-muted-foreground/60">{tt(sk.keineKommentare)}</p>
                   </div>
                 ) : (
                   <>
                     {unresolvedComments.length > 0 && (
                       <div className="space-y-2">
                         <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3 px-1">
-                          Offen ({unresolvedComments.length})
+                          {tt(sk.offenListe).replace('{n}', String(unresolvedComments.length))}
                         </p>
                         {unresolvedComments.map((c: any) => (
                           <CommentItem
@@ -306,7 +311,7 @@ export function Component() {
                     {resolvedComments.length > 0 && (
                       <div className="space-y-2 pt-2">
                         <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3 px-1">
-                          Gelöst ({resolvedComments.length})
+                          {tt(sk.geloestListe).replace('{n}', String(resolvedComments.length))}
                         </p>
                         {resolvedComments.map((c: any) => (
                           <CommentItem
@@ -325,10 +330,10 @@ export function Component() {
               {/* New comment form */}
               <div className="rounded-xl border border-border/60 bg-card p-5 space-y-3">
                 <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">
-                  Neuer Kommentar
+                  {tt(sk.neuerKommentar)}
                 </p>
                 <Textarea
-                  placeholder="Kommentar schreiben..."
+                  placeholder={tt(sk.schreiben)}
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
                   rows={3}
@@ -341,7 +346,7 @@ export function Component() {
                     disabled={!newComment.trim() || addCommentMutation.isPending}
                     className="active:scale-[0.97]"
                   >
-                    Kommentar hinzufügen
+                    {tt(sk.hinzufuegen)}
                   </Button>
                 </div>
               </div>

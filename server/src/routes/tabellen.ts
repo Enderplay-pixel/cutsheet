@@ -193,7 +193,7 @@ router.post('/projects/:projectId/import/:art', requireAuth, async (req: Request
     console.error('[import]', fehler?.message || fehler)
     return res.status(400).json({
       data: null,
-      error: `Die Liste wurde nicht uebernommen: ${String(fehler?.message || fehler).slice(0, 200)}`,
+      error: `Die Liste wurde nicht übernommen: ${String(fehler?.message || fehler).slice(0, 200)}`,
     })
   }
 })

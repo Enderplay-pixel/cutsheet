@@ -13,6 +13,8 @@ import { useDownload } from '@/lib/useDownload'
 import { formatDate, debounce, cn, dauer } from '@/lib/utils'
 import { ChevronLeft, ChevronRight, FileText, Clock, Camera, AlertTriangle, Save, Download } from 'lucide-react'
 import { TimeInput } from '@/components/ui/time-input'
+import { useT } from '@/lib/useT'
+import { tagesberichtT } from '@/lib/texte/Tagesbericht'
 
 export function Component() {
   const { projectId } = useParams()
@@ -20,6 +22,7 @@ export function Component() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const download = useDownload()
+  const tt = useT()
   const [selectedDayIdx, setSelectedDayIdx] = useState(0)
 
   const { data: allDays } = useQuery({
@@ -72,7 +75,7 @@ export function Component() {
     mutationFn: (data: any) => api.dailyReports.createOrUpdate(selectedDay!.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['daily-report', selectedDay?.id] })
-      toast({ title: 'Tagesbericht gespeichert' })
+      toast({ title: tt(tagesberichtT.gespeichert) })
     },
   })
 
@@ -123,7 +126,7 @@ export function Component() {
     return (
       <div className="flex flex-col items-center justify-center h-full py-20 text-center text-muted-foreground">
         <FileText className="w-10 h-10 mb-3 opacity-20" />
-        <p className="text-sm">Keine Drehtage vorhanden.</p>
+        <p className="text-sm">{tt(tagesberichtT.keineDrehtage)}</p>
       </div>
     )
   }
@@ -140,30 +143,30 @@ export function Component() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" className="w-8 h-8"
-            aria-label="Vorheriger Drehtag" title="Vorheriger Drehtag"
+            aria-label={tt(tagesberichtT.vorheriger)} title={tt(tagesberichtT.vorheriger)}
             disabled={selectedDayIdx <= 0} onClick={() => setSelectedDayIdx(i => i - 1)}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <Select value={String(selectedDayIdx)} onValueChange={v => setSelectedDayIdx(Number(v))}>
-            <SelectTrigger aria-label="Drehtag wählen" className="w-52 h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label={tt(tagesberichtT.waehlen)} className="w-52 h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               {allDays.map((d: any, i: number) => (
                 <SelectItem key={d.id} value={String(i)} className="text-xs">
-                  Tag {d.day_number} - {formatDate(d.date)}
+                  {tt(tagesberichtT.tagOption).replace('{n}', String(d.day_number)).replace('{datum}', formatDate(d.date))}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Button variant="outline" size="icon" className="w-8 h-8"
-            aria-label="Nächster Drehtag" title="Nächster Drehtag"
+            aria-label={tt(tagesberichtT.folgender)} title={tt(tagesberichtT.folgender)}
             disabled={selectedDayIdx >= allDays.length - 1} onClick={() => setSelectedDayIdx(i => i + 1)}>
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
         <div>
-          <h1 className="font-display text-[28px] sm:text-[34px]">Tagesbericht</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">{tt(tagesberichtT.titel)}</h1>
           {selectedDay && (
-            <p className="text-sm text-muted-foreground">Drehtag {selectedDay.day_number} · {formatDate(selectedDay.date)}</p>
+            <p className="text-sm text-muted-foreground">{tt(tagesberichtT.drehtagUnter).replace('{n}', String(selectedDay.day_number)).replace('{datum}', formatDate(selectedDay.date))}</p>
           )}
         </div>
       </div>
@@ -176,34 +179,34 @@ export function Component() {
           <div className="bg-card border border-border/60 rounded-xl p-5">
             <div className="flex items-center gap-2 mb-4">
               <Clock className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Zeiten</h2>
+              <h2 className="text-sm font-semibold">{tt(tagesberichtT.zeiten)}</h2>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
-                <Label className="text-xs text-muted-foreground">Call Time</Label>
+                <Label className="text-xs text-muted-foreground">{tt(tagesberichtT.callTime)}</Label>
                 <TimeInput value={form.call_time} onChange={v => update('call_time', v)} className="mt-1.5 h-10 text-lg font-bold" />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">First Shot</Label>
+                <Label className="text-xs text-muted-foreground">{tt(tagesberichtT.firstShot)}</Label>
                 <TimeInput value={form.first_shot} onChange={v => update('first_shot', v)} className="mt-1.5 h-10 text-lg font-bold" />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Mittagspause</Label>
+                <Label className="text-xs text-muted-foreground">{tt(tagesberichtT.mittagspause)}</Label>
                 <div className="flex gap-1 mt-1.5">
                   <TimeInput value={form.lunch_in || 720} onChange={v => update('lunch_in', v)} className="h-10 px-1 min-w-0" />
                   <TimeInput value={form.lunch_out || 780} onChange={v => update('lunch_out', v)} className="h-10 px-1 min-w-0" />
                 </div>
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Drehschluss</Label>
+                <Label className="text-xs text-muted-foreground">{tt(tagesberichtT.drehschluss)}</Label>
                 <TimeInput value={form.wrap} onChange={v => update('wrap', v)} className="mt-1.5 h-10 text-lg font-bold" />
               </div>
             </div>
             {shootDuration > 0 && (
               <div className="mt-4 pt-4 border-t border-border/40 flex gap-6 text-sm text-muted-foreground">
-                <span>Drehdauer: <span className="text-foreground font-medium">{Math.round(shootDuration)} Min.</span></span>
-                {lunchBreak > 0 && <span>Pause: <span className="text-foreground font-medium">{lunchBreak} Min.</span></span>}
-                {lunchBreak > 0 && <span>Netto: <span className="text-foreground font-medium">{Math.round(shootDuration - lunchBreak)} Min.</span></span>}
+                <span>{tt(tagesberichtT.drehdauer)} <span className="text-foreground font-medium">{tt(tagesberichtT.minuten).replace('{n}', String(Math.round(shootDuration)))}</span></span>
+                {lunchBreak > 0 && <span>{tt(tagesberichtT.pause)} <span className="text-foreground font-medium">{tt(tagesberichtT.minuten).replace('{n}', String(lunchBreak))}</span></span>}
+                {lunchBreak > 0 && <span>{tt(tagesberichtT.netto)} <span className="text-foreground font-medium">{tt(tagesberichtT.minuten).replace('{n}', String(Math.round(shootDuration - lunchBreak)))}</span></span>}
               </div>
             )}
           </div>
@@ -212,31 +215,31 @@ export function Component() {
           <div className="bg-card border border-border/60 rounded-xl p-5">
             <div className="flex items-center gap-2 mb-4">
               <Camera className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Produktionsdaten</h2>
+              <h2 className="text-sm font-semibold">{tt(tagesberichtT.produktionsdaten)}</h2>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
-                <Label className="text-xs text-muted-foreground">Gedrehte Seiten (Achtel)</Label>
+                <Label className="text-xs text-muted-foreground">{tt(tagesberichtT.gedrehteSeiten)}</Label>
                 <Input type="number" value={form.pages_shot || 0} onChange={e => update('pages_shot', Number(e.target.value))}
-                  aria-label="Gedrehte Seiten in Achteln"
+                  aria-label={tt(tagesberichtT.gedrehteSeitenAria)}
                   className={cn('mt-1.5 h-9', shootRatioWarning && 'border-warning')} />
                 {selectedDay?.total_eighths > 0 && (
-                  <p className="text-[11px] text-muted-foreground mt-1">Geplant: {selectedDay.total_eighths}/8</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">{tt(tagesberichtT.geplant).replace('{n}', String(selectedDay.total_eighths))}</p>
                 )}
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Setups</Label>
+                <Label className="text-xs text-muted-foreground">{tt(tagesberichtT.setups)}</Label>
                 <Input type="number" value={form.total_setups || 0} onChange={e => update('total_setups', Number(e.target.value))}
-                  aria-label="Anzahl Setups"
+                  aria-label={tt(tagesberichtT.anzahlSetups)}
                   className="mt-1.5 h-9" />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Kamerarollen</Label>
+                <Label className="text-xs text-muted-foreground">{tt(tagesberichtT.kamerarollen)}</Label>
                 <Input value={form.camera_rolls || ''} onChange={e => update('camera_rolls', e.target.value)}
                   className="mt-1.5 h-9 text-sm" placeholder="A001-A003" />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Tonrollen / Dateien</Label>
+                <Label className="text-xs text-muted-foreground">{tt(tagesberichtT.tonrollen)}</Label>
                 <Input value={form.sound_rolls || ''} onChange={e => update('sound_rolls', e.target.value)}
                   className="mt-1.5 h-9 text-sm" placeholder="T001-T003" />
               </div>
@@ -244,7 +247,7 @@ export function Component() {
             {shootRatioWarning && (
               <div className="mt-4 flex items-start gap-2 p-3 bg-warning/[0.08] border border-warning/20 rounded-lg">
                 <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-                <p className="text-xs text-warning">Mehr Seiten gedreht als geplant - Drehabweichung prüfen.</p>
+                <p className="text-xs text-warning">{tt(tagesberichtT.mehrSeiten)}</p>
               </div>
             )}
           </div>
@@ -254,15 +257,14 @@ export function Component() {
             <div className="bg-card border border-border/60 rounded-xl p-5">
               <div className="flex items-baseline justify-between gap-3 mb-1">
                 <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
-                  Szenen heute
+                  {tt(tagesberichtT.szenenHeute)}
                 </h2>
                 <p className="text-[11px] text-muted-foreground/60">
-                  {abgedreht.length} abgedreht · {angefangen.length} angefangen
+                  {tt(tagesberichtT.stand).replace('{fertig}', String(abgedreht.length)).replace('{teil}', String(angefangen.length))}
                 </p>
               </div>
               <p className="text-[11px] text-muted-foreground/60 mb-3 leading-snug">
-                Antippen schaltet weiter. Die Zeitanalyse verteilt die Drehzeit des Tages
-                auf die hier markierten Szenen.
+                {tt(tagesberichtT.antippen)}
               </p>
               <div className="space-y-1.5">
                 {selectedDay.scenes.map((s: any) => {
@@ -273,9 +275,9 @@ export function Component() {
                       <button
                         type="button"
                         onClick={() => szeneWeiterschalten(s.scene_id)}
-                        aria-label={`Szene ${s.scene_number}: ${
-                          stand === 'fertig' ? 'abgedreht' : stand === 'teil' ? 'angefangen' : 'offen'
-                        }`}
+                        aria-label={tt(tagesberichtT.szeneAria).replace('{n}', String(s.scene_number)).replace('{stand}', tt(
+                          stand === 'fertig' ? tagesberichtT.standAbgedreht : stand === 'teil' ? tagesberichtT.standAngefangen : tagesberichtT.standOffen
+                        ))}
                         className={cn(
                           'flex-1 min-w-0 text-left text-xs px-2.5 py-1.5 rounded-lg border transition-colors min-h-[36px]',
                           stand === 'fertig' && 'bg-success/15 border-success/40 text-success font-semibold',
@@ -285,8 +287,8 @@ export function Component() {
                       >
                         {/* Farbe allein sagt es nicht - der Stand steht als Wort dabei */}
                         {stand === 'fertig' ? '✓ ' : stand === 'teil' ? '· ' : ''}
-                        Sz. {s.scene_number} - {s.title}
-                        {stand === 'teil' && <span className="ml-1 opacity-70">(angefangen)</span>}
+                        {tt(tagesberichtT.szKurz).replace('{n}', String(s.scene_number)).replace('{titel}', s.title ?? '')}
+                        {stand === 'teil' && <span className="ml-1 opacity-70">{tt(tagesberichtT.angefangenKlammer)}</span>}
                       </button>
                       <div className="flex items-center gap-1 shrink-0">
                         <Input
@@ -296,19 +298,17 @@ export function Component() {
                           value={istZeiten[String(s.scene_id)] ?? ''}
                           onChange={e => szeneZeitSetzen(s.scene_id, e.target.value)}
                           placeholder={s.estimated_minutes ? String(s.estimated_minutes) : '-'}
-                          aria-label={`Tatsächliche Minuten für Szene ${s.scene_number}`}
+                          aria-label={tt(tagesberichtT.istMinutenAria).replace('{n}', String(s.scene_number))}
                           className="w-20 h-9 text-sm text-right tabular-nums"
                         />
-                        <span className="text-[11px] text-muted-foreground/60 w-8">Min.</span>
+                        <span className="text-[11px] text-muted-foreground/60 w-8">{tt(tagesberichtT.min)}</span>
                       </div>
                     </div>
                   )
                 })}
               </div>
               <p className="text-[11px] text-muted-foreground/60 mt-3 leading-snug">
-                Das Feld ist die <b>gemessene</b> Zeit. Bleibt es leer, verteilt die Zeitanalyse
-                die Drehzeit des Tages nach geplanter Dauer und kennzeichnet den Wert als
-                geschätzt. Im Feld steht als Platzhalter die geplante Zeit.
+                {tt(tagesberichtT.feldVorher)}<b>{tt(tagesberichtT.feldGemessen)}</b>{tt(tagesberichtT.feldNachher)}
               </p>
             </div>
           )}
@@ -316,18 +316,18 @@ export function Component() {
           {/* Notes */}
           <div className="bg-card border border-border/60 rounded-xl p-5 space-y-4">
             <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
-              Berichte & Notizen
+              {tt(tagesberichtT.berichteNotizen)}
             </h2>
             <div>
-              <Label className="text-xs text-muted-foreground">Drehbericht</Label>
+              <Label className="text-xs text-muted-foreground">{tt(tagesberichtT.drehbericht)}</Label>
               <Textarea value={form.production_notes || ''} onChange={e => update('production_notes', e.target.value)}
                 rows={3} className="mt-1.5 text-sm resize-none"
-                placeholder="Was lief gut, was war schwierig, besondere Vorkommnisse…" />
+                placeholder={tt(tagesberichtT.drehberichtPh)} />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Interne Notizen</Label>
+              <Label className="text-xs text-muted-foreground">{tt(tagesberichtT.interneNotizen)}</Label>
               <Textarea value={form.notes || ''} onChange={e => update('notes', e.target.value)}
-                rows={2} className="mt-1.5 text-sm resize-none" placeholder="Interne Anmerkungen…" />
+                rows={2} className="mt-1.5 text-sm resize-none" placeholder={tt(tagesberichtT.interneAnmerkPh)} />
             </div>
           </div>
 
@@ -339,7 +339,7 @@ export function Component() {
             )}
             <Button onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending}>
               <Save className="w-3.5 h-3.5 mr-1.5" />
-              {saveMutation.isPending ? 'Speichere…' : 'Tagesbericht speichern'}
+              {saveMutation.isPending ? tt(tagesberichtT.speichere) : tt(tagesberichtT.speichern)}
             </Button>
           </div>
         </>

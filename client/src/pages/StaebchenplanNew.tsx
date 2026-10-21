@@ -5,6 +5,9 @@ import { api } from '@/lib/api'
 import { cn, formatDate } from '@/lib/utils'
 import { LayoutGrid, Calendar, Sun, Moon, Film } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import type { Lang } from '@/lib/i18n'
+import { useT } from '@/lib/useT'
+import { staebchenT } from '@/lib/texte/StaebchenplanNew'
 
 // --- Types ---
 
@@ -97,14 +100,15 @@ function eighthsToFraction(eighths: number): string {
 
 // --- Legend ---
 
-const LEGEND_ITEMS: { variant: StripVariant; label: string; icon: React.ReactNode }[] = [
-  { variant: 'INT_TAG', label: 'INT / Tag', icon: <Film className="w-3 h-3" /> },
-  { variant: 'EXT_TAG', label: 'EXT / Tag', icon: <Sun className="w-3 h-3" /> },
-  { variant: 'INT_NACHT', label: 'INT / Nacht', icon: <Moon className="w-3 h-3" /> },
-  { variant: 'EXT_NACHT', label: 'EXT / Nacht', icon: <Moon className="w-3 h-3" /> },
+const LEGEND_ITEMS: { variant: StripVariant; label: Record<Lang, string>; icon: React.ReactNode }[] = [
+  { variant: 'INT_TAG', label: staebchenT.intTag, icon: <Film className="w-3 h-3" /> },
+  { variant: 'EXT_TAG', label: staebchenT.extTag, icon: <Sun className="w-3 h-3" /> },
+  { variant: 'INT_NACHT', label: staebchenT.intNacht, icon: <Moon className="w-3 h-3" /> },
+  { variant: 'EXT_NACHT', label: staebchenT.extNacht, icon: <Moon className="w-3 h-3" /> },
 ]
 
 function Legend() {
+  const tt = useT()
   return (
     <div className="flex flex-wrap items-center gap-3">
       {LEGEND_ITEMS.map(({ variant, label, icon }) => (
@@ -118,7 +122,7 @@ function Legend() {
           >
             <span className={cn('text-[9px]', STRIP_STYLES[variant].badge)}>{icon}</span>
           </div>
-          <span className="text-xs text-muted-foreground">{label}</span>
+          <span className="text-xs text-muted-foreground">{tt(label)}</span>
         </div>
       ))}
     </div>
@@ -227,6 +231,7 @@ function DayColumn({
   isEmpty = false,
   emptyLabel,
 }: DayColumnProps) {
+  const tt = useT()
   return (
     <div
       className="flex flex-col shrink-0 rounded-lg overflow-hidden border border-border shadow-sm"
@@ -243,7 +248,7 @@ function DayColumn({
       >
         <div className="flex items-center justify-between gap-1">
           <span className="font-bold text-sm leading-tight">
-            {isUnscheduled ? 'Ohne Tag' : `Tag ${dayNumber}`}
+            {isUnscheduled ? tt(staebchenT.ohneTag) : tt(staebchenT.tag).replace('{n}', String(dayNumber))}
           </span>
           {!isUnscheduled && totalEighths !== undefined && (
             <span className="text-[10px] font-mono bg-white/20 px-1.5 py-0.5 rounded-full leading-none">
@@ -259,7 +264,7 @@ function DayColumn({
         )}
         {isUnscheduled && (
           <div className="mt-1 opacity-75">
-            <span className="text-[10px] leading-none">Nicht verplant</span>
+            <span className="text-[10px] leading-none">{tt(staebchenT.nichtVerplant)}</span>
           </div>
         )}
       </div>
@@ -270,7 +275,7 @@ function DayColumn({
           <div className="flex flex-col items-center justify-center flex-1 py-6 text-center">
             <LayoutGrid className="w-5 h-5 text-muted-foreground/40 mb-2" />
             <span className="text-[11px] text-muted-foreground/60 leading-tight">
-              {emptyLabel ?? 'Keine Szenen'}
+              {emptyLabel ?? tt(staebchenT.keineSzenen)}
             </span>
           </div>
         ) : (
@@ -297,6 +302,7 @@ function StatBadge({ label, value }: { label: string; value: string | number }) 
 export function Component() {
   const { projectId } = useParams<{ projectId: string }>()
   const pid = Number(projectId)
+  const tt = useT()
 
   const { data: days, isLoading: daysLoading } = useQuery<ShootDay[]>({
     queryKey: ['drehplan', pid],
@@ -349,10 +355,10 @@ export function Component() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <LayoutGrid className="w-5 h-5 text-primary" />
-              <h1 className="font-display text-[28px] sm:text-[34px]">Stäbchenplan</h1>
+              <h1 className="font-display text-[28px] sm:text-[34px]">{tt(staebchenT.titel)}</h1>
             </div>
             <p className="text-sm text-muted-foreground">
-              Visueller Drehplan - Szenenstreifen nach Drehtag
+              {tt(staebchenT.untertitel)}
             </p>
           </div>
           <Legend />
@@ -361,10 +367,10 @@ export function Component() {
         {/* Stats bar */}
         {!isLoading && !isEmpty && (
           <div className="flex flex-wrap gap-2 mt-4">
-            <StatBadge label="Total Szenen" value={totalScenes} />
-            <StatBadge label="Verplante Szenen" value={scheduledCount} />
-            <StatBadge label="Seiten gesamt" value={eighthsToFraction(totalEighthsAll)} />
-            <StatBadge label="Drehtage" value={totalDays} />
+            <StatBadge label={tt(staebchenT.totalSzenen)} value={totalScenes} />
+            <StatBadge label={tt(staebchenT.verplanteSzenen)} value={scheduledCount} />
+            <StatBadge label={tt(staebchenT.seitenGesamt)} value={eighthsToFraction(totalEighthsAll)} />
+            <StatBadge label={tt(staebchenT.drehtage)} value={totalDays} />
           </div>
         )}
       </div>
@@ -375,9 +381,9 @@ export function Component() {
           // Empty state
           <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
             <Film className="w-12 h-12 opacity-20" />
-            <p className="text-lg font-medium">Noch kein Drehplan vorhanden</p>
+            <p className="text-lg font-medium">{tt(staebchenT.keinDrehplan)}</p>
             <p className="text-sm opacity-60">
-              Erstelle Drehtage im Drehplan, um den Stäbchenplan zu befüllen.
+              {tt(staebchenT.keinDrehplanText)}
             </p>
           </div>
         ) : (
@@ -412,7 +418,7 @@ export function Component() {
                   <DayColumn
                     isUnscheduled
                     isEmpty={unscheduledScenes.length === 0}
-                    emptyLabel="Alle Szenen verplant"
+                    emptyLabel={tt(staebchenT.alleVerplant)}
                     strips={unscheduledScenes.map((scene) => (
                       <SceneStrip
                         key={scene.id}

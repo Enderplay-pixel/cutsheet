@@ -1,0 +1,34 @@
+import type { Lang } from '@/lib/i18n'
+
+type Text = Record<Lang, string>
+
+export const setAppT = {
+  drehtagAuswaehlen:  { de: 'Drehtag auswählen', en: 'Select shoot day', fr: 'Choisir un jour de tournage' },
+  keineEintraege:     { de: 'Keine Einträge in der Disposition', en: 'No entries on the call sheet', fr: 'Aucune entrée dans la feuille de service' },
+  calltime:           { de: 'Calltime', en: 'Call time', fr: 'Convocation' },
+  keineShots:         { de: 'Keine Shots für diesen Tag', en: 'No shots for this day', fr: 'Aucun plan pour ce jour' },
+  imKasten:           { de: 'Drehtag im Kasten', en: 'Shoot day in the can', fr: 'Jour de tournage dans la boîte' },
+  shotNr:             { de: 'Shot #{n}', en: 'Shot #{n}', fr: 'Plan n° {n}' },
+  eingechecktAnzahl:  { de: '{done}/{total} eingecheckt', en: '{done}/{total} checked in', fr: '{done}/{total} enregistrés' },
+  keinePersonen:      { de: 'Keine Personen in der Disposition', en: 'No people on the call sheet', fr: 'Aucune personne dans la feuille de service' },
+  eingecheckt:        { de: 'Eingecheckt', en: 'Checked in', fr: 'Enregistré' },
+  szeneAuswaehlen:    { de: 'Szene auswählen', en: 'Select scene', fr: 'Choisir une scène' },
+  szeneNr:            { de: 'Szene {n}', en: 'Scene {n}', fr: 'Scène {n}' },
+  continuityNotizen:  { de: 'Continuity-Notizen', en: 'Continuity notes', fr: 'Notes de continuité' },
+  kostuem:            { de: 'Kostüm', en: 'Costume', fr: 'Costumes' },
+  maskeHaare:         { de: 'Maske / Haare', en: 'Make-up / hair', fr: 'Maquillage / coiffure' },
+  keineContinuity:    { de: 'Keine Continuity-Notizen vorhanden.', en: 'No continuity notes available.', fr: 'Aucune note de continuité disponible.' },
+  szeneFuerContinuity:{ de: 'Szene auswählen um Continuity anzuzeigen', en: 'Select a scene to show continuity', fr: 'Choisir une scène pour afficher la continuité' },
+  titel:              { de: 'Set-App', en: 'Set app', fr: 'Appli plateau' },
+  offline:            { de: 'Offline - du siehst den zuletzt geladenen Stand. Änderungen wie Check-ins gehen erst wieder mit Netz.', en: 'Offline - you are seeing the last loaded state. Changes such as check-ins only work again once you are back online.', fr: "Hors ligne - tu vois le dernier état chargé. Les modifications comme les enregistrements ne fonctionnent à nouveau qu'avec du réseau." },
+  projekt:            { de: 'Projekt', en: 'Project', fr: 'Projet' },
+  projektWaehlen:     { de: 'Projekt wählen', en: 'Choose project', fr: 'Choisir un projet' },
+  drehtag:            { de: 'Drehtag', en: 'Shoot day', fr: 'Jour de tournage' },
+  drehtagWaehlen:     { de: 'Drehtag wählen', en: 'Choose shoot day', fr: 'Choisir un jour de tournage' },
+  heute:              { de: '● Heute - ', en: '● Today - ', fr: "● Aujourd'hui - " },
+  tagNr:              { de: 'Tag #{n}', en: 'Day #{n}', fr: 'Jour n° {n}' },
+  tabDispo:           { de: 'Dispo', en: 'Call sheet', fr: 'Feuille' },
+  tabShots:           { de: 'Shots', en: 'Shots', fr: 'Plans' },
+  tabCheckin:         { de: 'Check-in', en: 'Check-in', fr: 'Arrivées' },
+  tabContinuity:      { de: 'Continuity', en: 'Continuity', fr: 'Continuité' },
+} satisfies Record<string, Text>

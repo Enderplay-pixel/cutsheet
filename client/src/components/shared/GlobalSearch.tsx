@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Film, Users, Briefcase, MapPin, Clapperboard } from 'lucide-react'
 import { api } from '@/lib/api'
+import { useT } from '@/lib/useT'
+import { globalSearchT } from '@/lib/texte/komponenten/Shared'
 
 interface GlobalSearchProps {
   open: boolean
@@ -23,6 +25,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
   const [loading, setLoading] = useState(false)
   const { projectId } = useParams()
   const navigate = useNavigate()
+  const tt = useT()
 
   useEffect(() => {
     if (!open) { setQuery(''); setResults([]) }
@@ -51,12 +54,12 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
 
   return (
     <CommandDialog open={open} onOpenChange={v => !v && onClose()}>
-      <CommandInput placeholder="Szenen, Darsteller, Locations suchen..." value={query} onValueChange={setQuery} />
+      <CommandInput placeholder={tt(globalSearchT.platzhalter)} value={query} onValueChange={setQuery} />
       <CommandList>
-        {loading && <div className="py-6 text-center text-sm text-muted-foreground">Suche läuft...</div>}
-        {!loading && query && results.length === 0 && <CommandEmpty>Keine Ergebnisse für „{query}"</CommandEmpty>}
+        {loading && <div className="py-6 text-center text-sm text-muted-foreground">{tt(globalSearchT.laeuft)}</div>}
+        {!loading && query && results.length === 0 && <CommandEmpty>{tt(globalSearchT.keineFuer).replace('{q}', query)}</CommandEmpty>}
         {results.length > 0 && (
-          <CommandGroup heading="Ergebnisse">
+          <CommandGroup heading={tt(globalSearchT.ergebnisse)}>
             {results.map((r, i) => {
               const Icon = typeIcons[r.type] || Film
               return (
@@ -72,11 +75,11 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
           </CommandGroup>
         )}
         {!query && (
-          <CommandGroup heading="Schnellzugriff">
+          <CommandGroup heading={tt(globalSearchT.schnellzugriff)}>
             {projectId && [
-              { label: 'Drehplan öffnen', url: `/projects/${projectId}/drehplan`, icon: Clapperboard },
-              { label: 'Besetzung', url: `/projects/${projectId}/besetzung`, icon: Users },
-              { label: 'Budget', url: `/projects/${projectId}/budget`, icon: Film },
+              { label: tt(globalSearchT.drehplan), url: `/projects/${projectId}/drehplan`, icon: Clapperboard },
+              { label: tt(globalSearchT.besetzung), url: `/projects/${projectId}/besetzung`, icon: Users },
+              { label: tt(globalSearchT.budget), url: `/projects/${projectId}/budget`, icon: Film },
             ].map((item, i) => (
               <CommandItem key={i} onSelect={() => { navigate(item.url); onClose() }}>
                 <item.icon className="w-4 h-4 mr-2" />

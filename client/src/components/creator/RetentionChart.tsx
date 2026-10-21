@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/useT'
+import { retentionChartT } from '@/lib/texte/komponenten/RetentionChart'
 
 interface Point { ratio: number; watch: number }
 interface Section {
@@ -73,6 +75,7 @@ export function RetentionChart({
   sections: Section[]
   videoSeconds: number
 }) {
+  const tt = useT()
   const [hover, setHover] = useState<{ x: number; second: number; watch: number } | null>(null)
 
   const W = 1000
@@ -177,17 +180,17 @@ export function RetentionChart({
       <div className="flex items-center justify-between mt-1 text-xs text-muted-foreground min-h-[18px]">
         <span>
           {hover
-            ? `Bei ${timecode(hover.second)} schauen noch ${Math.round(hover.watch * 100)} %`
-            : 'Mit der Maus über die Kurve fahren für Werte'}
+            ? tt(retentionChartT.bei).replace('{t}', timecode(hover.second)).replace('{p}', String(Math.round(hover.watch * 100)))
+            : tt(retentionChartT.hinweis)}
         </span>
         <span className="flex items-center gap-3">
           {sections.some(s => s.kind === 'sponsor') && (
             <span className="flex items-center gap-1">
-              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-500/40" />Sponsor
+              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-500/40" />{tt(retentionChartT.sponsor)}
             </span>
           )}
           <span className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm bg-red-500/30" />Hook
+            <span className="inline-block w-2.5 h-2.5 rounded-sm bg-red-500/30" />{tt(retentionChartT.hook)}
           </span>
         </span>
       </div>

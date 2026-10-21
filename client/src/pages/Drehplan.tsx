@@ -18,6 +18,8 @@ import { useDownload } from '@/lib/useDownload'
 import { Plus, Camera, Save, Download, RotateCcw, Trash2, History, FileText, Sparkles } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { drehplanT as T } from '@/lib/texte/Drehplan'
 
 function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: () => void; projectId: number }) {
   const [mode, setMode] = useState<'single' | 'range'>('single')
@@ -27,6 +29,7 @@ function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
   const [loading, setLoading] = useState(false)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
 
   const mutation = useMutation({
     mutationFn: (d: string) => api.drehplan.createDay(projectId, { date: d }),
@@ -48,18 +51,18 @@ function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
     try {
       if (mode === 'single') {
         if (!date) return
-        await mutation.mutateAsync(date)
+        await mutation.mutateAsync(date) // texte-ok
       } else {
         if (!startDate || !endDate) return
         const dates = getDatesInRange(startDate, endDate)
-        if (dates.length > 60) { toast({ title: 'Maximal 60 Tage auf einmal', variant: 'destructive' }); return }
+        if (dates.length > 60) { toast({ title: tt(T.max60), variant: 'destructive' }); return }
         for (const d of dates) await mutation.mutateAsync(d)
-        toast({ title: `${dates.length} Drehtage hinzugefügt` })
+        toast({ title: tt(T.tageHinzugefuegt).replace('{n}', String(dates.length)) })
       }
       queryClient.invalidateQueries({ queryKey: ['shoot-days', projectId] })
       onClose(); setDate(''); setStartDate(''); setEndDate('')
     } catch (e: any) {
-      toast({ title: 'Fehler', description: e.message, variant: 'destructive' })
+      toast({ title: tt(T.fehler), description: e.message, variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -70,37 +73,37 @@ function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Drehtag(e) hinzufügen</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{tt(T.dialogTitel)}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="flex gap-1 p-0.5 bg-muted rounded-md">
-            <button onClick={() => setMode('single')} className={`flex-1 text-xs py-1 rounded transition-colors ${mode === 'single' ? 'bg-card shadow-sm font-medium' : 'text-muted-foreground'}`}>Einzelner Tag</button>
-            <button onClick={() => setMode('range')} className={`flex-1 text-xs py-1 rounded transition-colors ${mode === 'range' ? 'bg-card shadow-sm font-medium' : 'text-muted-foreground'}`}>Zeitraum</button>
+            <button onClick={() => setMode('single')} className={`flex-1 text-xs py-1 rounded transition-colors ${mode === 'single' ? 'bg-card shadow-sm font-medium' : 'text-muted-foreground'}`}>{tt(T.einzelnerTag)}</button>
+            <button onClick={() => setMode('range')} className={`flex-1 text-xs py-1 rounded transition-colors ${mode === 'range' ? 'bg-card shadow-sm font-medium' : 'text-muted-foreground'}`}>{tt(T.zeitraum)}</button>
           </div>
           {mode === 'single' ? (
             <div>
-              <label className="text-sm font-medium block mb-1">Datum</label>
+              <label className="text-sm font-medium block mb-1">{tt(T.datum)}</label>
               <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
             </div>
           ) : (
             <div className="space-y-2">
               <div>
-                <label className="text-sm font-medium block mb-1">Von</label>
+                <label className="text-sm font-medium block mb-1">{tt(T.von)}</label>
                 <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
               </div>
               <div>
-                <label className="text-sm font-medium block mb-1">Bis</label>
+                <label className="text-sm font-medium block mb-1">{tt(T.bis)}</label>
                 <Input type="date" value={endDate} min={startDate} onChange={e => setEndDate(e.target.value)} />
               </div>
               {rangeCount > 0 && (
-                <p className="text-xs text-muted-foreground">{rangeCount} Drehtage werden angelegt</p>
+                <p className="text-xs text-muted-foreground">{tt(T.werdenAngelegt).replace('{n}', String(rangeCount))}</p>
               )}
             </div>
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Abbrechen</Button>
+          <Button variant="outline" onClick={onClose}>{tt(T.abbrechen)}</Button>
           <Button onClick={handleAdd} disabled={loading || (mode === 'single' ? !date : !startDate || !endDate || rangeCount === 0)}>
-            {loading ? 'Wird angelegt…' : mode === 'range' ? `${rangeCount || 0} Tage anlegen` : 'Hinzufügen'}
+            {loading ? tt(T.wirdAngelegt) : mode === 'range' ? tt(T.tageAnlegen).replace('{n}', String(rangeCount || 0)) : tt(T.hinzufuegen)}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -113,6 +116,8 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
+  const gebietsschema = useGebietsschema()
   const download = useDownload()
   const [addDayOpen, setAddDayOpen] = useState(false)
   const [activeDrag, setActiveDrag] = useState<any>(null)
@@ -142,13 +147,13 @@ export function Component() {
   const removeSceneMutation = useMutation({
     mutationFn: ({ dayId, sceneId }: { dayId: number; sceneId: number }) => api.drehplan.removeScene(dayId, sceneId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] }),
-    onError: (e: any) => toast({ title: 'Fehler', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: tt(T.fehler), description: e.message, variant: 'destructive' }),
   })
 
   const deleteDayMutation = useMutation({
     mutationFn: (dayId: number) => api.drehplan.deleteDay(dayId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] }),
-    onError: (e: any) => toast({ title: 'Fehler', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: tt(T.fehler), description: e.message, variant: 'destructive' }),
   })
 
   const statusMutation = useMutation({
@@ -159,7 +164,7 @@ export function Component() {
   const moveSceneMutation = useMutation({
     mutationFn: (data: any) => api.drehplan.moveScene(data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] }),
-    onError: (e: any) => toast({ title: 'Fehler', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: tt(T.fehler), description: e.message, variant: 'destructive' }),
   })
 
   const { data: versions } = useQuery({
@@ -172,7 +177,7 @@ export function Component() {
     mutationFn: () => api.drehplan.snapshot(pid),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['drehplan-versions', pid] })
-      toast({ title: 'Version gespeichert' })
+      toast({ title: tt(T.versionGespeichert) })
     },
   })
 
@@ -181,9 +186,9 @@ export function Component() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] })
       setShowVersions(false)
-      toast({ title: 'Drehplan wiederhergestellt' })
+      toast({ title: tt(T.wiederhergestellt) })
     },
-    onError: (e: any) => toast({ title: 'Fehler', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: tt(T.fehler), description: e.message, variant: 'destructive' }),
   })
 
   const deleteVersionMutation = useMutation({
@@ -256,24 +261,24 @@ export function Component() {
     <div className="flex flex-col h-full">
       <div className="px-6 pt-6 shrink-0">
         <PageHeader
-          title="Drehplan"
-          subtitle={`${shootDays?.length || 0} Drehtage · ${scheduledSceneIds.size} von ${allScenes?.length || 0} Szenen geplant`}
+          title={tt(T.titel)}
+          subtitle={tt(T.untertitel).replace('{tage}', String(shootDays?.length || 0)).replace('{geplant}', String(scheduledSceneIds.size)).replace('{gesamt}', String(allScenes?.length || 0))}
           actions={
             <div className="flex gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={() => download(api.pdf.drehplan(pid), 'drehplan.pdf')}>
                   <Download className="w-4 h-4 mr-2" />PDF
                 </Button>
               <Button variant="outline" size="sm" onClick={() => setShowAiOptimize(true)}>
-                <Sparkles className="w-4 h-4 mr-2" />KI-Optimierung
+                <Sparkles className="w-4 h-4 mr-2" />{tt(T.kiOptimierung)}
               </Button>
               <Button variant="outline" size="sm" onClick={() => { snapshotMutation.mutate(); setShowVersions(true) }}>
-                <Save className="w-4 h-4 mr-2" />Version speichern
+                <Save className="w-4 h-4 mr-2" />{tt(T.versionSpeichern)}
               </Button>
               <Button variant="outline" size="sm" onClick={() => setShowVersions(v => !v)}>
-                <History className="w-4 h-4 mr-2" />Versionen
+                <History className="w-4 h-4 mr-2" />{tt(T.versionen)}
               </Button>
               <Button size="sm" onClick={() => setAddDayOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />Drehtag
+                <Plus className="w-4 h-4 mr-2" />{tt(T.drehtag)}
               </Button>
             </div>
           }
@@ -310,7 +315,7 @@ export function Component() {
                   className="w-[200px] h-full min-h-[120px] border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
                 >
                   <Plus className="w-6 h-6" />
-                  <span className="text-sm">Drehtag</span>
+                  <span className="text-sm">{tt(T.drehtag)}</span>
                 </button>
               </div>
 
@@ -332,29 +337,29 @@ export function Component() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <History className="w-4 h-4 text-muted-foreground" />
-              Gespeicherte Versionen
+              {tt(T.gespeicherteVersionen)}
             </h3>
-            <button onClick={() => setShowVersions(false)} className="text-xs text-muted-foreground hover:text-foreground">Schließen</button>
+            <button onClick={() => setShowVersions(false)} className="text-xs text-muted-foreground hover:text-foreground">{tt(T.schliessen)}</button>
           </div>
           {!versions || versions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Noch keine Versionen gespeichert.</p>
+            <p className="text-sm text-muted-foreground">{tt(T.keineVersionen)}</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {versions.map((v: any) => (
                 <div key={v.id} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border/60 bg-muted/20 text-sm">
                   <span className="font-medium">{v.name}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(v.created_at).toLocaleDateString('de-DE')}</span>
+                  <span className="text-xs text-muted-foreground">{new Date(v.created_at).toLocaleDateString(gebietsschema)}</span>
                   <button
                     onClick={() => restoreMutation.mutate(v.id)}
                     className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
-                    title="Wiederherstellen"
+                    title={tt(T.wiederherstellen)}
                   >
-                    <RotateCcw className="w-3 h-3" />Wiederherstellen
+                    <RotateCcw className="w-3 h-3" />{tt(T.wiederherstellen)}
                   </button>
                   <button
                     onClick={() => deleteVersionMutation.mutate(v.id)}
                     className="text-muted-foreground/40 hover:text-destructive transition-colors"
-                    title="Löschen"
+                    title={tt(T.loeschen)}
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -373,38 +378,38 @@ export function Component() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
-              KI-Drehplan-Optimierung
+              {tt(T.kiDialogTitel)}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-1">
             <p className="text-sm text-muted-foreground">
-              Die KI analysiert alle Szenen und optimiert die Reihenfolge nach Location, Cast-Verfügbarkeit und Tageszeit (Tag/Nacht).
+              {tt(T.kiText)}
             </p>
             <p className="text-sm text-muted-foreground">
-              Der aktuelle Drehplan wird <span className="font-medium text-foreground">automatisch als Version gespeichert</span>, bevor Änderungen vorgenommen werden.
+              {tt(T.kiSicherungVor)}<span className="font-medium text-foreground">{tt(T.kiSicherungFett)}</span>{tt(T.kiSicherungNach)}
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAiOptimize(false)} disabled={aiOptimizing}>Abbrechen</Button>
+            <Button variant="outline" onClick={() => setShowAiOptimize(false)} disabled={aiOptimizing}>{tt(T.abbrechen)}</Button>
             <Button
               disabled={aiOptimizing}
               onClick={async () => {
                 setAiOptimizing(true)
                 try {
                   const result = await api.aiScheduling.optimize(pid)
-                  toast({ title: `Optimierung abgeschlossen`, description: `${result.moved ?? 0} Szenen neu zugewiesen` })
+                  toast({ title: tt(T.optAbgeschlossen), description: tt(T.szenenNeu).replace('{n}', String(result.moved ?? 0)) })
                   queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] })
                   queryClient.invalidateQueries({ queryKey: ['drehplan-versions', pid] })
                   setShowAiOptimize(false)
                 } catch (e: any) {
-                  toast({ title: 'Fehler bei der Optimierung', description: e.message, variant: 'destructive' })
+                  toast({ title: tt(T.optFehler), description: e.message, variant: 'destructive' })
                 } finally {
                   setAiOptimizing(false)
                 }
               }}
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              {aiOptimizing ? 'Optimiere…' : 'Jetzt optimieren'}
+              {aiOptimizing ? tt(T.optimiere) : tt(T.jetztOptimieren)}
             </Button>
           </DialogFooter>
         </DialogContent>

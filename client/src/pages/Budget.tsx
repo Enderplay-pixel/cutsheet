@@ -17,6 +17,8 @@ import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
 import { formatCurrency, debounce } from '@/lib/utils'
 import { Plus, Trash2, TrendingUp, PieChart, List, CheckCircle, Circle, Download, Wand2 } from 'lucide-react'
+import { useT } from '@/lib/useT'
+import { budgetT as T, EINHEIT_TEXT, FINANZIERUNGSART_TEXT } from '@/lib/texte/Budget'
 
 const UNITS = ['Pauschal', 'Tage', 'Stunden', 'Wochen', 'Monate', 'Stück']
 const CATEGORIES = [
@@ -28,6 +30,7 @@ const CATEGORIES = [
 function BudgetLineRow({ line, onDelete }: { line: any; onDelete: () => void }) {
   const [form, setForm] = useState(line)
   const queryClient = useQueryClient()
+  const tt = useT()
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.budget.updateLine(line.id, data),
@@ -54,24 +57,24 @@ function BudgetLineRow({ line, onDelete }: { line: any; onDelete: () => void }) 
       <td className="py-1.5 pl-4 pr-2 w-8 text-xs text-muted-foreground font-mono">{line.account_code}</td>
       <td className="py-1.5 px-2 flex-1">
         <Input value={form.description || ''} onChange={e => update('description', e.target.value)}
-          aria-label="Beschreibung der Position"
+          aria-label={tt(T.beschreibungPos)}
           className="h-7 text-sm border-0 bg-transparent focus-visible:ring-1" />
       </td>
       <td className="py-1.5 px-2 w-24">
         <Select value={form.unit || 'Pauschal'} onValueChange={v => update('unit', v)}>
-          <SelectTrigger aria-label="Einheit" className="h-7 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>{UNITS.map(u => <SelectItem key={u} value={u} className="text-xs">{u}</SelectItem>)}</SelectContent>
+          <SelectTrigger aria-label={tt(T.einheit)} className="h-7 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>{UNITS.map(u => <SelectItem key={u} value={u} className="text-xs">{EINHEIT_TEXT[u] ? tt(EINHEIT_TEXT[u]) : u}</SelectItem>)}</SelectContent>
         </Select>
       </td>
       <td className="py-1.5 px-2 w-16">
         <Input type="number" value={form.quantity || 1} onChange={e => update('quantity', Number(e.target.value))}
-          aria-label={`Menge${form.description ? ` für ${form.description}` : ''}`}
+          aria-label={form.description ? tt(T.mengeFuer).replace('{name}', form.description) : tt(T.menge)}
           className="h-7 text-xs text-right" step="0.5" min="0" />
       </td>
       <td className="py-1.5 px-2 w-28">
         <div className="relative">
           <Input type="number" value={(form.unit_price_cents || 0) / 100}
-            aria-label={`Einzelpreis in Euro${form.description ? ` für ${form.description}` : ''}`}
+            aria-label={form.description ? tt(T.einzelpreisFuer).replace('{name}', form.description) : tt(T.einzelpreisEuro)}
             onChange={e => update('unit_price_cents', Math.round(Number(e.target.value) * 100))}
             className="h-7 text-xs text-right pr-5" step="0.01" />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
@@ -81,7 +84,7 @@ function BudgetLineRow({ line, onDelete }: { line: any; onDelete: () => void }) 
         {formatCurrency(total)}
       </td>
       <td className="py-1.5 pr-3 w-8">
-        <button onClick={onDelete} aria-label={`Position ${line.description || line.account_code || ''} löschen`} title="Position löschen" className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all">
+        <button onClick={onDelete} aria-label={tt(T.positionLoeschenN).replace('{name}', line.description || line.account_code || '')} title={tt(T.positionLoeschen)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </td>
@@ -92,6 +95,7 @@ function BudgetLineRow({ line, onDelete }: { line: any; onDelete: () => void }) 
 function FinancingRow({ entry, total, onDelete }: { entry: any; total: number; onDelete: () => void }) {
   const [form, setForm] = useState(entry)
   const queryClient = useQueryClient()
+  const tt = useT()
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.financing.updateEntry(entry.id, data),
@@ -111,15 +115,15 @@ function FinancingRow({ entry, total, onDelete }: { entry: any; total: number; o
     <tr className="border-b border-border/20 hover:bg-muted/10 group">
       <td className="py-2 pl-4 pr-2">
         <Input value={form.source || ''} onChange={e => update('source', e.target.value)}
-          aria-label="Geldgeber oder Quelle"
+          aria-label={tt(T.geldgeberQuelle)}
           className="h-7 text-sm border-0 bg-transparent focus-visible:ring-1" />
       </td>
       <td className="py-2 px-2 w-32">
         <Select value={form.type || 'Förderung'} onValueChange={v => update('type', v)}>
-          <SelectTrigger aria-label="Einheit" className="h-7 text-xs"><SelectValue /></SelectTrigger>
+          <SelectTrigger aria-label={tt(T.einheit)} className="h-7 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             {['Förderung regional', 'Förderung national', 'Sender', 'Eigenmittel', 'Co-Produktion', 'Vertrieb', 'Sonstiges'].map(t => (
-              <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
+              <SelectItem key={t} value={t} className="text-xs">{FINANZIERUNGSART_TEXT[t] ? tt(FINANZIERUNGSART_TEXT[t]) : t}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -127,7 +131,7 @@ function FinancingRow({ entry, total, onDelete }: { entry: any; total: number; o
       <td className="py-2 px-2 w-36">
         <div className="relative">
           <Input type="number" value={(form.amount_cents || 0) / 100}
-            aria-label={`Betrag in Euro${form.source ? ` von ${form.source}` : ''}`}
+            aria-label={form.source ? tt(T.betragVon).replace('{name}', form.source) : tt(T.betragEuro)}
             onChange={e => update('amount_cents', Math.round(Number(e.target.value) * 100))}
             className="h-7 text-sm text-right font-mono pr-5" />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
@@ -137,11 +141,11 @@ function FinancingRow({ entry, total, onDelete }: { entry: any; total: number; o
       <td className="py-2 px-2 w-20">
         <button onClick={() => update('confirmed', !form.confirmed)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
           {form.confirmed ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Circle className="w-4 h-4" />}
-          {form.confirmed ? 'Bestätigt' : 'Offen'}
+          {form.confirmed ? tt(T.bestaetigt) : tt(T.offen)}
         </button>
       </td>
       <td className="py-2 pr-3 w-8">
-        <button onClick={onDelete} aria-label="Finanzierungsposten löschen" title="Posten löschen" className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
+        <button onClick={onDelete} aria-label={tt(T.finPostenLoeschen)} title={tt(T.postenLoeschen)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </td>
@@ -155,6 +159,7 @@ export function Component() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const download = useDownload()
+  const tt = useT()
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
   const [selectedFinVersionId, setSelectedFinVersionId] = useState<number | null>(null)
   const [newCategory, setNewCategory] = useState(CATEGORIES[0])
@@ -188,7 +193,7 @@ export function Component() {
 
   const createLine = useMutation({
     mutationFn: (category: string) => api.budget.createLine(selectedVersionId!, {
-      category, description: 'Neue Position', unit: 'Pauschal', quantity: 1, unit_price_cents: 0
+      category, description: 'Neue Position', unit: 'Pauschal', quantity: 1, unit_price_cents: 0 // texte-ok
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budget-lines', selectedVersionId] })
@@ -220,7 +225,7 @@ export function Component() {
   const grouped = (lines || []).reduce((acc: Record<string, any[]>, line: any) => {
     const cat = line.category || 'Sonstiges'
     if (!acc[cat]) acc[cat] = []
-    acc[cat].push(line)
+    acc[cat].push(line) // texte-ok
     return acc
   }, {} as Record<string, any[]>)
 
@@ -255,7 +260,7 @@ export function Component() {
   const kostenVorschau = useMutation({
     mutationFn: () => api.budget.kostenUebernehmen(selectedVersionId!, true),
     onSuccess: setVorschau,
-    onError: (e: any) => toast({ variant: 'destructive', title: 'Fehler', description: e.message }),
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(T.fehler), description: e.message }),
   })
   const kostenUebernehmen = useMutation({
     mutationFn: () => api.budget.kostenUebernehmen(selectedVersionId!, false),
@@ -263,48 +268,48 @@ export function Component() {
       setVorschau(null)
       queryClient.invalidateQueries({ queryKey: ['budget-lines', selectedVersionId] })
       queryClient.invalidateQueries({ queryKey: ['budget-versions', pid] })
-      toast({ title: 'Kosten übernommen',
-        description: `${r.neu} neu, ${r.geaendert} aktualisiert, ${r.entfallen} entfernt.` })
+      toast({ title: tt(T.kostenUebernommen),
+        description: tt(T.kostenErgebnis).replace('{neu}', String(r.neu)).replace('{geaendert}', String(r.geaendert)).replace('{entfallen}', String(r.entfallen)) })
     },
-    onError: (e: any) => toast({ variant: 'destructive', title: 'Fehler', description: e.message }),
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(T.fehler), description: e.message }),
   })
 
   return (
     <div className="px-5 py-6 sm:p-6 max-w-6xl mx-auto space-y-4">
-      <PageHeader title="Kalkulation & Finanzierung" subtitle="Budget und Finanzierungsplan" />
+      <PageHeader title={tt(T.titel)} subtitle={tt(T.untertitel)} />
 
       {vorschau && (
         <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4">
-          <p className="font-semibold text-sm">Das würde sich ändern</p>
+          <p className="font-semibold text-sm">{tt(T.vorschauTitel)}</p>
           <p className="text-[13px] text-muted-foreground mt-1">
-            {vorschau.neu} neue {vorschau.neu === 1 ? 'Position' : 'Positionen'},{' '}
-            {vorschau.geaendert} aktualisiert, {vorschau.entfallen} entfernt,{' '}
-            {vorschau.unveraendert} unverändert. Summe aus den Quellen:{' '}
+            {tt(vorschau.neu === 1 ? T.vorschauEine : T.vorschauMehrere)
+              .replace('{neu}', String(vorschau.neu))
+              .replace('{geaendert}', String(vorschau.geaendert))
+              .replace('{entfallen}', String(vorschau.entfallen))
+              .replace('{unveraendert}', String(vorschau.unveraendert))}{' '}
             <b>{formatCurrency(vorschau.summe_cent)}</b>.
           </p>
           <p className="text-[12px] text-muted-foreground/80 mt-2 leading-relaxed">
-            Von Hand eingetragene Positionen bleiben unangetastet. Übernommene Positionen
-            werden beim nächsten Lauf aktualisiert statt doppelt angelegt.
+            {tt(T.vorschauHinweis)}
           </p>
           {vorschau.ohne_drehtag?.length > 0 && (
             <p className="text-[12px] text-warning mt-2 leading-relaxed">
-              Ohne Position, weil auf keiner Tagesdispo:{' '}
-              {vorschau.ohne_drehtag.join(', ')}. Erst eintragen, dann erneut übernehmen.
+              {tt(T.ohneDrehtag).replace('{namen}', vorschau.ohne_drehtag.join(', '))}
             </p>
           )}
           <div className="flex gap-2 mt-3">
             <Button size="sm" onClick={() => kostenUebernehmen.mutate()} disabled={kostenUebernehmen.isPending}>
-              Übernehmen
+              {tt(T.uebernehmen)}
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setVorschau(null)}>Abbrechen</Button>
+            <Button size="sm" variant="ghost" onClick={() => setVorschau(null)}>{tt(T.abbrechen)}</Button>
           </div>
         </div>
       )}
 
       <Tabs defaultValue="kalkulation">
         <TabsList>
-          <TabsTrigger value="kalkulation" className="gap-2"><List className="w-4 h-4" />Kalkulation</TabsTrigger>
-          <TabsTrigger value="finanzierung" className="gap-2"><PieChart className="w-4 h-4" />Finanzierungsplan</TabsTrigger>
+          <TabsTrigger value="kalkulation" className="gap-2"><List className="w-4 h-4" />{tt(T.kalkulation)}</TabsTrigger>
+          <TabsTrigger value="finanzierung" className="gap-2"><PieChart className="w-4 h-4" />{tt(T.finanzierungsplan)}</TabsTrigger>
         </TabsList>
 
         {/* ── KALKULATION ── */}
@@ -315,7 +320,7 @@ export function Component() {
             <div className="flex items-center gap-2">
               {versions && versions.length > 0 && (
                 <Select value={String(selectedVersionId)} onValueChange={v => setSelectedVersionId(Number(v))}>
-                  <SelectTrigger aria-label="Kalkulationsfassung wählen" className="w-full sm:w-52 h-8"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={tt(T.fassungWaehlen)} className="w-full sm:w-52 h-8"><SelectValue /></SelectTrigger>
                   <SelectContent>{versions.map((v: any) => <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>)}</SelectContent>
                 </Select>
               )}
@@ -324,16 +329,16 @@ export function Component() {
               <span className="text-lg font-bold">{formatCurrency(totalBudget)}</span>
               <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 <Select value={newCategory} onValueChange={setNewCategory}>
-                  <SelectTrigger aria-label="Kategorie wählen" className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={tt(T.kategorieWaehlen)} className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
                 </Select>
                 <Button size="sm" onClick={() => createLine.mutate(newCategory)} disabled={!selectedVersionId || createLine.isPending}>
-                  <Plus className="w-4 h-4 mr-1" />Position
+                  <Plus className="w-4 h-4 mr-1" />{tt(T.position)}
                 </Button>
                 {selectedVersionId && (
                   <Button variant="outline" size="sm" onClick={() => kostenVorschau.mutate()}
                     disabled={kostenVorschau.isPending || kostenUebernehmen.isPending}>
-                    <Wand2 className="w-4 h-4 mr-1" />Kosten übernehmen
+                    <Wand2 className="w-4 h-4 mr-1" />{tt(T.kostenUebernehmen)}
                   </Button>
                 )}
                 {selectedVersionId && (
@@ -341,9 +346,9 @@ export function Component() {
                       <Download className="w-4 h-4 mr-1" />PDF
                     </Button>
                 )}
-                <Button variant="outline" size="sm" title="Projektdaten, Kalkulation und Finanzierungsplan gebündelt für den Förderantrag"
+                <Button variant="outline" size="sm" title={tt(T.foerderTitel)}
                   onClick={() => download(api.foerderantrag.pdf(pid), 'foerderantrag.pdf')}>
-                  <Download className="w-4 h-4 mr-1" />Förderantrag
+                  <Download className="w-4 h-4 mr-1" />{tt(T.foerderantrag)}
                 </Button>
               </div>
             </div>
@@ -362,7 +367,7 @@ export function Component() {
               ))}
               {totalBudget > 0 && (
                 <div className="flex items-center justify-between text-sm p-2 rounded bg-primary/20 font-bold mt-2">
-                  <span>Gesamt</span>
+                  <span>{tt(T.gesamt)}</span>
                   <span className="font-mono">{formatCurrency(totalBudget)}</span>
                 </div>
               )}
@@ -376,12 +381,12 @@ export function Component() {
                 <table className="w-full border rounded-lg overflow-hidden min-w-[560px]">
                   <thead className="bg-muted/30">
                     <tr className="text-xs text-muted-foreground">
-                      <th className="text-left py-2 pl-4 w-8">Kto</th>
-                      <th className="text-left py-2 px-2">Beschreibung</th>
-                      <th className="text-left py-2 px-2 w-24">Einheit</th>
-                      <th className="text-right py-2 px-2 w-16">Menge</th>
-                      <th className="text-right py-2 px-2 w-28">Einzelpreis</th>
-                      <th className="text-right py-2 px-2 w-28">Gesamt</th>
+                      <th className="text-left py-2 pl-4 w-8">{tt(T.kto)}</th>
+                      <th className="text-left py-2 px-2">{tt(T.beschreibung)}</th>
+                      <th className="text-left py-2 px-2 w-24">{tt(T.einheit)}</th>
+                      <th className="text-right py-2 px-2 w-16">{tt(T.menge)}</th>
+                      <th className="text-right py-2 px-2 w-28">{tt(T.einzelpreis)}</th>
+                      <th className="text-right py-2 px-2 w-28">{tt(T.gesamt)}</th>
                       <th className="w-8" />
                     </tr>
                   </thead>
@@ -399,13 +404,13 @@ export function Component() {
                       </Fragment>
                     ))}
                     {(!lines || lines.length === 0) && (
-                      <tr><td colSpan={7} className="py-8 text-center text-muted-foreground text-sm">Noch keine Positionen. Wähle eine Kategorie und klicke „Position".</td></tr>
+                      <tr><td colSpan={7} className="py-8 text-center text-muted-foreground text-sm">{tt(T.keinePositionen)}</td></tr>
                     )}
                   </tbody>
                   {lines && lines.length > 0 && (
                     <tfoot className="sticky bottom-0 bg-card border-t-2 border-border shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
                       <tr>
-                        <td colSpan={5} className="py-2.5 pl-4 text-sm font-bold uppercase tracking-wide">Gesamtbudget</td>
+                        <td colSpan={5} className="py-2.5 pl-4 text-sm font-bold uppercase tracking-wide">{tt(T.gesamtbudget)}</td>
                         <td className="py-2.5 pr-4 text-right font-mono text-base font-black text-primary">{formatCurrency(totalBudget)}</td>
                         <td />
                       </tr>
@@ -422,14 +427,14 @@ export function Component() {
           <div className="flex items-center justify-between">
             {finVersions && finVersions.length > 0 && (
               <Select value={String(selectedFinVersionId)} onValueChange={v => setSelectedFinVersionId(Number(v))}>
-                <SelectTrigger aria-label="Finanzierungsfassung wählen" className="w-52 h-8"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label={tt(T.finFassungWaehlen)} className="w-52 h-8"><SelectValue /></SelectTrigger>
                 <SelectContent>{finVersions.map((v: any) => <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>)}</SelectContent>
               </Select>
             )}
             <div className="flex items-center gap-3">
               <span className="text-lg font-bold">{formatCurrency(finTotal)}</span>
               <Button size="sm" onClick={() => createFinEntry.mutate()} disabled={!selectedFinVersionId || createFinEntry.isPending}>
-                <Plus className="w-4 h-4 mr-1" />Geldgeber
+                <Plus className="w-4 h-4 mr-1" />{tt(T.geldgeber)}
               </Button>
             </div>
           </div>
@@ -447,7 +452,7 @@ export function Component() {
                         <span className="font-mono shrink-0 ml-2">{formatCurrency(e.amount_cents)}</span>
                       </div>
                       <Progress value={pct} className="h-1.5" />
-                      <p className="text-xs text-muted-foreground mt-0.5">{pct.toFixed(1)}% · {e.type}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{pct.toFixed(1)}% · {FINANZIERUNGSART_TEXT[e.type] ? tt(FINANZIERUNGSART_TEXT[e.type]) : e.type}</p>
                     </div>
                   </div>
                 )
@@ -460,11 +465,11 @@ export function Component() {
               <table className="w-full border rounded-lg overflow-hidden min-w-[560px]">
                 <thead className="bg-muted/30">
                   <tr className="text-xs text-muted-foreground">
-                    <th className="text-left py-2 pl-4">Geldgeber / Quelle</th>
-                    <th className="text-left py-2 px-2 w-40">Typ</th>
-                    <th className="text-right py-2 px-2 w-36">Betrag</th>
-                    <th className="text-right py-2 px-2 w-16">Anteil</th>
-                    <th className="text-left py-2 px-2 w-24">Status</th>
+                    <th className="text-left py-2 pl-4">{tt(T.geldgeberSpalte)}</th>
+                    <th className="text-left py-2 px-2 w-40">{tt(T.typ)}</th>
+                    <th className="text-right py-2 px-2 w-36">{tt(T.betrag)}</th>
+                    <th className="text-right py-2 px-2 w-16">{tt(T.anteil)}</th>
+                    <th className="text-left py-2 px-2 w-24">{tt(T.status)}</th>
                     <th className="w-8" />
                   </tr>
                 </thead>
@@ -473,13 +478,13 @@ export function Component() {
                     <FinancingRow key={e.id} entry={e} total={finTotal} onDelete={() => deleteFinEntry.mutate(e.id)} />
                   ))}
                   {(!finEntries || finEntries.length === 0) && (
-                    <tr><td colSpan={6} className="py-8 text-center text-muted-foreground text-sm">Noch keine Einträge.</td></tr>
+                    <tr><td colSpan={6} className="py-8 text-center text-muted-foreground text-sm">{tt(T.keineEintraege)}</td></tr>
                   )}
                 </tbody>
                 {finEntries && finEntries.length > 0 && (
                   <tfoot className="bg-muted/30">
                     <tr>
-                      <td colSpan={2} className="py-2 pl-4 text-sm font-semibold">Gesamt</td>
+                      <td colSpan={2} className="py-2 pl-4 text-sm font-semibold">{tt(T.gesamt)}</td>
                       <td className="py-2 px-2 text-right font-mono font-bold">{formatCurrency(finTotal)}</td>
                       <td className="py-2 px-2 text-right text-sm font-mono">100%</td>
                       <td colSpan={2} />

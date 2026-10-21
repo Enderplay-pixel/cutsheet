@@ -6,6 +6,8 @@ import { Calendar, Clock, Trash2, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { useDownload } from '@/lib/useDownload'
+import { useT } from '@/lib/useT'
+import { shootDayColumnT, drehtagStatusT } from '@/lib/texte/komponenten/Drehplan'
 
 interface ShootDayColumnProps {
   day: any
@@ -16,6 +18,7 @@ interface ShootDayColumnProps {
 
 export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange }: ShootDayColumnProps) {
   const download = useDownload()
+  const tt = useT()
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${day.id}`,
     data: { type: 'day', dayId: day.id },
@@ -31,18 +34,18 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
         'flex flex-col shrink-0 w-[200px] border rounded-lg overflow-hidden',
         isSperrtag ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-border bg-card'
       )}
-      aria-label={`Drehtag ${day.day_number}: ${formatDate(day.date)}`}
+      aria-label={tt(shootDayColumnT.drehtagDatum).replace('{n}', String(day.day_number)).replace('{d}', formatDate(day.date))}
     >
       {/* Header */}
       <div className={cn('px-3 py-2 border-b border-border', isSperrtag && 'bg-yellow-500/10')}>
         <div className="flex items-center justify-between mb-1">
-          <span className="font-semibold text-sm">Tag {day.day_number}</span>
+          <span className="font-semibold text-sm">{tt(shootDayColumnT.tagN).replace('{n}', String(day.day_number))}</span>
           <Button
             variant="ghost"
             size="icon"
             className="h-5 w-5 opacity-50 hover:opacity-100 hover:text-destructive"
             onClick={() => onDeleteDay(day.id)}
-            aria-label={`Drehtag ${day.day_number} löschen`}
+            aria-label={tt(shootDayColumnT.loeschen).replace('{n}', String(day.day_number))}
           >
             <Trash2 className="w-3 h-3" aria-hidden="true" />
           </Button>
@@ -54,33 +57,33 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
         <select
           value={day.status}
           onChange={(e) => onStatusChange(day.id, e.target.value)}
-          aria-label={`Status für Drehtag ${day.day_number}`}
+          aria-label={tt(shootDayColumnT.statusFuer).replace('{n}', String(day.day_number))}
           className={cn(
             'w-full text-xs rounded px-1 py-0.5 border border-input bg-input',
             isSperrtag && 'text-yellow-400'
           )}
         >
           {['Geplant', 'Bestätigt', 'Abgedreht', 'Ausgefallen', 'Sperrtag'].map(s => (
-            <option key={s} value={s}>{s}</option>
+            <option key={s} value={s}>{tt(drehtagStatusT[s])}</option>
           ))}
         </select>
 
         {/* Summary */}
         <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
-          <span>{day.scenes?.length || 0} Sz.</span>
+          <span>{tt(shootDayColumnT.szAbk).replace('{n}', String(day.scenes?.length || 0))}</span>
           <span>·</span>
           <Clock className={cn('w-2.5 h-2.5', totalEighths > 96 ? 'text-red-500' : totalEighths > 80 ? 'text-amber-500' : '')} aria-hidden="true" />
           <span className={cn(
             'font-mono',
             totalEighths > 96 ? 'text-red-500 font-bold' : totalEighths > 80 ? 'text-amber-500' : ''
           )}>{eighthsToString(totalEighths)}</span>
-          {totalEighths > 80 && <span title={totalEighths > 96 ? 'Überladen! >12 Seiten' : 'Vorsicht: >10 Seiten'}>⚠</span>}
+          {totalEighths > 80 && <span title={totalEighths > 96 ? tt(shootDayColumnT.ueberladen) : tt(shootDayColumnT.vorsicht)}>⚠</span>}
           <button
             type="button"
             onClick={() => download(api.morningBrief.pdf(day.id), `morning-brief-drehtag-${day.day_number}.pdf`)}
             className="ml-auto flex items-center gap-0.5 text-muted-foreground/60 hover:text-primary transition-colors"
-            title="Morning Brief PDF"
-            aria-label={`Morning Brief für Drehtag ${day.day_number} herunterladen`}
+            title={tt(shootDayColumnT.morningBriefPdf)}
+            aria-label={tt(shootDayColumnT.morningBriefDl).replace('{n}', String(day.day_number))}
           >
             <FileText className="w-2.5 h-2.5" aria-hidden="true" />
           </button>
@@ -95,21 +98,21 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
           isOver && 'bg-primary/10',
           isSperrtag && 'opacity-50 pointer-events-none'
         )}
-        aria-label={isSperrtag ? `Sperrtag ${day.day_number}` : `Szenen für Drehtag ${day.day_number}`}
+        aria-label={isSperrtag ? tt(shootDayColumnT.sperrtagN).replace('{n}', String(day.day_number)) : tt(shootDayColumnT.szenenFuer).replace('{n}', String(day.day_number))}
       >
         {isSperrtag ? (
-          <div className="flex items-center justify-center h-full text-xs text-yellow-400 italic">Sperrtag</div>
+          <div className="flex items-center justify-center h-full text-xs text-yellow-400 italic">{tt(drehtagStatusT.Sperrtag)}</div>
         ) : (
           <SortableContext items={sceneIds} strategy={verticalListSortingStrategy}>
             {(day.scenes || []).length === 0 ? (
               <div
                 className="flex items-center justify-center h-full text-xs text-muted-foreground italic"
-                aria-label="Keine Szenen - Szenen hierhin ziehen"
+                aria-label={tt(shootDayColumnT.keineSzenen)}
               >
-                Szenen hierhin ziehen
+                {tt(shootDayColumnT.hierhinZiehen)}
               </div>
             ) : (
-              <div role="list" aria-label={`Szenen an Drehtag ${day.day_number}`}>
+              <div role="list" aria-label={tt(shootDayColumnT.szenenAn).replace('{n}', String(day.day_number))}>
                 {(day.scenes || []).map((scene: any) => (
                   <SceneStrip
                     key={scene.scene_id}

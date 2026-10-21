@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/useT'
+import { testversionT } from '@/lib/texte/komponenten/Shared'
 
 /**
  * Kennzeichnet eine Testversion (Server mit CUTSHEET_TESTVERSION=1), damit
@@ -21,6 +23,7 @@ export function useTestversion() {
 
 export function TestversionBadge({ className }: { className?: string }) {
   const aktiv = useTestversion()
+  const tt = useT()
   if (!aktiv) return null
   return (
     <span
@@ -28,9 +31,9 @@ export function TestversionBadge({ className }: { className?: string }) {
         'inline-flex items-center rounded-full bg-orange-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-orange-500 leading-none',
         className,
       )}
-      title="Testversion vor dem Launch - Daten können zurückgesetzt werden"
+      title={tt(testversionT.hinweis)}
     >
-      Test
+      {tt(testversionT.test)}
     </span>
   )
 }

@@ -2,6 +2,8 @@ import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Scissors } from 'lucide-react'
+import { useT } from '@/lib/useT'
+import { creatorClipsT as T } from '@/lib/texte/CreatorClips'
 import {
   BereichKopf, Kennzahlen, BereichLaden, NichtsDa, VideoLink, Marke, BereichTabelle,
 } from '@/components/creator/BereichLayout'
@@ -15,6 +17,7 @@ function zeit(sekunden: number): string {
 export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
+  const tt = useT()
   const { data, isLoading } = useQuery({
     queryKey: ['creator-clips', pid],
     queryFn: () => api.creator.clipsUebersicht(pid),
@@ -28,15 +31,15 @@ export function Component() {
     <div className="page-container animate-fade-up">
       <BereichKopf
         symbol={Scissors}
-        titel="Auskopplungen"
-        untertitel="Shorts, Reels und Clips aus den Langvideos - über den ganzen Kanal"
+        titel={tt(T.titel)}
+        untertitel={tt(T.untertitel)}
       />
 
       <Kennzahlen werte={[
-        { label: 'Auskopplungen', wert: data?.gesamt ?? 0 },
-        { label: 'Mit Beanstandung', wert: data?.mit_problemen ?? 0, warnung: true },
+        { label: tt(T.auskopplungen), wert: data?.gesamt ?? 0 },
+        { label: tt(T.mitBeanstandung), wert: data?.mit_problemen ?? 0, warnung: true },
         {
-          label: 'Länge gesamt',
+          label: tt(T.laengeGesamt),
           wert: liste.length ? zeit(liste.reduce((n: number, c: any) => n + c.dauer, 0)) : null,
         },
       ]} />
@@ -44,13 +47,13 @@ export function Component() {
       {liste.length === 0 ? (
         <NichtsDa
           symbol={Scissors}
-          titel="Noch keine Auskopplungen"
-          text="Clips werden beim jeweiligen Langvideo markiert. Hier stehen sie zusammen - mit Prüfung auf Länge und sinnvolle Grenzen."
+          titel={tt(T.leerTitel)}
+          text={tt(T.leerText)}
         />
       ) : (
         <BereichTabelle
           minBreite={720}
-          kopf={<tr><th>Clip</th><th>aus Video</th><th>Plattform</th><th className="text-right">Start</th><th className="text-right">Dauer</th><th>Status</th><th>Beanstandung</th></tr>}
+          kopf={<tr><th>{tt(T.spalteClip)}</th><th>{tt(T.spalteAusVideo)}</th><th>{tt(T.spaltePlattform)}</th><th className="text-right">{tt(T.spalteStart)}</th><th className="text-right">{tt(T.spalteDauer)}</th><th>{tt(T.spalteStatus)}</th><th>{tt(T.spalteBeanst)}</th></tr>}
         >
           {liste.map((c: any) => (
             <tr key={c.id} className={c.probleme.length ? 'bg-warning/5' : undefined}>

@@ -7,10 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Undo2, Trash2 } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { papierkorbT as p } from '@/lib/texte/Papierkorb'
 
-const zeitpunkt = (wert: string) =>
-  wert
-    ? new Date(wert).toLocaleString('de-DE', {
+const zeitpunkt = (wert: string, gebietsschema: string) =>
+  wert // texte-ok
+    ? new Date(wert).toLocaleString(gebietsschema, {
         day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
       })
     : ''
@@ -20,6 +22,8 @@ export function Component() {
   const pid = Number(projectId)
   const qc = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
+  const gebietsschema = useGebietsschema()
 
   const { data } = useQuery({
     queryKey: ['papierkorb', pid],
@@ -32,12 +36,12 @@ export function Component() {
       // Alles neu laden: Der Eintrag kann in jeder Liste auftauchen.
       qc.invalidateQueries()
       toast({
-        title: `${ergebnis.tabelle} zurückgeholt`,
-        description: ergebnis.titel ? `„${ergebnis.titel}" steht wieder an seinem Platz.` : undefined,
+        title: tt(p.zurueckgeholt).replace('{tabelle}', ergebnis.tabelle),
+        description: ergebnis.titel ? tt(p.wiederDa).replace('{titel}', ergebnis.titel) : undefined,
       })
     },
     onError: (fehler: any) =>
-      toast({ title: 'Nicht zurückgeholt', description: fehler.message, variant: 'destructive' }),
+      toast({ title: tt(p.nichtZurueck), description: fehler.message, variant: 'destructive' }),
   })
 
   const eintraege = data?.eintraege || []
@@ -45,14 +49,14 @@ export function Component() {
   return (
     <div className="px-5 py-6 sm:p-6 max-w-3xl mx-auto space-y-4">
       <PageHeader
-        title="Papierkorb"
-        subtitle={`Gelöschtes bleibt ${data?.aufbewahrung_tage ?? 30} Tage liegen`}
+        title={tt(p.titel)}
+        subtitle={tt(p.untertitel).replace('{n}', String(data?.aufbewahrung_tage ?? 30))}
       />
 
       <Card>
         <CardHeader className="pb-2 pt-3">
           <CardTitle className="text-sm flex items-center gap-2">
-            Gelöscht
+            {tt(p.geloescht)}
             {eintraege.length > 0 && (
               <Badge variant="secondary" className="text-xs font-normal">{eintraege.length}</Badge>
             )}
@@ -68,7 +72,7 @@ export function Component() {
                   {eintrag.label ? ` · ${eintrag.label}` : ''}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {zeitpunkt(eintrag.deleted_at)}
+                  {zeitpunkt(eintrag.deleted_at, gebietsschema)}
                   {eintrag.geloescht_von ? ` · ${eintrag.geloescht_von}` : ''}
                 </p>
               </div>
@@ -79,15 +83,14 @@ export function Component() {
                 disabled={zurueckholen.isPending}
                 onClick={() => zurueckholen.mutate(eintrag.id)}
               >
-                <Undo2 className="w-3.5 h-3.5 mr-1" />Zurückholen
+                <Undo2 className="w-3.5 h-3.5 mr-1" />{tt(p.zurueckholen)}
               </Button>
             </div>
           ))}
 
           {eintraege.length === 0 && (
             <p className="text-sm text-muted-foreground py-6 text-center">
-              Nichts gelöscht. Was hier landet, lässt sich zurückholen - mit derselben
-              Kennung, sodass Drehplan, Dispo und Zeiten wieder daran hängen.
+              {tt(p.leer)}
             </p>
           )}
         </CardContent>

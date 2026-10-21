@@ -7,8 +7,15 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
 import { Plus, Trash2, Pencil, Check, X, Users } from 'lucide-react'
+import type { Lang } from '@/lib/i18n'
+import { useT } from '@/lib/useT'
+import { komparsenT as k } from '@/lib/texte/Komparsen'
 
 const TARIFGRUPPEN = ['T1', 'T2', 'T3', 'T4', 'Sonstige']
+
+/** 'Sonstige' ist ein gespeicherter Wert - nur die Beschriftung wird übersetzt. */
+const tarifLabel = (gruppe: string, tt: (map: Record<Lang, string>) => string) =>
+  gruppe === 'Sonstige' ? tt(k.sonstige) : gruppe
 
 interface Extra {
   id: number
@@ -24,14 +31,15 @@ const EMPTY_EXTRA: Omit<Extra, 'id'> = { name: '', telefon: '', email: '', tarif
 function ExtraRow({ extra, pid, onEdit }: { extra: Extra; pid: number; onEdit: (e: Extra) => void }) {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
 
   const deleteMutation = useMutation({
     mutationFn: () => api.extras.delete(pid, extra.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['extras', pid] })
-      toast({ title: 'Komparse gelöscht' })
+      toast({ title: tt(k.geloescht) })
     },
-    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Löschen' }),
+    onError: () => toast({ variant: 'destructive', title: tt(k.fehlerLoeschen) }),
   })
 
   return (
@@ -41,7 +49,7 @@ function ExtraRow({ extra, pid, onEdit }: { extra: Extra; pid: number; onEdit: (
       <td className="py-2.5 px-4 text-sm text-muted-foreground">{extra.email || '-'}</td>
       <td className="py-2.5 px-4">
         <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-          {extra.tarifgruppe || '-'}
+          {extra.tarifgruppe ? tarifLabel(extra.tarifgruppe, tt) : '-'}
         </span>
       </td>
       <td className="py-2.5 px-4 text-sm text-muted-foreground max-w-xs truncate">{extra.notizen || '-'}</td>
@@ -50,7 +58,7 @@ function ExtraRow({ extra, pid, onEdit }: { extra: Extra; pid: number; onEdit: (
           <button
             onClick={() => onEdit(extra)}
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-            title="Bearbeiten"
+            title={tt(k.bearbeiten)}
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
@@ -58,7 +66,7 @@ function ExtraRow({ extra, pid, onEdit }: { extra: Extra; pid: number; onEdit: (
             onClick={() => deleteMutation.mutate()}
             disabled={deleteMutation.isPending}
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-destructive"
-            title="Löschen"
+            title={tt(k.loeschen)}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -79,19 +87,20 @@ function ExtraFormRow({
 }) {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
   const [form, setForm] = useState(initial ? { ...initial } : { ...EMPTY_EXTRA })
 
   const saveMutation = useMutation({
     mutationFn: () =>
-      initial
+      initial // texte-ok
         ? api.extras.update(pid, initial.id, form)
         : api.extras.create(pid, form),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['extras', pid] })
-      toast({ title: initial ? 'Komparse aktualisiert' : 'Komparse hinzugefügt' })
+      toast({ title: initial ? tt(k.aktualisiert) : tt(k.hinzugefuegt) })
       onDone()
     },
-    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Speichern' }),
+    onError: () => toast({ variant: 'destructive', title: tt(k.fehlerSpeichern) }),
   })
 
   const set = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }))
@@ -100,34 +109,34 @@ function ExtraFormRow({
 
   return (
     <tr className="border-b border-primary/20 bg-primary/5">
-      <td className={colClass}><Input className={inputClass} placeholder="Name" value={form.name} onChange={e => set('name', e.target.value)} /></td>
+      <td className={colClass}><Input className={inputClass} placeholder={tt(k.name)} value={form.name} onChange={e => set('name', e.target.value)} /></td>
       <td className={colClass}><Input className={inputClass} placeholder="+49…" value={form.telefon} onChange={e => set('telefon', e.target.value)} /></td>
-      <td className={colClass}><Input className={inputClass} placeholder="email@…" type="email" value={form.email} onChange={e => set('email', e.target.value)} /></td>
+      <td className={colClass}><Input className={inputClass} placeholder={tt(k.mailPlatzh)} type="email" value={form.email} onChange={e => set('email', e.target.value)} /></td>
       <td className={colClass}>
         <Select value={form.tarifgruppe} onValueChange={v => set('tarifgruppe', v)}>
           <SelectTrigger className="h-7 text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {TARIFGRUPPEN.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            {TARIFGRUPPEN.map(t => <SelectItem key={t} value={t}>{tarifLabel(t, tt)}</SelectItem>)}
           </SelectContent>
         </Select>
       </td>
-      <td className={colClass}><Input className={inputClass} placeholder="Notizen…" value={form.notizen} onChange={e => set('notizen', e.target.value)} /></td>
+      <td className={colClass}><Input className={inputClass} placeholder={tt(k.notizenPlatzh)} value={form.notizen} onChange={e => set('notizen', e.target.value)} /></td>
       <td className="py-1.5 px-3">
         <div className="flex items-center gap-1 justify-end">
           <button
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending || !form.name.trim()}
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-green-500 disabled:opacity-40"
-            title="Speichern"
+            title={tt(k.speichern)}
           >
             <Check className="w-4 h-4" />
           </button>
           <button
             onClick={onDone}
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground"
-            title="Abbrechen"
+            title={tt(k.abbrechen)}
           >
             <X className="w-4 h-4" />
           </button>
@@ -143,6 +152,7 @@ export function Component() {
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [filterTarif, setFilterTarif] = useState<string>('alle')
+  const tt = useT()
 
   const { data: extras = [], isLoading } = useQuery({
     queryKey: ['extras', pid],
@@ -160,24 +170,24 @@ export function Component() {
         <div className="flex items-center gap-3 flex-wrap">
           <Users className="w-5 h-5 text-muted-foreground" />
           <div>
-            <h1 className="font-display text-[28px] sm:text-[34px]">Komparsen</h1>
-            <p className="text-sm text-muted-foreground">{extras.length} Einträge</p>
+            <h1 className="font-display text-[28px] sm:text-[34px]">{tt(k.titel)}</h1>
+            <p className="text-sm text-muted-foreground">{tt(k.eintraege).replace('{n}', String(extras.length))}</p>
           </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {/* Tarif filter */}
           <Select value={filterTarif} onValueChange={setFilterTarif}>
             <SelectTrigger className="h-9 w-36 text-sm">
-              <SelectValue placeholder="Tarifgruppe" />
+              <SelectValue placeholder={tt(k.tarifgruppe)} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="alle">Alle Gruppen</SelectItem>
-              {TARIFGRUPPEN.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              <SelectItem value="alle">{tt(k.alleGruppen)}</SelectItem>
+              {TARIFGRUPPEN.map(t => <SelectItem key={t} value={t}>{tarifLabel(t, tt)}</SelectItem>)}
             </SelectContent>
           </Select>
           <Button onClick={() => { setAdding(true); setEditingId(null) }} disabled={adding}>
             <Plus className="w-4 h-4 mr-2" />
-            Komparse hinzufügen
+            {tt(k.hinzufuegen)}
           </Button>
         </div>
       </div>
@@ -189,11 +199,11 @@ export function Component() {
             <table className="w-full min-w-[560px]">
               <thead>
                 <tr className="border-b border-border/60 bg-muted/30">
-                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name</th>
-                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Telefon</th>
-                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">E-Mail</th>
-                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tarifgruppe</th>
-                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notizen</th>
+                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(k.name)}</th>
+                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(k.telefon)}</th>
+                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(k.email)}</th>
+                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(k.tarifgruppe)}</th>
+                  <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(k.notizen)}</th>
                   <th className="w-20" />
                 </tr>
               </thead>
@@ -215,8 +225,8 @@ export function Component() {
                   <tr>
                     <td colSpan={6} className="py-16 text-center text-muted-foreground text-sm">
                       {filterTarif === 'alle'
-                        ? 'Keine Komparsen vorhanden. Füge den ersten hinzu.'
-                        : `Keine Komparsen in Tarifgruppe ${filterTarif}.`}
+                        ? tt(k.leer)
+                        : tt(k.leerGruppe).replace('{gruppe}', tarifLabel(filterTarif, tt))}
                     </td>
                   </tr>
                 ) : (

@@ -12,6 +12,7 @@ import { TestversionBadge } from '@/components/shared/TestversionBadge'
 import { useT } from '@/lib/useT'
 import { navT } from '@/lib/i18n'
 import { isCreatorProject } from '@/lib/projectKind'
+import { sidebarT } from '@/lib/texte/komponenten/Layout'
 
 type NavItemDef = {
   label: string
@@ -144,9 +145,9 @@ export function Sidebar() {
         { label: tt(navT.activityFeed), icon: Activity, path: 'aktivitaet' },
         { label: tt(navT.search), icon: Search, path: 'suche' },
         { label: tt(navT.auditLog), icon: History, path: 'audit' },
-        { label: 'Datenschutz', icon: ShieldCheck, path: 'datenschutz' },
-        { label: 'Listen', icon: FileSpreadsheet, path: 'listen' },
-        { label: 'Papierkorb', icon: Trash2, path: 'papierkorb' },
+        { label: tt(sidebarT.datenschutz), icon: ShieldCheck, path: 'datenschutz' },
+        { label: tt(sidebarT.listen), icon: FileSpreadsheet, path: 'listen' },
+        { label: tt(sidebarT.papierkorb), icon: Trash2, path: 'papierkorb' },
       ]
     },
   ]
@@ -180,8 +181,8 @@ export function Sidebar() {
         { label: tt(navT.extras), icon: Users, path: 'komparsen' },
         { label: tt(navT.crew), icon: Briefcase, path: 'stabliste' },
         { label: tt(navT.contacts), icon: BookUser, path: 'kontakte' },
-        { label: 'Agenturen', icon: Building2, path: 'agenturen' },
-        { label: 'Verträge', icon: FileSignature, path: 'vertraege' },
+        { label: tt(sidebarT.agenturen), icon: Building2, path: 'agenturen' },
+        { label: tt(sidebarT.vertraege), icon: FileSignature, path: 'vertraege' },
       ]
     },
     {
@@ -196,10 +197,10 @@ export function Sidebar() {
         { label: tt(navT.equipment), icon: Package, path: 'equipment' },
         { label: tt(navT.equipmentCal), icon: CalendarClock, path: 'equipment-kalender' },
         { label: tt(navT.vehicles), icon: Car, path: 'fahrzeuge' },
-        { label: 'Reise und Unterkunft', icon: BedDouble, path: 'reise' },
-        { label: 'Ablage', icon: FolderOpen, path: 'ablage' },
-        { label: 'Abnahme', icon: CheckCircle2, path: 'abnahme' },
-        { label: 'Abschluss', icon: Archive, path: 'abschluss' },
+        { label: tt(sidebarT.reise), icon: BedDouble, path: 'reise' },
+        { label: tt(sidebarT.ablage), icon: FolderOpen, path: 'ablage' },
+        { label: tt(sidebarT.abnahme), icon: CheckCircle2, path: 'abnahme' },
+        { label: tt(sidebarT.abschluss), icon: Archive, path: 'abschluss' },
         { label: tt(navT.catering), icon: UtensilsCrossed, path: 'catering' },
         { label: tt(navT.budget), icon: DollarSign, path: 'budget' },
         { label: tt(navT.costStatus), icon: Wallet, path: 'kostenstand' },
@@ -243,9 +244,9 @@ export function Sidebar() {
         { label: tt(navT.activityFeed), icon: Activity, path: 'aktivitaet' },
         { label: tt(navT.search), icon: Search, path: 'suche' },
         { label: tt(navT.auditLog), icon: History, path: 'audit' },
-        { label: 'Datenschutz', icon: ShieldCheck, path: 'datenschutz' },
-        { label: 'Listen', icon: FileSpreadsheet, path: 'listen' },
-        { label: 'Papierkorb', icon: Trash2, path: 'papierkorb' },
+        { label: tt(sidebarT.datenschutz), icon: ShieldCheck, path: 'datenschutz' },
+        { label: tt(sidebarT.listen), icon: FileSpreadsheet, path: 'listen' },
+        { label: tt(sidebarT.papierkorb), icon: Trash2, path: 'papierkorb' },
       ]
     },
   ]
@@ -325,7 +326,7 @@ export function Sidebar() {
           sidebarCollapsed ? 'md:justify-center md:px-0 px-4' : 'px-4'
         )}
         onClick={() => navigate('/')}
-        aria-label="Zur Projektübersicht"
+        aria-label={tt(sidebarT.zurUebersicht)}
       >
         <AppIcon className="w-8 h-8" />
         {!sidebarCollapsed && (
@@ -339,7 +340,7 @@ export function Sidebar() {
       </button>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2" aria-label="Hauptnavigation" role="navigation">
+      <nav className="flex-1 overflow-y-auto py-3 px-2" aria-label={tt(sidebarT.hauptnavigation)} role="navigation">
         {pid ? (
           navGroups.map((group) => (
             <NavGroup
@@ -392,8 +393,8 @@ export function Sidebar() {
           <button
             onClick={toggleSidebar}
             className="w-full flex items-center justify-center h-8 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/[0.05] transition-[background-color,color,transform] duration-150 active:scale-[0.92]"
-            title={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
-            aria-label={sidebarCollapsed ? 'Sidebar erweitern' : 'Sidebar einklappen'}
+            title={sidebarCollapsed ? tt(sidebarT.erweitern) : tt(sidebarT.einklappen)}
+            aria-label={sidebarCollapsed ? tt(sidebarT.erweitern) : tt(sidebarT.einklappen)}
             aria-expanded={!sidebarCollapsed}
           >
             {sidebarCollapsed

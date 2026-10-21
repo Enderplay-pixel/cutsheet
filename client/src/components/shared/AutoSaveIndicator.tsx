@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Check, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/useT'
+import { autoSaveT } from '@/lib/texte/komponenten/AutoSaveIndicator'
 
 interface AutoSaveIndicatorProps {
   saving?: boolean
@@ -8,6 +10,7 @@ interface AutoSaveIndicatorProps {
 }
 
 export function AutoSaveIndicator({ saving, lastSaved }: AutoSaveIndicatorProps) {
+  const tt = useT()
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
@@ -22,7 +25,7 @@ export function AutoSaveIndicator({ saving, lastSaved }: AutoSaveIndicatorProps)
     return (
       <span className="flex items-center gap-1 text-xs text-muted-foreground">
         <Loader2 className="w-3 h-3 animate-spin" />
-        Speichern...
+        {tt(autoSaveT.speichern)}
       </span>
     )
   }
@@ -30,7 +33,7 @@ export function AutoSaveIndicator({ saving, lastSaved }: AutoSaveIndicatorProps)
   return (
     <span className={cn('flex items-center gap-1 text-xs text-green-500 transition-opacity duration-500', visible ? 'opacity-100' : 'opacity-0')}>
       <Check className="w-3 h-3" />
-      Gespeichert
+      {tt(autoSaveT.gespeichert)}
     </span>
   )
 }

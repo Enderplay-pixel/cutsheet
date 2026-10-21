@@ -13,13 +13,16 @@ import {
 import { cn, heuteISO } from '@/lib/utils'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
 import { feiern } from '@/lib/belohnung'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { uiT, type Lang } from '@/lib/i18n'
+import { aufgabenT as at } from '@/lib/texte/Aufgaben'
 
 // Abnahmeschleife wie bei PreProducer: offen → in Arbeit → Abnahme → erledigt
-const STATUS_META: Record<string, { label: string; icon: any; cls: string }> = {
-  offen:     { label: 'Offen',     icon: CircleDashed, cls: 'text-muted-foreground' },
-  in_arbeit: { label: 'In Arbeit', icon: CircleDot,    cls: 'text-info' },
-  abnahme:   { label: 'Abnahme',   icon: Eye,          cls: 'text-warning' },
-  erledigt:  { label: 'Erledigt',  icon: CheckCircle2, cls: 'text-success' },
+const STATUS_META: Record<string, { label: Record<Lang, string>; icon: any; cls: string }> = {
+  offen:     { label: at.statusOffen, icon: CircleDashed, cls: 'text-muted-foreground' },
+  in_arbeit: { label: at.statusInArbeit, icon: CircleDot,    cls: 'text-info' },
+  abnahme:   { label: at.statusAbnahme, icon: Eye,          cls: 'text-warning' },
+  erledigt:  { label: at.statusErledigt, icon: CheckCircle2, cls: 'text-success' },
 }
 const STATUS_ORDER = ['offen', 'in_arbeit', 'abnahme', 'erledigt']
 const nextStatus = (s: string) => STATUS_ORDER[(STATUS_ORDER.indexOf(s) + 1) % STATUS_ORDER.length]
@@ -30,6 +33,7 @@ export function Component() {
   const pid = Number(projectId)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
 
   const [newTitle, setNewTitle] = useState('')
   const [newAssignee, setNewAssignee] = useState('')
@@ -45,7 +49,7 @@ export function Component() {
   const createMutation = useMutation({
     mutationFn: () => api.tasks.create(pid, { title: newTitle, assignee: newAssignee, due_date: newDue || null }),
     onSuccess: () => { setNewTitle(''); setNewAssignee(''); setNewDue(''); invalidate() },
-    onError: (e: any) => toast({ variant: 'destructive', title: 'Fehler', description: e.message }),
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(uiT.error), description: e.message }),
   })
 
   const updateMutation = useMutation({
@@ -76,9 +80,9 @@ export function Component() {
           <CheckSquare className="w-[17px] h-[17px] text-primary" />
         </div>
         <div>
-          <h1 className="font-display text-[28px] sm:text-[34px]">Aufgaben</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">{tt(at.titel)}</h1>
           <p className="text-[12px] text-muted-foreground mt-1">
-            {open.length} offen · {done.length} erledigt
+            {tt(at.offenErledigt).replace('{offen}', String(open.length)).replace('{erledigt}', String(done.length))}
           </p>
         </div>
       </div>
@@ -91,35 +95,35 @@ export function Component() {
         <Input disabled={!darfSchreiben}
           value={newTitle}
           onChange={e => setNewTitle(e.target.value)}
-          placeholder="Neue Aufgabe - z. B. „Drehgenehmigung Stadtpark einholen“"
-          aria-label="Neue Aufgabe"
+          placeholder={tt(at.neuPlatzhalter)}
+          aria-label={tt(at.neueAufgabe)}
           className="flex-1"
         />
         <Input disabled={!darfSchreiben}
           value={newAssignee}
           onChange={e => setNewAssignee(e.target.value)}
-          placeholder="Zuständig"
-          aria-label="Zuständige Person"
+          placeholder={tt(at.zustaendig)}
+          aria-label={tt(at.zustaendigePerson)}
           className="sm:w-36"
         />
         <Input disabled={!darfSchreiben}
           type="date"
           value={newDue}
           onChange={e => setNewDue(e.target.value)}
-          aria-label="Fällig am"
+          aria-label={tt(at.faelligAm)}
           className="sm:w-40"
         />
         <Button type="submit" disabled={!newTitle.trim() || createMutation.isPending}>
-          <Plus className="w-4 h-4 mr-1" /> Hinzufügen
+          <Plus className="w-4 h-4 mr-1" /> {tt(uiT.add)}
         </Button>
       </form>
 
       {tasks.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <CheckSquare className="w-10 h-10 mx-auto mb-3 opacity-20" />
-          <p className="text-sm font-medium">Noch keine Aufgaben</p>
+          <p className="text-sm font-medium">{tt(at.keineAufgaben)}</p>
           <p className="text-[13px] text-muted-foreground/60 mt-1">
-            Lege oben die erste Aufgabe für dein Team an.
+            {tt(at.ersteAufgabe)}
           </p>
         </div>
       ) : (
@@ -133,12 +137,11 @@ export function Component() {
           )}
           {done.length > 0 && (
             <div>
-              <p className="section-label mb-2">Erledigt</p>
+              <p className="section-label mb-2">{tt(at.statusErledigt)}</p>
               <TaskList
                 tasks={done}
                 onCycle={(t: any) => updateMutation.mutate({ id: t.id, data: { status: 'offen' } })}
-                onDelete={(t: any) => deleteMutation.mutate(t.id)}
-                muted
+                onDelete={(t: any) => deleteMutation.mutate(t.id)} muted
               />
             </div>
           )}
@@ -155,6 +158,8 @@ function TaskList({ tasks, onCycle, onDelete, muted }: {
   muted?: boolean
 }) {
   const today = heuteISO()
+  const tt = useT()
+  const gs = useGebietsschema()
   return (
     <div className="space-y-1.5">
       {tasks.map((t: any) => {
@@ -172,7 +177,7 @@ function TaskList({ tasks, onCycle, onDelete, muted }: {
           >
             <button
               onClick={(e) => { if (nextStatus(t.status) === 'erledigt' && !muted) feiern(e.currentTarget); onCycle(t) }}
-              title={`Status: ${meta.label} - klicken für nächsten Schritt`}
+              title={tt(at.statusTitel).replace('{status}', tt(meta.label))}
               className={cn('shrink-0 transition-transform duration-150 active:scale-[0.85]', meta.cls)}
             >
               <Icon className="w-[18px] h-[18px]" />
@@ -182,13 +187,13 @@ function TaskList({ tasks, onCycle, onDelete, muted }: {
                 {t.title}
               </p>
               <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground">
-                <span className={cn('flex items-center gap-1', meta.cls)}>{meta.label}</span>
+                <span className={cn('flex items-center gap-1', meta.cls)}>{tt(meta.label)}</span>
                 {t.assignee && <span className="flex items-center gap-1"><User className="w-3 h-3" />{t.assignee}</span>}
                 {t.due_date && (
                   <span className={cn('flex items-center gap-1 tabular-nums', overdue && 'text-danger font-semibold')}>
                     <CalendarDays className="w-3 h-3" />
-                    {new Date(t.due_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
-                    {overdue && ' überfällig'}
+                    {new Date(t.due_date).toLocaleDateString(gs, { day: '2-digit', month: '2-digit' })}
+                    {overdue && ` ${tt(at.ueberfaellig)}`}
                   </span>
                 )}
                 {t.department && <span>{t.department}</span>}
@@ -198,12 +203,12 @@ function TaskList({ tasks, onCycle, onDelete, muted }: {
               onClick={() => onCycle(t)}
               className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground/60 hover:text-foreground transition-colors shrink-0"
             >
-              {t.status !== 'erledigt' && <>{STATUS_META[nextStatus(t.status)].label}<ChevronRight className="w-3 h-3" /></>}
+              {t.status !== 'erledigt' && <>{tt(STATUS_META[nextStatus(t.status)].label)}<ChevronRight className="w-3 h-3" /></>}
             </button>
             <button
               onClick={() => onDelete(t)}
               className="shrink-0 p-1.5 rounded-md text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-[color,background-color,opacity] duration-150 active:scale-[0.88]"
-              title="Aufgabe löschen"
+              title={tt(at.aufgabeLoeschen)}
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>

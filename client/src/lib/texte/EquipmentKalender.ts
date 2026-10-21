@@ -1,0 +1,48 @@
+import type { Lang } from '@/lib/i18n'
+
+type Text = Record<Lang, string>
+
+export const equipmentKalenderT = {
+  titel:            { de: 'Equipment-Kalender', en: 'Equipment calendar', fr: 'Calendrier du matériel' },
+  untertitel:       { de: 'Buchungszeiträume für Equipment-Positionen', en: 'Booking periods for equipment items', fr: 'Périodes de réservation du matériel' },
+  positionen:       { de: 'Positionen', en: 'Items', fr: 'Articles' },
+  wochen:           { de: 'Wochen', en: 'Weeks', fr: 'Semaines' },
+  neueBuchung:      { de: 'Neue Buchung', en: 'New booking', fr: 'Nouvelle réservation' },
+  doppelbuchung:    { de: '{n} Doppelbuchung gefunden', en: '{n} double booking found', fr: '{n} double réservation trouvée' },
+  doppelbuchungen:  { de: '{n} Doppelbuchungen gefunden', en: '{n} double bookings found', fr: '{n} doubles réservations trouvées' },
+  ueberlappung:     { de: 'Überlappung', en: 'Overlap', fr: 'Chevauchement' },
+  equipment:        { de: 'Equipment', en: 'Equipment', fr: 'Matériel' },
+  equipmentNr:      { de: 'Equipment #{id}', en: 'Equipment #{id}', fr: 'Matériel #{id}' },
+  aktionen:         { de: 'Aktionen', en: 'Actions', fr: 'Actions' },
+  keineBuchungen:   { de: 'Noch keine Buchungen vorhanden', en: 'No bookings yet', fr: 'Aucune réservation pour le moment' },
+  legende:          { de: 'Legende', en: 'Legend', fr: 'Légende' },
+  gebucht:          { de: 'Gebucht', en: 'Booked', fr: 'Réservé' },
+  konflikt:         { de: 'Konflikt', en: 'Conflict', fr: 'Conflit' },
+  uebersicht:       { de: 'Buchungsübersicht', en: 'Booking overview', fr: 'Aperçu des réservations' },
+  alleBuchungen:    { de: 'Alle Buchungen', en: 'All bookings', fr: 'Toutes les réservations' },
+  hinzufuegen:      { de: 'Buchung hinzufügen', en: 'Add booking', fr: 'Ajouter une réservation' },
+  position:         { de: 'Equipment-Position', en: 'Equipment item', fr: 'Article de matériel' },
+  positionWaehlen:  { de: 'Position wählen', en: 'Choose item', fr: 'Choisir un article' },
+  von:              { de: 'Von', en: 'From', fr: 'Du' },
+  bis:              { de: 'Bis', en: 'To', fr: 'Au' },
+  notizen:          { de: 'Notizen', en: 'Notes', fr: 'Notes' },
+  optional:         { de: '(optional)', en: '(optional)', fr: '(facultatif)' },
+  notizenPlatz:     { de: 'Lieferdetails, Abholung, ...', en: 'Delivery details, collection, ...', fr: 'Détails de livraison, enlèvement, ...' },
+  abbrechen:        { de: 'Abbrechen', en: 'Cancel', fr: 'Annuler' },
+  speichern:        { de: 'Buchung speichern', en: 'Save booking', fr: 'Enregistrer la réservation' },
+} satisfies Record<string, Text>
+
+export const MONATE_KURZ: Text[] = [
+  { de: 'Jan', en: 'Jan', fr: 'janv.' },
+  { de: 'Feb', en: 'Feb', fr: 'févr.' },
+  { de: 'Mär', en: 'Mar', fr: 'mars' },
+  { de: 'Apr', en: 'Apr', fr: 'avr.' },
+  { de: 'Mai', en: 'May', fr: 'mai' },
+  { de: 'Jun', en: 'Jun', fr: 'juin' },
+  { de: 'Jul', en: 'Jul', fr: 'juil.' },
+  { de: 'Aug', en: 'Aug', fr: 'août' },
+  { de: 'Sep', en: 'Sep', fr: 'sept.' },
+  { de: 'Okt', en: 'Oct', fr: 'oct.' },
+  { de: 'Nov', en: 'Nov', fr: 'nov.' },
+  { de: 'Dez', en: 'Dec', fr: 'déc.' },
+]

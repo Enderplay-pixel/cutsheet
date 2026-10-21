@@ -10,12 +10,15 @@ import {
 } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/use-toast'
 import { Check, AlertTriangle, Info, Archive, RotateCcw, ChevronRight } from 'lucide-react'
+import { useT } from '@/lib/useT'
+import { abschlussT as T } from '@/lib/texte/Abschluss'
 
 export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
   const qc = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
   const [frage, setFrage] = useState(false)
 
   const { data, isLoading } = useQuery({
@@ -29,9 +32,9 @@ export function Component() {
       qc.invalidateQueries({ queryKey: ['abschluss', pid] })
       qc.invalidateQueries({ queryKey: ['project', pid] })
       setFrage(false)
-      toast({ title: 'Projekt abgeschlossen' })
+      toast({ title: tt(T.abgeschlossenToast) })
     },
-    onError: (f: any) => toast({ title: 'Nicht abgeschlossen', description: f.message, variant: 'destructive' }),
+    onError: (f: any) => toast({ title: tt(T.nichtAbgeschl), description: f.message, variant: 'destructive' }),
   })
 
   const zuruecknehmen = useMutation({
@@ -39,14 +42,14 @@ export function Component() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['abschluss', pid] })
       qc.invalidateQueries({ queryKey: ['project', pid] })
-      toast({ title: 'Projekt wieder offen' })
+      toast({ title: tt(T.wiederOffenToast) })
     },
-    onError: (f: any) => toast({ title: 'Nicht zurückgenommen', description: f.message, variant: 'destructive' }),
+    onError: (f: any) => toast({ title: tt(T.nichtZurueck), description: f.message, variant: 'destructive' }),
   })
 
   if (isLoading) {
     return (
-      <div className="px-5 py-10 text-center text-sm text-muted-foreground">Lade…</div>
+      <div className="px-5 py-10 text-center text-sm text-muted-foreground">{tt(T.lade)}</div>
     )
   }
 
@@ -58,7 +61,7 @@ export function Component() {
   return (
     <div className="px-5 py-6 sm:p-6 max-w-4xl mx-auto space-y-4">
       <PageHeader
-        title="Abschluss"
+        title={tt(T.titel)}
         subtitle={data?.projekt?.titel || ''}
       />
 
@@ -66,9 +69,9 @@ export function Component() {
         <Card className="border-emerald-500/40">
           <CardContent className="py-6 text-center space-y-2">
             <Archive className="w-8 h-8 mx-auto text-emerald-600 dark:text-emerald-400" />
-            <p className="font-medium">Dieses Projekt ist abgeschlossen</p>
+            <p className="font-medium">{tt(T.istAbgeschlossen)}</p>
             <p className="text-sm text-muted-foreground">
-              Es liegt im Archiv. Die Daten bleiben erhalten - abgeschlossen heißt nicht gelöscht.
+              {tt(T.imArchiv)}
             </p>
             <Button
               variant="outline"
@@ -78,7 +81,7 @@ export function Component() {
               disabled={zuruecknehmen.isPending}
             >
               <RotateCcw className="w-4 h-4 mr-1.5" />
-              Wieder öffnen
+              {tt(T.wiederOeffnen)}
             </Button>
           </CardContent>
         </Card>
@@ -87,8 +90,7 @@ export function Component() {
           <div className="flex items-start gap-2 text-xs p-3 rounded-lg bg-muted">
             <Info className="w-4 h-4 shrink-0 mt-0.5" />
             <span>
-              Ein Dreh ist irgendwann vorbei, ein Projekt damit nicht. Was danach kommt, vergisst
-              man zuverlässig - diese Liste zählt es zusammen. Sie erledigt nichts von selbst.
+              {tt(T.einleitung)}
             </span>
           </div>
 
@@ -97,10 +99,9 @@ export function Component() {
             <Card className="border-emerald-500/40">
               <CardContent className="py-6 text-center space-y-1">
                 <Check className="w-7 h-7 mx-auto text-emerald-600 dark:text-emerald-400" />
-                <p className="font-medium">Nichts Offenes gefunden</p>
+                <p className="font-medium">{tt(T.nichtsOffen)}</p>
                 <p className="text-xs text-muted-foreground">
-                  Das heißt: Es spricht nichts Erkennbares dagegen - nicht, dass alles erledigt
-                  ist. Das weiß nur, wer am Projekt gearbeitet hat.
+                  {tt(T.nichtsOffenText)}
                 </p>
               </CardContent>
             </Card>
@@ -108,10 +109,10 @@ export function Component() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">
-                  Offen
+                  {tt(T.offen)}
                   {(data?.blockierend ?? 0) > 0 && (
                     <span className="text-sm font-normal text-destructive ml-2">
-                      {data.blockierend} davon steht dem Abschluss entgegen
+                      {tt(T.davonBlockiert).replace('{n}', String(data.blockierend))}
                     </span>
                   )}
                 </CardTitle>
@@ -141,7 +142,7 @@ export function Component() {
 
           {erledigt.length > 0 && (
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Erledigt</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">{tt(T.erledigt)}</CardTitle></CardHeader>
               <CardContent>
                 <div className="grid gap-1 sm:grid-cols-2 text-sm text-muted-foreground">
                   {erledigt.map((p) => (
@@ -157,14 +158,14 @@ export function Component() {
 
           <Button onClick={() => setFrage(true)} disabled={abschliessen.isPending}>
             <Archive className="w-4 h-4 mr-1.5" />
-            Projekt abschließen
+            {tt(T.abschliessenKnopf)}
           </Button>
         </>
       )}
 
       {/* Aufbewahrung */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Was aufzuheben ist</CardTitle></CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-base">{tt(T.aufheben)}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-start gap-2 text-xs p-3 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -182,8 +183,7 @@ export function Component() {
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            Gelöscht wird hier nichts - auch nicht nach Ablauf. Wer löschen will, nutzt die
-            Werkzeuge unter Datenschutz und entscheidet einzeln.
+            {tt(T.nichtsGeloescht)}
           </p>
         </CardContent>
       </Card>
@@ -192,11 +192,11 @@ export function Component() {
         <Dialog open onOpenChange={(o) => { if (!o) setFrage(false) }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Projekt abschließen</DialogTitle>
+              <DialogTitle>{tt(T.abschliessenKnopf)}</DialogTitle>
               <DialogDescription>
                 {(data?.blockierend ?? 0) > 0
-                  ? `${data.blockierend} ${data.blockierend === 1 ? 'Punkt steht' : 'Punkte stehen'} dem Abschluss entgegen. Abschließen geht trotzdem - die Punkte bleiben offen und tauchen weiter in der Sammelansicht auf.`
-                  : 'Das Projekt wandert ins Archiv. Die Daten bleiben erhalten, und der Abschluss lässt sich zurücknehmen.'}
+                  ? tt(data.blockierend === 1 ? T.blockEins : T.blockMehr).replace('{n}', String(data.blockierend))
+                  : tt(T.insArchiv)}
               </DialogDescription>
             </DialogHeader>
             {(data?.blockierend ?? 0) > 0 && (
@@ -210,12 +210,12 @@ export function Component() {
               </div>
             )}
             <DialogFooter>
-              <Button variant="ghost" onClick={() => setFrage(false)}>Abbrechen</Button>
+              <Button variant="ghost" onClick={() => setFrage(false)}>{tt(T.abbrechen)}</Button>
               <Button
                 onClick={() => abschliessen.mutate((data?.blockierend ?? 0) > 0)}
                 disabled={abschliessen.isPending}
               >
-                {(data?.blockierend ?? 0) > 0 ? 'Trotzdem abschließen' : 'Abschließen'}
+                {(data?.blockierend ?? 0) > 0 ? tt(T.trotzdem) : tt(T.abschliessen)}
               </Button>
             </DialogFooter>
           </DialogContent>

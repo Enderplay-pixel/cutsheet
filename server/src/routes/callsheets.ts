@@ -246,7 +246,7 @@ router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Resp
   if (!smtpConfigured) {
     return res.status(400).json({
       data: { smtp_configured: false },
-      error: 'Es ist kein Mailserver eingerichtet. Ohne SMTP-Zugang geht nichts raus - die Dispo laesst sich aber als PDF herunterladen und ueber den Link teilen.',
+      error: 'Es ist kein Mailserver eingerichtet. Ohne SMTP-Zugang geht nichts raus - die Dispo lässt sich aber als PDF herunterladen und über den Link teilen.',
     })
   }
 
@@ -298,7 +298,7 @@ router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Resp
   // Warteschlange, statt sie sofort rauszuschicken.
   const geplant = req.body?.scheduled_for ? new Date(req.body.scheduled_for) : null
   if (geplant && Number.isNaN(geplant.getTime())) {
-    return res.status(400).json({ data: null, error: 'Der Versandzeitpunkt ist kein gueltiges Datum' })
+    return res.status(400).json({ data: null, error: 'Der Versandzeitpunkt ist kein gültiges Datum' })
   }
 
   const eingereiht = await reiheEin({

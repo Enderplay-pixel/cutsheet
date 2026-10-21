@@ -5,8 +5,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MailCheck, ArrowLeft } from 'lucide-react'
 import { AppIcon } from '@/components/shared/BrandMark'
+import { useT } from '@/lib/useT'
+import { vergessenT } from '@/lib/texte/ForgotPassword'
 
 export function Component() {
+  const tt = useT()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [emailConfigured, setEmailConfigured] = useState(true)
@@ -22,7 +25,7 @@ export function Component() {
       setEmailConfigured(res.emailConfigured)
       setSent(true)
     } catch (err: any) {
-      setError(err.message || 'Ein Fehler ist aufgetreten')
+      setError(err.message || tt(vergessenT.fehler))
     } finally {
       setLoading(false)
     }
@@ -33,7 +36,7 @@ export function Component() {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <AppIcon className="w-14 h-14 mb-5" />
-          <h1 className="font-display text-[28px] sm:text-[34px]">Passwort vergessen</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">{tt(vergessenT.titel)}</h1>
         </div>
 
         {sent ? (
@@ -43,35 +46,30 @@ export function Component() {
             </div>
             {emailConfigured ? (
               <>
-                <p className="text-sm text-foreground font-medium mb-1">E-Mail unterwegs</p>
+                <p className="text-sm text-foreground font-medium mb-1">{tt(vergessenT.unterwegs)}</p>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Falls ein Konto mit dieser Adresse existiert, haben wir dir einen Link zum
-                  Zurücksetzen geschickt. Der Link ist 60 Minuten gültig.
+                  {tt(vergessenT.gesendet)}
                 </p>
               </>
             ) : (
               <p className="text-sm text-warning leading-relaxed">
-                Auf diesem Server ist kein E-Mail-Versand konfiguriert. Bitte wende dich an
-                die Person, die CutSheet betreibt - sie kann dein Passwort zurücksetzen.
+                {tt(vergessenT.keinVersand)}
               </p>
             )}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Gib deine E-Mail-Adresse ein - wir schicken dir einen Link, mit dem du ein
-              neues Passwort festlegen kannst.
+              {tt(vergessenT.hinweis)}
             </p>
             <div className="space-y-1.5">
-              <label htmlFor="vergessen-email-0" className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">E-Mail</label>
+              <label htmlFor="vergessen-email-0" className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">{tt(vergessenT.email)}</label>
               <Input id="vergessen-email-0"
                 type="email"
-                placeholder="name@example.com"
+                placeholder={tt(vergessenT.emailBeispiel)}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                autoFocus
+                required autoComplete="email" autoFocus
               />
             </div>
             {error && (
@@ -80,7 +78,7 @@ export function Component() {
               </div>
             )}
             <Button type="submit" className="w-full h-10 text-sm font-semibold" disabled={loading}>
-              {loading ? 'Wird gesendet…' : 'Link anfordern'}
+              {loading ? tt(vergessenT.wirdGesendet) : tt(vergessenT.anfordern)}
             </Button>
           </form>
         )}
@@ -89,7 +87,7 @@ export function Component() {
           to="/login"
           className="mt-8 flex items-center justify-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ArrowLeft className="w-3.5 h-3.5" /> Zurück zur Anmeldung
+          <ArrowLeft className="w-3.5 h-3.5" /> {tt(vergessenT.zurueck)}
         </Link>
       </div>
     </div>

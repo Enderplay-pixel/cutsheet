@@ -183,9 +183,7 @@ router.post('/projects/:pid/email/send', requireAuth, async (req: Request, res: 
     if (fremde.length > 0) {
       return res.status(403).json({
         data: { fremde: fremde.map((f) => f.email) },
-        error:
-          'An Adressen ausserhalb des Projekts dürfen nur Produktion und Admin schreiben. ' +
-          'Trag die Person in den Stab oder die Besetzung ein, dann geht es.',
+        error: 'An Adressen außerhalb des Projekts dürfen nur Produktion und Admin schreiben. Trag die Person in den Stab oder die Besetzung ein, dann geht es.',
       })
     }
   }

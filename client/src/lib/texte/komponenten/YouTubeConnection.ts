@@ -1,0 +1,37 @@
+import type { Lang } from '@/lib/i18n'
+
+type Text = Record<Lang, string>
+
+export const youTubeT = {
+  verbunden:        { de: 'YouTube-Kanal verbunden', en: 'YouTube channel connected', fr: 'Chaîne YouTube connectée' },
+  abgebrochen:      { de: 'Verbinden abgebrochen', en: 'Connection cancelled', fr: 'Connexion annulée' },
+  fehlgeschlagen:   { de: 'Verbinden fehlgeschlagen', en: 'Connection failed', fr: 'Échec de la connexion' },
+  nichtMoeglich:    { de: 'Verbinden nicht möglich', en: 'Unable to connect', fr: 'Connexion impossible' },
+  abgleichFertig:   { de: 'Abgleich fertig', en: 'Sync complete', fr: 'Synchronisation terminée' },
+  neuUebernommen:   { de: '{n} neu übernommen', en: '{n} newly imported', fr: '{n} nouvellement importé(s)' },
+  zugeordnet:       { de: '{m} von {v} zugeordnet', en: '{m} of {v} matched', fr: '{m} sur {v} associé(s)' },
+  abgleichFehler:   { de: 'Abgleich fehlgeschlagen', en: 'Sync failed', fr: 'Échec de la synchronisation' },
+  getrennt:         { de: 'Verbindung getrennt', en: 'Disconnected', fr: 'Connexion coupée' },
+  trennenFehler:    { de: 'Trennen fehlgeschlagen', en: 'Disconnect failed', fr: 'Échec de la déconnexion' },
+  anbindung:        { de: 'YouTube-Anbindung', en: 'YouTube connection', fr: 'Connexion YouTube' },
+  nichtEingerichtet:{ de: 'Noch nicht eingerichtet. Auf dem Server fehlen', en: 'Not set up yet. The server is missing', fr: 'Pas encore configuré. Il manque sur le serveur' },
+  und:              { de: 'und', en: 'and', fr: 'et' },
+  ausOauth:         { de: 'aus einem Google-Cloud-OAuth-Client.', en: 'from a Google Cloud OAuth client.', fr: "d'un client OAuth Google Cloud." },
+  verbindeText:     { de: 'Verbinde deinen Kanal, dann holt CutSheet Aufrufe, Impressionen, Klickrate und die Retention-Kurve automatisch - und legt sie über dein Skript, um zu zeigen, an welcher Stelle die Leute abspringen.', en: 'Connect your channel and CutSheet will fetch views, impressions, click-through rate and the retention curve automatically - and lay them over your script to show where people drop off.', fr: 'Connecte ta chaîne et CutSheet récupère automatiquement les vues, les impressions, le taux de clics et la courbe de rétention - puis les superpose à ton script pour montrer à quel moment les gens décrochent.' },
+  mitYoutube:       { de: 'Mit YouTube verbinden', en: 'Connect with YouTube', fr: 'Se connecter à YouTube' },
+  verbundenerKanal: { de: 'Verbundener Kanal', en: 'Connected channel', fr: 'Chaîne connectée' },
+  abonnenten:       { de: '{n} Abonnenten', en: '{n} subscribers', fr: '{n} abonnés' },
+  wirdAbgeglichen:  { de: 'Wird abgeglichen…', en: 'Syncing…', fr: 'Synchronisation…' },
+  zahlenAbgleichen: { de: 'Zahlen abgleichen', en: 'Sync figures', fr: 'Synchroniser les chiffres' },
+  trennenFrage:     { de: 'Verbindung zu YouTube trennen?', en: 'Disconnect from YouTube?', fr: 'Déconnecter YouTube ?' },
+  trennen:          { de: 'Trennen', en: 'Disconnect', fr: 'Déconnecter' },
+  zuletzt:          { de: 'Zuletzt abgeglichen: {d}', en: 'Last synced: {d}', fr: 'Dernière synchronisation : {d}' },
+  ergebnis:         { de: '{m} von {v} Videos zugeordnet, {r} Retention-Kurven geholt', en: '{m} of {v} videos matched, {r} retention curves fetched', fr: '{m} sur {v} vidéos associées, {r} courbes de rétention récupérées' },
+  neuVonYoutube:    { de: 'Neu von YouTube übernommen: {l}', en: 'Newly imported from YouTube: {l}', fr: 'Nouvellement importé depuis YouTube : {l}' },
+  autoZugeordnet:   { de: 'Automatisch über den Titel zugeordnet: {l}', en: 'Matched automatically by title: {l}', fr: 'Associé automatiquement par le titre : {l}' },
+  nichtEindeutig:   { de: 'Nicht eindeutig, bitte unter „Zahlen“ selbst auswählen:', en: 'Ambiguous, please choose yourself under "Figures":', fr: 'Ambigu, merci de choisir toi-même sous « Chiffres » :' },
+  naechsterTreffer: { de: '„{t}“ (nächster Treffer: „{s}“)', en: '"{t}" (closest match: "{s}")', fr: '« {t} » (correspondance la plus proche : « {s} »)' },
+  zitat:            { de: '„{t}“', en: '"{t}"', fr: '« {t} »' },
+  zitatPfeil:       { de: '„{t}“ → „{z}“', en: '"{t}" → "{z}"', fr: '« {t} » → « {z} »' },
+  ohneZuordnung:    { de: 'Ohne Zuordnung: {l} - unter „Zahlen“ das passende YouTube-Video auswählen.', en: 'Unmatched: {l} - choose the matching YouTube video under "Figures".', fr: 'Sans association : {l} - choisis la vidéo YouTube correspondante sous « Chiffres ».' },
+} satisfies Record<string, Text>

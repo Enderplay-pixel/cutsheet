@@ -10,6 +10,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
 import { Plus, Trash2, Check, Send } from 'lucide-react'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { castingAntwortT } from '@/lib/texte/CastingAntwort'
 
 /**
  * Die Seite, die eine Agentur über den Link aus der Mail öffnet.
@@ -19,11 +21,11 @@ import { Plus, Trash2, Check, Send } from 'lucide-react'
  * und dann steht die Antwort in einem Postfach statt im Projekt.
  */
 
-const euro = (cents: number) =>
-  (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
+const euro = (cents: number, gebietsschema: string) =>
+  (Number(cents || 0) / 100).toLocaleString(gebietsschema, { style: 'currency', currency: 'EUR' })
 
-const datum = (wert: string | null | undefined) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : ''
+const datum = (wert: string | null | undefined, gebietsschema: string) =>
+  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString(gebietsschema) : ''
 
 /** Betrag aus einem Textfeld in Cent - ganzzahlig. */
 function alsCents(text: string): number {
@@ -50,6 +52,8 @@ const LEER = (rolleId: number | null): Vorschlag => ({
 export function Component() {
   const { token = '' } = useParams()
   const { toast } = useToast()
+  const tt = useT()
+  const gebietsschema = useGebietsschema()
   const [zeilen, setZeilen] = useState<Vorschlag[]>([])
   const [gesendet, setGesendet] = useState(false)
 
@@ -92,13 +96,13 @@ export function Component() {
         }))
     ),
     onSuccess: () => { setGesendet(true); refetch() },
-    onError: (f: any) => toast({ title: 'Nicht gesendet', description: f.message, variant: 'destructive' }),
+    onError: (f: any) => toast({ title: tt(castingAntwortT.nichtGesendet), description: f.message, variant: 'destructive' }),
   })
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center px-5">
-        <p className="text-sm text-muted-foreground">Lade…</p>
+        <p className="text-sm text-muted-foreground">{tt(castingAntwortT.lade)}</p>
       </div>
     )
   }
@@ -108,10 +112,9 @@ export function Component() {
       <div className="min-h-screen flex items-center justify-center px-5">
         <Card className="max-w-md w-full">
           <CardContent className="py-10 text-center space-y-2">
-            <p className="font-medium">Dieser Link gilt nicht mehr</p>
+            <p className="font-medium">{tt(castingAntwortT.linkUngueltig)}</p>
             <p className="text-sm text-muted-foreground">
-              Möglicherweise ist die Anfrage zurückgezogen worden. Eine kurze Mail an die
-              Produktion genügt, dann bekommen Sie einen neuen Link.
+              {tt(castingAntwortT.linkUngueltigText)}
             </p>
           </CardContent>
         </Card>
@@ -132,11 +135,11 @@ export function Component() {
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">{data.projekt}</p>
           <h1 className="font-display text-2xl sm:text-3xl mt-1">
-            {data.betreff || 'Besetzungsanfrage'}
+            {data.betreff || tt(castingAntwortT.besetzungsanfrage)}
           </h1>
           {data.frist && (
             <p className="text-sm text-muted-foreground mt-1">
-              Rückmeldung erbeten bis {datum(data.frist)}
+              {tt(castingAntwortT.rueckmeldungBis).replace('{datum}', datum(data.frist, gebietsschema))}
             </p>
           )}
         </div>
@@ -152,24 +155,24 @@ export function Component() {
         {/* Die gesuchten Rollen */}
         <Card>
           <CardContent className="pt-6">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground mb-3">Gesucht</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground mb-3">{tt(castingAntwortT.gesucht)}</div>
             <div className="space-y-3">
               {rollen.map((r) => (
                 <div key={r.id} className="border-b border-border/40 last:border-0 pb-3 last:pb-0">
-                  <div className="font-medium">{r.role_name || r.figur || 'Rolle'}</div>
+                  <div className="font-medium">{r.role_name || r.figur || tt(castingAntwortT.rolle)}</div>
                   {r.description && (
                     <div className="text-sm text-muted-foreground mt-0.5">{r.description}</div>
                   )}
                   <div className="text-sm text-muted-foreground mt-1">
                     {r.shoot_from && (
                       <>
-                        {datum(r.shoot_from)}
-                        {r.shoot_to && r.shoot_to !== r.shoot_from && ` bis ${datum(r.shoot_to)}`}
+                        {datum(r.shoot_from, gebietsschema)}
+                        {r.shoot_to && r.shoot_to !== r.shoot_from && tt(castingAntwortT.bisDatum).replace('{datum}', datum(r.shoot_to, gebietsschema))}
                         {' · '}
                       </>
                     )}
-                    {r.shoot_days > 0 && `${r.shoot_days} ${r.shoot_days === 1 ? 'Drehtag' : 'Drehtage'} · `}
-                    {r.fee_per_day_cents > 0 ? `${euro(r.fee_per_day_cents)} pro Tag` : 'Gage nach Absprache'}
+                    {r.shoot_days > 0 && `${r.shoot_days} ${r.shoot_days === 1 ? tt(castingAntwortT.drehtag) : tt(castingAntwortT.drehtage)} · `}
+                    {r.fee_per_day_cents > 0 ? tt(castingAntwortT.proTag).replace('{betrag}', euro(r.fee_per_day_cents, gebietsschema)) : tt(castingAntwortT.gageNachAbsprache)}
                   </div>
                 </div>
               ))}
@@ -181,14 +184,13 @@ export function Component() {
           <Card className="border-emerald-500/40">
             <CardContent className="py-6 text-center space-y-1">
               <Check className="w-8 h-8 mx-auto text-emerald-600 dark:text-emerald-400" />
-              <p className="font-medium">Ihre Vorschläge sind angekommen</p>
+              <p className="font-medium">{tt(castingAntwortT.angekommen)}</p>
               <p className="text-sm text-muted-foreground">
-                Die Produktion meldet sich bei Ihnen. Über diesen Link können Sie Ihre Antwort
-                jederzeit überarbeiten.
+                {tt(castingAntwortT.angekommenText)}
               </p>
               {gesendet && (
                 <Button variant="ghost" size="sm" className="mt-2" onClick={() => setGesendet(false)}>
-                  Antwort ändern
+                  {tt(castingAntwortT.antwortAendern)}
                 </Button>
               )}
             </CardContent>
@@ -196,43 +198,43 @@ export function Component() {
         ) : (
           <Card>
             <CardContent className="pt-6 space-y-3">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Ihre Vorschläge</div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">{tt(castingAntwortT.ihreVorschlaege)}</div>
 
               {zeilen.map((z, i) => (
                 <div key={i} className="border border-border/60 rounded-lg p-3 space-y-2">
                   <div className="grid gap-2 sm:grid-cols-12">
                     <div className="sm:col-span-5">
-                      <Label htmlFor={`v-name-${i}`}>Name</Label>
+                      <Label htmlFor={`v-name-${i}`}>{tt(castingAntwortT.name)}</Label>
                       <Input
                         id={`v-name-${i}`}
                         value={z.actor_name}
                         onChange={(e) => aendere(i, 'actor_name', e.target.value)}
-                        placeholder="Vor- und Nachname"
+                        placeholder={tt(castingAntwortT.vorUndNachname)}
                       />
                     </div>
                     <div className="sm:col-span-4">
-                      <Label htmlFor={`v-rolle-${i}`}>Für welche Rolle</Label>
+                      <Label htmlFor={`v-rolle-${i}`}>{tt(castingAntwortT.fuerWelcheRolle)}</Label>
                       <Select
                         value={z.role_id ? String(z.role_id) : ''}
                         onValueChange={(w) => aendere(i, 'role_id', Number(w))}
                       >
-                        <SelectTrigger id={`v-rolle-${i}`}><SelectValue placeholder="wählen" /></SelectTrigger>
+                        <SelectTrigger id={`v-rolle-${i}`}><SelectValue placeholder={tt(castingAntwortT.waehlen)} /></SelectTrigger>
                         <SelectContent>
                           {rollen.map((r) => (
                             <SelectItem key={r.id} value={String(r.id)}>
-                              {r.role_name || r.figur || `Rolle ${r.id}`}
+                              {r.role_name || r.figur || tt(castingAntwortT.rolleNr).replace('{n}', String(r.id))}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="sm:col-span-3">
-                      <Label htmlFor={`v-gage-${i}`}>Gage / Tag</Label>
+                      <Label htmlFor={`v-gage-${i}`}>{tt(castingAntwortT.gageTag)}</Label>
                       <Input
                         id={`v-gage-${i}`}
                         value={z.gage}
                         onChange={(e) => aendere(i, 'gage', e.target.value)}
-                        placeholder="freiwillig"
+                        placeholder={tt(castingAntwortT.freiwillig)}
                         inputMode="decimal"
                       />
                     </div>
@@ -240,7 +242,7 @@ export function Component() {
 
                   <div className="grid gap-2 sm:grid-cols-12">
                     <div className="sm:col-span-5">
-                      <Label htmlFor={`v-frei-${i}`}>Im Zeitraum verfügbar</Label>
+                      <Label htmlFor={`v-frei-${i}`}>{tt(castingAntwortT.verfuegbar)}</Label>
                       <Select
                         value={z.available === null ? 'unklar' : z.available ? 'ja' : 'nein'}
                         onValueChange={(w) =>
@@ -249,31 +251,31 @@ export function Component() {
                       >
                         <SelectTrigger id={`v-frei-${i}`}><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="ja">Ja</SelectItem>
-                          <SelectItem value="nein">Nein</SelectItem>
-                          <SelectItem value="unklar">Noch offen</SelectItem>
+                          <SelectItem value="ja">{tt(castingAntwortT.ja)}</SelectItem>
+                          <SelectItem value="nein">{tt(castingAntwortT.nein)}</SelectItem>
+                          <SelectItem value="unklar">{tt(castingAntwortT.nochOffen)}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="sm:col-span-7">
-                      <Label htmlFor={`v-material-${i}`}>Link zu Material</Label>
+                      <Label htmlFor={`v-material-${i}`}>{tt(castingAntwortT.linkMaterial)}</Label>
                       <Input
                         id={`v-material-${i}`}
                         value={z.showreel_url}
                         onChange={(e) => aendere(i, 'showreel_url', e.target.value)}
-                        placeholder="Showreel, Vita, Fotos - freiwillig"
+                        placeholder={tt(castingAntwortT.materialBeispiel)}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <Label htmlFor={`v-notiz-${i}`}>Anmerkung</Label>
+                    <Label htmlFor={`v-notiz-${i}`}>{tt(castingAntwortT.anmerkung)}</Label>
                     <Textarea
                       id={`v-notiz-${i}`}
                       value={z.note}
                       onChange={(e) => aendere(i, 'note', e.target.value)}
                       rows={2}
-                      placeholder="freiwillig"
+                      placeholder={tt(castingAntwortT.freiwillig)}
                     />
                   </div>
 
@@ -282,10 +284,10 @@ export function Component() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setZeilen(zeilen.filter((_, j) => j !== i))}
-                      aria-label="Vorschlag entfernen"
+                      aria-label={tt(castingAntwortT.vorschlagEntfernen)}
                     >
                       <Trash2 className="w-3.5 h-3.5 mr-1" />
-                      Entfernen
+                      {tt(castingAntwortT.entfernen)}
                     </Button>
                   )}
                 </div>
@@ -297,23 +299,22 @@ export function Component() {
                   onClick={() => setZeilen([...zeilen, LEER(rollen[0]?.id ?? null)])}
                 >
                   <Plus className="w-4 h-4 mr-1.5" />
-                  Weiterer Vorschlag
+                  {tt(castingAntwortT.weitererVorschlag)}
                 </Button>
                 <Button onClick={() => senden.mutate()} disabled={!brauchbar || senden.isPending}>
                   <Send className="w-4 h-4 mr-1.5" />
-                  Absenden
+                  {tt(castingAntwortT.absenden)}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Zeilen ohne Namen werden nicht übernommen. Sie können die Antwort über denselben
-                Link später ändern.
+                {tt(castingAntwortT.zeilenOhneNamen)}
               </p>
             </CardContent>
           </Card>
         )}
 
         <p className="text-xs text-muted-foreground text-center">
-          Bei Fragen antworten Sie einfach auf die Mail, mit der Sie diesen Link bekommen haben.
+          {tt(castingAntwortT.beiFragen)}
         </p>
       </div>
     </div>

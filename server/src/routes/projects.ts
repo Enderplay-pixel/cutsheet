@@ -69,7 +69,7 @@ router.patch('/:id/company', requireAuth, async (req, res) => {
   if (user.role !== 'admin' && projekt.owner_id !== user.id) {
     const rolle = await getUserProjectRole(user.id, projectId)
     if (rolle !== 'admin' && rolle !== 'producer') {
-      return res.status(403).json({ data: null, error: 'Dafuer fehlt dir die Berechtigung in diesem Projekt' })
+      return res.status(403).json({ data: null, error: 'Dafür fehlt dir die Berechtigung in diesem Projekt' })
     }
   }
 
@@ -86,7 +86,7 @@ router.patch('/:id/company', requireAuth, async (req, res) => {
     [user.id, gewuenscht, user.id]
   )
   if (!zugehoerig && user.role !== 'admin') {
-    return res.status(403).json({ data: null, error: 'Du gehoerst nicht zu dieser Firma' })
+    return res.status(403).json({ data: null, error: 'Du gehörst nicht zu dieser Firma' })
   }
   await db.run('UPDATE projects SET company_id = ?, updated_at = NOW() WHERE id = ?', [gewuenscht, projectId])
   return res.json({ data: { company_id: gewuenscht }, error: null })
@@ -114,7 +114,7 @@ router.post('/', validate(ProjectSchema), async (req, res) => {
       [userId, gewuenscht, userId]
     )
     if (!zugehoerig) {
-      return res.status(403).json({ data: null, error: 'Du gehoerst nicht zu dieser Firma' })
+      return res.status(403).json({ data: null, error: 'Du gehörst nicht zu dieser Firma' })
     }
     companyId = gewuenscht
   }

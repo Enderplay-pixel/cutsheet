@@ -9,6 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { Download, UtensilsCrossed, Users } from 'lucide-react'
+import { useT, useGebietsschema } from '@/lib/useT'
+import type { Lang } from '@/lib/i18n'
+import { cateringListeT } from '@/lib/texte/CateringListe'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -44,14 +47,24 @@ interface CateringListEntry {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const DIETARY_OPTIONS = [
-  { value: 'keine', label: 'Keine' },
-  { value: 'vegetarisch', label: 'Vegetarisch' },
-  { value: 'vegan', label: 'Vegan' },
-  { value: 'glutenfrei', label: 'Glutenfrei' },
-  { value: 'laktosefrei', label: 'Laktosefrei' },
-  { value: 'halal', label: 'Halal' },
-  { value: 'koscher', label: 'Koscher' },
+  { value: 'keine', label: cateringListeT.keine },
+  { value: 'vegetarisch', label: cateringListeT.vegetarisch },
+  { value: 'vegan', label: cateringListeT.vegan },
+  { value: 'glutenfrei', label: cateringListeT.glutenfrei },
+  { value: 'laktosefrei', label: cateringListeT.laktosefrei },
+  { value: 'halal', label: cateringListeT.halal },
+  { value: 'koscher', label: cateringListeT.koscher },
 ]
+
+/** Beschriftung der Ernährungsform in der Tagesliste - klein, wie der Wert. */
+const DIAET_KLEIN: Record<string, Record<Lang, string>> = {
+  vegetarisch: cateringListeT.kVegetarisch,
+  vegan: cateringListeT.kVegan,
+  glutenfrei: cateringListeT.kGlutenfrei,
+  laktosefrei: cateringListeT.kLaktosefrei,
+  halal: cateringListeT.kHalal,
+  koscher: cateringListeT.kKoscher,
+}
 
 const DIETARY_COLORS: Record<string, string> = {
   vegetarisch: 'green',
@@ -62,9 +75,9 @@ const DIETARY_COLORS: Record<string, string> = {
   koscher:      'red',
 }
 
-function formatDate(iso: string) {
+function formatDate(iso: string, gebietsschema: string) {
   if (!iso) return ''
-  return new Date(iso).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })
+  return new Date(iso).toLocaleDateString(gebietsschema, { weekday: 'short', day: '2-digit', month: '2-digit' })
 }
 
 // ─── Debounce hook ────────────────────────────────────────────────────────────
@@ -82,6 +95,7 @@ function useDebounce<T extends (...args: any[]) => any>(fn: T, delay: number) {
 function PrefRow({ person, pref, pid, isEven }: { person: Person; pref: CateringPref | undefined; pid: number; isEven: boolean }) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const tt = useT()
 
   const [dietary, setDietary] = useState(pref?.dietary ?? 'keine')
   const [allergies, setAllergies] = useState(pref?.allergies ?? '')
@@ -101,7 +115,7 @@ function PrefRow({ person, pref, pid, isEven }: { person: Person; pref: Catering
       return (await res.json()).data
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['catering-prefs', pid] }),
-    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Speichern' }),
+    onError: () => toast({ variant: 'destructive', title: tt(cateringListeT.fehlerSpeichern) }),
   })
 
   const debouncedSave = useDebounce((data: Partial<CateringPref>) => saveMutation.mutate(data), 500)
@@ -124,7 +138,7 @@ function PrefRow({ person, pref, pid, isEven }: { person: Person; pref: Catering
       <td className="px-4 py-2.5 font-medium text-sm">{person.name}</td>
       <td className="px-4 py-2.5">
         <Badge variant={person.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px]">
-          {person.person_type === 'cast' ? 'Darsteller' : 'Crew'}
+          {person.person_type === 'cast' ? tt(cateringListeT.darsteller) : tt(cateringListeT.crew)}
         </Badge>
       </td>
       <td className="px-4 py-2.5 min-w-[160px]">
@@ -134,7 +148,7 @@ function PrefRow({ person, pref, pid, isEven }: { person: Person; pref: Catering
           </SelectTrigger>
           <SelectContent>
             {DIETARY_OPTIONS.map(o => (
-              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              <SelectItem key={o.value} value={o.value}>{tt(o.label)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -143,7 +157,7 @@ function PrefRow({ person, pref, pid, isEven }: { person: Person; pref: Catering
         <Input
           value={allergies}
           onChange={e => handleAllergies(e.target.value)}
-          placeholder="Allergien…"
+          placeholder={tt(cateringListeT.allergienPh)}
           className="h-8 text-xs"
         />
       </td>
@@ -151,7 +165,7 @@ function PrefRow({ person, pref, pid, isEven }: { person: Person; pref: Catering
         <Input
           value={notes}
           onChange={e => handleNotes(e.target.value)}
-          placeholder="Notizen…"
+          placeholder={tt(cateringListeT.notizenPh)}
           className="h-8 text-xs"
         />
       </td>
@@ -165,6 +179,8 @@ export function Component() {
   const { projectId: id } = useParams<{ projectId: string }>()
   const pid = Number(id)
   const [selectedDayId, setSelectedDayId] = useState<number | null>(null)
+  const tt = useT()
+  const gebietsschema = useGebietsschema()
 
   const token = localStorage.getItem('token')
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
@@ -252,8 +268,8 @@ export function Component() {
       <div className="mb-8 pb-7 border-b border-border/40">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="font-display text-[28px] sm:text-[34px]">Catering</h1>
-            <p className="text-sm text-muted-foreground/60 mt-1.5">Ernährungspräferenzen und Tageslisten verwalten</p>
+            <h1 className="font-display text-[28px] sm:text-[34px]">{tt(cateringListeT.titel)}</h1>
+            <p className="text-sm text-muted-foreground/60 mt-1.5">{tt(cateringListeT.untertitel)}</p>
           </div>
           {/* Stat card */}
           <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group flex items-start gap-4 min-w-[160px]">
@@ -262,7 +278,7 @@ export function Component() {
             </div>
             <div>
               <div className="text-[2.25rem] font-bold tabular-nums leading-none">{totalPersons}</div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] mt-2 text-muted-foreground">Personen</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] mt-2 text-muted-foreground">{tt(cateringListeT.personen)}</div>
             </div>
           </div>
         </div>
@@ -270,15 +286,15 @@ export function Component() {
 
       <Tabs defaultValue="praeferenzen">
         <TabsList className="mb-6">
-          <TabsTrigger value="praeferenzen" className="active:scale-[0.97]">Präferenzen</TabsTrigger>
-          <TabsTrigger value="tagesliste" className="active:scale-[0.97]">Tagesliste</TabsTrigger>
+          <TabsTrigger value="praeferenzen" className="active:scale-[0.97]">{tt(cateringListeT.praeferenzen)}</TabsTrigger>
+          <TabsTrigger value="tagesliste" className="active:scale-[0.97]">{tt(cateringListeT.tagesliste)}</TabsTrigger>
         </TabsList>
 
         {/* ── Präferenzen ── */}
         <TabsContent value="praeferenzen">
           <div className="mb-4">
             <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">
-              Alle Personen
+              {tt(cateringListeT.allePersonen)}
             </span>
           </div>
 
@@ -289,7 +305,7 @@ export function Component() {
           ) : allPersons.length === 0 ? (
             <div className="rounded-xl border border-border/60 bg-card p-16 flex flex-col items-center justify-center gap-3">
               <UtensilsCrossed className="h-10 w-10 opacity-20" />
-              <p className="text-sm text-muted-foreground">Keine Personen gefunden.</p>
+              <p className="text-sm text-muted-foreground">{tt(cateringListeT.keinePersonen)}</p>
             </div>
           ) : (
             <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
@@ -297,11 +313,11 @@ export function Component() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/30 border-b border-border/40">
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Name</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Typ</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Diät</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Allergien</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Notizen</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{tt(cateringListeT.name)}</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{tt(cateringListeT.typ)}</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{tt(cateringListeT.diaet)}</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{tt(cateringListeT.allergien)}</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{tt(cateringListeT.notizen)}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -326,7 +342,7 @@ export function Component() {
           {/* Day selector card */}
           <div className="rounded-xl border border-border/60 bg-card p-5">
             <div className="mb-3">
-              <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">Drehtag auswählen</span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">{tt(cateringListeT.drehtagWaehlen)}</span>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
               <Select
@@ -334,19 +350,19 @@ export function Component() {
                 onValueChange={v => setSelectedDayId(Number(v))}
               >
                 <SelectTrigger className="w-64">
-                  <SelectValue placeholder="Drehtag auswählen…" />
+                  <SelectValue placeholder={tt(cateringListeT.drehtagWaehlenPh)} />
                 </SelectTrigger>
                 <SelectContent>
                   {(shootDays ?? []).map(d => (
                     <SelectItem key={d.id} value={String(d.id)}>
-                      DT {d.day_number} - {formatDate(d.date)}
+                      {tt(cateringListeT.dtOption).replace('{n}', String(d.day_number)).replace('{datum}', formatDate(d.date, gebietsschema))}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <Button variant="outline" size="sm" disabled className="active:scale-[0.97]">
                 <Download className="mr-2 h-4 w-4" />
-                PDF exportieren
+                {tt(cateringListeT.pdfExportieren)}
               </Button>
             </div>
           </div>
@@ -354,7 +370,7 @@ export function Component() {
           {!selectedDayId && (
             <div className="rounded-xl border border-border/60 bg-card p-16 flex flex-col items-center justify-center gap-3">
               <UtensilsCrossed className="h-10 w-10 opacity-20" />
-              <p className="text-sm text-muted-foreground">Bitte einen Drehtag auswählen.</p>
+              <p className="text-sm text-muted-foreground">{tt(cateringListeT.bitteDrehtag)}</p>
             </div>
           )}
 
@@ -370,7 +386,7 @@ export function Component() {
               {Object.keys(dietarySummary).length > 0 && (
                 <div className="rounded-xl border border-border/60 bg-card p-4">
                   <div className="mb-3">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">Ernährungsübersicht</span>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">{tt(cateringListeT.diaetSumme)}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(dietarySummary).map(([diet, count]) => (
@@ -379,7 +395,7 @@ export function Component() {
                         variant={(DIETARY_COLORS[diet] as any) ?? 'secondary'}
                         className="px-3 py-1 text-xs font-semibold"
                       >
-                        {count}× {diet}
+                        {count}× {DIAET_KLEIN[diet] ? tt(DIAET_KLEIN[diet]) : diet}
                       </Badge>
                     ))}
                   </div>
@@ -390,13 +406,13 @@ export function Component() {
               {(cateringList ?? []).length === 0 ? (
                 <div className="rounded-xl border border-border/60 bg-card p-16 flex flex-col items-center justify-center gap-3">
                   <UtensilsCrossed className="h-10 w-10 opacity-20" />
-                  <p className="text-sm text-muted-foreground">Keine Personen für diesen Drehtag.</p>
+                  <p className="text-sm text-muted-foreground">{tt(cateringListeT.keinePersonenTag)}</p>
                 </div>
               ) : (
                 <>
                   <div className="mb-2">
                     <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">
-                      {(cateringList ?? []).length} Personen
+                      {tt(cateringListeT.anzahlPersonen).replace('{n}', String((cateringList ?? []).length))}
                     </span>
                   </div>
                   <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
@@ -404,11 +420,11 @@ export function Component() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="bg-muted/30 border-b border-border/40">
-                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Name</th>
-                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Typ</th>
-                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Diät</th>
-                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Allergien</th>
-                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Notizen</th>
+                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{tt(cateringListeT.name)}</th>
+                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{tt(cateringListeT.typ)}</th>
+                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{tt(cateringListeT.diaet)}</th>
+                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{tt(cateringListeT.allergien)}</th>
+                            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{tt(cateringListeT.notizen)}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -420,13 +436,13 @@ export function Component() {
                               <td className="px-4 py-2.5 font-medium">{e.name}</td>
                               <td className="px-4 py-2.5">
                                 <Badge variant={e.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px]">
-                                  {e.person_type === 'cast' ? 'Darsteller' : 'Crew'}
+                                  {e.person_type === 'cast' ? tt(cateringListeT.darsteller) : tt(cateringListeT.crew)}
                                 </Badge>
                               </td>
                               <td className="px-4 py-2.5">
                                 {e.dietary && e.dietary !== 'keine' ? (
                                   <Badge variant={(DIETARY_COLORS[e.dietary] as any) ?? 'secondary'}>
-                                    {e.dietary}
+                                    {DIAET_KLEIN[e.dietary] ? tt(DIAET_KLEIN[e.dietary]) : e.dietary}
                                   </Badge>
                                 ) : (
                                   <span className="text-muted-foreground/40">-</span>

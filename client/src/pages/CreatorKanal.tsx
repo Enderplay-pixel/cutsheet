@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChevronLeft, ChevronRight, CalendarDays, Eye, Heart, UserPlus, Banknote } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+import { useT, useGebietsschema } from '@/lib/useT'
+import { creatorKanalT as T, WOCHENTAGE, STATUS_TEXT } from '@/lib/texte/CreatorKanal'
 
 const STATUS_DOT: Record<string, string> = {
   'Idee': 'bg-muted-foreground/50',
@@ -49,6 +49,8 @@ export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
   const navigate = useNavigate()
+  const tt = useT()
+  const gs = useGebietsschema()
 
   const today = new Date()
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() })
@@ -92,31 +94,31 @@ export function Component() {
   const cadence = data?.cadence
   const totals = data?.totals || { views: 0, likes: 0, subs: 0 }
   const monthLabel = new Date(cursor.year, cursor.month, 1)
-    .toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
+    .toLocaleDateString(gs, { month: 'long', year: 'numeric' })
 
   return (
     <div className="p-6 max-w-[1200px]">
       <PageHeader
-        title="Kanal"
-        subtitle={`${data?.video_count ?? 0} Videos · ${data?.published_count ?? 0} veröffentlicht · ${data?.planned_count ?? 0} geplant`}
+        title={tt(T.titel)}
+        subtitle={tt(T.untertitel).replace('{n}', String(data?.video_count ?? 0)).replace('{p}', String(data?.published_count ?? 0)).replace('{g}', String(data?.planned_count ?? 0))}
       />
 
       <YouTubeConnection projectId={pid} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <Stat icon={Eye} label="Aufrufe gesamt" value={totals.views.toLocaleString('de-DE')} />
-        <Stat icon={Heart} label="Likes gesamt" value={totals.likes.toLocaleString('de-DE')} />
-        <Stat icon={UserPlus} label="Abos gewonnen" value={totals.subs.toLocaleString('de-DE')} />
+        <Stat icon={Eye} label={tt(T.aufrufe)} value={totals.views.toLocaleString(gs)} />
+        <Stat icon={Heart} label={tt(T.likes)} value={totals.likes.toLocaleString(gs)} />
+        <Stat icon={UserPlus} label={tt(T.abos)} value={totals.subs.toLocaleString(gs)} />
         <Stat
           icon={Banknote}
-          label="Sponsoring"
-          value={((data?.sponsor_fee_cents ?? 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+          label={tt(T.sponsoring)}
+          value={((data?.sponsor_fee_cents ?? 0) / 100).toLocaleString(gs, { style: 'currency', currency: 'EUR' })}
         />
       </div>
 
       {cadence?.notes?.length > 0 && (
         <div className="mb-6 p-3.5 rounded-lg border border-border/50 bg-muted/20">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">Veröffentlichungsrhythmus</div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">{tt(T.rhythmus)}</div>
           {cadence.notes.map((n: string, i: number) => (
             <div key={i} className="text-sm text-muted-foreground">{n}</div>
           ))}
@@ -126,7 +128,7 @@ export function Component() {
       {(patterns?.notes || []).length > 0 && (
         <div className="mb-6 p-3.5 rounded-lg border border-border/50 bg-muted/20">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-            Muster über den Kanal
+            {tt(T.muster)}
           </div>
           {patterns.notes.map((n: string, i: number) => (
             <div key={i} className="text-sm text-muted-foreground">{n}</div>
@@ -140,24 +142,24 @@ export function Component() {
         <span className="font-medium">{monthLabel}</span>
         <div className="flex-1" />
         <Button variant="ghost" size="sm" className="h-7 w-7 p-0"
-          aria-label="Vorheriger Monat" title="Vorheriger Monat"
+          aria-label={tt(T.vorherigerMonat)} title={tt(T.vorherigerMonat)}
           onClick={() => setCursor(c => (c.month === 0 ? { year: c.year - 1, month: 11 } : { ...c, month: c.month - 1 }))}>
           <ChevronLeft className="w-4 h-4" />
         </Button>
         <Button variant="ghost" size="sm" className="h-7 text-xs"
           onClick={() => setCursor({ year: today.getFullYear(), month: today.getMonth() })}>
-          Heute
+          {tt(T.heute)}
         </Button>
         <Button variant="ghost" size="sm" className="h-7 w-7 p-0"
-          aria-label="Nächster Monat" title="Nächster Monat"
+          aria-label={tt(T.naechsterMonat)} title={tt(T.naechsterMonat)}
           onClick={() => setCursor(c => (c.month === 11 ? { year: c.year + 1, month: 0 } : { ...c, month: c.month + 1 }))}>
           <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
 
       <div className="grid grid-cols-7 gap-px bg-border/40 rounded-lg overflow-hidden border border-border/40">
-        {WEEKDAYS.map(d => (
-          <div key={d} className="bg-card px-2 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground/70">{d}</div>
+        {WOCHENTAGE.map(d => (
+          <div key={d.de} className="bg-card px-2 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground/70">{tt(d)}</div>
         ))}
         {days.map(d => {
           const entries = byDay.get(isoDay(d)) || []
@@ -178,11 +180,11 @@ export function Component() {
                 <button
                   key={e.id}
                   onClick={() => navigate(`/projects/${pid}/creator/${e.id}`)}
-                  title={`${e.title} - ${e.status}${e.published ? ' (veröffentlicht)' : ''}`}
+                  title={`${e.title} - ${STATUS_TEXT[e.status] ? tt(STATUS_TEXT[e.status]) : e.status}${e.published ? tt(T.veroeffentlicht) : ''}`}
                   className="w-full flex items-center gap-1 px-1 py-0.5 mb-0.5 rounded text-left text-[10px] hover:bg-muted/60 transition-colors"
                 >
                   <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', STATUS_DOT[e.status] || 'bg-muted-foreground')} />
-                  <span className="truncate">{e.title || 'Unbenannt'}</span>
+                  <span className="truncate">{e.title || tt(T.unbenannt)}</span>
                 </button>
               ))}
             </div>
@@ -191,8 +193,7 @@ export function Component() {
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground/70">
-        Termine kommen aus dem geplanten bzw. tatsächlichen Veröffentlichungsdatum der Videos.
-        Beides lässt sich im jeweiligen Video unter „Zahlen“ setzen.
+        {tt(T.fusszeile)}
       </p>
     </div>
   )

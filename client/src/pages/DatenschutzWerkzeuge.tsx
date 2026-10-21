@@ -15,29 +15,33 @@ import {
 } from '@/components/ui/dialog'
 import { ShieldCheck, FileSearch, UserX, Users, Download, AlertTriangle } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { uiT, type Lang } from '@/lib/i18n'
+import { datenschutzWerkzeugeT as dw } from '@/lib/texte/DatenschutzWerkzeuge'
 
 const ARTEN = [
-  { wert: 'crew', label: 'Stab' },
-  { wert: 'cast', label: 'Besetzung' },
-  { wert: 'extra', label: 'Komparserie' },
+  { wert: 'crew', label: dw.artStab },
+  { wert: 'cast', label: dw.artBesetzung },
+  { wert: 'extra', label: dw.artKomparserie },
 ]
 
 export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
+  const tt = useT()
 
   return (
     <div className="px-5 py-6 sm:p-6 max-w-5xl mx-auto space-y-4">
       <PageHeader
-        title="Datenschutz"
-        subtitle="Auskunft geben, Daten entfernen, Zugriffe sehen"
+        title={tt(dw.titel)}
+        subtitle={tt(dw.untertitel)}
       />
 
       <Tabs defaultValue="auskunft">
         <TabsList>
-          <TabsTrigger value="auskunft"><FileSearch className="w-3.5 h-3.5 mr-1.5" />Auskunft</TabsTrigger>
-          <TabsTrigger value="loeschen"><UserX className="w-3.5 h-3.5 mr-1.5" />Daten entfernen</TabsTrigger>
-          <TabsTrigger value="zugriff"><Users className="w-3.5 h-3.5 mr-1.5" />Wer sieht was</TabsTrigger>
+          <TabsTrigger value="auskunft"><FileSearch className="w-3.5 h-3.5 mr-1.5" />{tt(dw.tabAuskunft)}</TabsTrigger>
+          <TabsTrigger value="loeschen"><UserX className="w-3.5 h-3.5 mr-1.5" />{tt(dw.tabEntfernen)}</TabsTrigger>
+          <TabsTrigger value="zugriff"><Users className="w-3.5 h-3.5 mr-1.5" />{tt(dw.tabZugriff)}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="auskunft" className="mt-4"><Auskunft pid={pid} /></TabsContent>
@@ -66,11 +70,13 @@ function Auskunft({ pid }: { pid: number }) {
   const [art, setArt] = useState('crew')
   const [person, setPerson] = useState('')
   const [ergebnis, setErgebnis] = useState<any | null>(null)
+  const tt = useT()
+  const gs = useGebietsschema()
 
   const abrufen = useMutation({
     mutationFn: () => api.datenschutz.auskunft(pid, art, Number(person)),
     onSuccess: (daten: any) => setErgebnis(daten),
-    onError: (fehler: any) => toast({ title: 'Keine Auskunft', description: fehler.message, variant: 'destructive' }),
+    onError: (fehler: any) => toast({ title: tt(dw.keineAuskunft), description: fehler.message, variant: 'destructive' }),
   })
 
   const liste = (personen as any)[art] || []
@@ -90,26 +96,25 @@ function Auskunft({ pid }: { pid: number }) {
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm">Auskunft nach Artikel 15 DSGVO</CardTitle></CardHeader>
+        <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm">{tt(dw.auskunftTitel)}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Wer wissen will, was über sie oder ihn gespeichert ist, hat ein Recht darauf.
-            Hier steht alles aus diesem Projekt an einer Stelle - zum Weitergeben.
+            {tt(dw.auskunftText)}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <Label className="text-xs">Bereich</Label>
+              <Label className="text-xs">{tt(dw.bereich)}</Label>
               <Select value={art} onValueChange={v => { setArt(v); setPerson(''); setErgebnis(null) }}>
                 <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {ARTEN.map(a => <SelectItem key={a.wert} value={a.wert}>{a.label}</SelectItem>)}
+                  {ARTEN.map(a => <SelectItem key={a.wert} value={a.wert}>{tt(a.label)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="sm:col-span-2">
-              <Label className="text-xs">Person</Label>
+              <Label className="text-xs">{tt(dw.person)}</Label>
               <Select value={person} onValueChange={setPerson}>
-                <SelectTrigger className="h-8 text-sm mt-1"><SelectValue placeholder="Wählen" /></SelectTrigger>
+                <SelectTrigger className="h-8 text-sm mt-1"><SelectValue placeholder={tt(dw.waehlen)} /></SelectTrigger>
                 <SelectContent>
                   {liste.map((p: any) => (
                     <SelectItem key={p.id} value={String(p.id)}>
@@ -121,7 +126,7 @@ function Auskunft({ pid }: { pid: number }) {
             </div>
           </div>
           <Button size="sm" disabled={!person || abrufen.isPending} onClick={() => abrufen.mutate()}>
-            <FileSearch className="w-4 h-4 mr-1.5" />Auskunft erstellen
+            <FileSearch className="w-4 h-4 mr-1.5" />{tt(dw.auskunftErstellen)}
           </Button>
         </CardContent>
       </Card>
@@ -132,11 +137,11 @@ function Auskunft({ pid }: { pid: number }) {
             <CardTitle className="text-sm">
               {ergebnis.person?.name || ergebnis.person?.actor_name}
               <span className="text-xs text-muted-foreground font-normal ml-2">
-                Stand {new Date(ergebnis.erstellt_am).toLocaleDateString('de-DE')}
+                {tt(dw.stand).replace('{datum}', new Date(ergebnis.erstellt_am).toLocaleDateString(gs))}
               </span>
             </CardTitle>
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={herunterladen}>
-              <Download className="w-3.5 h-3.5 mr-1" />Als Datei
+              <Download className="w-3.5 h-3.5 mr-1" />{tt(dw.alsDatei)}
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -169,6 +174,7 @@ function Entfernen({ pid }: { pid: number }) {
   const [person, setPerson] = useState('')
   const [grund, setGrund] = useState('')
   const [offen, setOffen] = useState(false)
+  const tt = useT()
 
   const entfernen = useMutation({
     mutationFn: () => api.datenschutz.anonymisieren(pid, art, Number(person), grund),
@@ -179,9 +185,9 @@ function Entfernen({ pid }: { pid: number }) {
       setOffen(false)
       setPerson('')
       setGrund('')
-      toast({ title: `Jetzt „${daten.ersatzname}"`, description: daten.hinweis })
+      toast({ title: tt(dw.jetzt).replace('{name}', daten.ersatzname), description: daten.hinweis })
     },
-    onError: (fehler: any) => toast({ title: 'Nicht entfernt', description: fehler.message, variant: 'destructive' }),
+    onError: (fehler: any) => toast({ title: tt(dw.nichtEntfernt), description: fehler.message, variant: 'destructive' }),
   })
 
   const liste = (personen as any)[art] || []
@@ -189,32 +195,29 @@ function Entfernen({ pid }: { pid: number }) {
 
   return (
     <Card>
-      <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm">Daten entfernen nach Artikel 17 DSGVO</CardTitle></CardHeader>
+      <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm">{tt(dw.entfernenTitel)}</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
           <AlertTriangle className="w-4 h-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
           <p className="text-xs text-muted-foreground">
-            Gelöscht wird der Bezug zur Person: Name, Kontakt, Freitexte. Was bleibt, sind
-            Dispositionen und Arbeitszeiten als Produktionsunterlage - ohne Namen. Das ist
-            gewollt: Eine Dispo von vorletztem Jahr muss nachvollziehbar bleiben, und
-            Arbeitszeiten sind nach Paragraf 16 ArbZG zwei Jahre aufzubewahren.
+            {tt(dw.entfernenHinweis)}
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <Label className="text-xs">Bereich</Label>
+            <Label className="text-xs">{tt(dw.bereich)}</Label>
             <Select value={art} onValueChange={v => { setArt(v); setPerson('') }}>
               <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {ARTEN.map(a => <SelectItem key={a.wert} value={a.wert}>{a.label}</SelectItem>)}
+                {ARTEN.map(a => <SelectItem key={a.wert} value={a.wert}>{tt(a.label)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="sm:col-span-2">
-            <Label className="text-xs">Person</Label>
+            <Label className="text-xs">{tt(dw.person)}</Label>
             <Select value={person} onValueChange={setPerson}>
-              <SelectTrigger className="h-8 text-sm mt-1"><SelectValue placeholder="Wählen" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-sm mt-1"><SelectValue placeholder={tt(dw.waehlen)} /></SelectTrigger>
               <SelectContent>
                 {liste.map((p: any) => (
                   <SelectItem key={p.id} value={String(p.id)}>
@@ -227,29 +230,27 @@ function Entfernen({ pid }: { pid: number }) {
         </div>
 
         <div>
-          <Label className="text-xs" htmlFor="d-grund">Grund (kommt ins Protokoll)</Label>
+          <Label className="text-xs" htmlFor="d-grund">{tt(dw.grund)}</Label>
           <Input id="d-grund" value={grund} onChange={e => setGrund(e.target.value)}
-            className="mt-1 h-8 text-sm" placeholder="Löschungsersuchen vom …" />
+            className="mt-1 h-8 text-sm" placeholder={tt(dw.grundPlatzhalter)} />
         </div>
 
         <Button size="sm" variant="destructive" disabled={!person} onClick={() => setOffen(true)}>
-          <UserX className="w-4 h-4 mr-1.5" />Personenbezug entfernen
+          <UserX className="w-4 h-4 mr-1.5" />{tt(dw.personenbezugEntfernen)}
         </Button>
 
         <Dialog open={offen} onOpenChange={setOffen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{gewaehlt?.name} entfernen?</DialogTitle>
+              <DialogTitle>{tt(dw.dialogTitel).replace('{name}', gewaehlt?.name ?? '')}</DialogTitle>
               <DialogDescription>
-                Name, E-Mail, Telefon und Notizen werden geleert und durch die Funktion
-                ersetzt. Das lässt sich nicht rückgängig machen. Dispositionen und
-                Arbeitszeiten bleiben ohne Namen bestehen.
+                {tt(dw.dialogText)}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setOffen(false)}>Abbrechen</Button>
+              <Button variant="outline" onClick={() => setOffen(false)}>{tt(uiT.cancel)}</Button>
               <Button variant="destructive" disabled={entfernen.isPending} onClick={() => entfernen.mutate()}>
-                {entfernen.isPending ? 'Wird entfernt …' : 'Endgültig entfernen'}
+                {entfernen.isPending ? tt(dw.wirdEntfernt) : tt(dw.endgueltig)}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -262,17 +263,18 @@ function Entfernen({ pid }: { pid: number }) {
 function Zugriff({ pid }: { pid: number }) {
   const { data } = useQuery({ queryKey: ['datenschutz-zugriff', pid], queryFn: () => api.datenschutz.zugriff(pid) })
 
-  const ROLLE: Record<string, string> = {
-    admin: 'Alles, auch Löschen',
-    producer: 'Alles ausser Projekt löschen',
-    director: 'Planung und Inhalte',
-    dept_head: 'Eigenes Gewerk',
-    read_only: 'Nur lesen',
+  const tt = useT()
+  const ROLLE: Record<string, Record<Lang, string>> = {
+    admin: dw.rolleAdmin,
+    producer: dw.rolleProducer,
+    director: dw.rolleDirector,
+    dept_head: dw.rolleDeptHead,
+    read_only: dw.rolleReadOnly,
   }
 
   return (
     <Card>
-      <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm">Wer kann die Personendaten sehen</CardTitle></CardHeader>
+      <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm">{tt(dw.zugriffTitel)}</CardTitle></CardHeader>
       <CardContent className="space-y-1">
         {(data?.mitglieder || []).map((m: any, i: number) => (
           <div key={i} className="flex items-center gap-3 py-1.5 border-b border-border/60 last:border-0">
@@ -281,13 +283,12 @@ function Zugriff({ pid }: { pid: number }) {
               <p className="text-sm truncate">{m.name || m.email}</p>
               <p className="text-xs text-muted-foreground truncate">{m.email}</p>
             </div>
-            <Badge variant="secondary" className="text-xs font-normal">{ROLLE[m.role] || m.role}</Badge>
+            <Badge variant="secondary" className="text-xs font-normal">{ROLLE[m.role] ? tt(ROLLE[m.role]) : m.role}</Badge>
           </div>
         ))}
         {data && data.gastzugaenge > 0 && (
           <p className="text-xs text-muted-foreground pt-2">
-            Dazu {data.gastzugaenge} Gastzugänge über Links. Sie zeigen nur, was für sie
-            freigegeben ist - keine Gagen, keine Telefonnummern.
+            {tt(dw.gastzugaenge).replace('{n}', String(data.gastzugaenge))}
           </p>
         )}
       </CardContent>

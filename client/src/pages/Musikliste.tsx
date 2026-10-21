@@ -7,6 +7,9 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
 import { Plus, Trash2, Pencil, Check, X, Music, Download } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
+import { useT } from '@/lib/useT'
+import { uiT, type Lang } from '@/lib/i18n'
+import { musiklisteT } from '@/lib/texte/Musikliste'
 
 interface MusicCue {
   id: number
@@ -23,6 +26,23 @@ interface MusicCue {
 
 const CUE_TYPES = ['Original', 'Lizenz', 'Gemeinfreiheit', 'GEMA-frei', 'Eigenkomposition']
 const USAGE_TYPES = ['Unterlegt', 'Quelle', 'Thema', 'Jingle']
+
+/** Beschriftung je gespeichertem Wert - der Wert selbst bleibt deutsch. */
+const TYP_LABEL: Record<string, Record<Lang, string>> = {
+  Original: musiklisteT.typOriginal,
+  Lizenz: musiklisteT.typLizenz,
+  Gemeinfreiheit: musiklisteT.typGemeinfrei,
+  'GEMA-frei': musiklisteT.typGemaFrei,
+  Eigenkomposition: musiklisteT.typEigen,
+  Unterlegt: musiklisteT.nutzUnterlegt,
+  Quelle: musiklisteT.nutzQuelle,
+  Thema: musiklisteT.nutzThema,
+  Jingle: musiklisteT.nutzJingle,
+}
+
+type Tt = (map: Record<Lang, string>) => string
+
+const beschriftung = (wert: string, tt: Tt) => (TYP_LABEL[wert] ? tt(TYP_LABEL[wert]) : wert)
 
 const EMPTY: Omit<MusicCue, 'id'> = {
   title: '',
@@ -64,6 +84,7 @@ function parseMMSS(val: string): number {
 function CueFormRow({ initial, pid, onDone }: { initial?: MusicCue; pid: number; onDone: () => void }) {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
   const [form, setForm] = useState<Omit<MusicCue, 'id'>>(initial ? { ...initial } : { ...EMPTY })
   const [durationInput, setDurationInput] = useState(initial ? formatDuration(initial.duration_seconds) : '00:00')
   const set = (key: string, value: any) => setForm(f => ({ ...f, [key]: value }))
@@ -75,10 +96,10 @@ function CueFormRow({ initial, pid, onDone }: { initial?: MusicCue; pid: number;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['musicCues', pid] })
-      toast({ title: initial ? 'Musikcue aktualisiert' : 'Musikcue hinzugefügt' })
+      toast({ title: initial ? tt(musiklisteT.aktualisiert) : tt(musiklisteT.hinzugefuegt) })
       onDone()
     },
-    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Speichern' }),
+    onError: () => toast({ variant: 'destructive', title: tt(musiklisteT.fehlerSpeichern) }),
   })
 
   const c = 'py-1.5 px-2'
@@ -87,34 +108,34 @@ function CueFormRow({ initial, pid, onDone }: { initial?: MusicCue; pid: number;
 
   return (
     <tr className="border-b border-primary/20 bg-primary/5">
-      <td className={c}><Input className={i} placeholder="Titel" value={form.title} onChange={e => set('title', e.target.value)} /></td>
-      <td className={c}><Input className={i} placeholder="Komponist" value={form.composer} onChange={e => set('composer', e.target.value)} /></td>
-      <td className={c}><Input className={i} placeholder="Verlag" value={form.publisher} onChange={e => set('publisher', e.target.value)} /></td>
-      <td className={c}><Input className={i} placeholder="Textdichter" value={form.lyrics_author} onChange={e => set('lyrics_author', e.target.value)} /></td>
-      <td className={c}><Input className={i} placeholder="MM:SS" value={durationInput} onChange={e => setDurationInput(e.target.value)} /></td>
+      <td className={c}><Input className={i} placeholder={tt(musiklisteT.titel)} value={form.title} onChange={e => set('title', e.target.value)} /></td>
+      <td className={c}><Input className={i} placeholder={tt(musiklisteT.komponist)} value={form.composer} onChange={e => set('composer', e.target.value)} /></td>
+      <td className={c}><Input className={i} placeholder={tt(musiklisteT.verlag)} value={form.publisher} onChange={e => set('publisher', e.target.value)} /></td>
+      <td className={c}><Input className={i} placeholder={tt(musiklisteT.textdichter)} value={form.lyrics_author} onChange={e => set('lyrics_author', e.target.value)} /></td>
+      <td className={c}><Input className={i} placeholder={tt(musiklisteT.mmss)} value={durationInput} onChange={e => setDurationInput(e.target.value)} /></td>
       <td className={c}>
         <select className={sel} value={form.cue_type} onChange={e => set('cue_type', e.target.value)}>
-          {CUE_TYPES.map(t => <option key={t}>{t}</option>)}
+          {CUE_TYPES.map(t => <option key={t} value={t}>{beschriftung(t, tt)}</option>)}
         </select>
       </td>
       <td className={c}>
-        <select aria-label="Art der Nutzung" className={sel} value={form.usage_type} onChange={e => set('usage_type', e.target.value)}>
-          {USAGE_TYPES.map(t => <option key={t}>{t}</option>)}
+        <select aria-label={tt(musiklisteT.artDerNutzung)} className={sel} value={form.usage_type} onChange={e => set('usage_type', e.target.value)}>
+          {USAGE_TYPES.map(t => <option key={t} value={t}>{beschriftung(t, tt)}</option>)}
         </select>
       </td>
-      <td className={c}><Input className={i} type="number" placeholder="Szene #" value={form.scene_id ?? ''} onChange={e => set('scene_id', e.target.value ? Number(e.target.value) : null)} /></td>
-      <td className={c}><Input className={i} placeholder="Notizen" value={form.notes} onChange={e => set('notes', e.target.value)} /></td>
+      <td className={c}><Input className={i} type="number" placeholder={tt(musiklisteT.szeneNr)} value={form.scene_id ?? ''} onChange={e => set('scene_id', e.target.value ? Number(e.target.value) : null)} /></td>
+      <td className={c}><Input className={i} placeholder={tt(uiT.notes)} value={form.notes} onChange={e => set('notes', e.target.value)} /></td>
       <td className="py-1.5 px-2">
         <div className="flex items-center gap-1 justify-end">
           <button
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending || !form.title.trim()}
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-green-500 disabled:opacity-40"
-            title="Speichern"
+            title={tt(uiT.save)}
           >
             <Check className="w-4 h-4" />
           </button>
-          <button onClick={onDone} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground" title="Abbrechen">
+          <button onClick={onDone} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground" title={tt(uiT.cancel)}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -127,14 +148,15 @@ function CueRow({ cue, pid, onEdit }: { cue: MusicCue; pid: number; onEdit: (c: 
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { canEdit } = useProjectPerms()
+  const tt = useT()
 
   const deleteMutation = useMutation({
     mutationFn: () => api.musicCues.delete(pid, cue.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['musicCues', pid] })
-      toast({ title: 'Musikcue gelöscht' })
+      toast({ title: tt(musiklisteT.geloescht) })
     },
-    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Löschen' }),
+    onError: () => toast({ variant: 'destructive', title: tt(musiklisteT.fehlerLoeschen) }),
   })
 
   return (
@@ -144,9 +166,9 @@ function CueRow({ cue, pid, onEdit }: { cue: MusicCue; pid: number; onEdit: (c: 
       <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.publisher || '-'}</td>
       <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.lyrics_author || '-'}</td>
       <td className="py-2.5 px-3 text-sm font-mono text-muted-foreground">{formatDuration(cue.duration_seconds)}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.cue_type || '-'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.usage_type || '-'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.scene_id ? `Szene ${cue.scene_id}` : '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.cue_type ? beschriftung(cue.cue_type, tt) : '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.usage_type ? beschriftung(cue.usage_type, tt) : '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.scene_id ? tt(musiklisteT.szeneN).replace('{n}', String(cue.scene_id)) : '-'}</td>
       <td className="py-2.5 px-3 text-sm text-muted-foreground max-w-[120px] truncate" title={cue.notes}>{cue.notes || '-'}</td>
       <td className="py-2.5 px-3 text-right">
         <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
@@ -155,7 +177,7 @@ function CueRow({ cue, pid, onEdit }: { cue: MusicCue; pid: number; onEdit: (c: 
               <button
                 onClick={() => onEdit(cue)}
                 className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-                title="Bearbeiten"
+                title={tt(uiT.edit)}
               >
                 <Pencil className="w-3.5 h-3.5" />
               </button>
@@ -163,7 +185,7 @@ function CueRow({ cue, pid, onEdit }: { cue: MusicCue; pid: number; onEdit: (c: 
                 onClick={() => deleteMutation.mutate()}
                 disabled={deleteMutation.isPending}
                 className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-destructive"
-                title="Löschen"
+                title={tt(uiT.delete)}
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -175,17 +197,17 @@ function CueRow({ cue, pid, onEdit }: { cue: MusicCue; pid: number; onEdit: (c: 
   )
 }
 
-function exportCSV(cues: MusicCue[]) {
-  const headers = ['Titel', 'Komponist', 'Verlag', 'Textdichter', 'Dauer (MM:SS)', 'Lizenzart', 'Verwendungsart', 'Szene', 'Notizen']
+function exportCSV(cues: MusicCue[], tt: Tt) {
+  const headers = [musiklisteT.titel, musiklisteT.komponist, musiklisteT.verlag, musiklisteT.textdichter, musiklisteT.dauerMmss, musiklisteT.lizenzart, musiklisteT.verwendungsart, musiklisteT.szene, uiT.notes].map(tt)
   const rows = cues.map(c => [
     c.title,
     c.composer,
     c.publisher,
     c.lyrics_author,
     formatDuration(c.duration_seconds),
-    c.cue_type,
-    c.usage_type,
-    c.scene_id ? `Szene ${c.scene_id}` : '',
+    c.cue_type ? beschriftung(c.cue_type, tt) : c.cue_type,
+    c.usage_type ? beschriftung(c.usage_type, tt) : c.usage_type,
+    c.scene_id ? tt(musiklisteT.szeneN).replace('{n}', String(c.scene_id)) : '',
     c.notes,
   ])
   const csv = [headers, ...rows]
@@ -204,6 +226,7 @@ export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
   const { canEdit } = useProjectPerms()
+  const tt = useT()
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
 
@@ -222,19 +245,19 @@ export function Component() {
         <div className="flex items-center gap-3 flex-wrap">
           <Music className="w-5 h-5 text-muted-foreground" />
           <div>
-            <h1 className="font-display text-[28px] sm:text-[34px]">Musikliste / GEMA-Cuesheet</h1>
+            <h1 className="font-display text-[28px] sm:text-[34px]">{tt(musiklisteT.seitentitel)}</h1>
             <p className="text-sm text-muted-foreground">
-              {allCues.length} Cues · Gesamtdauer: {formatTotalDuration(totalSeconds)}
+              {tt(musiklisteT.untertitel).replace('{n}', String(allCues.length)).replace('{dauer}', formatTotalDuration(totalSeconds))}
             </p>
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => exportCSV(allCues)} disabled={allCues.length === 0}>
-            <Download className="w-4 h-4 mr-2" /> CSV-Export (GEMA)
+          <Button variant="outline" onClick={() => exportCSV(allCues, tt)} disabled={allCues.length === 0}>
+            <Download className="w-4 h-4 mr-2" /> {tt(musiklisteT.csvExport)}
           </Button>
           {canEdit && (
             <Button onClick={() => { setAdding(true); setEditingId(null) }} disabled={adding}>
-              <Plus className="w-4 h-4 mr-2" /> Neuer Cue
+              <Plus className="w-4 h-4 mr-2" /> {tt(musiklisteT.neuerCue)}
             </Button>
           )}
         </div>
@@ -247,7 +270,7 @@ export function Component() {
             <table className="w-full min-w-[560px]">
               <thead>
                 <tr className="border-b border-border/60 bg-muted/30">
-                  {['Titel', 'Komponist', 'Verlag', 'Textdichter', 'Dauer', 'Lizenzart', 'Verwendung', 'Szene', 'Notizen', ''].map((h, i) => (
+                  {[tt(musiklisteT.titel), tt(musiklisteT.komponist), tt(musiklisteT.verlag), tt(musiklisteT.textdichter), tt(musiklisteT.dauer), tt(musiklisteT.lizenzart), tt(musiklisteT.verwendung), tt(musiklisteT.szene), tt(uiT.notes), ''].map((h, i) => (
                     <th key={i} className="text-left py-2.5 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -266,7 +289,7 @@ export function Component() {
                   <tr>
                     <td colSpan={10} className="py-16 text-center">
                       <Music className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">Noch keine Musikcues erfasst</p>
+                      <p className="text-sm text-muted-foreground">{tt(musiklisteT.leer)}</p>
                     </td>
                   </tr>
                 ) : (

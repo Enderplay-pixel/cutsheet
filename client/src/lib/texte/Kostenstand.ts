@@ -1,0 +1,52 @@
+import type { Lang } from '@/lib/i18n'
+
+type Text = Record<Lang, string>
+
+export const kostenstandT = {
+  nichtGespeichert: { de: 'Nicht gespeichert', en: 'Not saved', fr: 'Non enregistré' },
+  fehler:           { de: 'Fehler', en: 'Error', fr: 'Erreur' },
+  titel:            { de: 'Kostenstand', en: 'Cost status', fr: 'État des coûts' },
+  istGegenVersion:  { de: 'Ist-Kosten gegen Kalkulation „{name}"', en: 'Actual costs against budget "{name}"', fr: 'Coûts réels par rapport au budget « {name} »' },
+  istGegen:         { de: 'Ist-Kosten gegen die Kalkulation', en: 'Actual costs against the budget', fr: 'Coûts réels par rapport au budget' },
+  ueberzogen:       {
+    de: 'Budget überzogen: {p} % der Kalkulation ausgegeben.',
+    en: 'Over budget: {p} % of the budget spent.',
+    fr: 'Budget dépassé : {p} % du budget dépensé.',
+  },
+  schwelleErreicht: {
+    de: '{p} % der Kalkulation ausgegeben - Warnschwelle bei {s} %.',
+    en: '{p} % of the budget spent - warning threshold at {s} %.',
+    fr: "{p} % du budget dépensé - seuil d'alerte à {s} %.",
+  },
+  gezaehlt:         {
+    de: '{ist} von {soll}. Gezählt werden die erfassten Belege, nicht die Kalkulationszeilen.',
+    en: '{ist} of {soll}. The recorded receipts are counted, not the budget lines.',
+    fr: '{ist} sur {soll}. Ce sont les justificatifs saisis qui comptent, pas les lignes du budget.',
+  },
+  warnungBei:       { de: 'Warnung bei', en: 'Warn at', fr: 'Alerte à' },
+  prozentKalk:      { de: '% der Kalkulation', en: '% of the budget', fr: '% du budget' },
+  speichern:        { de: 'Speichern', en: 'Save', fr: 'Enregistrer' },
+  aus:              { de: 'aus', en: 'off', fr: 'désactivée' },
+  aendern:          { de: 'ändern', en: 'change', fr: 'modifier' },
+  abschalten:       { de: 'abschalten', en: 'switch off', fr: 'désactiver' },
+  kalkuliert:       { de: 'Kalkuliert (Soll)', en: 'Budgeted (planned)', fr: 'Budgétisé (prévu)' },
+  ausgegeben:       { de: 'Ausgegeben (Ist)', en: 'Spent (actual)', fr: 'Dépensé (réel)' },
+  ueberzogenKurz:   { de: 'Überzogen', en: 'Overspent', fr: 'Dépassé' },
+  verbleibend:      { de: 'Verbleibend', en: 'Remaining', fr: 'Restant' },
+  sollIstJe:        { de: 'Soll / Ist je Kategorie', en: 'Planned / actual by category', fr: 'Prévu / réel par catégorie' },
+  kategorie:        { de: 'Kategorie', en: 'Category', fr: 'Catégorie' },
+  soll:             { de: 'Soll', en: 'Planned', fr: 'Prévu' },
+  ist:              { de: 'Ist', en: 'Actual', fr: 'Réel' },
+  differenz:        { de: 'Differenz', en: 'Difference', fr: 'Écart' },
+  ohneKategorie:    { de: 'Ohne Kategorie', en: 'No category', fr: 'Sans catégorie' },
+  belegErfassen:    { de: 'Beleg erfassen', en: 'Record receipt', fr: 'Saisir un justificatif' },
+  beschreibung:     { de: 'Beschreibung', en: 'Description', fr: 'Description' },
+  betragEuro:       { de: 'Betrag €', en: 'Amount €', fr: 'Montant €' },
+  belegdatum:       { de: 'Belegdatum', en: 'Receipt date', fr: 'Date du justificatif' },
+  belegNr:          { de: 'Beleg-Nr.', en: 'Receipt no.', fr: 'N° de justificatif' },
+  belegHinzufuegen: { de: 'Beleg hinzufügen', en: 'Add receipt', fr: 'Ajouter un justificatif' },
+  keineBelege:      { de: 'Noch keine Belege erfasst', en: 'No receipts recorded yet', fr: 'Aucun justificatif saisi pour le moment' },
+  datum:            { de: 'Datum', en: 'Date', fr: 'Date' },
+  betrag:           { de: 'Betrag', en: 'Amount', fr: 'Montant' },
+  belegLoeschen:    { de: 'Beleg löschen', en: 'Delete receipt', fr: 'Supprimer le justificatif' },
+} satisfies Record<string, Text>

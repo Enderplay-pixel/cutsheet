@@ -14,11 +14,12 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
-import { formatDate, formatDateLong } from '@/lib/utils'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths, isSameDay, isSameMonth, parseISO, isToday } from 'date-fns'
-import { de } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT, useGebietsschema } from '@/lib/useT'
+import type { Lang } from '@/lib/i18n'
+import { terminkalenderT as T, terminTypT } from '@/lib/texte/Terminkalender'
 
 const EVENT_TYPES = [
   { value: 'Drehtag', color: '#f59e0b' },
@@ -31,6 +32,12 @@ const EVENT_TYPES = [
   { value: 'Sonstiges', color: '#6b7280' },
 ]
 
+/** Beschriftung eines Termintyps; unbekannte Werte erscheinen, wie sie sind. */
+function typLabel(tt: (m: Record<Lang, string>) => string, wert: string): string {
+  const m = (terminTypT as Record<string, Record<Lang, string>>)[wert]
+  return m ? tt(m) : wert
+}
+
 function EventDot({ color }: { color: string }) {
   return <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
 }
@@ -38,6 +45,7 @@ function EventDot({ color }: { color: string }) {
 function AddEventDialog({ open, onClose, projectId, defaultDate }: { open: boolean; onClose: () => void; projectId: number; defaultDate?: Date }) {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
   const [form, setForm] = useState({
     title: '',
     start_date: defaultDate ? format(defaultDate, 'yyyy-MM-dd') : '',
@@ -51,11 +59,11 @@ function AddEventDialog({ open, onClose, projectId, defaultDate }: { open: boole
     mutationFn: (data: any) => api.calendar.create(projectId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', projectId] })
-      toast({ title: 'Termin hinzugefügt' })
+      toast({ title: tt(T.hinzugefuegt) })
       onClose()
       setForm({ title: '', start_date: '', end_date: '', type: 'Meeting', color: '#6366f1', notes: '' })
     },
-    onError: () => toast({ title: 'Fehler', variant: 'destructive' }),
+    onError: () => toast({ title: tt(T.fehler), variant: 'destructive' }),
   })
 
   const updateType = (type: string) => {
@@ -66,44 +74,44 @@ function AddEventDialog({ open, onClose, projectId, defaultDate }: { open: boole
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>Neuer Termin</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{tt(T.neuerTermin)}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label className="text-xs">Titel</Label>
-            <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className="mt-1" placeholder="Terminbezeichnung" />
+            <Label className="text-xs">{tt(T.titel)}</Label>
+            <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className="mt-1" placeholder={tt(T.bezeichnung)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">Datum (von)</Label>
+              <Label className="text-xs">{tt(T.datumVon)}</Label>
               <Input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className="mt-1" />
             </div>
             <div>
-              <Label className="text-xs">Datum (bis, optional)</Label>
+              <Label className="text-xs">{tt(T.datumBis)}</Label>
               <Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} className="mt-1" />
             </div>
           </div>
           <div>
-            <Label className="text-xs">Termintyp</Label>
+            <Label className="text-xs">{tt(T.termintyp)}</Label>
             <Select value={form.type} onValueChange={updateType}>
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {EVENT_TYPES.map(et => (
                   <SelectItem key={et.value} value={et.value}>
-                    <div className="flex items-center gap-2"><EventDot color={et.color} />{et.value}</div>
+                    <div className="flex items-center gap-2"><EventDot color={et.color} />{typLabel(tt, et.value)}</div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Notizen</Label>
+            <Label className="text-xs">{tt(T.notizen)}</Label>
             <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="mt-1 resize-none" />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Abbrechen</Button>
+          <Button variant="outline" onClick={onClose}>{tt(T.abbrechen)}</Button>
           <Button onClick={() => form.title && form.start_date && mutation.mutate(form)} disabled={!form.title || !form.start_date || mutation.isPending}>
-            Hinzufügen
+            {tt(T.hinzufuegen)}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -117,6 +125,8 @@ export function Component() {
   const download = useDownload()
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
+  const gebietsschema = useGebietsschema()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [addOpen, setAddOpen] = useState(false)
   const [addDate, setAddDate] = useState<Date | undefined>()
@@ -162,22 +172,23 @@ export function Component() {
   const selectedEvents = selectedDate ? getEventsForDate(selectedDate) : []
   const selectedShootDay = selectedDate ? getShootDayForDate(selectedDate) : null
 
-  const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+  const WEEKDAYS = [T.mo, T.di, T.mi, T.do, T.fr, T.sa, T.so].map(w => tt(w))
+  const monat = currentMonth.toLocaleDateString(gebietsschema, { month: 'long', year: 'numeric' })
 
   return (
     <div className="px-5 py-6 sm:p-6 max-w-5xl mx-auto space-y-4">
       <PageHeader
-        title="Terminkalender"
-        subtitle={format(currentMonth, 'MMMM yyyy', { locale: de })}
+        title={tt(T.seitenTitel)}
+        subtitle={monat}
         actions={
           <div className="flex gap-2">
             {/* Drehtage und Termine als .ics - für Google, Apple, Outlook */}
-            <Button size="sm" variant="outline" title="Drehtage und Termine für Google, Apple oder Outlook Kalender"
+            <Button size="sm" variant="outline" title={tt(T.icsTitel)}
               onClick={() => download(api.ical.export(pid), 'cutsheet-kalender.ics')}>
-              <Download className="w-4 h-4 mr-2" />Kalender (.ics)
+              <Download className="w-4 h-4 mr-2" />{tt(T.icsKnopf)}
             </Button>
             <Button size="sm" onClick={() => { setAddDate(new Date()); setAddOpen(true) }}>
-              <Plus className="w-4 h-4 mr-2" />Termin
+              <Plus className="w-4 h-4 mr-2" />{tt(T.termin)}
             </Button>
           </div>
         }
@@ -188,11 +199,11 @@ export function Component() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader className="pb-3 flex-row items-center justify-between">
-              <Button variant="ghost" size="sm" aria-label="Vorheriger Monat" title="Vorheriger Monat" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+              <Button variant="ghost" size="sm" aria-label={tt(T.vorherigerMonat)} title={tt(T.vorherigerMonat)} onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <CardTitle className="text-base">{format(currentMonth, 'MMMM yyyy', { locale: de })}</CardTitle>
-              <Button variant="ghost" size="sm" aria-label="Nächster Monat" title="Nächster Monat" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+              <CardTitle className="text-base">{monat}</CardTitle>
+              <Button variant="ghost" size="sm" aria-label={tt(T.naechsterMonat)} title={tt(T.naechsterMonat)} onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </CardHeader>
@@ -233,7 +244,7 @@ export function Component() {
 
                       {shootDay && (
                         <div className="text-[10px] bg-amber-500/20 text-amber-400 rounded px-0.5 mb-0.5 truncate">
-                          T{shootDay.day_number}
+                          {tt(T.drehtagKurz).replace('{n}', String(shootDay.day_number))}
                         </div>
                       )}
 
@@ -261,13 +272,13 @@ export function Component() {
           {selectedDate && (
             <Card>
               <CardHeader className="pb-2 pt-3">
-                <CardTitle className="text-sm">{formatDateLong(selectedDate)}</CardTitle>
+                <CardTitle className="text-sm">{selectedDate.toLocaleDateString(gebietsschema, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {selectedShootDay && (
                   <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded text-sm">
-                    <p className="font-medium text-amber-400">Drehtag {selectedShootDay.day_number}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{selectedShootDay.notes || 'Kein Vermerk'}</p>
+                    <p className="font-medium text-amber-400">{tt(T.drehtagNr).replace('{n}', String(selectedShootDay.day_number))}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{selectedShootDay.notes || tt(T.keinVermerk)}</p>
                   </div>
                 )}
                 {selectedEvents.length > 0 ? selectedEvents.map((ev: any) => (
@@ -277,18 +288,18 @@ export function Component() {
                         <EventDot color={ev.color} />
                         <span className="text-sm font-medium">{ev.title}</span>
                       </div>
-                      <button onClick={() => deleteEvent.mutate(ev.id)} aria-label={`Termin ${ev.title || ''} löschen`} title="Termin löschen" className="text-muted-foreground hover:text-destructive">
+                      <button onClick={() => deleteEvent.mutate(ev.id)} aria-label={tt(T.terminLoeschenAria).replace('{titel}', ev.title || '')} title={tt(T.terminLoeschen)} className="text-muted-foreground hover:text-destructive">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                    <Badge variant="outline" className="text-xs mt-1">{ev.type}</Badge>
+                    <Badge variant="outline" className="text-xs mt-1">{typLabel(tt, ev.type)}</Badge>
                     {ev.notes && <p className="text-xs text-muted-foreground mt-1">{ev.notes}</p>}
                   </div>
                 )) : (
-                  <p className="text-sm text-muted-foreground">Keine Termine.</p>
+                  <p className="text-sm text-muted-foreground">{tt(T.keineTermine)}</p>
                 )}
                 <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => { setAddDate(selectedDate); setAddOpen(true) }}>
-                  <Plus className="w-3 h-3 mr-1" />Termin hinzufügen
+                  <Plus className="w-3 h-3 mr-1" />{tt(T.terminHinzu)}
                 </Button>
               </CardContent>
             </Card>
@@ -296,17 +307,17 @@ export function Component() {
 
           {/* Legend */}
           <Card>
-            <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm">Legende</CardTitle></CardHeader>
+            <CardHeader className="pb-2 pt-3"><CardTitle className="text-sm">{tt(T.legende)}</CardTitle></CardHeader>
             <CardContent className="space-y-1.5">
               {EVENT_TYPES.map(et => (
                 <div key={et.value} className="flex items-center gap-2 text-sm">
                   <EventDot color={et.color} />
-                  <span>{et.value}</span>
+                  <span>{typLabel(tt, et.value)}</span>
                 </div>
               ))}
               <div className="flex items-center gap-2 text-sm mt-2 pt-2 border-t border-border/30">
-                <span className="text-xs text-amber-400 font-mono font-bold">T1</span>
-                <span>Drehtag</span>
+                <span className="text-xs text-amber-400 font-mono font-bold">{tt(T.drehtagKurz).replace('{n}', '1')}</span>
+                <span>{tt(T.drehtag)}</span>
               </div>
             </CardContent>
           </Card>

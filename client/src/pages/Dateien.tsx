@@ -18,14 +18,16 @@ import {
   Upload, FileText, Image as ImageIcon, Trash2, Download, Eye,
   AlertTriangle, Clock, Info,
 } from 'lucide-react'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { dateienT as T, FRIST_TEXT } from '@/lib/texte/Dateien'
 
-const datum = (wert: string | null | undefined) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
+const datum = (wert: string | null | undefined, gs: string) =>
+  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString(gs) : '-'
 
-const FRIST: Record<string, { label: string; klasse: string }> = {
-  gueltig:    { label: 'gültig',     klasse: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
-  laeuft_ab:  { label: 'läuft ab',   klasse: 'bg-amber-500/15 text-amber-600 dark:text-amber-400' },
-  abgelaufen: { label: 'abgelaufen', klasse: 'bg-destructive/15 text-destructive' },
+const FRIST: Record<string, { label: (typeof FRIST_TEXT)[string]; klasse: string }> = {
+  gueltig:    { label: FRIST_TEXT.gueltig,    klasse: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
+  laeuft_ab:  { label: FRIST_TEXT.laeuft_ab,  klasse: 'bg-amber-500/15 text-amber-600 dark:text-amber-400' },
+  abgelaufen: { label: FRIST_TEXT.abgelaufen, klasse: 'bg-destructive/15 text-destructive' },
 }
 
 export function Component() {
@@ -34,6 +36,8 @@ export function Component() {
   const qc = useQueryClient()
   const { toast } = useToast()
   const download = useDownload()
+  const tt = useT()
+  const gs = useGebietsschema()
   const dateiFeld = useRef<HTMLInputElement>(null)
 
   const [art, setArt] = useState('')
@@ -49,9 +53,9 @@ export function Component() {
     mutationFn: (id: number) => api.dateien.loeschen(pid, id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['dateien', pid] })
-      toast({ title: 'Gelöscht' })
+      toast({ title: tt(T.geloescht) })
     },
-    onError: (f: any) => toast({ title: 'Nicht gelöscht', description: f.message, variant: 'destructive' }),
+    onError: (f: any) => toast({ title: tt(T.nichtGeloescht), description: f.message, variant: 'destructive' }),
   })
 
   const dateien: any[] = data?.dateien ?? []
@@ -60,15 +64,14 @@ export function Component() {
   return (
     <div className="px-5 py-6 sm:p-6 max-w-5xl mx-auto space-y-4">
       <PageHeader
-        title="Ablage"
-        subtitle="Genehmigungen, Nachweise, Verträge und Belege"
+        title={tt(T.titel)}
+        subtitle={tt(T.untertitel)}
       />
 
       <div className="flex items-start gap-2 text-xs p-3 rounded-lg bg-muted">
         <Info className="w-4 h-4 shrink-0 mt-0.5" />
         <span>
-          Die Dateien liegen in der Datenbank, nicht auf der Platte des Servers - dort überleben sie
-          keinen Deploy. Bilder und PDF bis 20 MB.
+          {tt(T.hinweis)}
         </span>
       </div>
 
@@ -77,7 +80,7 @@ export function Component() {
         <CardContent className="pt-5">
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-[200px]">
-              <Label htmlFor="datei-feld">Datei</Label>
+              <Label htmlFor="datei-feld">{tt(T.datei)}</Label>
               <Input
                 id="datei-feld"
                 ref={dateiFeld}
@@ -91,7 +94,7 @@ export function Component() {
               disabled={!neueDatei}
             >
               <Upload className="w-4 h-4 mr-1.5" />
-              Hochladen
+              {tt(T.hochladen)}
             </Button>
           </div>
         </CardContent>
@@ -100,7 +103,7 @@ export function Component() {
       {/* Filter */}
       <div className="flex flex-wrap items-center gap-2">
         <Button variant={art === '' ? 'default' : 'outline'} size="sm" onClick={() => setArt('')}>
-          Alle
+          {tt(T.alle)}
         </Button>
         {arten.map((a) => (
           <Button
@@ -114,20 +117,19 @@ export function Component() {
         ))}
         {data && (
           <span className="text-xs text-muted-foreground ml-auto">
-            {dateien.length} {dateien.length === 1 ? 'Datei' : 'Dateien'}
+            {dateien.length} {dateien.length === 1 ? tt(T.dateiEinzahl) : tt(T.dateien)}
           </span>
         )}
       </div>
 
       {isLoading ? (
-        <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Lade…</CardContent></Card>
+        <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">{tt(T.lade)}</CardContent></Card>
       ) : dateien.length === 0 ? (
         <Card>
           <CardContent className="py-14 text-center text-sm text-muted-foreground">
-            {art ? 'Nichts in dieser Art.' : 'Noch nichts abgelegt.'}
+            {art ? tt(T.nichtsInArt) : tt(T.nochNichts)}
             <span className="block text-xs mt-1">
-              Drehgenehmigungen und Versicherungsnachweise bekommen ein Ablaufdatum und melden
-              sich dreißig Tage vorher.
+              {tt(T.ablaufHinweis)}
             </span>
           </CardContent>
         </Card>
@@ -138,10 +140,10 @@ export function Component() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border/60 bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="text-left py-2.5 px-4">Datei</th>
-                    <th className="text-left py-2.5 px-4">Art</th>
-                    <th className="text-right py-2.5 px-4">Größe</th>
-                    <th className="text-left py-2.5 px-4">Gültig bis</th>
+                    <th className="text-left py-2.5 px-4">{tt(T.datei)}</th>
+                    <th className="text-left py-2.5 px-4">{tt(T.art)}</th>
+                    <th className="text-right py-2.5 px-4">{tt(T.groesse)}</th>
+                    <th className="text-left py-2.5 px-4">{tt(T.gueltigBis)}</th>
                     <th className="py-2.5 px-4"></th>
                   </tr>
                 </thead>
@@ -160,7 +162,7 @@ export function Component() {
                         )}
                         {f.entity_type && (
                           <span className="text-xs text-muted-foreground block pl-5.5">
-                            gehört zu {f.entity_type} #{f.entity_id}
+                            {tt(T.gehoertZu).replace('{typ}', String(f.entity_type)).replace('{id}', String(f.entity_id))}
                           </span>
                         )}
                       </td>
@@ -173,9 +175,9 @@ export function Component() {
                       <td className="py-2.5 px-4 whitespace-nowrap">
                         {f.valid_until ? (
                           <>
-                            {datum(f.valid_until)}
+                            {datum(f.valid_until, gs)}
                             <span className={`text-xs px-2 py-0.5 rounded-full ml-1.5 ${FRIST[f.frist]?.klasse ?? ''}`}>
-                              {FRIST[f.frist]?.label ?? ''}
+                              {FRIST[f.frist] ? tt(FRIST[f.frist].label) : ''}
                             </span>
                           </>
                         ) : (
@@ -187,7 +189,7 @@ export function Component() {
                           variant="ghost"
                           size="sm"
                           onClick={() => window.open(api.dateien.inhaltUrl(pid, f.id), '_blank', 'noopener')}
-                          aria-label={`${f.filename} ansehen`}
+                          aria-label={tt(T.ansehen).replace('{name}', f.filename)}
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </Button>
@@ -195,16 +197,16 @@ export function Component() {
                           variant="ghost"
                           size="sm"
                           onClick={() => download(`${api.dateien.inhaltUrl(pid, f.id)}?download=1`, f.filename)}
-                          aria-label={`${f.filename} herunterladen`}
+                          aria-label={tt(T.herunterladen).replace('{name}', f.filename)}
                         >
                           <Download className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setBearbeite(f)}>Ändern</Button>
+                        <Button variant="ghost" size="sm" onClick={() => setBearbeite(f)}>{tt(T.aendern)}</Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => loeschen.mutate(f.id)}
-                          aria-label={`${f.filename} löschen`}
+                          aria-label={tt(T.loeschenAria).replace('{name}', f.filename)}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
@@ -230,7 +232,7 @@ export function Component() {
           }}
           fertig={() => {
             qc.invalidateQueries({ queryKey: ['dateien', pid] })
-            toast({ title: 'Gespeichert' })
+            toast({ title: tt(T.gespeichert) })
           }}
         />
       )}
@@ -242,6 +244,7 @@ function DateiDialog({ pid, datei, arten, schliessen, fertig }: {
   pid: number; datei: any; arten: any[]; schliessen: () => void; fertig: () => void
 }) {
   const { toast } = useToast()
+  const tt = useT()
   const [werte, setWerte] = useState({
     kind: datei.kind || 'sonstiges',
     title: datei.title || '',
@@ -266,23 +269,23 @@ function DateiDialog({ pid, datei, arten, schliessen, fertig }: {
           valid_until: mitFrist ? (werte.valid_until || null) : null,
         }),
     onSuccess: () => { fertig(); schliessen() },
-    onError: (f: any) => toast({ title: 'Nicht gespeichert', description: f.message, variant: 'destructive' }),
+    onError: (f: any) => toast({ title: tt(T.nichtGespeichert), description: f.message, variant: 'destructive' }),
   })
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) schliessen() }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{datei.neu ? 'Datei ablegen' : datei.filename}</DialogTitle>
+          <DialogTitle>{datei.neu ? tt(T.dateiAblegen) : datei.filename}</DialogTitle>
           <DialogDescription>
             {datei.neu
               ? datei.datei?.name
-              : 'Die Datei selbst bleibt, wie sie ist - nur die Angaben ändern sich.'}
+              : tt(T.dateiBleibt)}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label htmlFor="datei-art">Art</Label>
+            <Label htmlFor="datei-art">{tt(T.art)}</Label>
             <Select value={werte.kind} onValueChange={(w) => setWerte({ ...werte, kind: w })}>
               <SelectTrigger id="datei-art"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -293,17 +296,17 @@ function DateiDialog({ pid, datei, arten, schliessen, fertig }: {
             </Select>
           </div>
           <div>
-            <Label htmlFor="datei-titel">Bezeichnung</Label>
+            <Label htmlFor="datei-titel">{tt(T.bezeichnung)}</Label>
             <Input
               id="datei-titel"
               value={werte.title}
               onChange={(e) => setWerte({ ...werte, title: e.target.value })}
-              placeholder="freiwillig - sonst steht der Dateiname da"
+              placeholder={tt(T.bezeichnungPlatz)}
             />
           </div>
           {mitFrist && (
             <div>
-              <Label htmlFor="datei-frist">Gültig bis</Label>
+              <Label htmlFor="datei-frist">{tt(T.gueltigBis)}</Label>
               <Input
                 id="datei-frist"
                 type="date"
@@ -312,12 +315,12 @@ function DateiDialog({ pid, datei, arten, schliessen, fertig }: {
               />
               <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                 <Clock className="w-3 h-3" />
-                Meldet sich dreißig Tage vorher. Eine Genehmigung zu verlängern dauert.
+                {tt(T.fristHinweis)}
               </p>
             </div>
           )}
           <div>
-            <Label htmlFor="datei-notizen">Notizen</Label>
+            <Label htmlFor="datei-notizen">{tt(T.notizen)}</Label>
             <Textarea
               id="datei-notizen"
               value={werte.notes}
@@ -327,9 +330,9 @@ function DateiDialog({ pid, datei, arten, schliessen, fertig }: {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={schliessen}>Abbrechen</Button>
+          <Button variant="ghost" onClick={schliessen}>{tt(T.abbrechen)}</Button>
           <Button onClick={() => speichern.mutate()} disabled={speichern.isPending}>
-            {datei.neu ? 'Hochladen' : 'Speichern'}
+            {datei.neu ? tt(T.hochladen) : tt(T.speichern)}
           </Button>
         </DialogFooter>
       </DialogContent>

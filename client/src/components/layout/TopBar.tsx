@@ -4,10 +4,11 @@ import { Search, Moon, Sun, Menu, ChevronRight } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { useT } from '@/lib/useT'
+import { useT, useGebietsschema } from '@/lib/useT'
 import { topBarT } from '@/lib/i18n'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { toggleThemeWithReveal } from '@/lib/motion'
+import { topBarTexteT, topBarDrehtagT, topBarExtraTitelT } from '@/lib/texte/komponenten/Layout'
 
 interface TopBarProps {
   onSearchOpen: () => void
@@ -19,6 +20,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const tt = useT()
+  const gs = useGebietsschema()
 
   const pageTitle = resolvePageTitle(location.pathname, tt)
 
@@ -46,7 +48,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
       <button
         onClick={() => setMobileNav(true)}
         className="md:hidden w-9 h-9 -ml-2 flex items-center justify-center rounded-md hover:bg-foreground/[0.05] text-muted-foreground hover:text-foreground shrink-0"
-        aria-label="Navigation öffnen"
+        aria-label={tt(topBarTexteT.navigationOeffnen)}
       >
         <Menu className="w-5 h-5" />
       </button>
@@ -71,7 +73,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
         </div>
         {lastSaved && (
           <p className="text-[11px] text-muted-foreground/80 leading-none mt-1">
-            {tt(topBarT.saved)} {new Date(lastSaved).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+            {tt(topBarT.saved)} {new Date(lastSaved).toLocaleTimeString(gs, { hour: '2-digit', minute: '2-digit' })}
           </p>
         )}
       </div>
@@ -80,7 +82,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
       {daysUntilShoot !== null && daysUntilShoot >= 0 && (
         <button
           onClick={() => navigate(`/projects/${projectId}/tagesdispo`)}
-          title={`Drehtag ${stats.next_shoot_day.day_number} öffnen`}
+          title={tt(topBarDrehtagT.oeffnen).replace('{n}', String(stats.next_shoot_day.day_number))}
           className={cn(
             'hidden md:flex items-center gap-2 h-8 pl-3 pr-3.5 rounded-full text-xs font-medium tabular-nums',
             'transition-[background-color,color] duration-150 active:scale-[0.97]',
@@ -91,10 +93,10 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
         >
           <span className={cn('pulse-dot w-1.5 h-1.5 rounded-full shrink-0', daysUntilShoot === 0 ? 'bg-primary-foreground' : 'bg-signal')} aria-hidden />
           {daysUntilShoot === 0
-            ? `Drehtag ${stats.next_shoot_day.day_number} - HEUTE`
+            ? tt(topBarDrehtagT.heute).replace('{n}', String(stats.next_shoot_day.day_number))
             : daysUntilShoot === 1
-              ? `Drehtag ${stats.next_shoot_day.day_number} - morgen`
-              : `Drehtag ${stats.next_shoot_day.day_number} in ${daysUntilShoot} Tagen`}
+              ? tt(topBarDrehtagT.morgen).replace('{n}', String(stats.next_shoot_day.day_number))
+              : tt(topBarDrehtagT.inTagen).replace('{n}', String(stats.next_shoot_day.day_number)).replace('{d}', String(daysUntilShoot))}
         </button>
       )}
 
@@ -131,17 +133,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
 
 // Seiten ohne Eintrag in topBarT.pageTitles — sonst stuende in der Kopfzeile
 // nur der Projektname
-const EXTRA_TITLES: Record<string, string> = {
-  aufgaben: 'Aufgaben', kostenstand: 'Kostenstand', kommentare: 'Szenen-Kommentare',
-  sperrtage: 'Sperrtage', checkin: 'Check-in Board', catering: 'Catering', timesheets: 'Timesheets',
-  continuity: 'Continuity', kameraberichte: 'Kameraberichte', vfx: 'VFX-Tracking', postplan: 'Postplan',
-  musikliste: 'Musikliste', versicherungen: 'Versicherungen', dood: 'Day Out of Days', moodboard: 'Moodboard',
-  aktivitaet: 'Aktivitäten', zeitanalyse: 'Zeitanalyse', setplan: 'Set-Plan', 'equipment-kalender': 'Equipment-Kalender',
-  admin: 'Admin', stats: 'Admin-Statistiken',
-  creator: 'Videos', ideen: 'Ideen', kanal: 'Kanal', redaktionsplan: 'Redaktionsplan', serien: 'Serien & Formate',
-  sponsoren: 'Sponsoren', seo: 'SEO & Metadaten', titel: 'Titel & Thumbnails', rechte: 'Rechte & Lizenzen',
-  clips: 'Auskopplungen', checklisten: 'Upload-Checklisten', performance: 'Video-Performance',
-}
+const EXTRA_TITLES = topBarExtraTitelT
 
 /**
  * Seitentitel aus dem Pfad: der hinterste Abschnitt, der keine ID ist.
@@ -156,7 +148,7 @@ function resolvePageTitle(pathname: string, tt: (m: any) => string): string {
     if (!isNaN(Number(seg))) continue
     const known = topBarT.pageTitles[seg as keyof typeof topBarT.pageTitles]
     if (known) return tt(known)
-    if (EXTRA_TITLES[seg]) return EXTRA_TITLES[seg]
+    if (EXTRA_TITLES[seg]) return tt(EXTRA_TITLES[seg])
   }
   // Projekt-Startseite
   return inProject && rest.length === 0 ? tt(topBarT.pageTitles['' as keyof typeof topBarT.pageTitles]) : ''

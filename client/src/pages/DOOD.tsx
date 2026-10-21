@@ -4,6 +4,11 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { Download, Users, CalendarDays, AlertCircle } from 'lucide-react'
+import { useT, useGebietsschema } from '@/lib/useT'
+import type { Lang } from '@/lib/i18n'
+import { doodT as T } from '@/lib/texte/DOOD'
+
+type Tt = (map: Record<Lang, string>) => string
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -39,12 +44,12 @@ interface DoodReport {
 // letzten Arbeitstag und zaehlt als Arbeitstag - die alte Legende nannte ihn
 // "Frei" und faerbte ihn grau wie einen leeren Tag - beides behauptete das
 // Gegenteil.
-const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; border: string }> = {
-  W:   { label: 'Arbeit',             bg: 'bg-green-500/20',  text: 'text-green-700 dark:text-green-300',   border: 'border-green-500/30' },
-  H:   { label: 'Haltetag',           bg: 'bg-amber-400/20',  text: 'text-amber-700 dark:text-amber-300',   border: 'border-amber-400/30' },
-  SW:  { label: 'Erster Arbeitstag',  bg: 'bg-blue-500/20',   text: 'text-blue-700 dark:text-blue-300',     border: 'border-blue-500/30' },
-  F:   { label: 'Letzter Arbeitstag', bg: 'bg-cyan-500/20',   text: 'text-cyan-700 dark:text-cyan-300',     border: 'border-cyan-500/30' },
-  SWF: { label: 'Einziger Arbeitstag', bg: 'bg-purple-500/20', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-500/30' },
+const STATUS_CONFIG: Record<string, { label: Record<Lang, string>; bg: string; text: string; border: string }> = {
+  W:   { label: T.arbeit,             bg: 'bg-green-500/20',  text: 'text-green-700 dark:text-green-300',   border: 'border-green-500/30' },
+  H:   { label: T.haltetag,           bg: 'bg-amber-400/20',  text: 'text-amber-700 dark:text-amber-300',   border: 'border-amber-400/30' },
+  SW:  { label: T.ersterArbeitstag,  bg: 'bg-blue-500/20',   text: 'text-blue-700 dark:text-blue-300',     border: 'border-blue-500/30' },
+  F:   { label: T.letzterArbeitstag, bg: 'bg-cyan-500/20',   text: 'text-cyan-700 dark:text-cyan-300',     border: 'border-cyan-500/30' },
+  SWF: { label: T.einzigerArbeitstag, bg: 'bg-purple-500/20', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-500/30' },
 }
 
 function statusCell(status: string) {
@@ -63,33 +68,33 @@ function statusCell(status: string) {
   )
 }
 
-function formatDate(iso: string) {
+function formatDate(iso: string, gebietsschema: string) {
   if (!iso) return ''
   const d = new Date(iso)
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+  return d.toLocaleDateString(gebietsschema, { day: '2-digit', month: '2-digit' })
 }
 
-function formatCurrency(cents: number) {
-  return (cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
+function formatCurrency(cents: number, gebietsschema: string) {
+  return (cents / 100).toLocaleString(gebietsschema, { style: 'currency', currency: 'EUR' })
 }
 
-function downloadCSV(report: DoodReport, pid: number) {
+function downloadCSV(report: DoodReport, pid: number, tt: Tt, gebietsschema: string) {
   const days = report.shoot_days
-  const header = ['Name', 'Figur', ...days.map(d => `DT${d.day_number} (${formatDate(d.date)})`), 'Arbeitstage', 'Haltetage', 'Kosten (est.)']
+  const header = [tt(T.name), tt(T.figur), ...days.map(d => `${tt(T.dt).replace('{n}', String(d.day_number))} (${formatDate(d.date, gebietsschema)})`), tt(T.arbeitstage), tt(T.haltetage), tt(T.kosten)]
   const rows = report.cast.map(c => [
     c.name,
     c.character,
     ...days.map(d => c.days[d.shoot_day_id]?.status ?? ''),
     String(c.total_work),
     String(c.total_hold),
-    formatCurrency(c.estimated_cost_cents),
+    formatCurrency(c.estimated_cost_cents, gebietsschema),
   ])
   const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `dood-projekt-${pid}.csv`
+  a.download = tt(T.dateiname).replace('{n}', String(pid))
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -100,6 +105,8 @@ export function Component() {
   const { projectId: id } = useParams<{ projectId: string }>()
   const pid = Number(id)
   const { toast } = useToast()
+  const tt = useT()
+  const gebietsschema = useGebietsschema()
 
   const token = localStorage.getItem('token')
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
@@ -108,13 +115,13 @@ export function Component() {
     queryKey: ['dood-report', pid],
     queryFn: async () => {
       const res = await fetch(`/api/projects/${pid}/dood-report`, { headers })
-      if (!res.ok) throw new Error('Fehler beim Laden')
+      if (!res.ok) throw new Error(tt(T.fehlerLaden))
       const data = (await res.json()).data
       return {
         shoot_days: data.shoot_days.map((day: any) => ({ ...day, shoot_day_id: day.id })),
         cast: data.cast.map((actor: any) => ({
           cast_id: actor.id,
-          name: actor.actor_name || 'Noch nicht besetzt',
+          name: actor.actor_name || tt(T.nichtBesetzt),
           character: actor.character_name || '',
           daily_rate_cents: Number(actor.fee_per_day) || 0,
           days: Object.fromEntries(data.shoot_days.map((day: any, index: number) => [
@@ -144,13 +151,13 @@ export function Component() {
     return (
       <div className="p-4 sm:p-7 max-w-6xl mx-auto animate-fade-up">
         <div className="mb-8 pb-7 border-b border-border/40">
-          <h1 className="font-display text-[28px] sm:text-[34px]">Day Out of Days</h1>
+          <h1 className="font-display text-[28px] sm:text-[34px]">{tt(T.titel)}</h1>
         </div>
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
             <AlertCircle className="w-4 h-4 text-destructive" />
           </div>
-          <p className="text-sm text-destructive">Fehler beim Laden des Berichts.</p>
+          <p className="text-sm text-destructive">{tt(T.fehlerBericht)}</p>
         </div>
       </div>
     )
@@ -167,30 +174,30 @@ export function Component() {
       <div className="mb-8 pb-7 border-b border-border/40">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="font-display text-[28px] sm:text-[34px]">Day Out of Days</h1>
+            <h1 className="font-display text-[28px] sm:text-[34px]">{tt(T.titel)}</h1>
             <p className="text-sm text-muted-foreground/60 mt-1.5">
-              Übersicht der Drehtage nach Darsteller
+              {tt(T.untertitel)}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <div className="flex items-center gap-5">
               <div className="text-right">
                 <div className="text-[2.25rem] font-bold tabular-nums tracking-tight leading-none">{cast.length}</div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mt-1">Darsteller</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mt-1">{tt(T.darsteller)}</div>
               </div>
               <div className="text-right">
                 <div className="text-[2.25rem] font-bold tabular-nums tracking-tight leading-none">{days.length}</div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mt-1">Drehtage</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mt-1">{tt(T.drehtage)}</div>
               </div>
             </div>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => downloadCSV(report, pid)}
+              onClick={() => downloadCSV(report, pid, tt, gebietsschema)}
               className="active:scale-[0.97] ml-4"
             >
               <Download className="mr-1.5 h-3.5 w-3.5" />
-              CSV exportieren
+              {tt(T.csvExportieren)}
             </Button>
           </div>
         </div>
@@ -198,7 +205,7 @@ export function Component() {
 
       {/* Legend */}
       <div className="mb-6">
-        <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">Legende</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">{tt(T.legende)}</p>
         <div className="flex flex-wrap gap-2">
           {Object.entries(STATUS_CONFIG).map(([k, cfg]) => (
             <span
@@ -206,7 +213,7 @@ export function Component() {
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold ${cfg.bg} ${cfg.text} ${cfg.border}`}
             >
               <span className="font-bold">{k}</span>
-              <span className="font-normal opacity-70">= {cfg.label}</span>
+              <span className="font-normal opacity-70">= {tt(cfg.label)}</span>
             </span>
           ))}
         </div>
@@ -216,7 +223,7 @@ export function Component() {
       {cast.length === 0 ? (
         <div className="rounded-xl border border-border/60 bg-card flex flex-col items-center justify-center py-16">
           <Users className="w-10 h-10 opacity-20 mb-3" />
-          <p className="text-sm text-muted-foreground/60">Keine Darsteller gefunden.</p>
+          <p className="text-sm text-muted-foreground/60">{tt(T.keineDarsteller)}</p>
         </div>
       ) : (
         <div className="rounded-xl border border-border/60 bg-card overflow-x-auto mb-6">
@@ -225,13 +232,13 @@ export function Component() {
               <thead>
                 <tr className="border-b border-border/40">
                   <th className="sticky left-0 z-10 bg-muted/30 px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground min-w-[180px] border-r border-border/30">
-                    Darsteller
+                    {tt(T.darsteller)}
                   </th>
                   {days.map(d => (
                     <th key={d.shoot_day_id} className="px-1.5 py-3 text-center bg-muted/30 min-w-[52px]">
-                      <div className="text-[11px] font-bold tabular-nums text-muted-foreground">DT{d.day_number}</div>
+                      <div className="text-[11px] font-bold tabular-nums text-muted-foreground">{tt(T.dt).replace('{n}', String(d.day_number))}</div>
                       <div className="text-[9px] text-muted-foreground/50 font-semibold uppercase tracking-[0.05em] mt-0.5 tabular-nums">
-                        {formatDate(d.date)}
+                        {formatDate(d.date, gebietsschema)}
                       </div>
                     </th>
                   ))}
@@ -275,22 +282,22 @@ export function Component() {
       {/* Summary section */}
       {cast.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">Zusammenfassung</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">{tt(T.zusammenfassung)}</p>
           <div className="rounded-xl border border-border/60 bg-card overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="border-b border-border/40">
                   <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground bg-muted/30">
-                    Darsteller
+                    {tt(T.darsteller)}
                   </th>
                   <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground bg-muted/30">
-                    Arbeitstage
+                    {tt(T.arbeitstage)}
                   </th>
                   <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground bg-muted/30">
-                    Haltetage
+                    {tt(T.haltetage)}
                   </th>
                   <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground bg-muted/30">
-                    Kosten (est.)
+                    {tt(T.kosten)}
                   </th>
                 </tr>
               </thead>
@@ -324,7 +331,7 @@ export function Component() {
                       </span>
                     </td>
                     <td className="px-5 py-3 text-right font-mono text-sm tabular-nums">
-                      {formatCurrency(c.estimated_cost_cents)}
+                      {formatCurrency(c.estimated_cost_cents, gebietsschema)}
                     </td>
                   </tr>
                 ))}
@@ -333,7 +340,7 @@ export function Component() {
               <tfoot>
                 <tr className="border-t border-border/40 bg-muted/20">
                   <td className="px-5 py-3 text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground/50">
-                    Gesamt
+                    {tt(T.gesamt)}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="inline-flex items-center justify-center min-w-[28px] h-6 rounded-md bg-green-500/15 text-green-700 dark:text-green-300 border border-green-500/25 text-xs font-bold tabular-nums px-1.5">
@@ -342,7 +349,7 @@ export function Component() {
                   </td>
                   <td className="px-4 py-3 text-center" />
                   <td className="px-5 py-3 text-right font-mono text-sm font-bold tabular-nums">
-                    {formatCurrency(totalCost)}
+                    {formatCurrency(totalCost, gebietsschema)}
                   </td>
                 </tr>
               </tfoot>

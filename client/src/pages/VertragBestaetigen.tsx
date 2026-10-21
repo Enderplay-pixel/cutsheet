@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
 import { FileText, Check, X, Download } from 'lucide-react'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { vertragBestaetigenT } from '@/lib/texte/VertragBestaetigen'
 
 /**
  * Die Seite, die eine Darstellerin oder eine erziehungsberechtigte Person über
@@ -19,10 +21,10 @@ import { FileText, Check, X, Download } from 'lucide-react'
  * Schaltfläche wäre eine Gelegenheit, etwas Falsches zu treffen.
  */
 
-const zeitpunkt = (wert: string | null | undefined) => {
+const zeitpunkt = (wert: string | null | undefined, gebietsschema: string) => {
   if (!wert) return ''
   const d = new Date(wert)
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('de-DE')
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(gebietsschema)
 }
 
 /**
@@ -92,6 +94,8 @@ function Vertragstext({ text }: { text: string }) {
 export function Component() {
   const { token = '' } = useParams()
   const { toast } = useToast()
+  const tt = useT()
+  const gebietsschema = useGebietsschema()
   const [name, setName] = useState('')
   const [grund, setGrund] = useState('')
   const [zeigeAblehnen, setZeigeAblehnen] = useState(false)
@@ -106,19 +110,19 @@ export function Component() {
   const bestaetigen = useMutation({
     mutationFn: () => api.vertraege.bestaetigen(token, name),
     onSuccess: () => { setErledigt('bestaetigt'); refetch() },
-    onError: (f: any) => toast({ title: 'Nicht gespeichert', description: f.message, variant: 'destructive' }),
+    onError: (f: any) => toast({ title: tt(vertragBestaetigenT.nichtGespeichert), description: f.message, variant: 'destructive' }),
   })
 
   const ablehnen = useMutation({
     mutationFn: () => api.vertraege.ablehnen(token, grund),
     onSuccess: () => { setErledigt('abgelehnt'); refetch() },
-    onError: (f: any) => toast({ title: 'Nicht gespeichert', description: f.message, variant: 'destructive' }),
+    onError: (f: any) => toast({ title: tt(vertragBestaetigenT.nichtGespeichert), description: f.message, variant: 'destructive' }),
   })
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center px-5">
-        <p className="text-sm text-muted-foreground">Lade…</p>
+        <p className="text-sm text-muted-foreground">{tt(vertragBestaetigenT.lade)}</p>
       </div>
     )
   }
@@ -128,10 +132,9 @@ export function Component() {
       <div className="min-h-screen flex items-center justify-center px-5">
         <Card className="max-w-md w-full">
           <CardContent className="py-10 text-center space-y-2">
-            <p className="font-medium">Dieser Link gilt nicht mehr</p>
+            <p className="font-medium">{tt(vertragBestaetigenT.linkUngueltig)}</p>
             <p className="text-sm text-muted-foreground">
-              Möglicherweise wurde der Vertrag zurückgezogen. Melden Sie sich bei der Produktion,
-              dann bekommen Sie einen neuen Link.
+              {tt(vertragBestaetigenT.linkUngueltigText)}
             </p>
           </CardContent>
         </Card>
@@ -162,20 +165,20 @@ export function Component() {
           onClick={() => window.open(api.vertraege.oeffentlichPdfUrl(token), '_blank', 'noopener')}
         >
           <Download className="w-4 h-4 mr-1.5" />
-          Als PDF öffnen
+          {tt(vertragBestaetigenT.alsPdf)}
         </Button>
 
         {schonBestaetigt ? (
           <Card className="border-emerald-500/40">
             <CardContent className="py-6 text-center space-y-1">
               <Check className="w-8 h-8 mx-auto text-emerald-600 dark:text-emerald-400" />
-              <p className="font-medium">Zustimmung ist eingegangen</p>
+              <p className="font-medium">{tt(vertragBestaetigenT.zustimmungDa)}</p>
               <p className="text-sm text-muted-foreground">
                 {data.bestaetigt_von ? `${data.bestaetigt_von}, ` : ''}
-                {zeitpunkt(data.bestaetigt_am)}
+                {zeitpunkt(data.bestaetigt_am, gebietsschema)}
               </p>
               <p className="text-xs text-muted-foreground pt-2">
-                Sie können diese Seite schließen. Eine Kopie liegt bei der Produktion.
+                {tt(vertragBestaetigenT.seiteSchliessen)}
               </p>
             </CardContent>
           </Card>
@@ -183,9 +186,9 @@ export function Component() {
           <Card>
             <CardContent className="py-6 text-center space-y-1">
               <X className="w-8 h-8 mx-auto text-muted-foreground" />
-              <p className="font-medium">Sie haben nicht zugestimmt</p>
+              <p className="font-medium">{tt(vertragBestaetigenT.nichtZugestimmt)}</p>
               <p className="text-sm text-muted-foreground">
-                Die Produktion ist benachrichtigt und meldet sich bei Ihnen.
+                {tt(vertragBestaetigenT.benachrichtigt)}
               </p>
             </CardContent>
           </Card>
@@ -193,16 +196,15 @@ export function Component() {
           <Card>
             <CardContent className="pt-6 space-y-3">
               <p className="text-sm">
-                Mit Ihrem Namen erklären Sie Ihre Zustimmung zu dem oben stehenden Text.
-                Zeitpunkt und Name werden festgehalten.
+                {tt(vertragBestaetigenT.erklaerung)}
               </p>
               <div>
-                <Label htmlFor="zustimmung-name">Ihr Name</Label>
+                <Label htmlFor="zustimmung-name">{tt(vertragBestaetigenT.ihrName)}</Label>
                 <Input
                   id="zustimmung-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Vor- und Nachname"
+                  placeholder={tt(vertragBestaetigenT.vorNachname)}
                   autoComplete="name"
                 />
               </div>
@@ -212,29 +214,29 @@ export function Component() {
                   disabled={!name.trim() || bestaetigen.isPending}
                 >
                   <Check className="w-4 h-4 mr-1.5" />
-                  Zustimmen
+                  {tt(vertragBestaetigenT.zustimmen)}
                 </Button>
                 <Button variant="ghost" onClick={() => setZeigeAblehnen((v) => !v)}>
-                  Ich stimme nicht zu
+                  {tt(vertragBestaetigenT.ichStimmeNichtZu)}
                 </Button>
               </div>
 
               {zeigeAblehnen && (
                 <div className="border-t border-border/60 pt-3 space-y-2">
-                  <Label htmlFor="ablehnung-grund">Grund (freiwillig)</Label>
+                  <Label htmlFor="ablehnung-grund">{tt(vertragBestaetigenT.grund)}</Label>
                   <Textarea
                     id="ablehnung-grund"
                     value={grund}
                     onChange={(e) => setGrund(e.target.value)}
                     rows={3}
-                    placeholder="Was spricht dagegen?"
+                    placeholder={tt(vertragBestaetigenT.wasSprichtDagegen)}
                   />
                   <Button
                     variant="destructive"
                     onClick={() => ablehnen.mutate()}
                     disabled={ablehnen.isPending}
                   >
-                    Nicht zustimmen
+                    {tt(vertragBestaetigenT.nichtZustimmen)}
                   </Button>
                 </div>
               )}
@@ -244,7 +246,7 @@ export function Component() {
 
         <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1.5">
           <FileText className="w-3 h-3" />
-          Bei Fragen antworten Sie einfach auf die Mail, mit der Sie diesen Link bekommen haben.
+          {tt(vertragBestaetigenT.fragen)}
         </p>
       </div>
     </div>

@@ -4,6 +4,8 @@ import { cn, getStripClass, eighthsToString } from '@/lib/utils'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
+import { useT } from '@/lib/useT'
+import { scenePoolT } from '@/lib/texte/komponenten/Drehplan'
 
 function PoolSceneStrip({ scene }: { scene: any }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -47,6 +49,7 @@ interface ScenePoolProps {
 }
 
 export function ScenePool({ scenes }: ScenePoolProps) {
+  const tt = useT()
   const { setNodeRef, isOver } = useDroppable({
     id: 'scene-pool',
     data: { type: 'pool' },
@@ -57,8 +60,8 @@ export function ScenePool({ scenes }: ScenePoolProps) {
   return (
     <div className="w-[200px] shrink-0 border border-border rounded-lg overflow-hidden bg-card flex flex-col">
       <div className="px-3 py-2 border-b border-border">
-        <h3 className="text-sm font-semibold">Ablage</h3>
-        <p className="text-xs text-muted-foreground">{scenes.length} ungeplante Szenen</p>
+        <h3 className="text-sm font-semibold">{tt(scenePoolT.ablage)}</h3>
+        <p className="text-xs text-muted-foreground">{tt(scenePoolT.ungeplant).replace('{n}', String(scenes.length))}</p>
       </div>
       <div
         ref={setNodeRef}
@@ -68,7 +71,7 @@ export function ScenePool({ scenes }: ScenePoolProps) {
         )}
       >
         {scenes.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-xs text-muted-foreground italic">Alle Szenen geplant</div>
+          <div className="flex items-center justify-center h-full text-xs text-muted-foreground italic">{tt(scenePoolT.alleGeplant)}</div>
         ) : (
           <SortableContext items={sceneIds} strategy={verticalListSortingStrategy}>
             {scenes.map(scene => <PoolSceneStrip key={scene.id} scene={scene} />)}

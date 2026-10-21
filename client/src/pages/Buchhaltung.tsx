@@ -10,10 +10,12 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { buchhaltungT } from '@/lib/texte/Buchhaltung'
 import { Download, Info, AlertTriangle, ArrowLeft, Save, FileSpreadsheet } from 'lucide-react'
 
-const euro = (cents: number) =>
-  (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
+const euro = (cents: number, gebietsschema: string) =>
+  (Number(cents || 0) / 100).toLocaleString(gebietsschema, { style: 'currency', currency: 'EUR' })
 
 const heute = () => new Date().toISOString().slice(0, 10)
 const jahresanfang = () => `${new Date().getFullYear()}-01-01`
@@ -24,6 +26,8 @@ export function Component() {
   const qc = useQueryClient()
   const { toast } = useToast()
   const download = useDownload()
+  const tt = useT()
+  const gebietsschema = useGebietsschema()
 
   const [von, setVon] = useState(jahresanfang())
   const [bis, setBis] = useState(heute())
@@ -63,22 +67,22 @@ export function Component() {
       qc.invalidateQueries({ queryKey: ['datev-pruefung', firmaId] })
       qc.invalidateQueries({ queryKey: ['opos', firmaId] })
       setEntwurf(null)
-      toast({ title: 'Gespeichert' })
+      toast({ title: tt(buchhaltungT.gespeichert) })
     },
     onError: (fehler: any) =>
-      toast({ title: 'Nicht gespeichert', description: fehler.message, variant: 'destructive' }),
+      toast({ title: tt(buchhaltungT.nichtGespeichert), description: fehler.message, variant: 'destructive' }),
   })
 
   return (
     <div className="px-5 py-6 sm:p-6 max-w-4xl mx-auto space-y-4">
       <PageHeader
-        title="Buchhaltung"
+        title={tt(buchhaltungT.titel)}
         subtitle={firma?.name || ''}
         actions={
           <Button variant="ghost" size="sm" asChild>
             <Link to={`/firma/${firmaId}/rechnungen`}>
               <ArrowLeft className="w-4 h-4 mr-1.5" />
-              Rechnungen
+              {tt(buchhaltungT.rechnungen)}
             </Link>
           </Button>
         }
@@ -87,20 +91,20 @@ export function Component() {
       {/* Zeitraum */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Zeitraum</CardTitle>
+          <CardTitle className="text-base">{tt(buchhaltungT.zeitraum)}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-end gap-3">
             <div>
-              <Label htmlFor="buch-von">Von</Label>
+              <Label htmlFor="buch-von">{tt(buchhaltungT.von)}</Label>
               <Input id="buch-von" type="date" value={von} onChange={(e) => setVon(e.target.value)} className="w-40" />
             </div>
             <div>
-              <Label htmlFor="buch-bis">Bis</Label>
+              <Label htmlFor="buch-bis">{tt(buchhaltungT.bis)}</Label>
               <Input id="buch-bis" type="date" value={bis} onChange={(e) => setBis(e.target.value)} className="w-40" />
             </div>
             <div className="text-sm text-muted-foreground pb-2">
-              {isLoading ? 'Lade…' : `${pruefung?.rechnungen ?? 0} Rechnungen`}
+              {isLoading ? tt(buchhaltungT.lade) : tt(buchhaltungT.anzahlRechnungen).replace('{n}', String(pruefung?.rechnungen ?? 0))}
             </div>
           </div>
           <Button
@@ -110,11 +114,10 @@ export function Component() {
             disabled={(pruefung?.rechnungen ?? 0) === 0}
           >
             <FileSpreadsheet className="w-4 h-4 mr-1.5" />
-            Einfache Tabelle als CSV
+            {tt(buchhaltungT.einfacheTabelle)}
           </Button>
           <p className="text-xs text-muted-foreground">
-            Eine Zeile je Rechnung und Steuersatz. Braucht keine Formatzusage - der Weg, wenn der
-            Steuerberater nur die Rechnungen sehen will.
+            {tt(buchhaltungT.einfacheTabelleText)}
           </p>
         </CardContent>
       </Card>
@@ -122,14 +125,14 @@ export function Component() {
       {/* DATEV */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">DATEV-Buchungsstapel</CardTitle>
+          <CardTitle className="text-base">{tt(buchhaltungT.datevStapel)}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-start gap-2 text-xs p-3 rounded-lg bg-muted">
             <Info className="w-4 h-4 shrink-0 mt-0.5" />
             <span>
               {pruefung?.hinweis
-                ?? 'Der Stapel wird ohne Festschreibung erzeugt und lässt sich in DATEV ansehen und verwerfen.'}
+                ?? tt(buchhaltungT.datevHinweis)}
             </span>
           </div>
 
@@ -137,7 +140,7 @@ export function Component() {
             <div className="flex items-start gap-2 text-xs p-3 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               <div>
-                <div className="font-medium">Dafür fehlt noch:</div>
+                <div className="font-medium">{tt(buchhaltungT.dafuerFehlt)}</div>
                 <ul className="list-disc pl-4 mt-1 space-y-0.5">
                   {pruefung.fehlt.map((f: string) => <li key={f}>{f}</li>)}
                 </ul>
@@ -147,19 +150,19 @@ export function Component() {
 
           <div className="grid gap-2 text-sm sm:grid-cols-2">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Buchungen</span>
+              <span className="text-muted-foreground">{tt(buchhaltungT.buchungen)}</span>
               <span className="tabular-nums">{pruefung?.buchungen ?? 0}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Summe</span>
-              <span className="tabular-nums">{euro(pruefung?.summe_cents ?? 0)}</span>
+              <span className="text-muted-foreground">{tt(buchhaltungT.summe)}</span>
+              <span className="tabular-nums">{euro(pruefung?.summe_cents ?? 0, gebietsschema)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Kontenrahmen</span>
+              <span className="text-muted-foreground">{tt(buchhaltungT.kontenrahmen)}</span>
               <span>{pruefung?.kontenrahmen ?? '-'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Erlöskonto 19 %</span>
+              <span className="text-muted-foreground">{tt(buchhaltungT.erloeskonto19)}</span>
               <span className="font-mono">{pruefung?.erloeskonten?.regel19 ?? '-'}</span>
             </div>
           </div>
@@ -171,7 +174,7 @@ export function Component() {
             disabled={!pruefung?.bereit}
           >
             <Download className="w-4 h-4 mr-1.5" />
-            Buchungsstapel herunterladen
+            {tt(buchhaltungT.stapelHerunterladen)}
           </Button>
         </CardContent>
       </Card>
@@ -179,32 +182,32 @@ export function Component() {
       {/* Einstellungen */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Angaben der Kanzlei</CardTitle>
+          <CardTitle className="text-base">{tt(buchhaltungT.kanzlei)}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <Label htmlFor="datev-berater">Beraternummer</Label>
+              <Label htmlFor="datev-berater">{tt(buchhaltungT.beraternummer)}</Label>
               <Input
                 id="datev-berater"
                 value={werte.datev_berater}
                 onChange={(e) => setze('datev_berater', e.target.value)}
                 inputMode="numeric"
-                placeholder="vom Steuerberater"
+                placeholder={tt(buchhaltungT.vomSteuerberater)}
               />
             </div>
             <div>
-              <Label htmlFor="datev-mandant">Mandantennummer</Label>
+              <Label htmlFor="datev-mandant">{tt(buchhaltungT.mandantennummer)}</Label>
               <Input
                 id="datev-mandant"
                 value={werte.datev_mandant}
                 onChange={(e) => setze('datev_mandant', e.target.value)}
                 inputMode="numeric"
-                placeholder="vom Steuerberater"
+                placeholder={tt(buchhaltungT.vomSteuerberater)}
               />
             </div>
             <div>
-              <Label htmlFor="datev-rahmen">Kontenrahmen</Label>
+              <Label htmlFor="datev-rahmen">{tt(buchhaltungT.kontenrahmen)}</Label>
               <Select
                 value={werte.datev_kontenrahmen}
                 onValueChange={(w) => setze('datev_kontenrahmen', w)}
@@ -217,7 +220,7 @@ export function Component() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="datev-laenge">Sachkontenlänge</Label>
+              <Label htmlFor="datev-laenge">{tt(buchhaltungT.sachkontenlaenge)}</Label>
               <Select
                 value={String(werte.datev_sachkontenlaenge)}
                 onValueChange={(w) => setze('datev_sachkontenlaenge', w)}
@@ -234,17 +237,17 @@ export function Component() {
 
           <div className="border-t border-border/60 pt-3 grid gap-3 sm:grid-cols-2">
             <div>
-              <Label htmlFor="basiszins">Basiszinssatz in Basispunkten</Label>
+              <Label htmlFor="basiszins">{tt(buchhaltungT.basiszins)}</Label>
               <Input
                 id="basiszins"
                 value={werte.base_rate_bp}
                 onChange={(e) => setze('base_rate_bp', e.target.value)}
                 inputMode="numeric"
-                placeholder="152 = 1,52 %"
+                placeholder={tt(buchhaltungT.basiszinsBeispiel)}
               />
             </div>
             <div>
-              <Label htmlFor="basiszins-stand">Gültig seit</Label>
+              <Label htmlFor="basiszins-stand">{tt(buchhaltungT.gueltigSeit)}</Label>
               <Input
                 id="basiszins-stand"
                 type="date"
@@ -254,9 +257,7 @@ export function Component() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Der Basiszinssatz nach § 247 BGB ändert sich zum 1. Januar und zum 1. Juli. Leer heißt:
-            CutSheet nimmt seinen eigenen Stand. Wer hier einträgt, trägt auch das Datum ein - sonst
-            weiß später niemand, ob der Satz noch gilt.
+            {tt(buchhaltungT.basiszinsText)}
           </p>
 
           <div className="flex items-center gap-2 border-t border-border/60 pt-3">
@@ -267,12 +268,12 @@ export function Component() {
               onChange={(e) => setze('dunning_enabled', e.target.checked)}
               className="h-4 w-4 rounded border-border"
             />
-            <Label htmlFor="mahnwesen-an" className="font-normal">Mahnwesen eingeschaltet</Label>
+            <Label htmlFor="mahnwesen-an" className="font-normal">{tt(buchhaltungT.mahnwesen)}</Label>
           </div>
 
           <Button onClick={() => speichern.mutate()} disabled={speichern.isPending || !entwurf}>
             <Save className="w-4 h-4 mr-1.5" />
-            Speichern
+            {tt(buchhaltungT.speichern)}
           </Button>
         </CardContent>
       </Card>

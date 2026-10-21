@@ -5,14 +5,14 @@ import { CalendarClock } from 'lucide-react'
 import {
   BereichKopf, Kennzahlen, BereichLaden, NichtsDa, VideoLink, Marke, BereichTabelle,
 } from '@/components/creator/BereichLayout'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { creatorRedaktionsplanT as rt } from '@/lib/texte/CreatorRedaktionsplan'
 
-const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
-
-function monatsName(key: string): string {
+function monatsName(key: string, gebietsschema: string): string {
   const [jahr, monat] = key.split('-')
   const i = Number(monat) - 1
-  return MONATE[i] ? `${MONATE[i]} ${jahr}` : key
+  if (!(i >= 0 && i < 12)) return key
+  return new Date(Number(jahr), i, 1).toLocaleDateString(gebietsschema, { month: 'long', year: 'numeric' })
 }
 
 function tag(datum: string | null): string {
@@ -24,6 +24,8 @@ function tag(datum: string | null): string {
 export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
+  const tt = useT()
+  const gs = useGebietsschema()
   const { data, isLoading } = useQuery({
     queryKey: ['creator-redaktionsplan', pid],
     queryFn: () => api.creator.redaktionsplan(pid),
@@ -37,31 +39,31 @@ export function Component() {
     <div className="page-container animate-fade-up">
       <BereichKopf
         symbol={CalendarClock}
-        titel="Redaktionsplan"
-        untertitel="Was wann rausgeht - über alle Videos des Kanals"
+        titel={tt(rt.titel)}
+        untertitel={tt(rt.untertitel)}
       />
 
       <Kennzahlen werte={[
-        { label: 'Im Plan', wert: data?.eintraege?.length ?? 0 },
-        { label: 'Überfällig', wert: data?.ueberfaellig ?? 0, warnung: true,
-          hinweis: 'geplantes Datum vorbei, noch nicht draußen' },
-        { label: 'Ohne Datum', wert: data?.ohne_datum ?? 0,
-          hinweis: 'taucht im Plan nicht auf' },
+        { label: tt(rt.imPlan), wert: data?.eintraege?.length ?? 0 },
+        { label: tt(rt.ueberfaellig), wert: data?.ueberfaellig ?? 0, warnung: true,
+          hinweis: tt(rt.ueberfaelligHinweis) },
+        { label: tt(rt.ohneDatum), wert: data?.ohne_datum ?? 0,
+          hinweis: tt(rt.ohneDatumHinweis) },
       ]} />
 
       {monate.length === 0 ? (
         <NichtsDa
           symbol={CalendarClock}
-          titel="Noch nichts terminiert"
-          text="Sobald ein Video ein Veröffentlichungsdatum hat, erscheint es hier - nach Monat sortiert, mit allem was überfällig ist."
+          titel={tt(rt.nichtsTerminiert)}
+          text={tt(rt.nichtsTerminiertText)}
         />
       ) : (
         monate.map((m: any) => (
           <div key={m.monat} className="mb-8">
-            <p className="section-label mb-3">{monatsName(m.monat)}</p>
+            <p className="section-label mb-3">{monatsName(m.monat, gs)}</p>
             <BereichTabelle
               minBreite={600}
-              kopf={<tr><th>Datum</th><th>Video</th><th>Serie</th><th>Plattform</th><th>Status</th></tr>}
+              kopf={<tr><th>{tt(rt.datum)}</th><th>{tt(rt.video)}</th><th>{tt(rt.serie)}</th><th>{tt(rt.plattform)}</th><th>{tt(rt.status)}</th></tr>}
             >
               {m.videos.map((v: any) => (
                 <tr key={v.id} className={v.ueberfaellig ? 'bg-danger/5' : undefined}>
@@ -71,10 +73,10 @@ export function Component() {
                   <td className="text-muted-foreground">{v.plattform || '-'}</td>
                   <td>
                     {v.veroeffentlicht
-                      ? <Marke text="veröffentlicht" ton="gut" />
+                      ? <Marke text={tt(rt.markeVeroeffentlicht)} ton="gut" />
                       : v.ueberfaellig
-                        ? <Marke text="überfällig" ton="gefahr" />
-                        : <Marke text={v.status || 'geplant'} />}
+                        ? <Marke text={tt(rt.markeUeberfaellig)} ton="gefahr" />
+                        : <Marke text={v.status || tt(rt.markeGeplant)} />}
                   </td>
                 </tr>
               ))}

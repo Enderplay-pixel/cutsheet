@@ -6,18 +6,23 @@ import { Input } from '@/components/ui/input'
 import { Film, CheckCircle2, AlertCircle, Loader2, LogIn, UserPlus } from 'lucide-react'
 import { AppIcon } from '@/components/shared/BrandMark'
 import { cn } from '@/lib/utils'
+import type { Lang } from '@/lib/i18n'
+import { uiT } from '@/lib/i18n'
+import { useT } from '@/lib/useT'
+import { einladungT, einladungRollenT } from '@/lib/texte/Invite'
 
-const ROLE_LABELS: Record<string, { label: string; color: string }> = {
-  admin:     { label: 'Admin',             color: 'text-red-500' },
-  producer:  { label: 'Produzent',         color: 'text-amber-500' },
-  director:  { label: 'Regisseur',         color: 'text-blue-500' },
-  dept_head: { label: 'Abteilungsleitung', color: 'text-purple-500' },
-  read_only: { label: 'Lesezugriff',       color: 'text-muted-foreground' },
+const ROLE_LABELS: Record<string, { label: Record<Lang, string>; color: string }> = {
+  admin:     { label: einladungRollenT.admin,     color: 'text-red-500' },
+  producer:  { label: einladungRollenT.producer,  color: 'text-amber-500' },
+  director:  { label: einladungRollenT.director,  color: 'text-blue-500' },
+  dept_head: { label: einladungRollenT.dept_head, color: 'text-purple-500' },
+  read_only: { label: einladungRollenT.read_only, color: 'text-muted-foreground' },
 }
 
 export function Component() {
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
+  const tt = useT()
   const { user, login, register } = useAuth()
 
   const [invite, setInvite]       = useState<any>(null)
@@ -40,7 +45,7 @@ export function Component() {
     fetch(`/api/invites/${token}`)
       .then(r => r.json())
       .then(({ data, error }) => { if (error) setLoadError(error); else setInvite(data) })
-      .catch(() => setLoadError('Netzwerkfehler'))
+      .catch(() => setLoadError(tt(einladungT.netzwerkfehler)))
       .finally(() => setLoading(false))
   }, [token])
 
@@ -102,7 +107,7 @@ export function Component() {
         {loading && (
           <div className="bg-card border border-border/60 rounded-xl p-8 flex flex-col items-center gap-3">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Einladungslink wird geprüft…</p>
+            <p className="text-sm text-muted-foreground">{tt(einladungT.wirdGeprueft)}</p>
           </div>
         )}
 
@@ -110,10 +115,10 @@ export function Component() {
         {!loading && loadError && (
           <div className="bg-card border border-destructive/40 rounded-xl p-6 text-center space-y-2">
             <AlertCircle className="w-10 h-10 text-destructive mx-auto" />
-            <p className="font-medium">Ungültiger Link</p>
+            <p className="font-medium">{tt(einladungT.ungueltig)}</p>
             <p className="text-sm text-muted-foreground">{loadError}</p>
             <Button variant="outline" className="mt-2" onClick={() => navigate('/')}>
-              Zur Startseite
+              {tt(einladungT.zurStartseite)}
             </Button>
           </div>
         )}
@@ -122,12 +127,12 @@ export function Component() {
         {accepted && invite && (
           <div className="bg-card border border-green-500/40 rounded-xl p-8 text-center space-y-3">
             <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
-            <p className="text-lg font-semibold">Willkommen im Projekt!</p>
+            <p className="text-lg font-semibold">{tt(einladungT.willkommen)}</p>
             <p className="text-sm text-muted-foreground">
-              Du bist jetzt <span className={cn('font-semibold', role?.color)}>{role?.label}</span> in
-              <span className="font-semibold text-foreground"> „{invite.project_title}"</span>
+              {tt(einladungT.duBistJetzt)} <span className={cn('font-semibold', role?.color)}>{role && tt(role.label)}</span> {tt(einladungT.in)}
+              <span className="font-semibold text-foreground">{tt(einladungT.projektZitat).replace('{titel}', invite.project_title)}</span>
             </p>
-            <p className="text-xs text-muted-foreground animate-pulse">Leite weiter…</p>
+            <p className="text-xs text-muted-foreground animate-pulse">{tt(einladungT.leiteWeiter)}</p>
           </div>
         )}
 
@@ -141,12 +146,12 @@ export function Component() {
                   <Film className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Du wurdest eingeladen zu</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{tt(einladungT.eingeladenZu)}</p>
                   <p className="font-semibold leading-tight">{invite.project_title}</p>
-                  {invite.label && <p className="text-xs text-muted-foreground mt-0.5 italic">„{invite.label}"</p>}
+                  {invite.label && <p className="text-xs text-muted-foreground mt-0.5 italic">{tt(einladungT.zitat).replace('{text}', invite.label)}</p>}
                   <div className="flex items-center gap-1.5 mt-2">
-                    <span className="text-xs text-muted-foreground">Rolle:</span>
-                    <span className={cn('text-xs font-semibold', role?.color)}>{role?.label}</span>
+                    <span className="text-xs text-muted-foreground">{tt(einladungT.rolle)}</span>
+                    <span className={cn('text-xs font-semibold', role?.color)}>{role && tt(role.label)}</span>
                   </div>
                 </div>
               </div>
@@ -156,14 +161,14 @@ export function Component() {
             {user && (
               <div className="bg-card border border-border/60 rounded-xl p-5 space-y-3">
                 <p className="text-sm">
-                  Angemeldet als <span className="font-semibold">{user.name || user.email}</span>
+                  {tt(einladungT.angemeldetAls)} <span className="font-semibold">{user.name || user.email}</span>
                 </p>
                 {acceptError && (
                   <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{acceptError}</p>
                 )}
                 <Button onClick={accept} disabled={accepting} className="w-full">
                   {accepting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  Projekt beitreten
+                  {tt(einladungT.beitreten)}
                 </Button>
               </div>
             )}
@@ -172,7 +177,7 @@ export function Component() {
             {!user && (
               <div className="bg-card border border-border/60 rounded-xl p-5">
                 <p className="text-sm text-muted-foreground mb-4">
-                  Melde dich an oder erstelle ein Konto, um dem Projekt beizutreten.
+                  {tt(einladungT.anmeldenOderKonto)}
                 </p>
 
                 {/* Mode toggle */}
@@ -185,7 +190,7 @@ export function Component() {
                       mode === 'register' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
-                    <UserPlus className="w-3 h-3" /> Registrieren
+                    <UserPlus className="w-3 h-3" /> {tt(einladungT.registrieren)}
                   </button>
                   <button
                     type="button"
@@ -195,18 +200,18 @@ export function Component() {
                       mode === 'login' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
-                    <LogIn className="w-3 h-3" /> Anmelden
+                    <LogIn className="w-3 h-3" /> {tt(einladungT.anmelden)}
                   </button>
                 </div>
 
                 <form onSubmit={handleAuth} className="space-y-3">
                   {mode === 'register' && (
-                    <Input placeholder="Name" value={name} onChange={e => setName(e.target.value)} required />
+                    <Input placeholder={tt(uiT.name)} value={name} onChange={e => setName(e.target.value)} required />
                   )}
-                  <Input type="email" placeholder="E-Mail" value={email} onChange={e => setEmail(e.target.value)} required />
+                  <Input type="email" placeholder={tt(uiT.email)} value={email} onChange={e => setEmail(e.target.value)} required />
                   <Input
                     type="password"
-                    placeholder="Passwort"
+                    placeholder={tt(einladungT.passwort)}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     required
@@ -220,7 +225,7 @@ export function Component() {
                       ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       : mode === 'login' ? <LogIn className="w-4 h-4 mr-2" /> : <UserPlus className="w-4 h-4 mr-2" />
                     }
-                    {mode === 'login' ? 'Anmelden & Beitreten' : 'Registrieren & Beitreten'}
+                    {mode === 'login' ? tt(einladungT.anmeldenBeitreten) : tt(einladungT.registrierenBeitreten)}
                   </Button>
                 </form>
               </div>

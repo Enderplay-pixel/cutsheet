@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
 import { Image, StickyNote, Palette, X, Upload, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useT } from '@/lib/useT'
+import { moodboardT } from '@/lib/texte/Moodboard'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -28,11 +30,11 @@ function getType(item: MoodItem): ItemType {
 
 // Notizfarben als Farbton — Hintergrund und Schrift folgen dem Hell/Dunkel-Modus
 const NOTE_COLORS = [
-  { hue: 38, label: 'Amber' },
-  { hue: 211, label: 'Blau' },
-  { hue: 140, label: 'Grün' },
-  { hue: 280, label: 'Lila' },
-  { hue: 3, label: 'Rot' },
+  { hue: 38, label: moodboardT.amber },
+  { hue: 211, label: moodboardT.blau },
+  { hue: 140, label: moodboardT.gruen },
+  { hue: 280, label: moodboardT.lila },
+  { hue: 3, label: moodboardT.rot },
 ].map(({ hue, label }) => ({
   bg: `hsl(${hue} 80% var(--note-bg-l))`,
   border: `hsl(${hue} 70% var(--note-border-l))`,
@@ -91,6 +93,7 @@ function ImageCard({ item, onDelete }: { item: MoodItem; onDelete: () => void })
 }
 
 function NoteCard({ item, onDelete }: { item: MoodItem; onDelete: () => void }) {
+  const tt = useT()
   const colorIdx = Math.abs((item.id || 0) * 7) % NOTE_COLORS.length
   const c = NOTE_COLORS[colorIdx]
   return (
@@ -113,7 +116,7 @@ function NoteCard({ item, onDelete }: { item: MoodItem; onDelete: () => void }) 
           <p className="text-[12px] leading-relaxed" style={{ color: c.text, opacity: 0.8 }}>{item.notes}</p>
         )}
         {!item.title && !item.notes && (
-          <p className="text-[12px] italic" style={{ color: c.text, opacity: 0.4 }}>Leere Notiz…</p>
+          <p className="text-[12px] italic" style={{ color: c.text, opacity: 0.4 }}>{tt(moodboardT.leereNotiz)}</p>
         )}
       </div>
     </div>
@@ -231,6 +234,7 @@ function AddPanel({
   onAdded: () => void
 }) {
   const { toast } = useToast()
+  const tt = useT()
   const [mode, setMode] = useState<AddMode>(null)
   const [imageUrl, setImageUrl] = useState('')
   const [title, setTitle] = useState('')
@@ -260,7 +264,7 @@ function AddPanel({
       return (await res.json()).data
     },
     onSuccess: () => { onAdded(); reset() },
-    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Hinzufügen' }),
+    onError: () => toast({ variant: 'destructive', title: tt(moodboardT.fehlerHinzufuegen) }),
   })
 
   function reset() {
@@ -298,20 +302,20 @@ function AddPanel({
   if (mode === null) {
     return (
       <div className="flex items-center gap-2 bg-popover/90 backdrop-blur border border-foreground/[0.1] rounded-2xl px-4 py-2.5 shadow-2xl">
-        <span className="text-[11px] text-muted-foreground font-medium mr-1">Hinzufügen</span>
+        <span className="text-[11px] text-muted-foreground font-medium mr-1">{tt(moodboardT.hinzufuegen)}</span>
         {[
-          { icon: Image,      label: 'Bild URL',   m: 'image-url'  as AddMode },
-          { icon: Upload,     label: 'Bild Datei', m: 'image-file' as AddMode },
-          { icon: StickyNote, label: 'Notiz',      m: 'note'       as AddMode },
-          { icon: Palette,    label: 'Farbe',      m: 'color'      as AddMode },
+          { icon: Image,      label: moodboardT.bildUrl,   m: 'image-url'  as AddMode },
+          { icon: Upload,     label: moodboardT.bildDatei, m: 'image-file' as AddMode },
+          { icon: StickyNote, label: moodboardT.notiz,     m: 'note'       as AddMode },
+          { icon: Palette,    label: moodboardT.farbe,     m: 'color'      as AddMode },
         ].map(({ icon: Icon, label, m }) => (
           <button
-            key={label}
+            key={m}
             onClick={() => setMode(m)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] text-foreground/60 hover:text-foreground hover:bg-foreground/[0.08] transition-colors"
           >
             <Icon className="w-3.5 h-3.5" />
-            {label}
+            {tt(label)}
           </button>
         ))}
       </div>
@@ -322,9 +326,9 @@ function AddPanel({
     <div className="bg-popover/95 backdrop-blur border border-foreground/[0.1] rounded-2xl px-5 py-4 shadow-2xl w-[340px]">
       <div className="flex items-center justify-between mb-3">
         <p className="text-[13px] font-medium text-foreground/80">
-          {mode === 'image-url' ? 'Bild via URL' : mode === 'image-file' ? 'Bild hochladen' : mode === 'note' ? 'Notiz' : 'Farbe'}
+          {tt(mode === 'image-url' ? moodboardT.bildViaUrl : mode === 'image-file' ? moodboardT.bildHochladen : mode === 'note' ? moodboardT.notiz : moodboardT.farbe)}
         </p>
-        <button onClick={reset} aria-label="Ansicht zurücksetzen" title="Ansicht zurücksetzen" className="text-muted-foreground hover:text-foreground/60 transition-colors">
+        <button onClick={reset} aria-label={tt(moodboardT.ansichtZurueck)} title={tt(moodboardT.ansichtZurueck)} className="text-muted-foreground hover:text-foreground/60 transition-colors">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -335,7 +339,7 @@ function AddPanel({
             autoFocus
             value={title}
             onChange={e => setTitle(e.target.value)}
-            placeholder="Titel…"
+            placeholder={tt(moodboardT.titelPh)}
             className="w-full rounded-lg px-3 py-2 text-[13px] outline-none"
             style={{ background: 'hsl(var(--foreground) / 0.07)', border: '1px solid hsl(var(--foreground) / 0.12)', color: 'hsl(var(--foreground) / 0.85)' }}
           />
@@ -359,7 +363,7 @@ function AddPanel({
               style={{ borderColor: fileBase64 ? 'hsl(var(--success) / 0.4)' : 'hsl(var(--foreground) / 0.12)', color: fileBase64 ? 'hsl(var(--success))' : 'hsl(var(--foreground) / 0.35)' }}
             >
               <Upload className="w-5 h-5" />
-              <span className="text-[11px]">{fileBase64 ? 'Datei ausgewählt ✓' : 'Klicken zum Auswählen'}</span>
+              <span className="text-[11px]">{fileBase64 ? tt(moodboardT.dateiGewaehlt) : tt(moodboardT.klickenAuswaehlen)}</span>
             </button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
           </>
@@ -369,7 +373,7 @@ function AddPanel({
           <textarea
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            placeholder="Notizinhalt…"
+            placeholder={tt(moodboardT.notizinhaltPh)}
             rows={3}
             className="w-full rounded-lg px-3 py-2 text-[13px] outline-none resize-none"
             style={{ background: 'hsl(var(--foreground) / 0.07)', border: '1px solid hsl(var(--foreground) / 0.12)', color: 'hsl(var(--foreground) / 0.85)' }}
@@ -401,14 +405,14 @@ function AddPanel({
           onClick={reset}
           className="flex-1 py-1.5 rounded-lg text-[12px] text-foreground/40 hover:text-foreground/60 transition-colors border border-foreground/[0.08] hover:border-foreground/[0.15]"
         >
-          Abbrechen
+          {tt(moodboardT.abbrechen)}
         </button>
         <button
           onClick={submit}
           disabled={!canSubmit || saveMutation.isPending}
           className="flex-1 py-1.5 rounded-lg text-[12px] font-medium bg-foreground/[0.1] hover:bg-foreground/[0.15] disabled:opacity-40 text-foreground transition-colors active:scale-[0.97]"
         >
-          Hinzufügen
+          {tt(moodboardT.hinzufuegen)}
         </button>
       </div>
     </div>
@@ -422,6 +426,7 @@ export function Component() {
   const pid = Number(id)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const { data: items = [], isLoading } = useQuery<MoodItem[]>({
@@ -447,7 +452,7 @@ export function Component() {
       if (!res.ok) throw new Error()
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['moodboard', pid] }),
-    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Löschen' }),
+    onError: () => toast({ variant: 'destructive', title: tt(moodboardT.fehlerLoeschen) }),
   })
 
   const moveMutation = useMutation({
@@ -481,14 +486,14 @@ export function Component() {
 
       {/* Top bar */}
       <div className="flex items-center gap-4 px-5 py-3 border-b shrink-0" style={{ borderColor: 'hsl(var(--foreground) / 0.06)', background: 'hsl(var(--background))' }}>
-        <h1 className="text-[13px] font-semibold text-foreground/80">Moodboard</h1>
+        <h1 className="text-[13px] font-semibold text-foreground/80">{tt(moodboardT.titel)}</h1>
         <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
           {imageCount > 0 && <span className="flex items-center gap-1"><Image className="w-3 h-3" />{imageCount}</span>}
           {noteCount  > 0 && <span className="flex items-center gap-1"><StickyNote className="w-3 h-3" />{noteCount}</span>}
           {colorCount > 0 && <span className="flex items-center gap-1"><Palette className="w-3 h-3" />{colorCount}</span>}
         </div>
         <div className="flex-1" />
-        <span className="text-[11px] text-muted-foreground/70">Drag zum Verschieben</span>
+        <span className="text-[11px] text-muted-foreground/70">{tt(moodboardT.dragHinweis)}</span>
       </div>
 
       {/* Canvas */}
@@ -508,7 +513,7 @@ export function Component() {
           {/* Loading */}
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-muted-foreground text-[13px]">Lädt…</div>
+              <div className="text-muted-foreground text-[13px]">{tt(moodboardT.laedt)}</div>
             </div>
           )}
 
@@ -518,8 +523,8 @@ export function Component() {
               <div className="w-16 h-16 rounded-2xl bg-foreground/[0.04] flex items-center justify-center">
                 <Image className="w-7 h-7 text-muted-foreground/70" />
               </div>
-              <p className="text-[13px] text-muted-foreground">Board ist leer</p>
-              <p className="text-[11px] text-muted-foreground/70">Füge Bilder, Notizen und Farben hinzu</p>
+              <p className="text-[13px] text-muted-foreground">{tt(moodboardT.leer)}</p>
+              <p className="text-[11px] text-muted-foreground/70">{tt(moodboardT.leerHinweis)}</p>
             </div>
           )}
 
@@ -544,7 +549,7 @@ export function Component() {
       ].map(({ dir, Icon, style }) => (
         <button
           key={dir}
-          aria-label={`Nach ${({ up: 'oben', down: 'unten', left: 'links', right: 'rechts' } as Record<string, string>)[dir] ?? dir} rollen`}
+          aria-label={tt({ up: moodboardT.rollenOben, down: moodboardT.rollenUnten, left: moodboardT.rollenLinks, right: moodboardT.rollenRechts }[dir as 'up' | 'down' | 'left' | 'right'])}
           className="absolute z-40 w-8 h-8 rounded-full flex items-center justify-center transition-opacity opacity-30 hover:opacity-80"
           style={{ ...style, background: 'hsl(var(--foreground) / 0.1)', color: 'hsl(var(--foreground))' }}
           onClick={() => {

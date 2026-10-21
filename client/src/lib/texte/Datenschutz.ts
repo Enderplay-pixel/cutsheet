@@ -1,0 +1,104 @@
+import type { Lang } from '@/lib/i18n'
+
+type Text = Record<Lang, string>
+
+export const datenschutzT = {
+  titel: { de: 'Datenschutzerklärung', en: 'Privacy policy', fr: 'Politique de confidentialité' },
+  // Auf Deutsch leer: Der Hinweis erscheint nur in den Übersetzungen.
+  verbindlich: {
+    de: '',
+    en: 'This translation is provided for convenience only. The German version of this privacy policy is legally binding.',
+    fr: "Cette traduction est fournie à titre indicatif. Seule la version allemande de la présente politique de confidentialité fait foi.",
+  },
+
+  h1: { de: '1. Verantwortlicher', en: '1. Controller', fr: '1. Responsable du traitement' },
+  p1: {
+    de: '[VOR- UND NACHNAME], [ANSCHRIFT], E-Mail: [KONTAKT-E-MAIL] - verantwortlich im Sinne der Datenschutz-Grundverordnung (DSGVO).',
+    en: '[VOR- UND NACHNAME], [ANSCHRIFT], email: [KONTAKT-E-MAIL] - controller within the meaning of the General Data Protection Regulation (GDPR, German: DSGVO).',
+    fr: '[VOR- UND NACHNAME], [ANSCHRIFT], e-mail : [KONTAKT-E-MAIL] - responsable du traitement au sens du Règlement général sur la protection des données (RGPD, en allemand : DSGVO).',
+  },
+
+  h2: { de: '2. Welche Daten wir verarbeiten', en: '2. What data we process', fr: '2. Quelles données nous traitons' },
+  kontoTitel: { de: 'Konto-Daten', en: 'Account data', fr: 'Données de compte' },
+  kontoText: {
+    de: 'Bei der Registrierung speichern wir E-Mail-Adresse, Name und ein verschlüsseltes Passwort (bcrypt-Hash). Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung).',
+    en: 'When you register, we store your email address, name and an encrypted password (bcrypt hash). Legal basis: Art. 6(1)(b) GDPR (performance of a contract).',
+    fr: "Lors de l'inscription, nous enregistrons l'adresse e-mail, le nom et un mot de passe chiffré (hachage bcrypt). Base juridique : art. 6, par. 1, point b) du RGPD (exécution du contrat).",
+  },
+  produktionTitel: { de: 'Produktionsdaten', en: 'Production data', fr: 'Données de production' },
+  produktionText: {
+    de: 'Inhalte, die du in Projekten anlegst (Drehpläne, Kontaktdaten von Cast und Crew, Dispositionen etc.), werden ausschließlich zur Bereitstellung des Dienstes verarbeitet. Als Projektverantwortliche*r bist du dafür verantwortlich, dass du die Kontaktdaten deines Teams einpflegen darfst.',
+    en: 'Content you create in projects (shooting schedules, contact details of cast and crew, call sheets etc.) is processed solely to provide the service. As the person responsible for a project, you are responsible for ensuring that you are permitted to enter your team\'s contact details.',
+    fr: "Les contenus que tu crées dans les projets (plans de tournage, coordonnées du casting et de l'équipe, feuilles de service, etc.) sont traités exclusivement pour fournir le service. En tant que responsable du projet, il t'appartient de t'assurer que tu as le droit d'enregistrer les coordonnées de ton équipe.",
+  },
+  mailTitel: { de: 'E-Mail-Versand', en: 'Sending emails', fr: "Envoi d'e-mails" },
+  mailText: {
+    de: 'CutSheet versendet in deinem Auftrag E-Mails (z. B. Tagesdispositionen, Einladungen, Passwort-Resets). Dispo-E-Mails enthalten ein Zählpixel, das den Empfang registriert (Öffnungsstatus für die Produktionsleitung). Rechtsgrundlage: Art. 6 Abs. 1 lit. b und f DSGVO.',
+    en: 'CutSheet sends emails on your behalf (e.g. call sheets, invitations, password resets). Call sheet emails contain a tracking pixel that records receipt (open status for the production management). Legal basis: Art. 6(1)(b) and (f) GDPR.',
+    fr: "CutSheet envoie des e-mails en ton nom (p. ex. feuilles de service, invitations, réinitialisations de mot de passe). Les e-mails de feuille de service contiennent un pixel de suivi qui enregistre la réception (statut d'ouverture pour la direction de production). Base juridique : art. 6, par. 1, points b) et f) du RGPD.",
+  },
+  pushTitel: { de: 'Push-Benachrichtigungen', en: 'Push notifications', fr: 'Notifications push' },
+  pushText: {
+    de: 'Optional und nur nach ausdrücklicher Einwilligung im Browser (Art. 6 Abs. 1 lit. a DSGVO). Die Einwilligung kann jederzeit in den Einstellungen widerrufen werden.',
+    en: 'Optional and only after explicit consent in the browser (Art. 6(1)(a) GDPR). Consent can be withdrawn at any time in the settings.',
+    fr: 'Facultatives et uniquement après consentement explicite dans le navigateur (art. 6, par. 1, point a) du RGPD). Le consentement peut être retiré à tout moment dans les paramètres.',
+  },
+  analyseTitel: { de: 'Nutzungsanalyse (PostHog)', en: 'Usage analytics (PostHog)', fr: "Analyse d'utilisation (PostHog)" },
+  analyseText: {
+    de: 'Sofern aktiviert, nutzen wir PostHog (PostHog EU, Hosting in der EU) zur anonymisierten Analyse der Funktionsnutzung, um das Produkt zu verbessern. Es werden keine Daten an Server außerhalb der EU übertragen. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO.',
+    en: 'Where enabled, we use PostHog (PostHog EU, hosted in the EU) for anonymised analysis of feature usage in order to improve the product. No data is transferred to servers outside the EU. Legal basis: Art. 6(1)(f) GDPR.',
+    fr: "Lorsque cette fonction est activée, nous utilisons PostHog (PostHog EU, hébergement dans l'UE) pour une analyse anonymisée de l'utilisation des fonctions, afin d'améliorer le produit. Aucune donnée n'est transférée vers des serveurs situés hors de l'UE. Base juridique : art. 6, par. 1, point f) du RGPD.",
+  },
+  lokalTitel: { de: 'Lokale Speicherung', en: 'Local storage', fr: 'Stockage local' },
+  lokalText: {
+    de: 'CutSheet speichert technisch notwendige Daten im localStorage deines Browsers (Login-Token, UI-Einstellungen). Es werden keine Werbe-Cookies gesetzt.',
+    en: 'CutSheet stores technically necessary data in your browser\'s localStorage (login token, UI settings). No advertising cookies are set.',
+    fr: "CutSheet enregistre les données techniquement nécessaires dans le localStorage de ton navigateur (jeton de connexion, paramètres de l'interface). Aucun cookie publicitaire n'est déposé.",
+  },
+
+  h3: { de: '3. Hosting', en: '3. Hosting', fr: '3. Hébergement' },
+  p3: {
+    de: 'Die Anwendung wird gehostet bei [HOSTING-ANBIETER, z. B. Render.com / Railway], Serverstandort [STANDORT]. Mit dem Anbieter besteht ein Auftragsverarbeitungsvertrag nach Art. 28 DSGVO.',
+    en: 'The application is hosted by [HOSTING-ANBIETER, z. B. Render.com / Railway], server location [STANDORT]. A data processing agreement pursuant to Art. 28 GDPR has been concluded with the provider.',
+    fr: "L'application est hébergée par [HOSTING-ANBIETER, z. B. Render.com / Railway], emplacement du serveur [STANDORT]. Un contrat de sous-traitance conforme à l'art. 28 du RGPD a été conclu avec le prestataire.",
+  },
+
+  h4: { de: '4. Deine Rechte', en: '4. Your rights', fr: '4. Tes droits' },
+  auskunftTitel: { de: 'Auskunft & Datenübertragbarkeit', en: 'Access & data portability', fr: 'Accès et portabilité des données' },
+  auskunftText: {
+    de: ' (Art. 15, 20 DSGVO): In den Einstellungen kannst du jederzeit alle deine Daten als JSON exportieren.',
+    en: ' (Art. 15, 20 GDPR): You can export all your data as JSON in the settings at any time.',
+    fr: ' (art. 15 et 20 du RGPD) : dans les paramètres, tu peux exporter à tout moment toutes tes données au format JSON.',
+  },
+  loeschungTitel: { de: 'Löschung', en: 'Erasure', fr: 'Effacement' },
+  loeschungText: {
+    de: ' (Art. 17 DSGVO): Du kannst dein Konto in den Einstellungen selbst löschen.',
+    en: ' (Art. 17 GDPR): You can delete your account yourself in the settings.',
+    fr: ' (art. 17 du RGPD) : tu peux supprimer toi-même ton compte dans les paramètres.',
+  },
+  berichtigungTitel: { de: 'Berichtigung', en: 'Rectification', fr: 'Rectification' },
+  berichtigungText: {
+    de: ' (Art. 16 DSGVO): Name und E-Mail kannst du selbst ändern.',
+    en: ' (Art. 16 GDPR): You can change your name and email yourself.',
+    fr: ' (art. 16 du RGPD) : tu peux modifier toi-même ton nom et ton e-mail.',
+  },
+  widerspruchTitel: { de: 'Widerspruch & Einschränkung', en: 'Objection & restriction', fr: 'Opposition et limitation' },
+  widerspruchText: {
+    de: ' (Art. 18, 21 DSGVO): Wende dich an [KONTAKT-E-MAIL].',
+    en: ' (Art. 18, 21 GDPR): Please contact [KONTAKT-E-MAIL].',
+    fr: ' (art. 18 et 21 du RGPD) : adresse-toi à [KONTAKT-E-MAIL].',
+  },
+  beschwerdeTitel: { de: 'Beschwerde', en: 'Complaint', fr: 'Réclamation' },
+  beschwerdeText: {
+    de: ': Du hast das Recht, dich bei einer Datenschutz-Aufsichtsbehörde zu beschweren.',
+    en: ': You have the right to lodge a complaint with a data protection supervisory authority.',
+    fr: " : tu as le droit d'introduire une réclamation auprès d'une autorité de contrôle de la protection des données.",
+  },
+
+  h5: { de: '5. Speicherdauer', en: '5. Retention period', fr: '5. Durée de conservation' },
+  p5: {
+    de: 'Konto- und Projektdaten werden gespeichert, solange dein Konto besteht. Nach Kontolöschung werden deine personenbezogenen Daten unverzüglich entfernt.',
+    en: 'Account and project data are stored for as long as your account exists. After your account is deleted, your personal data is removed without delay.',
+    fr: 'Les données de compte et de projet sont conservées tant que ton compte existe. Après la suppression du compte, tes données personnelles sont effacées sans délai.',
+  },
+} satisfies Record<string, Text>

@@ -8,6 +8,8 @@ import { useToast } from '@/components/ui/use-toast'
 import { Plus, Trash2, CalendarClock } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/useT'
+import { postplanT as T } from '@/lib/texte/Postplan'
 
 interface PostPhase {
   id: number
@@ -20,11 +22,18 @@ interface PostPhase {
 }
 
 const QUICK_PHASES = [
-  'Rohschnitt', 'Feinschnitt', 'VFX-Abnahme', 'Color Grading',
-  'Sounddesign', 'Tonmischung', 'DCP/Master', 'Ablieferung',
+  T.rohschnitt, T.feinschnitt, T.vfxAbnahme, T.colorGrading,
+  T.sounddesign, T.tonmischung, T.dcpMaster, T.ablieferung,
 ]
 
 const STATUSES: PostPhase['status'][] = ['Ausstehend', 'In Arbeit', 'Abgeschlossen']
+
+/** Beschriftung je Status; der Wert selbst geht unverändert an den Server. */
+const STATUS_LABEL: Record<PostPhase['status'], typeof T.ausstehend> = {
+  'Ausstehend': T.ausstehend,
+  'In Arbeit': T.inArbeit,
+  'Abgeschlossen': T.abgeschlossen,
+}
 
 function statusBadgeClass(status: string) {
   switch (status) {
@@ -74,6 +83,7 @@ function PhaseRow({
 }) {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ ...phase })
   const set = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }))
@@ -82,19 +92,19 @@ function PhaseRow({
     mutationFn: () => api.postplan.update(pid, phase.id, form),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['postplan', pid] })
-      toast({ title: 'Phase aktualisiert' })
+      toast({ title: tt(T.phaseAktualisiert) })
       setEditing(false)
     },
-    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Speichern' }),
+    onError: () => toast({ variant: 'destructive', title: tt(T.fehlerSpeichern) }),
   })
 
   const deleteMutation = useMutation({
     mutationFn: () => api.postplan.delete(pid, phase.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['postplan', pid] })
-      toast({ title: 'Phase gelöscht' })
+      toast({ title: tt(T.phaseGeloescht) })
     },
-    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Löschen' }),
+    onError: () => toast({ variant: 'destructive', title: tt(T.fehlerLoeschen) }),
   })
 
   const i = 'h-7 text-sm'
@@ -105,21 +115,21 @@ function PhaseRow({
       <div className="border border-primary/30 bg-primary/5 rounded-lg p-3 mb-2">
         <div className="grid grid-cols-12 gap-2 items-center">
           <div className="col-span-3">
-            <Input className={i} value={form.phase} onChange={e => set('phase', e.target.value)} placeholder="Phasenname" />
+            <Input className={i} value={form.phase} onChange={e => set('phase', e.target.value)} placeholder={tt(T.phasenname)} />
           </div>
           <div className="col-span-2">
-            <Input aria-label="Beginn der Phase" className={i} type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
+            <Input aria-label={tt(T.beginnPhase)} className={i} type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
           </div>
           <div className="col-span-2">
-            <Input aria-label="Ende der Phase" className={i} type="date" value={form.end_date} onChange={e => set('end_date', e.target.value)} />
+            <Input aria-label={tt(T.endePhase)} className={i} type="date" value={form.end_date} onChange={e => set('end_date', e.target.value)} />
           </div>
           <div className="col-span-2">
-            <select aria-label="Status der Phase" className={sel} value={form.status} onChange={e => set('status', e.target.value)}>
-              {STATUSES.map(s => <option key={s}>{s}</option>)}
+            <select aria-label={tt(T.statusPhase)} className={sel} value={form.status} onChange={e => set('status', e.target.value)}>
+              {STATUSES.map(s => <option key={s} value={s}>{tt(STATUS_LABEL[s])}</option>)}
             </select>
           </div>
           <div className="col-span-2">
-            <Input className={i} value={form.responsible} onChange={e => set('responsible', e.target.value)} placeholder="Verantwortlich" />
+            <Input className={i} value={form.responsible} onChange={e => set('responsible', e.target.value)} placeholder={tt(T.verantwortlich)} />
           </div>
           <div className="col-span-1 flex gap-1 justify-end">
             <button
@@ -127,7 +137,7 @@ function PhaseRow({
               disabled={updateMutation.isPending}
               className="px-2 h-7 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50"
             >
-              OK
+              {tt(T.ok)}
             </button>
             <button
               onClick={() => setEditing(false)}
@@ -138,7 +148,7 @@ function PhaseRow({
           </div>
         </div>
         <div className="mt-2">
-          <Input className="h-7 text-sm" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Notizen…" />
+          <Input className="h-7 text-sm" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder={tt(T.notizen)} />
         </div>
       </div>
     )
@@ -153,16 +163,16 @@ function PhaseRow({
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium">{phase.phase || '-'}</span>
             <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', statusBadgeClass(phase.status))}>
-              {phase.status}
+              {STATUS_LABEL[phase.status] ? tt(STATUS_LABEL[phase.status]) : phase.status}
             </span>
             {duration !== null && (
-              <span className="text-xs text-muted-foreground">{duration} Tage</span>
+              <span className="text-xs text-muted-foreground">{tt(T.tage).replace('{n}', String(duration))}</span>
             )}
           </div>
           <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground flex-wrap">
-            {phase.start_date && <span>Von: {phase.start_date}</span>}
-            {phase.end_date && <span>Bis: {phase.end_date}</span>}
-            {phase.responsible && <span>Verantwortlich: {phase.responsible}</span>}
+            {phase.start_date && <span>{tt(T.von).replace('{d}', phase.start_date)}</span>}
+            {phase.end_date && <span>{tt(T.bis).replace('{d}', phase.end_date)}</span>}
+            {phase.responsible && <span>{tt(T.verantwortlichWer).replace('{n}', phase.responsible)}</span>}
             {phase.notes && <span className="italic truncate max-w-[200px]">{phase.notes}</span>}
           </div>
           <GanttBar phase={phase} minDate={minDate} totalDays={totalDays} />
@@ -172,7 +182,7 @@ function PhaseRow({
             <button
               onClick={() => { setForm({ ...phase }); setEditing(true) }}
               className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground text-xs"
-              title="Bearbeiten"
+              title={tt(T.bearbeiten)}
             >
               ✎
             </button>
@@ -180,7 +190,7 @@ function PhaseRow({
               onClick={() => deleteMutation.mutate()}
               disabled={deleteMutation.isPending}
               className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-destructive"
-              title="Löschen"
+              title={tt(T.loeschen)}
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -196,6 +206,7 @@ export function Component() {
   const pid = Number(projectId)
   const { canEdit } = useProjectPerms()
   const { toast } = useToast()
+  const tt = useT()
   const queryClient = useQueryClient()
   const [adding, setAdding] = useState(false)
   const [newForm, setNewForm] = useState<Omit<PostPhase, 'id'>>({
@@ -213,11 +224,11 @@ export function Component() {
     mutationFn: (data: Omit<PostPhase, 'id'>) => api.postplan.create(pid, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['postplan', pid] })
-      toast({ title: 'Phase hinzugefügt' })
+      toast({ title: tt(T.phaseHinzugefuegt) })
       setAdding(false)
       setNewForm({ phase: '', start_date: '', end_date: '', status: 'Ausstehend', responsible: '', notes: '' })
     },
-    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Speichern' }),
+    onError: () => toast({ variant: 'destructive', title: tt(T.fehlerSpeichern) }),
   })
 
   // Compute overall date range for Gantt
@@ -252,16 +263,16 @@ export function Component() {
         <div className="flex items-center gap-3">
           <CalendarClock className="w-5 h-5 text-muted-foreground" />
           <div>
-            <h1 className="font-display text-[28px] sm:text-[34px]">Postproduktionsplan</h1>
+            <h1 className="font-display text-[28px] sm:text-[34px]">{tt(T.titel)}</h1>
             <p className="text-sm text-muted-foreground">
-              {allPhases.length} Phasen
-              {totalPostDays !== null && ` · Gesamtdauer: ${totalPostDays} Tage`}
+              {tt(T.phasen).replace('{n}', String(allPhases.length))}
+              {totalPostDays !== null && tt(T.gesamtdauer).replace('{n}', String(totalPostDays))}
             </p>
           </div>
         </div>
         {canEdit && (
           <Button onClick={() => setAdding(a => !a)}>
-            <Plus className="w-4 h-4 mr-2" /> Neue Phase
+            <Plus className="w-4 h-4 mr-2" /> {tt(T.neuePhase)}
           </Button>
         )}
       </div>
@@ -269,15 +280,15 @@ export function Component() {
       {/* Quick-add standard phases */}
       {canEdit && (
         <div className="mb-4 flex flex-wrap gap-1.5">
-          <span className="text-xs text-muted-foreground self-center mr-1">Schnell hinzufügen:</span>
+          <span className="text-xs text-muted-foreground self-center mr-1">{tt(T.schnellHinzu)}</span>
           {QUICK_PHASES.map(p => (
             <button
-              key={p}
-              onClick={() => createMutation.mutate({ phase: p, start_date: '', end_date: '', status: 'Ausstehend', responsible: '', notes: '' })}
+              key={p.de}
+              onClick={() => createMutation.mutate({ phase: tt(p), start_date: '', end_date: '', status: 'Ausstehend', responsible: '', notes: '' })}
               disabled={createMutation.isPending}
               className="px-2.5 py-1 text-xs rounded-full border border-border/60 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50"
             >
-              + {p}
+              + {tt(p)}
             </button>
           ))}
         </div>
@@ -288,21 +299,21 @@ export function Component() {
         <div className="border border-primary/30 bg-primary/5 rounded-lg p-3 mb-4">
           <div className="grid grid-cols-12 gap-2 items-center">
             <div className="col-span-3">
-              <Input className={i} value={newForm.phase} onChange={e => setNewForm(f => ({ ...f, phase: e.target.value }))} placeholder="Phasenname" />
+              <Input className={i} value={newForm.phase} onChange={e => setNewForm(f => ({ ...f, phase: e.target.value }))} placeholder={tt(T.phasenname)} />
             </div>
             <div className="col-span-2">
-              <Input aria-label="Beginn der neuen Phase" className={i} type="date" value={newForm.start_date} onChange={e => setNewForm(f => ({ ...f, start_date: e.target.value }))} />
+              <Input aria-label={tt(T.beginnNeu)} className={i} type="date" value={newForm.start_date} onChange={e => setNewForm(f => ({ ...f, start_date: e.target.value }))} />
             </div>
             <div className="col-span-2">
-              <Input aria-label="Ende der neuen Phase" className={i} type="date" value={newForm.end_date} onChange={e => setNewForm(f => ({ ...f, end_date: e.target.value }))} />
+              <Input aria-label={tt(T.endeNeu)} className={i} type="date" value={newForm.end_date} onChange={e => setNewForm(f => ({ ...f, end_date: e.target.value }))} />
             </div>
             <div className="col-span-2">
-              <select aria-label="Status der neuen Phase" className={sel} value={newForm.status} onChange={e => setNewForm(f => ({ ...f, status: e.target.value as PostPhase['status'] }))}>
-                {STATUSES.map(s => <option key={s}>{s}</option>)}
+              <select aria-label={tt(T.statusNeu)} className={sel} value={newForm.status} onChange={e => setNewForm(f => ({ ...f, status: e.target.value as PostPhase['status'] }))}>
+                {STATUSES.map(s => <option key={s} value={s}>{tt(STATUS_LABEL[s])}</option>)}
               </select>
             </div>
             <div className="col-span-2">
-              <Input className={i} value={newForm.responsible} onChange={e => setNewForm(f => ({ ...f, responsible: e.target.value }))} placeholder="Verantwortlich" />
+              <Input className={i} value={newForm.responsible} onChange={e => setNewForm(f => ({ ...f, responsible: e.target.value }))} placeholder={tt(T.verantwortlich)} />
             </div>
             <div className="col-span-1 flex gap-1 justify-end">
               <button
@@ -310,7 +321,7 @@ export function Component() {
                 disabled={createMutation.isPending || !newForm.phase.trim()}
                 className="px-2 h-7 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50"
               >
-                OK
+                {tt(T.ok)}
               </button>
               <button
                 onClick={() => setAdding(false)}
@@ -321,7 +332,7 @@ export function Component() {
             </div>
           </div>
           <div className="mt-2">
-            <Input className="h-7 text-sm" value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notizen…" />
+            <Input className="h-7 text-sm" value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} placeholder={tt(T.notizen)} />
           </div>
         </div>
       )}
@@ -338,7 +349,7 @@ export function Component() {
         ) : allPhases.length === 0 && !adding ? (
           <div className="py-16 text-center">
             <CalendarClock className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Noch keine Postproduktionsphasen erfasst</p>
+            <p className="text-sm text-muted-foreground">{tt(T.leer)}</p>
           </div>
         ) : (
           allPhases.map(phase => (

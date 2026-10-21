@@ -1,5 +1,7 @@
 import { Film, Clock, Users, Clapperboard, Music, Tv } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/useT'
+import { vorlagenT, vorlagenListeT } from '@/lib/texte/ProjectTemplates'
 
 export interface TemplateData {
   name: string
@@ -15,7 +17,7 @@ const TEMPLATES: (TemplateData & { icon: any; color: string })[] = [
     name: 'Kurzfilm',
     format: 'Kurzfilm',
     length_minutes: 15,
-    description: 'Eigenständiges kurzes Werk für Festivals, Wettbewerbe oder als Visitenkarte.',
+    description: vorlagenListeT['Kurzfilm'].beschreibung.de,
     typicalDuration: '5-30 Min.',
     typicalCrew: '5-20 Personen',
     icon: Film,
@@ -25,7 +27,7 @@ const TEMPLATES: (TemplateData & { icon: any; color: string })[] = [
     name: 'Spielfilm',
     format: 'Spielfilm',
     length_minutes: 90,
-    description: 'Abendfüllender Kinospielfilm mit vollständiger Produktion.',
+    description: vorlagenListeT['Spielfilm'].beschreibung.de,
     typicalDuration: '80-120 Min.',
     typicalCrew: '30-100+ Personen',
     icon: Clapperboard,
@@ -35,7 +37,7 @@ const TEMPLATES: (TemplateData & { icon: any; color: string })[] = [
     name: 'Werbespot',
     format: 'Werbefilm',
     length_minutes: 1,
-    description: 'Werblicher Kurzfilm für TV, Online oder Kino.',
+    description: vorlagenListeT['Werbefilm'].beschreibung.de,
     typicalDuration: '15-60 Sek.',
     typicalCrew: '10-30 Personen',
     icon: Clock,
@@ -45,7 +47,7 @@ const TEMPLATES: (TemplateData & { icon: any; color: string })[] = [
     name: 'Dokumentarfilm',
     format: 'Dokumentarfilm',
     length_minutes: 60,
-    description: 'Dokumentarische Arbeit über reale Ereignisse, Menschen oder Themen.',
+    description: vorlagenListeT['Dokumentarfilm'].beschreibung.de,
     typicalDuration: '30-90 Min.',
     typicalCrew: '3-15 Personen',
     icon: Users,
@@ -55,7 +57,7 @@ const TEMPLATES: (TemplateData & { icon: any; color: string })[] = [
     name: 'Serie / Episode',
     format: 'Serie',
     length_minutes: 45,
-    description: 'Eine Episode einer fortlaufenden Serie für TV oder Streaming.',
+    description: vorlagenListeT['Serie'].beschreibung.de,
     typicalDuration: '20-60 Min.',
     typicalCrew: '20-60 Personen',
     icon: Tv,
@@ -65,7 +67,7 @@ const TEMPLATES: (TemplateData & { icon: any; color: string })[] = [
     name: 'Musikvideo',
     format: 'Musikvideo',
     length_minutes: 4,
-    description: 'Visueller Begleiter zu einem Musikstück für Künstler oder Labels.',
+    description: vorlagenListeT['Musikvideo'].beschreibung.de,
     typicalDuration: '3-6 Min.',
     typicalCrew: '5-20 Personen',
     icon: Music,
@@ -79,11 +81,13 @@ interface TemplateSelectorProps {
 }
 
 export function TemplateSelector({ onSelect, selected }: TemplateSelectorProps) {
+  const tt = useT()
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {TEMPLATES.map(template => {
         const Icon = template.icon
         const isSelected = selected === template.format
+        const anzeige = vorlagenListeT[template.format as keyof typeof vorlagenListeT]
         return (
           <button
             key={template.format}
@@ -106,17 +110,17 @@ export function TemplateSelector({ onSelect, selected }: TemplateSelectorProps) 
               <Icon className="w-5 h-5" />
             </div>
 
-            <div className="font-bold text-base mb-1 text-foreground">{template.name}</div>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-3">{template.description}</p>
+            <div className="font-bold text-base mb-1 text-foreground">{tt(anzeige.name)}</div>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-3">{tt(anzeige.beschreibung)}</p>
 
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
-                {template.typicalDuration}
+                {tt(anzeige.dauer)}
               </div>
               <div className="flex items-center gap-1">
                 <Users className="w-3 h-3" />
-                {template.typicalCrew}
+                {tt(anzeige.crew)}
               </div>
             </div>
           </button>
@@ -129,11 +133,12 @@ export function TemplateSelector({ onSelect, selected }: TemplateSelectorProps) 
 // Default export: standalone page that wraps the template selector
 // (e.g. for use in routing if needed directly)
 export default function ProjectTemplates() {
+  const tt = useT()
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="font-display text-[28px] sm:text-[34px]">Projektvorlage wählen</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Wähle eine Vorlage, um das neue Projekt vorzubefüllen</p>
+        <h1 className="font-display text-[28px] sm:text-[34px]">{tt(vorlagenT.titel)}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{tt(vorlagenT.untertitel)}</p>
       </div>
       <TemplateSelector
         onSelect={template => {

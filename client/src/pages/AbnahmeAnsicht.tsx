@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
 import { Check, ExternalLink, Plus, MessageSquare, Clock } from 'lucide-react'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { abnahmeAnsichtT as T } from '@/lib/texte/AbnahmeAnsicht'
 
 /**
  * Die Seite, die ein Auftraggeber über den Link aus der Mail öffnet.
@@ -22,18 +24,20 @@ import { Check, ExternalLink, Plus, MessageSquare, Clock } from 'lucide-react'
  * Felder entscheidet darüber, was jemand ausfüllt.
  */
 
-const datum = (wert: string | null | undefined) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : ''
+const datum = (wert: string | null | undefined, gebietsschema: string) =>
+  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString(gebietsschema) : ''
 
-const zeitpunkt = (wert: string | null | undefined) => {
+const zeitpunkt = (wert: string | null | undefined, gebietsschema: string) => {
   if (!wert) return ''
   const d = new Date(wert)
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('de-DE')
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(gebietsschema)
 }
 
 export function Component() {
   const { token = '' } = useParams()
   const { toast } = useToast()
+  const tt = useT()
+  const gebietsschema = useGebietsschema()
   const [name, setName] = useState('')
   const [zeitstelle, setZeitstelle] = useState('')
   const [text, setText] = useState('')
@@ -52,22 +56,22 @@ export function Component() {
       setZeitstelle('')
       setText('')
       refetch()
-      toast({ title: 'Anmerkung gespeichert' })
+      toast({ title: tt(T.anmerkungGespeichert) })
     },
-    onError: (f: any) => toast({ title: 'Nicht gespeichert', description: f.message, variant: 'destructive' }),
+    onError: (f: any) => toast({ title: tt(T.nichtGespeichert), description: f.message, variant: 'destructive' }),
   })
 
   const entscheiden = useMutation({
     mutationFn: (abgenommen: boolean) =>
       api.abnahmen.entscheiden(token, { name, abgenommen, decision: entscheidung }),
     onSuccess: () => { refetch(); setZeigeEntscheidung(false) },
-    onError: (f: any) => toast({ title: 'Nicht gespeichert', description: f.message, variant: 'destructive' }),
+    onError: (f: any) => toast({ title: tt(T.nichtGespeichert), description: f.message, variant: 'destructive' }),
   })
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center px-5">
-        <p className="text-sm text-muted-foreground">Lade…</p>
+        <p className="text-sm text-muted-foreground">{tt(T.lade)}</p>
       </div>
     )
   }
@@ -77,10 +81,9 @@ export function Component() {
       <div className="min-h-screen flex items-center justify-center px-5">
         <Card className="max-w-md w-full">
           <CardContent className="py-10 text-center space-y-2">
-            <p className="font-medium">Dieser Link gilt nicht mehr</p>
+            <p className="font-medium">{tt(T.linkUngueltig)}</p>
             <p className="text-sm text-muted-foreground">
-              Möglicherweise ist eine neuere Fassung unterwegs. Eine kurze Mail an die Produktion
-              genügt, dann bekommen Sie einen neuen Link.
+              {tt(T.linkUngueltigText)}
             </p>
           </CardContent>
         </Card>
@@ -97,9 +100,9 @@ export function Component() {
           <p className="text-xs uppercase tracking-wide text-muted-foreground">{data.projekt}</p>
           <h1 className="font-display text-2xl sm:text-3xl mt-1">{data.fassung}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {data.dauer && `Länge ${data.dauer}`}
+            {data.dauer && tt(T.laenge).replace('{n}', String(data.dauer))}
             {data.format && ` · ${data.format}`}
-            {data.frist && ` · Rückmeldung erbeten bis ${datum(data.frist)}`}
+            {data.frist && tt(T.rueckmeldungBis).replace('{datum}', datum(data.frist, gebietsschema))}
           </p>
         </div>
 
@@ -120,7 +123,7 @@ export function Component() {
             onClick={() => window.open(data.watch_url, '_blank', 'noopener')}
           >
             <ExternalLink className="w-4 h-4 mr-2" />
-            Fassung ansehen
+            {tt(T.fassungAnsehen)}
           </Button>
         )}
 
@@ -128,13 +131,13 @@ export function Component() {
           <Card className="border-emerald-500/40">
             <CardContent className="py-6 text-center space-y-1">
               <Check className="w-8 h-8 mx-auto text-emerald-600 dark:text-emerald-400" />
-              <p className="font-medium">Abgenommen</p>
+              <p className="font-medium">{tt(T.abgenommen)}</p>
               <p className="text-sm text-muted-foreground">
                 {data.entschieden_von ? `${data.entschieden_von}, ` : ''}
-                {zeitpunkt(data.entschieden_am)}
+                {zeitpunkt(data.entschieden_am, gebietsschema)}
               </p>
               <p className="text-xs text-muted-foreground pt-2">
-                Sie können diese Seite schließen. Das Protokoll liegt bei der Produktion.
+                {tt(T.seiteSchliessen)}
               </p>
             </CardContent>
           </Card>
@@ -145,11 +148,11 @@ export function Component() {
               <CardContent className="pt-6 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <MessageSquare className="w-4 h-4" />
-                  Anmerkung
+                  {tt(T.anmerkung)}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-4">
                   <div>
-                    <Label htmlFor="anm-zeit">Stelle</Label>
+                    <Label htmlFor="anm-zeit">{tt(T.stelle)}</Label>
                     <Input
                       id="anm-zeit"
                       value={zeitstelle}
@@ -159,7 +162,7 @@ export function Component() {
                     />
                   </div>
                   <div className="sm:col-span-3">
-                    <Label htmlFor="anm-name">Ihr Name</Label>
+                    <Label htmlFor="anm-name">{tt(T.ihrName)}</Label>
                     <Input
                       id="anm-name"
                       value={name}
@@ -169,13 +172,13 @@ export function Component() {
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="anm-text">Was fällt auf?</Label>
+                  <Label htmlFor="anm-text">{tt(T.wasFaelltAuf)}</Label>
                   <Textarea
                     id="anm-text"
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     rows={3}
-                    placeholder="Bei 2:14 ist der Ton zu laut."
+                    placeholder={tt(T.beispiel)}
                   />
                 </div>
                 <Button
@@ -183,11 +186,10 @@ export function Component() {
                   disabled={!text.trim() || anmerken.isPending}
                 >
                   <Plus className="w-4 h-4 mr-1.5" />
-                  Anmerkung hinzufügen
+                  {tt(T.hinzufuegen)}
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Die Stelle ist freiwillig, hilft aber sehr. Sie können so viele Anmerkungen
-                  hinterlassen, wie Sie möchten.
+                  {tt(T.stelleFreiwillig)}
                 </p>
               </CardContent>
             </Card>
@@ -197,7 +199,7 @@ export function Component() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
-                    Bisher ({data.anmerkungen.length})
+                    {tt(T.bisher).replace('{n}', String(data.anmerkungen.length))}
                   </div>
                   <div className="space-y-1.5">
                     {data.anmerkungen.map((a: any) => (
@@ -223,23 +225,22 @@ export function Component() {
             <Card>
               <CardContent className="pt-6 space-y-3">
                 <p className="text-sm">
-                  Wenn Sie durch sind: Nehmen Sie die Fassung ab oder sagen Sie, dass eine Runde
-                  fehlt. Beides wird mit Ihrem Namen und dem Zeitpunkt festgehalten.
+                  {tt(T.entscheidenText)}
                 </p>
                 {!name.trim() && (
                   <p className="text-xs text-amber-600 dark:text-amber-400">
-                    Bitte oben den Namen eintragen.
+                    {tt(T.nameEintragen)}
                   </p>
                 )}
                 {zeigeEntscheidung && (
                   <div>
-                    <Label htmlFor="ent-text">Anmerkung zur Entscheidung</Label>
+                    <Label htmlFor="ent-text">{tt(T.anmerkungEntscheidung)}</Label>
                     <Textarea
                       id="ent-text"
                       value={entscheidung}
                       onChange={(e) => setEntscheidung(e.target.value)}
                       rows={2}
-                      placeholder="freiwillig"
+                      placeholder={tt(T.freiwillig)}
                     />
                   </div>
                 )}
@@ -249,7 +250,7 @@ export function Component() {
                     disabled={!name.trim() || entscheiden.isPending}
                   >
                     <Check className="w-4 h-4 mr-1.5" />
-                    Abnehmen
+                    {tt(T.abnehmen)}
                   </Button>
                   <Button
                     variant="outline"
@@ -259,13 +260,12 @@ export function Component() {
                     }}
                     disabled={!name.trim() || entscheiden.isPending}
                   >
-                    Noch eine Runde
+                    {tt(T.nochEineRunde)}
                   </Button>
                 </div>
                 {data.status === 'nachbesserung' && (
                   <p className="text-xs text-muted-foreground">
-                    Sie haben eine Nachbesserung verlangt. Sobald eine neue Fassung vorliegt,
-                    bekommen Sie einen neuen Link.
+                    {tt(T.nachbesserung)}
                   </p>
                 )}
               </CardContent>
@@ -274,7 +274,7 @@ export function Component() {
         )}
 
         <p className="text-xs text-muted-foreground text-center">
-          Bei Fragen antworten Sie einfach auf die Mail, mit der Sie diesen Link bekommen haben.
+          {tt(T.fragen)}
         </p>
       </div>
     </div>
