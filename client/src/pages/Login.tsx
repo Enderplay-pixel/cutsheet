@@ -8,6 +8,7 @@ import { TestversionBadge } from '@/components/shared/TestversionBadge'
 import { cn } from '@/lib/utils'
 import { LANGS, loginT, t, type Lang } from '@/lib/i18n'
 import { useProjectStore } from '@/store/useProjectStore'
+import { VERSION } from '@/lib/version'
 
 export function Component() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
@@ -57,6 +58,7 @@ export function Component() {
         <div className="relative flex items-center gap-2.5">
           <AppIcon className="w-8 h-8" />
           <span className="text-[17px] font-semibold tracking-[-0.02em]">CutSheet</span>
+          <span className="text-[11px] text-muted-foreground">{VERSION}</span>
           <TestversionBadge />
         </div>
 

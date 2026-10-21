@@ -1585,6 +1585,42 @@ export async function initDatabase() {
   `)
   await db.exec(`CREATE INDEX IF NOT EXISTS review_notes_runde_idx ON review_notes (review_id, status)`)
 
+  // ── Benachrichtigungen ────────────────────────────────────────────────────
+  // Die Anwendung erzeugt an einem Dutzend Stellen Ereignisse, die jemanden
+  // betreffen - ein Vertrag wurde bestaetigt, eine Agentur hat geantwortet,
+  // eine Fassung ist abgenommen. Bisher erfuhr das niemand, ausser er sah
+  // zufaellig nach.
+  //
+  // Der Eintrag in dieser Tabelle ist die Wahrheit. Push kommt obendrauf und
+  // darf scheitern, ohne dass etwas verlorengeht - ein schlafender Server auf
+  // dem freien Plan kann nicht senden.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL DEFAULT 'sonstiges',
+      title TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL DEFAULT '',
+      path TEXT NOT NULL DEFAULT '',
+      read_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS notifications_konto_idx ON notifications (user_id, read_at, created_at DESC)`)
+
+  // Wer was bekommen will. Fehlt die Zeile, gilt die Voreinstellung aus
+  // lib/benachrichtigungen.ts - niemand muss erst etwas einschalten.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS notification_settings (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      in_app BOOLEAN NOT NULL DEFAULT true,
+      push BOOLEAN NOT NULL DEFAULT false,
+      PRIMARY KEY (user_id, kind)
+    )
+  `)
+
   // ── Dateiablage ───────────────────────────────────────────────────────────
   // Der Inhalt liegt als BYTEA in der Datenbank, nicht auf der Platte: Beim
   // Hoster ist das Dateisystem fluechtig, und was zur Laufzeit geschrieben

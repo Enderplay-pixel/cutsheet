@@ -7,7 +7,9 @@ Dieses Dokument beschreibt, was CutSheet ist, wofür es da ist und was es
 abdeckt. Es ist kein Handbuch und keine Installationsanleitung - technische
 Einzelheiten stehen in `README.md`.
 
-- **Stand:** 19. Oktober 2026
+- **Version:** v1.0 alpha - steht in `client/src/lib/version.ts` und geht bei jedem
+  großen Wechsel hoch
+- **Stand:** 21. Oktober 2026
 - **Läuft unter:** https://cutsheet.onrender.com
 - **Quelltext:** `C:\Users\flork\cutsheet` (npm-Workspaces, `client/` und `server/`)
 

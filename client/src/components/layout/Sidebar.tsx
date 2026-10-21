@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Activity, AlertTriangle, Archive, BedDouble, BookUser, Briefcase, Building2, Calendar, CalendarClock, CalendarOff, Camera, Car, CheckCircle2, CheckSquare, ChevronRight, Clapperboard, ClipboardList, Clock, DollarSign, FileCheck, FileEdit, FileSignature, FileSpreadsheet, FileText, Film, FolderOpen, History, Image, Layers, LayoutDashboard, LayoutGrid, ListChecks, LogOut, Mail, MapPin, Megaphone, MessageSquare, Music, Package, PanelLeftClose, PanelLeftOpen, Scissors, Search, Settings, Shield, ShieldCheck, StickyNote, TableProperties, Trash2, TrendingUp, Type, Users, UtensilsCrossed, Video, Wallet } from 'lucide-react'
 import { FeedbackWidget } from '@/components/shared/FeedbackWidget'
 import { AppIcon } from '@/components/shared/BrandMark'
+import { VERSION } from '@/lib/version'
 import { TestversionBadge } from '@/components/shared/TestversionBadge'
 import { useT } from '@/lib/useT'
 import { navT } from '@/lib/i18n'
@@ -331,7 +332,11 @@ export function Sidebar() {
         <AppIcon className="w-8 h-8" />
         {!sidebarCollapsed && (
           <div className="flex-1 min-w-0">
-            <span className="text-[14px] font-semibold tracking-[-0.02em] leading-none flex items-center gap-1.5">CutSheet <TestversionBadge /></span>
+            <span className="text-[14px] font-semibold tracking-[-0.02em] leading-none flex items-center gap-1.5">
+              CutSheet
+              <span className="text-[10px] font-normal text-muted-foreground tracking-normal">{VERSION}</span>
+              <TestversionBadge />
+            </span>
             {project && (
               <span className="text-[12px] text-muted-foreground truncate block mt-1 leading-none">{project.title}</span>
             )}

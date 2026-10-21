@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react'
 import { AppIcon } from '@/components/shared/BrandMark'
 import { useT } from '@/lib/useT'
 import { impressumT } from '@/lib/texte/Impressum'
+import { VERSION } from '@/lib/version'
 
 // HINWEIS FÜR DEN BETREIBER: Platzhalter in [ECKIGEN KLAMMERN] vor dem
 // öffentlichen Betrieb durch echte Angaben ersetzen (§ 5 TMG / § 18 MStV).
@@ -48,6 +49,7 @@ export function LegalLayout({ title, children }: { title: string; children: Reac
           <Link to="/login" className="flex items-center gap-2.5 group">
             <AppIcon className="w-7 h-7" />
             <span className="text-[15px] font-semibold tracking-[-0.02em]">CutSheet</span>
+            <span className="text-[11px] text-muted-foreground ml-1.5">{VERSION}</span>
           </Link>
         </div>
       </header>

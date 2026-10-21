@@ -10,6 +10,7 @@ import type { Lang } from '@/lib/i18n'
 import { uiT } from '@/lib/i18n'
 import { useT } from '@/lib/useT'
 import { einladungT, einladungRollenT } from '@/lib/texte/Invite'
+import { VERSION } from '@/lib/version'
 
 const ROLE_LABELS: Record<string, { label: Record<Lang, string>; color: string }> = {
   admin:     { label: einladungRollenT.admin,     color: 'text-red-500' },
@@ -101,6 +102,7 @@ export function Component() {
         <div className="flex flex-col items-center mb-2">
           <AppIcon className="w-14 h-14 mb-4" />
           <h1 className="font-display text-[28px] sm:text-[34px]">CutSheet</h1>
+          <p className="text-xs text-muted-foreground">{VERSION}</p>
         </div>
 
         {/* Loading */}
