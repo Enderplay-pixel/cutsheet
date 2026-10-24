@@ -282,7 +282,7 @@ export async function generatePdf(html: string, opts?: PdfOptions): Promise<Buff
     }
     await page.setContent(content, { waitUntil: 'domcontentloaded', timeout: 30000 })
     // Eingebettete Schriften sind data:-URLs und laden asynchron. Ohne dieses
-    // Warten druckt Chromium, bevor sie bereitstehen — der Text fehlt im PDF.
+    // Warten druckt Chromium, bevor sie bereitstehen - der Text fehlt im PDF.
     await page.evaluate('document.fonts.ready')
     // Dokumente aus renderDocument bringen ihre Fußzeile als Meta-Angabe mit
     const docFoot = readDocFoot(html)

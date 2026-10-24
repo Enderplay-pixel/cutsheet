@@ -131,7 +131,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
   )
 }
 
-// Seiten ohne Eintrag in topBarT.pageTitles — sonst stuende in der Kopfzeile
+// Seiten ohne Eintrag in topBarT.pageTitles - sonst stuende in der Kopfzeile
 // nur der Projektname
 const EXTRA_TITLES = topBarExtraTitelT
 

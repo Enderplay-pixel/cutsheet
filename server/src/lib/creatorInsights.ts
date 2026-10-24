@@ -11,11 +11,11 @@
 // ─── Ideen-Backlog ────────────────────────────────────────────────────────────
 
 /**
- * Prioritaet einer Idee aus Wirkung und Aufwand (je 1–5).
+ * Prioritaet einer Idee aus Wirkung und Aufwand (je 1-5).
  *
  * Bewusst Wirkung geteilt durch Aufwand statt Differenz: eine Idee mit
  * Wirkung 4 und Aufwand 1 soll deutlich vor einer mit 5 und 4 liegen, weil
- * Creator an Produktionszeit sterben, nicht an Ideenmangel. Skaliert auf 0–100.
+ * Creator an Produktionszeit sterben, nicht an Ideenmangel. Skaliert auf 0-100.
  */
 export function ideaScore(impact: number, effort: number): number {
   const i = clamp(Math.round(impact), 1, 5)
@@ -170,7 +170,7 @@ export interface PerformanceInsight {
 
 /**
  * Ordnet die manuell gepflegten Zahlen ein. Richtwerte bewusst konservativ:
- * YouTube nennt 2–10 % als normale Klickrate, 50 % gesehene Laufzeit gilt als
+ * YouTube nennt 2-10 % als normale Klickrate, 50 % gesehene Laufzeit gilt als
  * gut. Die Hinweise sollen zum Nachdenken anregen, nicht Wahrheit behaupten.
  */
 export function analysePerformance(p: Performance, videoSeconds?: number): PerformanceInsight {

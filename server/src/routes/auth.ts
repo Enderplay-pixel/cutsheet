@@ -16,14 +16,19 @@ import { sendEmail, isSmtpConfigured, appBaseUrl } from './emailService'
 
 const router = Router()
 
+// Adressen kleingeschrieben und ohne Leerraum: Ein Postfach ist ein Konto.
+// Gemessen am 24.10.2026: Wer sich als "Max@..." registrierte - Telefone
+// schreiben den ersten Buchstaben gern gross -, kam mit "max@..." nicht
+// hinein, und dieselbe Adresse liess sich kleingeschrieben ein zweites Mal
+// registrieren.
 const RegisterSchema = z.object({
-  email: z.string().email('Ungültige E-Mail-Adresse'),
+  email: z.string().trim().toLowerCase().email('Ungültige E-Mail-Adresse'),
   password: z.string().min(6, 'Passwort muss mindestens 6 Zeichen haben'),
   name: z.string().optional(),
 })
 
 const LoginSchema = z.object({
-  email: z.string().email('Ungültige E-Mail-Adresse'),
+  email: z.string().trim().toLowerCase().email('Ungültige E-Mail-Adresse'),
   password: z.string().min(1, 'Passwort erforderlich'),
   // Zweiter Faktor: Code aus der App oder ein Wiederherstellungscode. Muss
   // hier stehen - `validate` ersetzt den Rumpf durch das geparste Objekt,
@@ -45,7 +50,8 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
   try {
     const { email, password, name } = req.body as z.infer<typeof RegisterSchema>
 
-    const existing = await db.get('SELECT id FROM users WHERE email = ?', [email])
+    // LOWER auf der Spalte: Konten aus der Zeit davor stehen teils gross geschrieben.
+    const existing = await db.get('SELECT id FROM users WHERE LOWER(email) = ?', [email])
     if (existing) {
       return res.status(409).json({ data: null, error: 'E-Mail bereits registriert' })
     }
@@ -79,13 +85,17 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response)
   try {
     const { email, password } = req.body as z.infer<typeof LoginSchema>
 
-    const user = await db.get('SELECT * FROM users WHERE email = ?', [email]) as UserRow | undefined
-    if (!user) {
-      return res.status(401).json({ data: null, error: 'Ungültige Anmeldedaten' })
+    // Aus der Zeit, als Gross- und Kleinschreibung zählte, kann es zu einer
+    // Adresse zwei Konten geben. Dann entscheidet das Passwort, welches gemeint
+    // ist - sonst wäre eines davon nicht mehr erreichbar.
+    const kandidaten = await db.all(
+      'SELECT * FROM users WHERE LOWER(email) = ? ORDER BY id ASC', [email]
+    ) as UserRow[]
+    let user: UserRow | undefined
+    for (const k of kandidaten) {
+      if (await pruefePasswort(password, k.password_hash)) { user = k; break }
     }
-
-    const valid = await pruefePasswort(password, user.password_hash)
-    if (!valid) {
+    if (!user) {
       return res.status(401).json({ data: null, error: 'Ungültige Anmeldedaten' })
     }
 

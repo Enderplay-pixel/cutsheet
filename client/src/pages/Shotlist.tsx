@@ -52,7 +52,7 @@ function AutoTextarea({ value, onChange, placeholder, className, 'aria-label': a
     if (!el) return
     // Wo der Browser mitwachsende Felder selbst kann (field-sizing), gar
     // nicht messen. Sonst die Messung gebündelt im nächsten Frame: vorher las
-    // jedes Feld beim Einblenden sofort scrollHeight — bei einer Großproduktion
+    // jedes Feld beim Einblenden sofort scrollHeight - bei einer Großproduktion
     // mit 1.400 Feldern zwang das 1.400 Layouts nacheinander, die Seite stand
     // minutenlang.
     if (FIELD_SIZING) return

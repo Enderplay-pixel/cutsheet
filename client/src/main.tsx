@@ -17,7 +17,7 @@ spracheSendenInstallieren()
 initAnalytics()
 belohnungInstallieren()
 
-// Hell/Dunkel schon vor dem ersten Rendern setzen — sonst zeigen Login
+// Hell/Dunkel schon vor dem ersten Rendern setzen - sonst zeigen Login
 // und öffentliche Seiten (ausserhalb der AppShell) immer den Dunkelmodus.
 try {
   const saved = JSON.parse(localStorage.getItem('cutsheet-ui') || '{}')?.state?.darkMode

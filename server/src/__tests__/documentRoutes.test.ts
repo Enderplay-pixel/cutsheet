@@ -288,7 +288,7 @@ describe('Dokumentrouten', () => {
       it('setzt genau eine Fusszeile', async () => {
         const { html, opts } = await hole(name, url)
         // Die Fusszeile des Dokuments kommt als Druckerfusszeile aus den
-        // Meta-Angaben — genau eine, mit Seitenzahl, ohne die generische
+        // Meta-Angaben - genau eine, mit Seitenzahl, ohne die generische
         expect(opts.displayHeaderFooter).toBe(true)
         expect(html).toContain('cutsheet-foot-left')
         expect(opts.footerTemplate).toContain('pageNumber')

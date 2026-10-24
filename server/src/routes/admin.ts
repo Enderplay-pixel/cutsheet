@@ -341,13 +341,15 @@ router.post('/users/:id/reset-password', async (req: Request, res: Response) => 
 
 // ─── POST /api/admin/users ────────────────────────────────────────────────────
 router.post('/users', async (req: Request, res: Response) => {
-  const { email, name, password, role } = req.body as {
+  const { name, password, role } = req.body as {
     email: string; name: string; password: string; role: string
   }
+  // Wie bei der Registrierung: ein Postfach, ein Konto.
+  const email = String(req.body?.email ?? '').trim().toLowerCase()
   if (!email || !password || password.length < 6) {
     return res.status(400).json({ data: null, error: 'E-Mail und Passwort (min. 6 Zeichen) erforderlich' })
   }
-  const exists = await db.get('SELECT id FROM users WHERE email = ?', [email])
+  const exists = await db.get('SELECT id FROM users WHERE LOWER(email) = ?', [email])
   if (exists) return res.status(409).json({ data: null, error: 'E-Mail bereits vergeben' })
 
   const hash = await hashPasswort(password, 12)
@@ -366,7 +368,7 @@ router.post('/users', async (req: Request, res: Response) => {
 // Deletes the "Sprachlos" demo project and re-seeds all demo data fresh.
 router.post('/reseed', async (_req: Request, res: Response) => {
   // Das globale Demo-Projekt heisst "Sprachlos (Demo)" und hat keinen Besitzer.
-  // Die alte Abfrage suchte "Sprachlos" und fand es nie — jeder Reseed legte
+  // Die alte Abfrage suchte "Sprachlos" und fand es nie - jeder Reseed legte
   // ein weiteres Demo-Projekt daneben.
   const existing = await db.all(
     "SELECT id FROM projects WHERE is_demo = TRUE AND owner_id IS NULL AND title IN ('Sprachlos', 'Sprachlos (Demo)')"

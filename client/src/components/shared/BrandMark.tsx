@@ -1,4 +1,4 @@
-// Wortmarke: eine abstrahierte Klappe — schräg gestreifte Leiste über
+// Wortmarke: eine abstrahierte Klappe - schräg gestreifte Leiste über
 // einem schlichten Blatt. Zeichnet mit currentColor, passt sich also
 // beiden Modi an.
 export function BrandMark({ className }: { className?: string }) {

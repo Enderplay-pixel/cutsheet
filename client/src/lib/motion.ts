@@ -10,7 +10,7 @@ export function prefersReducedMotion(): boolean {
  * weich zum neuen Wert gleitet. Bei reduzierter Bewegung sofort der Endwert.
  */
 export function useCountUp(rawTarget: number | string | null | undefined, duration = 900): number {
-  // Zählwerte aus Postgres kommen als Text ("8") — hier einheitlich als Zahl
+  // Zählwerte aus Postgres kommen als Text ("8") - hier einheitlich als Zahl
   const target = Number(rawTarget) || 0
   const [value, setValue] = useState(() => (prefersReducedMotion() ? target : 0))
   const fromRef = useRef(value)
@@ -35,7 +35,7 @@ export function useCountUp(rawTarget: number | string | null | undefined, durati
 }
 
 /**
- * false beim ersten Rendern, danach true — damit Balken und Ringe von 0 aus
+ * false beim ersten Rendern, danach true - damit Balken und Ringe von 0 aus
  * in ihre Endposition gleiten statt fertig zu erscheinen.
  */
 export function useEntered(delay = 60): boolean {

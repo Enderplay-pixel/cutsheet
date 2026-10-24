@@ -28,7 +28,7 @@ function getType(item: MoodItem): ItemType {
   return 'image'
 }
 
-// Notizfarben als Farbton — Hintergrund und Schrift folgen dem Hell/Dunkel-Modus
+// Notizfarben als Farbton - Hintergrund und Schrift folgen dem Hell/Dunkel-Modus
 const NOTE_COLORS = [
   { hue: 38, label: moodboardT.amber },
   { hue: 211, label: moodboardT.blau },

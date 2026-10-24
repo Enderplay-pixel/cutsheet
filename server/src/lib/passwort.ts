@@ -1,5 +1,5 @@
 /**
- * Passwörter hashen und prüfen — in Worker-Threads, nicht auf dem Haupt-Thread.
+ * Passwörter hashen und prüfen - in Worker-Threads, nicht auf dem Haupt-Thread.
  *
  * bcryptjs ist reines JavaScript: ein Hash mit Kostenfaktor 12 blockiert den
  * Thread rund eine Viertelsekunde. Auf dem Haupt-Thread heißt das: 150
@@ -8,7 +8,7 @@
  * Anfragen scheitern mit "timeout exceeded". Im Lasttest gemessen.
  *
  * Hier läuft dieselbe Bibliothek in einem kleinen Pool von Worker-Threads.
- * Hash-Format und Kostenfaktor bleiben gleich — vorhandene Passwörter gelten
+ * Hash-Format und Kostenfaktor bleiben gleich - vorhandene Passwörter gelten
  * weiter. Die Größe des Pools richtet sich nach den verfügbaren Kernen.
  */
 import { Worker } from 'worker_threads'

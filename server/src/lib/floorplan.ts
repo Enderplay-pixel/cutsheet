@@ -111,7 +111,7 @@ export function nextLabel(kind: string, existing: PlanItem[]): string {
   const n = sameKind.length
 
   if (kind === 'kamera') {
-    // A–Z, danach AA, AB … damit auch der 27. Aufbau einen Namen bekommt
+    // A-Z, danach AA, AB … damit auch der 27. Aufbau einen Namen bekommt
     let label = ''
     let rest = n
     do {

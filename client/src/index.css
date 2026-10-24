@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ════════════════════════════════════════════════════════════════════
-   CutSheet Designsystem „Tungsten“ — siehe docs/designphilosophie.md
+   CutSheet Designsystem „Tungsten“ - siehe docs/designphilosophie.md
    Warme Negativ-Grautöne statt kühlem Grau, eine einzige Handlungsfarbe:
    Tungsten-Orange, das Kunstlicht am Set (3200 K). Blau ist nur noch
    „Daylight“ für Hinweise. Alle Textfarben ≥ 4,5:1, gemessen.
@@ -165,7 +165,7 @@ kbd {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Geist Variable', sans-serif;
 }
 
-/* Umgebungslicht oben im Arbeitsbereich — ein Hauch Systemblau */
+/* Umgebungslicht oben im Arbeitsbereich - ein Hauch Systemblau */
 .ambient-glow {
   background:
     radial-gradient(55% 45% at 50% -12%, hsl(var(--signal) / 0.09), transparent 70%);
@@ -254,7 +254,7 @@ kbd {
 @media (hover: none), (pointer: coarse) {
   /* Ohne Mauszeiger gibt es kein Hover: Knöpfe, die sonst erst beim Zeigen
      erscheinen, wären am Touchscreen schlicht unsichtbar. 28 Stellen nutzen
-     group-hover:opacity-100 — hier bleiben sie dauerhaft sichtbar. */
+     group-hover:opacity-100 - hier bleiben sie dauerhaft sichtbar. */
   .group-hover\:opacity-100,
   .md\:group-hover\:opacity-100 {
     opacity: 1 !important;
@@ -262,7 +262,7 @@ kbd {
 
   /* iOS Safari zoomt beim Antippen jedes Eingabefelds mit weniger als 16 px
      Schrift ungefragt in die Seite und bleibt dort. 16 px ist die Grenze,
-     unterhalb derer das passiert — nicht eine Wunschgröße. */
+     unterhalb derer das passiert - nicht eine Wunschgröße. */
   input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']),
   textarea,
   select {
@@ -278,7 +278,7 @@ kbd {
     min-height: 36px;
   }
 
-  /* Auswahlfelder und Reiter sind am Desktop 26–28 px hoch — mit dem Daumen
+  /* Auswahlfelder und Reiter sind am Desktop 26-28 px hoch - mit dem Daumen
      trifft man daneben. Die Shotlist hat allein 48 Auswahlfelder. */
   [role='combobox'],
   [role='tab'] {
@@ -286,7 +286,7 @@ kbd {
   }
 
   /* Checkboxen sind 14 px groß. Meist sitzen sie in einem <label>, das
-     mittippt — der Kasten selbst soll trotzdem sichtbar zu treffen sein. */
+     mittippt - der Kasten selbst soll trotzdem sichtbar zu treffen sein. */
   [role='checkbox'] {
     min-width: 20px;
     min-height: 20px;
@@ -327,7 +327,7 @@ kbd {
     animation: fade-in 0.15s ease-out both !important;
   }
 
-  /* Remove all Radix entry/exit motion — keep opacity */
+  /* Remove all Radix entry/exit motion - keep opacity */
   .animate-in  { animation-duration: 120ms !important; }
   .animate-out { animation-duration: 80ms !important;  }
   [class*='slide-in-from'],
@@ -549,12 +549,12 @@ kbd {
 
 
 /* ════════════════════════════════════════════════════════════════════
-   Bewegung — ruhig, federnd, nie im Weg. Alles nur über transform und
+   Bewegung - ruhig, federnd, nie im Weg. Alles nur über transform und
    opacity; prefers-reduced-motion schaltet es oben ab.
    ════════════════════════════════════════════════════════════════════ */
 
 /* Seitenwechsel: die neue Seite hebt sich leicht an und wird scharf.
-   fill-mode backwards: nach dem Ende wirkt die Animation nicht mehr — sonst
+   fill-mode backwards: nach dem Ende wirkt die Animation nicht mehr - sonst
    ueberschriebe ihr transform:none die Transformationen von dnd-kit. */
 @keyframes page-in {
   from { opacity: 0; transform: translateY(10px); filter: blur(3px); }
@@ -628,7 +628,7 @@ main tbody tr:nth-child(n+9) { animation-delay: 160ms; }
 
 
 /* ════════════════════════════════════════════════════════════════════
-   Belohnung — jede Handlung antwortet sofort und körperlich.
+   Belohnung - jede Handlung antwortet sofort und körperlich.
    Ebene, Welle, Funken, Quittung: siehe lib/belohnung.ts
    ════════════════════════════════════════════════════════════════════ */
 .belohnung-ebene { position: fixed; inset: 0; pointer-events: none; z-index: 2147483000; overflow: hidden; }

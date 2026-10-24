@@ -836,7 +836,7 @@ const SCHEMA = `
 
 // ─── Test admin seeder ────────────────────────────────────────────────────────
 /**
- * Test-Admin fuer die Entwicklung — und NUR dort.
+ * Test-Admin fuer die Entwicklung - und NUR dort.
  *
  * Bisher lief das bei jedem Start, auch in der Produktion: admin@cutsheet.dev
  * mit dem Passwort "admin1234" war dort ein globaler Admin, und das Passwort
@@ -862,7 +862,7 @@ async function ensureTestAdmin() {
     }
     if (!envEmail || !envPassword) return
     if (envPassword.length < 12) {
-      console.warn('[DB] TEST_ADMIN_PASSWORD ist kürzer als 12 Zeichen — Test-Admin wird nicht angelegt.')
+      console.warn('[DB] TEST_ADMIN_PASSWORD ist kürzer als 12 Zeichen - Test-Admin wird nicht angelegt.')
       return
     }
   }
@@ -892,7 +892,7 @@ async function ensureTestAdmin() {
  * Jeder Fremdschlüssel bekommt einen Index.
  *
  * Postgres legt Indizes nur für Primär- und Unique-Schlüssel an, nicht für
- * Fremdschlüssel. Von 102 Fremdschlüsseln hatten 83 keinen — jede Abfrage
+ * Fremdschlüssel. Von 102 Fremdschlüsseln hatten 83 keinen - jede Abfrage
  * "alle Dispo-Einträge dieses Drehtags" las die ganze Tabelle. Mit einem
  * Projekt fällt das nicht auf; mit 150 Produktionen (740.000 Dispo-Einträge)
  * brauchte das Dashboard unter Last 1,5 s und der Verbindungspool lief voll.
@@ -2062,7 +2062,7 @@ export async function initDatabase() {
     WHERE owner_id IS NULL AND (SELECT COUNT(*) FROM users) > 0
   `)
 
-  // Fix roles: only first user keeps 'admin' — ausser dem Konto aus
+  // Fix roles: only first user keeps 'admin' - ausser dem Konto aus
   // ADMIN_EMAIL, das der Betreiber ausdruecklich als Admin festlegt
   const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase() || ''
   await db.run(`
@@ -2076,7 +2076,7 @@ export async function initDatabase() {
 
   if (adminEmail) {
     const r = await db.run("UPDATE users SET role = 'admin' WHERE LOWER(email) = ?", [adminEmail])
-    if (!r.changes) console.warn(`[DB] ADMIN_EMAIL ${adminEmail} gehört zu keinem Konto — erst registrieren, dann neu starten.`)
+    if (!r.changes) console.warn(`[DB] ADMIN_EMAIL ${adminEmail} gehört zu keinem Konto - erst registrieren, dann neu starten.`)
   }
 
   console.log('[DB] PostgreSQL-Datenbank initialisiert')

@@ -315,7 +315,7 @@ export async function fetchVideoMetrics(
   return [...byId.values()]
 }
 
-/** Retention-Kurve eines Videos als Rohzeilen [Position 0–1, Anteil]. */
+/** Retention-Kurve eines Videos als Rohzeilen [Position 0-1, Anteil]. */
 export async function fetchRetentionCurve(
   accessToken: string,
   videoId: string,

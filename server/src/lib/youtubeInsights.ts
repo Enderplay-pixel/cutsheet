@@ -13,7 +13,7 @@
 
 /**
  * Ein Punkt der Kurve, wie ihn die YouTube Analytics API liefert:
- * `elapsedVideoTimeRatio` (0–1) und `audienceWatchRatio` (1 = alle schauen noch).
+ * `elapsedVideoTimeRatio` (0-1) und `audienceWatchRatio` (1 = alle schauen noch).
  */
 export interface RetentionPoint {
   ratio: number

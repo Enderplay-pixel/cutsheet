@@ -2,7 +2,7 @@
  * Schriften für alle PDF-Dokumente.
  *
  * Der Server rendert mit einem nackten Chromium ohne Systemschriften wie
- * SF Pro — ohne eingebettete Schrift fiele jedes PDF auf DejaVu oder Arial
+ * SF Pro - ohne eingebettete Schrift fiele jedes PDF auf DejaVu oder Arial
  * zurück und sähe anders aus als die App. Geist ist die Ersatzschrift der
  * App und wird hier als data:-URL eingebettet, damit der Browser dafür
  * nicht ins Netz muss.
@@ -51,7 +51,7 @@ export const PDF_DEFAULT_ACCENT = '#0071E3'
  * Kopffarbe eines Projekts für Dokumente.
  *
  * Bis zum Redesign war Bernstein (#f59e0b) die Voreinstellung und steht so
- * in jedem bestehenden Projekt — auch dort, wo niemand sie bewusst gewählt
+ * in jedem bestehenden Projekt - auch dort, wo niemand sie bewusst gewählt
  * hat. Diese alte Voreinstellung gilt deshalb als „nicht gewählt“ und folgt
  * dem neuen Standard; jede andere Farbe bleibt, wie sie eingestellt wurde.
  */

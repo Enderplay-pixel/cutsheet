@@ -4,7 +4,7 @@
  *
  * Warum nicht einfach puppeteers Standard: puppeteer legt den Browser nach
  * ~/.cache/puppeteer. Auf Render ist HOME gleich /opt/render/project, und dieses
- * Verzeichnis wird nicht in den Laufzeit-Container uebernommen — der Browser war
+ * Verzeichnis wird nicht in den Laufzeit-Container uebernommen - der Browser war
  * dort zur Laufzeit weg ("Could not find Chrome ... cache path is
  * /opt/render/project/.cache/puppeteer").
  *
@@ -15,7 +15,7 @@
  * Warum postinstall: `npm install` fuehrt es unabhaengig davon aus, welcher
  * Build-Befehl beim Hoster konfiguriert ist.
  *
- * Fehler sind bewusst nicht fatal — ohne Browser laeuft die App weiter, nur der
+ * Fehler sind bewusst nicht fatal - ohne Browser laeuft die App weiter, nur der
  * PDF-Export nicht. Ein abgebrochenes Deploy waere schlimmer.
  */
 const fs = require('fs')
@@ -75,13 +75,13 @@ async function main() {
 
   const platform = detectBrowserPlatform()
   if (!platform) {
-    console.warn('[chromium] Plattform nicht erkannt — Download uebersprungen')
+    console.warn('[chromium] Plattform nicht erkannt - Download uebersprungen')
     return
   }
 
   console.log('[chromium] lade Chrome nach', CACHE_DIR)
   try {
-    // Bevorzugt die Version, auf die das installierte puppeteer gepinnt ist —
+    // Bevorzugt die Version, auf die das installierte puppeteer gepinnt ist -
     // gleiche Version heisst gleiches DevTools-Protokoll. Ist sie nicht
     // ermittelbar, tut es der aktuelle stabile Build.
     const buildId = await resolveBuildId(Browser.CHROME, platform, pinnedChromeVersion() ?? 'stable')

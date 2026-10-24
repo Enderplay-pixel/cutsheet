@@ -7,7 +7,7 @@ import { prefersReducedMotion } from './motion'
  * unter dem Finger nach und schlagen eine Welle, Häkchen platzen in kleine
  * Funken, gespeicherte Änderungen quittiert eine kurze Pille, Karten folgen
  * dem Zeiger mit einem warmen Lichtkegel. Alles läuft in einer eigenen,
- * festen Ebene über der Seite — React-Knoten werden nie angefasst.
+ * festen Ebene über der Seite - React-Knoten werden nie angefasst.
  *
  * Bewusst NICHT dabei: künstliche Dringlichkeit, Serien-Zwang, Punkte,
  * Benachrichtigungs-Köder. Das Gefühl soll aus der Arbeit selbst kommen.
@@ -63,7 +63,7 @@ function welle(el: Element, x: number, y: number) {
 }
 
 /**
- * Funkenregen an einem Punkt oder Element — für abgehakte Aufgaben,
+ * Funkenregen an einem Punkt oder Element - für abgehakte Aufgaben,
  * erledigte Shots, fertige Drehtage. `stark` für die großen Momente.
  */
 export function feiern(ziel: Element | { x: number; y: number }, stark = false) {

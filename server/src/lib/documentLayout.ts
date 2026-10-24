@@ -244,7 +244,7 @@ export const FOOT_RIGHT = 'cutsheet-foot-right'
  * Baut das fertige Dokument.
  *
  * Die Fußzeile steht als Meta-Angabe im Kopf und wird von generatePdf in die
- * Druckerfußzeile übernommen — samt Projektname und „Seite x / y“, damit lose
+ * Druckerfußzeile übernommen - samt Projektname und „Seite x / y“, damit lose
  * Blätter zuzuordnen sind. Ein position:fixed-Element im Seitenrand erzeugte
  * dagegen eine leere Folgeseite, auf der die Fußzeile dann allein stand.
  */
@@ -299,7 +299,7 @@ export function renderDocument(opts: DocumentOptions): string {
   /* ── Abschnitte ── */
   .sect { margin-bottom: 16pt; page-break-inside: auto; }
   .sect h2 { font-size: 11.5pt; font-weight: 600; letter-spacing: -0.015em; margin-bottom: 6pt; }
-  /* Überschrift nie allein am Seitenende — sie gehört zur Tabelle darunter */
+  /* Überschrift nie allein am Seitenende - sie gehört zur Tabelle darunter */
   .sect h2 { break-after: avoid; page-break-after: avoid; }
   .sect h2 + table thead, .sect h2 + .defs { break-before: avoid; }
   /* Kurze Abschnitte (bis 8 Zeilen) bleiben zusammen, statt eine einzelne

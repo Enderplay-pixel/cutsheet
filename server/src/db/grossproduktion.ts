@@ -1,10 +1,10 @@
 /**
- * Testprojekt "Nordlicht" — eine große Kinoproduktion, wie sie ein
+ * Testprojekt "Nordlicht" - eine große Kinoproduktion, wie sie ein
  * Produktionsbüro wirklich führt.
  *
  * Wozu: Das Demo-Projekt "Sprachlos" hat acht Szenen und drei Drehtage. Damit
  * sieht man, ob eine Seite funktioniert, aber nicht, ob sie bei einem echten
- * Spielfilm trägt — 160 Szenen, 45 Drehtage, über hundert Leute im Stab, eine
+ * Spielfilm trägt - 160 Szenen, 45 Drehtage, über hundert Leute im Stab, eine
  * Kalkulation mit Millionenbudget. Genau das braucht der Hard-Launch-Test: Last
  * auf jeder Liste, jedem PDF und jeder Auswertung.
  *
@@ -130,7 +130,7 @@ const ROLLEN: Array<[string, string, string, string]> = [
 
 const AGENTUREN = ['Agentur Hansen & Partner', 'Schauspielagentur Nordwind', 'Fitz+Skoglund Agents', 'Players Berlin (fiktiv)', 'Agentur Elbufer', 'Studio Talents Hamburg']
 
-// Stab nach Departments — [Abteilung, Position, Gage/Tag in Cent, Anzahl]
+// Stab nach Departments - [Abteilung, Position, Gage/Tag in Cent, Anzahl]
 const STAB: Array<[string, string, number, number]> = [
   ['Regie', 'Regisseurin', 0, 1], ['Regie', '1. Regieassistenz', 65000, 1], ['Regie', '2. Regieassistenz', 42000, 1],
   ['Regie', 'Script / Continuity', 38000, 1], ['Regie', 'Regiepraktikum', 12000, 1],
@@ -253,7 +253,7 @@ export async function seedGrossproduktion(
 
   const team: GrossproduktionErgebnis['team'] = []
   // Teamkonten mit festen Rollen, damit sich Rechte realistisch testen lassen.
-  // Passwort: vorgegeben oder zufällig — nie ein bekannter Standard.
+  // Passwort: vorgegeben oder zufällig - nie ein bekannter Standard.
   const { randomBytes } = await import('crypto')
   const teamRollen: Array<[string, string, string]> = [
     ['nordlicht.produktion@cutsheet.test', 'Produktion Nordlicht', 'producer'],
@@ -282,7 +282,7 @@ export async function seedGrossproduktion(
   const projectId = await db.transaction(async tx => {
     const drehtage = 45
     const startOffset = -24 // erster Drehtag vor gut drei Wochen
-    // Drehtage Mo–Sa, Sonntag frei
+    // Drehtage Mo-Sa, Sonntag frei
     const daten: string[] = []
     for (let o = startOffset; daten.length < drehtage; o++) {
       const d = new Date(); d.setDate(d.getDate() + o)
@@ -387,7 +387,7 @@ export async function seedGrossproduktion(
     }
     zahlen.abgedrehteTage = abgedrehtTage.length
 
-    // Shotlist: 3–6 Einstellungen je Szene
+    // Shotlist: 3-6 Einstellungen je Szene
     const shotZeilen: any[][] = []
     const shotsJeSzene: number[][] = sceneIds.map(() => [])
     const groessen = ['EWS', 'WS', 'MWS', 'MS', 'MCU', 'CU', 'ECU', 'Totale']
@@ -424,7 +424,7 @@ export async function seedGrossproduktion(
     const dispoZeilen: any[][] = []
     const generalCall: number[] = []
     // Nachtdrehs in Blöcken, wie ein Produktionsbüro sie legt: drei Nächte bis
-    // Samstag, danach der freie Sonntag — so hält die Ruhezeit.
+    // Samstag, danach der freie Sonntag - so hält die Ruhezeit.
     const samstage = daten.map((d, i) => (new Date(d + 'T12:00:00').getDay() === 6 ? i : -1)).filter(i => i >= 2)
     const nachtBloecke = [samstage[1], samstage[4]].filter(i => i !== undefined).flatMap(i => [i - 2, i - 1, i])
     const callSheetIds = await insertMany(tx, 'call_sheets', ['shoot_day_id', 'general_call', 'shooting_call', 'location_id', 'weather_forecast', 'sunrise', 'sunset', 'notes', 'safety_personnel', 'hospital_name', 'hospital_address', 'crew_parking', 'basecamp', 'breakfast_call', 'lunch_call', 'weather_high', 'weather_low', 'walkie_channels', 'dept_notes'],
@@ -443,7 +443,7 @@ export async function seedGrossproduktion(
     dayIds.forEach((_, d) => {
       const castHeute = [...new Set(szenenJeTag[d].flatMap(si => szenenMeta[si].chars))]
       let so = 0
-      // Call-Zeiten relativ zum General Call des Tages — Nachtdrehs beginnen
+      // Call-Zeiten relativ zum General Call des Tages - Nachtdrehs beginnen
       // abends, Departments mit Vorlauf früher
       const gc = generalCall[d]
       for (const c of castHeute) dispoZeilen.push([callSheetIds[d], 'cast', castIds[c], (gc + between(-15, 90)) % 1440, pick(['Hotel Hafenblick', 'Basecamp', 'Eigenanreise']), c < 4 ? 'Maske 45 Min. vorher' : '', so++, 'W'])
@@ -463,7 +463,7 @@ export async function seedGrossproduktion(
       abgedrehtTage.map(d => {
         const s = szenenJeTag[d]
         const gc = generalCall[d]
-        // 11 h Drehtag inkl. Pause, gelegentlich Overtime — Wrap nach
+        // 11 h Drehtag inkl. Pause, gelegentlich Overtime - Wrap nach
         // Mitternacht steht wie im Tagesbericht als Uhrzeit (z. B. 120 = 02:00)
         return [dayIds[d], daten[d], gc, gc + between(60, 110), (gc + 330) % 1440, (gc + 390) % 1440, (gc + 600 + between(-30, rnd() < 0.15 ? 120 : 40)) % 1440,
           // Wie die App: JSON-Liste der Szenen-IDs; gelegentlich bleibt die
@@ -514,7 +514,7 @@ export async function seedGrossproduktion(
     const fv = await tx.run('INSERT INTO financing_plan_versions (project_id, name) VALUES (?, ?)', [pid, 'Finanzierungsplan Stand Drehbeginn'])
     const fin: Array<[string, string, number, number]> = [
       // Bewusst knapp unter dem Budget: eine Finanzierungslücke, wie sie kurz
-      // vor Drehbeginn üblich ist — der Konfliktradar soll sie melden.
+      // vor Drehbeginn üblich ist - der Konfliktradar soll sie melden.
       ['Filmförderungsanstalt (FFA)', 'Förderung', 70000000, 1], ['DFFF I', 'Förderung', 85000000, 1],
       ['MOIN Filmförderung Hamburg Schleswig-Holstein', 'Förderung', 100000000, 1], ['Nordmedia', 'Förderung', 30000000, 0],
       ['Senderbeteiligung (fiktiver Sender)', 'Sender', 120000000, 1], ['Verleih-MG (fiktiver Verleih)', 'Vertrieb', 45000000, 1],

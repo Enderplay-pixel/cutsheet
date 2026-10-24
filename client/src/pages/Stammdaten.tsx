@@ -488,7 +488,7 @@ export function Component() {
   )
 }
 
-// Frühere Voreinstellung (#f59e0b) gilt als „nicht gewählt“ — die PDFs
+// Frühere Voreinstellung (#f59e0b) gilt als „nicht gewählt“ - die PDFs
 // verwenden dann das neue Standardblau, also zeigt die Einstellung es auch.
 function accentOf(color: string | null | undefined): string {
   const c = String(color ?? '').trim()

@@ -232,7 +232,7 @@ export function Component() {
       if (!selectedDayId) return []
       const res = await fetch(`/api/shoot-days/${selectedDayId}/catering-list`, { headers })
       if (!res.ok) throw new Error('Fehler')
-      // Der Server liefert { entries: [...] } mit person_name — die Tabelle
+      // Der Server liefert { entries: [...] } mit person_name - die Tabelle
       // erwartet eine Liste mit name
       const data = (await res.json()).data
       const entries: any[] = Array.isArray(data) ? data : (data?.entries ?? [])
