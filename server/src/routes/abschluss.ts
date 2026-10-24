@@ -31,6 +31,25 @@ import { heuteISO } from '../lib/datum'
 
 const router = Router()
 
+/**
+ * Kinder ohne Bewilligung nach Paragraf 6 JArbSchG - Kind ist, wer noch nicht
+ * 15 ist (Paragraf 2).
+ *
+ * Besetzung und Komparserie, wie die Jugendschutz-Seite. Bis zum 24.10.2026
+ * zaehlte der Abschluss nur die Besetzung: Eine elfjaehrige Komparsin ohne
+ * Bewilligung stand auf der Jugendschutz-Seite, der Abschluss meldete 0 und
+ * liess das Projekt schliessen. Eine Abfrage fuer Anzeige und Abschluss,
+ * damit die beiden nicht wieder auseinanderlaufen.
+ */
+const KINDER_OHNE_BEWILLIGUNG = `
+  SELECT (SELECT COUNT(*) FROM "cast"
+           WHERE project_id = ? AND birthdate IS NOT NULL AND permit_granted = false
+             AND birthdate > (CURRENT_DATE - INTERVAL '15 years'))
+       + (SELECT COUNT(*) FROM extras
+           WHERE project_id = ? AND birthdate IS NOT NULL AND permit_granted = false
+             AND birthdate > (CURRENT_DATE - INTERVAL '15 years'))
+       AS anzahl`
+
 export type Punkt = {
   schluessel: string
   titel: string
@@ -82,12 +101,7 @@ router.get('/projects/:projectId/abschluss', requireAuth, requireMember, async (
         "SELECT COUNT(*) AS anzahl FROM trips WHERE project_id = ? AND status = 'entwurf'",
         [projectId]
       ) as Promise<any>,
-      db.get(
-        `SELECT COUNT(*) AS anzahl FROM "cast"
-          WHERE project_id = ? AND birthdate IS NOT NULL AND permit_granted = false
-            AND birthdate > (CURRENT_DATE - INTERVAL '15 years')`,
-        [projectId]
-      ) as Promise<any>,
+      db.get(KINDER_OHNE_BEWILLIGUNG, [projectId, projectId]) as Promise<any>,
       db.get(
         `SELECT (SELECT COUNT(*) FROM crew WHERE project_id = ? AND ksk_relevant IS NULL AND fee_per_day > 0)
               + (SELECT COUNT(*) FROM "cast" WHERE project_id = ? AND ksk_relevant IS NULL AND fee_per_day > 0)
@@ -276,12 +290,7 @@ router.post('/projects/:projectId/abschluss', requireAuth, requireMember, async 
           WHERE project_id = ? AND status IN ('entwurf', 'versendet', 'nachbesserung')`,
         [projectId]
       ) as Promise<any>,
-      db.get(
-        `SELECT COUNT(*) AS anzahl FROM "cast"
-          WHERE project_id = ? AND birthdate IS NOT NULL AND permit_granted = false
-            AND birthdate > (CURRENT_DATE - INTERVAL '15 years')`,
-        [projectId]
-      ) as Promise<any>,
+      db.get(KINDER_OHNE_BEWILLIGUNG, [projectId, projectId]) as Promise<any>,
     ])
     const summe = [rechnungen, vertraege, abnahmen, bewilligungen]
       .reduce((s, z) => s + Number(z?.anzahl ?? 0), 0)

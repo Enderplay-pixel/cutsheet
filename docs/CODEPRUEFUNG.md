@@ -134,6 +134,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 15 | neun Routen (`abnahme`, `abschluss`, `agenturen`, `angebote`, `anliegen`, `auswertungen`, `dateien`, `mahnwesen`, `vertraege`) | Fehler | Jede hatte ein eigenes `heuteISO()` in UTC statt `lib/datum` (Europe/Berlin). Zwischen 0 und 2 Uhr ist "heute" gestern - im Vertragstext (`vertraege.ts:216`), beim Zahlungseingang, bei Angeboten; in der Silvesternacht das falsche Jahr. | ja: 22:30 UTC (00:30 Berlin, 25.10.) - Routen `2026-10-24`, richtig `2026-10-25`; Silvester 00:30 - Routen `2026-12-31` | behoben: alle neun nutzen `lib/datum` |
 | 16 | `server/src/scripts/zugriffsscan.ts` | Messwerkzeug | Der schreibende Scan schickte nie eine `project_id` im Body und war für Fund 5 blind. | ja: neue Variante KOERPER - gegen den alten `projectAuth.ts` 10 Routen, die Daten der Inhaberin ändern; gegen den aktuellen 0 | ergänzt |
 | 17 | `server/src/routes/abnahme.ts` (`watch_url`) | Härtung | Der Server nahm als Sichtungslink alles an, auch `javascript:` und `data:`. Der Link wird auf der öffentlichen Seite des Auftraggebers per `window.open` geöffnet. | Annahme ja; Ausführung **nicht messbar** - das eingebaute Browserfenster öffnet auch harmlose Pop-ups nicht (Gegenprobe) | behoben: Server verlangt http(s) (400 sonst, gemessen), Client öffnet nur http(s) |
+| 18 | `server/src/routes/abschluss.ts` (zweimal) | Fehler, Recht | "Kinder ohne Bewilligung" (§ 6 JArbSchG) zählte nur die Besetzung, die Jugendschutz-Seite auch die Komparserie. Eine elfjährige Komparsin ohne Bewilligung hielt den Projektabschluss nicht auf. | ja: Jugendschutz-Seite zeigt sie, Abschluss zählt 0 | behoben: eine gemeinsame Abfrage für Anzeige und Abschluss, beide Arten; danach 1 und Abschluss blockiert |
+| 19 | `server/src/routes/abschluss.ts` (`POST .../abschluss`, `.../zuruecknehmen`) | Hinweis, Entscheidung | Projekt abschließen (archivieren) und wieder öffnen erlaubt der Guard laut Code ab `dept_head` - etwa die Kostümleitung. | nein, nur gelesen (`minRankForPath`) | offen, für Florian |
 
 ## Abhakliste
 
@@ -157,7 +159,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 ### Server: Routen
 
 - [x] `server/src/routes/abnahme.ts` (588) - Funde 14, 15, 17
-- [ ] `server/src/routes/abschluss.ts` (321)
+- [x] `server/src/routes/abschluss.ts` (321) - Funde 18, 19
 - [ ] `server/src/routes/activityFeed.ts` (74)
 - [ ] `server/src/routes/admin.ts` (386)
 - [ ] `server/src/routes/agenturen.ts` (558)
