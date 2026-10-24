@@ -123,6 +123,8 @@ beforeAll(async () => {
   app.use('/api', companiesRouter)
   app.use('/api', invoicesRouter)
   app.use('/api', dateienRouter)
+  const { default: anliegenRouter } = await import('../routes/anliegen')
+  app.use('/api', anliegenRouter)
   // Der echte Server setzt req.user global per optionalAuth; dieser Router verlässt sich darauf
   const { optionalAuth } = await import('../middleware/auth')
   app.use('/api', optionalAuth, sperrzeitenRouter)
@@ -1814,4 +1816,60 @@ describe('Testadressen im Versand', () => {
       mailversand.vergissTransport()
     }
   }, 30_000)
+})
+
+describe('Was anliegt', () => {
+  /**
+   * Gemessen am 24.10.2026: Kein unbeantworteter Vertrag kam je auf die
+   * Liste (Zeitstempel als "Mon Oct 12" gelesen), Komparsen ohne Bewilligung
+   * fehlten, jede Firma zählte die Passwort-Mails der ganzen Installation,
+   * abgeschlossene Projekte meldeten ihre Genehmigungen als dringend, und ein
+   * Mitarbeiter sah Rechnungen, die ihm die Rechnungsseite verweigert.
+   */
+  it('zeigt, was die Firma angeht, und nur das', async () => {
+    const firma = (await db.run("INSERT INTO companies (name, owner_id) VALUES ('Anliegen GmbH', ?)", [nutzerId])).id
+    const projekt = (await db.run(
+      "INSERT INTO projects (title, owner_id, company_id) VALUES ('Laufend', ?, ?)", [nutzerId, firma]
+    )).id
+    const archiv = (await db.run(
+      "INSERT INTO projects (title, owner_id, company_id, archived) VALUES ('Fertig', ?, ?, 1)", [nutzerId, firma]
+    )).id
+    await db.run(
+      `INSERT INTO contracts (project_id, person_type, person_id, kind, title, body, status, token, sent_at)
+       VALUES (?, 'crew', 0, 'crew', 'Kameravertrag', '', 'versendet', 'anliegen-vertrag', NOW() - INTERVAL '12 days')`,
+      [projekt]
+    )
+    await db.run(
+      "INSERT INTO extras (project_id, name, birthdate, permit_granted) VALUES (?, 'Mila', CURRENT_DATE - INTERVAL '11 years', false)",
+      [projekt]
+    )
+    await db.run(
+      `INSERT INTO project_files (project_id, kind, filename, content, title, valid_until)
+       VALUES (?, 'genehmigung', 'g.pdf', decode('00', 'hex'), 'Alte Drehgenehmigung', CURRENT_DATE - 20)`,
+      [archiv]
+    )
+    await db.run(
+      "INSERT INTO email_outbox (project_id, subject, recipient_email, purpose, status) VALUES (NULL, 'Passwort', 'wer@demo.test', 'system', 'fehlgeschlagen')"
+    )
+    await db.run(
+      `INSERT INTO invoices (company_id, number, kind, status, issue_date, due_date, gross_cents, paid_cents)
+       VALUES (?, 'A-1', 'rechnung', 'versendet', CURRENT_DATE - 40, CURRENT_DATE - 26, 119000, 0)`,
+      [firma]
+    )
+    await db.run("INSERT INTO company_members (company_id, user_id, role) VALUES (?, ?, 'mitarbeiter')", [firma, fremdeId])
+
+    const inhaberin = await hole(`/api/companies/${firma}/anliegen`, tokenInhaber)
+    expect(inhaberin.status).toBe(200)
+    const punkte: any[] = inhaberin.daten.punkte
+    const titel = punkte.map((p) => p.titel)
+    expect(punkte.find((p) => p.art === 'vertrag')?.tage).toBe(12)
+    expect(titel).toContain('Mila (Komparserie): Bewilligung fehlt')
+    expect(titel).toContain('Rechnung A-1 überfällig')
+    expect(punkte.some((p) => p.art === 'nachweis')).toBe(false)
+    expect(punkte.some((p) => p.art === 'mail')).toBe(false)
+
+    const mitarbeiter = await hole(`/api/companies/${firma}/anliegen`, tokenFremd)
+    expect(mitarbeiter.status).toBe(200)
+    expect(mitarbeiter.daten.punkte.some((p: any) => p.art === 'rechnung')).toBe(false)
+  })
 })

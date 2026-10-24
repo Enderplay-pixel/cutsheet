@@ -19,7 +19,7 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
-import { erfordereFirma } from './companies'
+import { erfordereFirma, FIRMEN_RANG } from './companies'
 import { tageZwischen } from '../lib/mahnwesen'
 import { alterAm, KIND_BIS_ALTER } from '../lib/jugendschutz'
 import { fristStand } from '../lib/dateien'
@@ -51,6 +51,10 @@ router.get('/companies/:companyId/anliegen', requireAuth, erfordereFirma('mitarb
   const companyId = Number(req.params.companyId)
   const heute = heuteISO()
   const punkte: Punkt[] = []
+  // Rechnungen sieht nur, wer sie auch auf ihrer Seite sehen darf
+  // (erfordereAbrechnung: ab Produktion). Gemessen am 24.10.2026: Ein
+  // Mitarbeiter bekam dort 403, hier aber Nummer und offenen Betrag.
+  const mitRechnungen = (FIRMEN_RANG[(req as any).firmenrolle] ?? 0) >= FIRMEN_RANG.produktion
 
   const [vertraege, kinder, rechnungen, anfragen, ksk, nachweise, mails] = await Promise.all([
     // Verträge, auf die seit mehr als fünf Tagen niemand geantwortet hat.
@@ -61,19 +65,25 @@ router.get('/companies/:companyId/anliegen', requireAuth, erfordereFirma('mitarb
         ORDER BY c.sent_at ASC`,
       [companyId]
     ) as Promise<any[]>,
-    // Kinder ohne Bewilligung, die auf einer Disposition stehen.
+    // Kinder ohne Bewilligung, aus Besetzung und Komparserie - wie die
+    // Jugendschutz-Seite und der Projektabschluss. Vorher nur die Besetzung.
     db.all(
-      `SELECT DISTINCT c.id, c.actor_name, c.birthdate, c.permit_granted, c.project_id, p.title AS projekt,
+      `SELECT k.*, p.title AS projekt,
               (SELECT MIN(sd.date) FROM call_sheet_entries cse
                  JOIN call_sheets cs ON cse.call_sheet_id = cs.id
                  JOIN shoot_days sd ON cs.shoot_day_id = sd.id
-                WHERE cse.person_type = 'cast' AND cse.person_id = c.id
-                  AND sd.project_id = c.project_id) AS erster_tag
-         FROM "cast" c JOIN projects p ON c.project_id = p.id
-        WHERE p.company_id = ? AND c.birthdate IS NOT NULL AND c.permit_granted = false`,
+                WHERE cse.person_type = k.art AND cse.person_id = k.id
+                  AND sd.project_id = k.project_id) AS erster_tag
+         FROM (SELECT 'cast' AS art, id, actor_name AS name, birthdate, project_id
+                 FROM "cast" WHERE birthdate IS NOT NULL AND permit_granted = false
+               UNION ALL
+               SELECT 'extra' AS art, id, name, birthdate, project_id
+                 FROM extras WHERE birthdate IS NOT NULL AND permit_granted = false) k
+         JOIN projects p ON k.project_id = p.id
+        WHERE p.company_id = ?`,
       [companyId]
     ) as Promise<any[]>,
-    db.all(
+    mitRechnungen ? db.all(
       `SELECT id, number, due_date, gross_cents, paid_cents, reminder_level, client_id
          FROM invoices
         WHERE company_id = ? AND kind = 'rechnung'
@@ -81,7 +91,7 @@ router.get('/companies/:companyId/anliegen', requireAuth, erfordereFirma('mitarb
           AND due_date IS NOT NULL AND due_date < ?
         ORDER BY due_date ASC`,
       [companyId, heute]
-    ) as Promise<any[]>,
+    ) as Promise<any[]> : Promise.resolve([] as any[]),
     db.all(
       `SELECT r.id, r.project_id, r.deadline, r.sent_at, r.reminded_at, a.name AS agentur, p.title AS projekt
          FROM casting_requests r
@@ -100,25 +110,39 @@ router.get('/companies/:companyId/anliegen', requireAuth, erfordereFirma('mitarb
       [companyId, companyId]
     ) as Promise<any>,
     // Nachweise mit Ablaufdatum. Eine Drehgenehmigung, die am Drehtag
-    // abgelaufen ist, hält den Dreh an.
+    // abgelaufen ist, hält den Dreh an. Abgeschlossene Projekte nicht: Ihre
+    // Genehmigungen laufen alle irgendwann ab, und keine muss verlängert
+    // werden - die Liste wüchse mit jedem Projekt, ohne dass etwas zu tun ist.
     db.all(
       `SELECT f.id, f.kind, f.filename, f.title, f.valid_until, f.project_id, p.title AS projekt
          FROM project_files f JOIN projects p ON f.project_id = p.id
-        WHERE p.company_id = ? AND f.valid_until IS NOT NULL
+        WHERE p.company_id = ? AND p.archived = 0 AND f.valid_until IS NOT NULL
         ORDER BY f.valid_until ASC`,
       [companyId]
     ) as Promise<any[]>,
-    // Mails, die hängen geblieben sind.
+    // Mails, die hängen geblieben sind. Ohne Projekt gehört eine Mail der
+    // Firma nur, wenn sie eine Mahnung zu einer ihrer Rechnungen ist - alle
+    // anderen ohne Projekt sind Kontomails (Passwort) irgendeines Kontos.
+    // Vorher zählte jede Firma die Kontomails der ganzen Installation mit.
     db.get(
       `SELECT COUNT(*) AS anzahl FROM email_outbox o
          LEFT JOIN projects p ON o.project_id = p.id
-        WHERE (p.company_id = ? OR o.project_id IS NULL) AND o.status = 'fehlgeschlagen'`,
-      [companyId]
+        WHERE o.status = 'fehlgeschlagen'
+          AND (p.company_id = ?
+               OR (o.project_id IS NULL AND o.purpose = 'mahnung'
+                   AND o.reference_id IN (SELECT id FROM invoices WHERE company_id = ?)))`,
+      [companyId, companyId]
     ) as Promise<any>,
   ])
 
+  // sent_at ist ein Zeitstempel, und pg liefert ihn als Date. Vorher
+  // String(...).slice(0, 10) - das ergab "Mon Oct 12", tageZwischen las 0,
+  // und kein Vertrag und keine Anfrage ohne abgelaufene Frist kam je auf
+  // diese Liste. Gemessen am 24.10.2026, Vertrag seit 12 Tagen offen.
+  const tagVon = (zeitpunkt: any) => heuteISO(new Date(zeitpunkt))
+
   for (const v of vertraege) {
-    const tage = v.sent_at ? tageZwischen(String(v.sent_at).slice(0, 10), heute) : 0
+    const tage = v.sent_at ? tageZwischen(tagVon(v.sent_at), heute) : 0
     if (tage < 5) continue
     punkte.push({
       art: 'vertrag',
@@ -138,7 +162,7 @@ router.get('/companies/:companyId/anliegen', requireAuth, erfordereFirma('mitarb
       art: 'bewilligung',
       // Ohne Bewilligung darf nicht gedreht werden - das ist nie nur "offen".
       stufe: 'dringend',
-      titel: `${k.actor_name}: Bewilligung fehlt`,
+      titel: `${k.name}${k.art === 'extra' ? ' (Komparserie)' : ''}: Bewilligung fehlt`,
       text: tage === null
         ? `${alter} Jahre, steht auf keiner Disposition. Ohne Bewilligung nach § 6 JArbSchG darf nicht gedreht werden.`
         : tage < 0
@@ -165,7 +189,7 @@ router.get('/companies/:companyId/anliegen', requireAuth, erfordereFirma('mitarb
   }
 
   for (const a of anfragen) {
-    const tage = a.sent_at ? tageZwischen(String(a.sent_at).slice(0, 10), heute) : 0
+    const tage = a.sent_at ? tageZwischen(tagVon(a.sent_at), heute) : 0
     const fristVorbei = a.deadline ? String(a.deadline).slice(0, 10) < heute : false
     if (!fristVorbei && tage < 7) continue
     punkte.push({
