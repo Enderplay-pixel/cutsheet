@@ -1751,3 +1751,28 @@ describe('Projekt-Guard: Pfad vor Body', () => {
     expect(await extractProjectId('POST', '/tasks', { project_id: fremdesProjekt })).toBe(fremdesProjekt)
   })
 })
+
+describe('Neustart', () => {
+  /**
+   * Gemessen am 24.10.2026: Bei jedem Start bekam jedes Projekt ohne Inhaber
+   * das erste Konto als Inhaber. Ohne Inhaber sind die Projekte gelöschter
+   * Konten - nach jedem Deploy gehörten sie still jemand anderem.
+   */
+  it('gibt Projekte gelöschter Konten niemand anderem', async () => {
+    const modul = await import('../db')
+    const verwaist = (await db.run(
+      'INSERT INTO projects (title, owner_id, is_demo) VALUES (?, NULL, false)', ['Verwaist']
+    )).id
+    const demo = (await db.run(
+      'INSERT INTO projects (title, owner_id, is_demo) VALUES (?, NULL, true)', ['Demo vom ersten Start']
+    )).id
+
+    await modul.initDatabase()
+
+    const zeilen = await db.all('SELECT id, owner_id FROM projects WHERE id IN (?, ?)', [verwaist, demo])
+    const inhaber = new Map(zeilen.map((z: any) => [z.id, z.owner_id]))
+    expect(inhaber.get(verwaist)).toBeNull()
+    // Das Demo-Projekt vom ersten Start bekommt weiter einen Inhaber.
+    expect(inhaber.get(demo)).not.toBeNull()
+  }, 60_000)
+})

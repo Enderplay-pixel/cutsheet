@@ -56,6 +56,27 @@ Aus Florians `CLAUDE.md` und der Erfahrung dieser Sitzung:
 5. **Nach außen nur mit Freigabe.** `git push` sperrt die Mod `aussen-bremse`,
    bis Florian `/freigabe` schickt. Nicht umgehen. Lokal committen geht.
 6. **Kleine Korrekturen bündeln**, nicht einzeln ausliefern.
+7. **`git add` nur mit ausdrücklichen Pfaden.** `git add -A server/src` hat am
+   24.10.2026 die liegengelassene `benachrichtigungen.ts` mitgenommen (lokal
+   per `--amend` zurückgenommen, nie gepusht).
+
+## Hier weitermachen
+
+Stand am 24.10.2026 abends, als das Nutzungslimit kam:
+
+- **Fertig:** Gruppe Middleware (7 Dateien). Funde 1-9 eingetragen, 1, 4, 5, 6, 9
+  behoben und committet.
+- **Angefangen:** `server/src/db/index.ts` bis etwa Zeile 2200 gelesen
+  (Schema, Migrationen, `ensureTestAdmin`, Start-Nacharbeit). Offen ab dort:
+  der Rest von `seedDemoData` bis Dateiende. Danach `grossproduktion.ts`.
+- **Zuerst nach dem Start:** Fund 10 nachstellen. Dazu `POST /api/shoot-days/:dayId/call-sheet/send`
+  lokal mit einem SMTP-Testzugang (zum Beispiel Ethereal) oder den Versandweg
+  in `lib/mailversand.ts` lesen, ob Demo-Projekte ausgenommen sind.
+- **Nicht gepusht:** alles ab `da3a6ba`. Fund 5 (fremde Projekte über den Body)
+  und Fund 9 (Projekte gelöschter Konten) sind in der Produktion offen und
+  sollten mit der nächsten Freigabe raus.
+- Messskripte dieser Sitzung lagen im Scratchpad und sind weg; sie stehen
+  sinngemäß in den Commit-Texten (`git log`), dort auch die Messwerte.
 
 ## Vorgehen
 
@@ -101,6 +122,10 @@ sind ein Render-Dienst aus demselben Bau.
 | 4 | `server/src/middleware/validate.ts:12` | Text | Zod-Meldungen englisch in deutschen Fehlern: "email: Invalid input: expected string, received undefined". | ja: `POST /api/auth/login` mit `{}` | behoben: `z.config(z.locales.de())` |
 | 5 | `server/src/middleware/projectAuth.ts:212` | **Sicherheit, live** | Guard nahm bei POST das Projekt aus dem Body vor dem Pfad. Fremdes Konto schrieb mit eigener `project_id` im Body in fremde Projekte (`POST /scenes/{fremd}/blocks`). Betrifft jede POST-Route auf einem Eintragspfad. Älter als dieser Tag, in der Produktion. | ja: Block "EINGEDRUNGEN-MIT" in Projekt 6, ohne Body-Trick 403 | behoben: Pfad vor Body; Test in `datenbank.test.ts`, gegen alten Stand rot. **Muss bald raus.** |
 | 6 | `server/src/routes/auth.ts:48,82`, `admin.ts:350` | Fehler | E-Mail mit exakter Schreibweise verglichen: "Max@..." registriert, mit "max@..." kein Zugang; dieselbe Adresse kleingeschrieben ein zweites Mal registrierbar. | ja: 201, dann 401, dann zweites Konto 201 | behoben: Adresse wird kleingeschrieben, Vergleich per `LOWER`; bei Altpaaren entscheidet das Passwort - beide gemessen erreichbar |
+| 7 | `server/src/db/index.ts` (`notifications`, `notification_settings`) | Hinweis, Entscheidung | Tabellen der abgebrochenen Runde 17 kamen versehentlich mit Commit `84f1d7d` und stehen leer in der Produktion. Kein Code nutzt sie. Entfernen hieße `DROP TABLE` in der Produktion. | ja: `git log -S`, `origin/master` enthält den Commit | offen, für Florian |
+| 8 | `user_totp.recovery_codes`, `password_reset_tokens.token` | Verdacht | Wiederherstellungscodes und Rücksetz-Token offenbar im Klartext; wer die Datenbank liest, umgeht den zweiten Faktor. | noch nicht - beim Lesen von `routes/auth.ts` prüfen | offen |
+| 9 | `server/src/db/index.ts:2058` | **Datenschutz, live** | Bei jedem Start bekam jedes Projekt ohne Inhaber das erste Konto als Inhaber. Ohne Inhaber sind die Projekte gelöschter Konten (`ON DELETE SET NULL`) - nach jedem Deploy gehörten sie still dem ersten Konto, mit allen Daten. | ja: Konto 19 legt Projekt 20 an, gelöscht, Neustart: `owner_id` 1 | behoben: nur noch `is_demo`; Test, gegen alten Stand rot. **In der Produktion prüfen**, welche Projekte dem ersten Konto zugefallen sind - aus den Daten allein nicht mehr erkennbar. |
+| 10 | `server/src/db/index.ts` (`seedDemoData`) | Verdacht | Das Demo-Projekt, das jedes neue Konto bekommt, enthält Adressen bei echten Anbietern (`email.de` 7x, `web.de`, `gmx.de`, `gmail.com`, `mail.de`) und Domains wie `bauerfilm.de`, `cutsheet.dev`. Kein Versandweg prüft `is_demo`. Wer im Demo-Projekt "Dispo versenden" ausprobiert, schreibt womöglich Fremden. | nein: lokal ohne SMTP lehnt `POST /shoot-days/:id/call-sheet/send` mit 400 ab - mit SMTP-Testzugang nachstellen | offen |
 
 ## Abhakliste
 

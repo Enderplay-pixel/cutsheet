@@ -2056,10 +2056,15 @@ export async function initDatabase() {
     await seedDemoData()
   }
 
-  // Assign unclaimed projects to first user
+  // Das Demo-Projekt vom ersten Start bekommt das erste Konto als Inhaber -
+  // und NUR das Demo-Projekt. Gemessen am 24.10.2026: Ohne die Einschränkung
+  // auf is_demo traf das jedes Projekt ohne Inhaber, und das sind die
+  // Projekte gelöschter Konten (owner_id ON DELETE SET NULL). Nach dem
+  // nächsten Neustart - also jedem Deploy - gehörten sie still dem ersten
+  // Konto der Datenbank, mit Gagen, Verträgen und Kontaktdaten.
   await db.exec(`
     UPDATE projects SET owner_id = (SELECT id FROM users ORDER BY id ASC LIMIT 1)
-    WHERE owner_id IS NULL AND (SELECT COUNT(*) FROM users) > 0
+    WHERE owner_id IS NULL AND is_demo = true AND (SELECT COUNT(*) FROM users) > 0
   `)
 
   // Fix roles: only first user keeps 'admin' - ausser dem Konto aus
