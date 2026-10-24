@@ -62,6 +62,7 @@ function SendDispoButton({ dayId, entries, onSent }: {
         title: `Dispo an ${result.sent} ${result.sent === 1 ? 'Person' : 'Personen'} versendet`,
         description: [
           result.queued > 0 && `${result.queued} in der Warteschlange - der Versand läuft weiter`,
+          (result.nicht_zustellbar ?? 0) > 0 && `${result.nicht_zustellbar} mit Testadresse, nicht verschickt`,
           result.skipped_no_email.length > 0 && `Ohne E-Mail übersprungen: ${result.skipped_no_email.join(', ')}`,
           result.failed.length > 0 && `Fehlgeschlagen: ${result.failed.join(', ')}`,
         ].filter(Boolean).join(' · ') || 'Alle Empfänger erreicht.',

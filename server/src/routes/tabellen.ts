@@ -201,18 +201,21 @@ router.post('/projects/:projectId/import/:art', requireAuth, async (req: Request
 /** Vorlagendatei: die Spalten, die gelesen werden, mit einer Beispielzeile. */
 router.get('/import/:art/vorlage.csv', (req: Request, res: Response) => {
   const art = String(req.params.art) as Art
+  // Die Beispielzeile wird mit importiert, wenn niemand sie löscht - gemessen
+  // am 24.10.2026: "neu: Sarah Müller". Deshalb eine Adresse unter .test, die
+  // niemand besitzt und an die der Versand nie etwas schickt.
   const vorlagen: Record<string, { kopf: string[]; beispiel: string[] }> = {
     crew: {
       kopf: ['Name', 'Funktion', 'Abteilung', 'E-Mail', 'Telefon', 'Tagessatz'],
-      beispiel: ['Sarah Müller', 'Regisseurin', 'Regie', 'sarah@beispiel.de', '0170 1234567', '450,00'],
+      beispiel: ['Sarah Müller', 'Regisseurin', 'Regie', 'sarah@beispiel.test', '0170 1234567', '450,00'],
     },
     cast: {
       kopf: ['Name', 'E-Mail', 'Telefon', 'Agentur', 'Tagessatz'],
-      beispiel: ['Felix Wagner', 'felix@beispiel.de', '0171 2345678', 'Agentur Nord', '600,00'],
+      beispiel: ['Felix Wagner', 'felix@beispiel.test', '0171 2345678', 'Agentur Nord', '600,00'],
     },
     extras: {
       kopf: ['Name', 'E-Mail', 'Telefon', 'Tarifgruppe'],
-      beispiel: ['Thomas Meier', 'thomas@beispiel.de', '0160 1112233', 'Standard'],
+      beispiel: ['Thomas Meier', 'thomas@beispiel.test', '0160 1112233', 'Standard'],
     },
   }
   const vorlage = vorlagen[art]

@@ -9,7 +9,7 @@ import {
   STANDARDVORLAGEN,
   PLATZHALTER,
 } from '../lib/mailvorlagen'
-import { wartezeitMinuten, istAdresse, MAX_VERSUCHE } from '../lib/mailversand'
+import { wartezeitMinuten, istAdresse, istTestadresse, MAX_VERSUCHE } from '../lib/mailversand'
 
 describe('Platzhalter in Vorlagen', () => {
   it('findet jeden Platzhalter genau einmal', () => {
@@ -97,6 +97,16 @@ describe('Warteschlange', () => {
   it('gibt nach einer endlichen Zahl von Versuchen auf', () => {
     expect(MAX_VERSUCHE).toBeGreaterThan(1)
     expect(MAX_VERSUCHE).toBeLessThanOrEqual(10)
+  })
+
+  it('erkennt Adressen, die nie zustellbar sind', () => {
+    // Das Demo-Projekt benutzt sie; der Versand legt sie keinem Mailserver vor.
+    for (const wert of ['felix.wagner@demo.test', 'a@beispiel.example', 'x@y.invalid', 'a@example.com', 'B@Example.ORG']) {
+      expect(istTestadresse(wert), wert).toBe(true)
+    }
+    for (const wert of ['sarah@beispiel.de', 'felix@email.de', 'a@test.de', 'a@example.de', 'a@mytest.com']) {
+      expect(istTestadresse(wert), wert).toBe(false)
+    }
   })
 
   it('erkennt brauchbare Adressen', () => {

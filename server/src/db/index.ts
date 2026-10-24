@@ -2050,6 +2050,35 @@ export async function initDatabase() {
   await db.exec(`CREATE INDEX IF NOT EXISTS email_outbox_projekt_idx ON email_outbox (project_id, created_at DESC)`)
   await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS email_outbox_quittung_idx ON email_outbox (receipt_token) WHERE receipt_token IS NOT NULL`)
 
+  // Die ausgedachten Adressen früherer Demo-Projekte. Bis zum 24.10.2026
+  // standen dort echte Anbieter (email.de, gmx.de, gmail.com ...). Gemessen:
+  // Ein Klick auf "Dispo versenden" im Demo-Projekt schrieb sieben Fremde an.
+  // Umgeschrieben werden nur diese Adressen und nur in Demo-Projekten - was
+  // jemand selbst eingetragen hat, bleibt.
+  const alteDemoAdressen = [
+    'felix.wagner@email.de',
+    'anna.schmidt@email.de',
+    'sarah.mueller@bauerfilm.de',
+    'thomas.bauer@bauerfilm.de',
+    'lisa.schneider@bauerfilm.de',
+    'markus.klein@email.de',
+    'julia.braun@email.de',
+    'peter.wolf@email.de',
+    'nina.fischer@email.de',
+    'lars.weber@email.de',
+    'thomas.meier@gmail.com',
+    'sabine.k@web.de',
+    'r.schmid@gmx.de',
+    'p.lange@mail.de',
+  ]
+  for (const tabelle of ['crew', '"cast"', 'extras']) {
+    await db.run(
+      `UPDATE ${tabelle} SET email = split_part(email, '@', 1) || '@demo.test'
+        WHERE email = ANY(?) AND project_id IN (SELECT id FROM projects WHERE is_demo)`,
+      [alteDemoAdressen]
+    )
+  }
+
   // Check if empty - seed demo data on first run
   const count = await db.get('SELECT COUNT(*) as c FROM projects')
   if (!count || Number(count.c) === 0) {
@@ -2150,23 +2179,23 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
   // Cast
   await db.run(
     'INSERT INTO "cast" (project_id, character_id, actor_name, email, phone, fee_per_day, contract_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [projectId, charId1, 'Felix Wagner', 'felix.wagner@email.de', '0170 1234567', 50000, 'Tagesgage']
+    [projectId, charId1, 'Felix Wagner', 'felix.wagner@demo.test', '0170 1234567', 50000, 'Tagesgage']
   )
   await db.run(
     'INSERT INTO "cast" (project_id, character_id, actor_name, email, phone, fee_per_day, contract_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [projectId, charId2, 'Anna Schmidt', 'anna.schmidt@email.de', '0171 9876543', 50000, 'Tagesgage']
+    [projectId, charId2, 'Anna Schmidt', 'anna.schmidt@demo.test', '0171 9876543', 50000, 'Tagesgage']
   )
 
   // Crew
   const crewData = [
-    ['Sarah Müller', 'Regie', 'Regisseurin', 'sarah.mueller@bauerfilm.de', '0172 1111111', 0, 'Pauschal'],
-    ['Thomas Bauer', 'Produktion', 'Produzent', 'thomas.bauer@bauerfilm.de', '0172 2222222', 0, 'Pauschal'],
-    ['Lisa Schneider', 'Kamera', 'Director of Photography', 'lisa.schneider@bauerfilm.de', '0173 3333333', 80000, 'Tagesgage'],
-    ['Markus Klein', 'Kamera', 'Kameraassistent', 'markus.klein@email.de', '0174 4444444', 40000, 'Tagesgage'],
-    ['Julia Braun', 'Ton', 'Tonmeisterin', 'julia.braun@email.de', '0175 5555555', 50000, 'Tagesgage'],
-    ['Peter Wolf', 'Maske', 'Maskenbild', 'peter.wolf@email.de', '0176 6666666', 30000, 'Tagesgage'],
-    ['Nina Fischer', 'Kostüm', 'Kostümbildnerin', 'nina.fischer@email.de', '0177 7777777', 30000, 'Tagesgage'],
-    ['Lars Weber', 'Aufnahmeleitung', 'Aufnahmeleiter', 'lars.weber@email.de', '0178 8888888', 45000, 'Tagesgage'],
+    ['Sarah Müller', 'Regie', 'Regisseurin', 'sarah.mueller@demo.test', '0172 1111111', 0, 'Pauschal'],
+    ['Thomas Bauer', 'Produktion', 'Produzent', 'thomas.bauer@demo.test', '0172 2222222', 0, 'Pauschal'],
+    ['Lisa Schneider', 'Kamera', 'Director of Photography', 'lisa.schneider@demo.test', '0173 3333333', 80000, 'Tagesgage'],
+    ['Markus Klein', 'Kamera', 'Kameraassistent', 'markus.klein@demo.test', '0174 4444444', 40000, 'Tagesgage'],
+    ['Julia Braun', 'Ton', 'Tonmeisterin', 'julia.braun@demo.test', '0175 5555555', 50000, 'Tagesgage'],
+    ['Peter Wolf', 'Maske', 'Maskenbild', 'peter.wolf@demo.test', '0176 6666666', 30000, 'Tagesgage'],
+    ['Nina Fischer', 'Kostüm', 'Kostümbildnerin', 'nina.fischer@demo.test', '0177 7777777', 30000, 'Tagesgage'],
+    ['Lars Weber', 'Aufnahmeleitung', 'Aufnahmeleiter', 'lars.weber@demo.test', '0178 8888888', 45000, 'Tagesgage'],
   ]
   for (let i = 0; i < crewData.length; i++) {
     const [name, dept, role, email, phone, fee, contract] = crewData[i]
@@ -2515,10 +2544,10 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
 
   // Extras - schema: name, phone, email, tariff_group, notes
   const extras = [
-    ['Thomas Meier', '0160 1112233', 'thomas.meier@gmail.com', 'Standard', 'Café-Gast, 17. Juni'],
-    ['Sabine Koch', '0161 4445566', 'sabine.k@web.de', 'Standard', 'Café-Gast, 17. Juni'],
-    ['Rainer Schmid', '0162 7778899', 'r.schmid@gmx.de', 'Standard', 'Parkbesucher, 16. Juni'],
-    ['Petra Lange', '0163 0001122', 'p.lange@mail.de', 'Standard', 'Parkbesucherin, 16. Juni'],
+    ['Thomas Meier', '0160 1112233', 'thomas.meier@demo.test', 'Standard', 'Café-Gast, 17. Juni'],
+    ['Sabine Koch', '0161 4445566', 'sabine.k@demo.test', 'Standard', 'Café-Gast, 17. Juni'],
+    ['Rainer Schmid', '0162 7778899', 'r.schmid@demo.test', 'Standard', 'Parkbesucher, 16. Juni'],
+    ['Petra Lange', '0163 0001122', 'p.lange@demo.test', 'Standard', 'Parkbesucherin, 16. Juni'],
   ]
   for (const [name, phone, email, tariff, notesTxt] of extras) {
     await db.run(

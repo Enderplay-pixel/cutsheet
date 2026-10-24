@@ -1137,6 +1137,7 @@ export const api = {
     send: (dayId: number, scheduledFor?: string) =>
       req<{
         sent: number; queued: number; failed: string[]; skipped_no_email: string[]
+        nicht_zustellbar?: number
         smtp_configured: boolean; scheduled_for: string | null
       }>(
         `/shoot-days/${dayId}/call-sheet/send`,

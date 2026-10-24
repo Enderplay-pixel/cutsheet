@@ -69,9 +69,11 @@ Stand am 24.10.2026 abends, als das Nutzungslimit kam:
 - **Angefangen:** `server/src/db/index.ts` bis etwa Zeile 2200 gelesen
   (Schema, Migrationen, `ensureTestAdmin`, Start-Nacharbeit). Offen ab dort:
   der Rest von `seedDemoData` bis Dateiende. Danach `grossproduktion.ts`.
-- **Zuerst nach dem Start:** Fund 10 nachstellen. Dazu `POST /api/shoot-days/:dayId/call-sheet/send`
-  lokal mit einem SMTP-Testzugang (zum Beispiel Ethereal) oder den Versandweg
-  in `lib/mailversand.ts` lesen, ob Demo-Projekte ausgenommen sind.
+- **Fund 10 erledigt** (Demo-Adressen), dazu Fund 11 (Importvorlage).
+  Messweg für Mails: `scratchpad/smtp-falle.cjs`-Prinzip - ein Fang-SMTP,
+  das nur `RCPT TO` mitschreibt, und eine zweite Instanz mit
+  `SMTP_HOST=127.0.0.1 SMTP_PORT=2525` auf Port 3099. Hinterher die
+  Prozesse beenden: `netstat -ano` zeigt unter deutschem Windows "ABHÖREN".
 - **Nicht gepusht:** alles ab `da3a6ba`. Fund 5 (fremde Projekte über den Body)
   und Fund 9 (Projekte gelöschter Konten) sind in der Produktion offen und
   sollten mit der nächsten Freigabe raus.
@@ -125,7 +127,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 7 | `server/src/db/index.ts` (`notifications`, `notification_settings`) | Hinweis, Entscheidung | Tabellen der abgebrochenen Runde 17 kamen versehentlich mit Commit `84f1d7d` und stehen leer in der Produktion. Kein Code nutzt sie. Entfernen hieße `DROP TABLE` in der Produktion. | ja: `git log -S`, `origin/master` enthält den Commit | offen, für Florian |
 | 8 | `user_totp.recovery_codes`, `password_reset_tokens.token` | Verdacht | Wiederherstellungscodes und Rücksetz-Token offenbar im Klartext; wer die Datenbank liest, umgeht den zweiten Faktor. | noch nicht - beim Lesen von `routes/auth.ts` prüfen | offen |
 | 9 | `server/src/db/index.ts:2058` | **Datenschutz, live** | Bei jedem Start bekam jedes Projekt ohne Inhaber das erste Konto als Inhaber. Ohne Inhaber sind die Projekte gelöschter Konten (`ON DELETE SET NULL`) - nach jedem Deploy gehörten sie still dem ersten Konto, mit allen Daten. | ja: Konto 19 legt Projekt 20 an, gelöscht, Neustart: `owner_id` 1 | behoben: nur noch `is_demo`; Test, gegen alten Stand rot. **In der Produktion prüfen**, welche Projekte dem ersten Konto zugefallen sind - aus den Daten allein nicht mehr erkennbar. |
-| 10 | `server/src/db/index.ts` (`seedDemoData`) | Verdacht | Das Demo-Projekt, das jedes neue Konto bekommt, enthält Adressen bei echten Anbietern (`email.de` 7x, `web.de`, `gmx.de`, `gmail.com`, `mail.de`) und Domains wie `bauerfilm.de`, `cutsheet.dev`. Kein Versandweg prüft `is_demo`. Wer im Demo-Projekt "Dispo versenden" ausprobiert, schreibt womöglich Fremden. | nein: lokal ohne SMTP lehnt `POST /shoot-days/:id/call-sheet/send` mit 400 ab - mit SMTP-Testzugang nachstellen | offen |
+| 10 | `server/src/db/index.ts` (`seedDemoData`), `lib/mailversand.ts` | **Datenschutz, live** | Das Demo-Projekt jedes neuen Kontos enthielt 14 Adressen bei echten Anbietern (`email.de`, `gmx.de`, `gmail.com` ...). Ein Klick auf "Dispo versenden" schrieb Fremde an, unter Florians Absender, mit Dispo-PDF. | ja: Fang-SMTP auf Port 2525, zweite Instanz; 7 Empfänger kamen an (`felix.wagner@email.de` ...) | behoben: Demo-Adressen unter `@demo.test`, bestehende Demo-Projekte beim Start nachgezogen (nur die 14 bekannten Adressen); Versand legt `.test/.example/.invalid/.localhost` und `example.com/net/org` keinem Mailserver vor (`ohne_versand`); Dispo meldet `nicht_zustellbar`. Gemessen danach: 0 in der Falle. Test gegen alten Stand rot. |
+| 11 | `server/src/routes/tabellen.ts:207-215` | Datenschutz | Die Importvorlage für Stab, Besetzung und Komparsen trägt eine Beispielzeile mit `@beispiel.de` (registrierte Domain). Wer sie nicht löscht, importiert sie mit. | ja: Vorlage zurückgespielt, Vorschau `neu: Sarah Müller` | behoben: Beispieladressen unter `@beispiel.test` |
 
 ## Abhakliste
 

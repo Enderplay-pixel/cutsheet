@@ -1776,3 +1776,41 @@ describe('Neustart', () => {
     expect(inhaber.get(demo)).not.toBeNull()
   }, 60_000)
 })
+
+describe('Testadressen im Versand', () => {
+  /**
+   * Gemessen am 24.10.2026: "Dispo versenden" im Demo-Projekt schrieb sieben
+   * Adressen bei echten Mailanbietern an. Die Demo-Daten stehen jetzt unter
+   * .test - und der Versand legt solche Adressen keinem Mailserver vor.
+   */
+  it('verbindet für eine Testadresse gar nicht erst mit dem Mailserver', async () => {
+    // Port 1: Dort hört niemand. Versuchte der Versand es, stünde ein
+    // Verbindungsfehler in der Zeile und sie wartete auf den nächsten Versuch.
+    process.env.SMTP_HOST = '127.0.0.1'
+    process.env.SMTP_PORT = '1'
+    process.env.SMTP_USER = 'niemand'
+    process.env.SMTP_PASS = 'niemand'
+    mailversand.vergissTransport()
+    try {
+      await db.run("UPDATE email_outbox SET status = 'ohne_versand' WHERE status = 'wartet'")
+      const [mail] = await mailversand.reiheEin({
+        projectId: projektId,
+        betreff: 'Dispo Demo',
+        html: '<p>Hallo</p>',
+        empfaenger: [{ email: 'felix.wagner@demo.test', name: 'Felix Wagner' }],
+        anlass: 'dispo',
+      })
+      const lauf = await mailversand.sendeFaellige()
+      expect(lauf.gesendet).toBe(0)
+      const zeile = await db.get('SELECT status, last_error FROM email_outbox WHERE id = ?', [mail.id])
+      expect(zeile.status).toBe('ohne_versand')
+      expect(zeile.last_error).toContain('Testadresse')
+    } finally {
+      delete process.env.SMTP_HOST
+      delete process.env.SMTP_PORT
+      delete process.env.SMTP_USER
+      delete process.env.SMTP_PASS
+      mailversand.vergissTransport()
+    }
+  }, 30_000)
+})

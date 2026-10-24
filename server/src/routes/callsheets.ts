@@ -357,7 +357,10 @@ router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Resp
   return res.json({
     data: {
       sent,
-      queued: eingereiht.length - sent,
+      // Was der Versandlauf nicht vorgelegt hat (Testadressen), wartet auch
+      // nicht - es geht nie raus.
+      queued: Math.max(0, eingereiht.length - sent - lauf.ohneVersand),
+      nicht_zustellbar: lauf.ohneVersand,
       failed,
       skipped_no_email: skipped,
       smtp_configured: true,

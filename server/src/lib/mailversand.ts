@@ -47,6 +47,18 @@ export function istAdresse(wert: string): boolean {
   return /^[^\s@,;<>]+@[^\s@,;<>]+\.[a-zA-Z]{2,}$/.test(wert.trim())
 }
 
+/**
+ * Adressen unter Endungen, die nach RFC 2606 und 6761 nie zustellbar sind.
+ *
+ * Das Demo-Projekt benutzt sie mit Absicht. Eine Mail dorthin dem
+ * Mailanbieter vorzulegen, brächte nur einen Rückläufer - und Rückläufer
+ * schaden dem Ruf der Absenderadresse.
+ */
+export function istTestadresse(wert: string): boolean {
+  const adresse = String(wert ?? '').trim().toLowerCase()
+  return /\.(test|example|invalid|localhost)$/.test(adresse) || /@example\.(com|net|org)$/.test(adresse)
+}
+
 let transporter: Transporter | null | undefined
 
 export function smtpEingerichtet(): boolean {
@@ -193,6 +205,14 @@ export async function sendeFaellige(grenze = 25): Promise<{
       await db.run(
         `UPDATE email_outbox SET status = 'ohne_versand', last_error = ? WHERE id = ?`,
         ['Kein Mailserver eingerichtet (SMTP_HOST fehlt)', mail.id]
+      )
+      ohneVersand++
+      continue
+    }
+    if (istTestadresse(mail.recipient_email || '')) {
+      await db.run(
+        `UPDATE email_outbox SET status = 'ohne_versand', last_error = ? WHERE id = ?`,
+        ['Testadresse - wird nie zugestellt', mail.id]
       )
       ohneVersand++
       continue
