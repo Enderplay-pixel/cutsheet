@@ -144,6 +144,10 @@ export function uebersetzeDatenbankfehler(
      'Der Eintrag hängt an einem anderen, der nicht existiert oder noch gebraucht wird.'],
     [/violates unique constraint/i, 409, 'Diesen Eintrag gibt es bereits.'],
     [/violates not-null constraint/i, 400, 'Ein Pflichtfeld fehlt.'],
+    // Gemessen am 24.10.2026: "?von=abc" an Buchhaltung, USt-Auswertung,
+    // Auswertungen und Protokoll ergab 500 "Unerwarteter Serverfehler".
+    [/invalid input syntax for type (date|time|timestamp)|date\/time field value out of range/i, 400,
+     'Ein Datum ist ungültig.'],
   ]
 
   for (const [muster, code, satz] of bekannt) {

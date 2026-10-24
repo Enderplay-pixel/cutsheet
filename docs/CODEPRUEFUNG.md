@@ -67,12 +67,16 @@ Stand am 24.10.2026, 23 Uhr:
 - **Fertig:** Gruppe Middleware (7 Dateien). Funde 1-9 eingetragen, 1, 4, 5, 6, 9
   behoben und committet.
 - **Fertig:** Gruppe Datenbank (`db/index.ts`, `grossproduktion.ts`).
-- **Routen bis `anliegen.ts` fertig** (siehe Haken). **Als Nächstes:**
-  `audit.ts`, dann alphabetisch weiter. Bei `auth.ts` Verdacht 8 prüfen.
+- **Routen bis `audit.ts` fertig** (siehe Haken). **Als Nächstes:**
+  `auswertungen.ts`, dann alphabetisch weiter. Bei `auth.ts` Verdacht 8 prüfen.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
   `auth.ts` ~308 setzt `user.name` unmaskiert in die Passwort-Mail;
   `invites.ts` ~27 setzt Projekttitel und Namen der Einladenden unmaskiert
-  in die Einladungsmail (wie Fund 23).
+  in die Einladungsmail (wie Fund 23). Die Texte des Fehlerübersetzers
+  (`middleware/eingabe.ts`, etwa "Ein Pflichtfeld fehlt.") stehen nicht in
+  `lib/meldungenText.ts` - bei `sprache.ts`/`meldungenText.ts` prüfen, ob
+  englische Nutzer sie deutsch bekommen. 72 Routen fangen Fehler selbst ab
+  und geben 500 "Interner Serverfehler" (Muster aus Fund 34).
 - **Zeitstempel:** `pg` liefert TIMESTAMPTZ als `Date`, nur DATE kommt als
   Text (`db/index.ts:14`). `String(zeitstempel).slice(0, 10)` ist immer
   falsch - siehe Fund 29.
@@ -156,12 +160,14 @@ sind ein Render-Dienst aus demselben Bau.
 | 25 | `server/src/routes/aiScheduling.ts:10` | Fehler | Die KI-Drehplanung prüfte die **globale** Rolle (`admin/producer/director`). Registrierte Konten sind global `user` - selbst die Inhaberin bekam im eigenen Projekt "Keine Berechtigung". Dazu Umbau ohne Transaktion und `sort_order` ungeprüft aus der KI-Antwort. | Rolle ja: Inhaberin 403, globaler Admin weiter; Transaktion und `sort_order` **nicht messbar** ohne KI-Schlüssel | behoben: Projektrolle ab Regie (danach Inhaberin bis zur Schlüsselprüfung, Fremde 403); Umbau in einer Transaktion; `sort_order` bereinigt |
 | 26 | `aiBreakdown.ts:56`, `aiScheduling.ts:91` | Hinweis, Entscheidung | Beide nutzen `claude-opus-4-5`. Laut Modellreferenz (Stand 6.10.2026) **aktiv, nicht abgekündigt** - es läuft. Neuere Modelle (Opus 5.5) sind verfügbar; ein Wechsel ändert Verhalten und Kosten. | ja: Modellreferenz der claude-api-Skill | offen, für Florian |
 | 27 | `server/src/routes/angebote.ts` (`POST`/`PUT .../quotes`) | Fehler, Geld | `tax_mode` wurde ungeprüft gespeichert und bei Annahme auf die Rechnung übertragen. Bei einem Wert außer `regel`/`kleinunternehmer` rechnete der Beleg 19 %, die USt-Auswertung auch, der Buchhaltungs-Export (`buchhaltung.ts`, `jeSatz`) aber 0,00 Umsatzsteuer. Nur über die API erreichbar, die Oberfläche schickt kein `tax_mode`. | ja: Angebot `xyz` → Rechnung 119,00 €, USt-Auswertung 19,00 €, CSV-Export "0,00" Steuer, "100,00" brutto | behoben: `istSteuerart` in `lib/rechnung.ts`, sonst 400; danach gemessen: `xyz` und `reverse_charge` 400, beide Steuerarten gehen durch |
+| 28 | `companies.tax_mode`, `routes/companies.ts:108` | Hinweis, Entscheidung | Die Kleinunternehmerregelung (§ 19 UStG) ist in Rechnung, Blatt und DATEV eingebaut, aber nicht einschaltbar: Keine Route setzt `companies.tax_mode`, und der Client schickt nirgends `tax_mode`. Jede Firma rechnet mit Regelbesteuerung. | nein, gelesen: `grep tax_mode` über Server und Client | offen, für Florian: Schalter in den Firmendaten oder Teil entfernen |
 | 29 | `server/src/routes/anliegen.ts:121,168` | Fehler | "Was anliegt" las `sent_at` (TIMESTAMPTZ, von `pg` als `Date` geliefert) per `String(...).slice(0, 10)` - das ergab "Mon Oct 12", `tageZwischen` gab 0. Kein unbeantworteter Vertrag und keine Agenturanfrage ohne abgelaufene Frist kam je auf die Liste. | ja: Vertrag seit 12 Tagen, Anfrage seit 10 Tagen - Liste leer | behoben: Tag über `heuteISO(new Date(...))` (Berlin); danach beide in der Liste. Anderswo kommt das Muster nicht vor (grep) |
 | 30 | `server/src/routes/anliegen.ts:65` | Fehler, Recht | Wie Fund 18: Kinder ohne Bewilligung nur aus der Besetzung, nicht aus der Komparserie. | ja: Komparsin, 11 Jahre, fehlte | behoben: Besetzung und Komparserie, Titel mit "(Komparserie)" |
 | 31 | `server/src/routes/anliegen.ts:115` | Fehler, Datenschutz | Gescheiterte Mails zählten mit `OR project_id IS NULL` - also die Passwort-Mails aller Konten der ganzen Installation, bei jeder Firma. | ja: fremde Passwort-Mail → "1 Mail nicht zugestellt" | behoben: ohne Projekt nur Mahnungen zu eigenen Rechnungen; gemessen: fremde 0, eigene Mahnung 1 |
 | 32 | `server/src/routes/anliegen.ts:50` | Zugriff | Ein Firmen-Mitarbeiter sah überfällige Rechnungen mit Nummer und offenem Betrag, die Rechnungsseite gibt ihm 403 ("Rechnungen sehen und schreiben darf die Produktion"). | ja: Mitarbeiter sah "Rechnung … 1.190,00 € offen", `GET .../invoices` 403 | behoben: Rechnungen ab Rolle Produktion |
 | 33 | `server/src/routes/anliegen.ts:104` | Fehler | Abgelaufene Nachweise abgeschlossener Projekte standen als "dringend" in der Liste - jede Genehmigung läuft irgendwann ab, die Liste wüchse mit jedem Projekt. | ja: Drehgenehmigung im archivierten Projekt "dringend" | behoben: nur nicht archivierte Projekte |
-| 28 | `companies.tax_mode`, `routes/companies.ts:108` | Hinweis, Entscheidung | Die Kleinunternehmerregelung (§ 19 UStG) ist in Rechnung, Blatt und DATEV eingebaut, aber nicht einschaltbar: Keine Route setzt `companies.tax_mode`, und der Client schickt nirgends `tax_mode`. Jede Firma rechnet mit Regelbesteuerung. | nein, gelesen: `grep tax_mode` über Server und Client | offen, für Florian: Schalter in den Firmendaten oder Teil entfernen |
+| 34 | `server/src/middleware/eingabe.ts` (`uebersetzeDatenbankfehler`), `routes/audit.ts` | Fehler, klein | Ein ungültiges Datum in einem Filter (`?von=abc`, `?bis=2026-13-45`) ergab 500 "Unerwarteter Serverfehler" - der Übersetzer kannte Datumsfehler nicht, `audit.ts` fing Fehler selbst ab und gab 500. | ja: Buchhaltung, USt-Auswertung, Auswertungen, Protokoll (Liste und CSV) je 500 | behoben: Regel im Übersetzer (400 "Ein Datum ist ungültig."), `audit.ts` reicht Fehler weiter; danach alle sechs 400, gültige Filter 200 |
+| 35 | `server/src/lib/tabelle.ts:181` (`schreibeCsv`) | Härtung, Entscheidung | CSV-Felder, die mit `=`, `+`, `-` oder `@` beginnen, gehen unverändert hinaus. Excel liest so ein Feld als Formel - im Protokoll-Export etwa einen selbst gewählten Kontonamen `=HYPERLINK(...)`. Schutz (vorangestelltes `'`) hätte Folgen: Telefonnummern wie `+49 151…` und der Wiederimport über `tabellen.ts` müssten mitbedacht werden. | Feld ja: `"=HYPERLINK(""https://beispiel.test"";""Klick"")"` im Export; Ausführung in Excel **nicht gemessen** | offen, beim Lesen von `lib/tabelle.ts` mit Import zusammen entscheiden |
 
 ## Abhakliste
 
@@ -193,7 +199,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/aiScheduling.ts` (132) - Funde 25, 26
 - [x] `server/src/routes/angebote.ts` (443) - Funde 15, 27, 28
 - [x] `server/src/routes/anliegen.ts` (242) - Funde 15, 29-33
-- [ ] `server/src/routes/audit.ts` (279)
+- [x] `server/src/routes/audit.ts` (279) - Funde 34, 35
 - [ ] `server/src/routes/auswertungen.ts` (361)
 - [ ] `server/src/routes/auth.ts` (493)
 - [ ] `server/src/routes/backup.ts` (230)

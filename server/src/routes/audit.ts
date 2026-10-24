@@ -107,6 +107,9 @@ export function aenderungenProtokollieren(req: Request, res: Response, next: Nex
   next()
 }
 
+// Fehler gehen an uebersetzeDatenbankfehler (index.ts) - ein ungültiges Datum
+// im Filter ist dann 400, nicht 500.
+
 // GET /api/projects/:projectId/audit
 /**
  * Lesbare Kurzfassung der Aenderung fuer die Spalte "Details".
@@ -177,30 +180,25 @@ function einschraenkung(projectId: number, q: any): { sql: string; werte: any[] 
  * Oberflaeche "47 von 3.812" anzeigen kann.
  */
 router.get('/projects/:projectId/audit', requireAuth, requireMember, async (req: Request, res: Response) => {
-  try {
-    const projectId = Number(req.params.projectId)
-    const { sql, werte } = einschraenkung(projectId, req.query)
-    // Obergrenze 500: Wer mehr braucht, nimmt die CSV-Ausleitung.
-    const grenze = Math.min(500, Math.max(1, Number(req.query.grenze) || 100))
-    const sprung = Math.max(0, Number(req.query.sprung) || 0)
+  const projectId = Number(req.params.projectId)
+  const { sql, werte } = einschraenkung(projectId, req.query)
+  // Obergrenze 500: Wer mehr braucht, nimmt die CSV-Ausleitung.
+  const grenze = Math.min(500, Math.max(1, Number(req.query.grenze) || 100))
+  const sprung = Math.max(0, Number(req.query.sprung) || 0)
 
-    const [zeilen, summe] = await Promise.all([
-      db.all(
-        `SELECT * FROM audit_log WHERE ${sql} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
-        [...werte, grenze, sprung]
-      ) as Promise<any[]>,
-      db.get(`SELECT COUNT(*) AS anzahl FROM audit_log WHERE ${sql}`, werte) as Promise<any>,
-    ])
+  const [zeilen, summe] = await Promise.all([
+    db.all(
+      `SELECT * FROM audit_log WHERE ${sql} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+      [...werte, grenze, sprung]
+    ) as Promise<any[]>,
+    db.get(`SELECT COUNT(*) AS anzahl FROM audit_log WHERE ${sql}`, werte) as Promise<any>,
+  ])
 
-    return res.json({
-      data: zeilen.map((z) => ({ ...z, details: kurzfassung(z) })),
-      meta: { gesamt: Number(summe?.anzahl ?? 0), grenze, sprung },
-      error: null,
-    })
-  } catch (err) {
-    console.error('[audit GET]', err)
-    return res.status(500).json({ data: null, error: 'Interner Serverfehler' })
-  }
+  return res.json({
+    data: zeilen.map((z) => ({ ...z, details: kurzfassung(z) })),
+    meta: { gesamt: Number(summe?.anzahl ?? 0), grenze, sprung },
+    error: null,
+  })
 })
 
 /**
@@ -210,29 +208,24 @@ router.get('/projects/:projectId/audit', requireAuth, requireMember, async (req:
  * davon ab, was darin getan wurde.
  */
 router.get('/projects/:projectId/audit/werte', requireAuth, requireMember, async (req: Request, res: Response) => {
-  try {
-    const projectId = Number(req.params.projectId)
-    const leer = "<> ''"
-    const [aktionen, bereiche, nutzer, spanne] = await Promise.all([
-      db.all(`SELECT DISTINCT action FROM audit_log WHERE project_id = ? AND action ${leer} ORDER BY action`, [projectId]) as Promise<any[]>,
-      db.all(`SELECT DISTINCT entity_type FROM audit_log WHERE project_id = ? AND entity_type ${leer} ORDER BY entity_type`, [projectId]) as Promise<any[]>,
-      db.all(`SELECT DISTINCT user_name FROM audit_log WHERE project_id = ? AND user_name ${leer} ORDER BY user_name`, [projectId]) as Promise<any[]>,
-      db.get('SELECT MIN(created_at) AS erste, MAX(created_at) AS letzte FROM audit_log WHERE project_id = ?', [projectId]) as Promise<any>,
-    ])
-    return res.json({
-      data: {
-        aktionen: aktionen.map((z) => z.action),
-        bereiche: bereiche.map((z) => z.entity_type),
-        nutzer: nutzer.map((z) => z.user_name),
-        erste: spanne?.erste ?? null,
-        letzte: spanne?.letzte ?? null,
-      },
-      error: null,
-    })
-  } catch (err) {
-    console.error('[audit werte]', err)
-    return res.status(500).json({ data: null, error: 'Interner Serverfehler' })
-  }
+  const projectId = Number(req.params.projectId)
+  const leer = "<> ''"
+  const [aktionen, bereiche, nutzer, spanne] = await Promise.all([
+    db.all(`SELECT DISTINCT action FROM audit_log WHERE project_id = ? AND action ${leer} ORDER BY action`, [projectId]) as Promise<any[]>,
+    db.all(`SELECT DISTINCT entity_type FROM audit_log WHERE project_id = ? AND entity_type ${leer} ORDER BY entity_type`, [projectId]) as Promise<any[]>,
+    db.all(`SELECT DISTINCT user_name FROM audit_log WHERE project_id = ? AND user_name ${leer} ORDER BY user_name`, [projectId]) as Promise<any[]>,
+    db.get('SELECT MIN(created_at) AS erste, MAX(created_at) AS letzte FROM audit_log WHERE project_id = ?', [projectId]) as Promise<any>,
+  ])
+  return res.json({
+    data: {
+      aktionen: aktionen.map((z) => z.action),
+      bereiche: bereiche.map((z) => z.entity_type),
+      nutzer: nutzer.map((z) => z.user_name),
+      erste: spanne?.erste ?? null,
+      letzte: spanne?.letzte ?? null,
+    },
+    error: null,
+  })
 })
 
 /**
@@ -244,36 +237,31 @@ router.get('/projects/:projectId/audit/werte', requireAuth, requireMember, async
  * zuzumuten.
  */
 router.get('/projects/:projectId/audit/export.csv', requireAuth, requireMember, async (req: Request, res: Response) => {
-  try {
-    const projectId = Number(req.params.projectId)
-    const { sql, werte } = einschraenkung(projectId, req.query)
-    const zeilen = (await db.all(
-      `SELECT * FROM audit_log WHERE ${sql} ORDER BY created_at DESC, id DESC LIMIT 50000`,
-      werte
-    )) as any[]
+  const projectId = Number(req.params.projectId)
+  const { sql, werte } = einschraenkung(projectId, req.query)
+  const zeilen = (await db.all(
+    `SELECT * FROM audit_log WHERE ${sql} ORDER BY created_at DESC, id DESC LIMIT 50000`,
+    werte
+  )) as any[]
 
-    const csv = schreibeCsv(
-      ['Zeitpunkt', 'Benutzer', 'Aktion', 'Bereich', 'Datensatz', 'Zusammenfassung', 'Vorher', 'Nachher'],
-      zeilen.map((z) => [
-        z.created_at ? new Date(z.created_at).toISOString() : '',
-        z.user_name || '',
-        z.action || '',
-        z.entity_type || '',
-        z.entity_id ?? '',
-        kurzfassung(z),
-        // Der ganze Wert bleibt drin: Eine Pruefung will sehen, was vorher
-        // dastand, nicht eine Kurzfassung davon.
-        z.old_value || '',
-        z.new_value || '',
-      ])
-    )
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
-    res.setHeader('Content-Disposition', `attachment; filename="protokoll-${projectId}.csv"`)
-    return res.send(csv)
-  } catch (err) {
-    console.error('[audit CSV]', err)
-    return res.status(500).json({ data: null, error: 'Interner Serverfehler' })
-  }
+  const csv = schreibeCsv(
+    ['Zeitpunkt', 'Benutzer', 'Aktion', 'Bereich', 'Datensatz', 'Zusammenfassung', 'Vorher', 'Nachher'],
+    zeilen.map((z) => [
+      z.created_at ? new Date(z.created_at).toISOString() : '',
+      z.user_name || '',
+      z.action || '',
+      z.entity_type || '',
+      z.entity_id ?? '',
+      kurzfassung(z),
+      // Der ganze Wert bleibt drin: Eine Pruefung will sehen, was vorher
+      // dastand, nicht eine Kurzfassung davon.
+      z.old_value || '',
+      z.new_value || '',
+    ])
+  )
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+  res.setHeader('Content-Disposition', `attachment; filename="protokoll-${projectId}.csv"`)
+  return res.send(csv)
 })
 
 export default router

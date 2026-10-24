@@ -114,6 +114,9 @@ describe('uebersetzeDatenbankfehler', () => {
     ['insert violates foreign key constraint "fk_x"', 409, 'hängt an'],
     ['duplicate key value violates unique constraint "u_x"', 409, 'bereits'],
     ['null value violates not-null constraint', 400, 'Pflichtfeld'],
+    ['invalid input syntax for type date: "abc"', 400, 'Datum'],
+    ['invalid input syntax for type timestamp: "abc 00:00:00"', 400, 'Datum'],
+    ['date/time field value out of range: "2026-13-45"', 400, 'Datum'],
   ]
 
   for (const [meldung, code, teil] of faelle) {
