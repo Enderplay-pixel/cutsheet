@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { db, pool } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { leseUeberschrift, mitUeberschrift } from '../lib/szenenUeberschrift'
+import { fountainZeilen } from '../lib/fountainExport'
 
 const router = Router()
 
@@ -93,35 +94,7 @@ router.get('/projects/:projectId/screenplay/export.fountain', async (req, res) =
       continue
     }
 
-    for (const b of blocks) {
-      const content = (b.content || '').trim()
-      if (!content) continue
-      switch (b.block_type) {
-        case 'scene_heading': {
-          // Fountain erkennt INT./EXT. automatisch; erzwungene Headings mit Punkt-Präfix
-          const isStandard = /^(INT|EXT|INNEN|AUSSEN|AUßEN|I\/E)[.\s]/i.test(content)
-          lines.push(isStandard ? content.toUpperCase() : `.${content.toUpperCase()}`, '')
-          break
-        }
-        case 'character':
-          lines.push(content.toUpperCase())
-          break
-        case 'parenthetical':
-          lines.push(content.startsWith('(') ? content : `(${content})`)
-          break
-        case 'dialogue':
-          lines.push(content, '')
-          break
-        case 'transition':
-          lines.push(`> ${content.toUpperCase()}`, '')
-          break
-        case 'note':
-          lines.push(`[[${content}]]`, '')
-          break
-        default: // action
-          lines.push(content, '')
-      }
-    }
+    for (const b of blocks) lines.push(...fountainZeilen(b))
   }
 
   const filename = `${(project.title || 'drehbuch').replace(/[^\w\säöüÄÖÜß-]/g, '').replace(/\s+/g, '-').toLowerCase()}.fountain`
@@ -227,6 +200,7 @@ router.put('/blocks/:blockId', async (req, res) => {
   // Szene dabei auf dem Gründungsstand stehen: Im Drehbuch stand "EXT. HAFEN -
   // NACHT", in Drehplan und Statistik weiter "INT / DAY". Deshalb folgt der
   // Datensatz jetzt der Zeile.
+  let szene: any = null
   if (block?.block_type === 'scene_heading') {
     const kopf = leseUeberschrift(block.content || '')
     if (kopf && kopf.title) {
@@ -236,10 +210,16 @@ router.put('/blocks/:blockId', async (req, res) => {
          WHERE id = ?`,
         [kopf.int_ext, kopf.title, kopf.day_night, block.scene_id]
       ).catch((e: any) => console.warn('[blocks PUT] Szene nicht nachgefuehrt:', e?.message))
+      // Mitschicken, damit der Editor seine Szenenleiste nachziehen kann -
+      // sonst stand dort bis zum Neuladen weiter der alte Titel.
+      szene = await db.get(
+        'SELECT id, int_ext, title, day_night, updated_at FROM scenes WHERE id = ?',
+        [block.scene_id]
+      )
     }
   }
 
-  res.json({ data: block, error: null })
+  res.json({ data: szene ? { ...block, szene } : block, error: null })
 })
 
 // ─── DELETE /api/blocks/:blockId ──────────────────────────────────────────────

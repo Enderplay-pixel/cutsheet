@@ -203,6 +203,7 @@ interface BlockEditorProps {
   onEnterKey: (id: number, atEnd: boolean) => void
   onBackspaceEmpty: (id: number) => void
   onTabKey: (id: number, shift: boolean) => void
+  onPasteLines: (id: number, vorn: string, zeilen: string[], hinten: string) => void
   textareaRef: (el: HTMLTextAreaElement | null) => void
   blockTypeLabel: string
 }
@@ -217,6 +218,7 @@ function BlockEditor({
   onEnterKey,
   onBackspaceEmpty,
   onTabKey,
+  onPasteLines,
   textareaRef,
   blockTypeLabel,
 }: BlockEditorProps) {
@@ -232,7 +234,9 @@ function BlockEditor({
   }
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    const val = e.target.value.replace(/\n/g, '')
+    // Ein Umbruch, der doch hereinkommt (etwa per Ziehen), wird ein
+    // Leerzeichen - vorher klebten die Wörter beiderseits zusammen.
+    const val = e.target.value.replace(/[\r\n]+/g, ' ')
     setLocalContent(val)
     onContentChange(block.id, val)
     autoResize(e.target)
@@ -256,6 +260,30 @@ function BlockEditor({
       onTabKey(block.id, e.shiftKey)
       return
     }
+  }
+
+  /**
+   * Mehrere Zeilen einfügen.
+   *
+   * Gemessen am 24.10.2026: Vier Zeilen aus einem Textprogramm wurden zu einer
+   * einzigen, mit zusammengeklebten Wörtern - "Maschinenraum.Es ist heiss",
+   * "flimmert.MARKIst hier jemand?". Jetzt wird jede Zeile eine eigene, so
+   * als wäre zwischen ihnen Enter gedrückt worden.
+   */
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const text = e.clipboardData.getData('text/plain')
+    // Eine Zeile fügt der Browser selbst richtig ein.
+    if (!/[\r\n]/.test(text)) return
+    e.preventDefault()
+    const zeilen = text.split(/\r\n|\r|\n/).map(z => z.trim()).filter(Boolean)
+    if (zeilen.length === 0) return
+    const el = e.currentTarget
+    onPasteLines(
+      block.id,
+      localContent.slice(0, el.selectionStart),
+      zeilen,
+      localContent.slice(el.selectionEnd),
+    )
   }
 
   function handleRef(el: HTMLTextAreaElement | null) {
@@ -311,6 +339,7 @@ function BlockEditor({
         onChange={handleChange}
         aria-label={blockTypeLabel}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
         onFocus={onFocus}
         rows={1}
         className={cn(
@@ -337,6 +366,7 @@ interface SceneSectionProps {
   onEnterKey: (blockId: number, atEnd: boolean) => void
   onBackspaceEmpty: (blockId: number) => void
   onTabKey: (blockId: number, shift: boolean) => void
+  onPasteLines: (blockId: number, vorn: string, zeilen: string[], hinten: string) => void
   onCreateFirstBlock: (sceneId: number) => void
   textareaRefs: React.MutableRefObject<Map<number, HTMLTextAreaElement>>
   onBlockMounted: (blockId: number, el: HTMLTextAreaElement) => void
@@ -354,6 +384,7 @@ function SceneSection({
   onEnterKey,
   onBackspaceEmpty,
   onTabKey,
+  onPasteLines,
   onCreateFirstBlock,
   textareaRefs,
   onBlockMounted,
@@ -362,9 +393,14 @@ function SceneSection({
 }: SceneSectionProps) {
   const { scene, blocks } = sceneData
 
-  const displayBlocks = blocks.filter(b => b.block_type !== 'scene_heading')
+  // Die erste Überschrift steht oben, jede andere Zeile an ihrem Platz -
+  // auch eine zweite Überschrift. Vorher wurde jede weitere ausgeblendet.
+  // Gemessen am 24.10.2026: Eine Zeile, über das Typ-Menü zur Überschrift
+  // gemacht, verschwand aus dem Editor, stand aber weiter im PDF.
   const headingBlock = blocks.find(b => b.block_type === 'scene_heading')
-  const allBlocks = headingBlock ? [headingBlock, ...displayBlocks] : displayBlocks
+  const allBlocks = headingBlock
+    ? [headingBlock, ...blocks.filter(b => b !== headingBlock)]
+    : blocks
 
 
   return (
@@ -400,6 +436,7 @@ function SceneSection({
           onEnterKey={onEnterKey}
           onBackspaceEmpty={onBackspaceEmpty}
           onTabKey={onTabKey}
+          onPasteLines={onPasteLines}
           textareaRef={el => {
             if (el) {
               textareaRefs.current.set(block.id, el)
@@ -466,6 +503,8 @@ export function Component() {
   const speicherUhren = useRef(new Map<number, ReturnType<typeof setTimeout>>())
   /** Welche Zeile den Schreibstrich bekommt, sobald sie im Dokument steht. */
   const fokusWunsch = useRef<number | null>(null)
+  /** Anlegen läuft der Reihe nach - siehe `legeBlockAn`. */
+  const anlegeKette = useRef<Promise<unknown>>(Promise.resolve())
 
   // Translated block type labels (computed once per render)
   const blockTypeLabels: Record<BlockType, string> = {
@@ -549,6 +588,15 @@ export function Component() {
     if (id === null) return
     offen.current.delete(blockId)
     updateBlockMutation.mutate({ blockId: id, data: daten }, {
+      onSuccess: (antwort: any) => {
+        // Eine geänderte Überschrift führt auf dem Server die Szene nach;
+        // die Leiste links soll dasselbe zeigen, nicht den Gründungsstand.
+        const szene = antwort?.szene
+        if (!szene) return
+        setzeSzenen(vorher => vorher.map(sd => (sd.scene.id === szene.id
+          ? { ...sd, scene: { ...sd.scene, ...szene } }
+          : sd)))
+      },
       onError: (fehler: any) => {
         // Nicht stillschweigend verlieren: zurück in die Warteschlange, und
         // der Mensch erfährt, dass sein Satz noch nicht gesichert ist.
@@ -644,10 +692,20 @@ export function Component() {
       return { ...sd, blocks: [...geschoben, neu].sort((a, b) => a.sort_order - b.sort_order) }
     }))
     fokusWunsch.current = tempId
-    createBlockMutation.mutate({
-      tempId, sceneId,
-      data: { block_type: typ, content: inhalt, sort_order: sortOrder },
-    })
+    // Nacheinander, nie gleichzeitig: Der Server schiebt beim Anlegen alle
+    // folgenden Zeilen eins nach unten, das Ergebnis hängt also von der
+    // Reihenfolge ab, in der die Anfragen ankommen. Gleichzeitig verschickte
+    // Anfragen haben keine feste Ankunft. Gemessen am 24.10.2026: Drei Zeilen
+    // mitten in eine Szene, Ankunft 1-3-2 statt 1-2-3 - die dritte landete
+    // hinter dem Text, der vorher schon dastand. Beim Einfügen mehrerer
+    // Zeilen gehen immer mehrere Anfragen auf einmal raus.
+    anlegeKette.current = anlegeKette.current
+      .then(() => createBlockMutation.mutateAsync({
+        tempId, sceneId,
+        data: { block_type: typ, content: inhalt, sort_order: sortOrder },
+      }))
+      // Den Fehler meldet die Mutation selbst; die Kette läuft weiter.
+      .catch(() => {})
     return tempId
   }
 
@@ -687,8 +745,8 @@ export function Component() {
 
   const createSceneMutation = useMutation({
     mutationFn: () =>
+      // Die Nummer vergibt der Server - er kennt die höchste vergebene.
       api.scenes.create(pid, {
-        scene_number: String((szenenRef.current.length || 0) + 1),
         title: 'Neue Szene',
         int_ext: 'INT',
         // TAG und NACHT sind die Werte, nach denen Drehplan und Statistik
@@ -759,6 +817,38 @@ export function Component() {
     legeBlockAn(szene.scene.id, ENTER_NEXT_TYPE[block.block_type], block.sort_order + 1)
   }, [])
 
+  /**
+   * Eingefügte Zeilen verteilen.
+   *
+   * Die erste kommt an die Schreibstelle der aktuellen Zeile, jede weitere
+   * wird eine eigene - mit dem Typ, den Enter an dieser Stelle erzeugt
+   * hätte. Was hinter der Schreibstelle stand, hängt hinter der letzten.
+   */
+  const handlePasteLines = useCallback((blockId: number, vorn: string, zeilen: string[], hinten: string) => {
+    let szene: SceneData | undefined
+    let block: ScreenplayBlock | undefined
+    for (const sd of szenenRef.current) {
+      const b = sd.blocks.find(x => x.id === blockId)
+      if (b) { szene = sd; block = b; break }
+    }
+    if (!szene || !block) return
+
+    if (zeilen.length === 1) {
+      handleContentChange(blockId, vorn + zeilen[0] + hinten)
+      return
+    }
+
+    handleContentChange(blockId, vorn + zeilen[0])
+    let typ = block.block_type
+    let platz = block.sort_order
+    zeilen.slice(1).forEach((zeile, i) => {
+      typ = ENTER_NEXT_TYPE[typ]
+      platz += 1
+      const letzte = i === zeilen.length - 2
+      legeBlockAn(szene!.scene.id, typ, platz, letzte ? zeile + hinten : zeile)
+    })
+  }, [handleContentChange])
+
   const handleBackspaceEmpty = useCallback((blockId: number) => {
     let vorherId: number | null = null
     for (const sd of szenenRef.current) {
@@ -787,6 +877,10 @@ export function Component() {
       if (foundBlock) break
     }
     if (!foundBlock) return
+    // Die Überschrift trägt die Szene - INT/EXT, Motiv, Tageszeit, Nummer.
+    // Tab machte bis zum 24.10.2026 eine Aktionszeile daraus, und die Szene
+    // stand danach mit doppelter Kopfzeile im Export.
+    if (foundBlock.block_type === 'scene_heading') return
     const currentIdx = TAB_CYCLE.indexOf(foundBlock.block_type)
     let nextIdx: number
     if (currentIdx === -1) {
@@ -970,6 +1064,9 @@ export function Component() {
                     variant="outline"
                     size="sm"
                     className="h-7 w-44 text-xs justify-start gap-2 font-normal"
+                    // Eine Überschrift wechselt den Typ nicht - neue Szenen
+                    // entstehen über "Neue Szene".
+                    disabled={activeBlock?.block_type === 'scene_heading'}
                   >
                     <ActiveIcon className="w-3 h-3 text-muted-foreground shrink-0" />
                     <span className="truncate flex-1 text-left">{activeLabel}</span>
@@ -978,7 +1075,11 @@ export function Component() {
                 </DropdownMenuTrigger>
                 {activeBlock && (
                   <DropdownMenuContent align="start" className="w-44">
-                    {(Object.keys(blockTypeLabels) as BlockType[]).map(type => {
+                    {(Object.keys(blockTypeLabels) as BlockType[])
+                      // Eine zweite Überschrift mitten in der Szene ist keine
+                      // neue Szene - nur eine Zeile, die so aussieht.
+                      .filter(type => type !== 'scene_heading')
+                      .map(type => {
                       const Icon = blockTypeIcons[type]
                       return (
                         <DropdownMenuItem
@@ -1175,6 +1276,7 @@ export function Component() {
                   onEnterKey={handleEnterKey}
                   onBackspaceEmpty={handleBackspaceEmpty}
                   onTabKey={handleTabKey}
+                  onPasteLines={handlePasteLines}
                   onCreateFirstBlock={handleCreateFirstBlock}
                   textareaRefs={textareaRefs}
                   onBlockMounted={handleBlockMounted}

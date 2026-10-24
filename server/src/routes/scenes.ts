@@ -69,10 +69,27 @@ router.post('/projects/:projectId/scenes', async (req, res) => {
   }
   const maxSortRow = await db.get('SELECT COALESCE(MAX(sort_order), -1) as m FROM scenes WHERE project_id = ?', [req.params.projectId])
   const maxSort = (maxSortRow as any).m
+
+  // Ohne Nummer vergibt der Server die nächste freie. Beide Oberflächen
+  // zählten bisher die Szenen und addierten eins. Gemessen am 24.10.2026:
+  // Nach dem Löschen einer Szene bekam die neue die Nummer einer
+  // bestehenden - zweimal Szene 9 im Drehbuch, im Drehplan, auf der Dispo.
+  let nummer = String(scene_number ?? '').trim()
+  if (!nummer) {
+    const vorhandene = await db.all(
+      'SELECT scene_number FROM scenes WHERE project_id = ?', [req.params.projectId]
+    ) as any[]
+    // "12A" zählt als 12: Die nächste ganze Szene kommt nach den Einschüben.
+    const hoechste = vorhandene.reduce(
+      (m, z) => Math.max(m, parseInt(String(z.scene_number ?? ''), 10) || 0), 0
+    )
+    nummer = String(hoechste + 1)
+  }
+
   const result = await db.run(`
     INSERT INTO scenes (project_id, scene_number, sort_order, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [req.params.projectId, scene_number, maxSort + 1, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes])
+  `, [req.params.projectId, nummer, maxSort + 1, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes])
 
   const scene = await db.get('SELECT *, null as location_name FROM scenes WHERE id = ?', [result.id]) as any
 

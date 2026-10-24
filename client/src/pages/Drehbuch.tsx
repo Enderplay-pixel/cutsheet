@@ -404,8 +404,8 @@ export function Component() {
   })
 
   const createMutation = useMutation({
+    // Die Nummer vergibt der Server - er kennt die höchste vergebene.
     mutationFn: () => api.scenes.create(pid, {
-      scene_number: String((scenes?.length || 0) + 1),
       title: 'Neue Szene', int_ext: 'INT', day_night: 'TAG', eighths: 8,
     }),
     onSuccess: () => {
