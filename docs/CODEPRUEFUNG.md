@@ -141,6 +141,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 22 | `server/src/routes/admin.ts:387` (Reseed) mit `db/index.ts` (Start) | Fehler | Der Reseed sucht das globale Demo-Projekt über `owner_id IS NULL`, der Start hat es aber dem ersten Konto zugewiesen. Nach jedem Neustart legte jeder Reseed ein weiteres an. | ja: 16 → 17 Demo-Projekte, das alte blieb | behoben: Beim Start wird kein Inhaber mehr zugewiesen (Admins sehen alle Projekte, neue Konten haben ihr eigenes Demo). Gemessen über zwei Neustarts: 17 bleibt 17. In der Produktion liegen womöglich Dubletten beim ersten Konto. |
 | 23 | Mails in `abnahme.ts`, `agenturen.ts` (Anfrage, Nachfassen), `vertraege.ts` | Fehler | Freitext der Mitglieder ging ungefiltert ins Mail-HTML. "Alter <ca. 30, sportlich" kam als "Alter " an; jedes Mitglied konnte HTML in Mails unter dem Namen der Produktion setzen. | ja: Browser-Parser auf dem Mail-HTML; danach "Alter <ca. 30, sportlich" vollständig, HTML als Text | behoben: `maskiere` aus `lib/mailvorlagen.ts` |
 | 24 | `server/src/routes/agenturen.ts` (`POST /casting/:token/antwort`), `Agenturen.tsx` | **Sicherheit** | Eine Agentur ohne Konto setzte `showreel_url` frei; die angemeldete Seite der Produktion zeigte ihn als `href`. Gemessen: `href="javascript:alert(document.domain)"` im DOM. Ob ein Klick ihn ausführt, ist im Browserfenster ohne Pop-ups nicht messbar. | ja: Link im DOM der angemeldeten Seite | behoben: Server bereinigt (`lib/webadresse.ts`: nur http(s), ohne Schema wird https:// ergänzt), Client setzt nur http(s) als Link - gemessen auch für Altdaten |
+| 25 | `server/src/routes/aiScheduling.ts:10` | Fehler | Die KI-Drehplanung prüfte die **globale** Rolle (`admin/producer/director`). Registrierte Konten sind global `user` - selbst die Inhaberin bekam im eigenen Projekt "Keine Berechtigung". Dazu Umbau ohne Transaktion und `sort_order` ungeprüft aus der KI-Antwort. | Rolle ja: Inhaberin 403, globaler Admin weiter; Transaktion und `sort_order` **nicht messbar** ohne KI-Schlüssel | behoben: Projektrolle ab Regie (danach Inhaberin bis zur Schlüsselprüfung, Fremde 403); Umbau in einer Transaktion; `sort_order` bereinigt |
+| 26 | `aiBreakdown.ts:56`, `aiScheduling.ts:91` | Hinweis, Entscheidung | Beide nutzen `claude-opus-4-5`. Laut Modellreferenz (Stand 6.10.2026) **aktiv, nicht abgekündigt** - es läuft. Neuere Modelle (Opus 5.5) sind verfügbar; ein Wechsel ändert Verhalten und Kosten. | ja: Modellreferenz der claude-api-Skill | offen, für Florian |
 
 ## Abhakliste
 
@@ -168,8 +170,8 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/activityFeed.ts` (74) - Fund 20
 - [x] `server/src/routes/admin.ts` (386) - Funde 21, 22
 - [x] `server/src/routes/agenturen.ts` (558) - Funde 23, 24
-- [ ] `server/src/routes/aiBreakdown.ts` (139)
-- [ ] `server/src/routes/aiScheduling.ts` (132)
+- [x] `server/src/routes/aiBreakdown.ts` (139) - Fund 26
+- [x] `server/src/routes/aiScheduling.ts` (132) - Funde 25, 26
 - [ ] `server/src/routes/angebote.ts` (443)
 - [ ] `server/src/routes/anliegen.ts` (242)
 - [ ] `server/src/routes/audit.ts` (279)

@@ -1,13 +1,22 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import Anthropic from '@anthropic-ai/sdk'
+import { getUserProjectRole, ROLE_RANK } from '../middleware/projectAuth'
 
 const router = Router()
 
 // POST /api/projects/:pid/drehplan/ai-optimize
 router.post('/projects/:pid/drehplan/ai-optimize', async (req: Request, res: Response) => {
   const user = (req as any).user
-  if (!user || !['admin', 'producer', 'director'].includes(user.role)) {
+  if (!user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+  // Die Rolle im Projekt entscheidet, nicht die globale. Gemessen am
+  // 24.10.2026: Die Inhaberin bekam in ihrem eigenen Projekt "Keine
+  // Berechtigung" - registrierte Konten tragen global die Rolle "user", und
+  // nur ein globaler Admin kam durch. Erlaubt ab Regie, wie vorher gemeint.
+  const rolle = user.role === 'admin'
+    ? 'admin'
+    : await getUserProjectRole(user.id, Number(req.params.pid))
+  if ((ROLE_RANK[rolle ?? ''] ?? 0) < ROLE_RANK.director) {
     return res.status(403).json({ data: null, error: 'Keine Berechtigung' })
   }
 
@@ -103,28 +112,32 @@ Verwende nur existierende Drehtagnummern (1-${shootDays.length}). Alle Szenen mÃ
     return res.status(500).json({ data: null, error: 'KI-Antwort konnte nicht verarbeitet werden' })
   }
 
-  // Apply the new schedule
+  // Apply the new schedule - als Ganzes oder gar nicht. Vorher Zeile fuer
+  // Zeile: Scheiterte eine mittendrin (etwa an einer sort_order wie "2a" aus
+  // der KI-Antwort), blieb ein halb umgebauter Drehplan stehen.
   let movedCount = 0
-  for (const assignment of assignments) {
-    const day = shootDays.find((d: any) => d.day_number === assignment.shoot_day_number)
-    if (!day) continue
+  await db.transaction(async (tx) => {
+    for (const assignment of Array.isArray(assignments) ? assignments : []) {
+      const day = shootDays.find((d: any) => d.day_number === Number(assignment?.shoot_day_number))
+      if (!day) continue
 
-    const scene = scenes.find((s: any) => s.id === assignment.scene_id)
-    if (!scene) continue
+      const scene = scenes.find((s: any) => s.id === Number(assignment?.scene_id))
+      if (!scene) continue
 
-    // Remove from current day if assigned
-    if (scene.shoot_day_id) {
-      await db.run('DELETE FROM shoot_day_scenes WHERE shoot_day_id = ? AND scene_id = ?', [scene.shoot_day_id, scene.id])
+      // Remove from current day if assigned
+      if (scene.shoot_day_id) {
+        await tx.run('DELETE FROM shoot_day_scenes WHERE shoot_day_id = ? AND scene_id = ?', [scene.shoot_day_id, scene.id])
+      }
+
+      // Add to new day
+      await tx.run(
+        'INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, ?) ON CONFLICT DO NOTHING',
+        [day.id, scene.id, Math.max(0, Math.round(Number(assignment?.sort_order) || 0))]
+      )
+
+      if (scene.shoot_day_id !== day.id) movedCount++
     }
-
-    // Add to new day
-    await db.run(
-      'INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, ?) ON CONFLICT DO NOTHING',
-      [day.id, scene.id, assignment.sort_order]
-    )
-
-    if (scene.shoot_day_id !== day.id) movedCount++
-  }
+  })
 
   res.json({ data: { moved: movedCount, assignments, snapshot_created: true }, error: null })
 })
