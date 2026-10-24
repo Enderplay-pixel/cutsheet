@@ -66,9 +66,8 @@ Stand am 24.10.2026 abends, als das Nutzungslimit kam:
 
 - **Fertig:** Gruppe Middleware (7 Dateien). Funde 1-9 eingetragen, 1, 4, 5, 6, 9
   behoben und committet.
-- **Angefangen:** `server/src/db/index.ts` bis etwa Zeile 2200 gelesen
-  (Schema, Migrationen, `ensureTestAdmin`, Start-Nacharbeit). Offen ab dort:
-  der Rest von `seedDemoData` bis Dateiende. Danach `grossproduktion.ts`.
+- **Fertig:** Gruppe Datenbank (`db/index.ts`, `grossproduktion.ts`).
+- **Als Nächstes:** Gruppe "Server: Routen", alphabetisch ab `abnahme.ts`.
 - **Fund 10 erledigt** (Demo-Adressen), dazu Fund 11 (Importvorlage).
   Messweg für Mails: `scratchpad/smtp-falle.cjs`-Prinzip - ein Fang-SMTP,
   das nur `RCPT TO` mitschreibt, und eine zweite Instanz mit
@@ -130,6 +129,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 10 | `server/src/db/index.ts` (`seedDemoData`), `lib/mailversand.ts` | **Datenschutz, live** | Das Demo-Projekt jedes neuen Kontos enthielt 14 Adressen bei echten Anbietern (`email.de`, `gmx.de`, `gmail.com` ...). Ein Klick auf "Dispo versenden" schrieb Fremde an, unter Florians Absender, mit Dispo-PDF. | ja: Fang-SMTP auf Port 2525, zweite Instanz; 7 Empfänger kamen an (`felix.wagner@email.de` ...) | behoben: Demo-Adressen unter `@demo.test`, bestehende Demo-Projekte beim Start nachgezogen (nur die 14 bekannten Adressen); Versand legt `.test/.example/.invalid/.localhost` und `example.com/net/org` keinem Mailserver vor (`ohne_versand`); Dispo meldet `nicht_zustellbar`. Gemessen danach: 0 in der Falle. Test gegen alten Stand rot. |
 | 11 | `server/src/routes/tabellen.ts:207-215` | Datenschutz | Die Importvorlage für Stab, Besetzung und Komparsen trägt eine Beispielzeile mit `@beispiel.de` (registrierte Domain). Wer sie nicht löscht, importiert sie mit. | ja: Vorlage zurückgespielt, Vorschau `neu: Sarah Müller` | behoben: Beispieladressen unter `@beispiel.test` |
 | 12 | `server/src/db/index.ts` (`seedDemoData`) | Inhalt | Demo-Projekt in sich widersprüchlich: Postproduktion, VFX-Fristen und Versicherungen fest im Juni/Juli 2026, Drehtage relativ zu heute (Rohschnitt vier Monate vor dem Dreh, Haftpflicht "für alle Drehtage" vor dem ersten abgelaufen); "Reserve (5%)" waren 2,09 %; Rufzeiten widersprachen den Notizen ("Aufbau ab 06:00", gerufen 07:00); Besetzung ohne `ORDER BY`. | ja: frisches Konto, alle Werte aus der Datenbank gelesen | behoben: alles relativ zu `d()`, Reserve 892,50 €, Rufzeiten wie die Notizen |
+| 13 | `server/src/db/grossproduktion.ts:304,311` | Hinweis | Testprojekt "Nordlicht" erzeugte Adressen unter `motiv-kontakt.de` und `schauspiel-mail.de`. Beide derzeit nicht registriert - Mails kämen als Rückläufer zurück, und jeder kann die Domains anmelden. | ja: DNS `Non-existent domain` | behoben: `.test` wie der Rest der Datei |
 
 ## Abhakliste
 
@@ -147,8 +147,8 @@ Gesamt: 421 Dateien, 87774 Zeilen
 
 ### Server: Datenbank
 
-- [ ] `server/src/db/grossproduktion.ts` (620)
-- [ ] `server/src/db/index.ts` (2540)
+- [x] `server/src/db/grossproduktion.ts` (620) - Fund 13
+- [x] `server/src/db/index.ts` (2540) - Funde 3, 7, 8, 9, 10, 12
 
 ### Server: Routen
 

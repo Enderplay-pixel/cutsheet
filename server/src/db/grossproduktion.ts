@@ -306,7 +306,7 @@ export async function seedGrossproduktion(
 
     // Motive
     const locIds = await insertMany(tx, 'locations', ['project_id', 'name', 'address', 'city', 'zip', 'country', 'contact_name', 'contact_phone', 'contact_email', 'rental_fee', 'parking_info', 'power_available', 'notes'],
-      MOTIVE.map(m => { const k = person(); return [pid, m.name, m.addr, m.city, m.zip, 'Deutschland', k, tel(), mail(k, 'motiv-kontakt.de'), m.miete, m.parken, m.strom, m.note] }))
+      MOTIVE.map(m => { const k = person(); return [pid, m.name, m.addr, m.city, m.zip, 'Deutschland', k, tel(), mail(k, 'motiv-kontakt.test'), m.miete, m.parken, m.strom, m.note] }))
     zahlen.motive = locIds.length
 
     // Rollen und Besetzung
@@ -315,7 +315,7 @@ export async function seedGrossproduktion(
     const darsteller = ROLLEN.map((r, i) => {
       const n = i < 4 ? ['Katharina Brodersen', 'Hans-Jürgen Iversen', 'Mats Ewers', 'Aylin Demir'][i] : person()
       const gage = i < 2 ? 650000 : i < 6 ? 280000 : i < 12 ? 140000 : i < 24 ? 80000 : 45000
-      return [pid, charIds[i], n, mail(n, 'schauspiel-mail.de'), tel(), i < 12 ? person() : '', i < 12 ? mail('agent', 'agentur.test') : '', i < 12 ? pick(AGENTUREN) : '',
+      return [pid, charIds[i], n, mail(n, 'schauspiel.test'), tel(), i < 12 ? person() : '', i < 12 ? mail('agent', 'agentur.test') : '', i < 12 ? pick(AGENTUREN) : '',
         gage, i < 6 ? 'Pauschal + Tage' : 'Tagesgage', i % 5 === 0 ? 'Theaterverpflichtung donnerstags' : '', '', i < 2 ? 'Hauptrolle, Billing 1-2' : '']
     })
     const castIds = await insertMany(tx, 'cast', ['project_id', 'character_id', 'actor_name', 'email', 'phone', 'agent', 'agent_email', 'agency', 'fee_per_day', 'contract_type', 'availability_notes', 'photo_url', 'notes'], darsteller)
