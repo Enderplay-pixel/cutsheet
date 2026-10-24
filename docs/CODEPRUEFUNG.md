@@ -62,12 +62,17 @@ Aus Florians `CLAUDE.md` und der Erfahrung dieser Sitzung:
 
 ## Hier weitermachen
 
-Stand am 24.10.2026 abends, als das Nutzungslimit kam:
+Stand am 24.10.2026, 23 Uhr:
 
 - **Fertig:** Gruppe Middleware (7 Dateien). Funde 1-9 eingetragen, 1, 4, 5, 6, 9
   behoben und committet.
 - **Fertig:** Gruppe Datenbank (`db/index.ts`, `grossproduktion.ts`).
-- **Als Nächstes:** Gruppe "Server: Routen", alphabetisch ab `abnahme.ts`.
+- **Routen bis `angebote.ts` fertig** (siehe Haken). **Als Nächstes:**
+  `anliegen.ts`, dann alphabetisch weiter. Bei `auth.ts` Verdacht 8 prüfen.
+- Messweg für Geld: Firma, Kunde und Angebot über die API anlegen
+  (`POST /companies`, `/companies/:id/clients`, `/companies/:id/quotes`),
+  dann Beleg, `invoices/report/vat` und `buchhaltung/export.csv`
+  gegeneinander lesen.
 - **Fund 10 erledigt** (Demo-Adressen), dazu Fund 11 (Importvorlage).
   Messweg für Mails: `scratchpad/smtp-falle.cjs`-Prinzip - ein Fang-SMTP,
   das nur `RCPT TO` mitschreibt, und eine zweite Instanz mit
@@ -143,6 +148,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 24 | `server/src/routes/agenturen.ts` (`POST /casting/:token/antwort`), `Agenturen.tsx` | **Sicherheit** | Eine Agentur ohne Konto setzte `showreel_url` frei; die angemeldete Seite der Produktion zeigte ihn als `href`. Gemessen: `href="javascript:alert(document.domain)"` im DOM. Ob ein Klick ihn ausführt, ist im Browserfenster ohne Pop-ups nicht messbar. | ja: Link im DOM der angemeldeten Seite | behoben: Server bereinigt (`lib/webadresse.ts`: nur http(s), ohne Schema wird https:// ergänzt), Client setzt nur http(s) als Link - gemessen auch für Altdaten |
 | 25 | `server/src/routes/aiScheduling.ts:10` | Fehler | Die KI-Drehplanung prüfte die **globale** Rolle (`admin/producer/director`). Registrierte Konten sind global `user` - selbst die Inhaberin bekam im eigenen Projekt "Keine Berechtigung". Dazu Umbau ohne Transaktion und `sort_order` ungeprüft aus der KI-Antwort. | Rolle ja: Inhaberin 403, globaler Admin weiter; Transaktion und `sort_order` **nicht messbar** ohne KI-Schlüssel | behoben: Projektrolle ab Regie (danach Inhaberin bis zur Schlüsselprüfung, Fremde 403); Umbau in einer Transaktion; `sort_order` bereinigt |
 | 26 | `aiBreakdown.ts:56`, `aiScheduling.ts:91` | Hinweis, Entscheidung | Beide nutzen `claude-opus-4-5`. Laut Modellreferenz (Stand 6.10.2026) **aktiv, nicht abgekündigt** - es läuft. Neuere Modelle (Opus 5.5) sind verfügbar; ein Wechsel ändert Verhalten und Kosten. | ja: Modellreferenz der claude-api-Skill | offen, für Florian |
+| 27 | `server/src/routes/angebote.ts` (`POST`/`PUT .../quotes`) | Fehler, Geld | `tax_mode` wurde ungeprüft gespeichert und bei Annahme auf die Rechnung übertragen. Bei einem Wert außer `regel`/`kleinunternehmer` rechnete der Beleg 19 %, die USt-Auswertung auch, der Buchhaltungs-Export (`buchhaltung.ts`, `jeSatz`) aber 0,00 Umsatzsteuer. Nur über die API erreichbar, die Oberfläche schickt kein `tax_mode`. | ja: Angebot `xyz` → Rechnung 119,00 €, USt-Auswertung 19,00 €, CSV-Export "0,00" Steuer, "100,00" brutto | behoben: `istSteuerart` in `lib/rechnung.ts`, sonst 400; danach gemessen: `xyz` und `reverse_charge` 400, beide Steuerarten gehen durch |
+| 28 | `companies.tax_mode`, `routes/companies.ts:108` | Hinweis, Entscheidung | Die Kleinunternehmerregelung (§ 19 UStG) ist in Rechnung, Blatt und DATEV eingebaut, aber nicht einschaltbar: Keine Route setzt `companies.tax_mode`, und der Client schickt nirgends `tax_mode`. Jede Firma rechnet mit Regelbesteuerung. | nein, gelesen: `grep tax_mode` über Server und Client | offen, für Florian: Schalter in den Firmendaten oder Teil entfernen |
 
 ## Abhakliste
 
@@ -172,7 +179,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/agenturen.ts` (558) - Funde 23, 24
 - [x] `server/src/routes/aiBreakdown.ts` (139) - Fund 26
 - [x] `server/src/routes/aiScheduling.ts` (132) - Funde 25, 26
-- [ ] `server/src/routes/angebote.ts` (443)
+- [x] `server/src/routes/angebote.ts` (443) - Funde 15, 27, 28
 - [ ] `server/src/routes/anliegen.ts` (242)
 - [ ] `server/src/routes/audit.ts` (279)
 - [ ] `server/src/routes/auswertungen.ts` (361)

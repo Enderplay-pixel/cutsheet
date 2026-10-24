@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { angebotsNummer } from '../routes/angebote'
-import { formatiereNummer, summiere, faelligkeit, type Position } from '../lib/rechnung'
+import { formatiereNummer, summiere, faelligkeit, istSteuerart, type Position } from '../lib/rechnung'
 import {
   datevBetrag, datevDatum, datevText, datevKodieren, datevStapel,
   erloeskonto, ERLOESKONTEN, type Buchung,
@@ -67,6 +67,17 @@ describe('Summen eines Angebots mit zwei Steuersätzen', () => {
     expect(s.netto).toBe(1_143_000)
     expect(s.steuer).toBe(0)
     expect(s.brutto).toBe(1_143_000)
+  })
+
+  it('nimmt nur die zwei Steuerarten an', () => {
+    // Jeder andere Wert rechnete auf dem Beleg mit 19 %, im
+    // Buchhaltungs-Export aber mit 0 - gemessen am 24.10.2026.
+    expect(istSteuerart('regel')).toBe(true)
+    expect(istSteuerart('kleinunternehmer')).toBe(true)
+    expect(istSteuerart('reverse_charge')).toBe(false)
+    expect(istSteuerart('Regel')).toBe(false)
+    expect(istSteuerart('')).toBe(false)
+    expect(istSteuerart(undefined)).toBe(false)
   })
 })
 

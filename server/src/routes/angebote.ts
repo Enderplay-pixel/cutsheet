@@ -21,12 +21,17 @@ import { db } from '../db'
 import { requireAuth, AuthUser } from '../middleware/auth'
 import { erfordereAbrechnung } from './invoices'
 import { logAudit } from './audit'
-import { summiere, faelligkeit, euro, type Position, type Steuerart } from '../lib/rechnung'
+import { summiere, faelligkeit, euro, istSteuerart, type Position, type Steuerart } from '../lib/rechnung'
 import { renderRechnung } from '../lib/rechnungLayout'
 import { generatePdf } from './pdf'
 import { heuteISO } from '../lib/datum'
 
 const router = Router()
+
+// Gemessen am 24.10.2026: Ein Angebot mit tax_mode "xyz" wurde gespeichert und
+// zur Rechnung. Beleg und USt-Auswertung wiesen 19 % aus, der
+// Buchhaltungs-Export 0,00 Umsatzsteuer. Nur die zwei Steuerarten kommen rein.
+const STEUERART_FEHLER = 'Die Steuerart ist "regel" oder "kleinunternehmer"'
 
 function plusTage(datum: string, tage: number): string {
   const ms = Date.parse(`${String(datum).slice(0, 10)}T00:00:00Z`)
@@ -123,6 +128,8 @@ router.post('/companies/:companyId/quotes', requireAuth, erfordereAbrechnung(), 
   const companyId = Number(req.params.companyId)
   const ausstellung = String(req.body?.issue_date || heuteISO()).slice(0, 10)
   const firma = (await db.get('SELECT tax_mode FROM companies WHERE id = ?', [companyId])) as any
+  const steuerart = req.body?.tax_mode || firma?.tax_mode || 'regel'
+  if (!istSteuerart(steuerart)) return res.status(400).json({ data: null, error: STEUERART_FEHLER })
 
   // Das Angebot holt Kundenname und Projekttitel per JOIN dazu - nur Kunde
   // und Projekt dieser Firma.
@@ -148,7 +155,7 @@ router.post('/companies/:companyId/quotes', requireAuth, erfordereAbrechnung(), 
       String(req.body?.valid_until || plusTage(ausstellung, GUELTIG_TAGE)).slice(0, 10),
       String(req.body?.intro || ''),
       String(req.body?.outro || ''),
-      String(req.body?.tax_mode || firma?.tax_mode || 'regel'),
+      steuerart,
       (req as any).user?.id ?? null,
     ]
   )
@@ -185,7 +192,11 @@ router.put('/companies/:companyId/quotes/:quoteId', requireAuth, erfordereAbrech
   if ('valid_until' in req.body) setze('valid_until', req.body.valid_until ? String(req.body.valid_until).slice(0, 10) : null)
   if ('intro' in req.body) setze('intro', String(req.body.intro || ''))
   if ('outro' in req.body) setze('outro', String(req.body.outro || ''))
-  if ('tax_mode' in req.body) setze('tax_mode', String(req.body.tax_mode || 'regel'))
+  if ('tax_mode' in req.body) {
+    const steuerart = req.body.tax_mode || 'regel'
+    if (!istSteuerart(steuerart)) return res.status(400).json({ data: null, error: STEUERART_FEHLER })
+    setze('tax_mode', steuerart)
+  }
   if (felder.length === 0) return res.json({ data: await ladeAngebot(companyId, quoteId), error: null })
 
   await db.run(`UPDATE invoices SET ${felder.join(', ')}, updated_at = NOW() WHERE id = ?`, [...werte, quoteId])

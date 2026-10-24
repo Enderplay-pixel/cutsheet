@@ -20,6 +20,11 @@ export type Position = {
 
 export type Steuerart = 'regel' | 'kleinunternehmer'
 
+/** Ob ein Wert von außen eine der beiden Steuerarten ist. */
+export function istSteuerart(wert: unknown): wert is Steuerart {
+  return wert === 'regel' || wert === 'kleinunternehmer'
+}
+
 export type Summen = {
   netto: number
   steuer: number
