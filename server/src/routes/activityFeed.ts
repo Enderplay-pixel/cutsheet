@@ -21,7 +21,8 @@ function iconForAction(action: string, entityType: string): string {
 router.get('/projects/:projectId/activity', async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
-    const limit = Math.min(Number(req.query.limit) || 50, 200)
+    // Untergrenze 1: "?limit=-1" ergab LIMIT -1 und einen 500er.
+    const limit = Math.max(1, Math.min(Number(req.query.limit) || 50, 200))
 
     const auditEntries = await db.all(`
       SELECT id, user_name, action, entity_type, entity_id, created_at

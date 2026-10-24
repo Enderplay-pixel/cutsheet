@@ -1772,8 +1772,9 @@ describe('Neustart', () => {
     const zeilen = await db.all('SELECT id, owner_id FROM projects WHERE id IN (?, ?)', [verwaist, demo])
     const inhaber = new Map(zeilen.map((z: any) => [z.id, z.owner_id]))
     expect(inhaber.get(verwaist)).toBeNull()
-    // Das Demo-Projekt vom ersten Start bekommt weiter einen Inhaber.
-    expect(inhaber.get(demo)).not.toBeNull()
+    // Auch das Demo-Projekt vom ersten Start bleibt ohne Inhaber - sonst
+    // findet der Reseed es nicht wieder und legt ein weiteres an.
+    expect(inhaber.get(demo)).toBeNull()
   }, 60_000)
 })
 

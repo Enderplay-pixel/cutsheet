@@ -447,6 +447,10 @@ export function Betriebsuebersicht() {
             <p className="text-xs text-muted-foreground">Mailserver</p>
             <p>{data.mailserver ? 'eingerichtet' : 'fehlt'}</p>
           </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Adresse in Mail-Links</p>
+            <p className="break-all">{data.link_basis ?? '-'}</p>
+          </div>
         </div>
       </div>
     </div>

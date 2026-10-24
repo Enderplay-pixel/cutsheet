@@ -3,6 +3,7 @@ import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import { db, seedDemoData } from '../db'
 import { seedGrossproduktion } from '../db/grossproduktion'
 import { requireAuth, requireRole, vergissKonto } from '../middleware/auth'
+import { appBasisUrl } from '../lib/mailversand'
 
 const router = Router()
 
@@ -131,6 +132,18 @@ router.get('/betrieb', async (_req: Request, res: Response) => {
     })
   }
 
+  // Adresse in Links: Darsteller, Agenturen und Auftraggeber bekommen Links
+  // ohne Konto. Zeigen sie auf localhost, kommt keiner davon an (Fund 14 der
+  // Codepruefung, 24.10.2026).
+  const linkBasis = appBasisUrl()
+  if (/localhost|127\.0\.0\.1/.test(linkBasis) && process.env.NODE_ENV === 'production') {
+    warnungen.push({
+      stufe: 'hoch',
+      text: `Links in Mails zeigen auf ${linkBasis}.`,
+      rat: 'APP_BASE_URL auf die Adresse der Anwendung setzen, etwa https://cutsheet.onrender.com.',
+    })
+  }
+
   // Postausgang
   const postausgang = await db.all(
     'SELECT status, COUNT(*) AS anzahl FROM email_outbox GROUP BY status'
@@ -228,6 +241,7 @@ router.get('/betrieb', async (_req: Request, res: Response) => {
       warnungen,
       alles_in_ordnung: warnungen.length === 0,
       mailserver,
+      link_basis: linkBasis,
       postausgang: nachStatus,
       letzte_sicherung: letzteSicherung?.zeitpunkt ?? null,
       datenbank_ms: datenbankMs,

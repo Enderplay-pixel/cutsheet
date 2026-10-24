@@ -2085,16 +2085,14 @@ export async function initDatabase() {
     await seedDemoData()
   }
 
-  // Das Demo-Projekt vom ersten Start bekommt das erste Konto als Inhaber -
-  // und NUR das Demo-Projekt. Gemessen am 24.10.2026: Ohne die Einschränkung
-  // auf is_demo traf das jedes Projekt ohne Inhaber, und das sind die
-  // Projekte gelöschter Konten (owner_id ON DELETE SET NULL). Nach dem
-  // nächsten Neustart - also jedem Deploy - gehörten sie still dem ersten
-  // Konto der Datenbank, mit Gagen, Verträgen und Kontaktdaten.
-  await db.exec(`
-    UPDATE projects SET owner_id = (SELECT id FROM users ORDER BY id ASC LIMIT 1)
-    WHERE owner_id IS NULL AND is_demo = true AND (SELECT COUNT(*) FROM users) > 0
-  `)
+  // Kein Projekt bekommt beim Start einen Inhaber zugewiesen. Bis zum
+  // 24.10.2026 bekam jedes Projekt ohne Inhaber das erste Konto - auch die
+  // Projekte geloeschter Konten (owner_id ON DELETE SET NULL), nach jedem
+  // Deploy und mit allen Daten. Danach nur noch das Demo-Projekt vom ersten
+  // Start - und damit fand der Reseed (admin.ts, sucht owner_id IS NULL) es
+  // nie wieder und legte bei jedem Aufruf ein weiteres an. Zuweisen ist nicht
+  // noetig: Globale Admins sehen alle Projekte, und jedes neue Konto bekommt
+  // sein eigenes Demo-Projekt.
 
   // Fix roles: only first user keeps 'admin' - ausser dem Konto aus
   // ADMIN_EMAIL, das der Betreiber ausdruecklich als Admin festlegt
