@@ -2129,6 +2129,13 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
     // Drehtage einen Tag zu frueh an.
     return heuteISO(dt)
   }
+  // "30. Oktober" zu einem Datum aus d() - fuer Notizen, die einen Tag nennen.
+  const tagMonat = (iso: string) => new Date(`${iso}T12:00:00Z`)
+    .toLocaleDateString('de-DE', { day: 'numeric', month: 'long', timeZone: 'Europe/Berlin' })
+  // Alles unten steht relativ zu den Drehtagen d(-1), d(6) und d(7). Bis zum
+  // 24.10.2026 standen Postproduktion, VFX-Fristen und Versicherungen fest im
+  // Juni und Juli 2026 - der Rohschnitt war vier Monate vor dem Dreh fertig,
+  // und die Haftpflicht "fuer alle Drehtage" lief vor dem ersten ab.
 
   const projectResult = await db.run(`
     INSERT INTO projects (title, genre, format, length_minutes, status, director, producer, dop, production_company, shoot_start, shoot_end, owner_id, is_demo)
@@ -2293,7 +2300,8 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
     ['7000 - Verwaltung', '7100', 'Aufnahmeleitung', 'Tage', 3, 45000],
     ['8000 - Sonst.', '8100', 'Catering (3 Drehtage)', 'Tage', 3, 20000],
     ['8000 - Sonst.', '8200', 'Transport/Fahrzeuge', 'Pauschal', 1, 30000],
-    ['8000 - Sonst.', '8300', 'Reserve (5%)', 'Pauschal', 1, 37375],
+    // 5 % von 17.850 EUR. Hier stand 373,75 EUR - das sind 2,09 % (24.10.2026).
+    ['8000 - Sonst.', '8300', 'Reserve (5%)', 'Pauschal', 1, 89250],
   ]
 
   let totalBudget = 0
@@ -2398,16 +2406,18 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
     'INSERT INTO call_sheets (shoot_day_id, general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [dayId1, 420, 480, locId1, 'Sonnig, 18°C', '05:30', '21:00', 'Bitte pünktlich erscheinen. Parkplätze in der Nebenstraße.']
   )
-  const castRows = await db.all('SELECT id FROM "cast" WHERE project_id = ?', [projectId])
+  const castRows = await db.all('SELECT id FROM "cast" WHERE project_id = ? ORDER BY id ASC', [projectId])
   const crewRows = await db.all('SELECT id FROM crew WHERE project_id = ? ORDER BY id ASC', [projectId])
   const csEntries: Array<[string, number, number, string]> = [
     ['cast',  castRows[0]?.id, 420, 'Maske um 07:00'],
     ['cast',  castRows[1]?.id, 450, 'Maske um 07:30'],
     ['crew',  crewRows[0]?.id, 420, ''],
     ['crew',  crewRows[1]?.id, 420, ''],
-    ['crew',  crewRows[2]?.id, 420, 'Equipment-Aufbau ab 06:00'],
-    ['crew',  crewRows[4]?.id, 420, 'Ton-Setup ab 06:30'],
-    ['crew',  crewRows[7]?.id, 390, 'Einlass koordinieren'],
+    // Die Call-Zeit ist die Zeit der Notiz: Wer ab 06:00 aufbaut, steht um
+    // 06:00 auf der Dispo, nicht um 07:00. Die Aufnahmeleitung kommt zuerst.
+    ['crew',  crewRows[2]?.id, 360, 'Equipment-Aufbau ab 06:00'],
+    ['crew',  crewRows[4]?.id, 390, 'Ton-Setup ab 06:30'],
+    ['crew',  crewRows[7]?.id, 345, 'Einlass koordinieren'],
   ]
   for (let i = 0; i < csEntries.length; i++) {
     const [type, personId, callTime, notes] = csEntries[i]
@@ -2476,8 +2486,8 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
 
   // VFX shots - schema columns: shot_number, description, vfx_type, status, artist, deadline, complexity, notes
   const vfxShots = [
-    ['VFX-001', sceneIds[5], 'Regen wird digital hinzugefügt', 'Compositing', 'Offen', '', '2026-07-01', 'Mittel', ''],
-    ['VFX-002', sceneIds[0], 'Außenblick durchs Fenster - digitale Erweiterung', 'Matte Painting', 'Offen', '', '2026-07-15', 'Niedrig', ''],
+    ['VFX-001', sceneIds[5], 'Regen wird digital hinzugefügt', 'Compositing', 'Offen', '', d(30), 'Mittel', ''],
+    ['VFX-002', sceneIds[0], 'Außenblick durchs Fenster - digitale Erweiterung', 'Matte Painting', 'Offen', '', d(44), 'Niedrig', ''],
   ]
   for (const [shotNum, sceneId, desc, vfxType, status, artist, deadline, complexity, notesTxt] of vfxShots) {
     await db.run(
@@ -2488,11 +2498,11 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
 
   // Post-production phases - schema column is "phase" not "name"
   const postPhases = [
-    ['Rohschnitt', '2026-06-20', '2026-07-10', 'Maria Sommer', 'Laufend', 'Offline-Schnitt mit DaVinci Resolve'],
-    ['Feinschnitt', '2026-07-11', '2026-07-18', 'Ben Richter', 'Ausstehend', 'Online-Grading nach Schnittabnahme'],
-    ['Tonmischung', '2026-07-11', '2026-07-20', 'Julia Braun', 'Ausstehend', 'Atmos-Mix im Tonstudio München'],
-    ['Farbkorrektur', '2026-07-01', '2026-07-22', 'VFX-Studio Berlin', 'Ausstehend', 'Regen und Matte Painting'],
-    ['Abnahme', '2026-07-25', '2026-07-28', 'Thomas Bauer', 'Ausstehend', 'DCP + Web-Versionen'],
+    ['Rohschnitt', d(8), d(28), 'Maria Sommer', 'Ausstehend', 'Offline-Schnitt mit DaVinci Resolve'],
+    ['Feinschnitt', d(29), d(36), 'Ben Richter', 'Ausstehend', 'Online-Grading nach Schnittabnahme'],
+    ['Tonmischung', d(29), d(38), 'Julia Braun', 'Ausstehend', 'Atmos-Mix im Tonstudio München'],
+    ['Farbkorrektur', d(19), d(40), 'VFX-Studio Berlin', 'Ausstehend', 'Regen und Matte Painting'],
+    ['Abnahme', d(43), d(46), 'Thomas Bauer', 'Ausstehend', 'DCP + Web-Versionen'],
   ]
   for (let i = 0; i < postPhases.length; i++) {
     const [phase, start, end, responsible, status, notesTxt] = postPhases[i]
@@ -2517,9 +2527,9 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
 
   // Insurances
   const insurances = [
-    ['Filmversicherung', 'Allianz Film & Entertainment', 'FV-2026-48291', 500000000, 180000, '2026-05-01', '2026-08-31', 'All-Risk Deckung inkl. Produktionsabbruch'],
-    ['Haftpflicht', 'HDI Gerling', 'HP-2026-77412', 1000000000, 90000, '2026-06-01', '2026-06-30', 'Für alle Drehtage. Kopie beim AL.'],
-    ['Equipmentversicherung', 'Ergo', 'EQ-2026-33901', 200000000, 45000, '2026-06-10', '2026-06-20', 'Mietequipment Movietech abgedeckt'],
+    ['Filmversicherung', 'Allianz Film & Entertainment', 'FV-2026-48291', 500000000, 180000, d(-30), d(60), 'All-Risk Deckung inkl. Produktionsabbruch'],
+    ['Haftpflicht', 'HDI Gerling', 'HP-2026-77412', 1000000000, 90000, d(-3), d(10), 'Für alle Drehtage. Kopie beim AL.'],
+    ['Equipmentversicherung', 'Ergo', 'EQ-2026-33901', 200000000, 45000, d(-2), d(8), 'Mietequipment Movietech abgedeckt'],
   ]
   for (let i = 0; i < insurances.length; i++) {
     const [type, provider, policy, coverage, premium, start, end, notesTxt] = insurances[i]
@@ -2544,10 +2554,10 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
 
   // Extras - schema: name, phone, email, tariff_group, notes
   const extras = [
-    ['Thomas Meier', '0160 1112233', 'thomas.meier@demo.test', 'Standard', 'Café-Gast, 17. Juni'],
-    ['Sabine Koch', '0161 4445566', 'sabine.k@demo.test', 'Standard', 'Café-Gast, 17. Juni'],
-    ['Rainer Schmid', '0162 7778899', 'r.schmid@demo.test', 'Standard', 'Parkbesucher, 16. Juni'],
-    ['Petra Lange', '0163 0001122', 'p.lange@demo.test', 'Standard', 'Parkbesucherin, 16. Juni'],
+    ['Thomas Meier', '0160 1112233', 'thomas.meier@demo.test', 'Standard', `Café-Gast, ${tagMonat(d(7))}`],
+    ['Sabine Koch', '0161 4445566', 'sabine.k@demo.test', 'Standard', `Café-Gast, ${tagMonat(d(7))}`],
+    ['Rainer Schmid', '0162 7778899', 'r.schmid@demo.test', 'Standard', `Parkbesucher, ${tagMonat(d(6))}`],
+    ['Petra Lange', '0163 0001122', 'p.lange@demo.test', 'Standard', `Parkbesucherin, ${tagMonat(d(6))}`],
   ]
   for (const [name, phone, email, tariff, notesTxt] of extras) {
     await db.run(
