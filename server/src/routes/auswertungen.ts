@@ -22,8 +22,13 @@ import { heuteISO } from '../lib/datum'
 
 const router = Router()
 
+// Das Jahr in Berliner Zeit, wie heuteISO. new Date().getFullYear() liest die
+// Uhr des Servers (beim Hoster UTC): Gemessen für 00:30 Uhr am 1.1.2027 -
+// Zeitraum 2026-01-01 bis 2027-01-01, KSK-Jahr 2025 statt 2026.
+const diesesJahr = () => Number(heuteISO().slice(0, 4))
+
 function zeitraum(req: Request): { von: string; bis: string } {
-  const jahr = new Date().getFullYear()
+  const jahr = diesesJahr()
   return {
     von: String(req.query.von || `${jahr}-01-01`).slice(0, 10),
     bis: String(req.query.bis || heuteISO()).slice(0, 10),
@@ -202,7 +207,7 @@ router.get('/companies/:companyId/auswertungen/export.csv', requireAuth, erforde
  */
 router.get('/companies/:companyId/ksk', requireAuth, erfordereAbrechnung('produktion'), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
-  const jahr = Number(req.query.jahr) || new Date().getFullYear() - 1
+  const jahr = Number(req.query.jahr) || diesesJahr() - 1
   const firma = (await db.get('SELECT ksk_art, ksk_nummer, name FROM companies WHERE id = ?', [companyId])) as any
 
   const personen = (await db.all(
@@ -287,8 +292,13 @@ router.put('/companies/:companyId/ksk/:art/:personId', requireAuth, erfordereAbr
 
   // Drei Zustände: ja, nein, noch nicht entschieden. `null` ist keine
   // Abkürzung für nein.
+  // Fehlt der Wert, ist das kein Nein: Gemessen am 24.10.2026 machte ein
+  // leerer Körper aus "unentschieden" ein "nein".
   const wert = req.body?.ksk_relevant
-  const gesetzt = wert === null ? null : wert === true
+  if (wert !== true && wert !== false && wert !== null) {
+    return res.status(400).json({ data: null, error: 'ksk_relevant ist true, false oder null' })
+  }
+  const gesetzt: boolean | null = wert
 
   const zeile = await db.run(
     `UPDATE ${tabelle} SET ksk_relevant = ?
@@ -315,7 +325,7 @@ router.put('/companies/:companyId/ksk/einstellungen', requireAuth, erfordereAbre
 /** Die Aufstellung für die Meldung als CSV. */
 router.get('/companies/:companyId/ksk/export.csv', requireAuth, erfordereAbrechnung('produktion'), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
-  const jahr = Number(req.query.jahr) || new Date().getFullYear() - 1
+  const jahr = Number(req.query.jahr) || diesesJahr() - 1
 
   const zeilen = (await db.all(
     `SELECT c.name, c.role AS funktion, p.title AS projekt, c.fee_per_day,

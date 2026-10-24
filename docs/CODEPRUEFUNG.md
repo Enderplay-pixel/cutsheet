@@ -67,8 +67,8 @@ Stand am 24.10.2026, 23 Uhr:
 - **Fertig:** Gruppe Middleware (7 Dateien). Funde 1-9 eingetragen, 1, 4, 5, 6, 9
   behoben und committet.
 - **Fertig:** Gruppe Datenbank (`db/index.ts`, `grossproduktion.ts`).
-- **Routen bis `audit.ts` fertig** (siehe Haken). **Als Nächstes:**
-  `auswertungen.ts`, dann alphabetisch weiter. Bei `auth.ts` Verdacht 8 prüfen.
+- **Routen bis `auswertungen.ts` fertig** (siehe Haken). **Als Nächstes:**
+  `auth.ts` (Verdacht 8 prüfen), dann alphabetisch weiter.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
   `auth.ts` ~308 setzt `user.name` unmaskiert in die Passwort-Mail;
   `invites.ts` ~27 setzt Projekttitel und Namen der Einladenden unmaskiert
@@ -77,6 +77,8 @@ Stand am 24.10.2026, 23 Uhr:
   `lib/meldungenText.ts` - bei `sprache.ts`/`meldungenText.ts` prüfen, ob
   englische Nutzer sie deutsch bekommen. 72 Routen fangen Fehler selbst ab
   und geben 500 "Interner Serverfehler" (Muster aus Fund 34).
+  `Kostenstand.tsx:70` liest den Betrag mit `parseFloat(x.replace(',', '.'))`
+  - "1.234,56" würde 1,23 € (`parseFloat("1.234.56")` ist 1.234).
 - **Zeitstempel:** `pg` liefert TIMESTAMPTZ als `Date`, nur DATE kommt als
   Text (`db/index.ts:14`). `String(zeitstempel).slice(0, 10)` ist immer
   falsch - siehe Fund 29.
@@ -168,6 +170,9 @@ sind ein Render-Dienst aus demselben Bau.
 | 33 | `server/src/routes/anliegen.ts:104` | Fehler | Abgelaufene Nachweise abgeschlossener Projekte standen als "dringend" in der Liste - jede Genehmigung läuft irgendwann ab, die Liste wüchse mit jedem Projekt. | ja: Drehgenehmigung im archivierten Projekt "dringend" | behoben: nur nicht archivierte Projekte |
 | 34 | `server/src/middleware/eingabe.ts` (`uebersetzeDatenbankfehler`), `routes/audit.ts` | Fehler, klein | Ein ungültiges Datum in einem Filter (`?von=abc`, `?bis=2026-13-45`) ergab 500 "Unerwarteter Serverfehler" - der Übersetzer kannte Datumsfehler nicht, `audit.ts` fing Fehler selbst ab und gab 500. | ja: Buchhaltung, USt-Auswertung, Auswertungen, Protokoll (Liste und CSV) je 500 | behoben: Regel im Übersetzer (400 "Ein Datum ist ungültig."), `audit.ts` reicht Fehler weiter; danach alle sechs 400, gültige Filter 200 |
 | 35 | `server/src/lib/tabelle.ts:181` (`schreibeCsv`) | Härtung, Entscheidung | CSV-Felder, die mit `=`, `+`, `-` oder `@` beginnen, gehen unverändert hinaus. Excel liest so ein Feld als Formel - im Protokoll-Export etwa einen selbst gewählten Kontonamen `=HYPERLINK(...)`. Schutz (vorangestelltes `'`) hätte Folgen: Telefonnummern wie `+49 151…` und der Wiederimport über `tabellen.ts` müssten mitbedacht werden. | Feld ja: `"=HYPERLINK(""https://beispiel.test"";""Klick"")"` im Export; Ausführung in Excel **nicht gemessen** | offen, beim Lesen von `lib/tabelle.ts` mit Import zusammen entscheiden |
+| 36 | `server/src/routes/auswertungen.ts:28,210,328` | Fehler, klein | Wie Fund 15, aber fürs Jahr: Standardzeitraum und KSK-Jahr kamen aus `new Date().getFullYear()` (Serveruhr, beim Hoster UTC). | ja, gerechnet für 00:30 Uhr am 1.1.2027 Berliner Zeit: Zeitraum `2026-01-01` bis `2027-01-01`, KSK-Jahr 2025 statt 2026 | behoben: Jahr aus `heuteISO()`; heute gemessen unverändert (`2026-01-01` bis heute, KSK 2025) |
+| 37 | `server/src/routes/auswertungen.ts` (`PUT .../ksk/:art/:personId`) | Fehler | Ohne `ksk_relevant` im Körper wurde aus "unentschieden" ein "nein" - der Kommentar daneben sagt, `null` sei keine Abkürzung für nein, `undefined` war es doch. | ja: `{}` → `ksk_relevant: false` in der Datenbank | behoben: nur `true`, `false`, `null`, sonst 400; alle fünf Fälle gemessen |
+| 38 | `auswertungen.ts` (Deckungsbeitrag), `Kostenstand.tsx` | Hinweis, Entscheidung | Der Deckungsbeitrag zieht von **Netto**-Umsätzen die Ausgaben ab. Bei Ausgaben steht nur "Betrag", ohne netto oder brutto. Wer Belege brutto erfasst, sieht eine um die Vorsteuer zu niedrige Marge. | nein, gelesen: `expenses` hat nur `amount_cents`, Eingabefeld "Betrag (€)" | offen, für Florian: Feld als "netto" beschriften oder Steuer mit erfassen |
 
 ## Abhakliste
 
@@ -200,7 +205,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/angebote.ts` (443) - Funde 15, 27, 28
 - [x] `server/src/routes/anliegen.ts` (242) - Funde 15, 29-33
 - [x] `server/src/routes/audit.ts` (279) - Funde 34, 35
-- [ ] `server/src/routes/auswertungen.ts` (361)
+- [x] `server/src/routes/auswertungen.ts` (361) - Funde 15, 36-38
 - [ ] `server/src/routes/auth.ts` (493)
 - [ ] `server/src/routes/backup.ts` (230)
 - [ ] `server/src/routes/blackoutDates.ts` (152)
