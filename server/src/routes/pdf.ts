@@ -21,6 +21,7 @@ import {
   type SceneInput,
 } from '../lib/screenplayFormat'
 import { dauer, nettoDrehzeit } from '../lib/drehzeit'
+import { mitUeberschrift } from '../lib/szenenUeberschrift'
 
 const router = Router()
 
@@ -1034,23 +1035,14 @@ router.get('/projects/:projectId/pdf/screenplay', async (req, res) => {
     else bySceneId.set(b.scene_id, [b])
   }
 
-  const sceneInputs: SceneInput[] = scenes.map(scene => {
-    const own = bySceneId.get(scene.id) ?? []
-    if (own.length > 0) return { scene_number: scene.scene_number, blocks: own }
-
-    // Leere Szene: Überschrift aus den Szenen-Metadaten bauen, damit sie im
-    // Drehbuch nicht fehlt (gleiches Verhalten wie beim Fountain-Export).
-    const intExt = String(scene.int_ext || 'INT').toUpperCase()
-    const heading = [
-      `${intExt}.`,
-      String(scene.title || `SZENE ${scene.scene_number}`).toUpperCase(),
-      scene.day_night ? `- ${String(scene.day_night).toUpperCase()}` : '',
-    ].filter(Boolean).join(' ')
-    return {
-      scene_number: scene.scene_number,
-      blocks: [{ block_type: 'scene_heading', content: heading }],
-    }
-  })
+  // Die Überschrift wird ergänzt, sobald sie fehlt - nicht erst, wenn die
+  // Szene ganz leer ist. Gemessen am 24.10.2026: Jede neu angelegte Szene
+  // bekam einen leeren Aktionsblock und galt damit als "hat Blöcke", worauf
+  // sie ohne INT/EXT, ohne Titel und ohne Tageszeit im PDF stand.
+  const sceneInputs: SceneInput[] = scenes.map(scene => ({
+    scene_number: scene.scene_number,
+    blocks: mitUeberschrift(scene, bySceneId.get(scene.id) ?? []) as SceneInput['blocks'],
+  }))
 
   const scriptPages = layoutScreenplay(sceneInputs, { includeAnnotations })
 

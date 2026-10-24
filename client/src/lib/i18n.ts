@@ -603,6 +603,7 @@ export const screenplayT = {
   hintBackspace:   { en: 'Delete empty block',  de: 'Leeren Block löschen', fr: 'Supprimer bloc vide' },
   errCreate:       { en: 'Error creating block', de: 'Fehler beim Erstellen des Blocks', fr: 'Erreur lors de la création du bloc' },
   errDelete:       { en: 'Error deleting',       de: 'Fehler beim Löschen', fr: 'Erreur lors de la suppression' },
+  errSave:         { en: 'Line not saved',       de: 'Zeile nicht gespeichert', fr: 'Ligne non enregistrée' },
   errScene:        { en: 'Error creating scene', de: 'Fehler beim Erstellen der Szene', fr: 'Erreur lors de la création de la scène' },
   errImport:       { en: 'Import failed',        de: 'Import fehlgeschlagen', fr: 'Échec de l\'importation' },
   importSuccess:   { en: 'Import successful',    de: 'Import erfolgreich',  fr: 'Importation réussie'  },

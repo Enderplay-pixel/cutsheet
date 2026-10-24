@@ -42,6 +42,29 @@ interface ScreenplayBlock {
   annotation_color: string
   created_at: string
   updated_at: string
+  /**
+   * Bleibt gleich, auch wenn die id vom Server nachgereicht wird.
+   *
+   * Eine neue Zeile entsteht sofort im Browser und bekommt ihre id erst mit
+   * der Antwort. Stünde die id im `key`, baute React die Zeile in diesem
+   * Moment neu auf - mitten im Schreiben, mit verlorenem Schreibstrich.
+   */
+  schluessel?: string
+}
+
+/** Der Schlüssel, unter dem React eine Zeile wiedererkennt. */
+function blockSchluessel(b: ScreenplayBlock): string {
+  return b.schluessel ?? `s${b.id}`
+}
+
+/** Die Überschriftenzeile, wie sie aus den Feldern der Szene folgt. */
+function ueberschriftAusSzene(scene: any): string {
+  const ortRoh = String(scene?.int_ext ?? '').trim().toUpperCase() || 'INT'
+  const ort = ortRoh.endsWith('.') ? ortRoh : `${ortRoh}.`
+  const titel = (String(scene?.title ?? '').trim()
+    || `SZENE ${String(scene?.scene_number ?? '').trim()}`.trim()).toUpperCase()
+  const zeit = String(scene?.day_night ?? '').trim().toUpperCase()
+  return [ort, titel, zeit ? `- ${zeit}` : ''].filter(Boolean).join(' ')
 }
 
 interface SceneData {
@@ -316,6 +339,7 @@ interface SceneSectionProps {
   onTabKey: (blockId: number, shift: boolean) => void
   onCreateFirstBlock: (sceneId: number) => void
   textareaRefs: React.MutableRefObject<Map<number, HTMLTextAreaElement>>
+  onBlockMounted: (blockId: number, el: HTMLTextAreaElement) => void
   sectionRef: (el: HTMLDivElement | null) => void
   blockTypeLabels: Record<BlockType, string>
 }
@@ -332,6 +356,7 @@ function SceneSection({
   onTabKey,
   onCreateFirstBlock,
   textareaRefs,
+  onBlockMounted,
   sectionRef,
   blockTypeLabels,
 }: SceneSectionProps) {
@@ -353,7 +378,7 @@ function SceneSection({
             {scene.scene_number}.
           </span>
           <p className="font-mono text-sm font-bold uppercase text-foreground">
-            {scene.int_ext}. {scene.title} - {scene.day_night}
+            {ueberschriftAusSzene(scene)}
           </p>
           {allBlocks.length === 0 && (
             <p className="font-mono text-xs text-muted-foreground/30 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -365,7 +390,7 @@ function SceneSection({
 
       {allBlocks.map(block => (
         <BlockEditor
-          key={block.id}
+          key={blockSchluessel(block)}
           block={block}
           isActive={activeBlockId === block.id}
           sceneNumber={block.block_type === 'scene_heading' ? scene.scene_number : undefined}
@@ -376,57 +401,16 @@ function SceneSection({
           onBackspaceEmpty={onBackspaceEmpty}
           onTabKey={onTabKey}
           textareaRef={el => {
-            if (el) textareaRefs.current.set(block.id, el)
-            else textareaRefs.current.delete(block.id)
+            if (el) {
+              textareaRefs.current.set(block.id, el)
+              onBlockMounted(block.id, el)
+            } else textareaRefs.current.delete(block.id)
           }}
           blockTypeLabel={blockTypeLabels[block.block_type]}
         />
       ))}
     </div>
   )
-}
-
-// ─── Fountain export ──────────────────────────────────────────────────────────
-
-function exportFountain(localScenes: SceneData[], projectTitle: string): string {
-  const lines: string[] = []
-  lines.push(`Title: ${projectTitle}`)
-  lines.push('')
-
-  for (const sd of localScenes) {
-    for (const block of sd.blocks) {
-      switch (block.block_type) {
-        case 'scene_heading':
-          lines.push('', block.content.toUpperCase(), '')
-          break
-        case 'action':
-          lines.push(block.content, '')
-          break
-        case 'character':
-          lines.push(block.content.toUpperCase())
-          break
-        case 'dialogue':
-          lines.push(block.content, '')
-          break
-        case 'parenthetical':
-          lines.push(block.content.startsWith('(') ? block.content : `(${block.content})`)
-          break
-        case 'transition':
-          lines.push('', `> ${block.content}`, '')
-          break
-        case 'note':
-          lines.push(`[[ ${block.content} ]]`, '')
-          break
-        case 'super':
-          lines.push(`SUPER: "${block.content}"`, '')
-          break
-        case 'intercut':
-          lines.push('', `INTERCUT WITH:`, block.content || '', '')
-          break
-      }
-    }
-  }
-  return lines.join('\n')
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -448,8 +432,40 @@ export function Component() {
 
   const textareaRefs = useRef<Map<number, HTMLTextAreaElement>>(new Map())
   const sectionRefs = useRef<Map<number, HTMLDivElement>>(new Map())
-  const pendingSaves = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  /**
+   * Der Stand, auf dem die Tastatur arbeitet.
+   *
+   * `localScenes` kommt aus dem Zustand und hinkt in Rückrufen eine Runde
+   * hinterher. Wer zügig schreibt, löst aber mehrere Ereignisse aus, bevor
+   * React neu gezeichnet hat. Deshalb liegt derselbe Stand zusätzlich in
+   * einem Ref und wird dort sofort fortgeschrieben.
+   */
+  const szenenRef = useRef<SceneData[]>([])
+  function setzeSzenen(f: (vorher: SceneData[]) => SceneData[]) {
+    const neu = f(szenenRef.current)
+    szenenRef.current = neu
+    setLocalScenes(neu)
+  }
+
+  /** Der aktive Block, synchron lesbar - für Rückrufe, die nicht warten können. */
+  const aktiverBlockRef = useRef<number | null>(null)
+  function waehle(id: number | null) {
+    aktiverBlockRef.current = id
+    setActiveBlockId(id)
+  }
+
+  /** Zeilen, die es bisher nur im Browser gibt: negative Kennungen. */
+  const naechsteTempId = useRef(-1)
+  const tempZuEcht = useRef(new Map<number, number>())
+  /** Zeilen, die wieder gelöscht wurden, bevor der Server geantwortet hat. */
+  const verworfen = useRef(new Set<number>())
+  /** Was noch nicht beim Server ist - je Zeile gesammelt. */
+  const offen = useRef(new Map<number, Record<string, any>>())
+  const speicherUhren = useRef(new Map<number, ReturnType<typeof setTimeout>>())
+  /** Welche Zeile den Schreibstrich bekommt, sobald sie im Dokument steht. */
+  const fokusWunsch = useRef<number | null>(null)
 
   // Translated block type labels (computed once per render)
   const blockTypeLabels: Record<BlockType, string> = {
@@ -491,69 +507,205 @@ export function Component() {
   })
 
   useEffect(() => {
-    if (scenesData) setLocalScenes(scenesData as SceneData[])
+    if (!scenesData) return
+    // Ein Neuladen vom Server darf nicht über ungespeicherte Zeilen laufen.
+    // Sonst steht nach dem Zurückkehren ins Fenster der halbe Satz wieder da,
+    // den der Server kennt - und der eben getippte ist weg.
+    if (offen.current.size > 0) return
+    setzeSzenen(() => scenesData as SceneData[])
   }, [scenesData])
+
+  // ─── Speichern ─────────────────────────────────────────────────────────────
+
+  /** Die Kennung beim Server - `null`, solange die Antwort aussteht. */
+  function echteId(blockId: number): number | null {
+    if (blockId >= 0) return blockId
+    return tempZuEcht.current.get(blockId) ?? null
+  }
+
+  /** Eine Änderung vormerken und nach kurzer Ruhe schicken. */
+  function merkeAenderung(blockId: number, feld: Record<string, any>) {
+    offen.current.set(blockId, { ...(offen.current.get(blockId) ?? {}), ...feld })
+    setSaving(true)
+    const alt = speicherUhren.current.get(blockId)
+    if (alt) clearTimeout(alt)
+    speicherUhren.current.set(blockId, setTimeout(() => {
+      speicherUhren.current.delete(blockId)
+      schicke(blockId)
+    }, 500))
+  }
+
+  /**
+   * Das Vorgemerkte zum Server bringen.
+   *
+   * Hat die Zeile noch keine Kennung, bleibt die Änderung liegen - das
+   * Anlegen holt sie nach. Vorher ging genau das verloren: Was während der
+   * Antwortzeit getippt wurde, hatte kein Ziel.
+   */
+  function schicke(blockId: number) {
+    const daten = offen.current.get(blockId)
+    if (!daten) { setSaving(offen.current.size > 0); return }
+    const id = echteId(blockId)
+    if (id === null) return
+    offen.current.delete(blockId)
+    updateBlockMutation.mutate({ blockId: id, data: daten }, {
+      onError: (fehler: any) => {
+        // Nicht stillschweigend verlieren: zurück in die Warteschlange, und
+        // der Mensch erfährt, dass sein Satz noch nicht gesichert ist.
+        offen.current.set(blockId, { ...daten, ...(offen.current.get(blockId) ?? {}) })
+        toast({
+          title: tt(screenplayT.errSave),
+          description: fehler?.message || String(fehler),
+          variant: 'destructive',
+        })
+      },
+      onSettled: () => setSaving(offen.current.size > 0),
+    })
+  }
 
   // ─── Mutations ─────────────────────────────────────────────────────────────
 
+  /**
+   * Eine Zeile anlegen.
+   *
+   * Die Zeile steht sofort im Dokument, die Kennung kommt nach. Gemessen am
+   * 24.10.2026 bei 1,2 Sekunden Antwortzeit: Vorher entstand die Zeile erst
+   * mit der Antwort. Alles, was in dieser Sekunde getippt wurde, landete in
+   * der vorigen Zeile, und der Schreibstrich sprang danach mitten im Satz
+   * weg. Auf dem freien Plan von Render dauert eine Runde regelmäßig so
+   * lange - dort war Weiterschreiben nach jedem Enter unmöglich.
+   */
   const createBlockMutation = useMutation({
-    mutationFn: ({ sceneId, data }: { sceneId: number; data: any }) =>
+    mutationFn: ({ sceneId, data }: { tempId: number; sceneId: number; data: any }) =>
       api.screenplay.createBlock(sceneId, data),
-    onSuccess: (newBlock) => {
-      setLocalScenes(prev =>
-        prev.map(sd => {
-          if (sd.scene.id !== newBlock.scene_id) return sd
-          // Mirror the server-side shift: everything at or below the new slot moves down.
-          const shifted = sd.blocks.map(b =>
-            b.sort_order >= newBlock.sort_order ? { ...b, sort_order: b.sort_order + 1 } : b
-          )
-          return { ...sd, blocks: [...shifted, newBlock].sort((a, b) => a.sort_order - b.sort_order) }
-        })
-      )
-      setTimeout(() => {
-        const el = textareaRefs.current.get(newBlock.id)
-        if (el) { el.focus(); setActiveBlockId(newBlock.id) }
-      }, 50)
+    onSuccess: (newBlock: any, { tempId }) => {
+      tempZuEcht.current.set(tempId, newBlock.id)
+
+      // Vor der Antwort schon wieder gelöscht: dann auch beim Server weg.
+      if (verworfen.current.has(tempId)) {
+        verworfen.current.delete(tempId)
+        offen.current.delete(tempId)
+        deleteBlockMutation.mutate(newBlock.id)
+        return
+      }
+
+      setzeSzenen(vorher => vorher.map(sd => ({
+        ...sd,
+        blocks: sd.blocks.map(b => (b.id === tempId
+          // Der Inhalt bleibt der aus dem Browser: Während der Server
+          // antwortete, ist weitergeschrieben worden.
+          ? { ...b, id: newBlock.id, scene_id: newBlock.scene_id, project_id: newBlock.project_id }
+          : b)),
+      })))
+
+      if (fokusWunsch.current === tempId) fokusWunsch.current = newBlock.id
+      if (aktiverBlockRef.current === tempId) waehle(newBlock.id)
+      textareaRefs.current.delete(tempId)
+
+      // Was in der Zwischenzeit getippt wurde, jetzt nachreichen.
+      const liegengeblieben = offen.current.get(tempId)
+      if (liegengeblieben) {
+        offen.current.delete(tempId)
+        offen.current.set(newBlock.id, liegengeblieben)
+        schicke(newBlock.id)
+      }
     },
-    onError: (err: any) => toast({ title: tt(screenplayT.errCreate), description: err?.message || String(err), variant: 'destructive' }),
+    onError: (err: any, { tempId }) => {
+      // Ohne Kennung steht die Zeile nur im Browser. Sie muss weg - sonst
+      // schreibt jemand weiter in etwas, das nirgends ankommt.
+      setzeSzenen(vorher => vorher.map(sd => ({ ...sd, blocks: sd.blocks.filter(b => b.id !== tempId) })))
+      offen.current.delete(tempId)
+      verworfen.current.delete(tempId)
+      toast({ title: tt(screenplayT.errCreate), description: err?.message || String(err), variant: 'destructive' })
+    },
   })
+
+  /** Eine Zeile im Browser anlegen und dem Server nachmelden. */
+  function legeBlockAn(sceneId: number, typ: BlockType, sortOrder: number, inhalt = ''): number {
+    const tempId = naechsteTempId.current--
+    const neu: ScreenplayBlock = {
+      id: tempId,
+      scene_id: sceneId,
+      project_id: pid,
+      sort_order: sortOrder,
+      block_type: typ,
+      content: inhalt,
+      annotation_color: '#f59e0b',
+      created_at: '',
+      updated_at: '',
+      schluessel: `t${tempId}`,
+    }
+    setzeSzenen(vorher => vorher.map(sd => {
+      if (sd.scene.id !== sceneId) return sd
+      // Wie auf dem Server: Alles ab dem neuen Platz rutscht eins nach unten.
+      const geschoben = sd.blocks.map(b =>
+        b.sort_order >= sortOrder ? { ...b, sort_order: b.sort_order + 1 } : b
+      )
+      return { ...sd, blocks: [...geschoben, neu].sort((a, b) => a.sort_order - b.sort_order) }
+    }))
+    fokusWunsch.current = tempId
+    createBlockMutation.mutate({
+      tempId, sceneId,
+      data: { block_type: typ, content: inhalt, sort_order: sortOrder },
+    })
+    return tempId
+  }
+
+  /** Den Schreibstrich setzen, sobald die gewünschte Zeile wirklich dasteht. */
+  const handleBlockMounted = useCallback((blockId: number, el: HTMLTextAreaElement) => {
+    if (fokusWunsch.current !== blockId) return
+    fokusWunsch.current = null
+    el.focus()
+    el.setSelectionRange(el.value.length, el.value.length)
+    waehle(blockId)
+  }, [])
 
   const updateBlockMutation = useMutation({
     mutationFn: ({ blockId, data }: { blockId: number; data: any }) =>
       api.screenplay.updateBlock(blockId, data),
   })
 
+  // Die Zeile verschwindet schon beim Tastendruck aus dem Dokument; hier
+  // bleibt nur die Meldung, falls der Server sie nicht loswird.
   const deleteBlockMutation = useMutation({
     mutationFn: (blockId: number) => api.screenplay.deleteBlock(blockId),
-    onSuccess: (_, blockId) => {
-      setLocalScenes(prev =>
-        prev.map(sd => ({ ...sd, blocks: sd.blocks.filter(b => b.id !== blockId) }))
-      )
-    },
     onError: () => toast({ title: tt(screenplayT.errDelete), variant: 'destructive' }),
   })
+
+  /** Eine Zeile entfernen - im Browser sofort, beim Server sobald möglich. */
+  function entferneBlock(blockId: number) {
+    const uhr = speicherUhren.current.get(blockId)
+    if (uhr) { clearTimeout(uhr); speicherUhren.current.delete(blockId) }
+    offen.current.delete(blockId)
+    setSaving(offen.current.size > 0)
+    setzeSzenen(vorher => vorher.map(sd => ({ ...sd, blocks: sd.blocks.filter(b => b.id !== blockId) })))
+    const id = echteId(blockId)
+    // Noch keine Kennung: Das Anlegen räumt sie weg, sobald es zurückkommt.
+    if (id === null) { verworfen.current.add(blockId); return }
+    deleteBlockMutation.mutate(id)
+  }
 
   const createSceneMutation = useMutation({
     mutationFn: () =>
       api.scenes.create(pid, {
-        scene_number: String((localScenes.length || 0) + 1),
-        title: 'New Scene',
+        scene_number: String((szenenRef.current.length || 0) + 1),
+        title: 'Neue Szene',
         int_ext: 'INT',
-        day_night: 'DAY',
+        // TAG und NACHT sind die Werte, nach denen Drehplan und Statistik
+        // filtern. Hier stand DAY - diese Szenen zählten nirgends mit.
+        day_night: 'TAG',
         eighths: 8,
       }),
-    onSuccess: (newScene) => {
-      const newSceneData: SceneData = { scene: newScene, blocks: [] }
-      setLocalScenes(prev => [...prev, newSceneData])
+    onSuccess: (newScene: any) => {
+      // Der Server legt die Überschrift gleich mit an und schickt sie mit.
+      // Keine zweite Runde, kein Warten, kein leerer Aktionsblock.
+      const bloecke: ScreenplayBlock[] = (newScene.blocks ?? []).map((b: any) => ({ ...b }))
+      setzeSzenen(vorher => [...vorher, { scene: newScene, blocks: bloecke }])
       queryClient.invalidateQueries({ queryKey: ['scenes', pid] })
-      setTimeout(() => {
-        const el = sectionRefs.current.get(newScene.id)
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        createBlockMutation.mutate({
-          sceneId: newScene.id,
-          data: { block_type: 'scene_heading', content: 'INT. NEW SCENE - DAY', sort_order: 0 },
-        })
-      }, 100)
+      if (bloecke.length > 0) fokusWunsch.current = bloecke[0].id
+      // Nur das Scrollen braucht den fertigen Aufbau - der Schreibstrich nicht.
+      setTimeout(() => sectionRefs.current.get(newScene.id)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
     },
     onError: () => toast({ title: tt(screenplayT.errScene), variant: 'destructive' }),
   })
@@ -580,85 +732,57 @@ export function Component() {
 
   // ─── Block operations ──────────────────────────────────────────────────────
 
-  function scheduleSave(blockId: number, content: string) {
-    setSaving(true)
-    const existing = pendingSaves.current.get(blockId)
-    if (existing) clearTimeout(existing)
-    const timer = setTimeout(() => {
-      updateBlockMutation.mutate(
-        { blockId, data: { content } },
-        { onSettled: () => setSaving(false) }
-      )
-      pendingSaves.current.delete(blockId)
-    }, 500)
-    pendingSaves.current.set(blockId, timer)
-  }
-
   const handleContentChange = useCallback((blockId: number, content: string) => {
-    setLocalScenes(prev =>
-      prev.map(sd => ({
-        ...sd,
-        blocks: sd.blocks.map(b => (b.id === blockId ? { ...b, content } : b)),
-      }))
-    )
-    scheduleSave(blockId, content)
+    setzeSzenen(vorher => vorher.map(sd => ({
+      ...sd,
+      blocks: sd.blocks.map(b => (b.id === blockId ? { ...b, content } : b)),
+    })))
+    merkeAenderung(blockId, { content })
   }, [])
 
   const handleTypeChange = useCallback((blockId: number, type: BlockType) => {
-    setLocalScenes(prev =>
-      prev.map(sd => ({
-        ...sd,
-        blocks: sd.blocks.map(b => (b.id === blockId ? { ...b, block_type: type } : b)),
-      }))
-    )
-    updateBlockMutation.mutate({ blockId, data: { block_type: type } })
+    setzeSzenen(vorher => vorher.map(sd => ({
+      ...sd,
+      blocks: sd.blocks.map(b => (b.id === blockId ? { ...b, block_type: type } : b)),
+    })))
+    merkeAenderung(blockId, { block_type: type })
   }, [])
 
   const handleEnterKey = useCallback((blockId: number, _atEnd: boolean) => {
-    let foundScene: SceneData | undefined
-    let foundBlock: ScreenplayBlock | undefined
-
-    for (const sd of localScenes) {
-      const idx = sd.blocks.findIndex(b => b.id === blockId)
-      if (idx !== -1) {
-        foundScene = sd
-        foundBlock = sd.blocks[idx]
-        break
-      }
+    let szene: SceneData | undefined
+    let block: ScreenplayBlock | undefined
+    for (const sd of szenenRef.current) {
+      const b = sd.blocks.find(x => x.id === blockId)
+      if (b) { szene = sd; block = b; break }
     }
-    if (!foundScene || !foundBlock) return
-
-    const nextType = ENTER_NEXT_TYPE[foundBlock.block_type]
-    createBlockMutation.mutate({
-      sceneId: foundScene.scene.id,
-      data: { block_type: nextType, content: '', sort_order: foundBlock.sort_order + 1 },
-    })
-  }, [localScenes])
+    if (!szene || !block) return
+    legeBlockAn(szene.scene.id, ENTER_NEXT_TYPE[block.block_type], block.sort_order + 1)
+  }, [])
 
   const handleBackspaceEmpty = useCallback((blockId: number) => {
-    let prevBlockId: number | null = null
-    for (const sd of localScenes) {
+    let vorherId: number | null = null
+    for (const sd of szenenRef.current) {
       const idx = sd.blocks.findIndex(b => b.id === blockId)
       if (idx !== -1) {
-        if (idx > 0) prevBlockId = sd.blocks[idx - 1].id
+        if (idx > 0) vorherId = sd.blocks[idx - 1].id
         break
       }
     }
-    if (prevBlockId === null) return
-    deleteBlockMutation.mutate(blockId)
-    setTimeout(() => {
-      const el = textareaRefs.current.get(prevBlockId!)
-      if (el) {
-        el.focus()
-        setActiveBlockId(prevBlockId!)
-        el.setSelectionRange(el.value.length, el.value.length)
-      }
-    }, 50)
-  }, [localScenes])
+    if (vorherId === null) return
+    entferneBlock(blockId)
+    const el = textareaRefs.current.get(vorherId)
+    if (el) {
+      el.focus()
+      el.setSelectionRange(el.value.length, el.value.length)
+      waehle(vorherId)
+    } else {
+      fokusWunsch.current = vorherId
+    }
+  }, [])
 
   const handleTabKey = useCallback((blockId: number, shift: boolean) => {
     let foundBlock: ScreenplayBlock | undefined
-    for (const sd of localScenes) {
+    for (const sd of szenenRef.current) {
       foundBlock = sd.blocks.find(b => b.id === blockId)
       if (foundBlock) break
     }
@@ -673,7 +797,7 @@ export function Component() {
       nextIdx = (currentIdx + 1) % TAB_CYCLE.length
     }
     handleTypeChange(blockId, TAB_CYCLE[nextIdx])
-  }, [localScenes, handleTypeChange])
+  }, [handleTypeChange])
 
   // ─── FDX Import ───────────────────────────────────────────────────────────
 
@@ -689,46 +813,35 @@ export function Component() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // ─── Fountain export ───────────────────────────────────────────────────────
-
-  function handleFountainExport() {
-    const title = (projectData as any)?.title || 'screenplay'
-    const text = exportFountain(localScenes, title)
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.fountain`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
   // ─── Annotation color change ──────────────────────────────────────────────
 
   const handleAnnotationColorChange = useCallback((blockId: number, color: string) => {
-    setLocalScenes(prev =>
-      prev.map(sd => ({
-        ...sd,
-        blocks: sd.blocks.map(b => (b.id === blockId ? { ...b, annotation_color: color } : b)),
-      }))
-    )
-    updateBlockMutation.mutate({ blockId, data: { annotation_color: color } })
+    setzeSzenen(vorher => vorher.map(sd => ({
+      ...sd,
+      blocks: sd.blocks.map(b => (b.id === blockId ? { ...b, annotation_color: color } : b)),
+    })))
+    merkeAenderung(blockId, { annotation_color: color })
   }, [])
 
-  // ─── Create first block for empty scene ──────────────────────────────────
+  // ─── Erster Block einer Szene ohne Überschrift ────────────────────────────
 
+  /**
+   * Die Kopfzeile, die bisher nur gezeichnet war, wird zur echten Zeile.
+   *
+   * Vorher entstand hier ein leerer Aktionsblock. Danach galt die Szene als
+   * "hat Blöcke" und fiel im Export ohne INT/EXT und ohne Titel heraus.
+   */
   const handleCreateFirstBlock = useCallback((sceneId: number) => {
-    createBlockMutation.mutate({
-      sceneId,
-      data: { block_type: 'action', content: '', sort_order: 0 },
-    })
+    const sd = szenenRef.current.find(s => s.scene.id === sceneId)
+    if (!sd) return
+    legeBlockAn(sceneId, 'scene_heading', 0, ueberschriftAusSzene(sd.scene))
   }, [])
 
   // ─── Character suffix insert ───────────────────────────────────────────────
 
   function insertCharSuffix(suffix: string) {
     if (!activeBlockId) return
-    const block = localScenes.flatMap(sd => sd.blocks).find(b => b.id === activeBlockId)
+    const block = szenenRef.current.flatMap(sd => sd.blocks).find(b => b.id === activeBlockId)
     if (!block || block.block_type !== 'character') return
     const base = block.content.replace(/\s*\(.*?\)\s*$/, '').trim()
     const newContent = `${base} (${suffix})`
@@ -1002,7 +1115,10 @@ export function Component() {
                 <PenLine className="w-3 h-3" />
                 {tt(screenplayT.exportPdfNotes)}
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-xs cursor-pointer" onClick={handleFountainExport}>
+              <DropdownMenuItem
+                className="text-xs cursor-pointer"
+                onClick={() => download(api.screenplayIO.fountainExportUrl(pid), 'drehbuch.fountain')}
+              >
                 <Download className="w-3 h-3 mr-2" />
                 {tt(screenplayT.exportFountain)}
               </DropdownMenuItem>
@@ -1033,7 +1149,7 @@ export function Component() {
           ) : (
             <div
               className="max-w-2xl mx-auto px-16 py-12 xl:px-24"
-              onClick={() => setActiveBlockId(null)}
+              onClick={() => waehle(null)}
             >
               {/* Screenplay title */}
               <div className="text-center mb-12">
@@ -1053,7 +1169,7 @@ export function Component() {
                   sceneData={sd}
                   sceneIndex={i}
                   activeBlockId={activeBlockId}
-                  setActiveBlockId={setActiveBlockId}
+                  setActiveBlockId={waehle}
                   onContentChange={handleContentChange}
                   onTypeChange={handleTypeChange}
                   onEnterKey={handleEnterKey}
@@ -1061,6 +1177,7 @@ export function Component() {
                   onTabKey={handleTabKey}
                   onCreateFirstBlock={handleCreateFirstBlock}
                   textareaRefs={textareaRefs}
+                  onBlockMounted={handleBlockMounted}
                   sectionRef={el => {
                     if (el) sectionRefs.current.set(sd.scene.id, el)
                     else sectionRefs.current.delete(sd.scene.id)

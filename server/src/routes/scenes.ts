@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { db } from '../db'
 import { requireMember } from '../middleware/projectAuth'
+import { baueUeberschrift, leseUeberschrift } from '../lib/szenenUeberschrift'
 
 const router = Router()
 
@@ -73,11 +74,24 @@ router.post('/projects/:projectId/scenes', async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [req.params.projectId, scene_number, maxSort + 1, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes])
 
-  const scene = await db.get('SELECT *, null as location_name FROM scenes WHERE id = ?', [result.id])
-  // Auto-create an empty action block so the scene shows up in the screenplay editor
-  await db.run(`INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content) VALUES (?, ?, 0, 'action', '')`,
-    [result.id, req.params.projectId])
-  res.status(201).json({ data: { ...scene as object, characters: [], inventory: [] }, error: null })
+  const scene = await db.get('SELECT *, null as location_name FROM scenes WHERE id = ?', [result.id]) as any
+
+  // Der erste Block ist die Überschrift, nicht ein leerer Aktionsblock.
+  // Vorher galt eine frische Szene als "hat Blöcke" und fiel damit aus der
+  // Ergänzung im Export heraus: Sie stand ohne INT/EXT, ohne Titel und ohne
+  // Tageszeit im Drehbuch. Gemessen am 24.10.2026.
+  const kopf = await db.run(
+    `INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
+     VALUES (?, ?, 0, 'scene_heading', ?)`,
+    [result.id, req.params.projectId, baueUeberschrift(scene)]
+  )
+  const kopfBlock = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [kopf.id])
+
+  // Der Drehbuch-Editor setzt den Block sofort, ohne zweite Runde zum Server.
+  res.status(201).json({
+    data: { ...scene as object, characters: [], inventory: [], blocks: [kopfBlock] },
+    error: null,
+  })
 })
 
 // PUT /api/scenes/:id
@@ -120,7 +134,29 @@ router.put('/scenes/:id', async (req, res) => {
 
   const scene = await db.get(`
     SELECT s.*, l.name as location_name FROM scenes s LEFT JOIN locations l ON s.location_id = l.id WHERE s.id = ?
-  `, [req.params.id])
+  `, [req.params.id]) as any
+
+  // Wer hier Innen/Außen, Titel oder Tageszeit ändert, ändert damit die
+  // Szenenüberschrift - sonst steht im exportierten Drehbuch weiter die alte
+  // Zeile. Angefasst wird nur eine Überschrift im Standardformat; eine von
+  // Hand geschriebene Zeile, die sich nicht lesen lässt, bleibt stehen.
+  const kopfBlock = await db.get(
+    `SELECT id, content FROM screenplay_blocks
+      WHERE scene_id = ? AND block_type = 'scene_heading'
+      ORDER BY sort_order ASC LIMIT 1`,
+    [req.params.id]
+  ) as any
+  if (kopfBlock) {
+    const neu = baueUeberschrift(scene)
+    const lesbar = String(kopfBlock.content ?? '').trim() === ''
+      || leseUeberschrift(kopfBlock.content || '') !== null
+    if (lesbar && kopfBlock.content !== neu) {
+      await db.run(
+        'UPDATE screenplay_blocks SET content = ?, updated_at = NOW() WHERE id = ?',
+        [neu, kopfBlock.id]
+      ).catch((e: any) => console.warn('[scenes PUT] Ueberschrift nicht nachgefuehrt:', e?.message))
+    }
+  }
   const characters = await db.all(`SELECT sc.*, c.name as character_name FROM scene_characters sc JOIN characters c ON sc.character_id = c.id WHERE sc.scene_id = ?`, [req.params.id])
   const inventory = await db.all('SELECT * FROM scene_inventory WHERE scene_id = ?', [req.params.id])
   res.json({ data: { ...scene as object, characters, inventory }, error: null })

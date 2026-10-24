@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { db, pool } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
+import { leseUeberschrift, mitUeberschrift } from '../lib/szenenUeberschrift'
 
 const router = Router()
 
@@ -77,17 +78,18 @@ router.get('/projects/:projectId/screenplay/export.fountain', async (req, res) =
   lines.push('')
 
   for (const scene of scenes) {
-    const blocks = await db.all(
+    const gespeichert = await db.all(
       'SELECT * FROM screenplay_blocks WHERE scene_id = ? ORDER BY sort_order ASC',
       [scene.id]
     ) as Array<{ block_type: BlockType; content: string }>
 
-    if (blocks.length === 0) {
-      // Szene ohne Blöcke: Heading aus den Szenen-Metadaten synthetisieren
-      const intExt = scene.int_ext === 'INT' ? 'INT.' : 'EXT.'
-      const dayNight = scene.day_night ? ` - ${scene.day_night}` : ''
-      lines.push(`${intExt} ${String(scene.title || 'SZENE ' + scene.scene_number).toUpperCase()}${dayNight}`, '')
-      if (scene.description) lines.push(scene.description, '')
+    // Fehlt die Überschrift, wird sie aus dem Datensatz ergänzt. Vorher fiel
+    // jede Szene ohne Überschriftenblock kopflos aus dem Export - und einen
+    // leeren Aktionsblock bekam bis zum 24.10.2026 jede neue Szene mit.
+    const blocks = mitUeberschrift(scene, gespeichert)
+
+    if (gespeichert.length === 0 && scene.description) {
+      lines.push(blocks[0].content ?? '', '', scene.description, '')
       continue
     }
 
@@ -218,7 +220,25 @@ router.put('/blocks/:blockId', async (req, res) => {
     blockId
   ])
 
-  const block = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [blockId])
+  const block = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [blockId]) as any
+
+  // Die Überschrift ist der Ort, an dem beim Schreiben über Innen/Außen, Motiv
+  // und Tageszeit entschieden wird. Bis zum 24.10.2026 blieb der Datensatz der
+  // Szene dabei auf dem Gründungsstand stehen: Im Drehbuch stand "EXT. HAFEN -
+  // NACHT", in Drehplan und Statistik weiter "INT / DAY". Deshalb folgt der
+  // Datensatz jetzt der Zeile.
+  if (block?.block_type === 'scene_heading') {
+    const kopf = leseUeberschrift(block.content || '')
+    if (kopf && kopf.title) {
+      await db.run(
+        `UPDATE scenes SET int_ext = ?, title = ?,
+           day_night = COALESCE(NULLIF(?, ''), day_night), updated_at = NOW()
+         WHERE id = ?`,
+        [kopf.int_ext, kopf.title, kopf.day_night, block.scene_id]
+      ).catch((e: any) => console.warn('[blocks PUT] Szene nicht nachgefuehrt:', e?.message))
+    }
+  }
+
   res.json({ data: block, error: null })
 })
 
