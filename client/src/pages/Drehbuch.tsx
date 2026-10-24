@@ -50,13 +50,42 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
   const queryClient = useQueryClient()
   const { toast } = useToast()
 
+  /**
+   * Speichern läuft nacheinander, nie nebeneinander.
+   *
+   * Der Server vergleicht beim Speichern den mitgeschickten Zeitstempel mit
+   * dem gespeicherten, um fremde Änderungen zu erkennen. Zwei eigene
+   * Speichervorgänge sahen für ihn aus wie zwei Personen: Der zweite brachte
+   * den Stand von vor dem ersten mit und wurde abgelehnt.
+   *
+   * Gemessen am 24.10.2026 beim Tippen eines Szenentitels: erstes Speichern
+   * 200, jedes weitere 409. Im Eingabefeld stand "LAGERHALLE EINS ZWEI DREI",
+   * in der Datenbank "LAGERHALLE EINS" - ab dem ersten Speichern kam nichts
+   * mehr an, bis die Seite neu geladen wurde.
+   *
+   * Deshalb zwei Dinge: Der bestätigte Zeitstempel wird übernommen, und es
+   * ist immer nur ein Speichervorgang unterwegs. Was währenddessen anfällt,
+   * wartet und geht mit dem dann gültigen Stand hinterher. Die Sperre gegen
+   * fremde Änderungen bleibt damit erhalten - sie trifft nur nicht mehr den,
+   * der gerade selbst schreibt.
+   */
+  const stand = useRef<string | undefined>(scene.updated_at)
+  const laeuftGerade = useRef(false)
+  const wartet = useRef<any>(null)
+
   const updateMutation = useMutation({
-    mutationFn: (data: any) => api.scenes.update(scene.id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenes', projectId] }),
+    mutationFn: (data: any) => api.scenes.update(scene.id, { ...data, updated_at: stand.current }),
+    onSuccess: (gespeichert: any) => {
+      if (gespeichert?.updated_at) stand.current = gespeichert.updated_at
+      queryClient.invalidateQueries({ queryKey: ['scenes', projectId] })
+    },
     // Ohne diesen Zweig waere ein Konflikt stumm: die Aenderung ginge
     // verloren und niemand erfuehre davon. Deshalb Meldung plus Neuladen -
     // danach sieht man den fremden Stand und kann bewusst entscheiden.
     onError: (e: any) => {
+      // Ein echter Konflikt: Das Wartende nachzuschicken würde den fremden
+      // Stand überschreiben, ohne dass es jemand gesehen hat.
+      wartet.current = null
       queryClient.invalidateQueries({ queryKey: ['scenes', projectId] })
       toast({
         variant: 'destructive',
@@ -64,7 +93,18 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
         description: e?.message || 'Die Szene konnte nicht gespeichert werden.',
       })
     },
+    onSettled: () => {
+      laeuftGerade.current = false
+      const naechstes = wartet.current
+      if (naechstes) { wartet.current = null; speichere(naechstes) }
+    },
   })
+
+  function speichere(daten: any) {
+    if (laeuftGerade.current) { wartet.current = daten; return }
+    laeuftGerade.current = true
+    updateMutation.mutate(daten)
+  }
   const deleteMutation = useMutation({
     mutationFn: () => api.scenes.delete(scene.id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenes', projectId] }),
@@ -87,7 +127,7 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenes', projectId] }),
   })
 
-  const debouncedUpdate = useRef(debounce((data: any) => updateMutation.mutate(data), 500)).current
+  const debouncedUpdate = useRef(debounce((data: any) => speichere(data), 500)).current
   const updateField = (key: string, value: any) => {
     const next = { ...form, [key]: value }
     setForm(next)
@@ -153,7 +193,7 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
               e.stopPropagation()
               if (!canEdit) return
               const next = scene.shot_status === 'abgedreht' ? 'offen' : 'abgedreht'
-              updateMutation.mutate({ ...form, shot_status: next })
+              speichere({ ...form, shot_status: next })
               setForm((f: any) => ({ ...f, shot_status: next }))
             }}
             title={scene.shot_status === 'abgedreht' ? 'Abgedreht ✓' : 'Noch nicht gedreht'}
