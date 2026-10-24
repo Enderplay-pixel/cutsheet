@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { db, seedDemoData } from '../db'
 import {
   signToken, requireAuth, requireRole, AuthUser,
-  starteSitzung, beendeSitzung, beendeAlleSitzungen,
+  starteSitzung, beendeSitzung, beendeAlleSitzungen, vergissKonto,
 } from '../middleware/auth'
 import {
   erzeugeSchluessel, otpauthUrl, pruefeCode,
@@ -405,6 +405,7 @@ router.delete('/me', requireAuth, async (req: Request, res: Response) => {
     await db.run('DELETE FROM push_subscriptions WHERE user_id = ?', [user.id]).catch(() => null)
     await db.run('DELETE FROM password_reset_tokens WHERE user_id = ?', [user.id])
     await db.run('DELETE FROM users WHERE id = ?', [user.id])
+    vergissKonto(user.id)
     return res.json({ data: { success: true }, error: null })
   } catch (err) {
     console.error('[auth/me DELETE]', err)
@@ -467,6 +468,7 @@ router.put('/users/:id/role', requireAuth, requireRole('admin'), async (req: Req
     }
     const result = await db.run('UPDATE users SET role = ? WHERE id = ?', [role, id])
     if (result.changes === 0) return res.status(404).json({ data: null, error: 'Benutzer nicht gefunden' })
+    vergissKonto(id)
     return res.json({ data: { id, role }, error: null })
   } catch (err) {
     console.error('[auth/users/:id/role]', err)
@@ -483,6 +485,7 @@ router.delete('/users/:id', requireAuth, requireRole('admin'), async (req: Reque
     }
     const result = await db.run('DELETE FROM users WHERE id = ?', [id])
     if (result.changes === 0) return res.status(404).json({ data: null, error: 'Benutzer nicht gefunden' })
+    vergissKonto(id)
     return res.json({ data: { id }, error: null })
   } catch (err) {
     console.error('[auth/users/:id DELETE]', err)

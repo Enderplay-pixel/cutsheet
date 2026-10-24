@@ -1,5 +1,11 @@
 import { Request, Response, NextFunction } from 'express'
-import { ZodSchema, ZodError } from 'zod'
+import { z, ZodSchema, ZodError } from 'zod'
+
+// Zod formuliert seine eigenen Meldungen englisch. Gemessen am 24.10.2026:
+// "Validierungsfehler: email: Invalid input: expected string, received
+// undefined" - mitten in einer deutschen Oberfläche. Die eigenen Texte der
+// Schemata bleiben davon unberührt.
+z.config(z.locales.de())
 
 export function validate(schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction) => {

@@ -62,6 +62,41 @@ async function sitzungGilt(sid: string): Promise<boolean> {
   }
 }
 
+/**
+ * Die Rolle eines Kontos, wie sie jetzt in der Datenbank steht.
+ *
+ * Das Token trägt die Rolle von der Anmeldung an 30 Tage lang mit. Gemessen
+ * am 24.10.2026: Ein gelöschtes Admin-Konto kam mit seinem alten Token weiter
+ * in die Verwaltung, ebenso eines, das zum normalen Konto herabgestuft wurde.
+ * Löschen beendete keine Sitzung, und die Sitzungszeile verschwand per
+ * CASCADE mit dem Konto - eine unbekannte Sitzung gilt aber als gültig.
+ *
+ * Deshalb zählt die Rolle aus der Datenbank, und ein Konto, das es nicht mehr
+ * gibt, kommt nicht mehr hinein. Eine Minute zwischengespeichert wie die
+ * Sitzungen; wer ein Konto ändert, ruft `vergissKonto`, damit es sofort gilt.
+ */
+const konten = new Map<number, { zeit: number; rolle: string | null }>()
+
+/** `null`: Das Konto gibt es nicht mehr. `undefined`: Datenbank nicht erreichbar. */
+async function aktuelleRolle(userId: number): Promise<string | null | undefined> {
+  const gemerkt = konten.get(userId)
+  if (gemerkt && Date.now() - gemerkt.zeit < PRUEF_DAUER_MS) return gemerkt.rolle
+  try {
+    const zeile = (await db.get('SELECT role FROM users WHERE id = ?', [userId])) as any
+    const rolle = zeile ? String(zeile.role) : null
+    konten.set(userId, { zeit: Date.now(), rolle })
+    return rolle
+  } catch {
+    // Wie bei den Sitzungen: lieber die Angabe aus dem Token als alle aussperren.
+    return undefined
+  }
+}
+
+/** Nach dem Löschen oder Umstufen eines Kontos: sofort neu nachsehen. */
+export function vergissKonto(userId: number) {
+  konten.delete(userId)
+}
+
 declare global {
   namespace Express {
     interface Request {
@@ -70,29 +105,37 @@ declare global {
   }
 }
 
-export async function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-  if (!token) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+/**
+ * Das Token prüfen und den Nutzer mit seinem jetzigen Stand liefern.
+ * Gibt einen Fehlertext zurück, wenn es nicht gilt.
+ */
+async function pruefeToken(token: string): Promise<AuthUser | string> {
   let payload: AuthUser
   try {
     payload = jwt.verify(token, getJwtSecret()) as AuthUser
   } catch {
-    return res.status(401).json({ data: null, error: 'Token ungültig oder abgelaufen' })
+    return 'Token ungültig oder abgelaufen'
   }
-  if (payload.sid && !(await sitzungGilt(payload.sid))) {
-    return res.status(401).json({ data: null, error: 'Diese Anmeldung wurde beendet' })
-  }
-  req.user = payload
+  if (payload.sid && !(await sitzungGilt(payload.sid))) return 'Diese Anmeldung wurde beendet'
+  const rolle = await aktuelleRolle(payload.id)
+  if (rolle === null) return 'Dieses Konto gibt es nicht mehr'
+  return rolle === undefined ? payload : { ...payload, role: rolle }
+}
+
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  if (!token) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
+  const ergebnis = await pruefeToken(token)
+  if (typeof ergebnis === 'string') return res.status(401).json({ data: null, error: ergebnis })
+  req.user = ergebnis
   next()
 }
 
 export async function optionalAuth(req: Request, res: Response, next: NextFunction) {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (token) {
-    try {
-      const payload = jwt.verify(token, getJwtSecret()) as AuthUser
-      if (!payload.sid || (await sitzungGilt(payload.sid))) req.user = payload
-    } catch {}
+    const ergebnis = await pruefeToken(token)
+    if (typeof ergebnis !== 'string') req.user = ergebnis
   }
   next()
 }

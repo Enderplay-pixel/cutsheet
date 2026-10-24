@@ -118,6 +118,8 @@ beforeAll(async () => {
   const app = express()
   app.use(express.json())
   app.use('/api/auth', authRouter)
+  const { default: adminRouter } = await import('../routes/admin')
+  app.use('/api/admin', adminRouter)
   app.use('/api', companiesRouter)
   app.use('/api', invoicesRouter)
   app.use('/api', dateienRouter)
@@ -1693,5 +1695,59 @@ describe('Auswertungen ohne Abfrage je Zeile', () => {
     expect(antwort.daten.anzahl).toBe(40)
     expect(antwort.daten.steuer_cents).toBe(40 * 190)
     expect(bei40).toBe(bei5)
+  })
+})
+
+describe('Konten, die es so nicht mehr gibt', () => {
+  /**
+   * Gemessen am 24.10.2026: Die Rolle kam 30 Tage lang aus dem Token. Ein
+   * gelöschtes Admin-Konto kam mit seinem alten Token weiter in die
+   * Verwaltung, ein herabgestuftes ebenso.
+   */
+  it('kommen mit ihrem alten Token nicht mehr in die Verwaltung', async () => {
+    const { signToken } = await import('../middleware/auth')
+    const anlegen = async (mail: string) => {
+      const r = await db.run(
+        "INSERT INTO users (email, password_hash, name, role) VALUES (?, 'x', ?, 'admin')", [mail, mail]
+      )
+      return { id: r.id, token: signToken({ id: r.id, email: mail, name: mail, role: 'admin' }) }
+    }
+    const chefin = await anlegen('chefin@example.com')
+    const zweite = await anlegen('zweite@example.com')
+
+    expect((await hole('/api/admin/users', zweite.token)).status).toBe(200)
+
+    const umstufen = await hole(`/api/admin/users/${zweite.id}/role`, chefin.token, {
+      method: 'PUT', body: JSON.stringify({ role: 'user' }),
+    })
+    expect(umstufen.status).toBe(200)
+    expect((await hole('/api/admin/users', zweite.token)).status).toBe(403)
+
+    expect((await hole(`/api/admin/users/${zweite.id}`, chefin.token, { method: 'DELETE' })).status).toBe(200)
+    const danach = await hole('/api/admin/users', zweite.token)
+    expect(danach.status).toBe(401)
+    expect(danach.fehler).toBe('Dieses Konto gibt es nicht mehr')
+  })
+})
+
+describe('Projekt-Guard: Pfad vor Body', () => {
+  /**
+   * Gemessen am 24.10.2026: Ein Konto ohne Zugang schickte
+   * POST /scenes/{fremde Szene}/blocks mit der Nummer seines eigenen Projekts
+   * im Body. Der Guard prüfte gegen das eigene Projekt, der Block landete im
+   * fremden Drehbuch.
+   */
+  it('prüft gegen das Projekt des Eintrags im Pfad, nicht gegen den Body', async () => {
+    const { extractProjectId } = await import('../middleware/projectAuth')
+    const fremdesProjekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Fremd', fremdeId])).id
+    const szene = (await db.run(
+      "INSERT INTO scenes (project_id, scene_number, title) VALUES (?, '1', 'Ziel')", [projektId]
+    )).id
+
+    expect(await extractProjectId('POST', `/scenes/${szene}/blocks`, { project_id: fremdesProjekt }))
+      .toBe(projektId)
+    // Ohne Eintrag im Pfad gilt der Body weiter - so legen Routen wie
+    // POST /tasks ihre Einträge an.
+    expect(await extractProjectId('POST', '/tasks', { project_id: fremdesProjekt })).toBe(fremdesProjekt)
   })
 })

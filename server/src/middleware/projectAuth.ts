@@ -208,16 +208,19 @@ export async function extractProjectId(method: string, path: string, body: any):
   const projMatch = path.match(/^\/projects\/(\d+)/)
   if (projMatch) return Number(projMatch[1])
 
-  // POST body has project_id
-  if (method === 'POST' && body?.project_id) return Number(body.project_id)
-
+  // Der Pfad geht vor dem Body. Bis zum 24.10.2026 stand der Body zuerst -
+  // gemessen: Ein Konto ohne Zugang zu Projekt 6 schickte
+  // POST /scenes/{Szene aus Projekt 6}/blocks mit der Nummer seines eigenen
+  // Projekts im Body, wurde gegen sein eigenes Projekt geprüft, und der Block
+  // stand danach im fremden Drehbuch. Nennt der Pfad einen Eintrag, zählt
+  // allein dessen Projekt.
   for (const [pattern, sql] of entityPatterns) {
     const m = path.match(pattern)
-    if (m?.[1]) {
-      const pid = await lookupOne(sql, m[1])
-      if (pid) return pid
-    }
+    if (m?.[1]) return lookupOne(sql, m[1])
   }
+
+  // Nur wenn der Pfad kein Projekt nennt: Anlegen mit project_id im Body.
+  if (method === 'POST' && body?.project_id) return Number(body.project_id)
 
   return null
 }

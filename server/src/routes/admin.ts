@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express'
 import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import { db, seedDemoData } from '../db'
 import { seedGrossproduktion } from '../db/grossproduktion'
-import { requireAuth, requireRole } from '../middleware/auth'
+import { requireAuth, requireRole, vergissKonto } from '../middleware/auth'
 
 const router = Router()
 
@@ -300,6 +300,7 @@ router.delete('/users/:id', async (req: Request, res: Response) => {
   if (!user) return res.status(404).json({ data: null, error: 'Benutzer nicht gefunden' })
 
   await db.run('DELETE FROM users WHERE id = ?', [id])
+  vergissKonto(id)
   res.json({ data: { id, email: user.email }, error: null })
 })
 
@@ -322,6 +323,7 @@ router.put('/users/:id/role', async (req: Request, res: Response) => {
     return res.status(400).json({ data: null, error: 'Ungültige Rolle' })
   }
   await db.run('UPDATE users SET role = ? WHERE id = ?', [role, id])
+  vergissKonto(id)
   res.json({ data: { id, role }, error: null })
 })
 
