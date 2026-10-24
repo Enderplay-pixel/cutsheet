@@ -52,6 +52,25 @@ interface ScreenplayBlock {
   schluessel?: string
 }
 
+/**
+ * Die Zeilen einer Szene in der Reihenfolge, in der der Editor sie zeigt.
+ *
+ * Die erste Überschrift steht oben, jede andere Zeile an ihrem Platz - auch
+ * eine zweite Überschrift. Vorher wurde jede weitere ausgeblendet. Gemessen
+ * am 24.10.2026: Eine Zeile, über das Typ-Menü zur Überschrift gemacht,
+ * verschwand aus dem Editor, stand aber weiter im PDF.
+ *
+ * Anzeige und Tastatur nehmen dieselbe Reihenfolge - sonst springt der
+ * Pfeil nach oben an eine andere Stelle, als man vor sich sieht.
+ */
+function zeilenFolge(blocks: ScreenplayBlock[]): ScreenplayBlock[] {
+  const kopf = blocks.find(b => b.block_type === 'scene_heading')
+  return kopf ? [kopf, ...blocks.filter(b => b !== kopf)] : blocks
+}
+
+/** Wohin der Schreibstrich in einer Zeile kommt. */
+type Stelle = 'anfang' | 'ende' | number
+
 /** Der Schlüssel, unter dem React eine Zeile wiedererkennt. */
 function blockSchluessel(b: ScreenplayBlock): string {
   return b.schluessel ?? `s${b.id}`
@@ -200,8 +219,10 @@ interface BlockEditorProps {
   onFocus: () => void
   onContentChange: (id: number, content: string) => void
   onTypeChange: (id: number, type: BlockType) => void
-  onEnterKey: (id: number, atEnd: boolean) => void
+  onEnterKey: (id: number, von: number, bis: number) => void
   onBackspaceEmpty: (id: number) => void
+  onBackspaceStart: (id: number) => void
+  onArrow: (id: number, richtung: -1 | 1) => void
   onTabKey: (id: number, shift: boolean) => void
   onPasteLines: (id: number, vorn: string, zeilen: string[], hinten: string) => void
   textareaRef: (el: HTMLTextAreaElement | null) => void
@@ -217,6 +238,8 @@ function BlockEditor({
   onTypeChange,
   onEnterKey,
   onBackspaceEmpty,
+  onBackspaceStart,
+  onArrow,
   onTabKey,
   onPasteLines,
   textareaRef,
@@ -243,16 +266,36 @@ function BlockEditor({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    const el = e.currentTarget
     if (e.key === 'Enter') {
       e.preventDefault()
-      const el = e.currentTarget
-      const atEnd = el.selectionStart === el.value.length
-      onEnterKey(block.id, atEnd)
+      onEnterKey(block.id, el.selectionStart, el.selectionEnd)
       return
     }
     if (e.key === 'Backspace' && localContent === '') {
       e.preventDefault()
       onBackspaceEmpty(block.id)
+      return
+    }
+    if (e.key === 'Backspace' && el.selectionStart === 0 && el.selectionEnd === 0) {
+      e.preventDefault()
+      onBackspaceStart(block.id)
+      return
+    }
+    // Pfeil hoch und runter verlassen die Zeile, wenn es in ihr nicht weiter
+    // geht. Jede Zeile ist ein eigenes Feld; ohne das kam man nur mit der Maus
+    // in die nächste. Eine umbrochene Zeile behält ihr eigenes Verhalten: Der
+    // erste Druck geht an ihren Anfang oder ihr Ende, erst der zweite hinaus.
+    if ((e.key === 'ArrowUp' || e.key === 'ArrowDown')
+        && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      const hoch = e.key === 'ArrowUp'
+      const zeilenhoehe = parseFloat(getComputedStyle(el).lineHeight) || 20
+      const einzeilig = el.scrollHeight <= zeilenhoehe * 1.5
+      const amRand = hoch ? el.selectionStart === 0 : el.selectionEnd === el.value.length
+      if (einzeilig || amRand) {
+        e.preventDefault()
+        onArrow(block.id, hoch ? -1 : 1)
+      }
       return
     }
     if (e.key === 'Tab') {
@@ -363,8 +406,10 @@ interface SceneSectionProps {
   setActiveBlockId: (id: number | null) => void
   onContentChange: (blockId: number, content: string) => void
   onTypeChange: (blockId: number, type: BlockType) => void
-  onEnterKey: (blockId: number, atEnd: boolean) => void
+  onEnterKey: (blockId: number, von: number, bis: number) => void
   onBackspaceEmpty: (blockId: number) => void
+  onBackspaceStart: (blockId: number) => void
+  onArrow: (blockId: number, richtung: -1 | 1) => void
   onTabKey: (blockId: number, shift: boolean) => void
   onPasteLines: (blockId: number, vorn: string, zeilen: string[], hinten: string) => void
   onCreateFirstBlock: (sceneId: number) => void
@@ -383,6 +428,8 @@ function SceneSection({
   onTypeChange,
   onEnterKey,
   onBackspaceEmpty,
+  onBackspaceStart,
+  onArrow,
   onTabKey,
   onPasteLines,
   onCreateFirstBlock,
@@ -393,14 +440,8 @@ function SceneSection({
 }: SceneSectionProps) {
   const { scene, blocks } = sceneData
 
-  // Die erste Überschrift steht oben, jede andere Zeile an ihrem Platz -
-  // auch eine zweite Überschrift. Vorher wurde jede weitere ausgeblendet.
-  // Gemessen am 24.10.2026: Eine Zeile, über das Typ-Menü zur Überschrift
-  // gemacht, verschwand aus dem Editor, stand aber weiter im PDF.
   const headingBlock = blocks.find(b => b.block_type === 'scene_heading')
-  const allBlocks = headingBlock
-    ? [headingBlock, ...blocks.filter(b => b !== headingBlock)]
-    : blocks
+  const allBlocks = zeilenFolge(blocks)
 
 
   return (
@@ -435,6 +476,8 @@ function SceneSection({
           onTypeChange={onTypeChange}
           onEnterKey={onEnterKey}
           onBackspaceEmpty={onBackspaceEmpty}
+          onBackspaceStart={onBackspaceStart}
+          onArrow={onArrow}
           onTabKey={onTabKey}
           onPasteLines={onPasteLines}
           textareaRef={el => {
@@ -502,7 +545,7 @@ export function Component() {
   const offen = useRef(new Map<number, Record<string, any>>())
   const speicherUhren = useRef(new Map<number, ReturnType<typeof setTimeout>>())
   /** Welche Zeile den Schreibstrich bekommt, sobald sie im Dokument steht. */
-  const fokusWunsch = useRef<number | null>(null)
+  const fokusWunsch = useRef<{ id: number; stelle: Stelle; inhalt?: string } | null>(null)
   /** Anlegen läuft der Reihe nach - siehe `legeBlockAn`. */
   const anlegeKette = useRef<Promise<unknown>>(Promise.resolve())
 
@@ -646,7 +689,9 @@ export function Component() {
           : b)),
       })))
 
-      if (fokusWunsch.current === tempId) fokusWunsch.current = newBlock.id
+      if (fokusWunsch.current?.id === tempId) {
+        fokusWunsch.current = { ...fokusWunsch.current, id: newBlock.id }
+      }
       if (aktiverBlockRef.current === tempId) waehle(newBlock.id)
       textareaRefs.current.delete(tempId)
 
@@ -669,7 +714,9 @@ export function Component() {
   })
 
   /** Eine Zeile im Browser anlegen und dem Server nachmelden. */
-  function legeBlockAn(sceneId: number, typ: BlockType, sortOrder: number, inhalt = ''): number {
+  function legeBlockAn(
+    sceneId: number, typ: BlockType, sortOrder: number, inhalt = '', stelle: Stelle = 'ende',
+  ): number {
     const tempId = naechsteTempId.current--
     const neu: ScreenplayBlock = {
       id: tempId,
@@ -691,7 +738,7 @@ export function Component() {
       )
       return { ...sd, blocks: [...geschoben, neu].sort((a, b) => a.sort_order - b.sort_order) }
     }))
-    fokusWunsch.current = tempId
+    fokusWunsch.current = { id: tempId, stelle }
     // Nacheinander, nie gleichzeitig: Der Server schiebt beim Anlegen alle
     // folgenden Zeilen eins nach unten, das Ergebnis hängt also von der
     // Reihenfolge ab, in der die Anfragen ankommen. Gleichzeitig verschickte
@@ -709,12 +756,37 @@ export function Component() {
     return tempId
   }
 
+  function platziere(el: HTMLTextAreaElement, stelle: Stelle) {
+    el.focus()
+    const pos = stelle === 'anfang' ? 0 : stelle === 'ende' ? el.value.length : stelle
+    el.setSelectionRange(pos, pos)
+  }
+
+  /**
+   * Den Schreibstrich in eine Zeile setzen - jetzt, oder sobald sie dasteht.
+   *
+   * Mit `inhalt` wartet er, bis die Zeile diesen Text zeigt. Ein Textfeld
+   * übernimmt neuen Inhalt eine Runde später; wer vorher setzt, landet beim
+   * Zusammenführen am Ende statt an der Nahtstelle.
+   */
+  function setzeSchreibstrich(id: number, stelle: Stelle, inhalt?: string) {
+    const el = textareaRefs.current.get(id)
+    if (el && (inhalt === undefined || el.value === inhalt)) {
+      fokusWunsch.current = null
+      platziere(el, stelle)
+      waehle(id)
+      return
+    }
+    fokusWunsch.current = { id, stelle, inhalt }
+  }
+
   /** Den Schreibstrich setzen, sobald die gewünschte Zeile wirklich dasteht. */
   const handleBlockMounted = useCallback((blockId: number, el: HTMLTextAreaElement) => {
-    if (fokusWunsch.current !== blockId) return
+    const wunsch = fokusWunsch.current
+    if (!wunsch || wunsch.id !== blockId) return
+    if (wunsch.inhalt !== undefined && el.value !== wunsch.inhalt) return
     fokusWunsch.current = null
-    el.focus()
-    el.setSelectionRange(el.value.length, el.value.length)
+    platziere(el, wunsch.stelle)
     waehle(blockId)
   }, [])
 
@@ -760,7 +832,7 @@ export function Component() {
       const bloecke: ScreenplayBlock[] = (newScene.blocks ?? []).map((b: any) => ({ ...b }))
       setzeSzenen(vorher => [...vorher, { scene: newScene, blocks: bloecke }])
       queryClient.invalidateQueries({ queryKey: ['scenes', pid] })
-      if (bloecke.length > 0) fokusWunsch.current = bloecke[0].id
+      if (bloecke.length > 0) fokusWunsch.current = { id: bloecke[0].id, stelle: 'ende' }
       // Nur das Scrollen braucht den fertigen Aufbau - der Schreibstrich nicht.
       setTimeout(() => sectionRefs.current.get(newScene.id)
         ?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
@@ -806,7 +878,17 @@ export function Component() {
     merkeAenderung(blockId, { block_type: type })
   }, [])
 
-  const handleEnterKey = useCallback((blockId: number, _atEnd: boolean) => {
+  /**
+   * Enter.
+   *
+   * Am Zeilenende eine neue Zeile mit dem Folgetyp. Mitten im Satz wird die
+   * Zeile geteilt: Was hinter dem Schreibstrich steht, wandert in eine neue
+   * Zeile gleichen Typs. Gemessen am 24.10.2026: Vorher blieb der Satz ganz,
+   * und darunter erschien eine leere Zeile.
+   *
+   * Eine Überschrift wird nicht geteilt - sie ist eine Zeile für sich.
+   */
+  const handleEnterKey = useCallback((blockId: number, von: number, bis: number) => {
     let szene: SceneData | undefined
     let block: ScreenplayBlock | undefined
     for (const sd of szenenRef.current) {
@@ -814,8 +896,15 @@ export function Component() {
       if (b) { szene = sd; block = b; break }
     }
     if (!szene || !block) return
-    legeBlockAn(szene.scene.id, ENTER_NEXT_TYPE[block.block_type], block.sort_order + 1)
-  }, [])
+
+    const hinten = block.content.slice(bis)
+    if (!hinten || block.block_type === 'scene_heading') {
+      legeBlockAn(szene.scene.id, ENTER_NEXT_TYPE[block.block_type], block.sort_order + 1)
+      return
+    }
+    handleContentChange(blockId, block.content.slice(0, von))
+    legeBlockAn(szene.scene.id, block.block_type, block.sort_order + 1, hinten, 'anfang')
+  }, [handleContentChange])
 
   /**
    * Eingefügte Zeilen verteilen.
@@ -849,25 +938,51 @@ export function Component() {
     })
   }, [handleContentChange])
 
-  const handleBackspaceEmpty = useCallback((blockId: number) => {
-    let vorherId: number | null = null
+  /** Die Zeile vor dieser in derselben Szene - so, wie der Editor sie zeigt. */
+  function vorigeInSzene(blockId: number): { vorige: ScreenplayBlock | null; diese: ScreenplayBlock | null } {
     for (const sd of szenenRef.current) {
-      const idx = sd.blocks.findIndex(b => b.id === blockId)
-      if (idx !== -1) {
-        if (idx > 0) vorherId = sd.blocks[idx - 1].id
-        break
-      }
+      const folge = zeilenFolge(sd.blocks)
+      const i = folge.findIndex(b => b.id === blockId)
+      if (i !== -1) return { vorige: i > 0 ? folge[i - 1] : null, diese: folge[i] }
     }
-    if (vorherId === null) return
+    return { vorige: null, diese: null }
+  }
+
+  const handleBackspaceEmpty = useCallback((blockId: number) => {
+    const { vorige } = vorigeInSzene(blockId)
+    if (!vorige) return
     entferneBlock(blockId)
-    const el = textareaRefs.current.get(vorherId)
-    if (el) {
-      el.focus()
-      el.setSelectionRange(el.value.length, el.value.length)
-      waehle(vorherId)
-    } else {
-      fokusWunsch.current = vorherId
+    setzeSchreibstrich(vorige.id, 'ende')
+  }, [])
+
+  /**
+   * Rücktaste am Anfang einer Zeile, die nicht leer ist.
+   *
+   * Hängt die Zeile an die vorige - das Gegenstück zum Teilen mit Enter.
+   * Gemessen am 24.10.2026: Vorher geschah nichts. In eine Überschrift wird
+   * nichts hineingezogen, und eine Überschrift wandert nirgendwohin.
+   */
+  const handleBackspaceStart = useCallback((blockId: number) => {
+    const { vorige, diese } = vorigeInSzene(blockId)
+    if (!vorige || !diese) return
+    if (vorige.block_type === 'scene_heading' || diese.block_type === 'scene_heading') {
+      setzeSchreibstrich(vorige.id, 'ende')
+      return
     }
+    const naht = vorige.content.length
+    const zusammen = vorige.content + diese.content
+    handleContentChange(vorige.id, zusammen)
+    entferneBlock(blockId)
+    setzeSchreibstrich(vorige.id, naht, zusammen)
+  }, [handleContentChange])
+
+  /** Pfeil hoch oder runter über den Zeilenrand - auch in die nächste Szene. */
+  const handleArrow = useCallback((blockId: number, richtung: -1 | 1) => {
+    const alle = szenenRef.current.flatMap(sd => zeilenFolge(sd.blocks))
+    const i = alle.findIndex(b => b.id === blockId)
+    const ziel = alle[i + richtung]
+    if (i === -1 || !ziel) return
+    setzeSchreibstrich(ziel.id, richtung < 0 ? 'ende' : 'anfang')
   }, [])
 
   const handleTabKey = useCallback((blockId: number, shift: boolean) => {
@@ -1275,6 +1390,8 @@ export function Component() {
                   onTypeChange={handleTypeChange}
                   onEnterKey={handleEnterKey}
                   onBackspaceEmpty={handleBackspaceEmpty}
+                  onBackspaceStart={handleBackspaceStart}
+                  onArrow={handleArrow}
                   onTabKey={handleTabKey}
                   onPasteLines={handlePasteLines}
                   onCreateFirstBlock={handleCreateFirstBlock}
