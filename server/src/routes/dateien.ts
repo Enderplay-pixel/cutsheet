@@ -17,6 +17,7 @@ import { erfordereFirma } from './companies'
 import {
   ARTEN, MAX_BYTES, istArt, mitFrist, sichererName, typPasst, fristStand, groesse,
 } from '../lib/dateien'
+import { heuteISO } from '../lib/datum'
 
 const router = Router()
 
@@ -35,10 +36,6 @@ const upload = multer({
     cb(null, erlaubt)
   },
 })
-
-function heuteISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 /** Die Felder einer Datei ohne den Inhalt - den will keine Liste. */
 const OHNE_INHALT = `id, project_id, company_id, kind, filename, mime, bytes,

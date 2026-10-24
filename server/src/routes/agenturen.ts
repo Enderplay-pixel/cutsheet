@@ -19,18 +19,11 @@ import { requireAuth, AuthUser } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
 import { erfordereFirma } from './companies'
 import { logAudit } from './audit'
-import { reiheEin } from '../lib/mailversand'
+import { reiheEin, appBasisUrl } from '../lib/mailversand'
 import { euro } from '../lib/rechnung'
+import { heuteISO } from '../lib/datum'
 
 const router = Router()
-
-function heuteISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function appBasisUrl(): string {
-  return (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, '')
-}
 
 function datumText(wert: string | null | undefined): string {
   if (!wert) return ''

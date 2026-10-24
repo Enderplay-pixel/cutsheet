@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { appBasisUrl } from './mailversand'
 
 /**
  * OAuth-Anbindung an YouTube (Data API v3 und Analytics API v2).
@@ -33,7 +34,7 @@ export function getOAuthConfig(): OAuthConfig | null {
   const clientSecret = process.env.YOUTUBE_CLIENT_SECRET
   if (!clientId || !clientSecret) return null
 
-  const base = (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/+$/, '')
+  const base = appBasisUrl()
   return {
     clientId,
     clientSecret,

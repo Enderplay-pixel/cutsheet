@@ -28,12 +28,9 @@ import { reiheEin } from '../lib/mailversand'
 import { generatePdf } from './pdf'
 import { renderMahnung } from '../lib/mahnungLayout'
 import { zahlungenVerrechnen } from '../lib/zahlungen'
+import { heuteISO } from '../lib/datum'
 
 const router = Router()
-
-function heuteISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 /** Die Mahneinstellungen einer Firma, mit Rückfallwerten. */
 async function einstellungen(companyId: number) {

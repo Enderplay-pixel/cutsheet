@@ -18,12 +18,9 @@ import {
   jahresmeldung, gewerkVorschlag, satzText, ABGABESAETZE,
   KUENSTLERISCHE_GEWERKE, type Abgabepflicht,
 } from '../lib/ksk'
+import { heuteISO } from '../lib/datum'
 
 const router = Router()
-
-function heuteISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 function zeitraum(req: Request): { von: string; bis: string } {
   const jahr = new Date().getFullYear()

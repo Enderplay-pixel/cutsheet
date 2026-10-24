@@ -24,12 +24,9 @@ import { logAudit } from './audit'
 import { summiere, faelligkeit, euro, type Position, type Steuerart } from '../lib/rechnung'
 import { renderRechnung } from '../lib/rechnungLayout'
 import { generatePdf } from './pdf'
+import { heuteISO } from '../lib/datum'
 
 const router = Router()
-
-function heuteISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 function plusTage(datum: string, tage: number): string {
   const ms = Date.parse(`${String(datum).slice(0, 10)}T00:00:00Z`)

@@ -20,19 +20,12 @@ import { db } from '../db'
 import { requireAuth, AuthUser } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
 import { logAudit } from './audit'
-import { reiheEin } from '../lib/mailversand'
+import { reiheEin, appBasisUrl } from '../lib/mailversand'
 import { generatePdf } from './pdf'
 import { pdfFontFaces, PDF_SANS } from '../lib/pdfFonts'
+import { heuteISO } from '../lib/datum'
 
 const router = Router()
-
-function heuteISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function appBasisUrl(): string {
-  return (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, '')
-}
 
 /** Sekunden als Zeitstelle: 134 wird zu "2:14". */
 export function alsZeitstelle(sekunden: number | null | undefined): string {

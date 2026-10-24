@@ -27,12 +27,9 @@ import { requireAuth, AuthUser } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
 import { logAudit } from './audit'
 import { euro } from '../lib/rechnung'
+import { heuteISO } from '../lib/datum'
 
 const router = Router()
-
-function heuteISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 export type Punkt = {
   schluessel: string

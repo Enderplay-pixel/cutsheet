@@ -13,6 +13,7 @@ import { assignAll } from '../lib/videoMatching'
 import { UPLOAD_CHECKLIST } from '../lib/creatorInsights'
 import { buildTimeline, DEFAULT_WPM } from '../lib/creatorScript'
 import { getStateSecret as stateSecret } from '../config/secrets'
+import { appBasisUrl } from '../lib/mailversand'
 
 const router = Router()
 
@@ -73,7 +74,7 @@ router.get('/projects/:projectId/creator/youtube/connect', async (req, res) => {
  * Authorization-Header tragen - die Zuordnung kommt aus dem signierten State.
  */
 router.get('/creator/youtube/callback', async (req: Request, res: Response) => {
-  const appBase = (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/+$/, '')
+  const appBase = appBasisUrl()
   // Ohne gültigen State kennen wir das Projekt nicht - dann zurück zur
   // Projektliste statt auf eine Route mit leerer ID
   const back = (projectId: number | string | null, params: Record<string, string>) => {

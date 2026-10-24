@@ -17,7 +17,7 @@ import { requireAuth, AuthUser } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
 import { logAudit } from './audit'
 import { generatePdf } from './pdf'
-import { reiheEin } from '../lib/mailversand'
+import { reiheEin, appBasisUrl } from '../lib/mailversand'
 import { pdfFontFaces, PDF_SANS } from '../lib/pdfFonts'
 import {
   ARTEN, STANDARDVORLAGEN, VERTRAGS_PLATZHALTER,
@@ -26,12 +26,9 @@ import {
 import {
   pruefeEinsatz, grenzeFuer, alterAm, ANTRAGSUNTERLAGEN, KIND_BIS_ALTER,
 } from '../lib/jugendschutz'
+import { heuteISO } from '../lib/datum'
 
 const router = Router()
-
-function heuteISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 /**
  * Minuten seit Mitternacht als Uhrzeit.
@@ -43,10 +40,6 @@ function heuteISO(): string {
 function alsUhrzeit(minuten: number): string {
   const m = Math.max(0, Math.round(Number(minuten) || 0))
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
-}
-
-function appBasisUrl(): string {
-  return (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, '')
 }
 
 // ─── Vorlagen ────────────────────────────────────────────────────────────────

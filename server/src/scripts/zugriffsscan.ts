@@ -371,19 +371,21 @@ async function main() {
 
   // Textfelder mit Kennung: Ein erlaubtes PUT ändert sonst nichts Sichtbares.
   // "entries" trägt eine Eintrags-ID der Inhaberin (PUT /call-sheets/:id/entries).
-  async function koerper() {
+  async function koerper(zusatz: Record<string, unknown> = {}) {
     const eintrag = await besitzId('call_sheet_entries', INH)
     return JSON.stringify({
       name: 'SCAN', title: 'SCAN', label: 'SCAN', notes: 'SCAN', description: 'SCAN',
       subject: 'SCAN', body: 'SCAN', text: 'SCAN', comment: 'SCAN', content: 'SCAN',
       entries: eintrag ? [{ id: eintrag, call_time: 333, pickup_location: 'SCAN', notes: 'SCAN' }] : [],
+      ...zusatz,
     })
   }
-  async function schicke(methode: string, pfad: string, token: string) {
+  async function schicke(methode: string, pfad: string, token: string, zusatz: Record<string, unknown> = {}) {
     const r = await fetch(`${basis}/api${pfad}`, {
       method: methode,
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: methode === 'DELETE' ? undefined : await koerper(),
+      // DELETE mit Koerper: Auch dort koennte ein Guard die project_id lesen.
+      body: methode === 'DELETE' && !Object.keys(zusatz).length ? undefined : await koerper(zusatz),
     }).catch(() => null)
     return r?.status ?? 0
   }
@@ -412,7 +414,13 @@ async function main() {
     const fremd = await fuelle(roh, INH, INH)
     if (fremd.fehlend.length) nichtGetroffen.push(`${eintrag}  ${fremd.fehlend.join(', ')}`)
     else getroffenSchreibend++
-    const ziele = [{ art: 'FREMD', pfad: fremd.pfad }]
+    // KOERPER: fremder Pfad, aber die eigene Projektnummer der Fremden im
+    // Koerper. Diese Variante fehlte bis zum 24.10.2026 - der Guard nahm bei
+    // POST das Projekt aus dem Koerper vor dem Pfad, und der Scan sah es nie.
+    const ziele: Array<{ art: string; pfad: string; zusatz?: Record<string, unknown> }> = [
+      { art: 'FREMD', pfad: fremd.pfad },
+      { art: 'KOERPER', pfad: fremd.pfad, zusatz: { project_id: FRE.p } },
+    ]
     // Quer: Projekt, Firma oder erstes Objekt gehört der Fremden, alles dahinter (und im Körper) der Inhaberin
     const kinder = (roh.match(/:[A-Za-z]+/g) ?? []).filter((t) => !/^:(projectId|companyId|pid|art)/.test(t))
     if (kinder.length > 0) {
@@ -421,7 +429,7 @@ async function main() {
     // Neu angelegte Zeilen der Inhaberin sind keine Änderung durch die Fremde
     if (inhaberinAngelegt !== stand) { vorher = await fingerabdruck(); stand = inhaberinAngelegt }
     for (const ziel of ziele) {
-      const status = await schicke(methode, ziel.pfad, tokF)
+      const status = await schicke(methode, ziel.pfad, tokF, ziel.zusatz)
       geprueft++
       const nachher = await fingerabdruck()
       const geaendert = unterschied(vorher, nachher)

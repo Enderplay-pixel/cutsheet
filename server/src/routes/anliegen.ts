@@ -23,12 +23,9 @@ import { erfordereFirma } from './companies'
 import { tageZwischen } from '../lib/mahnwesen'
 import { alterAm, KIND_BIS_ALTER } from '../lib/jugendschutz'
 import { fristStand } from '../lib/dateien'
+import { heuteISO } from '../lib/datum'
 
 const router = Router()
-
-function heuteISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 export type Punkt = {
   /** Woher der Punkt kommt - für das Symbol und die Gruppierung. */

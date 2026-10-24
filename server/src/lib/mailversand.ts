@@ -85,8 +85,17 @@ export function vergissTransport() {
   transporter = undefined
 }
 
+/**
+ * Die Adresse der Anwendung für Links in Mails.
+ *
+ * Dokumentiert ist APP_BASE_URL. Drei Routen (Abnahme, Verträge, Agenturen)
+ * lasen bis zum 24.10.2026 eine eigene Kopie mit APP_URL - gemessen: mit
+ * APP_BASE_URL wie dokumentiert stand im Abnahme-Link "http://localhost:5173".
+ * Gelesen werden jetzt beide, damit weiter gilt, was in der Produktion gesetzt
+ * ist; alle Links kommen von hier.
+ */
 export function appBasisUrl(): string {
-  return (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/$/, '')
+  return (process.env.APP_BASE_URL || process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, '')
 }
 
 export type EinreihOptionen = {
