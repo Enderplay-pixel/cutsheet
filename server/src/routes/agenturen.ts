@@ -20,6 +20,8 @@ import { requireMember } from '../middleware/projectAuth'
 import { erfordereFirma } from './companies'
 import { logAudit } from './audit'
 import { reiheEin, appBasisUrl } from '../lib/mailversand'
+import { maskiere } from '../lib/mailvorlagen'
+import { bereinigeWebadresse } from '../lib/webadresse'
 import { euro } from '../lib/rechnung'
 import { heuteISO } from '../lib/datum'
 
@@ -280,15 +282,20 @@ router.delete('/projects/:projectId/casting-anfragen/:id', requireAuth, requireM
 })
 
 /** Der Text der Anfrage - mit den Rollen als Tabelle. */
+// Freitext der Mitglieder kommt entschaerft ins Mail-HTML. Gemessen am
+// 24.10.2026: "Alter <ca. 30, sportlich" kam als "Alter " an - der Rest war
+// fuer den HTML-Parser ein Tag. Und wer Freitext schreiben darf, sollte kein
+// HTML in Mails setzen koennen, die unter dem Namen der Produktion rausgehen.
 function anfrageMail(anfrage: any, rollen: any[], link: string): string {
+  const m = (w: any) => maskiere(String(w ?? ''))
   const anrede = anfrage.agentur_kontakt
-    ? `Guten Tag ${anfrage.agentur_kontakt},`
+    ? `Guten Tag ${m(anfrage.agentur_kontakt)},`
     : 'Guten Tag,'
 
   const zeilen = rollen.map((r) => `
     <tr>
-      <td style="padding:6px 12px 6px 0;vertical-align:top"><strong>${r.role_name || r.figur || 'Rolle'}</strong>
-        ${r.description ? `<br><span style="color:#555">${r.description}</span>` : ''}</td>
+      <td style="padding:6px 12px 6px 0;vertical-align:top"><strong>${m(r.role_name || r.figur || 'Rolle')}</strong>
+        ${r.description ? `<br><span style="color:#555">${m(r.description)}</span>` : ''}</td>
       <td style="padding:6px 12px 6px 0;vertical-align:top;white-space:nowrap">
         ${r.shoot_from ? datumText(r.shoot_from) : ''}${r.shoot_to && r.shoot_to !== r.shoot_from ? ` bis ${datumText(r.shoot_to)}` : ''}
         ${r.shoot_days ? `<br>${r.shoot_days} ${r.shoot_days === 1 ? 'Drehtag' : 'Drehtage'}` : ''}</td>
@@ -297,8 +304,8 @@ function anfrageMail(anfrage: any, rollen: any[], link: string): string {
     </tr>`).join('')
 
   return `<p>${anrede}</p>
-${anfrage.body ? `<p>${String(anfrage.body).replace(/\n/g, '<br>')}</p>` : ''}
-<p>Für die Produktion <strong>${anfrage.projekt}</strong> suchen wir:</p>
+${anfrage.body ? `<p>${m(anfrage.body).replace(/\n/g, '<br>')}</p>` : ''}
+<p>Für die Produktion <strong>${m(anfrage.projekt)}</strong> suchen wir:</p>
 <table style="border-collapse:collapse;font-size:14px">${zeilen}</table>
 <p>Über den folgenden Link können Sie uns Ihre Vorschläge direkt zurückmelden -
 ohne Anmeldung:<br><a href="${link}">${link}</a></p>
@@ -383,8 +390,8 @@ router.post('/projects/:projectId/casting-anfragen/:id/nachfassen', requireAuth,
   await reiheEin({
     projectId,
     betreff: `Erinnerung: ${anfrage.subject || `Besetzungsanfrage ${anfrage.projekt}`}`,
-    html: `<p>Guten Tag${anfrage.agentur_kontakt ? ` ${anfrage.agentur_kontakt}` : ''},</p>
-<p>unsere Anfrage zur Produktion <strong>${anfrage.projekt}</strong> ist vermutlich untergegangen -
+    html: `<p>Guten Tag${anfrage.agentur_kontakt ? ` ${maskiere(String(anfrage.agentur_kontakt))}` : ''},</p>
+<p>unsere Anfrage zur Produktion <strong>${maskiere(String(anfrage.projekt ?? ''))}</strong> ist vermutlich untergegangen -
 das passiert. Der Link ist weiterhin gültig:<br><a href="${link}">${link}</a></p>
 <p>Falls die Rollen inzwischen anders besetzt sind, genügt eine kurze Nachricht.</p>
 <p>Beste Grüße</p>`,
@@ -532,7 +539,9 @@ router.post('/casting/:token/antwort', async (req: Request, res: Response) => {
           name.slice(0, 200),
           v?.available === undefined || v?.available === null ? null : v.available === true,
           Math.max(0, Math.round(Number(v?.fee_per_day_cents ?? 0))),
-          String(v?.showreel_url || '').slice(0, 500),
+          // Von einer Agentur ohne Konto, als Link auf der angemeldeten
+          // Seite: nur http(s), alles andere faellt weg (lib/webadresse.ts).
+          bereinigeWebadresse(v?.showreel_url).slice(0, 500),
           String(v?.note || '').slice(0, 1000),
         ]
       )

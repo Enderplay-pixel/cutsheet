@@ -21,6 +21,8 @@ import { requireAuth, AuthUser } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
 import { logAudit } from './audit'
 import { reiheEin, appBasisUrl } from '../lib/mailversand'
+import { maskiere } from '../lib/mailvorlagen'
+import { istWebadresse } from '../lib/webadresse'
 import { generatePdf } from './pdf'
 import { pdfFontFaces, PDF_SANS } from '../lib/pdfFonts'
 import { heuteISO } from '../lib/datum'
@@ -56,18 +58,7 @@ export function ausZeitstelle(text: string): number | null {
   return null
 }
 
-/**
- * Ein Sichtungslink ist eine Webadresse - nichts anderes.
- *
- * Bis zum 24.10.2026 nahm der Server alles an, auch "javascript:...". Der
- * Link landet auf der oeffentlichen Seite des Auftraggebers und wird dort per
- * Klick geoeffnet. Ob ein Browser solchen Code ausfuehrt, liess sich im
- * Messaufbau nicht klaeren - eine Webadresse zu verlangen, kostet nichts.
- */
-export function istWebadresse(wert: string): boolean {
-  return /^https?:\/\/[^\s]+$/i.test(String(wert ?? '').trim())
-}
-
+// Ein Sichtungslink ist eine Webadresse - siehe lib/webadresse.ts.
 const LINK_FEHLER = 'Der Link zur Fassung muss mit http:// oder https:// beginnen'
 
 /** Die Stufen einer Fassung, in der Reihenfolge, in der sie entstehen. */
@@ -325,12 +316,17 @@ router.post('/projects/:projectId/abnahmen/:id/senden', requireAuth, requireMemb
   const token = runde.token || crypto.randomBytes(24).toString('hex')
   const link = `${appBasisUrl()}/abnahme/${token}`
 
+// Freitext der Mitglieder kommt entschaerft ins Mail-HTML. Gemessen am
+// 24.10.2026: "Alter <ca. 30, sportlich" kam als "Alter " an - der Rest war
+// fuer den HTML-Parser ein Tag. Und wer Freitext schreiben darf, sollte kein
+// HTML in Mails setzen koennen, die unter dem Namen der Produktion rausgehen.
+  const m = (w: any) => maskiere(String(w ?? ''))
   const eingereiht = await reiheEin({
     projectId,
     betreff: `${runde.projekt}: ${runde.fassung || `Fassung ${runde.version}`} zur Abnahme`,
-    html: `<p>Guten Tag${runde.recipient_name ? ` ${runde.recipient_name}` : ''},</p>
-${runde.message ? `<p>${String(runde.message).replace(/\n/g, '<br>')}</p>` : ''}
-<p>die ${runde.fassung || `Fassung ${runde.version}`} zu <strong>${runde.projekt}</strong> steht
+    html: `<p>Guten Tag${runde.recipient_name ? ` ${m(runde.recipient_name)}` : ''},</p>
+${runde.message ? `<p>${m(runde.message).replace(/\n/g, '<br>')}</p>` : ''}
+<p>die ${m(runde.fassung || `Fassung ${runde.version}`)} zu <strong>${m(runde.projekt)}</strong> steht
 bereit. Über den folgenden Link können Sie sie ansehen, Anmerkungen mit Zeitstelle hinterlassen
 und abnehmen - ohne Anmeldung:</p>
 <p><a href="${link}">${link}</a></p>

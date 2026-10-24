@@ -475,7 +475,8 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
                     {v.fee_per_day_cents > 0 && (
                       <span className="text-xs text-muted-foreground">{euro(v.fee_per_day_cents)} / Tag</span>
                     )}
-                    {v.showreel_url && (
+                    {/* Kommt von einer Agentur ohne Konto - nur http(s) als Link */}
+                    {/^https?:\/\//i.test(String(v.showreel_url ?? '')) && (
                       <a
                         href={v.showreel_url}
                         target="_blank"

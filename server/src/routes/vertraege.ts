@@ -18,6 +18,7 @@ import { requireMember } from '../middleware/projectAuth'
 import { logAudit } from './audit'
 import { generatePdf } from './pdf'
 import { reiheEin, appBasisUrl } from '../lib/mailversand'
+import { maskiere } from '../lib/mailvorlagen'
 import { pdfFontFaces, PDF_SANS } from '../lib/pdfFonts'
 import {
   ARTEN, STANDARDVORLAGEN, VERTRAGS_PLATZHALTER,
@@ -501,9 +502,10 @@ router.post('/projects/:projectId/vertraege/:id/senden', requireAuth, requireMem
   const eingereiht = await reiheEin({
     projectId,
     betreff: `${vertrag.title} - ${projekt?.title || 'Produktion'}`,
-    html: `<p>Guten Tag ${empfaengerName},</p>
-<p>anbei ${anKind ? `der Vertrag für ${daten.werte.name}` : 'Ihr Vertrag'} zur Produktion
-"${projekt?.title || ''}". Das Blatt liegt dieser Mail bei.</p>
+    // Namen und Titel entschaerft - siehe abnahme.ts und agenturen.ts.
+    html: `<p>Guten Tag ${maskiere(String(empfaengerName ?? ''))},</p>
+<p>anbei ${anKind ? `der Vertrag für ${maskiere(String(daten.werte.name ?? ''))}` : 'Ihr Vertrag'} zur Produktion
+"${maskiere(String(projekt?.title || ''))}". Das Blatt liegt dieser Mail bei.</p>
 <p>Über den folgenden Link können Sie den Text lesen und Ihre Zustimmung erklären:<br>
 <a href="${link}">${link}</a></p>
 <p>Bei Fragen antworten Sie einfach auf diese Mail.</p>`,

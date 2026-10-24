@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { alsZeitstelle, ausZeitstelle, STUFEN, istWebadresse } from '../routes/abnahme'
+import { alsZeitstelle, ausZeitstelle, STUFEN } from '../routes/abnahme'
+import { istWebadresse, bereinigeWebadresse } from '../lib/webadresse'
 
 /**
  * Zeitstellen.
@@ -78,6 +79,18 @@ describe('Stufen einer Fassung', () => {
 
   it('haben alle einen Namen', () => {
     for (const s of STUFEN) expect(s.name.length, s.stufe).toBeGreaterThan(3)
+  })
+})
+
+describe('bereinigeWebadresse', () => {
+  it('ergaenzt https und wirft fremde Schemata weg', () => {
+    // Eine Agentur tippt oft ohne https:// - die Antwort soll nicht verloren gehen.
+    expect(bereinigeWebadresse('vimeo.com/123')).toBe('https://vimeo.com/123')
+    expect(bereinigeWebadresse('https://vimeo.com/123')).toBe('https://vimeo.com/123')
+    expect(bereinigeWebadresse('javascript:alert(1)')).toBe('')
+    expect(bereinigeWebadresse('data:text/html,x')).toBe('')
+    expect(bereinigeWebadresse('  ')).toBe('')
+    expect(bereinigeWebadresse(undefined)).toBe('')
   })
 })
 
