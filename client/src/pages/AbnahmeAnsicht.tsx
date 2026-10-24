@@ -33,6 +33,11 @@ const zeitpunkt = (wert: string | null | undefined, gebietsschema: string) => {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(gebietsschema)
 }
 
+/** Nur Webadressen oeffnen - aeltere Eintraege koennen anderes enthalten. */
+function oeffneSichtungslink(link: string) {
+  if (/^https?:\/\//i.test(String(link ?? '').trim())) window.open(link, '_blank', 'noopener')
+}
+
 export function Component() {
   const { token = '' } = useParams()
   const { toast } = useToast()
@@ -120,7 +125,7 @@ export function Component() {
           <Button
             className="w-full"
             size="lg"
-            onClick={() => window.open(data.watch_url, '_blank', 'noopener')}
+            onClick={() => oeffneSichtungslink(data.watch_url)}
           >
             <ExternalLink className="w-4 h-4 mr-2" />
             {tt(T.fassungAnsehen)}

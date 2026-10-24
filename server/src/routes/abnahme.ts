@@ -56,6 +56,20 @@ export function ausZeitstelle(text: string): number | null {
   return null
 }
 
+/**
+ * Ein Sichtungslink ist eine Webadresse - nichts anderes.
+ *
+ * Bis zum 24.10.2026 nahm der Server alles an, auch "javascript:...". Der
+ * Link landet auf der oeffentlichen Seite des Auftraggebers und wird dort per
+ * Klick geoeffnet. Ob ein Browser solchen Code ausfuehrt, liess sich im
+ * Messaufbau nicht klaeren - eine Webadresse zu verlangen, kostet nichts.
+ */
+export function istWebadresse(wert: string): boolean {
+  return /^https?:\/\/[^\s]+$/i.test(String(wert ?? '').trim())
+}
+
+const LINK_FEHLER = 'Der Link zur Fassung muss mit http:// oder https:// beginnen'
+
 /** Die Stufen einer Fassung, in der Reihenfolge, in der sie entstehen. */
 export const STUFEN = [
   { stufe: 'rohschnitt', name: 'Rohschnitt' },
@@ -87,6 +101,8 @@ router.get('/projects/:projectId/fassungen', requireAuth, requireMember, async (
 
 router.post('/projects/:projectId/fassungen', requireAuth, requireMember, async (req: Request, res: Response) => {
   const projectId = Number(req.params.projectId)
+  const link = String(req.body?.watch_url || '').trim()
+  if (link && !istWebadresse(link)) return res.status(400).json({ data: null, error: LINK_FEHLER })
   // Die nächste Nummer ergibt sich, statt dass jemand sie tippt - zwei
   // Fassungen mit derselben Nummer sind in einer Abnahme das Ende jeder
   // Nachvollziehbarkeit.
@@ -102,7 +118,7 @@ router.post('/projects/:projectId/fassungen', requireAuth, requireMember, async 
       String(req.body?.stage || 'rohschnitt'),
       Number(letzte?.hoechste ?? 0) + 1,
       Math.max(0, Math.round(Number(req.body?.duration_seconds ?? 0))),
-      String(req.body?.watch_url || '').slice(0, 1000),
+      link.slice(0, 1000),
       String(req.body?.format || '').slice(0, 120),
       String(req.body?.notes || '').slice(0, 2000),
       (req as any).user?.id ?? null,
@@ -114,6 +130,10 @@ router.post('/projects/:projectId/fassungen', requireAuth, requireMember, async 
 router.put('/projects/:projectId/fassungen/:id', requireAuth, requireMember, async (req: Request, res: Response) => {
   const felder: string[] = []
   const werte: any[] = []
+  if ('watch_url' in req.body && String(req.body.watch_url ?? '').trim()
+      && !istWebadresse(String(req.body.watch_url))) {
+    return res.status(400).json({ data: null, error: LINK_FEHLER })
+  }
   for (const feld of ['label', 'stage', 'watch_url', 'format', 'notes']) {
     if (feld in req.body) { felder.push(`${feld} = ?`); werte.push(String(req.body[feld] ?? '')) }
   }

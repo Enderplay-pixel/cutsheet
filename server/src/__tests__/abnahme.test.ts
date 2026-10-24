@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { alsZeitstelle, ausZeitstelle, STUFEN } from '../routes/abnahme'
+import { alsZeitstelle, ausZeitstelle, STUFEN, istWebadresse } from '../routes/abnahme'
 
 /**
  * Zeitstellen.
@@ -78,5 +78,17 @@ describe('Stufen einer Fassung', () => {
 
   it('haben alle einen Namen', () => {
     for (const s of STUFEN) expect(s.name.length, s.stufe).toBeGreaterThan(3)
+  })
+})
+
+describe('istWebadresse', () => {
+  it('nimmt nur http und https als Sichtungslink', () => {
+    // Der Link wird auf der oeffentlichen Seite des Auftraggebers geoeffnet.
+    for (const ja of ['https://frame.io/v/abc', 'http://vimeo.com/123', 'HTTPS://example.org/x?y=1']) {
+      expect(istWebadresse(ja), ja).toBe(true)
+    }
+    for (const nein of ['javascript:alert(1)', 'data:text/html,x', 'frame.io/v/abc', 'ftp://a.b/c', 'https://', '']) {
+      expect(istWebadresse(nein), nein).toBe(false)
+    }
   })
 })

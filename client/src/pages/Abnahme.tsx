@@ -64,6 +64,11 @@ const NOTIZSTAND: Record<string, { label: string; klasse: string }> = {
   abgelehnt: { label: 'abgelehnt', klasse: 'bg-muted text-muted-foreground' },
 }
 
+/** Nur Webadressen oeffnen - aeltere Eintraege koennen anderes enthalten. */
+function oeffneSichtungslink(link: string) {
+  if (/^https?:\/\//i.test(String(link ?? '').trim())) window.open(link, '_blank', 'noopener')
+}
+
 export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
@@ -432,7 +437,7 @@ function RundeDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
           {runde.watch_url && (
             <Button
               variant="ghost"
-              onClick={() => window.open(runde.watch_url, '_blank', 'noopener')}
+              onClick={() => oeffneSichtungslink(runde.watch_url)}
               className="mr-auto"
             >
               <ExternalLink className="w-4 h-4 mr-1.5" />
@@ -546,7 +551,7 @@ function Fassungen({ pid }: { pid: number }) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => window.open(f.watch_url, '_blank', 'noopener')}
+                          onClick={() => oeffneSichtungslink(f.watch_url)}
                           aria-label="Fassung ansehen"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
