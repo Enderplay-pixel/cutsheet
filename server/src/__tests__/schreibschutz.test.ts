@@ -26,6 +26,9 @@ import express from 'express'
 import http from 'http'
 
 const FREMDER = { id: 99, email: 'fremd@test.local', role: 'user' }
+/** Mitglied mit Lesezugriff - die Datenbank-Attrappe kennt die Kennung 98. */
+const LESER = { id: 98, email: 'leser@test.local', role: 'user' }
+let angemeldet: typeof FREMDER = FREMDER
 
 vi.mock('../db', () => {
   const projektZeile = { id: 1, project_id: 1, owner_id: 1, title: 'Fremdes Projekt' }
@@ -35,8 +38,9 @@ vi.mock('../db', () => {
     db: {
       // Jede Nachschlage findet etwas, das zu Projekt 1 gehört - sonst käme
       // ein 404 heraus und der Test prüfte gar nichts.
-      get: vi.fn(async (sql: string) => {
-        if (sql.includes('project_members')) return null        // kein Mitglied
+      get: vi.fn(async (sql: string, werte?: unknown[]) => {
+        // Kennung 98 ist Mitglied mit Lesezugriff, alle anderen sind fremd
+        if (sql.includes('project_members')) return (werte ?? []).includes(98) ? { role: 'read_only' } : null
         if (sql.includes('SELECT owner_id FROM projects')) return { owner_id: 1 }
         return projektZeile
       }),
@@ -90,7 +94,7 @@ beforeAll(async () => {
 
   const app = express()
   app.use(express.json())
-  app.use((req, _res, next) => { (req as any).user = FREMDER; next() })
+  app.use((req, _res, next) => { (req as any).user = angemeldet; next() })
   app.use('/api', projectWriteGuard)
   app.use('/api/projects', module[0].default)
   for (const m of module.slice(1)) app.use('/api', m.default)
@@ -163,3 +167,50 @@ describe('Schreibschutz gegen fremde Konten', () => {
     expect(durchgelassen, 'Diese Routen antworten einem Fremden mit Erfolg').toEqual([])
   }, 60_000)
 })
+
+/**
+ * Dieselbe Prüfung mit einem Mitglied, das nur lesen darf.
+ *
+ * Gemessen am 25.10.2026: Kameraberichte, Grundrisse und Creator-Videos
+ * ließen sich so ändern und löschen. Die Routen prüften selbst nur die
+ * Mitgliedschaft, und der Wächter kannte ihre Pfade nicht. Gegen ein fremdes
+ * Konto fiel das nicht auf - das scheitert schon an der Mitgliedschaft.
+ */
+const OHNE_PROJEKT = [
+  ...FREIGESTELLT,
+  // Ohne Projektbezug - hier entscheidet nicht die Rolle im Projekt
+  /^\/api\/projects\/import$/,  // legt ein neues Projekt an
+  /^\/api\/companies\//,         // Firmenrechte, eigene Prüfung
+  /^\/api\/(feedback|push)\b/,   // Konto, nicht Projekt
+  /^\/api\/invites\/abc\/accept$/, // Einladung annehmen
+  /^\/api\/(abnahme|casting|vertrag)\/abc\//, // öffentliche Links mit Token
+]
+
+describe('Schreibschutz gegen Leser', () => {
+  it('lässt ein Mitglied mit Lesezugriff nirgends im Projekt schreiben', async () => {
+    angemeldet = LESER
+    const durchgelassen: string[] = []
+    try {
+      for (const r of routen) {
+        const pfad = beispiel(r.pfad)
+        if (OHNE_PROJEKT.some(m => m.test(pfad))) continue
+        let status = 0
+        try {
+          const antwort = await fetch(base + pfad, {
+            method: r.methode,
+            headers: { 'Content-Type': 'application/json' },
+            body: r.methode === 'DELETE' ? undefined : JSON.stringify({}),
+          })
+          status = antwort.status
+        } catch {
+          continue
+        }
+        if (status >= 200 && status < 300) durchgelassen.push(`${r.methode} ${pfad} -> ${status}`)
+      }
+    } finally {
+      angemeldet = FREMDER
+    }
+    expect(durchgelassen, 'Diese Routen lassen einen Leser schreiben').toEqual([])
+  }, 60_000)
+})
+

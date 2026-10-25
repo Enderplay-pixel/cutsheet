@@ -70,7 +70,8 @@ Stand am 24.10.2026, 23 Uhr:
 - **Routen bis `backup.ts` fertig** (siehe Haken). **Als Nächstes:**
   der nächste offene Haken unter "Server: Routen", alphabetisch weiter.
   `lib/wiederherstellung.ts` ist für Fund 46 angefasst, aber noch nicht
-  ganz gelesen. `confirmation.ts` ist für Fund 39
+  ganz gelesen. Ebenso nur angefasst: `drehplan.ts` (Fund 58),
+  `__tests__/schreibschutz.test.ts` (Leser-Variante). `confirmation.ts` ist für Fund 39
   angefasst (Sitzung statt `signToken`), aber noch nicht gelesen.
 - **Vor jedem Commit die ganze Testsuite**, nicht nur die Typprüfung -
   siehe Fund 41.
@@ -197,6 +198,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 54 | `server/src/routes/callsheets.ts` (`POST .../call-sheet/send`) | **Fehler, Datenschutz, live** | Der Dispo-Versand ordnete jede Mail über die Adresse ihrer Person zu. Teilen sich zwei eine Adresse (Eltern mehrerer Kinder, ein Haushalt), bekam jede Mail Name, Call-Time, Hinweis und Bestätigungslink der ersten Person - die zweite konnte die Anwesenheit der ersten bestätigen. | ja: Zweitinstanz mit Fang-SMTP; Ben (Call 10:00) bekam "Hallo Anna", 07:00, Annas Hinweis | behoben: Zuordnung über den Token des Eintrags; danach Ben 10:00, eigener Name, kein fremder Hinweis |
 | 55 | `server/src/routes/callsheets.ts` (Dispo-Mail) | Fehler, Text | Projekttitel, Name, Motiv und Hinweis gingen unmaskiert ins Mail-HTML (wie Fund 23); "bestaetigen" und "vollstaendige" im Mailtext. | ja: `<Kamera>`, `<Tor 2>`, `<B>` roh im HTML | behoben: `maskiere`, echte Umlaute; danach `&lt;Tor 2&gt;` |
 | 56 | `server/src/routes/callsheets.ts` (`PUT /call-sheets/:id/entries`) | Klein | Ohne Liste im Körper 500. | ja: `{}` → 500 | behoben: 400; gültige Liste 200 |
+| 57 | `server/src/middleware/projectAuth.ts` (`entityPatterns`) | **Zugriff, live** | Für Kameraberichte (`/camera-reports/:id`), Grundrisse (`/floorplans/:id`, `/floorplan-items/:id`) und alle Creator-Kindrouten (`/creator/videos|sections|ideas|assets|clips|checklist/:id`) kannte der Schreibschutz kein Muster, löste kein Projekt auf und ließ durch. Die Routen prüfen selbst nur die Mitgliedschaft: Ein Mitglied mit Lesezugriff änderte, ergänzte und löschte. Ins Änderungsprotokoll kamen diese Änderungen nicht. Der Test `schreibschutz.test.ts` prüfte nur fremde Konten. | ja: Leser ändert und löscht Kamerabericht, Grundriss, Video (200/201) | behoben: neun Muster; danach Leser überall 403, Abteilungsleitung weiter 200. `schreibschutz.test.ts` ruft jetzt jede schreibende Route auch als Leser auf - gegen alten Stand 17 Treffer |
+| 58 | `server/src/routes/drehplan.ts` (`POST /shoot-days/move-scene`) | Zugriff | Prüfte nur die Mitgliedschaft; ein Leser schob Szenen auf andere Drehtage. Der Pfad trägt keine Kennung, der Schutz kann ihn nicht auflösen. | ja: Leser verschiebt Szene 1 von Tag 1 nach 2, 200 | behoben: mindestens Abteilungsleitung; danach Leser 403, Abteilungsleitung 200. Dazu Übersetzungen für die drei Rollenmeldungen des Schutzes |
 
 ## Abhakliste
 
@@ -237,8 +240,8 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/budget.ts` (326) - Fund 51
 - [x] `server/src/routes/calendar.ts` (48) - Funde 52, 53
 - [x] `server/src/routes/callsheets.ts` (370) - Funde 54-56
-- [ ] `server/src/routes/cameraPresets.ts` (97)
-- [ ] `server/src/routes/cameraReports.ts` (188)
+- [x] `server/src/routes/cameraPresets.ts` (97)
+- [x] `server/src/routes/cameraReports.ts` (188) - Fund 57
 - [ ] `server/src/routes/catering.ts` (141)
 - [ ] `server/src/routes/characters.ts` (95)
 - [ ] `server/src/routes/checkin.ts` (65)

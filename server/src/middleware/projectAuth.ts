@@ -208,6 +208,20 @@ export const entityPatterns: Array<[RegExp, string]> = [
      'SELECT sd.project_id FROM call_sheet_entries cse JOIN call_sheets cs ON cse.call_sheet_id = cs.id JOIN shoot_days sd ON cs.shoot_day_id = sd.id WHERE cse.id = ?'],
     [/^\/camera-takes\/(\d+)/,
      'SELECT sd.project_id FROM camera_takes ct JOIN camera_reports cr ON ct.camera_report_id = cr.id JOIN shoot_days sd ON cr.shoot_day_id = sd.id WHERE ct.id = ?'],
+    // Gemessen am 25.10.2026: Ohne diese Muster löste der Guard kein Projekt
+    // auf und ließ durch - ein Mitglied mit Lesezugriff änderte und löschte
+    // Kameraberichte, Grundrisse und Creator-Videos (die Routen prüfen selbst
+    // nur die Mitgliedschaft). Ins Änderungsprotokoll kamen sie auch nicht.
+    [/^\/camera-reports\/(\d+)/,
+     'SELECT sd.project_id FROM camera_reports cr JOIN shoot_days sd ON cr.shoot_day_id = sd.id WHERE cr.id = ?'],
+    [/^\/floorplans\/(\d+)/,       'SELECT project_id FROM floorplans WHERE id = ?'],
+    [/^\/floorplan-items\/(\d+)/,  'SELECT project_id FROM floorplan_items WHERE id = ?'],
+    [/^\/creator\/videos\/(\d+)/,    'SELECT project_id FROM creator_videos WHERE id = ?'],
+    [/^\/creator\/sections\/(\d+)/,  'SELECT project_id FROM creator_script_sections WHERE id = ?'],
+    [/^\/creator\/ideas\/(\d+)/,     'SELECT project_id FROM creator_ideas WHERE id = ?'],
+    [/^\/creator\/assets\/(\d+)/,    'SELECT project_id FROM creator_assets WHERE id = ?'],
+    [/^\/creator\/clips\/(\d+)/,     'SELECT project_id FROM creator_clips WHERE id = ?'],
+    [/^\/creator\/checklist\/(\d+)/, 'SELECT project_id FROM creator_checklist WHERE id = ?'],
 ]
 
 export async function extractProjectId(method: string, path: string, body: any): Promise<number | null> {

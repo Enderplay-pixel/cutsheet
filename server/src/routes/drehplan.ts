@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db'
-import { getUserProjectRole, requireMember } from '../middleware/projectAuth'
+import { getUserProjectRole, requireMember, ROLE_RANK } from '../middleware/projectAuth'
 
 const router = Router()
 
@@ -221,8 +221,15 @@ router.post('/shoot-days/move-scene', async (req, res) => {
     return res.status(400).json({ data: null, error: 'Szene und Drehtag gehören zu verschiedenen Projekten.' })
   }
 
-  if (nutzer.role !== 'admin' && await getUserProjectRole(nutzer.id, projektId) === null) {
-    return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+  // Nicht nur Mitglied, sondern mit Schreibrecht - wie projectWriteGuard, der
+  // diesen Pfad nicht auflösen kann (kein Projekt, keine Kennung im Pfad).
+  // Gemessen am 25.10.2026: Ein Leser schob Szenen auf andere Drehtage.
+  if (nutzer.role !== 'admin') {
+    const rolle = await getUserProjectRole(nutzer.id, projektId)
+    if (rolle === null) return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
+    if ((ROLE_RANK[rolle] ?? 0) < ROLE_RANK.dept_head) {
+      return res.status(403).json({ data: null, error: 'Du hast nur Lesezugriff auf dieses Projekt.' })
+    }
   }
 
   await db.transaction(async (tx) => {
