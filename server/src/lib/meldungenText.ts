@@ -33,7 +33,7 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Dafür fehlt dir die Berechtigung in diesem Projekt': { en: 'You do not have permission for this in this project', fr: "Tu n'as pas l'autorisation pour cela dans ce projet" },
   'Dafür fehlt dir die Berechtigung in dieser Firma': { en: 'You do not have permission for this in this company', fr: "Tu n'as pas l'autorisation pour cela dans cette société" },
   'Darsteller nicht gefunden': { en: 'Actor not found', fr: 'Comédien introuvable' },
-  'Das PDF liess sich nicht erzeugen': { en: 'The PDF could not be generated', fr: 'Impossible de générer le PDF' },
+  'Das PDF ließ sich nicht erzeugen': { en: 'The PDF could not be generated', fr: 'Impossible de générer le PDF' },
   'Das Passwort stimmt nicht': { en: 'The password is incorrect', fr: 'Le mot de passe est incorrect' },
   'Datei nicht gefunden': { en: 'File not found', fr: 'Fichier introuvable' },
   'Der Auftraggeber braucht einen Namen': { en: 'The client needs a name', fr: 'Le client doit avoir un nom' },

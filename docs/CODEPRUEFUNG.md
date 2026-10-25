@@ -92,9 +92,10 @@ Stand am 24.10.2026, 23 Uhr:
   ("Unexpected Application Error! 404 Not Found", englisch) - eigene
   404-Seite fehlt (gemessen). `CheckinBoard.tsx:221`: Hinweis auf
   `/guest/checkin/…`, den es nicht gibt (Fund 79).
-  Serverzeitzone (Muster aus Fund 36/80): `invoices.ts:345` Standardjahr,
+  Serverzeitzone (Muster aus Fund 36/80):
   `lib/buchhaltung.ts:114` DATEV-Zeitstempel, `optimizationSuggestions.ts:126`
   und `lib/youtubeInsights.ts:224` Wochen/Wochentage - jeweils beim Lesen messen.
+  `mahnwesen.ts:174,195,455`: Einzelabfragen ohne `kind = 'rechnung'` (Fund 83).
   `Budget.tsx` (Finanzierung): Der Server legt neue Zeilen mit Art
   "Förderung" an, die Auswahl kennt nur "Förderung regional"/"national" -
   prüfen, was die Auswahl dann zeigt.
@@ -243,6 +244,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 80 | `server/src/routes/ical.ts` (Call-Zeiten im Kalenderexport) | **Fehler, live** | Die Call-Zeit wurde über `setHours` in der Zeitzone des Servers gerechnet. Beim Hoster (UTC) stand Call 07:00 als 07:00 UTC im Kalender - 08:00 Uhr deutscher Zeit, im Sommer 09:00. | ja: Zweitinstanz mit `TZ=UTC`: `20261102T070000Z`, lokal `060000Z` | behoben: `berlinZeitpunkt` in `lib/datum.ts` (unabhängig von der Serverzeitzone, getestet unter Berlin, UTC, New York); danach beide `060000Z` |
 | 81 | `server/src/routes/insurances.ts` | Klein | Laufzeit einer Police in Textspalten ohne jede Prüfung (wie Sperrtage, Fund 48). | nein, vorher gelesen; nach dem Fix gemessen | behoben: leer oder echtes Datum, Ende nicht vor Anfang (auch gegen den gespeicherten Stand); danach `abc` 400, Ende vor Anfang 400, leeres Formular 201 |
 | 82 | `server/src/routes/invites.ts` (Einladungsmail, Mitglieder-Routen), `routes/projects.ts:311` | Fehler, Text | Projekttitel und Name der Einladenden gingen unmaskiert in die Einladungsmail (wie Fund 23). Die Mitglieder-Routen in `invites.ts` (Liste, Rolle, Entfernen) erreichte nie eine Anfrage - `projects.ts` ist vorher eingehängt und beantwortet dieselben Pfade. Dort wurde jede Rolle ungeprüft gespeichert: Mit "Produzent" verlor ein Mitglied still jedes Schreibrecht. | ja: Titel `<Messung> &` roh in der Mail; Rolle "Produzent" gespeichert | behoben: `maskiere`; toter Doppelcode entfernt; nur bekannte Rollen (`hasOwnProperty`, auch "constructor" 400); danach gemessen, Mitgliederliste weiter 200 |
+| 83 | `server/src/routes/invoices.ts` (alle Routen) | **Fehler, Geld, live** | Angebote liegen in derselben Tabelle (`kind = 'angebot'`), die Rechnungsrouten filterten nicht danach. Ein festgeschriebenes Angebot stand in der Rechnungsliste, zählte als offener Posten und stand im Buchhaltungsexport als Rechnung. Über die Rechnungsroute ließ sich ein Angebots-Entwurf festschreiben - mit einer Nummer aus dem Rechnungskreis, der danach eine Lücke hatte. Dazu "Faellig" im Exportkopf, "liess" in einer Meldung, Standardjahr des Exports aus der Serveruhr. | ja: Angebot 5.950 € in Liste, offenen Posten und Export; Angebots-Entwurf bekam 2026-0001, erste Rechnung 2026-0002 | behoben: alle Routen nur `kind = 'rechnung'`; danach Angebot 404, erste Rechnung 2026-0001, Liste/Export nur Rechnungen. Einzelabfragen in `mahnwesen.ts` folgen dort. **In der Produktion prüfen, ob Rechnungsnummern fehlen** |
 
 ## Abhakliste
 
@@ -313,7 +315,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/ical.ts` (143) - Fund 80
 - [x] `server/src/routes/insurances.ts` (138) - Fund 81
 - [x] `server/src/routes/invites.ts` (214) - Funde 44, 82
-- [ ] `server/src/routes/invoices.ts` (675)
+- [x] `server/src/routes/invoices.ts` (675) - Funde 27, 83
 - [ ] `server/src/routes/locationRelease.ts` (129)
 - [ ] `server/src/routes/locations.ts` (77)
 - [ ] `server/src/routes/mahnwesen.ts` (492)

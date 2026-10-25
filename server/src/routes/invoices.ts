@@ -66,7 +66,7 @@ export function erfordereAbrechnung(mindestens = 'produktion') {
 
 /** Lädt eine Rechnung samt Positionen und abgeleiteten Werten. */
 async function ladeRechnung(companyId: number, invoiceId: number) {
-  const rechnung = (await db.get('SELECT * FROM invoices WHERE id = ? AND company_id = ?', [
+  const rechnung = (await db.get("SELECT * FROM invoices WHERE id = ? AND company_id = ? AND kind = 'rechnung'", [
     invoiceId, companyId,
   ])) as any
   if (!rechnung) return null
@@ -210,7 +210,11 @@ router.delete('/companies/:companyId/clients/:clientId', requireAuth, erfordereA
 router.get('/companies/:companyId/invoices', requireAuth, erfordereAbrechnung(), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
   const status = String(req.query.status || '')
-  const bedingungen = ['i.company_id = ?']
+  // Nur Rechnungen. Angebote liegen in derselben Tabelle (kind = 'angebot');
+  // gemessen am 25.10.2026 stand ein festgeschriebenes Angebot hier, zählte
+  // als offener Posten und ließ sich über diese Routen festschreiben - mit
+  // einer Nummer aus dem Rechnungskreis, der danach eine Lücke hatte.
+  const bedingungen = ['i.company_id = ?', "i.kind = 'rechnung'"]
   const werte: any[] = [companyId]
   if (['entwurf', 'versendet', 'bezahlt', 'storniert'].includes(status)) {
     bedingungen.push('i.status = ?')
@@ -342,7 +346,7 @@ router.get('/companies/:companyId/invoices/report/vat', requireAuth, erfordereAb
  */
 router.get('/companies/:companyId/invoices/report/export.csv', requireAuth, erfordereAbrechnung(), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
-  const von = String(req.query.von || `${new Date().getFullYear()}-01-01`)
+  const von = String(req.query.von || `${heuteISO().slice(0, 4)}-01-01`)
   const bis = String(req.query.bis || heuteISO())
 
   const zeilen = (await db.all(
@@ -351,7 +355,7 @@ router.get('/companies/:companyId/invoices/report/export.csv', requireAuth, erfo
        FROM invoices i
        LEFT JOIN company_clients c ON c.id = i.client_id
        LEFT JOIN projects p ON p.id = i.project_id
-      WHERE i.company_id = ? AND i.status IN ('versendet', 'bezahlt')
+      WHERE i.company_id = ? AND i.kind = 'rechnung' AND i.status IN ('versendet', 'bezahlt')
         AND i.issue_date >= ? AND i.issue_date <= ?
       ORDER BY i.issue_date ASC, i.number ASC`,
     [companyId, von, bis]
@@ -360,7 +364,7 @@ router.get('/companies/:companyId/invoices/report/export.csv', requireAuth, erfo
   const komma = (cents: number) => (Number(cents || 0) / 100).toFixed(2).replace('.', ',')
   const feld = (wert: any) => `"${String(wert ?? '').replace(/"/g, '""')}"`
   const kopf = [
-    'Rechnungsnummer', 'Datum', 'Faellig', 'Auftraggeber', 'USt-ID', 'Projekt',
+    'Rechnungsnummer', 'Datum', 'Fällig', 'Auftraggeber', 'USt-ID', 'Projekt',
     'Netto', 'Umsatzsteuer', 'Brutto', 'Bezahlt', 'Status',
   ]
   const inhalt = [
@@ -434,7 +438,7 @@ router.post('/companies/:companyId/invoices', requireAuth, erfordereAbrechnung()
 router.put('/companies/:companyId/invoices/:invoiceId', requireAuth, erfordereAbrechnung(), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
   const invoiceId = Number(req.params.invoiceId)
-  const vorhanden = (await db.get('SELECT status FROM invoices WHERE id = ? AND company_id = ?', [
+  const vorhanden = (await db.get("SELECT status FROM invoices WHERE id = ? AND company_id = ? AND kind = 'rechnung'", [
     invoiceId, companyId,
   ])) as any
   if (!vorhanden) return res.status(404).json({ data: null, error: 'Rechnung nicht gefunden' })
@@ -461,7 +465,7 @@ router.put('/companies/:companyId/invoices/:invoiceId', requireAuth, erfordereAb
     `UPDATE invoices
         SET client_id = ?, project_id = ?, issue_date = ?, due_date = ?,
             service_from = ?, service_to = ?, intro = ?, outro = ?, updated_at = NOW()
-      WHERE id = ? AND company_id = ?`,
+      WHERE id = ? AND company_id = ? AND kind = 'rechnung'`,
     [
       k.client_id ? Number(k.client_id) : null,
       k.project_id ? Number(k.project_id) : null,
@@ -483,7 +487,7 @@ router.put('/companies/:companyId/invoices/:invoiceId', requireAuth, erfordereAb
 router.put('/companies/:companyId/invoices/:invoiceId/items', requireAuth, erfordereAbrechnung(), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
   const invoiceId = Number(req.params.invoiceId)
-  const rechnung = (await db.get('SELECT status FROM invoices WHERE id = ? AND company_id = ?', [
+  const rechnung = (await db.get("SELECT status FROM invoices WHERE id = ? AND company_id = ? AND kind = 'rechnung'", [
     invoiceId, companyId,
   ])) as any
   if (!rechnung) return res.status(404).json({ data: null, error: 'Rechnung nicht gefunden' })
@@ -521,7 +525,7 @@ router.post('/companies/:companyId/invoices/:invoiceId/issue', requireAuth, erfo
   const companyId = Number(req.params.companyId)
   const invoiceId = Number(req.params.invoiceId)
 
-  const rechnung = (await db.get('SELECT * FROM invoices WHERE id = ? AND company_id = ?', [
+  const rechnung = (await db.get("SELECT * FROM invoices WHERE id = ? AND company_id = ? AND kind = 'rechnung'", [
     invoiceId, companyId,
   ])) as any
   if (!rechnung) return res.status(404).json({ data: null, error: 'Rechnung nicht gefunden' })
@@ -570,7 +574,7 @@ router.post('/companies/:companyId/invoices/:invoiceId/issue', requireAuth, erfo
 router.post('/companies/:companyId/invoices/:invoiceId/payment', requireAuth, erfordereAbrechnung(), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
   const invoiceId = Number(req.params.invoiceId)
-  const rechnung = (await db.get('SELECT * FROM invoices WHERE id = ? AND company_id = ?', [
+  const rechnung = (await db.get("SELECT * FROM invoices WHERE id = ? AND company_id = ? AND kind = 'rechnung'", [
     invoiceId, companyId,
   ])) as any
   if (!rechnung) return res.status(404).json({ data: null, error: 'Rechnung nicht gefunden' })
@@ -605,7 +609,7 @@ router.post('/companies/:companyId/invoices/:invoiceId/payment', requireAuth, er
 router.post('/companies/:companyId/invoices/:invoiceId/cancel', requireAuth, erfordereAbrechnung('inhaber'), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
   const invoiceId = Number(req.params.invoiceId)
-  const rechnung = (await db.get('SELECT status FROM invoices WHERE id = ? AND company_id = ?', [
+  const rechnung = (await db.get("SELECT status FROM invoices WHERE id = ? AND company_id = ? AND kind = 'rechnung'", [
     invoiceId, companyId,
   ])) as any
   if (!rechnung) return res.status(404).json({ data: null, error: 'Rechnung nicht gefunden' })
@@ -624,7 +628,7 @@ router.post('/companies/:companyId/invoices/:invoiceId/cancel', requireAuth, erf
 // DELETE - nur Entwürfe verschwinden
 router.delete('/companies/:companyId/invoices/:invoiceId', requireAuth, erfordereAbrechnung(), async (req: Request, res: Response) => {
   const zeile = await db.run(
-    "DELETE FROM invoices WHERE id = ? AND company_id = ? AND status = 'entwurf'",
+    "DELETE FROM invoices WHERE id = ? AND company_id = ? AND kind = 'rechnung' AND status = 'entwurf'",
     [Number(req.params.invoiceId), Number(req.params.companyId)]
   )
   if (zeile.changes === 0) {
@@ -668,7 +672,7 @@ router.get('/companies/:companyId/invoices/:invoiceId/pdf', requireAuth, erforde
     return res.send(blatt)
   } catch (fehler: any) {
     console.error('[rechnung/pdf]', fehler?.message || fehler)
-    return res.status(500).json({ data: null, error: 'Das PDF liess sich nicht erzeugen' })
+    return res.status(500).json({ data: null, error: 'Das PDF ließ sich nicht erzeugen' })
   }
 })
 
