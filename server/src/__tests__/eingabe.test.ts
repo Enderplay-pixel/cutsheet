@@ -6,6 +6,7 @@
  * antwortete - inklusive Spaltentyp und Kodierung.
  */
 import { describe, it, expect, vi } from 'vitest'
+import { MELDUNGEN } from '../lib/meldungenText'
 import {
   istGueltigeId, istIdParameter, pruefeIdParameter, saeubereKoerper,
   uebersetzeDatenbankfehler, PG_INT_MAX,
@@ -128,6 +129,9 @@ describe('uebersetzeDatenbankfehler', () => {
       // Die Rohmeldung darf nicht nach aussen
       expect(res.koerper.error).not.toContain('constraint')
       expect(res.koerper.error).not.toContain('type integer')
+      // Und der Satz kommt auch englisch und französisch an - gemessen am
+      // 24.10.2026 kamen diese Sätze mit "X-Sprache: en" deutsch.
+      expect(MELDUNGEN[res.koerper.error], 'Übersetzung in lib/meldungenText.ts').toBeTruthy()
     })
   }
 

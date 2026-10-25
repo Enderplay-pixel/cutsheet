@@ -884,6 +884,12 @@ describe('Zweiter Faktor und Sitzungen', () => {
     expect(bestaetigt.status).toBe(200)
     expect(bestaetigt.daten.wiederherstellungscodes).toHaveLength(8)
     ;(globalThis as any).__codes = bestaetigt.daten.wiederherstellungscodes
+    // Gespeichert ist nur die Ablageform, nicht der Code selbst.
+    const zeile = await db.get('SELECT recovery_codes FROM user_totp WHERE recovery_codes LIKE ?', ['%scrypt$%'])
+    for (const c of bestaetigt.daten.wiederherstellungscodes) {
+      expect(zeile.recovery_codes).not.toContain(c)
+      expect(zeile.recovery_codes).not.toContain(c.replace('-', ''))
+    }
   })
 
   it('verlangt ab jetzt den Code bei der Anmeldung', async () => {
@@ -1872,4 +1878,55 @@ describe('Was anliegt', () => {
     expect(mitarbeiter.status).toBe(200)
     expect(mitarbeiter.daten.punkte.some((p: any) => p.art === 'rechnung')).toBe(false)
   })
+})
+
+describe('Passwort und Sitzungen', () => {
+  /**
+   * Gemessen am 24.10.2026: Nach dem Zurücksetzen per Link galten alle alten
+   * Anmeldungen weiter, nach dem Passwortwechsel die der anderen Geräte, und
+   * das Token aus der Registrierung überstand beides. Der Rücksetz-Link stand
+   * im Klartext in der Datenbank.
+   */
+  it('beendet Anmeldungen, wenn das Passwort neu ist', async () => {
+    const adresse = 'sitzungen@demo.test'
+    const melde = async (passwort: string) =>
+      (await hole('/api/auth/login', '', { method: 'POST', body: JSON.stringify({ email: adresse, password: passwort }) })).daten.token
+    const gilt = async (t: string) => (await hole('/api/auth/me', t)).status
+
+    const registriert = await hole('/api/auth/register', '', {
+      method: 'POST', body: JSON.stringify({ email: adresse, password: 'erstes-passwort', name: 'Sitzung' }),
+    })
+    expect(registriert.status).toBe(201)
+    const ausRegistrierung = registriert.daten.token
+    const hier = await melde('erstes-passwort')
+    expect((await hole('/api/auth/sessions/revoke-others', hier, { method: 'POST' })).status).toBe(200)
+    expect(await gilt(ausRegistrierung), 'Token der Registrierung nach "alle anderen abmelden"').toBe(401)
+
+    const anderesGeraet = await melde('erstes-passwort')
+    const wechsel = await hole('/api/auth/me/password', hier, {
+      method: 'PUT', body: JSON.stringify({ current_password: 'erstes-passwort', new_password: 'zweites-passwort' }),
+    })
+    expect(wechsel.status).toBe(200)
+    expect(await gilt(anderesGeraet), 'anderes Gerät nach dem Passwortwechsel').toBe(401)
+    expect(await gilt(hier), 'dieses Gerät bleibt angemeldet').toBe(200)
+
+    await hole('/api/auth/forgot-password', '', { method: 'POST', body: JSON.stringify({ email: adresse }) })
+    const mail = await db.get('SELECT html FROM email_outbox WHERE recipient_email = ? ORDER BY id DESC LIMIT 1', [adresse])
+    const link = String(mail.html).match(/reset-password\/([0-9a-f]+)/)![1]
+    const gespeichert = await db.get(
+      'SELECT token FROM password_reset_tokens t JOIN users u ON t.user_id = u.id WHERE u.email = ? ORDER BY t.id DESC LIMIT 1',
+      [adresse]
+    )
+    expect(gespeichert.token, 'der Link steht nicht im Klartext in der Datenbank').not.toBe(link)
+
+    const zurueck = await hole('/api/auth/reset-password', '', {
+      method: 'POST', body: JSON.stringify({ token: link, password: 'drittes-passwort' }),
+    })
+    expect(zurueck.status).toBe(200)
+    expect(await gilt(hier), 'nach dem Zurücksetzen ist jede Anmeldung beendet').toBe(401)
+    const nochmal = await hole('/api/auth/reset-password', '', {
+      method: 'POST', body: JSON.stringify({ token: link, password: 'viertes-passwort' }),
+    })
+    expect(nochmal.status).toBe(400)
+  }, 60_000)
 })

@@ -2,6 +2,7 @@ import { Pool, PoolClient, types as pgTypes } from 'pg'
 import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import { heuteISO } from '../lib/datum'
 import { ueberlastMelden } from '../lib/ueberlast'
+import { legeCodeAb, istAbgelegt } from '../lib/zweiterFaktor'
 
 // DATE-Spalten als Text lesen, nicht als JS-Datum.
 //
@@ -1325,6 +1326,33 @@ export async function initDatabase() {
     )
   `)
   await db.exec(`CREATE INDEX IF NOT EXISTS user_sessions_konto_idx ON user_sessions (user_id, revoked_at)`)
+
+  // Rücksetz-Token und Wiederherstellungscodes nicht im Klartext. Gemessen am
+  // 24.10.2026: Beide standen lesbar in der Datenbank - wer sie las, konnte
+  // ein Passwort zurücksetzen oder den zweiten Faktor umgehen. Ein Token
+  // steht seither als SHA-256 darin (es hat 256 Bit, schneller Hash genügt),
+  // ein Code als scrypt (lib/zweiterFaktor.ts). Alte Einträge werden hier
+  // einmal umgestellt; offene Links gelten danach weiter.
+  await db.exec(`ALTER TABLE password_reset_tokens ADD COLUMN IF NOT EXISTS token_gehasht BOOLEAN NOT NULL DEFAULT false`)
+  await db.exec(`
+    UPDATE password_reset_tokens
+       SET token = encode(sha256(convert_to(token, 'UTF8')), 'hex'), token_gehasht = true
+     WHERE NOT token_gehasht
+  `)
+  await db.exec(`ALTER TABLE password_reset_tokens ALTER COLUMN token_gehasht SET DEFAULT true`)
+  const klartextCodes = (await db.all(
+    "SELECT user_id, recovery_codes FROM user_totp WHERE recovery_codes <> '[]'"
+  )) as Array<{ user_id: number; recovery_codes: string }>
+  for (const zeile of klartextCodes) {
+    let codes: string[] = []
+    try { codes = JSON.parse(zeile.recovery_codes || '[]') } catch { continue }
+    if (!Array.isArray(codes) || codes.every((c) => istAbgelegt(String(c)))) continue
+    const abgelegt = await Promise.all(codes.map((c) => (istAbgelegt(String(c)) ? String(c) : legeCodeAb(String(c)))))
+    await db.run(
+      'UPDATE user_totp SET recovery_codes = ? WHERE user_id = ? AND recovery_codes = ?',
+      [JSON.stringify(abgelegt), zeile.user_id, zeile.recovery_codes]
+    )
+  }
 
   // Anmeldeversuche: wer sich wann angemeldet hat, und was schiefging.
   await db.exec(`

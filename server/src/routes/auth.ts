@@ -4,15 +4,16 @@ import crypto from 'crypto'
 import { z } from 'zod'
 import { db, seedDemoData } from '../db'
 import {
-  signToken, requireAuth, requireRole, AuthUser,
+  requireAuth, requireRole, AuthUser,
   starteSitzung, beendeSitzung, beendeAlleSitzungen, vergissKonto,
 } from '../middleware/auth'
 import {
   erzeugeSchluessel, otpauthUrl, pruefeCode,
-  erzeugeWiederherstellungscodes, normalisiereCode,
+  erzeugeWiederherstellungscodes, legeCodeAb, codePasst,
 } from '../lib/zweiterFaktor'
 import { validate } from '../middleware/validate'
 import { sendEmail, isSmtpConfigured, appBaseUrl } from './emailService'
+import { maskiere } from '../lib/mailvorlagen'
 
 const router = Router()
 
@@ -35,6 +36,22 @@ const LoginSchema = z.object({
   // und was nicht im Schema steht, faellt weg.
   code: z.string().max(32).optional(),
 })
+
+/** Ablageform eines Rücksetz-Tokens - in der Datenbank steht nur sie. */
+function tokenAblage(token: string): string {
+  return crypto.createHash('sha256').update(String(token), 'utf8').digest('hex')
+}
+
+/**
+ * Die Adresse eines Geräts für Sitzung und Anmeldeverlauf.
+ *
+ * `req.ip`, nicht der Kopf `X-Forwarded-For`: Den setzt der Client selbst,
+ * und im eigenen Anmeldeverlauf stand dann, was der Anmeldende hineinschrieb.
+ * Hinter dem Hoster liest Express die echte Adresse (`trust proxy`).
+ */
+function adresse(req: Request): string {
+  return String(req.ip || '')
+}
 
 interface UserRow {
   id: number
@@ -71,8 +88,14 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
     // Fire-and-forget: ~100 INSERTs würden die Registrierung um Sekunden verzögern.
     seedDemoData(result.id).catch(err => console.error('[auth/register] Demo-Seed fehlgeschlagen', err))
 
+    // Auch die erste Anmeldung ist eine Sitzung. Vorher signToken allein:
+    // Gemessen am 24.10.2026 überstand dieses Token "alle anderen abmelden"
+    // und das Zurücksetzen des Passworts - 30 Tage lang.
     const authUser: AuthUser = { id: result.id, email, name: name || '', role }
-    const token = signToken(authUser)
+    const { token } = await starteSitzung(authUser, {
+      device: String(req.headers['user-agent'] || ''),
+      ip: adresse(req),
+    })
     return res.status(201).json({ data: { token, user: authUser }, error: null })
   } catch (err) {
     console.error('[auth/register]', err)
@@ -117,14 +140,22 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response)
       }
       let erkannt = pruefeCode(faktor.secret, eingabe)
       if (!erkannt) {
-        // Wiederherstellungscode? Er gilt genau einmal.
+        // Wiederherstellungscode? Er gilt genau einmal. Gespeichert ist nur
+        // seine Ablageform (siehe db/index.ts).
         const codes: string[] = JSON.parse(faktor.recovery_codes || '[]')
-        const gesucht = normalisiereCode(eingabe)
-        const index = codes.findIndex(c => normalisiereCode(c) === gesucht)
+        let index = -1
+        for (let i = 0; i < codes.length && index < 0; i++) {
+          if (await codePasst(eingabe, codes[i])) index = i
+        }
         if (index >= 0) {
           codes.splice(index, 1)
-          await db.run('UPDATE user_totp SET recovery_codes = ? WHERE user_id = ?', [JSON.stringify(codes), user.id])
-          erkannt = true
+          // Nur, wenn die Liste noch dieselbe ist: Zwei gleichzeitige
+          // Anmeldungen mit demselben Code dürfen nicht beide durchkommen.
+          const zeile = await db.run(
+            'UPDATE user_totp SET recovery_codes = ? WHERE user_id = ? AND recovery_codes = ?',
+            [JSON.stringify(codes), user.id, faktor.recovery_codes]
+          )
+          erkannt = zeile.changes > 0
         }
       }
       if (!erkannt) {
@@ -135,7 +166,7 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response)
 
     const { token } = await starteSitzung(authUser, {
       device: String(req.headers['user-agent'] || ''),
-      ip: String(req.headers['x-forwarded-for'] || req.ip || ''),
+      ip: adresse(req),
     })
     await protokolliereAnmeldung(req, user.id, email, 'ok')
     return res.json({ data: { token, user: authUser }, error: null })
@@ -154,7 +185,7 @@ async function protokolliereAnmeldung(req: Request, userId: number | null, email
         userId,
         String(email || '').slice(0, 200),
         ergebnis,
-        String(req.headers['x-forwarded-for'] || req.ip || '').slice(0, 60),
+        adresse(req).slice(0, 60),
         String(req.headers['user-agent'] || '').slice(0, 200),
       ]
     )
@@ -196,9 +227,10 @@ router.post('/2fa/confirm', requireAuth, async (req: Request, res: Response) => 
     return res.status(400).json({ data: null, error: 'Der Code stimmt nicht. Geht die Uhr des Geräts richtig?' })
   }
   const codes = erzeugeWiederherstellungscodes()
+  const abgelegt = await Promise.all(codes.map(legeCodeAb))
   await db.run(
     'UPDATE user_totp SET confirmed_at = NOW(), recovery_codes = ? WHERE user_id = ?',
-    [JSON.stringify(codes), user.id]
+    [JSON.stringify(abgelegt), user.id]
   )
   return res.json({
     data: {
@@ -295,8 +327,9 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       if (Number(active?.c ?? 0) < 3) {
         const token = crypto.randomBytes(32).toString('hex')
         await db.run(
-          `INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, NOW() + INTERVAL '60 minutes')`,
-          [user.id, token]
+          `INSERT INTO password_reset_tokens (user_id, token, token_gehasht, expires_at)
+           VALUES (?, ?, true, NOW() + INTERVAL '60 minutes')`,
+          [user.id, tokenAblage(token)]
         )
         const link = `${appBaseUrl()}/reset-password/${token}`
         await sendEmail({
@@ -305,7 +338,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
           html: `
             <div style="font-family:Arial,sans-serif;max-width:480px;">
               <h2 style="color:#111;">Passwort zurücksetzen</h2>
-              <p>Hallo${user.name ? ' ' + user.name : ''},</p>
+              <p>Hallo${user.name ? ' ' + maskiere(user.name) : ''},</p>
               <p>du hast angefordert, dein CutSheet-Passwort zurückzusetzen. Der Link ist 60 Minuten gültig:</p>
               <p style="margin:24px 0;">
                 <a href="${link}" style="background:#b45309;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Neues Passwort festlegen</a>
@@ -330,14 +363,19 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     if (password.length < 6) return res.status(400).json({ data: null, error: 'Passwort muss mindestens 6 Zeichen haben' })
 
     const row = await db.get(
-      'SELECT * FROM password_reset_tokens WHERE token = ? AND used_at IS NULL AND expires_at > NOW()',
-      [token]
+      `SELECT * FROM password_reset_tokens
+        WHERE token = ? AND token_gehasht AND used_at IS NULL AND expires_at > NOW()`,
+      [tokenAblage(String(token))]
     ) as { id: number; user_id: number } | undefined
     if (!row) return res.status(400).json({ data: null, error: 'Link ungültig oder abgelaufen. Bitte fordere einen neuen an.' })
 
     const hash = await hashPasswort(password, 12)
     await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [hash, row.user_id])
-    await db.run('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = ?', [row.id])
+    // Alle offenen Links des Kontos verfallen, nicht nur dieser.
+    await db.run('UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL', [row.user_id])
+    // Wer zurücksetzt, tut es oft, weil jemand anderes drin ist. Gemessen am
+    // 24.10.2026: Alle Anmeldungen galten danach weiter.
+    await beendeAlleSitzungen(row.user_id)
     return res.json({ data: { success: true }, error: null })
   } catch (err) {
     console.error('[auth/reset-password]', err)
@@ -365,6 +403,16 @@ router.get('/me/export', requireAuth, async (req: Request, res: Response) => {
       'SELECT category, message, page_path, created_at FROM feedback WHERE user_id = ?', [uid])
     const pushSubs = await db.all(
       'SELECT endpoint, created_at FROM push_subscriptions WHERE user_id = ?', [uid]).catch(() => [])
+    // Auch, was über das Konto mitgeschrieben wird - mit IP und Gerät sind
+    // das personenbezogene Daten. Gemessen am 24.10.2026 fehlten sie im Export.
+    const anmeldungen = await db.all(
+      'SELECT result, ip, device, created_at FROM login_events WHERE user_id = ? ORDER BY created_at DESC', [uid])
+    const sitzungen = await db.all(
+      'SELECT device, ip, created_at, last_seen, revoked_at FROM user_sessions WHERE user_id = ? ORDER BY created_at DESC', [uid])
+    const firmen = await db.all(
+      `SELECT c.name, cm.role, cm.created_at FROM company_members cm
+       JOIN companies c ON c.id = cm.company_id WHERE cm.user_id = ?`, [uid])
+    const faktor = await db.get('SELECT confirmed_at, created_at FROM user_totp WHERE user_id = ?', [uid]) as any
 
     res.setHeader('Content-Disposition', 'attachment; filename="cutsheet-datenexport.json"')
     res.setHeader('Content-Type', 'application/json')
@@ -376,6 +424,11 @@ router.get('/me/export', requireAuth, async (req: Request, res: Response) => {
       owned_projects: ownedProjects,
       feedback: feedbackRows,
       push_subscriptions: pushSubs,
+      company_memberships: firmen,
+      login_events: anmeldungen,
+      sessions: sitzungen,
+      // Der Schlüssel selbst bleibt drinnen: Mit ihm ließe sich der Code erzeugen.
+      two_factor: faktor ? { eingerichtet_am: faktor.created_at, aktiv_seit: faktor.confirmed_at } : null,
     })
   } catch (err) {
     console.error('[auth/me/export]', err)
@@ -454,6 +507,8 @@ router.put('/me/password', requireAuth, async (req: Request, res: Response) => {
     if (!valid) return res.status(400).json({ data: null, error: 'Aktuelles Passwort falsch' })
     const hash = await hashPasswort(new_password, 12)
     await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [hash, req.user.id])
+    // Die anderen Geräte melden sich neu an, dieses bleibt angemeldet.
+    await beendeAlleSitzungen(req.user.id, req.user.sid)
     return res.json({ data: { success: true }, error: null })
   } catch (err) {
     console.error('[auth/me/password]', err)

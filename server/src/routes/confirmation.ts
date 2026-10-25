@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import { db } from '../db'
-import { signToken, AuthUser } from '../middleware/auth'
+import { starteSitzung, AuthUser } from '../middleware/auth'
 
 const router = Router()
 
@@ -147,8 +147,12 @@ router.post('/cse/t/:token/claim', async (req: Request, res: Response) => {
       [day.project_id, result.id, 'read_only']
     )
 
+    // Eine Sitzung wie bei jeder Anmeldung - siehe routes/auth.ts (Registrierung).
     const authUser: AuthUser = { id: result.id, email, name: userName, role: 'user' }
-    const token = signToken(authUser)
+    const { token } = await starteSitzung(authUser, {
+      device: String(req.headers['user-agent'] || ''),
+      ip: String(req.ip || ''),
+    })
     return res.status(201).json({ data: { token, user: authUser, project_id: day.project_id }, error: null })
   } catch (err) {
     console.error('[cse/claim]', err)

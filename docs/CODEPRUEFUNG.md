@@ -67,15 +67,16 @@ Stand am 24.10.2026, 23 Uhr:
 - **Fertig:** Gruppe Middleware (7 Dateien). Funde 1-9 eingetragen, 1, 4, 5, 6, 9
   behoben und committet.
 - **Fertig:** Gruppe Datenbank (`db/index.ts`, `grossproduktion.ts`).
-- **Routen bis `auswertungen.ts` fertig** (siehe Haken). **Als Nächstes:**
-  `auth.ts` (Verdacht 8 prüfen), dann alphabetisch weiter.
+- **Routen bis `auth.ts` fertig** (siehe Haken). **Als Nächstes:**
+  `backup.ts`, dann alphabetisch weiter. `confirmation.ts` ist für Fund 39
+  angefasst (Sitzung statt `signToken`), aber noch nicht gelesen.
+- **Vor jedem Commit die ganze Testsuite**, nicht nur die Typprüfung -
+  siehe Fund 41.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
-  `auth.ts` ~308 setzt `user.name` unmaskiert in die Passwort-Mail;
   `invites.ts` ~27 setzt Projekttitel und Namen der Einladenden unmaskiert
-  in die Einladungsmail (wie Fund 23). Die Texte des Fehlerübersetzers
-  (`middleware/eingabe.ts`, etwa "Ein Pflichtfeld fehlt.") stehen nicht in
-  `lib/meldungenText.ts` - bei `sprache.ts`/`meldungenText.ts` prüfen, ob
-  englische Nutzer sie deutsch bekommen. 72 Routen fangen Fehler selbst ab
+  in die Einladungsmail (wie Fund 23). Meldungen, die über eine Konstante
+  statt als `error: '...'` im Code stehen, sieht der Meldungstest nicht
+  (Fund 41). 72 Routen fangen Fehler selbst ab
   und geben 500 "Interner Serverfehler" (Muster aus Fund 34).
   `Kostenstand.tsx:70` liest den Betrag mit `parseFloat(x.replace(',', '.'))`
   - "1.234,56" würde 1,23 € (`parseFloat("1.234.56")` ist 1.234).
@@ -142,7 +143,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 5 | `server/src/middleware/projectAuth.ts:212` | **Sicherheit, live** | Guard nahm bei POST das Projekt aus dem Body vor dem Pfad. Fremdes Konto schrieb mit eigener `project_id` im Body in fremde Projekte (`POST /scenes/{fremd}/blocks`). Betrifft jede POST-Route auf einem Eintragspfad. Älter als dieser Tag, in der Produktion. | ja: Block "EINGEDRUNGEN-MIT" in Projekt 6, ohne Body-Trick 403 | behoben: Pfad vor Body; Test in `datenbank.test.ts`, gegen alten Stand rot. **Muss bald raus.** |
 | 6 | `server/src/routes/auth.ts:48,82`, `admin.ts:350` | Fehler | E-Mail mit exakter Schreibweise verglichen: "Max@..." registriert, mit "max@..." kein Zugang; dieselbe Adresse kleingeschrieben ein zweites Mal registrierbar. | ja: 201, dann 401, dann zweites Konto 201 | behoben: Adresse wird kleingeschrieben, Vergleich per `LOWER`; bei Altpaaren entscheidet das Passwort - beide gemessen erreichbar |
 | 7 | `server/src/db/index.ts` (`notifications`, `notification_settings`) | Hinweis, Entscheidung | Tabellen der abgebrochenen Runde 17 kamen versehentlich mit Commit `84f1d7d` und stehen leer in der Produktion. Kein Code nutzt sie. Entfernen hieße `DROP TABLE` in der Produktion. | ja: `git log -S`, `origin/master` enthält den Commit | offen, für Florian |
-| 8 | `user_totp.recovery_codes`, `password_reset_tokens.token` | Verdacht | Wiederherstellungscodes und Rücksetz-Token offenbar im Klartext; wer die Datenbank liest, umgeht den zweiten Faktor. | noch nicht - beim Lesen von `routes/auth.ts` prüfen | offen |
+| 8 | `user_totp.recovery_codes`, `password_reset_tokens.token` | **Sicherheit, live** | Wiederherstellungscodes und Rücksetz-Token standen im Klartext in der Datenbank; wer sie las, konnte ein Passwort zurücksetzen oder den zweiten Faktor umgehen. | ja: Token in der Datenbank gleich dem im Link, Codes wörtlich in `recovery_codes` | behoben: Token als SHA-256 (256 Bit, schneller Hash genügt), Codes per scrypt mit Salz (`lib/zweiterFaktor.ts`); `db/index.ts` stellt Altbestand beim Start um, offene Links und alte Codes gelten weiter - beides gemessen (Neustart, alter Code 200). Danach: kein Klartext. |
 | 9 | `server/src/db/index.ts:2058` | **Datenschutz, live** | Bei jedem Start bekam jedes Projekt ohne Inhaber das erste Konto als Inhaber. Ohne Inhaber sind die Projekte gelöschter Konten (`ON DELETE SET NULL`) - nach jedem Deploy gehörten sie still dem ersten Konto, mit allen Daten. | ja: Konto 19 legt Projekt 20 an, gelöscht, Neustart: `owner_id` 1 | behoben: keine Zuweisung beim Start mehr (siehe Fund 22); Test, gegen alten Stand rot. **In der Produktion prüfen**, welche Projekte dem ersten Konto zugefallen sind - aus den Daten allein nicht mehr erkennbar. |
 | 10 | `server/src/db/index.ts` (`seedDemoData`), `lib/mailversand.ts` | **Datenschutz, live** | Das Demo-Projekt jedes neuen Kontos enthielt 14 Adressen bei echten Anbietern (`email.de`, `gmx.de`, `gmail.com` ...). Ein Klick auf "Dispo versenden" schrieb Fremde an, unter Florians Absender, mit Dispo-PDF. | ja: Fang-SMTP auf Port 2525, zweite Instanz; 7 Empfänger kamen an (`felix.wagner@email.de` ...) | behoben: Demo-Adressen unter `@demo.test`, bestehende Demo-Projekte beim Start nachgezogen (nur die 14 bekannten Adressen); Versand legt `.test/.example/.invalid/.localhost` und `example.com/net/org` keinem Mailserver vor (`ohne_versand`); Dispo meldet `nicht_zustellbar`. Gemessen danach: 0 in der Falle. Test gegen alten Stand rot. |
 | 11 | `server/src/routes/tabellen.ts:207-215` | Datenschutz | Die Importvorlage für Stab, Besetzung und Komparsen trägt eine Beispielzeile mit `@beispiel.de` (registrierte Domain). Wer sie nicht löscht, importiert sie mit. | ja: Vorlage zurückgespielt, Vorschau `neu: Sarah Müller` | behoben: Beispieladressen unter `@beispiel.test` |
@@ -173,6 +174,11 @@ sind ein Render-Dienst aus demselben Bau.
 | 36 | `server/src/routes/auswertungen.ts:28,210,328` | Fehler, klein | Wie Fund 15, aber fürs Jahr: Standardzeitraum und KSK-Jahr kamen aus `new Date().getFullYear()` (Serveruhr, beim Hoster UTC). | ja, gerechnet für 00:30 Uhr am 1.1.2027 Berliner Zeit: Zeitraum `2026-01-01` bis `2027-01-01`, KSK-Jahr 2025 statt 2026 | behoben: Jahr aus `heuteISO()`; heute gemessen unverändert (`2026-01-01` bis heute, KSK 2025) |
 | 37 | `server/src/routes/auswertungen.ts` (`PUT .../ksk/:art/:personId`) | Fehler | Ohne `ksk_relevant` im Körper wurde aus "unentschieden" ein "nein" - der Kommentar daneben sagt, `null` sei keine Abkürzung für nein, `undefined` war es doch. | ja: `{}` → `ksk_relevant: false` in der Datenbank | behoben: nur `true`, `false`, `null`, sonst 400; alle fünf Fälle gemessen |
 | 38 | `auswertungen.ts` (Deckungsbeitrag), `Kostenstand.tsx` | Hinweis, Entscheidung | Der Deckungsbeitrag zieht von **Netto**-Umsätzen die Ausgaben ab. Bei Ausgaben steht nur "Betrag", ohne netto oder brutto. Wer Belege brutto erfasst, sieht eine um die Vorsteuer zu niedrige Marge. | nein, gelesen: `expenses` hat nur `amount_cents`, Eingabefeld "Betrag (€)" | offen, für Florian: Feld als "netto" beschriften oder Steuer mit erfassen |
+| 39 | `server/src/routes/auth.ts` (`/register`, `/reset-password`, `/me/password`), `routes/confirmation.ts:151` | **Sicherheit, live** | Ein neues Passwort beendete keine Anmeldung: Nach dem Zurücksetzen per Link galten alle alten Sitzungen weiter - gerade dann, wenn jemand Fremdes drin ist. Nach dem Passwortwechsel ebenso die anderen Geräte. Die Registrierung (und das Konto aus der Dispo-Bestätigung) gab ein Token ohne Sitzung aus, das "alle anderen abmelden" und das Zurücksetzen 30 Tage lang überstand. Andere offene Rücksetz-Links blieben gültig. | ja: nach dem Zurücksetzen alte Anmeldung 200, Registrierungs-Token 200; nach dem Wechsel anderes Gerät 200 | behoben: Zurücksetzen beendet alle Sitzungen und alle offenen Links, Wechsel alle außer dem eigenen Gerät; Registrierung und Dispo-Konto bekommen eine Sitzung. Danach: 401, 401, 401, eigenes Gerät 200, Link zweimal 400, zweiter Link 400. Test in `datenbank.test.ts`, gegen alten Stand rot. **Tokens ohne Sitzung aus der Zeit vor dem Deploy gelten bis zu ihrem Ablauf (höchstens 30 Tage).** |
+| 40 | `server/src/routes/auth.ts` (Anmeldung, Anmeldeverlauf) | Fehler | Sitzung und Anmeldeverlauf lasen die IP aus dem Kopf `X-Forwarded-For`, den der Client selbst setzt. | ja: gefälschter Kopf `203.0.113.99` stand in Verlauf und Sitzung | behoben: `req.ip` (hinter dem Hoster über `trust proxy`); danach die echte Adresse |
+| 41 | `middleware/eingabe.ts`, `lib/ueberlast.ts`, `lib/meldungenText.ts` | Text | Die Sätze des Fehlerübersetzers ("Eine Zahl wurde als Text übergeben." usw.) und die Überlastmeldung hatten keine Übersetzung - mit `X-Sprache: en` kamen sie deutsch. Ebenso drei neue Meldungen dieser Prüfung (Steuerart, KSK, Datum); die KSK-Meldung hatte den Meldungstest rot gemacht (Commit `e41d870` ohne vollen Testlauf). | ja: `X-Sprache: en` → "Eine Zahl wurde als Text übergeben.", Gegenprobe "Ungültige Anmeldedaten" kam englisch | behoben: zehn Einträge in `MELDUNGEN`; `eingabe.test.ts` prüft je Satz die Übersetzung. Danach englisch und französisch gemessen |
+| 42 | `server/src/routes/auth.ts` (Rücksetz-Mail) | Klein | Der Kontoname ging unmaskiert in die Mail (wie Fund 23). | ja: `<b>Fett</b> <img src=x>` wörtlich im HTML | behoben: `maskiere` |
+| 43 | `server/src/routes/auth.ts` (`GET /me/export`) | Datenschutz | Der Export "aller personenbezogenen Daten" ließ Anmeldeverlauf, Sitzungen (je mit IP und Gerät), Firmenmitgliedschaften und den Stand des zweiten Faktors weg. | ja: Admin-Konto 69 Anmeldungen, 69 Sitzungen, 5 Firmen - im Export keine | behoben: alle vier im Export, der 2FA-Schlüssel bleibt draußen (gemessen) |
 
 ## Abhakliste
 
@@ -206,7 +212,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/anliegen.ts` (242) - Funde 15, 29-33
 - [x] `server/src/routes/audit.ts` (279) - Funde 34, 35
 - [x] `server/src/routes/auswertungen.ts` (361) - Funde 15, 36-38
-- [ ] `server/src/routes/auth.ts` (493)
+- [x] `server/src/routes/auth.ts` (493) - Funde 2, 6, 8, 39-43
 - [ ] `server/src/routes/backup.ts` (230)
 - [ ] `server/src/routes/blackoutDates.ts` (152)
 - [ ] `server/src/routes/buchhaltung.ts` (318)

@@ -151,3 +151,39 @@ export function erzeugeWiederherstellungscodes(anzahl = 8): string[] {
 export function normalisiereCode(code: string): string {
   return String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
 }
+
+/**
+ * Wie ein Wiederherstellungscode gespeichert wird: scrypt mit eigenem Salz.
+ *
+ * Bis zum 24.10.2026 standen die Codes im Klartext in `user_totp`. Wer die
+ * Datenbank las, hatte damit den zweiten Faktor. Ein Code hat 50 Bit - mit
+ * einem schnellen Hash wäre er durchprobierbar, mit scrypt nicht.
+ */
+const SCRYPT_PRAEFIX = 'scrypt$'
+
+function scrypt(text: string, salz: Buffer, laenge: number): Promise<Buffer> {
+  return new Promise((aufloesen, ablehnen) =>
+    crypto.scrypt(text, salz, laenge, (fehler, wert) => (fehler ? ablehnen(fehler) : aufloesen(wert)))
+  )
+}
+
+export async function legeCodeAb(code: string): Promise<string> {
+  const salz = crypto.randomBytes(16)
+  const wert = await scrypt(normalisiereCode(code), salz, 32)
+  return `${SCRYPT_PRAEFIX}${salz.toString('hex')}$${wert.toString('hex')}`
+}
+
+/** Ob ein Eintrag schon die Ablageform hat - für die Umstellung alter Codes. */
+export function istAbgelegt(eintrag: string): boolean {
+  return String(eintrag).startsWith(SCRYPT_PRAEFIX)
+}
+
+/** Ob eine Eingabe zu einem abgelegten Code passt. */
+export async function codePasst(eingabe: string, abgelegt: string): Promise<boolean> {
+  if (!istAbgelegt(abgelegt)) return false
+  const [salz, wert] = abgelegt.slice(SCRYPT_PRAEFIX.length).split('$')
+  if (!salz || !wert) return false
+  const soll = Buffer.from(wert, 'hex')
+  const ist = await scrypt(normalisiereCode(eingabe), Buffer.from(salz, 'hex'), soll.length)
+  return ist.length === soll.length && crypto.timingSafeEqual(ist, soll)
+}
