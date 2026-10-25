@@ -9,7 +9,7 @@ import {
 
 const router = Router()
 
-// Der Brief nennt Namen, Call-Zeiten und Motivadressen - nur fuer Projektbeteiligte
+// Der Brief nennt Namen, Call-Zeiten und Motivadressen - nur für Projektbeteiligte
 router.use('/shoot-days/:dayId', requireMemberVia(projectIdFromTable('shoot_days', 'dayId')))
 
 
@@ -139,11 +139,14 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
   const accentColor = resolveAccent(settings?.header_color)
 
   const callSheet = await db.get('SELECT * FROM call_sheets WHERE shoot_day_id = ?', [dayId]) as any
+  // Alle Einträge für die Zählung, die Tabelle zeigt einen Auszug. Gemessen am
+  // 25.10.2026: Mit LIMIT 8 stand bei 12 Crew und 3 Cast "8 / 0" im Brief.
   const entries = callSheet
-    ? await db.all('SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC LIMIT 8', [callSheet.id]) as any[]
+    ? await db.all('SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC', [callSheet.id]) as any[]
     : []
+  const AUSZUG = 8
 
-  const enriched = await Promise.all(entries.map(async (e: any) => {
+  const enriched = await Promise.all(entries.slice(0, AUSZUG).map(async (e: any) => {
     if (e.person_type === 'cast') {
       const p = await db.get('SELECT c.actor_name as name, ch.name as role FROM "cast" c LEFT JOIN characters ch ON c.character_id = ch.id WHERE c.id = ?', [e.person_id]) as any
       return { ...e, name: p?.name || '-', role: p?.role || '' }
@@ -157,37 +160,16 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
     : ''
 
   // Nach location_name vergleichen, nicht nach name: abgelegt wird die Szene,
-  // die kein Feld "name" hat - die Pruefung lief immer ins Leere und jedes
+  // die kein Feld "name" hat - die Prüfung lief immer ins Leere und jedes
   // Motiv stand so oft da, wie Szenen darin spielen.
   const uniqueLocations = scenes.reduce((acc: any[], s: any) => {
     if (s.location_name && !acc.some((l: any) => l.location_name === s.location_name)) acc.push(s)
     return acc
   }, [])
 
-  const sceneList = scenes.map((s: any) => `<tr>
-    <td>${s.scene_number || '-'}</td>
-    <td>${s.int_ext || ''} / ${s.day_night || ''}</td>
-    <td>${s.title || ''}</td>
-    <td>${s.location_name || '-'}</td>
-    <td class="center">${((s.eighths || 0) / 8).toFixed(2)}</td>
-  </tr>`).join('')
-
-  const topCallList = enriched.slice(0, 6).map((e: any) => `<tr>
-    <td>${e.name}</td>
-    <td class="muted">${e.role}</td>
-    <td class="bold">${fmtTime(e.call_time)}</td>
-  </tr>`).join('')
-
-  const locationList = uniqueLocations.map((l: any) => `
-    <div class="location-card">
-      <strong>${l.location_name}</strong><br>
-      <span class="muted">${[l.address, l.zip, l.city].filter(Boolean).join(', ')}</span>
-    </div>
-  `).join('')
-
   const seitenAchtel = scenes.reduce((sum: number, s: any) => sum + (Number(s.eighths) || 0), 0)
-  const crewZahl = enriched.filter((e: any) => e.person_type === 'crew').length
-  const castZahl = enriched.filter((e: any) => e.person_type === 'cast').length
+  const crewZahl = entries.filter((e: any) => e.person_type === 'crew').length
+  const castZahl = entries.filter((e: any) => e.person_type === 'cast').length
 
   const html = renderDocument({
     kind: 'Morning Brief',
@@ -226,7 +208,7 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
       section('Motive', table({
         columns: [
           { header: 'Motiv', value: (r: any) => r.location_name, width: '30%' },
-          // Adressteile einzeln - fehlende duerfen nicht als "null" erscheinen
+          // Adressteile einzeln - fehlende dürfen nicht als "null" erscheinen
           { header: 'Adresse', value: (r: any) => [r.address, [r.zip, r.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') },
         ],
         rows: uniqueLocations,
@@ -240,7 +222,7 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
         ],
         rows: enriched,
         empty: 'Noch keine Call-Zeiten gesetzt.',
-      }), enriched.length >= 8 ? 'Auszug - vollständig auf der Tagesdispo' : undefined) +
+      }), entries.length > AUSZUG ? 'Auszug - vollständig auf der Tagesdispo' : undefined) +
       (paragraph(shootDay.notes) ? section('Hinweise zum Drehtag', paragraph(shootDay.notes)) : '') +
       (paragraph(callSheet?.notes) ? section('Hinweise zur Disposition', paragraph(callSheet.notes)) : ''),
   })
