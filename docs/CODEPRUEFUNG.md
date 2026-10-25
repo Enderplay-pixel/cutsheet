@@ -228,6 +228,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 71 | `server/src/routes/backup.ts` (Export) | Datenschutz | Die Projektsicherung (für jedes Mitglied ladbar) enthielt Postausgang, Anhänge und altes Mail-Protokoll mit vollem Mailtext - darin persönliche Links aus Einladungen und Dispositionen. Fund 44 entfernte nur Spalten mit `token` im Namen. | ja: 14 von 19 Mails des Demo-Projekts mit so einem Link in der Sicherung | behoben: diese drei Tabellen bleiben aus der Sicherung (zurückgespielt werden sie seit Fund 70 ohnehin nicht); danach nicht mehr enthalten, Zurückspielen weiter ok |
 | 72 | `server/src/routes/equipment.ts` (`PUT /equipment-items/:id`) | Fehler, Geld | Beim Ändern machte `(quantity || 1)` aus Stückzahl 0 eine 1 (ebenso Tage): Anlegen mit 0 Stück ergab 0 €, Ändern auf 0 Stück 100 €. Eine fehlende Position ergab 500. | ja: 0 € beim Anlegen, 100 € beim Ändern; 500 | behoben: gleiche Rechnung wie beim Anlegen, 404; danach 0 Stück 0 €, 3 Stück 300 € |
 | 73 | `server/src/routes/equipmentCalendar.ts` | Fehler | Die Konfliktprüfung hielt zwei Buchungen ohne Posten immer für dasselbe Gerät (`null === null`): "Kran / Dolly" als Konflikt. Datumsfelder nahmen "abc" an (Textspalten). Beim Ändern ließ sich der Anfang hinter das gespeicherte Ende legen; eine fehlende Buchung ergab 200. | ja: alle vier | behoben: ohne Posten entscheidet der Name, echtes Datum Pflicht, Reihenfolge gegen den gespeicherten Stand, 404; danach "Kran / kran" weiter Konflikt, Kran / Dolly nicht |
+| 74 | `server/src/routes/expenses.ts` (`kostenstand`) | Fehler | Kalkulationszeilen ohne Kategorie standen unter `""`, Belege ohne Kategorie unter "Ohne Kategorie" - Soll und Ist derselben Sache in zwei Zeilen. | ja: `"": Soll 500, Ist 0` und `"Ohne Kategorie": Soll 0, Ist 200` | behoben: beide unter "Ohne Kategorie"; danach eine Zeile Soll 500, Ist 200 |
 
 ## Abhakliste
 
@@ -289,7 +290,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/emailService.ts` (118) - Kommentar korrigiert
 - [x] `server/src/routes/equipment.ts` (68) - Fund 72
 - [x] `server/src/routes/equipmentCalendar.ts` (165) - Fund 73
-- [ ] `server/src/routes/expenses.ts` (122)
+- [x] `server/src/routes/expenses.ts` (122) - Funde 38, 74
 - [ ] `server/src/routes/extras.ts` (101)
 - [ ] `server/src/routes/feedback.ts` (41)
 - [ ] `server/src/routes/floorplans.ts` (287)

@@ -89,7 +89,13 @@ router.get('/projects/:projectId/kostenstand', requireAuth, requireMember, async
       'SELECT category, SUM(total_cents) as total FROM budget_lines WHERE budget_version_id = ? GROUP BY category',
       [activeVersion.id]
     ) as Array<{ category: string; total: number }>
-    for (const l of lines) sollByCategory[l.category] = Number(l.total) || 0
+    // Wie bei den Belegen unten: ohne Kategorie heißt "Ohne Kategorie". Vorher
+    // standen Soll und Ist derselben leeren Kategorie in zwei Zeilen ("" und
+    // "Ohne Kategorie") - gemessen am 25.10.2026.
+    for (const l of lines) {
+      const kategorie = l.category || 'Ohne Kategorie'
+      sollByCategory[kategorie] = (sollByCategory[kategorie] || 0) + (Number(l.total) || 0)
+    }
   }
 
   const istRows = await db.all(
@@ -97,7 +103,10 @@ router.get('/projects/:projectId/kostenstand', requireAuth, requireMember, async
     [req.params.projectId]
   ) as Array<{ category: string; total: number }>
   const istByCategory: Record<string, number> = {}
-  for (const r of istRows) istByCategory[r.category || 'Ohne Kategorie'] = Number(r.total) || 0
+  for (const r of istRows) {
+    const kategorie = r.category || 'Ohne Kategorie'
+    istByCategory[kategorie] = (istByCategory[kategorie] || 0) + (Number(r.total) || 0)
+  }
 
   const categories = Array.from(new Set([...Object.keys(sollByCategory), ...Object.keys(istByCategory)])).sort()
   const rows = categories.map(cat => {
