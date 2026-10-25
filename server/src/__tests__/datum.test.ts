@@ -6,7 +6,7 @@
  * die Stunden, in denen ein Nachtdreh noch läuft.
  */
 import { describe, it, expect } from 'vitest'
-import { heuteISO, istIsoDatum } from '../lib/datum'
+import { heuteISO, istIsoDatum, berlinZeitpunkt } from '../lib/datum'
 
 describe('heuteISO', () => {
   it('nimmt in der Sommernacht den deutschen Tag, nicht den UTC-Tag', () => {
@@ -44,3 +44,13 @@ describe('istIsoDatum', () => {
   })
 })
 
+describe('berlinZeitpunkt', () => {
+  it('rechnet deutsche Uhrzeit in einen Zeitpunkt um - Winter, Sommer, nach Mitternacht', () => {
+    expect(berlinZeitpunkt('2026-11-02', 7 * 60).toISOString()).toBe('2026-11-02T06:00:00.000Z')
+    expect(berlinZeitpunkt('2026-07-01', 7 * 60).toISOString()).toBe('2026-07-01T05:00:00.000Z')
+    // Drehschluss 01:30 am Folgetag, als 25:30 gezählt
+    expect(berlinZeitpunkt('2026-07-01', 25 * 60 + 30).toISOString()).toBe('2026-07-01T23:30:00.000Z')
+    // Umstellungstag Ende Oktober: 07:00 ist schon Winterzeit
+    expect(berlinZeitpunkt('2026-10-25', 7 * 60).toISOString()).toBe('2026-10-25T06:00:00.000Z')
+  })
+})

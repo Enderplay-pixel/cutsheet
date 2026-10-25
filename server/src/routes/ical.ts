@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import ical from 'ical-generator'
 import { db } from '../db'
 import { optionalAuth } from '../middleware/auth'
+import { berlinZeitpunkt } from '../lib/datum'
 
 const router = Router()
 
@@ -123,11 +124,11 @@ async function appendCallEntries(
     if (from && dayDate < from) continue
     if (to && dayDate > to) continue
 
-    // call_time is minutes since midnight
+    // call_time sind Minuten ab Mitternacht, in deutscher Zeit. Vorher über
+    // setHours in der Zeitzone des Servers - beim Hoster UTC, also eine bis
+    // zwei Stunden zu spät im Kalender.
     const callMinutes: number = entry.call_time ?? entry.general_call ?? 480
-    const base = new Date(dayDate)
-    base.setHours(0, 0, 0, 0)
-    const start = new Date(base.getTime() + callMinutes * 60 * 1000)
+    const start = berlinZeitpunkt(dayDate, callMinutes)
     const end = new Date(start.getTime() + 60 * 60 * 1000) // 1-hour placeholder
 
     cal.createEvent({
