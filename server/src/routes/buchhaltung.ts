@@ -17,7 +17,7 @@ import { requireAuth } from '../middleware/auth'
 import { erfordereAbrechnung } from './invoices'
 import { schreibeCsv, cents } from '../lib/tabelle'
 import { heuteISO } from '../lib/datum'
-import { summiere } from '../lib/rechnung'
+import { summiere, type Steuerart } from '../lib/rechnung'
 import {
   datevStapel, datevKodieren, erloeskonto, ERLOESKONTEN,
   type Buchung, type Kontenrahmen,
@@ -98,14 +98,16 @@ async function rechnungenLaden(companyId: number, von: string, bis: string) {
  * bei negativen Positionen vom Rechnungsbetrag ab.
  */
 function jeSatz(r: any, eigene: any[]): Array<{ satz: number; netto: number; steuer: number }> {
+  // Mit der Steuerart des Belegs. Vorher wurde danach nur die Steuer genullt:
+  // Gemessen am 24.10.2026 stand beim Kleinunternehmer "Steuersatz 19" mit
+  // 0,00 Umsatzsteuer in der Tabelle, die USt-Auswertung zeigte Satz 0.
+  const steuerart: Steuerart = r.tax_mode === 'kleinunternehmer' ? 'kleinunternehmer' : 'regel'
   const summen = summiere(eigene.map((p) => ({
     quantity_milli: Number(p.quantity_milli),
     unit_price_cents: Number(p.unit_price_cents),
     tax_percent: Number(p.tax_percent ?? 0),
-  })))
-  return summen.nachSatz
-    .map((z) => ({ ...z, steuer: r.tax_mode === 'regel' ? z.steuer : 0 }))
-    .sort((x, y) => y.satz - x.satz)
+  })), steuerart)
+  return summen.nachSatz.sort((x, y) => y.satz - x.satz)
 }
 
 // ─── Der einfache Export ─────────────────────────────────────────────────────
