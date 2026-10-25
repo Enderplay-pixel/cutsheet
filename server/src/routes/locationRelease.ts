@@ -4,13 +4,14 @@ import { db } from '../db'
 import { generatePdf } from './pdf'
 import { requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { renderDocument, section, definitions, paragraph, fmtMoney, fmtDate } from '../lib/documentLayout'
+import { istIsoDatum } from '../lib/datum'
 
 /** Dateinamen von Zeichen befreien, die den Download-Header zerlegen. */
 const slugify = (value: string) => dateiname(value)
 
 const router = Router()
 
-// Der Vertrag nennt Name, Anschrift und Verguetung des Eigentuemers
+// Der Vertrag nennt Name, Anschrift und Vergütung des Eigentümers
 router.use('/locations/:id', requireMemberVia(projectIdFromTable('locations', 'id')))
 
 // GET /api/locations/:id/release
@@ -20,19 +21,42 @@ router.get('/locations/:id/release', async (req: Request, res: Response) => {
 })
 
 // POST /api/locations/:id/release
+// Ändert nur, was mitkommt. Gemessen am 25.10.2026: Die Oberfläche schickt
+// nur den Namen des Eigentümers - Adresse, Drehdaten, Vergütung und
+// Bedingungen standen danach leer im Vertrag.
 router.post('/locations/:id/release', async (req: Request, res: Response) => {
-  const { owner_name = '', owner_address = '', shoot_dates = '[]', fee_cents = 0, special_conditions = '', status = 'Entwurf' } = req.body
-  const existing = await db.get('SELECT id FROM location_releases WHERE location_id = ?', [req.params.id])
+  const existing = await db.get('SELECT * FROM location_releases WHERE location_id = ?', [req.params.id])
+  if (existing?.status === 'Unterschrieben') {
+    return res.status(409).json({ data: null, error: 'Der Motivvertrag ist unterschrieben und lässt sich nicht mehr ändern' })
+  }
+  const b = req.body ?? {}
+  const v = {
+    owner_name: b.owner_name ?? existing?.owner_name ?? '',
+    owner_address: b.owner_address ?? existing?.owner_address ?? '',
+    shoot_dates: b.shoot_dates === undefined
+      ? existing?.shoot_dates ?? '[]'
+      : typeof b.shoot_dates === 'string' ? b.shoot_dates : JSON.stringify(b.shoot_dates),
+    fee_cents: b.fee_cents ?? existing?.fee_cents ?? 0,
+    special_conditions: b.special_conditions ?? existing?.special_conditions ?? '',
+    status: b.status ?? existing?.status ?? 'Entwurf',
+  }
+  // Unterschrieben wird nur über /sign - mit Unterschrift
+  if (!['Entwurf', 'Versendet'].includes(v.status)) {
+    return res.status(400).json({ data: null, error: 'status ist Entwurf oder Versendet' })
+  }
+  if (!Number.isInteger(Number(v.fee_cents)) || Number(v.fee_cents) < 0) {
+    return res.status(400).json({ data: null, error: 'fee_cents ist ein Betrag in Cent ab 0' })
+  }
   if (existing) {
     await db.run(
       'UPDATE location_releases SET owner_name=?, owner_address=?, shoot_dates=?, fee_cents=?, special_conditions=?, status=? WHERE id=?',
-      [owner_name, owner_address, typeof shoot_dates === 'string' ? shoot_dates : JSON.stringify(shoot_dates), fee_cents, special_conditions, status, existing.id]
+      [v.owner_name, v.owner_address, v.shoot_dates, v.fee_cents, v.special_conditions, v.status, existing.id]
     )
     res.json({ data: await db.get('SELECT * FROM location_releases WHERE id=?', [existing.id]), error: null })
   } else {
     const result = await db.run(
       'INSERT INTO location_releases (location_id, owner_name, owner_address, shoot_dates, fee_cents, special_conditions, status) VALUES (?,?,?,?,?,?,?)',
-      [req.params.id, owner_name, owner_address, typeof shoot_dates === 'string' ? shoot_dates : JSON.stringify(shoot_dates), fee_cents, special_conditions, status]
+      [req.params.id, v.owner_name, v.owner_address, v.shoot_dates, v.fee_cents, v.special_conditions, v.status]
     )
     res.json({ data: await db.get('SELECT * FROM location_releases WHERE id=?', [result.id]), error: null })
   }
@@ -41,11 +65,20 @@ router.post('/locations/:id/release', async (req: Request, res: Response) => {
 // PATCH /api/locations/:id/release/sign
 router.patch('/locations/:id/release/sign', async (req: Request, res: Response) => {
   const { signature_data, signed_by } = req.body
-  const release = await db.get('SELECT id FROM location_releases WHERE location_id = ?', [req.params.id])
+  // Nur ein Bild - das PDF bettet die Unterschrift als Bild ein
+  if (typeof signature_data !== 'string' || !/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(signature_data)) {
+    return res.status(400).json({ data: null, error: 'Die Unterschrift fehlt oder ist kein Bild' })
+  }
+  const release = await db.get('SELECT id, status FROM location_releases WHERE location_id = ?', [req.params.id])
   if (!release) return res.status(404).json({ data: null, error: 'Kein Motivvertrag gefunden' })
+  if (release.status === 'Unterschrieben') {
+    return res.status(409).json({ data: null, error: 'Der Motivvertrag ist bereits unterschrieben' })
+  }
+  // signed_by ist NOT NULL. Gemessen am 25.10.2026: Die Oberfläche schickt
+  // keinen Namen mit, jedes Unterschreiben endete mit "Ein Pflichtfeld fehlt."
   await db.run(
     "UPDATE location_releases SET signature_data=?, signed_by=?, signed_at=NOW(), status='Unterschrieben' WHERE id=?",
-    [signature_data, signed_by, release.id]
+    [signature_data, String(signed_by ?? ''), release.id]
   )
   res.json({ data: await db.get('SELECT * FROM location_releases WHERE id=?', [release.id]), error: null })
 })
@@ -58,9 +91,20 @@ router.get('/locations/:id/release/pdf', async (req: Request, res: Response) => 
 
   const project = await db.get('SELECT title FROM projects WHERE id = ?', [location.project_id]) as any
 
-  const shootDates = release ? JSON.parse(release.shoot_dates || '[]') : []
+  // Eine Liste als JSON - oder Klartext, wie ihn die Demodaten schreiben
+  // ("2026-11-02 - 2026-11-20"). Vorher brach das PDF daran mit 500 ab.
+  let shootDates: string[] = []
+  if (release?.shoot_dates) {
+    try {
+      const liste = JSON.parse(release.shoot_dates)
+      shootDates = Array.isArray(liste) ? liste.map(String) : [String(liste)]
+    } catch {
+      shootDates = [String(release.shoot_dates)]
+    }
+  }
+  shootDates = shootDates.filter(Boolean).map((d) => (istIsoDatum(d) ? fmtDate(d) : d))
 
-  // Adressteile einzeln zusammensetzen - fehlende Angaben duerfen im Vertrag
+  // Adressteile einzeln zusammensetzen - fehlende Angaben dürfen im Vertrag
   // nicht als "null" stehen
   const addr = [location.address, [location.zip, location.city].filter(Boolean).join(' ')]
     .filter(Boolean).join(', ')
@@ -86,9 +130,11 @@ router.get('/locations/:id/release/pdf', async (req: Request, res: Response) => 
         { label: 'Eigentümer/in', value: release?.owner_name || LINIE },
         { label: 'Adresse Eigentümer/in', value: release?.owner_address || LINIE, wide: true },
         { label: 'Drehdaten', value: shootDates.length > 0 ? shootDates.join(', ') : LINIE, wide: true },
-        // Im Vertrag gehoert an eine offene Stelle eine Linie zum Ausfuellen,
-        // kein Strich und erst recht keine 0
-        { label: 'Vergütung', value: release?.fee_cents != null ? fmtMoney(release.fee_cents) : LINIE },
+        // Im Vertrag gehört an eine offene Stelle eine Linie zum Ausfüllen,
+        // kein Strich und erst recht keine 0. Die Spalte ist NOT NULL DEFAULT 0
+        // und die Oberfläche fragt keine Vergütung ab - vorher stand in jedem
+        // Vertrag "0,00 €".
+        { label: 'Vergütung', value: release?.fee_cents ? fmtMoney(release.fee_cents) : LINIE },
       ])) +
       section('Vereinbarung',
         paragraph(

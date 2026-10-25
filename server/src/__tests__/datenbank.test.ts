@@ -137,6 +137,8 @@ beforeAll(async () => {
       .map(async (name) => (await import(`../routes/${name}`)).default)
   )
   app.use('/api', optionalAuth, ...loeschRouter)
+  const { default: motivvertragRouter } = await import('../routes/locationRelease')
+  app.use('/api', optionalAuth, motivvertragRouter)
   const { default: drehbuchRouter } = await import('../routes/screenplay')
   app.use('/api', optionalAuth, drehbuchRouter)
   const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
@@ -2005,3 +2007,30 @@ describe('Sicherung zurückspielen', () => {
   })
 })
 
+describe('Motivvertrag', () => {
+  const png = 'data:image/png;base64,iVBORw0KGgo='
+
+  it('behält beim Speichern, was nicht mitkommt, und lässt sich unterschreiben', async () => {
+    const motiv = (await db.run("INSERT INTO locations (project_id, name) VALUES (?, 'Hafen')", [projektId])).id
+    const pfad = `/api/locations/${motiv}/release`
+    await hole(pfad, tokenInhaber, { method: 'POST', body: JSON.stringify({ owner_name: 'Erna', owner_address: 'Hafenstr. 1', fee_cents: 50000 }) })
+    // So speichert die Oberfläche: nur der Name
+    const gespeichert = await hole(pfad, tokenInhaber, { method: 'POST', body: JSON.stringify({ owner_name: 'Erna Meyer', status: 'Entwurf' }) })
+    expect(gespeichert.daten).toMatchObject({ owner_name: 'Erna Meyer', owner_address: 'Hafenstr. 1', fee_cents: 50000 })
+    expect((await hole(`${pfad}/sign`, tokenInhaber, { method: 'PATCH', body: JSON.stringify({ signature_data: 'https://example.com/a.png' }) })).status).toBe(400)
+    // Wie die Oberfläche: ohne Namen
+    const unterschrieben = await hole(`${pfad}/sign`, tokenInhaber, { method: 'PATCH', body: JSON.stringify({ signature_data: png }) })
+    expect(unterschrieben.status).toBe(200)
+    expect(unterschrieben.daten.status).toBe('Unterschrieben')
+    expect((await hole(pfad, tokenInhaber, { method: 'POST', body: JSON.stringify({ owner_name: 'Jemand' }) })).status).toBe(409)
+    expect((await hole(`${pfad}/sign`, tokenInhaber, { method: 'PATCH', body: JSON.stringify({ signature_data: png }) })).status).toBe(409)
+  })
+
+  it('setzt "Unterschrieben" nur mit Unterschrift und keine negative Vergütung', async () => {
+    const motiv = (await db.run("INSERT INTO locations (project_id, name) VALUES (?, 'Halle')", [projektId])).id
+    const pfad = `/api/locations/${motiv}/release`
+    expect((await hole(pfad, tokenInhaber, { method: 'POST', body: JSON.stringify({ status: 'Unterschrieben' }) })).status).toBe(400)
+    expect((await hole(pfad, tokenInhaber, { method: 'POST', body: JSON.stringify({ fee_cents: -100 }) })).status).toBe(400)
+    expect(await db.get('SELECT id FROM location_releases WHERE location_id = ?', [motiv])).toBeUndefined()
+  })
+})
