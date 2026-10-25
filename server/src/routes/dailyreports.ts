@@ -47,8 +47,10 @@ router.get('/projects/:projectId/time-analysis', async (req, res) => {
     SELECT s.id as scene_id, s.scene_number, s.title, s.estimated_minutes
     FROM scenes s
     WHERE s.project_id = ?
-    ORDER BY s.scene_number ASC
+    ORDER BY s.sort_order ASC, s.scene_number ASC
   `, [pid]) as any[]
+  // Wie die Szenenliste (routes/scenes.ts). Nach scene_number allein - Text -
+  // stand gemessen am 25.10.2026 "1 10 100 101 101A ... 11" in der Analyse.
 
   // Get actual minutes per scene accumulated across all shoot days
   // We look at shoot_day_scenes to find what was shot, and daily_reports to get timing data
@@ -213,6 +215,10 @@ router.post('/shoot-days/:dayId/daily-report', async (req, res) => {
 
 // PUT /api/daily-reports/:id
 router.put('/daily-reports/:id', async (req, res) => {
+  // Gemessen am 25.10.2026: Ein Bericht, den es nicht gibt, ergab 200 ohne Daten.
+  if (!(await db.get('SELECT id FROM daily_reports WHERE id = ?', [req.params.id]))) {
+    return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
+  }
   const { date, call_time, first_shot, lunch_in, lunch_out, wrap, scenes_completed, scenes_partial, pages_shot, total_setups, camera_rolls, sound_rolls, notes, production_notes } = req.body
   await db.run(`UPDATE daily_reports SET date=?, call_time=?, first_shot=?, lunch_in=?, lunch_out=?, wrap=?, scenes_completed=?, scenes_partial=?, pages_shot=?, total_setups=?, camera_rolls=?, sound_rolls=?, notes=?, production_notes=?, updated_at=datetime('now') WHERE id=?`, [date, call_time, first_shot, lunch_in, lunch_out, wrap, JSON.stringify(scenes_completed || []), JSON.stringify(scenes_partial || []), pages_shot, total_setups, camera_rolls, sound_rolls, notes, production_notes, req.params.id])
   res.json({ data: await getReport(parseInt(req.params.id)), error: null })

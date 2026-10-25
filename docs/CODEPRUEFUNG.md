@@ -77,7 +77,7 @@ Stand am 24.10.2026, 23 Uhr:
 - **Gemessen, beim Lesen der Datei beheben** (Muster aus Fund 51/59, `PUT`
   auf eine fehlende Kennung gibt 2xx statt 404; Messweg
   `scratchpad/fehlende_zeilen.cjs`, sinngemäß: jede PUT/PATCH-Route mit
-  Kind-Kennung 999999 als Admin aufrufen): `/daily-reports/:id`, `/shoot-days/:id`, `/equipment-bookings/:id`,
+  Kind-Kennung 999999 als Admin aufrufen): `/shoot-days/:id`, `/equipment-bookings/:id`,
   `/feedback/:id`, `/moodboard/:id`, `/scenes/:id`, `/shots/:id`.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
   `invites.ts` ~27 setzt Projekttitel und Namen der Einladenden unmaskiert
@@ -208,6 +208,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 60 | `server/src/routes/confirmation.ts` (`POST /cse/t/:token/claim`) | **Sicherheit, Entscheidung** | Wer den Dispo-Link einer Person hat, legt mit deren Adresse ein Konto an (ohne Bestätigung der Adresse) und ist danach Leser im Projekt - mit Lesezugriff auf Kalkulation, Gagen, Stab und Besetzung. Dispo-Links werden am Set weitergeleitet; der echte Inhaber kann sich danach nicht mehr registrieren (409), sondern kommt nur über "Passwort vergessen" an das Konto. | ja: Link → Konto → 17 Kalkulationszeilen, Stab mit Gage, Besetzung lesbar | offen, für Florian: Bestätigungsmail an die Adresse statt sofortigem Konto, oder eine engere Rolle für so entstandene Konten |
 | 61 | `server/src/routes/conflicts.ts` (Konfliktradar) | Fehler, Text | Zwei Drehtage ohne Datum ergaben die Warnung "Mehrere Drehtage am " (Scheinkonflikt). Ohne Finanzierungsplan stand "übersteigt Finanzierung (NaN €)". Tage ohne Datum hießen "Drehtag 1 () enthält keine Szenen", sonst stand das ISO-Datum im deutschen Satz. | ja: Wegwerfprojekt mit zwei Tagen ohne Datum, Kalkulation 12.345 €, ohne Finanzierung | behoben: Tage ohne Datum zählen nicht als Konflikt, fehlende Finanzierung 0 €, Datum als `04.11.2026` oder "ohne Datum"; danach gemessen, ein echter Konflikt am selben Datum wird weiter gemeldet |
 | 62 | `server/src/routes/crew.ts` (`PUT /crew/:id`) | Klein | Fehlender Stabeintrag: 200 ohne Daten (Muster aus Fund 51, vom Scan gefunden). | ja | behoben: 404; vorhandener Eintrag 200 |
+| 63 | `server/src/routes/dailyreports.ts:50` (`time-analysis`), `PUT /daily-reports/:id` | Fehler, klein | Die Zeitanalyse sortierte nach `scene_number` (Text): "1 10 100 101 101A … 11". Ein fehlender Bericht gab beim Ändern 200 ohne Daten. | ja: Großproduktion, 160 Szenen | behoben: Reihenfolge wie die Szenenliste (`sort_order`, dann Nummer), danach identisch; 404 |
 
 ## Abhakliste
 
@@ -260,7 +261,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/continuity.ts` (178)
 - [x] `server/src/routes/creator.ts` (710) - Fund 57
 - [x] `server/src/routes/crew.ts` (46) - Fund 62
-- [ ] `server/src/routes/dailyreports.ts` (221)
+- [x] `server/src/routes/dailyreports.ts` (221) - Fund 63
 - [ ] `server/src/routes/dateien.ts` (236)
 - [ ] `server/src/routes/datenschutz.ts` (202)
 - [ ] `server/src/routes/dood.ts` (126)
