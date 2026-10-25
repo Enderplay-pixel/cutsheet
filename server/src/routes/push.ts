@@ -23,27 +23,27 @@ router.post('/push/subscribe', requireAuth, async (req: Request, res: Response) 
     return res.status(400).json({ data: null, error: 'endpoint und keys (p256dh, auth) sind erforderlich' })
   }
 
-  try {
-    // Upsert: insert or update if endpoint already exists for this user
-    const existing = await db.get(
-      'SELECT id FROM push_subscriptions WHERE endpoint = ?',
-      [endpoint]
+  // Ein Browser hat eine Adresse. Meldet sich dort ein anderes Konto an und
+  // abonniert, gehört das Abo ab jetzt diesem Konto. Gemessen am 25.10.2026:
+  // Es blieb beim ersten Konto - dessen Dispo-Benachrichtigungen landeten im
+  // Browser des zweiten, das zweite bekam keine. Fehler gehen an den
+  // Übersetzer statt mit der rohen Datenbankmeldung zurück.
+  const existing = await db.get(
+    'SELECT id FROM push_subscriptions WHERE endpoint = ?',
+    [endpoint]
+  )
+  if (existing) {
+    await db.run(
+      'UPDATE push_subscriptions SET user_id = ?, p256dh = ?, auth = ? WHERE id = ?',
+      [userId, keys.p256dh, keys.auth, existing.id]
     )
-    if (existing) {
-      await db.run(
-        'UPDATE push_subscriptions SET p256dh = ?, auth = ? WHERE id = ?',
-        [keys.p256dh, keys.auth, existing.id]
-      )
-    } else {
-      await db.run(
-        'INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)',
-        [userId, endpoint, keys.p256dh, keys.auth]
-      )
-    }
-    return res.status(201).json({ data: { subscribed: true }, error: null })
-  } catch (err: any) {
-    return res.status(500).json({ data: null, error: err.message || 'Fehler beim Speichern der Subscription' })
+  } else {
+    await db.run(
+      'INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)',
+      [userId, endpoint, keys.p256dh, keys.auth]
+    )
   }
+  return res.status(201).json({ data: { subscribed: true }, error: null })
 })
 
 // POST /api/push/unsubscribe

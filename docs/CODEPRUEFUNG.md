@@ -80,6 +80,7 @@ Stand am 24.10.2026, 23 Uhr:
   Kind-Kennung 999999 als Admin aufrufen):
   `/scenes/:id`, `/shots/:id`.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
+  Client: Abmelden kündigt das Push-Abo nicht (`hooks/usePushSubscription.ts` nur aus den Einstellungen) - nach dem Logout kommen Benachrichtigungen des alten Kontos weiter in diesem Browser an (Fund 96).
   Meldungen, die über eine Konstante
   statt als `error: '...'` im Code stehen, sieht der Meldungstest nicht
   (Fund 41). 72 Routen fangen Fehler selbst ab
@@ -256,6 +257,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 93 | `server/src/routes/pdf.ts:729` (Kalkulation), `:906` (Shotlist) | **Fehler, live** | Die Kalkulations-PDF las die Budgetfassung nur über ihre Kennung, ohne Bindung an das Projekt im Pfad - ein Mitglied eines Projekts erhielt so die Kalkulation eines anderen. Die Shotlist suchte Storyboards nur im alten Ordner `uploads/storyboard`; seit `lib/dateien.ts` liegen sie in der Datenbank - jedes neu hochgeladene Storyboard fehlte im PDF. | ja: Fassung aus Projekt B über Projekt A 200 mit Posten aus B; Shotlist mit hochgeladenem Storyboard 0 Bildobjekte | behoben: `AND project_id = ?`; Storyboard aus `project_files` (nur aus dem Projekt, Bildtyp geprüft, weil er in ein Attribut geht), Altbestand weiter von der Platte. Danach gemessen: 404; 2 Bildobjekte (Bild und Alphamaske). Scan aller Routen `/projects/:id/.../:kind` auf Abfragen ohne Projektbindung (`scratchpad/kind_bindung2.py`): sonst keine |
 | 94 | `server/src/routes/postplan.ts` | Fehler | Datumsfelder (TEXT) nahmen alles an - "morgen" und ein Ende vor dem Anfang wurden gespeichert, der Zeitplan in der Oberfläche rechnet damit (`new Date(...)`). Jede Route fing Fehler selbst ab: `sort_order` "abc" ergab 500 (Muster aus Fund 34). | ja: "morgen" 201 gespeichert; Ende vor Anfang 201; "abc" 500 | behoben: `laufzeitFehler` aus `insurances.ts` nach `lib/datum.ts` verschoben (mit Test) und hier wie dort benutzt; PUT prüft gegen den Stand nach dem Ändern; Fehler an den Übersetzer. Danach gemessen: 400/400/400; Leeren mit `""` und Teiländerung weiter 200 |
 | 95 | `server/src/routes/projects.ts` | **Fehler, Datenschutz, live** | `POST /projects/:id/members` (von der Oberfläche nie benutzt) trug jedes Konto per Kennung ein und gab dessen Namen und Mailadresse zurück - jedes frische Konto konnte so mit einem eigenen Projekt Fremde ungefragt eintragen und Adressen abfragen. Die Kennzahlen der Projektübersicht scheiterten an einem einzigen undatierten Drehtag (`date::date` auf `''`). Das Duplikat eines Creator-Projekts wurde ein Filmprojekt. Teiländerungen über die API: Einstellungen setzten nicht mitgeschickte Felder auf den Standard zurück (Währung auf EUR), das Projekt nullte sie (Oberfläche schickt immer alles - dort ohne Wirkung). | ja: fremde Kennung 201 mit Mailadresse, danach Mitglied; Kennzahlen 400 "Ein Datum ist ungültig."; Duplikat `film`; nur Farbe gespeichert - Währung EUR | behoben: Route entfernt (Einladung ist der Weg hinein); `date <> '' AND date >= heuteISO()`; Duplikat mit `project_kind`; fehlende Felder behalten ihren Wert. Danach gemessen: 404 und kein Mitglied; 200; `creator`; Währung bleibt CHF |
+| 96 | `server/src/routes/push.ts:28` | Fehler, Datenschutz | Ein Browser hat eine Push-Adresse. Abonnierte dort ein zweites Konto, wurden nur die Schlüssel ersetzt, das Abo gehörte weiter dem ersten Konto: Dessen Dispo-Benachrichtigungen erschienen im Browser des zweiten, das zweite bekam keine. Fehler gingen mit der rohen Datenbankmeldung zurück. | ja: A, dann B abonniert - Abo gehört A, Schlüssel von B | behoben: das Abo wechselt zum abonnierenden Konto; Fehler an den Übersetzer. Danach gemessen: gehört B. Offen im Client: Abmelden kündigt das Abo nicht (Merkzettel) |
 
 ## Abhakliste
 
@@ -339,7 +341,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/pdf.ts` (1083) - Fund 93
 - [x] `server/src/routes/postplan.ts` (126) - Fund 94
 - [x] `server/src/routes/projects.ts` (446) - Funde 82, 95
-- [ ] `server/src/routes/push.ts` (104)
+- [x] `server/src/routes/push.ts` (104) - Fund 96
 - [ ] `server/src/routes/reise.ts` (482)
 - [ ] `server/src/routes/sceneComments.ts` (90)
 - [ ] `server/src/routes/scenes.ts` (277)
