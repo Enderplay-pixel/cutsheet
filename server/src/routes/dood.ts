@@ -18,9 +18,11 @@ router.get('/projects/:pid/dood-report', async (req: Request, res: Response) => 
     [req.params.pid]
   ) as any[]
 
-  // 2. Get all shoot days ordered by date
+  // 2. Drehtage in zeitlicher Folge; Tage ohne Datum ('') ans Ende, nach
+  // Nummer. Nach date allein standen sie vorn - gemessen am 25.10.2026 galt
+  // dadurch ein Tag VOR dem ersten Einsatz als Haltetag.
   const shootDays = await db.all(
-    'SELECT id, date, day_number FROM shoot_days WHERE project_id = ? ORDER BY date ASC',
+    "SELECT id, date, day_number FROM shoot_days WHERE project_id = ? ORDER BY (date = '') ASC, date ASC, day_number ASC",
     [req.params.pid]
   ) as any[]
 

@@ -219,6 +219,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 64 | `server/src/routes/dateien.ts` (`GET /companies/:id/dateien/fristen`) | Fehler | Wie Fund 33: Abgelaufene Nachweise abgeschlossener Projekte standen in der Fristenliste der Firma. | ja: Drehgenehmigung des archivierten Projekts "Messarchiv" gelistet | behoben: nur nicht archivierte Projekte; Gegenprobe mit laufendem Projekt weiter gelistet |
 | 65 | `server/src/routes/datenschutz.ts` (Verzeichnis nach Art. 30) | Text, Recht | "Öffentliche Links tragen Zufallstoken mit 160 Bit" stimmte nicht für alle: Die Empfangsquittung der Mails hat 128 Bit (Dispo/Einladung 160, Abnahme/Agentur/Vertrag 192, Gastlink 256). Dazu "ausschliesslich". | ja: `randomBytes` je Linkart ausgezählt | behoben: "mindestens 128 Bit", "ausschließlich"; im Verzeichnis nachgemessen |
 | 66 | `server/src/routes/datenschutz.ts` | Hinweis, Entscheidung (Recht) | Verpflegungsangaben (Unverträglichkeiten) sind Gesundheitsangaben - `catering.ts` nennt sie selbst so -, das Verzeichnis nennt als Grundlage nur Art. 6 Abs. 1 lit. a. Für Gesundheitsdaten regelt die DSGVO zusätzlich Art. 9. Die Übersicht "Wer hat Zugriff" nennt nur Projektmitglieder, globale Admins sehen aber jedes Projekt. | nein, gelesen | offen, für Florian - rechtlich prüfen lassen |
+| 67 | `server/src/routes/dood.ts:23` | Fehler | Der DOOD-Bericht sortierte Drehtage nach `date`; Tage ohne Datum (`''`) standen vorn. Arbeitete jemand an so einem Tag, galt ein Tag vor seinem ersten Einsatz als Haltetag. | ja: Tag 2 ohne Datum vor Tag 1, Tag 1 = H | behoben: Datum aufsteigend, Tage ohne Datum ans Ende nach Nummer; danach Tag 1 kein Haltetag. Drehplan sortiert ebenso nach `date` - bei `drehplan.ts` prüfen |
 
 ## Abhakliste
 
@@ -274,7 +275,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/dailyreports.ts` (221) - Fund 63
 - [ ] `server/src/routes/dateien.ts` (236) - Fund 64; Durchsicht noch nicht abgeschlossen
 - [x] `server/src/routes/datenschutz.ts` (202) - Funde 65, 66
-- [ ] `server/src/routes/dood.ts` (126)
+- [x] `server/src/routes/dood.ts` (126) - Fund 67
 - [ ] `server/src/routes/drehplan.ts` (305)
 - [ ] `server/src/routes/emailRoutes.ts` (646)
 - [ ] `server/src/routes/emailService.ts` (118)
