@@ -77,7 +77,7 @@ Stand am 24.10.2026, 23 Uhr:
 - **Gemessen, beim Lesen der Datei beheben** (Muster aus Fund 51/59, `PUT`
   auf eine fehlende Kennung gibt 2xx statt 404; Messweg
   `scratchpad/fehlende_zeilen.cjs`, sinngemäß: jede PUT/PATCH-Route mit
-  Kind-Kennung 999999 als Admin aufrufen): `/equipment-bookings/:id`,
+  Kind-Kennung 999999 als Admin aufrufen):
   `/feedback/:id`, `/moodboard/:id`, `/scenes/:id`, `/shots/:id`.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
   `invites.ts` ~27 setzt Projekttitel und Namen der Einladenden unmaskiert
@@ -227,6 +227,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 70 | `server/src/lib/wiederherstellung.ts` (`importiereInhalt`) | Fehler, Datenschutz | Beim Zurückspielen kamen Verweise unverändert mit, die die Abbildung nicht kannte: Drehtag-Verteiler, Abnahme-Fassung (`cut_id`), Unterkunft (`accommodation_id`), Vertragsvorlage, Verteilermitglieder. In der Kopie zeigten sie auf Zeilen des alten Projekts. Postausgang, Anhänge und Papierkorb wurden mitkopiert - wartende Mails gingen aus der Kopie erneut hinaus. | ja: Projekt 1 gesichert und zurückgespielt - Verteiler auf fremden Drehtag, je ein fremder Verweis bei Abnahme und Reise, 19 Mails im Postausgang der Kopie | behoben: vier neue Abbildungen, Drehtag-Verteiler wird umgeschrieben, Postausgang/Anhänge/Papierkorb bleiben beim alten Projekt; danach 0 fremde Verweise, 0 Mails, Verteiler mit 7 eigenen Empfängern. Test, gegen alten Stand rot |
 | 71 | `server/src/routes/backup.ts` (Export) | Datenschutz | Die Projektsicherung (für jedes Mitglied ladbar) enthielt Postausgang, Anhänge und altes Mail-Protokoll mit vollem Mailtext - darin persönliche Links aus Einladungen und Dispositionen. Fund 44 entfernte nur Spalten mit `token` im Namen. | ja: 14 von 19 Mails des Demo-Projekts mit so einem Link in der Sicherung | behoben: diese drei Tabellen bleiben aus der Sicherung (zurückgespielt werden sie seit Fund 70 ohnehin nicht); danach nicht mehr enthalten, Zurückspielen weiter ok |
 | 72 | `server/src/routes/equipment.ts` (`PUT /equipment-items/:id`) | Fehler, Geld | Beim Ändern machte `(quantity || 1)` aus Stückzahl 0 eine 1 (ebenso Tage): Anlegen mit 0 Stück ergab 0 €, Ändern auf 0 Stück 100 €. Eine fehlende Position ergab 500. | ja: 0 € beim Anlegen, 100 € beim Ändern; 500 | behoben: gleiche Rechnung wie beim Anlegen, 404; danach 0 Stück 0 €, 3 Stück 300 € |
+| 73 | `server/src/routes/equipmentCalendar.ts` | Fehler | Die Konfliktprüfung hielt zwei Buchungen ohne Posten immer für dasselbe Gerät (`null === null`): "Kran / Dolly" als Konflikt. Datumsfelder nahmen "abc" an (Textspalten). Beim Ändern ließ sich der Anfang hinter das gespeicherte Ende legen; eine fehlende Buchung ergab 200. | ja: alle vier | behoben: ohne Posten entscheidet der Name, echtes Datum Pflicht, Reihenfolge gegen den gespeicherten Stand, 404; danach "Kran / kran" weiter Konflikt, Kran / Dolly nicht |
 
 ## Abhakliste
 
@@ -287,7 +288,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/emailRoutes.ts` (646) - Fund 69
 - [x] `server/src/routes/emailService.ts` (118) - Kommentar korrigiert
 - [x] `server/src/routes/equipment.ts` (68) - Fund 72
-- [ ] `server/src/routes/equipmentCalendar.ts` (165)
+- [x] `server/src/routes/equipmentCalendar.ts` (165) - Fund 73
 - [ ] `server/src/routes/expenses.ts` (122)
 - [ ] `server/src/routes/extras.ts` (101)
 - [ ] `server/src/routes/feedback.ts` (41)

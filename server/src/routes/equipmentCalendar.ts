@@ -1,6 +1,17 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireMember } from '../middleware/projectAuth'
+import { istIsoDatum } from '../lib/datum'
+
+// Die Spalten sind Text - gemessen am 25.10.2026 nahm der Server "abc" an.
+const DATUM_FEHLER = 'start_date und end_date sind ein Datum (JJJJ-MM-TT)'
+
+/** Dasselbe Gerät: gleicher Posten, oder ohne Posten derselbe Name. */
+function gleichesGeraet(a: any, b: any): boolean {
+  if (a.equipment_item_id || b.equipment_item_id) return a.equipment_item_id === b.equipment_item_id
+  const name = (x: any) => String(x.item_name || '').trim().toLowerCase()
+  return name(a) !== '' && name(a) === name(b)
+}
 
 const router = Router()
 
@@ -53,8 +64,9 @@ router.get('/projects/:projectId/equipment-bookings/conflicts', async (req: Requ
         const a = bookings[i]
         const b = bookings[j]
 
-        // Only compare bookings for the same equipment item
-        if (a.equipment_item_id !== b.equipment_item_id) continue
+        // Nur dasselbe Gerät. Vorher galten zwei Buchungen ohne Posten immer als
+        // dasselbe (null === null): gemessen "Kran / Dolly" als Konflikt.
+        if (!gleichesGeraet(a, b)) continue
 
         // Overlap condition: start_a <= end_b AND end_a >= start_b
         const aStart = new Date(a.start_date)
@@ -84,7 +96,10 @@ router.post('/projects/:projectId/equipment-bookings', async (req: Request, res:
     if (!start_date || !end_date) {
       return res.status(400).json({ data: null, error: 'start_date und end_date sind erforderlich' })
     }
-    if (new Date(end_date) < new Date(start_date)) {
+    if (!istIsoDatum(start_date) || !istIsoDatum(end_date)) {
+      return res.status(400).json({ data: null, error: DATUM_FEHLER })
+    }
+    if (end_date < start_date) {
       return res.status(400).json({ data: null, error: 'end_date darf nicht vor start_date liegen' })
     }
     // Nur ein Equipment-Posten aus diesem Projekt
@@ -117,7 +132,14 @@ router.put('/equipment-bookings/:id', async (req: Request, res: Response) => {
 
     const { equipment_item_id, item_name, start_date, end_date, notes } = req.body
 
-    if (start_date && end_date && new Date(end_date) < new Date(start_date)) {
+    // Gemessen am 25.10.2026: Eine Buchung, die es nicht gibt, ergab 200 ohne Daten.
+    const vorher = (await db.get('SELECT start_date, end_date FROM equipment_bookings WHERE id = ?', [req.params.id])) as any
+    if (!vorher) return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
+    if ((start_date != null && !istIsoDatum(start_date)) || (end_date != null && !istIsoDatum(end_date))) {
+      return res.status(400).json({ data: null, error: DATUM_FEHLER })
+    }
+    // Gegen das, was nach dem Ändern dasteht - auch wenn nur ein Datum kommt
+    if ((end_date ?? vorher.end_date) < (start_date ?? vorher.start_date)) {
       return res.status(400).json({ data: null, error: 'end_date darf nicht vor start_date liegen' })
     }
     // Nur ein Equipment-Posten aus dem Projekt dieser Buchung
