@@ -78,7 +78,7 @@ Stand am 24.10.2026, 23 Uhr:
   auf eine fehlende Kennung gibt 2xx statt 404; Messweg
   `scratchpad/fehlende_zeilen.cjs`, sinngemäß: jede PUT/PATCH-Route mit
   Kind-Kennung 999999 als Admin aufrufen):
-  `/feedback/:id`, `/moodboard/:id`, `/scenes/:id`, `/shots/:id`.
+  `/moodboard/:id`, `/scenes/:id`, `/shots/:id`.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
   `invites.ts` ~27 setzt Projekttitel und Namen der Einladenden unmaskiert
   in die Einladungsmail (wie Fund 23). Meldungen, die über eine Konstante
@@ -229,6 +229,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 72 | `server/src/routes/equipment.ts` (`PUT /equipment-items/:id`) | Fehler, Geld | Beim Ändern machte `(quantity || 1)` aus Stückzahl 0 eine 1 (ebenso Tage): Anlegen mit 0 Stück ergab 0 €, Ändern auf 0 Stück 100 €. Eine fehlende Position ergab 500. | ja: 0 € beim Anlegen, 100 € beim Ändern; 500 | behoben: gleiche Rechnung wie beim Anlegen, 404; danach 0 Stück 0 €, 3 Stück 300 € |
 | 73 | `server/src/routes/equipmentCalendar.ts` | Fehler | Die Konfliktprüfung hielt zwei Buchungen ohne Posten immer für dasselbe Gerät (`null === null`): "Kran / Dolly" als Konflikt. Datumsfelder nahmen "abc" an (Textspalten). Beim Ändern ließ sich der Anfang hinter das gespeicherte Ende legen; eine fehlende Buchung ergab 200. | ja: alle vier | behoben: ohne Posten entscheidet der Name, echtes Datum Pflicht, Reihenfolge gegen den gespeicherten Stand, 404; danach "Kran / kran" weiter Konflikt, Kran / Dolly nicht |
 | 74 | `server/src/routes/expenses.ts` (`kostenstand`) | Fehler | Kalkulationszeilen ohne Kategorie standen unter `""`, Belege ohne Kategorie unter "Ohne Kategorie" - Soll und Ist derselben Sache in zwei Zeilen. | ja: `"": Soll 500, Ist 0` und `"Ohne Kategorie": Soll 0, Ist 200` | behoben: beide unter "Ohne Kategorie"; danach eine Zeile Soll 500, Ist 200 |
+| 75 | `server/src/routes/feedback.ts` (`PUT /feedback/:id`) | Klein | Fehlender Eintrag: 200 (Muster aus Fund 51, vom Scan). | ja | behoben: 404; vorhandener 200 |
 
 ## Abhakliste
 
@@ -291,8 +292,8 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/equipment.ts` (68) - Fund 72
 - [x] `server/src/routes/equipmentCalendar.ts` (165) - Fund 73
 - [x] `server/src/routes/expenses.ts` (122) - Funde 38, 74
-- [ ] `server/src/routes/extras.ts` (101)
-- [ ] `server/src/routes/feedback.ts` (41)
+- [x] `server/src/routes/extras.ts` (101)
+- [x] `server/src/routes/feedback.ts` (41) - Fund 75
 - [ ] `server/src/routes/floorplans.ts` (287)
 - [ ] `server/src/routes/foerderantrag.ts` (198)
 - [ ] `server/src/routes/guestTokens.ts` (96)

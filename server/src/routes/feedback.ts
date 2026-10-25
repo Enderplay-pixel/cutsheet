@@ -34,7 +34,9 @@ router.get('/feedback', requireAuth, requireRole('admin'), async (_req: Request,
 // PUT /api/feedback/:id - als erledigt markieren (nur Site-Admin)
 router.put('/feedback/:id', requireAuth, requireRole('admin'), async (req: Request, res: Response) => {
   const resolved = (req.body as { resolved?: boolean })?.resolved !== false
-  await db.run('UPDATE feedback SET resolved = ? WHERE id = ?', [resolved, req.params.id])
+  const zeile = await db.run('UPDATE feedback SET resolved = ? WHERE id = ?', [resolved, req.params.id])
+  // Gemessen am 25.10.2026: Ein Eintrag, den es nicht gibt, ergab 200.
+  if (zeile.changes === 0) return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
   return res.json({ data: { ok: true }, error: null })
 })
 
