@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { sendEmail, isSmtpConfigured, appBaseUrl } from './emailService'
+import { maskiere } from '../lib/mailvorlagen'
 
 const router = Router()
 
@@ -27,7 +28,7 @@ async function sendInviteEmail(invite: { token: string; role: string; email: str
     html: `
       <div style="font-family:Arial,sans-serif;max-width:480px;">
         <h2 style="color:#111;">Du bist eingeladen!</h2>
-        <p>${inviterName || 'Ein Teammitglied'} hat dich zum Filmprojekt <strong>„${project.title}"</strong> auf CutSheet eingeladen
+        <p>${maskiere(inviterName || 'Ein Teammitglied')} hat dich zum Filmprojekt <strong>„${maskiere(project.title)}"</strong> auf CutSheet eingeladen
            - Rolle: <strong>${ROLE_LABELS[invite.role] ?? invite.role}</strong>.</p>
         <p style="margin:24px 0;">
           <a href="${link}" style="background:#b45309;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Einladung annehmen</a>
@@ -175,40 +176,9 @@ router.post('/invites/:token/accept', requireAuth, async (req: Request, res: Res
   return res.json({ data: { project_id: invite.project_id, project_title: invite.project_title, role: invite.role }, error: null })
 })
 
-// ── Members list ───────────────────────────────────────────────────────────────
-
-// GET /api/projects/:id/members
-router.get('/projects/:id/members', requireAuth, async (req: Request, res: Response) => {
-  if (!await isProjectOwner(req.params.id, req.user!)) {
-    return res.status(403).json({ data: null, error: 'Kein Zugriff' })
-  }
-  const members = await db.all(`
-    SELECT pm.id, pm.role, u.id as user_id, u.email, u.name
-    FROM project_members pm
-    JOIN users u ON pm.user_id = u.id
-    WHERE pm.project_id = ?
-    ORDER BY pm.id ASC
-  `, [req.params.id])
-  return res.json({ data: members, error: null })
-})
-
-// PUT /api/projects/:id/members/:uid/role
-router.put('/projects/:id/members/:uid/role', requireAuth, async (req: Request, res: Response) => {
-  if (!await isProjectOwner(req.params.id, req.user!)) {
-    return res.status(403).json({ data: null, error: 'Kein Zugriff' })
-  }
-  const role = VALID_ROLES.includes(req.body.role) ? req.body.role : 'read_only'
-  await db.run('UPDATE project_members SET role = ? WHERE project_id = ? AND user_id = ?', [role, req.params.id, req.params.uid])
-  return res.json({ data: { ok: true }, error: null })
-})
-
-// DELETE /api/projects/:id/members/:uid
-router.delete('/projects/:id/members/:uid', requireAuth, async (req: Request, res: Response) => {
-  if (!await isProjectOwner(req.params.id, req.user!)) {
-    return res.status(403).json({ data: null, error: 'Kein Zugriff' })
-  }
-  await db.run('DELETE FROM project_members WHERE project_id = ? AND user_id = ?', [req.params.id, req.params.uid])
-  return res.json({ data: { ok: true }, error: null })
-})
+// ── Mitglieder ─────────────────────────────────────────────────────────────────
+// Liste, Rolle ändern und Entfernen stehen in routes/projects.ts. Hier standen
+// bis zum 25.10.2026 dieselben Pfade noch einmal - mit anderem Verhalten, aber
+// nie erreicht, weil projects.ts vorher eingehängt ist.
 
 export default router

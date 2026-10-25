@@ -80,8 +80,7 @@ Stand am 24.10.2026, 23 Uhr:
   Kind-Kennung 999999 als Admin aufrufen):
   `/moodboard/:id`, `/scenes/:id`, `/shots/:id`.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
-  `invites.ts` ~27 setzt Projekttitel und Namen der Einladenden unmaskiert
-  in die Einladungsmail (wie Fund 23). Meldungen, die über eine Konstante
+  Meldungen, die über eine Konstante
   statt als `error: '...'` im Code stehen, sieht der Meldungstest nicht
   (Fund 41). 72 Routen fangen Fehler selbst ab
   und geben 500 "Interner Serverfehler" (Muster aus Fund 34).
@@ -243,6 +242,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 79 | `server/src/routes/guestTokens.ts` (`GET /guest/:token`) | Datenschutz, Hinweis | Der öffentliche Gastlink lieferte ganze Zeilen (`SELECT *`) von Projekt und Dispo-Einträgen, mehr als jede Ansicht braucht. Die Gastlink-Funktion hat keine Oberfläche: Keine Seite legt Gastlinks an oder zeigt sie; die Check-in-Tafel nennt einen Pfad `/guest/checkin/{Drehtag}`, den es nicht gibt (rohe 404-Seite). Ein ungültiges `expires_at` lässt einen Gastlink nie ablaufen. | ja: Felder ausgezählt; Pfad im Browser → "Unexpected Application Error! 404" | Antwort begrenzt (Projekt: id, Titel, Format, Genre; Einträge ohne Kontakt- und Tokenfelder). **Offen für Florian:** Gastlink-Funktion fertigbauen oder entfernen; den Hinweis auf der Check-in-Tafel behebe ich bei `CheckinBoard.tsx` |
 | 80 | `server/src/routes/ical.ts` (Call-Zeiten im Kalenderexport) | **Fehler, live** | Die Call-Zeit wurde über `setHours` in der Zeitzone des Servers gerechnet. Beim Hoster (UTC) stand Call 07:00 als 07:00 UTC im Kalender - 08:00 Uhr deutscher Zeit, im Sommer 09:00. | ja: Zweitinstanz mit `TZ=UTC`: `20261102T070000Z`, lokal `060000Z` | behoben: `berlinZeitpunkt` in `lib/datum.ts` (unabhängig von der Serverzeitzone, getestet unter Berlin, UTC, New York); danach beide `060000Z` |
 | 81 | `server/src/routes/insurances.ts` | Klein | Laufzeit einer Police in Textspalten ohne jede Prüfung (wie Sperrtage, Fund 48). | nein, vorher gelesen; nach dem Fix gemessen | behoben: leer oder echtes Datum, Ende nicht vor Anfang (auch gegen den gespeicherten Stand); danach `abc` 400, Ende vor Anfang 400, leeres Formular 201 |
+| 82 | `server/src/routes/invites.ts` (Einladungsmail, Mitglieder-Routen), `routes/projects.ts:311` | Fehler, Text | Projekttitel und Name der Einladenden gingen unmaskiert in die Einladungsmail (wie Fund 23). Die Mitglieder-Routen in `invites.ts` (Liste, Rolle, Entfernen) erreichte nie eine Anfrage - `projects.ts` ist vorher eingehängt und beantwortet dieselben Pfade. Dort wurde jede Rolle ungeprüft gespeichert: Mit "Produzent" verlor ein Mitglied still jedes Schreibrecht. | ja: Titel `<Messung> &` roh in der Mail; Rolle "Produzent" gespeichert | behoben: `maskiere`; toter Doppelcode entfernt; nur bekannte Rollen (`hasOwnProperty`, auch "constructor" 400); danach gemessen, Mitgliederliste weiter 200 |
 
 ## Abhakliste
 
@@ -312,7 +312,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/guestTokens.ts` (96) - Fund 79
 - [x] `server/src/routes/ical.ts` (143) - Fund 80
 - [x] `server/src/routes/insurances.ts` (138) - Fund 81
-- [ ] `server/src/routes/invites.ts` (214)
+- [x] `server/src/routes/invites.ts` (214) - Funde 44, 82
 - [ ] `server/src/routes/invoices.ts` (675)
 - [ ] `server/src/routes/locationRelease.ts` (129)
 - [ ] `server/src/routes/locations.ts` (77)

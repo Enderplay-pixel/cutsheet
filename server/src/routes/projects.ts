@@ -323,6 +323,11 @@ router.put('/:id/members/:userId/role', requireAuth, async (req: Request, res: R
   const targetUserId = Number(req.params.userId)
   const { role: newRole } = req.body
   if (!newRole) return res.status(400).json({ data: null, error: 'role fehlt' })
+  // Nur bekannte Rollen. Gemessen am 25.10.2026: "Produzent" wurde gespeichert;
+  // ohne bekannten Rang verlor das Mitglied still jedes Schreibrecht.
+  if (!Object.prototype.hasOwnProperty.call(ROLE_RANK, String(newRole))) {
+    return res.status(400).json({ data: null, error: 'Unbekannte Rolle' })
+  }
 
   const member = await db.get('SELECT * FROM project_members WHERE project_id = ? AND user_id = ?', [projectId, targetUserId])
   if (!member) return res.status(404).json({ data: null, error: 'Mitglied nicht gefunden' })

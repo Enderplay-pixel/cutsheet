@@ -238,6 +238,7 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Token ungültig oder abgelaufen': { en: 'Token invalid or expired', fr: 'Jeton invalide ou expiré' },
   'Unbekannte Art': { en: 'Unknown type', fr: 'Type inconnu' },
   'Unbekannte Liste': { en: 'Unknown list', fr: 'Liste inconnue' },
+  'Unbekannte Rolle': { en: 'Unknown role', fr: 'Rôle inconnu' },
   'Unbekannte Personenart': { en: 'Unknown person type', fr: 'Type de personne inconnu' },
   'Unbekannte Tagesart': { en: 'Unknown day type', fr: 'Type de jour inconnu' },
   'Unbekannte Vertragsart': { en: 'Unknown contract type', fr: 'Type de contrat inconnu' },
