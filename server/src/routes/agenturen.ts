@@ -345,6 +345,12 @@ router.post('/projects/:projectId/casting-anfragen/:id/senden', requireAuth, req
     erstelltVon: (req as any).user?.id ?? null,
   })
 
+  // Der Postausgang verwirft ungültige Adressen - dann ist nichts verschickt
+  // (gemessen am 25.10.2026 am Vertragsversand, hier dieselbe Bauart).
+  if (!eingereiht[0]) {
+    return res.status(400).json({ data: null, error: 'Die E-Mail-Adresse ist nicht gültig' })
+  }
+
   await db.run(
     "UPDATE casting_requests SET status = 'versendet', token = ?, sent_at = NOW(), updated_at = NOW() WHERE id = ?",
     [token, id]
@@ -352,7 +358,7 @@ router.post('/projects/:projectId/casting-anfragen/:id/senden', requireAuth, req
   logAudit(projectId, (req as any).user as AuthUser, 'besetzungsanfrage versendet', 'casting_requests', id,
     null, { agentur: anfrage.agentur, rollen: anfrage.rollen.length })
 
-  return res.json({ data: { status: 'versendet', an: empfaenger, mail_id: eingereiht[0]?.id ?? null, link }, error: null })
+  return res.json({ data: { status: 'versendet', an: empfaenger, mail_id: eingereiht[0].id, link }, error: null })
 })
 
 /**
@@ -387,7 +393,7 @@ router.post('/projects/:projectId/casting-anfragen/:id/nachfassen', requireAuth,
   if (!empfaenger) return res.status(400).json({ data: null, error: 'Keine Mailadresse hinterlegt' })
 
   const link = `${appBasisUrl()}/casting/${anfrage.token}`
-  await reiheEin({
+  const eingereiht = await reiheEin({
     projectId,
     betreff: `Erinnerung: ${anfrage.subject || `Besetzungsanfrage ${anfrage.projekt}`}`,
     html: `<p>Guten Tag${anfrage.agentur_kontakt ? ` ${maskiere(String(anfrage.agentur_kontakt))}` : ''},</p>
@@ -400,6 +406,12 @@ das passiert. Der Link ist weiterhin gültig:<br><a href="${link}">${link}</a></
     bezugId: id,
     erstelltVon: (req as any).user?.id ?? null,
   })
+  // Der Postausgang verwirft ungültige Adressen - dann ist nichts verschickt
+  // (gemessen am 25.10.2026 am Vertragsversand, hier dieselbe Bauart).
+  if (!eingereiht[0]) {
+    return res.status(400).json({ data: null, error: 'Die E-Mail-Adresse ist nicht gültig' })
+  }
+
   await db.run('UPDATE casting_requests SET reminded_at = NOW(), updated_at = NOW() WHERE id = ?', [id])
   return res.json({ data: { nachgefasst: true, an: empfaenger }, error: null })
 })

@@ -116,7 +116,13 @@ router.put('/projects/:projectId/vertragsvorlagen/:id', requireAuth, requireMemb
   const werte: any[] = []
   if ('name' in req.body) { felder.push('name = ?'); werte.push(String(req.body.name || '')) }
   if ('body' in req.body) { felder.push('body = ?'); werte.push(String(req.body.body || '')) }
-  if ('kind' in req.body) { felder.push('kind = ?'); werte.push(String(req.body.kind || 'darsteller')) }
+  if ('kind' in req.body) {
+    const art = String(req.body.kind || 'darsteller')
+    if (!ARTEN.some((a) => a.art === art)) {
+      return res.status(400).json({ data: null, error: 'Unbekannte Vertragsart' })
+    }
+    felder.push('kind = ?'); werte.push(art)
+  }
   if (felder.length === 0) return res.status(400).json({ data: null, error: 'Keine Angabe zum Ändern' })
 
   const zeile = await db.run(
@@ -176,7 +182,7 @@ async function werteFuer(projectId: number, art: string, personId: number) {
     `SELECT DISTINCT sd.date FROM call_sheet_entries cse
        JOIN call_sheets cs ON cse.call_sheet_id = cs.id
        JOIN shoot_days sd ON cs.shoot_day_id = sd.id
-      WHERE cse.person_type = ? AND cse.person_id = ? AND sd.project_id = ?
+      WHERE cse.person_type = ? AND cse.person_id = ? AND sd.project_id = ? AND sd.date <> ''
       ORDER BY sd.date ASC`,
     [art, personId, projectId]
   )) as any[]
@@ -516,6 +522,12 @@ router.post('/projects/:projectId/vertraege/:id/senden', requireAuth, requireMem
     anhang: { dateiname: `${vertrag.title.replace(/[^\wäöüÄÖÜß -]/g, '')}.pdf`, inhalt: pdf },
   })
 
+  // Der Postausgang verwirft ungültige Adressen. Gemessen am 25.10.2026: An
+  // "kaputt" stand der Vertrag danach auf "versendet", im Postausgang lag nichts.
+  if (!eingereiht[0]) {
+    return res.status(400).json({ data: null, error: 'Die E-Mail-Adresse ist nicht gültig' })
+  }
+
   await db.run(
     "UPDATE contracts SET status = 'versendet', token = ?, sent_at = NOW(), updated_at = NOW() WHERE id = ?",
     [token, vertrag.id]
@@ -524,7 +536,7 @@ router.post('/projects/:projectId/vertraege/:id/senden', requireAuth, requireMem
     null, { titel: vertrag.title, an: empfaengerAdresse })
 
   return res.json({
-    data: { status: 'versendet', an: empfaengerAdresse, mail_id: eingereiht[0]?.id ?? null, link },
+    data: { status: 'versendet', an: empfaengerAdresse, mail_id: eingereiht[0].id, link },
     error: null,
   })
 })
@@ -673,10 +685,12 @@ router.get('/projects/:projectId/jugendschutz', requireAuth, requireMember, asyn
        FROM call_sheet_entries cse
        JOIN call_sheets cs ON cse.call_sheet_id = cs.id
        JOIN shoot_days sd ON cs.shoot_day_id = sd.id
-      WHERE sd.project_id = ?
+      WHERE sd.project_id = ? AND sd.date <> ''
       ORDER BY sd.date ASC`,
     [projectId]
   )) as any[]
+  // Undatierte Drehtage bleiben draußen: Ohne Datum kein Alter - vorher kam
+  // dort "Ohne Geburtsdatum lässt sich nichts entscheiden", obwohl es da war.
 
   const ergebnisse = minderjaehrige.map((p) => {
     const eigene = einsaetze.filter(
@@ -690,15 +704,24 @@ router.get('/projects/:projectId/jugendschutz', requireAuth, requireMember, asyn
       // und zwar zu Recht: Niemand hat aufgeschrieben, wann das Kind geht.
       const eigenesEnde = e.wrap_time !== null && e.wrap_time !== undefined
       const ende = eigenesEnde ? Number(e.wrap_time) : standardEnde
+      // Eine Bewilligung gilt bis zu ihrem Datum. Gemessen am 25.10.2026: gültig
+      // bis 31.10., Drehtag 02.11. - die Prüfung meldete nichts.
+      const bewilligtBis = p.permit_valid_until ? String(p.permit_valid_until).slice(0, 10) : null
+      const abgelaufen = p.permit_granted === true && bewilligtBis !== null && datum > bewilligtBis
       const pruefung = pruefeEinsatz({
         name: p.name,
         geburtstag: String(p.birthdate).slice(0, 10),
         datum,
         von: alsUhrzeit(beginn),
         bis: alsUhrzeit(ende),
-        bewilligung: p.permit_granted === true,
+        bewilligung: p.permit_granted === true && !abgelaufen,
         einverstaendnis: !!String(p.guardian_name || '').trim(),
       })
+      if (abgelaufen) {
+        pruefung.befunde = pruefung.befunde.map((b) => b.text.startsWith('Die Bewilligung der Aufsichtsbehörde fehlt')
+          ? { art: 'verstoss' as const, text: `Die Bewilligung gilt nur bis ${datumText(bewilligtBis)} - dieser Drehtag liegt danach.` }
+          : b)
+      }
       if (!eigenesEnde && pruefung.istKind) {
         pruefung.befunde.push({
           art: 'hinweis',

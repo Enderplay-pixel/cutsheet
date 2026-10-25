@@ -339,6 +339,12 @@ ${new Date(`${String(runde.deadline).slice(0, 10)}T12:00:00Z`).toLocaleDateStrin
     erstelltVon: (req as any).user?.id ?? null,
   })
 
+  // Der Postausgang verwirft ungültige Adressen - dann ist nichts verschickt
+  // (gemessen am 25.10.2026 am Vertragsversand, hier dieselbe Bauart).
+  if (!eingereiht[0]) {
+    return res.status(400).json({ data: null, error: 'Die E-Mail-Adresse ist nicht gültig' })
+  }
+
   await db.run(
     "UPDATE reviews SET status = 'versendet', token = ?, sent_at = NOW(), updated_at = NOW() WHERE id = ?",
     [token, id]
@@ -346,7 +352,7 @@ ${new Date(`${String(runde.deadline).slice(0, 10)}T12:00:00Z`).toLocaleDateStrin
   logAudit(projectId, (req as any).user as AuthUser, 'abnahme versendet', 'reviews', id,
     null, { fassung: runde.fassung, an: empfaenger })
 
-  return res.json({ data: { status: 'versendet', an: empfaenger, mail_id: eingereiht[0]?.id ?? null, link }, error: null })
+  return res.json({ data: { status: 'versendet', an: empfaenger, mail_id: eingereiht[0].id, link }, error: null })
 })
 
 /**
