@@ -17,9 +17,10 @@
  *  - über 3 bis 6 Jahre: höchstens 2 Stunden täglich, zwischen 8 und 17 Uhr
  *  - über 6 Jahre: höchstens 3 Stunden täglich, zwischen 8 und 22 Uhr
  *
- * Für Theater- und Musikaufführungen gelten andere Werte (über 6 Jahre: vier
- * Stunden zwischen 10 und 23 Uhr); die stehen hier mit, weil eine Produktion
- * auch eine Aufführung abfilmt.
+ * Für Theatervorstellungen gelten andere Werte (über 6 Jahre: vier Stunden
+ * zwischen 10 und 23 Uhr, Nummer 1); die stehen hier mit, weil eine
+ * Produktion auch eine Vorstellung abfilmt. Musik- und andere Aufführungen
+ * fallen unter Nummer 2 wie Film (am Gesetzestext nachgesehen am 25.10.2026).
  *
  * Quelle: Gesetzestext auf gesetze-im-internet.de. Maßgeblich ist er, nicht
  * diese Zusammenfassung - und die Fristen für den Antrag setzt jedes Land
@@ -76,7 +77,7 @@ export function grenzeFuer(alter: number, art: Einsatzart = 'film'): Grenze {
     return art === 'theater'
       ? {
           erlaubt: true, maxMinuten: 240, vonStunde: 10, bisStunde: 23, bewilligungNoetig: true,
-          grund: 'Über 6 Jahre, Aufführung: höchstens 4 Stunden zwischen 10 und 23 Uhr (§ 6 Abs. 1 Nr. 2 JArbSchG)',
+          grund: 'Über 6 Jahre, Theatervorstellung: höchstens 4 Stunden zwischen 10 und 23 Uhr (§ 6 Abs. 1 Nr. 1 JArbSchG)',
         }
       : {
           erlaubt: true, maxMinuten: 180, vonStunde: 8, bisStunde: 22, bewilligungNoetig: true,
@@ -86,9 +87,15 @@ export function grenzeFuer(alter: number, art: Einsatzart = 'film'): Grenze {
   // Ab 15 Jahren ist jemand Jugendlicher, nicht mehr Kind. Dann gelten die
   // allgemeinen Vorschriften (Paragraf 8 ff. JArbSchG), nicht die Ausnahme
   // des Paragrafen 6 - und keine Einzelbewilligung.
+  //
+  // Bei Film- und Fotoaufnahmen und bei Aufführungen dürfen Jugendliche nach
+  // Paragraf 14 Absatz 7 bis 23 Uhr gestaltend mitwirken, nicht nur bis 20 -
+  // am Gesetzestext nachgesehen am 25.10.2026. Vorher meldete die Prüfung
+  // eine 16-Jährige bis 22 Uhr als Verstoß.
   return {
-    erlaubt: true, maxMinuten: 8 * 60, vonStunde: 6, bisStunde: 20, bewilligungNoetig: false,
-    grund: 'Jugendlicher ab 15: 8 Stunden täglich, grundsätzlich zwischen 6 und 20 Uhr (§§ 8, 14 JArbSchG)',
+    erlaubt: true, maxMinuten: 8 * 60, vonStunde: 6, bisStunde: 23, bewilligungNoetig: false,
+    grund: 'Jugendlicher ab 15: 8 Stunden täglich, zwischen 6 und 23 Uhr bei Film- und Fotoaufnahmen '
+      + 'und Aufführungen, danach 14 Stunden Freizeit (§§ 8, 14 Abs. 7 JArbSchG)',
   }
 }
 
@@ -180,8 +187,12 @@ export function pruefeEinsatz(e: Einsatz): Pruefung {
   }
 
   const beginn = minuten(String(e.von || ''))
-  const ende = minuten(String(e.bis || ''))
-  const dauer = Number.isFinite(beginn) && Number.isFinite(ende) ? Math.max(0, ende - beginn) : 0
+  // Ein Ende vor dem Beginn liegt nach Mitternacht. Gemessen am 25.10.2026:
+  // 14 Jahre, 17:00 bis 01:00 - Dauer 0 und "01:00" vor der Zeitgrenze, also
+  // kein einziger Verstoß. 17:00 bis 23:30 ergab zwei.
+  const endeRoh = minuten(String(e.bis || ''))
+  const ende = Number.isFinite(beginn) && endeRoh < beginn ? endeRoh + 24 * 60 : endeRoh
+  const dauer = Number.isFinite(beginn) && Number.isFinite(ende) ? ende - beginn : 0
 
   if (!Number.isFinite(beginn) || !Number.isFinite(ende)) {
     befunde.push({ art: 'hinweis', text: 'Keine Zeiten eingetragen - Dauer und Zeitfenster sind nicht prüfbar.' })
@@ -189,7 +200,7 @@ export function pruefeEinsatz(e: Einsatz): Pruefung {
     if (dauer > grenze.maxMinuten) {
       befunde.push({
         art: 'verstoss',
-        text: `${Math.round(dauer / 6) / 10} Stunden geplant, erlaubt sind ${grenze.maxMinuten / 60}. ${grenze.grund}`,
+        text: `${String(Math.round(dauer / 6) / 10).replace('.', ',')} Stunden geplant, erlaubt sind ${String(grenze.maxMinuten / 60).replace('.', ',')}. ${grenze.grund}`,
       })
     }
     if (beginn < grenze.vonStunde * 60) {

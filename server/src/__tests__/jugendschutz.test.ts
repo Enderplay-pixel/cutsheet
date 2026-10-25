@@ -56,6 +56,8 @@ describe('Grenzen nach § 6 Abs. 1 Nr. 2 JArbSchG', () => {
     // Ab 15 greifen die allgemeinen Vorschriften, keine Einzelbewilligung.
     expect(jugendlicher.bewilligungNoetig).toBe(false)
     expect(jugendlicher.maxMinuten).toBe(480)
+    // § 14 Abs. 7 JArbSchG: bei Film- und Fotoaufnahmen bis 23 Uhr
+    expect(jugendlicher.bisStunde).toBe(23)
   })
 
   it('entscheidet ohne Alter gar nichts', () => {
@@ -118,7 +120,7 @@ describe('Prüfung eines Einsatzes', () => {
     const p = pruefeEinsatz({ ...basis, von: '09:00', bis: '12:30' })
     const verstoesse = p.befunde.filter((b) => b.art === 'verstoss')
     expect(verstoesse.length).toBe(1)
-    expect(verstoesse[0].text).toContain('3.5 Stunden geplant')
+    expect(verstoesse[0].text).toContain('3,5 Stunden geplant')
   })
 
   it('meldet ein Ende nach dem erlaubten Zeitfenster', () => {
@@ -183,5 +185,22 @@ describe('Antragsunterlagen', () => {
     expect(text).toContain('Erziehungsberechtigten')
     expect(text).toContain('Schule')
     expect(text).toContain('Jugendamts')
+  })
+})
+
+describe('Einsatz über Mitternacht', () => {
+  const vierzehn = { name: 'Mia', geburtstag: '2012-05-01', datum: '2026-11-02', bewilligung: true, einverstaendnis: true }
+
+  it('rechnet die Dauer über den Tageswechsel und meldet das späte Ende', () => {
+    const p = pruefeEinsatz({ ...vierzehn, von: '17:00', bis: '01:00' })
+    expect(p.dauerMinuten).toBe(8 * 60)
+    const verstoesse = p.befunde.filter((b) => b.art === 'verstoss').map((b) => b.text)
+    expect(verstoesse.some((t) => t.startsWith('8 Stunden geplant'))).toBe(true)
+    expect(verstoesse.some((t) => t.startsWith('Ende um 01:00 liegt nach'))).toBe(true)
+  })
+
+  it('schreibt Stunden mit Dezimalkomma', () => {
+    const p = pruefeEinsatz({ ...vierzehn, von: '17:00', bis: '23:30' })
+    expect(p.befunde.some((b) => b.text.startsWith('6,5 Stunden geplant'))).toBe(true)
   })
 })
