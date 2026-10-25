@@ -28,6 +28,10 @@ router.post('/projects/:projectId/crew', async (req, res) => {
 
 // PUT /api/crew/:id
 router.put('/crew/:id', async (req, res) => {
+  // Gemessen am 25.10.2026: Ein Eintrag, den es nicht gibt, ergab 200 ohne Daten.
+  if (!(await db.get('SELECT id FROM crew WHERE id = ?', [req.params.id]))) {
+    return res.status(404).json({ data: null, error: 'Person nicht gefunden' })
+  }
   const { name, department, role, email, phone, fee_per_day, contract_type, availability_notes, notes } = req.body
   await db.run(`
     UPDATE crew SET name=?, department=?, role=?, email=?, phone=?, fee_per_day=?, contract_type=?, availability_notes=?, notes=?
