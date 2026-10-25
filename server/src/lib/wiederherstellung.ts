@@ -41,6 +41,12 @@ const FREMDSCHLUESSEL: Record<string, string> = {
   camera_report_id: 'camera_reports',
   video_id: 'creator_videos',
   floorplan_id: 'floorplans',
+  // Am 25.10.2026 ergänzt - vorher kamen diese Verweise unverändert mit und
+  // zeigten in der Kopie auf Zeilen des alten Projekts.
+  template_id: 'contract_templates',
+  group_id: 'email_groups',
+  cut_id: 'cuts',
+  accommodation_id: 'accommodations',
 }
 
 /** `person_type` entscheidet, worauf `person_id` zeigt. */
@@ -72,6 +78,9 @@ const NICHT_IMPORTIEREN = new Set([
   // schlimmer als eine fehlende Fassung.
   'drehplan_versions',
   'creator_youtube_accounts', 'creator_youtube_ignored',
+  // Postausgang und Papierkorb gehören dem alten Projekt wie das Mail-Protokoll.
+  // Eine wartende Mail aus der Sicherung ginge aus der Kopie ein zweites Mal raus.
+  'email_outbox', 'email_attachments', 'deleted_items',
   // Rechnungen gehören der Firma, nicht dem Projekt, und tragen eine
   // fortlaufende Nummer. Zurückgespielt wären es Doppel derselben Rechnung -
   // gemessen am 25.10.2026 brach das Zurückspielen des Demo-Projekts daran
@@ -147,6 +156,8 @@ function reihenfolge(tabellen: string[], schema: Map<string, Spalte[]>): string[
       if (ziel && ziel !== tabelle && offen.has(ziel)) ziele.add(ziel)
       if (s.name === 'person_id') for (const t of Object.values(PERSONEN)) if (offen.has(t)) ziele.add(t)
       if (s.name === 'entity_id') for (const t of Object.values(ENTITAETEN)) if (offen.has(t)) ziele.add(t)
+      // Drehtag-Verteiler: die Kennung steht als Text in parameter
+      if (tabelle === 'email_groups' && s.name === 'parameter' && offen.has('shoot_days')) ziele.add('shoot_days')
     }
     return [...ziele]
   }
@@ -255,6 +266,12 @@ export async function importiereInhalt(
         if (name === 'user_id' || name === 'created_by' || name === 'owner_id') {
           const alt = Number(roh[name])
           einfuegen[name] = vorhandeneNutzer.has(alt) ? alt : (spalte.pflicht ? nutzerId : null)
+          continue
+        }
+
+        // Ein Drehtag-Verteiler trägt die Drehtag-Kennung als Text.
+        if (tabelle === 'email_groups' && name === 'parameter' && roh['rule'] === 'drehtag') {
+          einfuegen[name] = String(abbilden('shoot_days', roh[name]) ?? '')
           continue
         }
 

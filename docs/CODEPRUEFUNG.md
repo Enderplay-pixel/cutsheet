@@ -69,8 +69,8 @@ Stand am 24.10.2026, 23 Uhr:
 - **Fertig:** Gruppe Datenbank (`db/index.ts`, `grossproduktion.ts`).
 - **Routen bis `backup.ts` fertig** (siehe Haken). **Als Nächstes:**
   der nächste offene Haken unter "Server: Routen", alphabetisch weiter.
-  `lib/wiederherstellung.ts` ist für Fund 46 angefasst, aber noch nicht
-  ganz gelesen. Ebenso nur angefasst:
+  `lib/wiederherstellung.ts` ist für Funde 46 und 70 angefasst, aber noch
+  nicht ganz gelesen. Ebenso nur angefasst:
   `__tests__/schreibschutz.test.ts` (Leser-Variante).
 - **Vor jedem Commit die ganze Testsuite**, nicht nur die Typprüfung -
   siehe Fund 41.
@@ -222,6 +222,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 67 | `server/src/routes/dood.ts:23` | Fehler | Der DOOD-Bericht sortierte Drehtage nach `date`; Tage ohne Datum (`''`) standen vorn. Arbeitete jemand an so einem Tag, galt ein Tag vor seinem ersten Einsatz als Haltetag. | ja: Tag 2 ohne Datum vor Tag 1, Tag 1 = H | behoben: Datum aufsteigend, Tage ohne Datum ans Ende nach Nummer; danach Tag 1 kein Haltetag. Drehplan sortiert ebenso nach `date` - bei `drehplan.ts` prüfen |
 | 68 | `server/src/routes/drehplan.ts` (Drehtage anlegen, Serie, ändern, Nummerierung, `reorder`) | Fehler | Drehtage nahmen jedes Datum an (`"abc"`, `"x"`, `''`). Die Nummerierung nach `date` machte einen Tag ohne Datum zu "Drehtag 1" und schob den echten ersten Tag auf 2. Ein fehlender Tag gab beim Ändern 200 ohne Daten, `reorder` ohne Liste 500. | ja: Wegwerfprojekt, alle vier | behoben: echtes Datum Pflicht (der Client schickt immer eins), alte Tage ohne Datum zählen ans Ende, 404, 400; danach gemessen. Ob es in der Produktion Tage ohne Datum gibt, ist ohne Anmeldung nicht prüfbar |
 | 69 | `server/src/routes/emailRoutes.ts` (`loeseGruppeAuf`, Regel `drehtag`) | **Datenschutz, live seit dem Deploy vom 25.10.2026** | Beim Auflösen eines Drehtag-Verteilers wurde nicht geprüft, ob der Drehtag zum Projekt gehört (nur beim Anlegen). Seit Fund 45 kann jedes Konto eine Sicherung zurückspielen, und Verteiler aus der Datei umgehen die Prüfung beim Anlegen. | ja: Verteiler aus einer Sicherung lieferte Empfänger eines fremden Projekts | behoben: Auflösen nur für Drehtage des eigenen Projekts; danach fremd 0 Empfänger, eigener Verteiler 7. **Muss mit der nächsten Freigabe raus** |
+| 70 | `server/src/lib/wiederherstellung.ts` (`importiereInhalt`) | Fehler, Datenschutz | Beim Zurückspielen kamen Verweise unverändert mit, die die Abbildung nicht kannte: Drehtag-Verteiler, Abnahme-Fassung (`cut_id`), Unterkunft (`accommodation_id`), Vertragsvorlage, Verteilermitglieder. In der Kopie zeigten sie auf Zeilen des alten Projekts. Postausgang, Anhänge und Papierkorb wurden mitkopiert - wartende Mails gingen aus der Kopie erneut hinaus. | ja: Projekt 1 gesichert und zurückgespielt - Verteiler auf fremden Drehtag, je ein fremder Verweis bei Abnahme und Reise, 19 Mails im Postausgang der Kopie | behoben: vier neue Abbildungen, Drehtag-Verteiler wird umgeschrieben, Postausgang/Anhänge/Papierkorb bleiben beim alten Projekt; danach 0 fremde Verweise, 0 Mails, Verteiler mit 7 eigenen Empfängern. Test, gegen alten Stand rot |
 
 ## Abhakliste
 

@@ -1972,5 +1972,21 @@ describe('Sicherung zurückspielen', () => {
     expect((await db.get('SELECT contact_id FROM crew WHERE project_id = ?', [ziel])).contact_id).toBeNull()
     expect((await db.get('SELECT company_id FROM contract_templates WHERE project_id = ?', [ziel])).company_id).toBeNull()
   })
+
+  it('bildet Verweise auf die Kopie ab und lässt den Postausgang beim alten Projekt', async () => {
+    const { importiereInhalt } = await import('../lib/wiederherstellung')
+    const ziel = (await db.run("INSERT INTO projects (title, owner_id) VALUES ('Import-Ziel 2', ?)", [nutzerId])).id
+    const bericht = await importiereInhalt({
+      shoot_days: [{ id: 501, day_number: 1, date: '2026-11-02' }],
+      email_groups: [{ id: 601, name: 'Drehtag 1', rule: 'drehtag', parameter: '501' }],
+      email_group_members: [{ id: 1, group_id: 601, name: 'Ana', email: 'ana@demo.test' }],
+      email_outbox: [{ id: 1, subject: 'Alt', recipient_email: 'wer@demo.test', status: 'wartet' }],
+    }, ziel, nutzerId)
+    expect(bericht.uebernommen.email_outbox).toBeUndefined()
+    const tag = await db.get('SELECT id FROM shoot_days WHERE project_id = ?', [ziel])
+    const gruppe = await db.get('SELECT id, parameter FROM email_groups WHERE project_id = ?', [ziel])
+    expect(gruppe.parameter).toBe(String(tag.id))
+    expect((await db.get('SELECT group_id FROM email_group_members WHERE project_id = ?', [ziel])).group_id).toBe(gruppe.id)
+  })
 })
 
