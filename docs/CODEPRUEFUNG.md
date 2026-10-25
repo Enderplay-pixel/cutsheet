@@ -82,6 +82,9 @@ Stand am 24.10.2026, 23 Uhr:
   und geben 500 "Interner Serverfehler" (Muster aus Fund 34).
   `Kostenstand.tsx:70` liest den Betrag mit `parseFloat(x.replace(',', '.'))`
   - "1.234,56" würde 1,23 € (`parseFloat("1.234.56")` ist 1.234).
+  `Budget.tsx` (Finanzierung): Der Server legt neue Zeilen mit Art
+  "Förderung" an, die Auswahl kennt nur "Förderung regional"/"national" -
+  prüfen, was die Auswahl dann zeigt.
 - **Zeitstempel:** `pg` liefert TIMESTAMPTZ als `Date`, nur DATE kommt als
   Text (`db/index.ts:14`). `String(zeitstempel).slice(0, 10)` ist immer
   falsch - siehe Fund 29.
@@ -187,7 +190,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 47 | `server/src/routes/backup.ts` (`POST /projects/import`) | Fehler | Scheiterte das Zurückspielen mittendrin, blieb ein Projekt "(Import)" mit einem Teil der Daten in der Liste. | ja: nach dem 500 aus Fund 46 stand "Sprachlos (Demo) (Import)" mit 9 Szenen da | behoben: Bei einem Abbruch wird das neue Projekt wieder gelöscht; gemessen mit einer Datei, an der das Einfügen scheitert: 500, kein Projekt bleibt |
 | 48 | `server/src/routes/blackoutDates.ts:108` | Fehler | Sperrtage liegen in Textspalten, der Server nahm jedes Datum an: `"abc"` wurde gespeichert, `2026-02-30` ging als 2. März durch. Die Konfliktprüfung gegen die Drehtage übersah solche Einträge still. Löschen fremder Sperrtage ist geschützt (403, gemessen). | ja: `abc`/`abc` → 201 | behoben: `istIsoDatum` in `lib/datum.ts` (echtes Kalenderdatum), sonst 400; danach `abc` und 30. Februar 400, gültige 201, Konflikt mit Drehtag gefunden |
 | 49 | `server/src/routes/buchhaltung.ts:100` (`jeSatz`) | Fehler, Geld (latent, siehe Fund 28) | Beim Kleinunternehmer stand in der Buchhaltungstabelle "Steuersatz 19" mit 0,00 Umsatzsteuer; die USt-Auswertung zeigte Satz 0. Der Export rechnete mit Regelbesteuerung und nullte danach nur die Steuer. | ja: Rechnung `kleinunternehmer` → CSV `19;100,00;0,00`, USt-Auswertung `satz: 0` | behoben: `summiere` mit der Steuerart des Belegs; danach CSV Satz 0, Regelbesteuerung unverändert 19 % (beides gemessen). DATEV-Erlöskonto unverändert |
-| 50 | `server/src/routes/buchhaltung.ts:265` (`wjBeginn`) | Hinweis | Der DATEV-Kopf nimmt den Beginn des Wirtschaftsjahres aus dem Startjahr des Zeitraums. Ein Zeitraum über den Jahreswechsel trägt Buchungen des neuen Jahres mit dem alten Wirtschaftsjahr. Ob DATEV so einen Stapel annimmt, ist hier nicht prüfbar. | nein, gelesen | offen: beim ersten Probeimport in der Kanzlei mitprüfen oder Zeitraum auf ein Jahr begrenzen |
+| 50 | `server/src/routes/buchhaltung.ts:268` (`wjBeginn`) | Hinweis | Der DATEV-Kopf nimmt den Beginn des Wirtschaftsjahres aus dem Startjahr des Zeitraums. Ein Zeitraum über den Jahreswechsel trägt Buchungen des neuen Jahres mit dem alten Wirtschaftsjahr. Ob DATEV so einen Stapel annimmt, ist hier nicht prüfbar. | nein, gelesen | offen: beim ersten Probeimport in der Kanzlei mitprüfen oder Zeitraum auf ein Jahr begrenzen |
+| 51 | `server/src/routes/budget.ts` (`PUT /budget-lines/:id`, `PUT /financing-entries/:id`) | Klein | Eine Zeile, die es nicht gibt: Kalkulation 200 ohne Daten, Finanzierung 500. Teilüberschreiben (alle Felder werden gesetzt) ist über die Oberfläche nicht erreichbar - `Budget.tsx` schickt immer die ganze Zeile. | ja: 200 `{"error":null}` und 500 | behoben: vorher prüfen, 404; vorhandene Zeile weiter 200 |
 
 ## Abhakliste
 
@@ -225,7 +229,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/backup.ts` (230) - Funde 44-47
 - [x] `server/src/routes/blackoutDates.ts` (152) - Fund 48
 - [x] `server/src/routes/buchhaltung.ts` (318) - Funde 49, 50
-- [ ] `server/src/routes/budget.ts` (326)
+- [x] `server/src/routes/budget.ts` (326) - Fund 51
 - [ ] `server/src/routes/calendar.ts` (48)
 - [ ] `server/src/routes/callsheets.ts` (370)
 - [ ] `server/src/routes/cameraPresets.ts` (97)

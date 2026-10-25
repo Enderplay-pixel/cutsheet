@@ -124,6 +124,10 @@ router.post('/budget-versions/:id/lines', async (req, res) => {
 
 // PUT /api/budget-lines/:id
 router.put('/budget-lines/:id', async (req, res) => {
+  // Gemessen am 25.10.2026: Eine Zeile, die es nicht gibt, ergab 200 ohne Daten.
+  if (!(await db.get('SELECT id FROM budget_lines WHERE id = ?', [req.params.id]))) {
+    return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
+  }
   const { category, account_code, description, unit, quantity, unit_price_cents, notes } = req.body
   const total_cents = Math.round((quantity || 0) * (unit_price_cents || 0))
   await db.run('UPDATE budget_lines SET category=?, account_code=?, description=?, unit=?, quantity=?, unit_price_cents=?, total_cents=?, notes=? WHERE id=?', [category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, req.params.id])
@@ -301,6 +305,10 @@ router.post('/financing-versions/:id/entries', async (req, res) => {
 
 // PUT /api/financing-entries/:id
 router.put('/financing-entries/:id', async (req, res) => {
+  // Gemessen am 25.10.2026: Eine Zeile, die es nicht gibt, ergab 500.
+  if (!(await db.get('SELECT id FROM financing_entries WHERE id = ?', [req.params.id]))) {
+    return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
+  }
   const { source, type, amount_cents, confirmed, notes } = req.body
   await db.run('UPDATE financing_entries SET source=?, type=?, amount_cents=?, confirmed=?, notes=? WHERE id=?', [source, type, amount_cents, confirmed ? 1 : 0, notes, req.params.id])
   const entry = await db.get('SELECT * FROM financing_entries WHERE id = ?', [req.params.id]) as any
