@@ -71,8 +71,7 @@ Stand am 24.10.2026, 23 Uhr:
   der nächste offene Haken unter "Server: Routen", alphabetisch weiter.
   `lib/wiederherstellung.ts` ist für Fund 46 angefasst, aber noch nicht
   ganz gelesen. Ebenso nur angefasst: `drehplan.ts` (Fund 58),
-  `__tests__/schreibschutz.test.ts` (Leser-Variante). `confirmation.ts` ist für Fund 39
-  angefasst (Sitzung statt `signToken`), aber noch nicht gelesen.
+  `__tests__/schreibschutz.test.ts` (Leser-Variante).
 - **Vor jedem Commit die ganze Testsuite**, nicht nur die Typprüfung -
   siehe Fund 41.
 - **Gemessen, beim Lesen der Datei beheben** (Muster aus Fund 51/59, `PUT`
@@ -207,6 +206,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 57 | `server/src/middleware/projectAuth.ts` (`entityPatterns`) | **Zugriff, live** | Für Kameraberichte (`/camera-reports/:id`), Grundrisse (`/floorplans/:id`, `/floorplan-items/:id`) und alle Creator-Kindrouten (`/creator/videos|sections|ideas|assets|clips|checklist/:id`) kannte der Schreibschutz kein Muster, löste kein Projekt auf und ließ durch. Die Routen prüfen selbst nur die Mitgliedschaft: Ein Mitglied mit Lesezugriff änderte, ergänzte und löschte. Ins Änderungsprotokoll kamen diese Änderungen nicht. Der Test `schreibschutz.test.ts` prüfte nur fremde Konten. | ja: Leser ändert und löscht Kamerabericht, Grundriss, Video (200/201) | behoben: neun Muster; danach Leser überall 403, Abteilungsleitung weiter 200. `schreibschutz.test.ts` ruft jetzt jede schreibende Route auch als Leser auf - gegen alten Stand 17 Treffer |
 | 58 | `server/src/routes/drehplan.ts` (`POST /shoot-days/move-scene`) | Zugriff | Prüfte nur die Mitgliedschaft; ein Leser schob Szenen auf andere Drehtage. Der Pfad trägt keine Kennung, der Schutz kann ihn nicht auflösen. | ja: Leser verschiebt Szene 1 von Tag 1 nach 2, 200 | behoben: mindestens Abteilungsleitung; danach Leser 403, Abteilungsleitung 200. Dazu Übersetzungen für die drei Rollenmeldungen des Schutzes |
 | 59 | `server/src/routes/characters.ts` (`PUT /characters/:id`, `PUT /cast/:id`), `checkin.ts:9` | Klein, Text | Fehlende Figur oder fehlender Darsteller: 200 ohne Daten (wie Fund 51). In `checkin.ts` stand "public, no auth required" - der Check-in verlangt eine Anmeldung. | ja: 200 `{"error":null}`; Check-in ohne Anmeldung 401 | behoben: 404; Kommentar richtiggestellt |
+| 60 | `server/src/routes/confirmation.ts` (`POST /cse/t/:token/claim`) | **Sicherheit, Entscheidung** | Wer den Dispo-Link einer Person hat, legt mit deren Adresse ein Konto an (ohne Bestätigung der Adresse) und ist danach Leser im Projekt - mit Lesezugriff auf Kalkulation, Gagen, Stab und Besetzung. Dispo-Links werden am Set weitergeleitet; der echte Inhaber kann sich danach nicht mehr registrieren (409), sondern kommt nur über "Passwort vergessen" an das Konto. | ja: Link → Konto → 17 Kalkulationszeilen, Stab mit Gage, Besetzung lesbar | offen, für Florian: Bestätigungsmail an die Adresse statt sofortigem Konto, oder eine engere Rolle für so entstandene Konten |
 
 ## Abhakliste
 
@@ -252,8 +252,8 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/catering.ts` (141)
 - [x] `server/src/routes/characters.ts` (95) - Fund 59
 - [x] `server/src/routes/checkin.ts` (65) - Fund 59
-- [ ] `server/src/routes/companies.ts` (509)
-- [ ] `server/src/routes/confirmation.ts` (159)
+- [x] `server/src/routes/companies.ts` (509) - Fund 28
+- [x] `server/src/routes/confirmation.ts` (159) - Funde 39, 60
 - [ ] `server/src/routes/conflicts.ts` (285)
 - [ ] `server/src/routes/contactsExport.ts` (81)
 - [ ] `server/src/routes/continuity.ts` (178)
