@@ -35,9 +35,22 @@ router.get('/projects/:pid/foerderantrag/export', async (req: Request, res: Resp
   const finVersion = finVersions[0]
   const finEntries = finVersion ? await db.all('SELECT * FROM financing_entries WHERE financing_version_id = ? ORDER BY sort_order ASC', [finVersion.id]) as any[] : []
 
-  // Key crew positions for Förderantrag
-  const keyRoles = ['Regisseur', 'Regisseurin', 'Produzent', 'Produzentin', 'Director of Photography', 'Drehbuch', 'Schnitt', 'Ton']
-  const keyCrew = crew.filter((c: any) => keyRoles.some(r => c.role.includes(r) || c.department.includes('Regie') || c.department.includes('Produktion')))
+  // Schlüsselpositionen: die Leitung der Gewerke, keine Assistenzen.
+  // Gemessen am 25.10.2026: Vorher zählte jede Rolle aus Regie und
+  // Produktion und jede mit "Ton" im Namen - im Antrag der Großproduktion
+  // standen Regiepraktikum, Produktionssekretariat und Tonangel als
+  // Schlüsselposition, Szenenbild und Kostümbild fehlten.
+  const leitung = [
+    /regisseur|^regie$/i, /produzent/i, /herstellungsleitung/i, /produktionsleitung/i,
+    /drehbuch|autor/i, /director of photography|bildgestaltung|^kamera$|kameramann|kamerafrau|^dop$/i,
+    /^schnitt$|editor|cutter/i, /tonmeister|^ton$|originalton/i,
+    /szenenbild/i, /kostümbild/i, /maskenbild/i, /komponist|filmmusik|^musik$/i,
+  ]
+  const keineLeitung = /assist|praktik|sekretariat|koordination|angel|volont/i
+  const keyCrew = crew.filter((c: any) => {
+    const rolle = String(c.role || '').trim()
+    return !keineLeitung.test(rolle) && leitung.some((muster) => muster.test(rolle))
+  })
 
   // Budget by category (FFA-like structure)
   const budgetByCategory: Record<string, number> = {}

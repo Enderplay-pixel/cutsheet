@@ -232,6 +232,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 75 | `server/src/routes/feedback.ts` (`PUT /feedback/:id`) | Klein | Fehlender Eintrag: 200 (Muster aus Fund 51, vom Scan). | ja | behoben: 404; vorhandener 200 |
 | 76 | `server/src/routes/floorplans.ts` (Löschen, Bild ersetzen, PDF) | **Datenverlust** | Die Bilddatei eines Set-Plans wurde über die Kennung aus `image_url` gelöscht und gelesen, ohne Prüfung des Projekts. Eine zurückgespielte Kopie trägt die Adresse des Originals: Das Löschen ihres Plans löschte das Bild des Originals. | ja: Plan der Kopie gelöscht → Bild des Originals weg | behoben: nur Dateien des eigenen Projekts; danach Bild des Originals noch da |
 | 77 | `server/src/lib/wiederherstellung.ts` (Dateiinhalt, `image_url`) | **Datenverlust, live** | Beim Zurückspielen wurde jede Datei der Ablage kaputt gespeichert: In der Sicherung steht der Inhalt als `{"type":"Buffer","data":[…]}`, und genau dieser Text landete in der Datenbank (aus einem 6-Byte-PDF wurden 44 Bytes JSON). Betrifft Drehgenehmigungen, Vertragsscans, Nachweise, Grundrisse. Dazu zeigten Set-Plan-Bild, Storyboard (`shots.storyboard_url`) und Motivfotos (`locations.photos`) der Kopie auf Dateien des Originals; `shots.ts` löschte beim Ersetzen ebenfalls ohne Projektprüfung. | ja: `%PDF-1` → `{"type":"Buf…` | behoben: Buffer-Form wird zurückgewandelt (auch für alte Sicherungen), alle drei Adressarten nach dem Einfügen aller Tabellen auf die mitkopierten Dateien umgeschrieben (eine feste Reihenfolge gibt es nicht: Dateien hängen ihrerseits an Einstellungen und Motiven), `shots.ts` mit Projektprüfung; danach Inhalt gleich, Kopie liefert ihr Bild aus. Test, gegen alten Stand rot. **Projekte, die schon zurückgespielt wurden, haben kaputte Dateien** - die Originale (Sicherungsdatei, altes Projekt) sind unversehrt |
+| 78 | `server/src/routes/foerderantrag.ts:39` | Fehler, Inhalt | "Schlüsselpositionen" im Förderantrag: jede Rolle aus Regie und Produktion und jede mit "Ton" im Namen. In der Großproduktion 16 Einträge, darunter Regiepraktikum, Produktionssekretariat, Tonangel, Schnittassistenz; Szenenbild, Kostüm- und Maskenbild fehlten. | ja: Export von Projekt 1 und 7 | behoben: Leitung der Gewerke nach Rollennamen, Assistenzen/Praktika ausgeschlossen; danach Projekt 1 acht, Projekt 7 vierzehn Gewerkleitungen. Mehrere Personen mit gleicher Rolle ("Maskenbild") bleiben mehrfach - das geben die Daten nicht her |
 
 ## Abhakliste
 
@@ -297,7 +298,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/extras.ts` (101)
 - [x] `server/src/routes/feedback.ts` (41) - Fund 75
 - [x] `server/src/routes/floorplans.ts` (287) - Funde 57, 76
-- [ ] `server/src/routes/foerderantrag.ts` (198)
+- [x] `server/src/routes/foerderantrag.ts` (198) - Fund 78
 - [ ] `server/src/routes/guestTokens.ts` (96)
 - [ ] `server/src/routes/ical.ts` (143)
 - [ ] `server/src/routes/insurances.ts` (138)
