@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
-import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
+import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable, ROLE_RANK } from '../middleware/projectAuth'
 import {
   getOAuthConfig, buildAuthUrl, createState, verifyState,
   exchangeCode, refreshAccessToken, revokeToken,
@@ -14,16 +14,15 @@ import { UPLOAD_CHECKLIST } from '../lib/creatorInsights'
 import { buildTimeline, DEFAULT_WPM } from '../lib/creatorScript'
 import { getStateSecret as stateSecret } from '../config/secrets'
 import { appBasisUrl } from '../lib/mailversand'
+import { heuteISO } from '../lib/datum'
 
 const router = Router()
 
 router.use('/projects/:projectId', requireMember)
 
-
-
 /** Frühestes Datum, für das YouTube Analytics Daten hat. */
 const ANALYTICS_START = '2005-04-23'
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => heuteISO()
 
 // ─── Status ───────────────────────────────────────────────────────────────────
 
@@ -58,6 +57,16 @@ router.get('/projects/:projectId/creator/youtube/status', async (req, res) => {
 
 // GET /api/projects/:projectId/creator/youtube/connect
 router.get('/projects/:projectId/creator/youtube/connect', async (req, res) => {
+  // Verbinden schreibt Zugangsdaten ans Projekt - derselbe Rang wie Trennen.
+  // Als GET lief die Route am Schreibschutz vorbei; gemessen am 25.10.2026 bekam
+  // ein Mitglied mit Lesezugriff die Adresse samt State, Trennen ergab 403.
+  const user = (req as any).user
+  if (user?.role !== 'admin') {
+    const rolle = user ? await getUserProjectRole(user.id, Number(req.params.projectId)) : null
+    if ((ROLE_RANK[rolle || ''] ?? 0) < ROLE_RANK.dept_head) {
+      return res.status(403).json({ data: null, error: 'Dafür fehlt dir die Berechtigung in diesem Projekt' })
+    }
+  }
   const config = getOAuthConfig()
   if (!config) {
     return res.status(503).json({
