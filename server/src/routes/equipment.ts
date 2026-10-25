@@ -52,8 +52,14 @@ router.post('/equipment-lists/:id/items', async (req, res) => {
 
 // PUT /api/equipment-items/:id
 router.put('/equipment-items/:id', async (req, res) => {
+  // Gemessen am 25.10.2026: Eine Position, die es nicht gibt, ergab 500.
+  if (!(await db.get('SELECT id FROM equipment_items WHERE id = ?', [req.params.id]))) {
+    return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
+  }
   const { item, quantity, supplier, rental_per_day_cents, total_days, checked, notes } = req.body
-  const total_cents = (rental_per_day_cents || 0) * (total_days || 1) * (quantity || 1)
+  // Wie beim Anlegen: Stückzahl oder Tage 0 heißen 0 Euro. Vorher machte
+  // "|| 1" aus der 0 eine 1 - gemessen 100 € für Stückzahl 0.
+  const total_cents = (Number(rental_per_day_cents) || 0) * Number(total_days ?? 1) * Number(quantity ?? 1)
   await db.run('UPDATE equipment_items SET item=?, quantity=?, supplier=?, rental_per_day_cents=?, total_days=?, total_cents=?, checked=?, notes=? WHERE id=?', [item, quantity, supplier, rental_per_day_cents, total_days, total_cents, checked ? 1 : 0, notes, req.params.id])
   const row = await db.get('SELECT * FROM equipment_items WHERE id = ?', [req.params.id]) as any
   res.json({ data: { ...row, checked: !!row.checked }, error: null })
