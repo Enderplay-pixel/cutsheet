@@ -11,7 +11,7 @@
  * gelöscht, und Mails aus dem Postausgang sind Belege. Aufgenommen sind die
  * Dinge, die im Alltag versehentlich verschwinden.
  */
-import { db } from '../db'
+import { db, TxClient } from '../db'
 
 /** Wie lange ein Eintrag im Papierkorb liegt. */
 export const AUFBEWAHRUNG_TAGE = 30
@@ -40,6 +40,70 @@ function tabellenname(tabelle: string): string {
   return tabelle === 'cast' ? '"cast"' : tabelle
 }
 
+/** Was beim Löschen einer Zeile mitgeht - abgelegt neben der Zeile selbst. */
+interface Abhaengiges {
+  /** Zeilen, die per ON DELETE CASCADE mitgelöscht werden - Eltern vor Kindern */
+  zeilen: Array<{ tabelle: string; zeilen: any[] }>
+  /** Verweise, die per ON DELETE SET NULL gelöst werden */
+  verweise: Array<{ tabelle: string; spalte: string; wert: number; ids: number[] }>
+}
+
+/** Fremdschlüssel, die auf eine Tabelle zeigen - je Tabelle einmal gelesen. */
+const verweiseCache = new Map<string, Array<{ tabelle: string; spalte: string; regel: string }>>()
+
+async function verweiseAuf(tabelle: string) {
+  let liste = verweiseCache.get(tabelle)
+  if (!liste) {
+    liste = (await db.all(
+      `SELECT cl.relname AS tabelle, a.attname AS spalte, c.confdeltype AS regel
+         FROM pg_constraint c
+         JOIN pg_class cl ON cl.oid = c.conrelid
+         JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+        WHERE c.contype = 'f' AND c.confrelid = ?::regclass AND cardinality(c.conkey) = 1
+        ORDER BY cl.relname, a.attname`,
+      [tabellenname(tabelle)]
+    )) as Array<{ tabelle: string; spalte: string; regel: string }>
+    verweiseCache.set(tabelle, liste)
+  }
+  return liste
+}
+
+/**
+ * Sammelt, was die Datenbank beim Löschen mitnimmt oder löst.
+ *
+ * Gemessen am 25.10.2026: Eine zurückgeholte Szene stand ohne Drehplaneintrag,
+ * ohne Rollen und ohne ihren Drehbuchtext da, ein zurückgeholtes Motiv ohne
+ * Vertrag und ohne die Szenen, die dort spielen - all das hatten CASCADE und
+ * SET NULL beim Löschen erledigt.
+ */
+async function sammleAbhaengiges(tabelle: string, id: number, ergebnis: Abhaengiges, tiefe = 0): Promise<Abhaengiges> {
+  for (const v of await verweiseAuf(tabelle)) {
+    if (v.regel === 'c') {
+      const zeilen = (await db.all(`SELECT * FROM ${tabellenname(v.tabelle)} WHERE "${v.spalte}" = ?`, [id])) as any[]
+      if (zeilen.length === 0) continue
+      ergebnis.zeilen.push({ tabelle: v.tabelle, zeilen })
+      // Kinder der Kinder (Dispo → Einträge). Tiefer reicht im Schema nichts.
+      if (tiefe < 2) {
+        for (const z of zeilen) if (z.id != null) await sammleAbhaengiges(v.tabelle, z.id, ergebnis, tiefe + 1)
+      }
+    } else if (v.regel === 'n') {
+      const zeilen = (await db.all(`SELECT id FROM ${tabellenname(v.tabelle)} WHERE "${v.spalte}" = ?`, [id])) as any[]
+      if (zeilen.length > 0) ergebnis.verweise.push({ tabelle: v.tabelle, spalte: v.spalte, wert: id, ids: zeilen.map((z) => z.id) })
+    }
+  }
+  return ergebnis
+}
+
+/** Eine Zeile so einfügen, wie sie abgelegt wurde - mit ihrer Kennung. */
+async function fuegeEin(tx: TxClient, tabelle: string, daten: any, konfliktOk = false) {
+  const spalten = Object.keys(daten)
+  await tx.run(
+    `INSERT INTO ${tabellenname(tabelle)} (${spalten.map((s) => `"${s}"`).join(', ')})
+     VALUES (${spalten.map(() => '?').join(', ')})${konfliktOk ? ' ON CONFLICT DO NOTHING' : ''}`,
+    spalten.map((s) => daten[s])
+  )
+}
+
 /**
  * Legt eine Zeile in den Papierkorb, bevor sie gelöscht wird.
  *
@@ -59,11 +123,12 @@ export async function inDenPapierkorb(
 
   const projektId = angaben.projectId ?? zeile.project_id ?? null
   const titel = String(zeile[muster.titelfeld] ?? '').slice(0, 200)
+  const abhaengig = await sammleAbhaengiges(tabelle, Number(id), { zeilen: [], verweise: [] })
 
   await db.run(
-    `INSERT INTO deleted_items (table_name, row_id, project_id, label, payload, deleted_by)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [tabelle, Number(id), projektId, titel, JSON.stringify(zeile), angaben.userId ?? null]
+    `INSERT INTO deleted_items (table_name, row_id, project_id, label, payload, dependents, deleted_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [tabelle, Number(id), projektId, titel, JSON.stringify(zeile), JSON.stringify(abhaengig), angaben.userId ?? null]
   )
   return true
 }
@@ -71,14 +136,16 @@ export async function inDenPapierkorb(
 /**
  * Holt einen Eintrag zurück.
  *
- * Die ursprüngliche Kennung wird mitgeschrieben: Alles, was auf die Zeile
- * zeigt - Dispositionen, Arbeitszeiten, Drehplaneinträge - findet sie dadurch
- * wieder. Existiert die Kennung schon wieder, wird nichts überschrieben.
+ * Die ursprüngliche Kennung wird mitgeschrieben: Was ohne Fremdschlüssel auf
+ * die Zeile zeigt (Dispo-Einträge über person_id), findet sie dadurch wieder.
+ * Was die Datenbank beim Löschen mitgenommen oder gelöst hat, steht in
+ * `dependents` und kommt mit zurück - soweit das, worauf es sonst noch zeigt,
+ * noch da ist. Existiert die Kennung schon wieder, wird nichts überschrieben.
  */
 export async function ausDemPapierkorb(
   eintragId: number,
   projectId: number
-): Promise<{ wiederhergestellt: boolean; grund?: string; tabelle?: string; titel?: string }> {
+): Promise<{ wiederhergestellt: boolean; grund?: string; tabelle?: string; titel?: string; mit?: number; ohne?: number }> {
   const eintrag = (await db.get(
     'SELECT * FROM deleted_items WHERE id = ? AND project_id = ? AND restored_at IS NULL',
     [eintragId, projectId]
@@ -97,16 +164,39 @@ export async function ausDemPapierkorb(
   }
 
   const daten = JSON.parse(eintrag.payload)
-  const spalten = Object.keys(daten)
-  const platzhalter = spalten.map(() => '?').join(', ')
-  await db.run(
-    `INSERT INTO ${tabellenname(eintrag.table_name)} (${spalten.map((s) => `"${s}"`).join(', ')})
-     VALUES (${platzhalter})`,
-    spalten.map((s) => daten[s])
-  )
-  await db.run('UPDATE deleted_items SET restored_at = NOW() WHERE id = ?', [eintragId])
+  // Einträge von vor dem 25.10.2026 haben nichts dazu abgelegt
+  const abhaengig: Abhaengiges = eintrag.dependents ? JSON.parse(eintrag.dependents) : { zeilen: [], verweise: [] }
+  let mit = 0
+  let ohne = 0
+  await db.transaction(async (tx) => {
+    await fuegeEin(tx, eintrag.table_name, daten)
+    for (const gruppe of abhaengig.zeilen) {
+      for (const zeile of gruppe.zeilen) {
+        // Je Zeile für sich: Zeigt sie auch auf etwas, das inzwischen fehlt
+        // (die Rolle einer Szene ist selbst gelöscht), bleibt nur sie weg.
+        await tx.run('SAVEPOINT zeile')
+        try {
+          await fuegeEin(tx, gruppe.tabelle, zeile, true)
+          await tx.run('RELEASE SAVEPOINT zeile')
+          mit++
+        } catch {
+          await tx.run('ROLLBACK TO SAVEPOINT zeile')
+          ohne++
+        }
+      }
+    }
+    // Nur, was seitdem niemand anders verknüpft hat
+    for (const v of abhaengig.verweise) {
+      const r = await tx.run(
+        `UPDATE ${tabellenname(v.tabelle)} SET "${v.spalte}" = ? WHERE id = ANY(?) AND "${v.spalte}" IS NULL`,
+        [v.wert, v.ids]
+      )
+      mit += r.changes
+    }
+    await tx.run('UPDATE deleted_items SET restored_at = NOW() WHERE id = ?', [eintragId])
+  })
 
-  return { wiederhergestellt: true, tabelle: muster.bezeichnung, titel: eintrag.label }
+  return { wiederhergestellt: true, tabelle: muster.bezeichnung, titel: eintrag.label, mit, ohne }
 }
 
 /** Was im Papierkorb eines Projekts liegt. */

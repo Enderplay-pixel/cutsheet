@@ -37,7 +37,11 @@ export function Component() {
       qc.invalidateQueries()
       toast({
         title: tt(p.zurueckgeholt).replace('{tabelle}', ergebnis.tabelle),
-        description: ergebnis.titel ? tt(p.wiederDa).replace('{titel}', ergebnis.titel) : undefined,
+        description: [
+          ergebnis.titel ? tt(p.wiederDa).replace('{titel}', ergebnis.titel) : '',
+          ergebnis.ohne === 1 ? tt(p.teilweiseEins)
+            : ergebnis.ohne > 1 ? tt(p.teilweise).replace('{n}', String(ergebnis.ohne)) : '',
+        ].filter(Boolean).join(' ') || undefined,
       })
     },
     onError: (fehler: any) =>

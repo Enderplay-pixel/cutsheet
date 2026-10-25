@@ -75,7 +75,10 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
     // (Einladung, Dispo), und zurueckgespielt werden sie ohnehin nicht
     // (lib/wiederherstellung.ts). Gemessen am 25.10.2026: 14 von 19 Mails des
     // Demo-Projekts trugen einen solchen Link.
-    const OHNE_MAILS = new Set(['email_outbox', 'email_attachments', 'email_log'])
+    // Der Papierkorb ebenso: Zurückgespielt wird er nicht, und seit er
+    // mitgelöschte Zeilen sichert, stehen darin auch Gastlinks gelöschter
+    // Drehtage - als Text, an dem istGeheimnis() nicht greift.
+    const OHNE_MAILS = new Set(['email_outbox', 'email_attachments', 'email_log', 'deleted_items'])
 
     for (const { table_name } of mitProjektspalte) {
       // Nur echte Bezeichner, damit nichts Fremdes in die Abfrage geraet

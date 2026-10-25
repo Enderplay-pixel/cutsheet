@@ -1298,6 +1298,8 @@ export async function initDatabase() {
     )
   `)
   await db.exec(`CREATE INDEX IF NOT EXISTS deleted_items_projekt_idx ON deleted_items (project_id, restored_at, deleted_at DESC)`)
+  // Was beim Löschen per CASCADE mitging oder per SET NULL gelöst wurde (lib/papierkorb.ts)
+  await db.exec(`ALTER TABLE deleted_items ADD COLUMN IF NOT EXISTS dependents TEXT`)
 
   // ── Zweiter Faktor und Sitzungen ──────────────────────────────────────────
   // Ein Passwort allein schuetzt Gagen, Telefonnummern und Drehorte einer

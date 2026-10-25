@@ -2098,3 +2098,68 @@ describe('Musikliste', () => {
     expect((await hole(`${pfad}/${cue.id}`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ title: 'Neu' }) })).daten.scene_id).toBe(szene)
   })
 })
+
+describe('Papierkorb', () => {
+  /** Sichern und löschen, wie es der Wächter vor der Löschroute tut. */
+  async function loesche(tabelle: string, id: number) {
+    const { inDenPapierkorb } = await import('../lib/papierkorb')
+    await inDenPapierkorb(tabelle, id, { userId: nutzerId })
+    await db.run(`DELETE FROM ${tabelle === 'cast' ? '"cast"' : tabelle} WHERE id = ?`, [id])
+    return (await db.get('SELECT id FROM deleted_items WHERE table_name = ? AND row_id = ? ORDER BY id DESC LIMIT 1', [tabelle, id])).id
+  }
+
+  it('holt einen Drehtag mit Dispo, Einträgen und Szenen zurück', async () => {
+    const { ausDemPapierkorb } = await import('../lib/papierkorb')
+    const tag = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, '2026-11-02')", [projektId])).id
+    const szene = (await db.run("INSERT INTO scenes (project_id, scene_number) VALUES (?, '1')", [projektId])).id
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, 0)', [tag, szene])
+    const dispo = (await db.run('INSERT INTO call_sheets (shoot_day_id) VALUES (?)', [tag])).id
+    await db.run("INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, call_time) VALUES (?, 'crew', 1, 420)", [dispo])
+
+    const eintrag = await loesche('shoot_days', tag)
+    expect(await db.get('SELECT id FROM call_sheets WHERE id = ?', [dispo])).toBeUndefined()
+    const ergebnis = await ausDemPapierkorb(eintrag, projektId)
+
+    expect(ergebnis).toMatchObject({ wiederhergestellt: true, ohne: 0 })
+    expect(Number((await db.get('SELECT COUNT(*) AS c FROM shoot_day_scenes WHERE shoot_day_id = ?', [tag])).c)).toBe(1)
+    expect(Number((await db.get('SELECT COUNT(*) AS c FROM call_sheet_entries WHERE call_sheet_id = ?', [dispo])).c)).toBe(1)
+  })
+
+  it('lässt weg, was auf inzwischen Gelöschtes zeigt, ohne das Zurückholen zu verhindern', async () => {
+    const { ausDemPapierkorb } = await import('../lib/papierkorb')
+    const szene = (await db.run("INSERT INTO scenes (project_id, scene_number) VALUES (?, '4')", [projektId])).id
+    const rolle = (await db.run("INSERT INTO characters (project_id, name) VALUES (?, 'Ole')", [projektId])).id
+    await db.run('INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?)', [szene, rolle])
+    // Erst die Szene - ihre Sicherung enthält die Zuordnung -, dann die Rolle
+    const szeneWeg = await loesche('scenes', szene)
+    await loesche('characters', rolle)
+    expect(await ausDemPapierkorb(szeneWeg, projektId)).toMatchObject({ wiederhergestellt: true, ohne: 1 })
+    expect(await db.get('SELECT id FROM scenes WHERE id = ?', [szene])).toBeTruthy()
+  })
+
+  it('holt eine Zuordnung zurück, wenn in umgekehrter Reihenfolge zurückgeholt wird', async () => {
+    const { ausDemPapierkorb } = await import('../lib/papierkorb')
+    const szene = (await db.run("INSERT INTO scenes (project_id, scene_number) VALUES (?, '2')", [projektId])).id
+    const rolle = (await db.run("INSERT INTO characters (project_id, name) VALUES (?, 'Jana')", [projektId])).id
+    await db.run('INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?)', [szene, rolle])
+
+    const rolleWeg = await loesche('characters', rolle)
+    const szeneWeg = await loesche('scenes', szene)
+    // Die Szene kommt zurück, ihre Rolle gibt es noch nicht wieder
+    expect(await ausDemPapierkorb(szeneWeg, projektId)).toMatchObject({ wiederhergestellt: true })
+    expect(Number((await db.get('SELECT COUNT(*) AS c FROM scene_characters WHERE scene_id = ?', [szene])).c)).toBe(0)
+    // Mit der Rolle kommt die Zuordnung zurück
+    expect(await ausDemPapierkorb(rolleWeg, projektId)).toMatchObject({ wiederhergestellt: true })
+    expect(Number((await db.get('SELECT COUNT(*) AS c FROM scene_characters WHERE scene_id = ? AND character_id = ?', [szene, rolle])).c)).toBe(1)
+  })
+
+  it('knüpft gelöste Verweise wieder an', async () => {
+    const { ausDemPapierkorb } = await import('../lib/papierkorb')
+    const motiv = (await db.run("INSERT INTO locations (project_id, name) VALUES (?, 'Hafen')", [projektId])).id
+    const szene = (await db.run("INSERT INTO scenes (project_id, scene_number, location_id) VALUES (?, '3', ?)", [projektId, motiv])).id
+    const eintrag = await loesche('locations', motiv)
+    expect((await db.get('SELECT location_id FROM scenes WHERE id = ?', [szene])).location_id).toBeNull()
+    await ausDemPapierkorb(eintrag, projektId)
+    expect((await db.get('SELECT location_id FROM scenes WHERE id = ?', [szene])).location_id).toBe(motiv)
+  })
+})
