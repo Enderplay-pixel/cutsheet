@@ -4,6 +4,7 @@ import { validate } from '../middleware/validate'
 import { ProjectSchema } from '../schemas'
 import { getUserProjectRole, requireMember, ROLE_RANK } from '../middleware/projectAuth'
 import { requireAuth } from '../middleware/auth'
+import { heuteISO } from '../lib/datum'
 
 const router = Router()
 
@@ -176,7 +177,11 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
 
 // PUT /api/projects/:id
 router.put('/:id', requireAuth, async (req, res) => {
-  const { title, genre, format, length_minutes, status, synopsis = '', director, producer, dop, production_company, shoot_start, shoot_end } = req.body
+  const bisher = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.id]) as any
+  if (!bisher) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+  // Was nicht mitkommt, bleibt (vorher: NULL bzw. leere Synopsis)
+  const b = { ...bisher, ...Object.fromEntries(Object.entries(req.body ?? {}).filter(([, w]) => w !== undefined)) }
+  const { title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end } = b
 
   // Die Projektart wird beim Speichern immer aus dem Format abgeleitet - sie ist
   // abgeleiteter Zustand, nicht eigene Eingabe. Ein mitgeschicktes project_kind
@@ -196,17 +201,19 @@ router.put('/:id', requireAuth, async (req, res) => {
 
 // PUT /api/projects/:id/settings
 router.put('/:id/settings', requireAuth, async (req, res) => {
+  const existing = await db.get('SELECT * FROM project_settings WHERE project_id = ?', [req.params.id]) as any
+  // Was nicht mitkommt, bleibt. Gemessen am 25.10.2026: Nur die Farbe zu
+  // speichern setzte die Währung auf EUR zurück.
+  const b = req.body ?? {}
   const {
-    default_call_time = 480,
-    default_wrap_time = 1200,
-    turnaround_hours = 11,
-    currency = 'EUR',
-    country = 'Deutschland',
-    logo_url = null,
-    header_color = '#0071E3',
-  } = req.body
-
-  const existing = await db.get('SELECT id FROM project_settings WHERE project_id = ?', [req.params.id])
+    default_call_time = existing?.default_call_time ?? 480,
+    default_wrap_time = existing?.default_wrap_time ?? 1200,
+    turnaround_hours = existing?.turnaround_hours ?? 11,
+    currency = existing?.currency ?? 'EUR',
+    country = existing?.country ?? 'Deutschland',
+    logo_url = existing?.logo_url ?? null,
+    header_color = existing?.header_color ?? '#0071E3',
+  } = b
   if (existing) {
     await db.run(`
       UPDATE project_settings
@@ -280,32 +287,11 @@ router.get('/:id/members', requireAuth, async (req: Request, res: Response) => {
   res.json({ data: result, error: null })
 })
 
-// POST /api/projects/:id/members - add member { userId, role }
-router.post('/:id/members', requireAuth, async (req: Request, res: Response) => {
-  const user = (req as any).user
-  const projectId = Number(req.params.id)
-
-  if (user.role !== 'admin') {
-    const role = await getUserProjectRole(user.id, projectId)
-    if (role === null) return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
-    if ((ROLE_RANK[role] ?? 0) < ROLE_RANK.producer) {
-      return res.status(403).json({ data: null, error: 'Nur Admins/Produzenten können Mitglieder hinzufügen' })
-    }
-  }
-
-  const { userId, role: memberRole = 'read_only' } = req.body
-  if (!userId) return res.status(400).json({ data: null, error: 'userId fehlt' })
-
-  const project = await db.get('SELECT id FROM projects WHERE id = ?', [projectId])
-  if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
-
-  const targetUser = await db.get('SELECT id, name, email FROM users WHERE id = ?', [userId]) as any
-  if (!targetUser) return res.status(404).json({ data: null, error: 'Benutzer nicht gefunden' })
-
-  await db.run('INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?) ON CONFLICT (project_id, user_id) DO UPDATE SET role = EXCLUDED.role', [projectId, userId, memberRole])
-
-  res.status(201).json({ data: { user_id: targetUser.id, name: targetUser.name, email: targetUser.email, role: memberRole }, error: null })
-})
+// Kein POST /api/projects/:id/members mehr. Der Weg in ein Projekt ist die
+// Einladung (routes/invites.ts) - die Oberfläche hat die Route nie benutzt.
+// Gemessen am 25.10.2026: Ein frisches Konto mit eigenem Projekt trug per
+// Kontokennung beliebige Konten ungefragt ein und bekam deren Namen und
+// Mailadresse zurück.
 
 // PUT /api/projects/:id/members/:userId/role - change role
 router.put('/:id/members/:userId/role', requireAuth, async (req: Request, res: Response) => {
@@ -382,12 +368,14 @@ router.post('/:id/duplicate', requireAuth, async (req: Request, res: Response) =
   if (!original) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
 
   const result = await db.run(`
-    INSERT INTO projects (title, genre, format, length_minutes, status, director, producer, dop, production_company, owner_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO projects (title, genre, format, length_minutes, status, director, producer, dop, production_company, owner_id, project_kind)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [
     `${original.title} (Kopie)`, original.genre, original.format, original.length_minutes,
     'Entwicklung', original.director, original.producer, original.dop, original.production_company,
-    user.id
+    user.id,
+    // Gemessen am 25.10.2026: Die Kopie eines Creator-Projekts wurde ein Filmprojekt
+    original.project_kind || (isCreatorFormat(original.format) ? 'creator' : 'film'),
   ])
 
   const newId = result.id
@@ -424,10 +412,13 @@ router.get('/:id/stats', requireAuth, async (req: Request, res: Response) => {
   const budgetRow = await db.get('SELECT COALESCE(MAX(total_cents), 0) as s FROM budget_versions WHERE project_id = ? AND status = \'Aktiv\'', [pid]) as any
   const finRow = await db.get('SELECT COALESCE(MAX(total_cents), 0) as s FROM financing_plan_versions WHERE project_id = ?', [pid]) as any
 
+  // date ist Text: '' bei undatierten Tagen. Vorher date::date - ein einziger
+  // undatierter Drehtag ließ die ganze Übersicht scheitern (gemessen am
+  // 25.10.2026). "Heute" in deutscher Zeit, nicht in der der Datenbank.
   const next_shoot_day = await db.get(`
-    SELECT * FROM shoot_days WHERE project_id = ? AND date::date >= CURRENT_DATE AND status != 'Ausgefallen'
+    SELECT * FROM shoot_days WHERE project_id = ? AND date <> '' AND date >= ? AND status != 'Ausgefallen'
     ORDER BY date ASC LIMIT 1
-  `, [pid])
+  `, [pid, heuteISO()])
 
   res.json({
     data: {
