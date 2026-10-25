@@ -14,7 +14,7 @@
 
 Die „Top 100“ sind nach Besuchen pro Monat geordnet (Similarweb, Stand August 2026).
 
-- **Ränge 1–10, einzeln belegt:** google.com, youtube.com, facebook.com, instagram.com, chatgpt.com, x.com, reddit.com, bing.com, tiktok.com, whatsapp.com. Wikipedia liegt knapp dahinter.
+- **Ränge 1-10, einzeln belegt:** google.com, youtube.com, facebook.com, instagram.com, chatgpt.com, x.com, reddit.com, bing.com, tiktok.com, whatsapp.com. Wikipedia liegt knapp dahinter.
 - **Belegte Einzelwerte:**
   - Google: 105,7 Mrd. Besuche pro Monat
   - YouTube: 54,9 Mrd.
@@ -24,7 +24,7 @@ Die „Top 100“ sind nach Besuchen pro Monat geordnet (Similarweb, Stand Augus
   - Discord: Rang 50
   - Walmart: unter den ersten 60
   - Etsy: Rang 62
-- **Ränge 11–100:** Sie schwanken monatlich und sind nicht frei einzeln abrufbar. Anhang A führt sie deshalb **nach Kategorie** statt mit erfundenen Rangzahlen.
+- **Ränge 11-100:** Sie schwanken monatlich und sind nicht frei einzeln abrufbar. Anhang A führt sie deshalb **nach Kategorie** statt mit erfundenen Rangzahlen.
 - **Am schnellsten wachsende Kategorie:** KI-Assistenten (ChatGPT, Gemini, Claude, Perplexity, DeepSeek).
 
 ### 1.2 Was gemessen wurde
@@ -73,16 +73,16 @@ Ergänzt wird das durch den **HTTP Archive Web Almanac 2024**:
 
 | Größe | Median | Spannweite | Beobachtung |
 |---|---|---|---|
-| Grundschrift | **14 px** | 13–19 px | Werkzeuge 13–14, Lese-Seiten 16, Apple 17, GOV.UK 19 |
-| Zeilenhöhe | **21 px** (×1,46) | 18–26 px | Lesen 1,5–1,6, dichte Tabellen 1,38–1,43 |
-| Rasterbasis | **4 px** | 4–8 px | 14 von 16 Systemen auf 4 px (GOV.UK 5 px, eBay/Atlassian 8 px) |
-| Radius (alle Stufen) | **8 px** | 2–28 px | Trend zu größeren Radien: Cloudscape 20, Gestalt 24, M3 28 |
-| Steuerelement-Höhe | **32 px** | 28–48 px | Touch-first: VK 44, Apple 44, Pinterest 48 |
-| Fokusring | **2 px** | 2–3 px | Material, GOV.UK und Apple 3 px; Abstand meist 2 px |
+| Grundschrift | **14 px** | 13-19 px | Werkzeuge 13-14, Lese-Seiten 16, Apple 17, GOV.UK 19 |
+| Zeilenhöhe | **21 px** (×1,46) | 18-26 px | Lesen 1,5-1,6, dichte Tabellen 1,38-1,43 |
+| Rasterbasis | **4 px** | 4-8 px | 14 von 16 Systemen auf 4 px (GOV.UK 5 px, eBay/Atlassian 8 px) |
+| Radius (alle Stufen) | **8 px** | 2-28 px | Trend zu größeren Radien: Cloudscape 20, Gestalt 24, M3 28 |
+| Steuerelement-Höhe | **32 px** | 28-48 px | Touch-first: VK 44, Apple 44, Pinterest 48 |
+| Fokusring | **2 px** | 2-3 px | Material, GOV.UK und Apple 3 px; Abstand meist 2 px |
 | Dauer | **200 ms** | P25 115 / P75 300 | fast nie über 500 ms; Material bis 1000 für große Flächen |
-| Easing | ausklingend | – | stark bremsende Kurven: (0.2,0,0,1), (0.05,0.7,0.1,1), (0,0,0,1) |
-| Textfarbe | fast schwarz | #000–#303030 | nie reines Grau; Kontrast 13–21:1 |
-| Akzent-Farbton | **211°** | – | **12 von 16 blau** (208–227°) |
+| Easing | ausklingend | - | stark bremsende Kurven: (0.2,0,0,1), (0.05,0.7,0.1,1), (0,0,0,1) |
+| Textfarbe | fast schwarz | #000-#303030 | nie reines Grau; Kontrast 13-21:1 |
+| Akzent-Farbton | **211°** | - | **12 von 16 blau** (208-227°) |
 
 **Die vier Ausreißer beim Akzent** zeigen, dass eine eigene Farbe Wiedererkennung bringt:
 
@@ -96,7 +96,7 @@ Ergänzt wird das durch den **HTTP Archive Web Almanac 2024**:
 1. **Struktur ist gelöst.** Schriftgröße, Raster, Radius, Dauer und Fokusring haben sich über Konzerne und Kontinente auf fast dieselben Werte eingependelt. Davon abzuweichen kostet Lesbarkeit und bringt keine Eigenständigkeit.
 2. **Farbe ist nicht gelöst, sondern verwechselbar.** Wer Blau nimmt, sieht aus wie Microsoft, GitHub, Wikipedia, eBay, Amazon, Alibaba, Atlassian, Tencent und Apple zusammen.
 3. **Bewegung ist kurz und bremst stark.** Das „Premium-Gefühl“ entsteht durch Kurven mit schnellem Start und weichem Ankommen, nicht durch lange Dauern.
-4. **Touch verlangt 44 px.** Alle mobil geprägten Systeme (VK, Apple, Pinterest) liegen bei 44–48 px. Die dichten Desktop-Systeme liegen bei 32 px.
+4. **Touch verlangt 44 px.** Alle mobil geprägten Systeme (VK, Apple, Pinterest) liegen bei 44-48 px. Die dichten Desktop-Systeme liegen bei 32 px.
 
 ---
 
@@ -110,7 +110,7 @@ Ergänzt wird das durch den **HTTP Archive Web Almanac 2024**:
    - Blau ist zu „Daylight“ herabgestuft und steht nur noch für Hinweise.
 3. **Warmes Neutral statt kaltem Grau.**
    - Alle gemessenen Systeme nutzen neutrale oder kühle Grautöne.
-   - Unsere Grautöne haben einen Hauch Braun (Farbton 24–36°), wie ein Negativstreifen.
+   - Unsere Grautöne haben einen Hauch Braun (Farbton 24-36°), wie ein Negativstreifen.
    - Das ist eigenständig, ohne laut zu sein.
 4. **Dichte nach Einsatzort.**
    - Im Büro: 14 px Schrift und 36 px Steuerelemente (Median plus Luft).
@@ -152,8 +152,8 @@ Unter den 16 gemessenen Systemen nutzt keines Orange als Hauptakzent. Die Farbe 
 
 | Token | Hex | HSL (für `index.css`) | Kontrast |
 |---|---|---|---|
-| `background` | #F6F4F1 | 36 21.7% 95.5% | – |
-| `card` | #FFFFFF | 0 0% 100% | – |
+| `background` | #F6F4F1 | 36 21.7% 95.5% | - |
+| `card` | #FFFFFF | 0 0% 100% | - |
 | `foreground` (Tinte) | #1C1917 | 24 9.8% 10% | 17,5:1 auf Karte |
 | `muted-foreground` | #665E57 | 28 7.9% 37.1% | 6,4:1 auf Karte, 5,8:1 auf Grund |
 | `border` | #E4DED7 | 32 19.4% 86.9% | dekorativ |
@@ -167,8 +167,8 @@ Unter den 16 gemessenen Systemen nutzt keines Orange als Hauptakzent. Die Farbe 
 
 | Token | Hex | HSL | Kontrast |
 |---|---|---|---|
-| `background` | #131110 | 20 8.6% 6.9% | – |
-| `card` | #1D1A18 | 24 9.4% 10.4% | – |
+| `background` | #131110 | 20 8.6% 6.9% | - |
+| `card` | #1D1A18 | 24 9.4% 10.4% | - |
 | `foreground` | #F4F1EC | 37 26.7% 94.1% | 15,4:1 |
 | `muted-foreground` | #A69D94 | 30 9.2% 61.6% | 6,5:1 |
 | `border` | #34302C | 30 8.3% 18.8% | dekorativ |
@@ -189,7 +189,7 @@ Die fünf Statusfarben (Tungsten, Daylight, Grün, Gaffer-Gelb, Karmin) wurden m
 - **Hell** (Grundfarben #D9480F, #1C7ED6, #2B8A3E, #E0A800, #A61E4D):
   - Helligkeitsband, Sättigung und Kontrast: bestanden.
   - Normalsicht-Mindestabstand ΔE 15,5: bestanden.
-  - Rot-Grün-Schwäche: ΔE 7,9, im Warnband 6–8, also nur mit Zweitkodierung erlaubt.
+  - Rot-Grün-Schwäche: ΔE 7,9, im Warnband 6-8, also nur mit Zweitkodierung erlaubt.
 - **Dunkel:**
   - Fünf Farbtöne erreichen in allen Paaren den Rot-Grün-Abstand nicht. Das haben wir mit 60 000 Zufallspaletten nachgerechnet.
   - Deshalb gilt ohne Ausnahme: **Status zeigt immer Symbol und Wort, nie nur Farbe.** Die App tut das bereits (Badges mit Text, Konfliktradar mit Symbolen).
@@ -231,14 +231,14 @@ Die Streifenfarben im Stäbchenplan und in der Shotlist (INT/EXT × Tag/Nacht) f
 
 | Stufe | Größe / Zeile | Gewicht | Einsatz |
 |---|---|---|---|
-| Display | 40–56 / 1,06 | 700, −0,03 em | Projekttitel, Kennzahlen |
+| Display | 40-56 / 1,06 | 700, −0,03 em | Projekttitel, Kennzahlen |
 | Titel 1 | 32 / 40 | 700 | Seitentitel |
 | Titel 2 | 24 / 32 | 650 | Abschnitte |
 | Titel 3 | 20 / 28 | 600 | Karten |
-| Set-Text | 17 / 22 | 400–600 | Set-App (Apple-Grundgröße) |
+| Set-Text | 17 / 22 | 400-600 | Set-App (Apple-Grundgröße) |
 | Lesetext | 16 / 24 | 400 | Drehbuch, lange Texte |
 | **UI-Text** | **14 / 20** | 400 | Standard (Median aller Systeme) |
-| Klein | 13 / 18 | 400–500 | Tabellen, Knöpfe |
+| Klein | 13 / 18 | 400-500 | Tabellen, Knöpfe |
 | Etikett | 11,5 / 16 | 500, +0,04 em, VERSALIEN | Gruppenüberschriften |
 
 **Regeln:**
@@ -299,14 +299,14 @@ Am Touchscreen ist jedes reine Symbol mindestens 36 × 36 groß (siehe `index.cs
 | Token | Dauer | Kurve | Wofür |
 |---|---|---|---|
 | Druck | 90 ms | linear aus | Knopf gibt nach (scale 0,95) |
-| Mikro | 150–200 ms | `cubic-bezier(0.22,1,0.36,1)` | Hover, Farbe, Menüs |
-| Standard | 240–320 ms | `(0.22,1,0.36,1)` | Reiter, Zeilen, Seiten-Kaskade |
-| Feder | 360–520 ms | `(0.34,1.56,0.64,1)` | Häkchen, Schalter, Quittung, Toasts |
+| Mikro | 150-200 ms | `cubic-bezier(0.22,1,0.36,1)` | Hover, Farbe, Menüs |
+| Standard | 240-320 ms | `(0.22,1,0.36,1)` | Reiter, Zeilen, Seiten-Kaskade |
+| Feder | 360-520 ms | `(0.34,1.56,0.64,1)` | Häkchen, Schalter, Quittung, Toasts |
 | Sheet | 420 ms | `(0.34,1.3,0.64,1)` | Dialoge |
 | Welle | 620 ms | `(0.22,1,0.36,1)` | Berührungswelle |
-| Feier | 1400–1900 ms | `(0.22,1,0.36,1)` | nur echte Meilensteine |
+| Feier | 1400-1900 ms | `(0.22,1,0.36,1)` | nur echte Meilensteine |
 
-Der Median der Top-Systeme liegt bei 200 ms. Unsere Alltagsdauern liegen im Band P25–P75 (115–300 ms). Länger dauern nur Rückmeldungen auf eine eigene Handlung, und die blockieren nie die nächste Eingabe.
+Der Median der Top-Systeme liegt bei 200 ms. Unsere Alltagsdauern liegen im Band P25-P75 (115-300 ms). Länger dauern nur Rückmeldungen auf eine eigene Handlung, und die blockieren nie die nächste Eingabe.
 
 ### 7.2 Die Rückmeldungs-Treppe
 
@@ -360,13 +360,13 @@ Bei `prefers-reduced-motion: reduce` gilt:
 | 14 px UI, 16 px Lesetext, 17 px Set-App | 12 px Fließtext |
 | Warme Grautöne aus den Tokens | `gray-500`, `slate-*`, `zinc-*` direkt |
 | Feiern nur bei echtem Fortschritt | Konfetti beim Öffnen einer Seite |
-| Dauer 150–300 ms | Übergänge über 500 ms, die Eingaben blockieren |
+| Dauer 150-300 ms | Übergänge über 500 ms, die Eingaben blockieren |
 
 ---
 
 ## Anhang A: Die Top 100 nach Kategorie
 
-**Ränge 1–10** sind in Abschnitt 1.1 belegt. Die übrigen Einträge sind nach Similarweb- und Semrush-Berichten 2025–2026 zusammengestellt. Sie stehen **nach Kategorie, nicht nach Rang**, weil einzelne Ränge monatlich schwanken.
+**Ränge 1-10** sind in Abschnitt 1.1 belegt. Die übrigen Einträge sind nach Similarweb- und Semrush-Berichten 2025-2026 zusammengestellt. Sie stehen **nach Kategorie, nicht nach Rang**, weil einzelne Ränge monatlich schwanken.
 
 1. **Suche und Portale (15):**
    - google.com, bing.com, yahoo.com, yahoo.co.jp, yandex.ru, ya.ru, baidu.com, duckduckgo.com, naver.com, msn.com, dzen.ru, mail.ru

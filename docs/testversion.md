@@ -22,7 +22,7 @@ Das Testprojekt entsteht über **Admin → System → „Großproduktion anlegen
 
 Es enthält eine vollständige Kinoproduktion (Hamburg und Westerhever):
 
-- **Drehplan:** 45 Drehtage (Mo–Sa), davon ein ausgefallener Tag, 2nd-Unit-Tage und Nachtblöcke.
+- **Drehplan:** 45 Drehtage (Mo-Sa), davon ein ausgefallener Tag, 2nd-Unit-Tage und Nachtblöcke.
 - **Tagesarbeit:** Tagesdispos für jeden Tag. Für die bereits gedrehten Tage gibt es Tagesberichte, Kameraberichte mit rund 1.500 Takes und Stundenzettel.
 - **Drehbuch und Shots:** 160 Szenen, über 900 Drehbuchblöcke und rund 720 Shots.
 - **Besetzung und Team:** 32 Rollen mit Besetzung, rund 100 Stab-Mitglieder, 240 Komparsen und 28 Motive.

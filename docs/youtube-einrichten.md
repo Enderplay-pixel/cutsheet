@@ -1,7 +1,7 @@
 # YouTube-Anbindung einrichten
 
 Damit CutSheet Zahlen und Retention-Kurven aus deinem Kanal holen kann, braucht
-es einen OAuth-Client aus deiner Google Cloud Console. Den kann nur du anlegen —
+es einen OAuth-Client aus deiner Google Cloud Console. Den kann nur du anlegen -
 er hängt an deinem Google-Konto.
 
 Dauer: rund zehn Minuten.
@@ -24,12 +24,12 @@ Unter **APIs und Dienste → OAuth-Zustimmungsbildschirm**:
 
 - Nutzertyp **Extern**
 - App-Name, deine Mailadresse als Support- und Entwicklerkontakt
-- Bei **Bereiche** nichts eintragen — CutSheet fragt sie zur Laufzeit an
+- Bei **Bereiche** nichts eintragen - CutSheet fragt sie zur Laufzeit an
 - Unter **Testnutzer** deine eigene Google-Adresse hinzufügen
 
 > **Wichtig:** `yt-analytics.readonly` gilt bei Google als sensibler Bereich.
 > Solange die App im Status *Testing* steht, verfallen die Zugriffsrechte nach
-> **7 Tagen** — du musst dich dann in CutSheet einmal neu verbinden. Das ist
+> **7 Tagen** - du musst dich dann in CutSheet einmal neu verbinden. Das ist
 > eingeplant, die Oberfläche fordert dich dazu auf. Dauerhaft ginge nur mit
 > Googles Überprüfungsverfahren, das für einen einzelnen Kanal unverhältnismäßig
 > ist.
@@ -85,7 +85,7 @@ Dann **Zahlen abgleichen** drücken.
 ## Wie die Zuordnung funktioniert
 
 CutSheet ordnet seine Videos den YouTube-Videos über die Video-ID zu. Die kommt
-aus dem Feld **Video-Link** im Reiter „Zahlen" — jede übliche Linkform wird
+aus dem Feld **Video-Link** im Reiter „Zahlen" - jede übliche Linkform wird
 erkannt:
 
 ```
@@ -104,7 +104,7 @@ Im Reiter **Zahlen** eines Videos erscheint unter den Kennzahlen der Abschnitt
 **„Wo die Leute abspringen"**: die Retention-Kurve von YouTube, gelegt über deine
 Skript-Abschnitte.
 
-Der Verlust wird auf eine Minute normiert — sonst wäre der längste Abschnitt
+Der Verlust wird auf eine Minute normiert - sonst wäre der längste Abschnitt
 immer der scheinbar schlechteste. Zusätzlich ausgewiesen: der Zuschaueranteil
 nach 30 Sekunden als Hook-Test und die Abwanderung während der Sponsorstrecke.
 
@@ -116,7 +116,7 @@ Zusammenhang zwischen Videolänge und gesehenem Anteil, bester Wochentag.
 | Meldung | Ursache |
 |---|---|
 | `redirect_uri_mismatch` | Die URI in Google stimmt nicht zeichengenau mit `APP_BASE_URL` + `/api/creator/youtube/callback` überein |
-| „Zugriff abgelaufen — bitte neu verbinden" | Die 7 Tage des Testmodus sind um. Einmal neu verbinden |
+| „Zugriff abgelaufen - bitte neu verbinden" | Die 7 Tage des Testmodus sind um. Einmal neu verbinden |
 | „Zu diesem Google-Konto gehört kein YouTube-Kanal" | Beim Zustimmen das falsche Google-Konto gewählt |
 | Keine Retention-Kurve | YouTube liefert sie erst ab einer Mindestzahl an Aufrufen |
 | Impressionen und Klickrate fehlen | Diese Metriken sind nicht für jeden Kanal freigeschaltet; der Rest wird trotzdem geholt |
