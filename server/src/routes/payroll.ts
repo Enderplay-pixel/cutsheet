@@ -1,24 +1,8 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { schreibeCsv, cents } from '../lib/tabelle'
 
 const router = Router()
-
-function centsToEur(cents: number): string {
-  return (cents / 100).toFixed(2)
-}
-
-function csvEscape(value: string | number | null | undefined): string {
-  const str = String(value ?? '')
-  // Quote if contains comma, quote, or newline
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-    return `"${str.replace(/"/g, '""')}"`
-  }
-  return str
-}
-
-function buildRow(cols: (string | number | null | undefined)[]): string {
-  return cols.map(csvEscape).join(',')
-}
 
 // GET /api/projects/:pid/payroll/export.csv
 router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Response) => {
@@ -131,27 +115,24 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
   }
 
   // ── Build CSV ─────────────────────────────────────────────────────────────
-  const header = buildRow(['Typ', 'Name', 'Rolle', 'Drehtage', 'Tagesgage (EUR)', 'Gesamtgage (EUR)', 'Überstunden'])
-
-  const dataRows = rows.map((r) => {
-    const total_gage = r.fee_per_day * r.shoot_days
-    return buildRow([
+  // Wie jeder Export: Semikolon und Dezimalkomma (lib/tabelle.ts). Vorher
+  // Komma und Dezimalpunkt - "6500.00" als einzige Ausnahme im Programm.
+  const csv = schreibeCsv(
+    ['Typ', 'Name', 'Rolle', 'Drehtage', 'Tagesgage (EUR)', 'Gesamtgage (EUR)', 'Überstunden'],
+    rows.map((r) => [
       r.typ,
       r.name,
       r.rolle,
       r.shoot_days,
-      centsToEur(r.fee_per_day),
-      centsToEur(total_gage),
-      r.overtime_hours.toFixed(2),
+      cents(r.fee_per_day),
+      cents(r.fee_per_day * r.shoot_days),
+      r.overtime_hours.toFixed(2).replace('.', ','),
     ])
-  })
-
-  const csv = [header, ...dataRows].join('\r\n')
+  )
 
   res.set('Content-Type', 'text/csv; charset=utf-8')
   res.set('Content-Disposition', 'attachment; filename="payroll.csv"')
-  // UTF-8 BOM so Excel opens with correct encoding
-  return res.send('﻿' + csv)
+  return res.send(csv)
 })
 
 export default router
