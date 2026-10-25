@@ -56,7 +56,9 @@ router.get('/guest/:token', async (req: Request, res: Response) => {
       return res.status(403).json({ data: null, error: 'Token abgelaufen' })
     }
 
-    const project = await db.get('SELECT * FROM projects WHERE id = ?', [guestToken.project_id])
+    // Öffentlich: nur, was die Gastansicht braucht - wie die öffentliche Dispo
+    // (routes/confirmation.ts). Vorher ganze Zeilen per SELECT *.
+    const project = await db.get('SELECT id, title, format, genre FROM projects WHERE id = ?', [guestToken.project_id])
     if (!project) {
       return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
     }
@@ -67,7 +69,11 @@ router.get('/guest/:token', async (req: Request, res: Response) => {
       const callSheet = await db.get('SELECT * FROM call_sheets WHERE shoot_day_id = ?', [guestToken.shoot_day_id])
       const callSheetId = (callSheet as { id: number } | undefined)?.id
       const entries = callSheetId
-        ? await db.all('SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC', [callSheetId])
+        ? await db.all(
+            `SELECT id, person_type, person_id, call_time, sort_order, checked_in
+               FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC`,
+            [callSheetId]
+          )
         : []
       const scenes = await db.all(`
         SELECT s.*, sds.sort_order as day_sort_order, sds.estimated_minutes as day_estimated_minutes

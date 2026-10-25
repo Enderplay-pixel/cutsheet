@@ -89,6 +89,10 @@ Stand am 24.10.2026, 23 Uhr:
   - "1.234,56" würde 1,23 € (`parseFloat("1.234.56")` ist 1.234).
   `Equipment.tsx:38` rechnet die Summe ohne Stückzahl und schickt sie mit;
   der Server ignoriert sie (rechnet selbst) - toter, irreführender Code.
+  `main.tsx`: Ein unbekannter Pfad zeigt die rohe React-Router-Fehlerseite
+  ("Unexpected Application Error! 404 Not Found", englisch) - eigene
+  404-Seite fehlt (gemessen). `CheckinBoard.tsx:221`: Hinweis auf
+  `/guest/checkin/…`, den es nicht gibt (Fund 79).
   `Budget.tsx` (Finanzierung): Der Server legt neue Zeilen mit Art
   "Förderung" an, die Auswahl kennt nur "Förderung regional"/"national" -
   prüfen, was die Auswahl dann zeigt.
@@ -233,6 +237,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 76 | `server/src/routes/floorplans.ts` (Löschen, Bild ersetzen, PDF) | **Datenverlust** | Die Bilddatei eines Set-Plans wurde über die Kennung aus `image_url` gelöscht und gelesen, ohne Prüfung des Projekts. Eine zurückgespielte Kopie trägt die Adresse des Originals: Das Löschen ihres Plans löschte das Bild des Originals. | ja: Plan der Kopie gelöscht → Bild des Originals weg | behoben: nur Dateien des eigenen Projekts; danach Bild des Originals noch da |
 | 77 | `server/src/lib/wiederherstellung.ts` (Dateiinhalt, `image_url`) | **Datenverlust, live** | Beim Zurückspielen wurde jede Datei der Ablage kaputt gespeichert: In der Sicherung steht der Inhalt als `{"type":"Buffer","data":[…]}`, und genau dieser Text landete in der Datenbank (aus einem 6-Byte-PDF wurden 44 Bytes JSON). Betrifft Drehgenehmigungen, Vertragsscans, Nachweise, Grundrisse. Dazu zeigten Set-Plan-Bild, Storyboard (`shots.storyboard_url`) und Motivfotos (`locations.photos`) der Kopie auf Dateien des Originals; `shots.ts` löschte beim Ersetzen ebenfalls ohne Projektprüfung. | ja: `%PDF-1` → `{"type":"Buf…` | behoben: Buffer-Form wird zurückgewandelt (auch für alte Sicherungen), alle drei Adressarten nach dem Einfügen aller Tabellen auf die mitkopierten Dateien umgeschrieben (eine feste Reihenfolge gibt es nicht: Dateien hängen ihrerseits an Einstellungen und Motiven), `shots.ts` mit Projektprüfung; danach Inhalt gleich, Kopie liefert ihr Bild aus. Test, gegen alten Stand rot. **Projekte, die schon zurückgespielt wurden, haben kaputte Dateien** - die Originale (Sicherungsdatei, altes Projekt) sind unversehrt |
 | 78 | `server/src/routes/foerderantrag.ts:39` | Fehler, Inhalt | "Schlüsselpositionen" im Förderantrag: jede Rolle aus Regie und Produktion und jede mit "Ton" im Namen. In der Großproduktion 16 Einträge, darunter Regiepraktikum, Produktionssekretariat, Tonangel, Schnittassistenz; Szenenbild, Kostüm- und Maskenbild fehlten. | ja: Export von Projekt 1 und 7 | behoben: Leitung der Gewerke nach Rollennamen, Assistenzen/Praktika ausgeschlossen; danach Projekt 1 acht, Projekt 7 vierzehn Gewerkleitungen. Mehrere Personen mit gleicher Rolle ("Maskenbild") bleiben mehrfach - das geben die Daten nicht her |
+| 79 | `server/src/routes/guestTokens.ts` (`GET /guest/:token`) | Datenschutz, Hinweis | Der öffentliche Gastlink lieferte ganze Zeilen (`SELECT *`) von Projekt und Dispo-Einträgen, mehr als jede Ansicht braucht. Die Gastlink-Funktion hat keine Oberfläche: Keine Seite legt Gastlinks an oder zeigt sie; die Check-in-Tafel nennt einen Pfad `/guest/checkin/{Drehtag}`, den es nicht gibt (rohe 404-Seite). Ein ungültiges `expires_at` lässt einen Gastlink nie ablaufen. | ja: Felder ausgezählt; Pfad im Browser → "Unexpected Application Error! 404" | Antwort begrenzt (Projekt: id, Titel, Format, Genre; Einträge ohne Kontakt- und Tokenfelder). **Offen für Florian:** Gastlink-Funktion fertigbauen oder entfernen; den Hinweis auf der Check-in-Tafel behebe ich bei `CheckinBoard.tsx` |
 
 ## Abhakliste
 
@@ -299,7 +304,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/feedback.ts` (41) - Fund 75
 - [x] `server/src/routes/floorplans.ts` (287) - Funde 57, 76
 - [x] `server/src/routes/foerderantrag.ts` (198) - Fund 78
-- [ ] `server/src/routes/guestTokens.ts` (96)
+- [x] `server/src/routes/guestTokens.ts` (96) - Fund 79
 - [ ] `server/src/routes/ical.ts` (143)
 - [ ] `server/src/routes/insurances.ts` (138)
 - [ ] `server/src/routes/invites.ts` (214)
