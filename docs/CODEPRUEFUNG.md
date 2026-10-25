@@ -78,7 +78,7 @@ Stand am 24.10.2026, 23 Uhr:
   auf eine fehlende Kennung gibt 2xx statt 404; Messweg
   `scratchpad/fehlende_zeilen.cjs`, sinngemäß: jede PUT/PATCH-Route mit
   Kind-Kennung 999999 als Admin aufrufen):
-  `/moodboard/:id`, `/scenes/:id`, `/shots/:id`.
+  `/scenes/:id`, `/shots/:id`.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
   Meldungen, die über eine Konstante
   statt als `error: '...'` im Code stehen, sieht der Meldungstest nicht
@@ -247,6 +247,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 84 | `server/src/routes/locationRelease.ts` (Speichern, Unterschreiben, PDF) | **Fehler, live** | Die Oberfläche speichert nur den Namen des Eigentümers; die Route setzte alle übrigen Felder auf leer - Adresse, Drehdaten, Vergütung und Bedingungen waren nach jedem Speichern weg. Unterschreiben scheiterte immer: Die Oberfläche schickt keinen Namen, `signed_by` ist NOT NULL. Das PDF brach an Drehdaten im Klartext ab, wie sie der Demo-Datensatz schreibt. Wegen `fee_cents NOT NULL DEFAULT 0` stand in jedem Vertrag "Vergütung 0,00 €", obwohl der Kommentar eine Linie verlangt. Ein unterschriebener Vertrag ließ sich weiter ändern, `status` und Unterschrift waren ungeprüft. | ja: nach Speichern wie die Oberfläche Adresse/Daten/Vergütung leer; Unterschreiben 400 "Ein Pflichtfeld fehlt."; PDF 500 | behoben: nur mitgeschickte Felder ändern; `signed_by` leer erlaubt; Unterschrift nur als PNG/JPEG-Bild; nach der Unterschrift 409; `status` nur Entwurf/Versendet; Vergütung ab 0 Cent; Drehdaten tolerant gelesen, ISO-Daten deutsch; ohne Vergütung eine Linie. Danach gemessen: alle Felder bleiben, Unterschreiben 200, PDF 200 mit "02.11.2026" und Linie |
 | 85 | `server/src/routes/locations.ts:41` | Fehler | `PUT` auf ein Motiv, das es nicht gibt, lief in `row.photos` auf `undefined` - 500 statt 404 (Muster aus Fund 51). Dazu legte die Datei beim Start noch `uploads/locations` an, das seit `lib/dateien.ts` niemand mehr benutzt, und meldete "Location" statt "Motiv". Gelöschte Motive gehen über den Papierkorb, ihre Fotos bleiben deshalb zu Recht stehen. | ja: `PUT /locations/999999` 500 | behoben: 404 "Motiv nicht gefunden", toter Ordner-Code entfernt; danach gemessen 404 |
 | 86 | `server/src/routes/mahnwesen.ts` (Zahlungen, Mahnlauf, Mahnung) | **Fehler, Geld, live** | Die Einzelabfragen filterten nicht nach `kind = 'rechnung'` (wie Fund 83): Eine Zahlung auf ein versendetes Angebot wurde angenommen, das Angebot stand danach auf "bezahlt". Zwei gleichzeitige Mahnungen auf dieselbe Rechnung legten beide eine Mahnung an - mit Mail zwei Mahnmails an den Kunden. Bei abgeschaltetem Mahnwesen ("Mahnwesen eingeschaltet" in der Buchhaltung) ging die Mahnung samt Mail trotzdem raus. Ein Stichtag wie "abc" ergab still "nichts zu mahnen". Ansprechpartner, Rechnungsnummer und Firmenname gingen unmaskiert in die Mahnmail (wie Fund 23). Das Löschen einer Zahlung stand ohne Projekt im Protokoll. | ja: Angebot nach Zahlung "bezahlt"; zwei Anfragen 200/200, zwei Mahnungen Stufe 1; abgeschaltet 200 "eingereiht"; Anrede `Frau <b>Fett</b>` roh | behoben: alle Einzelabfragen nur Rechnungen; die Rechnung wird in einer Transaktion nur umgestellt, wenn sie noch auf dem gelesenen Stand ist (sonst 409); abgeschaltet 409 und Knopf gesperrt; Stichtag und Zahlungsdatum mit `istIsoDatum`; Mailtext maskiert. Danach gemessen: Angebot 404, dreifach gleichzeitig fünfmal genau eine Mahnung, abgeschaltet 409, Anrede `&lt;b&gt;`. Der Test zur Gleichzeitigkeit hält das Ergebnis fest, löste den alten Fehler im Testserver aber nicht zuverlässig aus |
+| 87 | `server/src/routes/moodboard.ts` | Fehler | `PUT` auf einen Eintrag, den es nicht gibt, ergab 200 ohne Daten (Muster aus Fund 51). Jede Route fing Fehler selbst ab und meldete auch eine falsche Eingabe als 500 (Muster aus Fund 34). Position und Breite sind INTEGER: Eine Position mit Bruchteil ergab 500 - das Verschieben schickt die Zeigerkoordinate, und die Oberfläche meldet einen Fehler dabei nicht. Ob echte Browser dort Bruchteile schicken, ist nicht gemessen (im Vorschaufenster bei Pixelfaktor 1 ganze Zahlen). | ja: `PUT /moodboard/999999` 200; Position 120.5 500; Position "abc" 500 | behoben: 404; Position und Breite gerundet; Fehler an den Übersetzer. Danach gemessen: 404, 120.5 gespeichert als 121, "abc" 400 |
 
 ## Abhakliste
 
@@ -321,7 +322,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/locationRelease.ts` (129) - Fund 84
 - [x] `server/src/routes/locations.ts` (77) - Fund 85
 - [x] `server/src/routes/mahnwesen.ts` (492) - Fund 86
-- [ ] `server/src/routes/moodboard.ts` (102)
+- [x] `server/src/routes/moodboard.ts` (102) - Fund 87
 - [ ] `server/src/routes/morningBrief.ts` (261)
 - [ ] `server/src/routes/musicCues.ts` (155)
 - [ ] `server/src/routes/optimizationSuggestions.ts` (268)
