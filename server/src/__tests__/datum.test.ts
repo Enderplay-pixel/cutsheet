@@ -6,7 +6,7 @@
  * die Stunden, in denen ein Nachtdreh noch läuft.
  */
 import { describe, it, expect } from 'vitest'
-import { heuteISO } from '../lib/datum'
+import { heuteISO, istIsoDatum } from '../lib/datum'
 
 describe('heuteISO', () => {
   it('nimmt in der Sommernacht den deutschen Tag, nicht den UTC-Tag', () => {
@@ -28,3 +28,19 @@ describe('heuteISO', () => {
     expect(heuteISO(new Date('2026-03-05T12:00:00+01:00'))).toBe('2026-03-05')
   })
 })
+
+describe('istIsoDatum', () => {
+  it('nimmt nur echte Kalenderdaten an', () => {
+    expect(istIsoDatum('2026-10-25')).toBe(true)
+    expect(istIsoDatum('2028-02-29')).toBe(true)
+    // Kein Schalttag 2026, kein 30. Februar - new Date machte daraus März.
+    expect(istIsoDatum('2026-02-29')).toBe(false)
+    expect(istIsoDatum('2026-02-30')).toBe(false)
+    expect(istIsoDatum('2026-13-01')).toBe(false)
+    expect(istIsoDatum('abc')).toBe(false)
+    expect(istIsoDatum('25.10.2026')).toBe(false)
+    expect(istIsoDatum('2026-10-25T10:00')).toBe(false)
+    expect(istIsoDatum(undefined)).toBe(false)
+  })
+})
+

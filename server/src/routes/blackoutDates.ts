@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireMember } from '../middleware/projectAuth'
+import { istIsoDatum } from '../lib/datum'
 
 const router = Router()
 
@@ -112,7 +113,13 @@ router.post('/projects/:projectId/cast/:castId/blackout-dates', async (req: Requ
     if (!start_date || !end_date) {
       return res.status(400).json({ data: null, error: 'start_date und end_date sind erforderlich' })
     }
-    if (new Date(end_date) < new Date(start_date)) {
+    // Die Spalten sind Text, die Datenbank prüft nichts. Gemessen am
+    // 25.10.2026: "abc" wurde gespeichert, und die Konfliktprüfung gegen die
+    // Drehtage übersah den Sperrtag danach still.
+    if (!istIsoDatum(start_date) || !istIsoDatum(end_date)) {
+      return res.status(400).json({ data: null, error: 'start_date und end_date sind ein Datum (JJJJ-MM-TT)' })
+    }
+    if (end_date < start_date) {
       return res.status(400).json({ data: null, error: 'end_date darf nicht vor start_date liegen' })
     }
     // Nur die eigene Besetzung: Die Listen holen den Namen per JOIN dazu, eine

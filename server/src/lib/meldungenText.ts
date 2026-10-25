@@ -265,6 +265,7 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'person_type und person_id erforderlich': { en: 'person_type and person_id required', fr: 'person_type et person_id requis' },
   'role fehlt': { en: 'role missing', fr: 'role manquant' },
   'sections muss ein Array sein': { en: 'sections must be an array', fr: 'sections doit être un tableau' },
+  'start_date und end_date sind ein Datum (JJJJ-MM-TT)': { en: 'start_date and end_date must be a date (YYYY-MM-DD)', fr: 'start_date et end_date doivent être une date (AAAA-MM-JJ)' },
   'start_date und end_date sind erforderlich': { en: 'start_date and end_date are required', fr: 'start_date et end_date sont requis' },
   'userId fehlt': { en: 'userId missing', fr: 'userId manquant' },
 }

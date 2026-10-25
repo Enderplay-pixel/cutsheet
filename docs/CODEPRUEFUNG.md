@@ -185,6 +185,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 45 | `server/src/middleware/projectAuth.ts` (`requireMember`) | Fehler | Das Zurückspielen einer Sicherung (`POST /projects/import`) gab jedem Konto außer einem globalen Admin 403 "Kein Zugriff auf dieses Projekt" - `requireMember` hielt "import" für eine Projektnummer, global und in 31 Routern. | ja: normales Konto, eigene Sicherung → 403 | behoben: Ausnahme für `KEINE_ID` in `requireMember`; danach 201 mit 8 Szenen und 11 Drehbuchblöcken. Fremdes Projekt weiter 403 (Test) |
 | 46 | `server/src/lib/wiederherstellung.ts` (`importiereInhalt`) | **Sicherheit** (bisher nur für Admins erreichbar) | Beim Zurückspielen wurden Verweise in Firmen wörtlich übernommen (`company_id`, `client_id`, `contact_id`, `agency_id`) - aus einer bearbeiteten Datei also in jede fremde Firma. Rechnungen wurden als Doppel angelegt; beim Demo-Projekt brach das mit 500 ab. | ja: Demo-Projekt mit Rechnung → 500; präparierte Datei vor dem Fix nicht messbar (Fund 45 sperrte alle außer Admins) | behoben: Firmenverweise leer, Rechnungen nie zurückgespielt; danach Demo 201, präparierte Datei: 0 Rechnungen, alle vier Verweise `null`. Erst damit ist Fund 45 geöffnet. Test, gegen alten Stand rot |
 | 47 | `server/src/routes/backup.ts` (`POST /projects/import`) | Fehler | Scheiterte das Zurückspielen mittendrin, blieb ein Projekt "(Import)" mit einem Teil der Daten in der Liste. | ja: nach dem 500 aus Fund 46 stand "Sprachlos (Demo) (Import)" mit 9 Szenen da | behoben: Bei einem Abbruch wird das neue Projekt wieder gelöscht; gemessen mit einer Datei, an der das Einfügen scheitert: 500, kein Projekt bleibt |
+| 48 | `server/src/routes/blackoutDates.ts:108` | Fehler | Sperrtage liegen in Textspalten, der Server nahm jedes Datum an: `"abc"` wurde gespeichert, `2026-02-30` ging als 2. März durch. Die Konfliktprüfung gegen die Drehtage übersah solche Einträge still. Löschen fremder Sperrtage ist geschützt (403, gemessen). | ja: `abc`/`abc` → 201 | behoben: `istIsoDatum` in `lib/datum.ts` (echtes Kalenderdatum), sonst 400; danach `abc` und 30. Februar 400, gültige 201, Konflikt mit Drehtag gefunden |
 
 ## Abhakliste
 
@@ -220,7 +221,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/auswertungen.ts` (361) - Funde 15, 36-38
 - [x] `server/src/routes/auth.ts` (493) - Funde 2, 6, 8, 39-43
 - [x] `server/src/routes/backup.ts` (230) - Funde 44-47
-- [ ] `server/src/routes/blackoutDates.ts` (152)
+- [x] `server/src/routes/blackoutDates.ts` (152) - Fund 48
 - [ ] `server/src/routes/buchhaltung.ts` (318)
 - [ ] `server/src/routes/budget.ts` (326)
 - [ ] `server/src/routes/calendar.ts` (48)

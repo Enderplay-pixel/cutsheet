@@ -13,3 +13,17 @@
 export function heuteISO(zeitpunkt: Date = new Date(), zone = 'Europe/Berlin'): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: zone }).format(zeitpunkt)
 }
+
+/**
+ * Ob ein Wert ein echtes Kalenderdatum im Format JJJJ-MM-TT ist.
+ *
+ * Für Textspalten, die ein Datum tragen (Sperrtage, Drehtage): Postgres prüft
+ * dort nichts. "2026-02-30" ist keins - `new Date` machte daraus still den
+ * 2. März.
+ */
+export function istIsoDatum(wert: unknown): boolean {
+  const text = String(wert ?? '')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false
+  const zeit = Date.parse(`${text}T00:00:00Z`)
+  return !Number.isNaN(zeit) && new Date(zeit).toISOString().slice(0, 10) === text
+}
