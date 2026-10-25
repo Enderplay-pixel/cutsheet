@@ -200,6 +200,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 56 | `server/src/routes/callsheets.ts` (`PUT /call-sheets/:id/entries`) | Klein | Ohne Liste im Körper 500. | ja: `{}` → 500 | behoben: 400; gültige Liste 200 |
 | 57 | `server/src/middleware/projectAuth.ts` (`entityPatterns`) | **Zugriff, live** | Für Kameraberichte (`/camera-reports/:id`), Grundrisse (`/floorplans/:id`, `/floorplan-items/:id`) und alle Creator-Kindrouten (`/creator/videos|sections|ideas|assets|clips|checklist/:id`) kannte der Schreibschutz kein Muster, löste kein Projekt auf und ließ durch. Die Routen prüfen selbst nur die Mitgliedschaft: Ein Mitglied mit Lesezugriff änderte, ergänzte und löschte. Ins Änderungsprotokoll kamen diese Änderungen nicht. Der Test `schreibschutz.test.ts` prüfte nur fremde Konten. | ja: Leser ändert und löscht Kamerabericht, Grundriss, Video (200/201) | behoben: neun Muster; danach Leser überall 403, Abteilungsleitung weiter 200. `schreibschutz.test.ts` ruft jetzt jede schreibende Route auch als Leser auf - gegen alten Stand 17 Treffer |
 | 58 | `server/src/routes/drehplan.ts` (`POST /shoot-days/move-scene`) | Zugriff | Prüfte nur die Mitgliedschaft; ein Leser schob Szenen auf andere Drehtage. Der Pfad trägt keine Kennung, der Schutz kann ihn nicht auflösen. | ja: Leser verschiebt Szene 1 von Tag 1 nach 2, 200 | behoben: mindestens Abteilungsleitung; danach Leser 403, Abteilungsleitung 200. Dazu Übersetzungen für die drei Rollenmeldungen des Schutzes |
+| 59 | `server/src/routes/characters.ts` (`PUT /characters/:id`, `PUT /cast/:id`), `checkin.ts:9` | Klein, Text | Fehlende Figur oder fehlender Darsteller: 200 ohne Daten (wie Fund 51). In `checkin.ts` stand "public, no auth required" - der Check-in verlangt eine Anmeldung. | ja: 200 `{"error":null}`; Check-in ohne Anmeldung 401 | behoben: 404; Kommentar richtiggestellt |
 
 ## Abhakliste
 
@@ -242,9 +243,9 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/callsheets.ts` (370) - Funde 54-56
 - [x] `server/src/routes/cameraPresets.ts` (97)
 - [x] `server/src/routes/cameraReports.ts` (188) - Fund 57
-- [ ] `server/src/routes/catering.ts` (141)
-- [ ] `server/src/routes/characters.ts` (95)
-- [ ] `server/src/routes/checkin.ts` (65)
+- [x] `server/src/routes/catering.ts` (141)
+- [x] `server/src/routes/characters.ts` (95) - Fund 59
+- [x] `server/src/routes/checkin.ts` (65) - Fund 59
 - [ ] `server/src/routes/companies.ts` (509)
 - [ ] `server/src/routes/confirmation.ts` (159)
 - [ ] `server/src/routes/conflicts.ts` (285)

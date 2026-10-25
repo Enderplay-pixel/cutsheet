@@ -6,7 +6,9 @@ const router = Router()
 
 router.use('/call-sheets/:id', requireMemberVia(projectIdFromCallSheet))
 
-// POST /api/call-sheet-entries/:id/checkin - public, no auth required
+// POST /api/call-sheet-entries/:id/checkin - mit Anmeldung, ab Abteilungsleitung
+// (projectWriteGuard über das Muster für /call-sheet-entries/:id; gemessen ohne
+// Anmeldung 401). Der Kommentar sagte bis zum 25.10.2026 "public, no auth".
 // Body optional: { checked_in: boolean } - ohne Body wird eingecheckt (Bestandsverhalten)
 router.post('/call-sheet-entries/:id/checkin', async (req: Request, res: Response) => {
   const entry = await db.get('SELECT * FROM call_sheet_entries WHERE id = ?', [req.params.id]) as any

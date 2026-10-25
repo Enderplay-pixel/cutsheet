@@ -25,6 +25,10 @@ router.post('/projects/:projectId/characters', async (req, res) => {
 
 // PUT /api/characters/:id
 router.put('/characters/:id', async (req, res) => {
+  // Gemessen am 25.10.2026: Eine Figur, die es nicht gibt, ergab 200 ohne Daten.
+  if (!(await db.get('SELECT id FROM characters WHERE id = ?', [req.params.id]))) {
+    return res.status(404).json({ data: null, error: 'Figur nicht gefunden' })
+  }
   const { name, description, age_range, gender, sort_order } = req.body
   await db.run('UPDATE characters SET name=?, description=?, age_range=?, gender=?, sort_order=COALESCE(?,sort_order) WHERE id=?', [name, description, age_range, gender, sort_order ?? null, req.params.id])
   res.json({ data: await db.get('SELECT * FROM characters WHERE id = ?', [req.params.id]), error: null })
@@ -68,6 +72,10 @@ router.post('/projects/:projectId/cast', async (req, res) => {
 
 // PUT /api/cast/:id
 router.put('/cast/:id', async (req, res) => {
+  // Wie bei der Figur: vorher 200 ohne Daten.
+  if (!(await db.get('SELECT id FROM "cast" WHERE id = ?', [req.params.id]))) {
+    return res.status(404).json({ data: null, error: 'Darsteller nicht gefunden' })
+  }
   const { character_id, actor_name, email, phone, agent, agent_email, agency, fee_per_day, contract_type, availability_notes, notes } = req.body
   // Nur eine Figur aus dem Projekt dieses Besetzungseintrags
   if (character_id) {
