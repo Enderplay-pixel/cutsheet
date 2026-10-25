@@ -263,6 +263,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 101 | `server/src/routes/scriptSides.ts`, `docs/designphilosophie.md`, `docs/youtube-einrichten.md`, `docs/testversion.md` | Fehler, Text | Die Sides ergänzten die Szenenüberschrift nur bei Szenen ganz ohne Blöcke - eine Szene mit Aktionsblock, aber ohne Überschriftenblock (Altbestand vor dem 24.10.) stand kopflos da. Kopfzeile und selbst gebaute Überschrift trugen Gedankenstriche. Ein ungültiges Datum warf in `toISOString()` einen 500, Fehler gingen roh zurück; ein eigener Chromium-Sucher war tot. In drei Dokumenten im Repo standen 42 Gedankenstriche (Scan `scratchpad/gedankenstrich.py`; im Code nur Parser, die sie als Eingabe annehmen, und Tests, die ihr Fehlen prüfen). | ja: PDF-Text `Jana steht am Kai.` ohne Überschrift davor; `SIDES – DREHTAG 3` | behoben: `mitUeberschrift` wie Drehbuch-PDF und Fountain; Bindestriche; Datum über `istIsoDatum`; nur der PDF-Teil meldet `PDF-Fehler`; toter Code weg; Dokumente auf Bindestrich. Danach gemessen: `7. EXT. HAFEN - NACHT Jana steht am Kai.`, Kopf `SIDES - DREHTAG 3` |
 | 102 | `server/src/routes/search.ts`, `routes/audit.ts:154-170`, `routes/companies.ts:183` | Fehler | Suchtexte gingen unmaskiert in LIKE-/ILIKE-Muster: "_" und "%" fanden in der Projektsuche alles (50 Treffer), ebenso im Änderungsprotokoll und im Adressbuch. Die Projektsuche lud außerdem alle Treffer jeder Tabelle und schnitt erst danach auf 50. | ja: "_" 50, "%" 50 | behoben: `lib/suchmuster.ts` (`enthaeltMuster`, mit Test) in allen drei Routen; je Teilabfrage `LIMIT 50`. Danach gemessen: Projektsuche "_" und "%" 0, "Jana"/"jana" 50; Protokoll "%" 0, "_" findet echte Unterstriche (`fee_per_day`) |
 | 103 | `server/src/routes/shots.ts:53` | Fehler | `PUT` auf eine Einstellung, die es nicht gibt, ergab 200 ohne Daten (Muster aus Fund 51). Beim Start legte die Datei noch `uploads/storyboard` an - Storyboards liegen seit `lib/dateien.ts` in der Datenbank (Altbestand liest `pdf.ts` weiter von der Platte, ohne den Ordner anzulegen). | ja: `PUT /shots/999999` 200 | behoben: 404; toter Ordner-Code entfernt. Danach gemessen 404 |
+| 104 | `server/src/routes/stickyNotes.ts` | Fehler | Jede Route fing Fehler selbst ab (Muster aus Fund 34): Position "abc" ergab 500. | ja: 500 | behoben: Fehler an den Übersetzer (`ohne_try.py`). Danach 400 |
+| 105 | `server/src/routes/sun.ts` | Fehler | Die Morgen-Golden-Hour begann mit der nautischen Dämmerung (Sonne 12 Grad unter dem Horizont) - für Bochum am 02.11. "ab 06:12", Sonnenaufgang 07:27. Die Oberfläche zeigt bisher nur den Beginn der Abend-Golden-Hour, der Fehler war dort unsichtbar. Ohne Datum rechnete die Route mit "jetzt" in Serverzeit (nachts der Vortag). Meldung "Location" statt "Motiv". | ja: Golden Hour Morgen 06:12-08:16 | behoben: Morgen ab Sonnenaufgang, Abend bis Sonnenuntergang (symmetrisch); Standarddatum `heuteISO()`; "Motiv nicht gefunden", unbenutzte Übersetzung entfernt. Danach gemessen: 07:27-08:16, Abend 16:15-17:04 |
 
 ## Abhakliste
 
@@ -354,8 +356,8 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/scriptSides.ts` (149) - Fund 101
 - [x] `server/src/routes/search.ts` (110) - Fund 102
 - [x] `server/src/routes/shots.ts` (100) - Funde 76, 103
-- [ ] `server/src/routes/stickyNotes.ts` (92)
-- [ ] `server/src/routes/sun.ts` (69)
+- [x] `server/src/routes/stickyNotes.ts` (92) - Fund 104
+- [x] `server/src/routes/sun.ts` (69) - Fund 105
 - [ ] `server/src/routes/tabellen.ts` (286)
 - [ ] `server/src/routes/tasks.ts` (67)
 - [ ] `server/src/routes/timesheets.ts` (193)

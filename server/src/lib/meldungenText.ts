@@ -185,7 +185,6 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Kunde nicht gefunden': { en: 'Client not found', fr: 'Client introuvable' },
   'Link ungültig': { en: 'Invalid link', fr: 'Lien invalide' },
   'Link ungültig oder abgelaufen. Bitte fordere einen neuen an.': { en: 'Link invalid or expired. Please request a new one.', fr: 'Lien invalide ou expiré. Demandes-en un nouveau.' },
-  'Location nicht gefunden': { en: 'Location not found', fr: 'Lieu introuvable' },
   'Löschen darf die Produktion': { en: 'Only production may delete', fr: 'Seule la production peut supprimer' },
   'Mindestens 6 Zeichen': { en: 'At least 6 characters', fr: 'Au moins 6 caractères' },
   'Mitglied nicht gefunden': { en: 'Member not found', fr: 'Membre introuvable' },
