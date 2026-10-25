@@ -1,8 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db'
 import multer from 'multer'
-import path from 'path'
-import fs from 'fs'
 import { requireMember } from '../middleware/projectAuth'
 
 import { speichereDatei, dateiIdAus, MAX_BYTES } from '../lib/dateien'
@@ -11,9 +9,6 @@ const router = Router()
 
 // All /projects/:projectId/* routes require membership
 router.use('/projects/:projectId', requireMember)
-
-const uploadsDir = path.join(__dirname, '../../uploads/storyboard')
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
 
 // In den Arbeitsspeicher, nicht auf die Platte - siehe lib/dateien.ts.
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_BYTES } })
@@ -51,6 +46,10 @@ router.post('/scenes/:sceneId/shots', async (req, res) => {
 
 // PUT /api/shots/:id
 router.put('/shots/:id', async (req, res) => {
+  // Gemessen am 25.10.2026: Eine Einstellung, die es nicht gibt, ergab 200 ohne Daten.
+  if (!(await db.get('SELECT id FROM shots WHERE id = ?', [req.params.id]))) {
+    return res.status(404).json({ data: null, error: 'Einstellung nicht gefunden' })
+  }
   const { shot_number, size, movement, lens_mm, description, notes, best_take, duration_seconds, sort_order, done } = req.body
   await db.run(
     'UPDATE shots SET shot_number=?, size=?, movement=?, lens_mm=?, description=?, notes=?, best_take=COALESCE(?,best_take), duration_seconds=?, sort_order=COALESCE(?,sort_order), done=COALESCE(?,done) WHERE id=?',
