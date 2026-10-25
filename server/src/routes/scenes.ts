@@ -115,6 +115,11 @@ router.post('/projects/:projectId/scenes', async (req, res) => {
 router.put('/scenes/:id', async (req, res) => {
   const { scene_number, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes, sort_order, shot_status, updated_at } = req.body
 
+  // Gemessen am 25.10.2026: Eine Szene, die es nicht gibt, ergab 200 ohne Daten.
+  if (!(await db.get('SELECT id FROM scenes WHERE id = ?', [req.params.id]))) {
+    return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+  }
+
   // Nur ein Motiv aus dem Projekt der Szene
   if (location_id) {
     const motiv = await db.get(
