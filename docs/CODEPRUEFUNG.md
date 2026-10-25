@@ -210,6 +210,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 62 | `server/src/routes/crew.ts` (`PUT /crew/:id`) | Klein | Fehlender Stabeintrag: 200 ohne Daten (Muster aus Fund 51, vom Scan gefunden). | ja | behoben: 404; vorhandener Eintrag 200 |
 | 63 | `server/src/routes/dailyreports.ts:50` (`time-analysis`), `PUT /daily-reports/:id` | Fehler, klein | Die Zeitanalyse sortierte nach `scene_number` (Text): "1 10 100 101 101A … 11". Ein fehlender Bericht gab beim Ändern 200 ohne Daten. | ja: Großproduktion, 160 Szenen | behoben: Reihenfolge wie die Szenenliste (`sort_order`, dann Nummer), danach identisch; 404 |
 | 64 | `server/src/routes/dateien.ts` (`GET /companies/:id/dateien/fristen`) | Fehler | Wie Fund 33: Abgelaufene Nachweise abgeschlossener Projekte standen in der Fristenliste der Firma. | ja: Drehgenehmigung des archivierten Projekts "Messarchiv" gelistet | behoben: nur nicht archivierte Projekte; Gegenprobe mit laufendem Projekt weiter gelistet |
+| 65 | `server/src/routes/datenschutz.ts` (Verzeichnis nach Art. 30) | Text, Recht | "Öffentliche Links tragen Zufallstoken mit 160 Bit" stimmte nicht für alle: Die Empfangsquittung der Mails hat 128 Bit (Dispo/Einladung 160, Abnahme/Agentur/Vertrag 192, Gastlink 256). Dazu "ausschliesslich". | ja: `randomBytes` je Linkart ausgezählt | behoben: "mindestens 128 Bit", "ausschließlich"; im Verzeichnis nachgemessen |
+| 66 | `server/src/routes/datenschutz.ts` | Hinweis, Entscheidung (Recht) | Verpflegungsangaben (Unverträglichkeiten) sind Gesundheitsangaben - `catering.ts` nennt sie selbst so -, das Verzeichnis nennt als Grundlage nur Art. 6 Abs. 1 lit. a. Für Gesundheitsdaten regelt die DSGVO zusätzlich Art. 9. Die Übersicht "Wer hat Zugriff" nennt nur Projektmitglieder, globale Admins sehen aber jedes Projekt. | nein, gelesen | offen, für Florian - rechtlich prüfen lassen |
 
 ## Abhakliste
 
@@ -264,7 +266,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/crew.ts` (46) - Fund 62
 - [x] `server/src/routes/dailyreports.ts` (221) - Fund 63
 - [ ] `server/src/routes/dateien.ts` (236) - Fund 64; Durchsicht noch nicht abgeschlossen
-- [ ] `server/src/routes/datenschutz.ts` (202)
+- [x] `server/src/routes/datenschutz.ts` (202) - Funde 65, 66
 - [ ] `server/src/routes/dood.ts` (126)
 - [ ] `server/src/routes/drehplan.ts` (305)
 - [ ] `server/src/routes/emailRoutes.ts` (646)

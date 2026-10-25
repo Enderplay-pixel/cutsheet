@@ -190,9 +190,12 @@ router.get('/companies/:companyId/datenschutz/verzeichnis', requireAuth, async (
         'Zugriff nur mit Konto und Passwort, Passwörter als Hash gespeichert',
         'Zweiter Faktor je Konto zuschaltbar',
         'Rollen je Projekt: wer nicht Mitglied ist, sieht nichts',
-        'Übertragung ausschliesslich über HTTPS',
+        'Übertragung ausschließlich über HTTPS',
         'Änderungen werden im Protokoll festgehalten',
-        'Öffentliche Links tragen Zufallstoken mit 160 Bit',
+        // Gemessen am 25.10.2026: Dispo und Einladung 160 Bit, Abnahme, Agentur
+        // und Vertrag 192, Gastlink 256, Empfangsquittung der Mails 128 - vorher
+        // stand hier für alle "160 Bit".
+        'Öffentliche Links tragen Zufallstoken mit mindestens 128 Bit',
       ],
     },
     error: null,
