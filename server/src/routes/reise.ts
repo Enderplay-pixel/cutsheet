@@ -266,6 +266,59 @@ function saetzeInfo() {
   }
 }
 
+/**
+ * Die Reisekosten als CSV - für die Lohnbuchhaltung.
+ *
+ * Eine Zeile je Reise mit den Teilbeträgen getrennt. Die Verpflegungspauschale
+ * ist steuerfrei, die anderen Posten nicht unbedingt - deshalb stehen sie
+ * nicht in einer Summe.
+ *
+ * Steht vor `/reisen/:id`: Dahinter fing jene Route "export.csv" als Kennung
+ * ab - gemessen am 25.10.2026 gab der Export-Knopf immer 400.
+ */
+router.get('/projects/:projectId/reisen/export.csv', requireAuth, requireMember, async (req: Request, res: Response) => {
+  const projectId = Number(req.params.projectId)
+  const reisen = (await db.all(
+    'SELECT * FROM trips WHERE project_id = ? ORDER BY from_date ASC', [projectId]
+  )) as any[]
+  const alleTage = (await db.all(
+    `SELECT d.* FROM trip_days d JOIN trips t ON d.trip_id = t.id
+      WHERE t.project_id = ?`,
+    [projectId]
+  )) as any[]
+  const jeReise = new Map<number, any[]>()
+  for (const t of alleTage) {
+    const liste = jeReise.get(t.trip_id)
+    if (liste) liste.push(t)
+    else jeReise.set(t.trip_id, [t])
+  }
+
+  const csv = schreibeCsv(
+    ['Person', 'Anlass', 'Von', 'Bis', 'Tage', 'Verpflegung', 'Kilometer', 'Fahrtkosten', 'Übernachtung', 'Gesamt'],
+    reisen.map((r) => {
+      const tage = jeReise.get(r.id) ?? []
+      const verpflegung = tage.reduce(
+        (s, t) => s + tagessatz(
+          String(t.kind) as Tagesart,
+          Number(t.minutes_away || 0),
+          { fruehstueck: t.breakfast === true, mittag: t.lunch === true, abend: t.dinner === true }
+        ), 0
+      )
+      const fahrt = fahrtkosten(Number(r.kilometers || 0), r.vehicle_kind === 'sonstige' ? 'sonstige' : 'pkw')
+      const lodging = Number(r.lodging_cents || 0)
+      return [
+        r.person_name || '', r.purpose || '',
+        String(r.from_date).slice(0, 10), String(r.to_date).slice(0, 10),
+        tage.length, cents(verpflegung), Number(r.kilometers || 0),
+        cents(fahrt), cents(lodging), cents(verpflegung + fahrt + lodging),
+      ]
+    })
+  )
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+  res.setHeader('Content-Disposition', `attachment; filename="reisekosten-${projectId}.csv"`)
+  return res.send(csv)
+})
+
 router.get('/projects/:projectId/reisen/:id', requireAuth, requireMember, async (req: Request, res: Response) => {
   const reise = await ladeReise(Number(req.params.projectId), Number(req.params.id))
   if (!reise) return res.status(404).json({ data: null, error: 'Reise nicht gefunden' })
@@ -332,7 +385,11 @@ router.post('/projects/:projectId/reisen', requireAuth, requireMember, async (re
           // ohne sie gibt es keine Pauschale. Zwölf Stunden sind der
           // Drehtagsnormalfall und werden vorgeschlagen, nicht behauptet.
           t.art === 'einzeln' ? 12 * 60 : 0,
-          haus?.breakfast_included === true,
+          // Hotelfrühstück gibt es am Morgen nach einer Nacht - nicht am
+          // Anreisetag und nicht an einem Tag ohne Übernachtung. Vorher an
+          // jedem Tag eingetragen: 5,60 € je Reise zu viel gekürzt (gemessen
+          // am 25.10.2026, 02.-05.11.: 61,60 € statt 67,20 €).
+          haus?.breakfast_included === true && t.art !== 'anreise' && t.art !== 'einzeln',
         ]
       )
     }
@@ -427,56 +484,6 @@ router.delete('/projects/:projectId/reisen/:id', requireAuth, requireMember, asy
   )
   if (zeile.changes === 0) return res.status(404).json({ data: null, error: 'Reise nicht gefunden' })
   return res.json({ data: { geloescht: true }, error: null })
-})
-
-/**
- * Die Reisekosten als CSV - für die Lohnbuchhaltung.
- *
- * Eine Zeile je Reise mit den Teilbeträgen getrennt. Die Verpflegungspauschale
- * ist steuerfrei, die anderen Posten nicht unbedingt - deshalb stehen sie
- * nicht in einer Summe.
- */
-router.get('/projects/:projectId/reisen/export.csv', requireAuth, requireMember, async (req: Request, res: Response) => {
-  const projectId = Number(req.params.projectId)
-  const reisen = (await db.all(
-    'SELECT * FROM trips WHERE project_id = ? ORDER BY from_date ASC', [projectId]
-  )) as any[]
-  const alleTage = (await db.all(
-    `SELECT d.* FROM trip_days d JOIN trips t ON d.trip_id = t.id
-      WHERE t.project_id = ?`,
-    [projectId]
-  )) as any[]
-  const jeReise = new Map<number, any[]>()
-  for (const t of alleTage) {
-    const liste = jeReise.get(t.trip_id)
-    if (liste) liste.push(t)
-    else jeReise.set(t.trip_id, [t])
-  }
-
-  const csv = schreibeCsv(
-    ['Person', 'Anlass', 'Von', 'Bis', 'Tage', 'Verpflegung', 'Kilometer', 'Fahrtkosten', 'Übernachtung', 'Gesamt'],
-    reisen.map((r) => {
-      const tage = jeReise.get(r.id) ?? []
-      const verpflegung = tage.reduce(
-        (s, t) => s + tagessatz(
-          String(t.kind) as Tagesart,
-          Number(t.minutes_away || 0),
-          { fruehstueck: t.breakfast === true, mittag: t.lunch === true, abend: t.dinner === true }
-        ), 0
-      )
-      const fahrt = fahrtkosten(Number(r.kilometers || 0), r.vehicle_kind === 'sonstige' ? 'sonstige' : 'pkw')
-      const lodging = Number(r.lodging_cents || 0)
-      return [
-        r.person_name || '', r.purpose || '',
-        String(r.from_date).slice(0, 10), String(r.to_date).slice(0, 10),
-        tage.length, cents(verpflegung), Number(r.kilometers || 0),
-        cents(fahrt), cents(lodging), cents(verpflegung + fahrt + lodging),
-      ]
-    })
-  )
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8')
-  res.setHeader('Content-Disposition', `attachment; filename="reisekosten-${projectId}.csv"`)
-  return res.send(csv)
 })
 
 export default router
