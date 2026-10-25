@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { db } from '../db'
 import { getUserProjectRole, requireMember, ROLE_RANK } from '../middleware/projectAuth'
+import { istIsoDatum } from '../lib/datum'
 
 const router = Router()
 
@@ -15,11 +16,14 @@ router.use('/projects/:projectId', requireMember)
  * 10. November ist kein Plan. Nachgeschobene Tage - ein Nachdreh, ein
  * vergessenes Motiv - sind in der Produktion die Regel.
  *
- * Gleiches Datum: die zuerst angelegte Zeile bleibt vorn.
+ * Gleiches Datum: die zuerst angelegte Zeile bleibt vorn. Tage ohne Datum
+ * ('' aus der Zeit, bevor es Pflicht war) kommen ans Ende - gemessen am
+ * 25.10.2026 wurde so ein Tag "Drehtag 1" und schob den echten ersten Tag
+ * auf Nummer 2.
  */
 export async function nummeriereDrehtage(projectId: number | string) {
   const tage = await db.all(
-    'SELECT id FROM shoot_days WHERE project_id = ? ORDER BY date ASC, id ASC',
+    "SELECT id FROM shoot_days WHERE project_id = ? ORDER BY (date = '') ASC, date ASC, id ASC",
     [projectId]
   ) as any[]
   await db.transaction(async (tx) => {
@@ -58,7 +62,7 @@ async function getShootDayWithScenes(dayId: number | bigint) {
  */
 export async function ladeDrehtageMitSzenen(projectId: number | string) {
   const tage = (await db.all(
-    'SELECT * FROM shoot_days WHERE project_id = ? ORDER BY date ASC, id ASC',
+    "SELECT * FROM shoot_days WHERE project_id = ? ORDER BY (date = '') ASC, date ASC, id ASC",
     [projectId]
   )) as any[]
   if (tage.length === 0) return []
@@ -99,8 +103,13 @@ router.get('/projects/:projectId/shoot-days', async (req, res) => {
 })
 
 // POST /api/projects/:projectId/shoot-days
+// Ein Drehtag hat ein Datum. Die Spalte ist Text; gemessen am 25.10.2026
+// nahm der Server "abc", "x" und '' an.
+const DREHTAG_DATUM_FEHLER = 'Ein Drehtag braucht ein Datum (JJJJ-MM-TT)'
+
 router.post('/projects/:projectId/shoot-days', async (req, res) => {
   const { date, status = 'Geplant', unit = 'Haupteinheit', notes = '' } = req.body
+  if (!istIsoDatum(date)) return res.status(400).json({ data: null, error: DREHTAG_DATUM_FEHLER })
   const result = await db.run('INSERT INTO shoot_days (project_id, day_number, date, status, unit, notes) VALUES (?, ?, ?, ?, ?, ?)', [req.params.projectId, 0, date, status, unit, notes])
   await nummeriereDrehtage(req.params.projectId)
   res.status(201).json({ data: await getShootDayWithScenes(result.id), error: null })
@@ -111,6 +120,7 @@ router.post('/projects/:projectId/shoot-days/batch', async (req, res) => {
   const { dates } = req.body   // string[] of 'YYYY-MM-DD'
   if (!Array.isArray(dates) || dates.length === 0)
     return res.status(400).json({ data: null, error: 'dates array required' })
+  if (!dates.every(istIsoDatum)) return res.status(400).json({ data: null, error: DREHTAG_DATUM_FEHLER })
 
   const neueIds: any[] = []
   for (const date of dates) {
@@ -132,7 +142,14 @@ router.post('/projects/:projectId/shoot-days/batch', async (req, res) => {
 
 // PUT /api/shoot-days/:id
 router.put('/shoot-days/:id', async (req, res) => {
+  // Gemessen am 25.10.2026: Ein Tag, den es nicht gibt, ergab 200 ohne Daten.
+  if (!(await db.get('SELECT id FROM shoot_days WHERE id = ?', [req.params.id]))) {
+    return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+  }
   const { date, status, unit, notes, catering_count } = req.body
+  if (date !== undefined && date !== null && !istIsoDatum(date)) {
+    return res.status(400).json({ data: null, error: DREHTAG_DATUM_FEHLER })
+  }
   await db.run('UPDATE shoot_days SET date=COALESCE(?,date), status=COALESCE(?,status), unit=COALESCE(?,unit), notes=COALESCE(?,notes), catering_count=COALESCE(?,catering_count) WHERE id=?',
     [date ?? null, status ?? null, unit ?? null, notes ?? null, catering_count ?? null, req.params.id])
   if (date) {
@@ -186,6 +203,8 @@ router.delete('/shoot-days/:dayId/scenes/:sceneId', async (req, res) => {
 // PUT /api/shoot-days/:id/scenes/reorder
 router.put('/shoot-days/:id/scenes/reorder', async (req, res) => {
   const { order } = req.body // array of { sceneId, sortOrder }
+  // Ohne Liste vorher 500.
+  if (!Array.isArray(order)) return res.status(400).json({ data: null, error: 'order muss eine Liste sein' })
   await db.transaction(async (tx) => {
     for (const item of order as { sceneId: number; sortOrder: number }[]) {
       await tx.run('UPDATE shoot_day_scenes SET sort_order = ? WHERE shoot_day_id = ? AND scene_id = ?', [item.sortOrder, req.params.id, item.sceneId])

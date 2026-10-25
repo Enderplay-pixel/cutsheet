@@ -118,6 +118,8 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Du hast nur Lesezugriff auf dieses Projekt.': { en: 'You only have read access to this project.', fr: 'Tu as uniquement un accès en lecture à ce projet.' },
   'Diese Aktion erfordert mindestens Produzenten-Zugriff.': { en: 'This action requires at least producer access.', fr: 'Cette action nécessite au moins un accès producteur.' },
   'Keine Berechtigung für diese Aktion.': { en: 'No permission for this action.', fr: 'Aucune autorisation pour cette action.' },
+  'Ein Drehtag braucht ein Datum (JJJJ-MM-TT)': { en: 'A shooting day needs a date (YYYY-MM-DD)', fr: 'Un jour de tournage a besoin d\'une date (AAAA-MM-JJ)' },
+  'order muss eine Liste sein': { en: 'order must be a list', fr: 'order doit être une liste' },
   'Eintrag nicht gefunden': { en: 'Entry not found', fr: 'Entrée introuvable' },
   'Element nicht gefunden': { en: 'Element not found', fr: 'Élément introuvable' },
   'Equipment-Posten nicht gefunden': { en: 'Equipment item not found', fr: "Élément d'équipement introuvable" },

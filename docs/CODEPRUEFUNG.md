@@ -70,14 +70,14 @@ Stand am 24.10.2026, 23 Uhr:
 - **Routen bis `backup.ts` fertig** (siehe Haken). **Als Nächstes:**
   der nächste offene Haken unter "Server: Routen", alphabetisch weiter.
   `lib/wiederherstellung.ts` ist für Fund 46 angefasst, aber noch nicht
-  ganz gelesen. Ebenso nur angefasst: `drehplan.ts` (Fund 58),
+  ganz gelesen. Ebenso nur angefasst:
   `__tests__/schreibschutz.test.ts` (Leser-Variante).
 - **Vor jedem Commit die ganze Testsuite**, nicht nur die Typprüfung -
   siehe Fund 41.
 - **Gemessen, beim Lesen der Datei beheben** (Muster aus Fund 51/59, `PUT`
   auf eine fehlende Kennung gibt 2xx statt 404; Messweg
   `scratchpad/fehlende_zeilen.cjs`, sinngemäß: jede PUT/PATCH-Route mit
-  Kind-Kennung 999999 als Admin aufrufen): `/shoot-days/:id`, `/equipment-bookings/:id`,
+  Kind-Kennung 999999 als Admin aufrufen): `/equipment-bookings/:id`,
   `/feedback/:id`, `/moodboard/:id`, `/scenes/:id`, `/shots/:id`.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
   `invites.ts` ~27 setzt Projekttitel und Namen der Einladenden unmaskiert
@@ -220,6 +220,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 65 | `server/src/routes/datenschutz.ts` (Verzeichnis nach Art. 30) | Text, Recht | "Öffentliche Links tragen Zufallstoken mit 160 Bit" stimmte nicht für alle: Die Empfangsquittung der Mails hat 128 Bit (Dispo/Einladung 160, Abnahme/Agentur/Vertrag 192, Gastlink 256). Dazu "ausschliesslich". | ja: `randomBytes` je Linkart ausgezählt | behoben: "mindestens 128 Bit", "ausschließlich"; im Verzeichnis nachgemessen |
 | 66 | `server/src/routes/datenschutz.ts` | Hinweis, Entscheidung (Recht) | Verpflegungsangaben (Unverträglichkeiten) sind Gesundheitsangaben - `catering.ts` nennt sie selbst so -, das Verzeichnis nennt als Grundlage nur Art. 6 Abs. 1 lit. a. Für Gesundheitsdaten regelt die DSGVO zusätzlich Art. 9. Die Übersicht "Wer hat Zugriff" nennt nur Projektmitglieder, globale Admins sehen aber jedes Projekt. | nein, gelesen | offen, für Florian - rechtlich prüfen lassen |
 | 67 | `server/src/routes/dood.ts:23` | Fehler | Der DOOD-Bericht sortierte Drehtage nach `date`; Tage ohne Datum (`''`) standen vorn. Arbeitete jemand an so einem Tag, galt ein Tag vor seinem ersten Einsatz als Haltetag. | ja: Tag 2 ohne Datum vor Tag 1, Tag 1 = H | behoben: Datum aufsteigend, Tage ohne Datum ans Ende nach Nummer; danach Tag 1 kein Haltetag. Drehplan sortiert ebenso nach `date` - bei `drehplan.ts` prüfen |
+| 68 | `server/src/routes/drehplan.ts` (Drehtage anlegen, Serie, ändern, Nummerierung, `reorder`) | Fehler | Drehtage nahmen jedes Datum an (`"abc"`, `"x"`, `''`). Die Nummerierung nach `date` machte einen Tag ohne Datum zu "Drehtag 1" und schob den echten ersten Tag auf 2. Ein fehlender Tag gab beim Ändern 200 ohne Daten, `reorder` ohne Liste 500. | ja: Wegwerfprojekt, alle vier | behoben: echtes Datum Pflicht (der Client schickt immer eins), alte Tage ohne Datum zählen ans Ende, 404, 400; danach gemessen. Ob es in der Produktion Tage ohne Datum gibt, ist ohne Anmeldung nicht prüfbar |
 
 ## Abhakliste
 
@@ -276,7 +277,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `server/src/routes/dateien.ts` (236) - Fund 64; Durchsicht noch nicht abgeschlossen
 - [x] `server/src/routes/datenschutz.ts` (202) - Funde 65, 66
 - [x] `server/src/routes/dood.ts` (126) - Fund 67
-- [ ] `server/src/routes/drehplan.ts` (305)
+- [x] `server/src/routes/drehplan.ts` (305) - Funde 58, 68
 - [ ] `server/src/routes/emailRoutes.ts` (646)
 - [ ] `server/src/routes/emailService.ts` (118)
 - [ ] `server/src/routes/equipment.ts` (68)
