@@ -88,6 +88,10 @@ async function verarbeite(
 ): Promise<{ befunde: Befund[]; neu: number; ergaenzt: number; uebersprungen: number }> {
   const zeilen = leseTabelle(text)
   const befunde: Befund[] = []
+  // Wer weiter oben in derselben Datei schon steht. Die Übernahme findet ihn
+  // in der Transaktion, die Vorschau ohne Schreiben nicht - gemessen am
+  // 25.10.2026: Vorschau "neu 4", Übernahme "neu 2, ergänzt 2".
+  const inDieserDatei = new Set<string>()
 
   // Die Gage heisst je nach Tabelle anders
   const gagenfeld = art === 'crew' ? 'fee_per_day' : art === 'cast' ? 'fee_per_day' : null
@@ -113,6 +117,7 @@ async function verarbeite(
     }
 
     const email = String(werte.email ?? '').trim().toLowerCase()
+    const schluessel = email ? `mail:${email}` : `name:${name.toLowerCase()}`
     const vorhanden = email
       ? ((await zugriff.get(
           `SELECT id FROM ${TABELLE[art]} WHERE project_id = ? AND LOWER(email) = ?`,
@@ -123,13 +128,13 @@ async function verarbeite(
           [projectId, name.toLowerCase()]
         )) as any)
 
-    if (vorhanden) {
+    if (vorhanden || inDieserDatei.has(schluessel)) {
       // Ergänzen, nicht überschreiben: Was in der Datei leer ist, bleibt in
       // der Datenbank stehen. Eine unvollständige Liste soll nichts löschen.
-      // Nur was in der Datei steht. `werte` enthaelt keine leeren Felder -
-      // eine unvollstaendige Liste loescht dadurch nichts.
+      // Nur was in der Datei steht. `werte` enthält keine leeren Felder -
+      // eine unvollständige Liste löscht dadurch nichts.
       const felder = Object.keys(werte).filter((f) => f !== NAMENSFELD[art])
-      if (anwenden && felder.length > 0) {
+      if (anwenden && vorhanden && felder.length > 0) {
         await zugriff.run(
           `UPDATE ${TABELLE[art]} SET ${felder.map((f) => `${f} = ?`).join(', ')} WHERE id = ?`,
           [...felder.map((f) => werte[f]), vorhanden.id]
@@ -148,6 +153,7 @@ async function verarbeite(
       )
     }
     befunde.push({ zeile: nummer, name, was: 'neu', werte })
+    inDieserDatei.add(schluessel)
   }
 
   return {

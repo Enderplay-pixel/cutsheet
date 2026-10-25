@@ -78,6 +78,7 @@ Stand am 24.10.2026, 23 Uhr:
   Fälle behoben, zuletzt `/shots/:id` (Fund 103). Messweg
   `scratchpad/fehlende_zeilen.cjs`.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
+  `lib/tabelle.ts` `schreibeCsv`: Zellen, die mit `=`, `+`, `@` beginnen, gehen unverändert in Exporte - Namen kommen auch von außen (Casting-Vorschläge der Agenturen). Beim Lesen der Datei entscheiden, ob mit `'` entschärft wird.
   Client: Abmelden kündigt das Push-Abo nicht (`hooks/usePushSubscription.ts` nur aus den Einstellungen) - nach dem Logout kommen Benachrichtigungen des alten Kontos weiter in diesem Browser an (Fund 96).
   Meldungen, die über eine Konstante
   statt als `error: '...'` im Code stehen, sieht der Meldungstest nicht
@@ -270,6 +271,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 107 | `server/src/routes/vfx.ts`, `client/src/pages/VFX.tsx` | **Fehler, live** | Derselbe Fehler wie in der Musikliste (Fund 89): "Szene #" fragte die Nummer ab und schickte sie als Kennung - Verknüpfen scheiterte, die Liste zeigte die Kennung ("Szene 26" statt "Szene 1"). Die Szene ließ sich nicht lösen, "morgen" wurde als Deadline gespeichert (Textspalte), Fehler kamen als 500. | ja: "Szene # 12" 404; Lösen ohne Wirkung; Deadline "morgen" 201 | behoben wie Fund 89: Szenenauswahl, `scene_number` per JOIN, `scene_id: null` löst; Deadline leer oder echtes Datum; Fehler an den Übersetzer. Im Browser: "Szene 1"/"Szene 3", Auswahl auf "1 Jana gesteht jemandem". Scan des Clients: keine weiteren Zahlenfelder für Kennungen |
 | 108 | `server/src/routes/timesheets.ts`, `db/index.ts` | **Fehler, Geld, live** | Überstunden rechneten `wrap - call` ohne Tageswechsel: 08:00 bis 02:00 (18 Stunden) ergab 0 Überstunden - die Gagenliste summiert diesen Wert. Die Tagesliste lud die Namen über `req.params.pid`, den es auf `/shoot-days/:dayId/timesheets` nicht gibt - jede Zeile ohne Namen. Der CSV-Export trennte mit Komma und Dezimalpunkt (wie Fund 92). | ja: 18 Stunden, Überstunden 0; Name `""`; `...,0.00,""` | behoben: `dauer()` aus `lib/drehzeit.ts`; Projekt über den Drehtag; `schreibeCsv`. Bestehende Zeilen rechnet `initDatabase` einmalig nach (nur `wrap < call` mit falschem Wert, wiederholbar - an Testzeilen geprüft: 18:00-05:00 von 0 auf 1, zweiter Lauf 0 Zeilen, Tagesdreh unberührt). Danach gemessen: 8 Überstunden, Name da, `8,00` |
 | 109 | `server/src/lib/jugendschutz.ts` | **Fehler, Recht, live** | Ein Einsatz über Mitternacht fiel durch die Prüfung: 14 Jahre, 17:00 bis 01:00 ergab Dauer 0 und "01:00" lag rechnerisch vor der Zeitgrenze - **kein Verstoß**, während 17:00 bis 23:30 zwei meldete. Für Jugendliche ab 15 galt pauschal 20 Uhr; nach § 14 Abs. 7 JArbSchG dürfen sie bei Film- und Fotoaufnahmen bis 23 Uhr mitwirken (am Gesetzestext auf gesetze-im-internet.de nachgesehen) - eine 16-Jährige bis 22 Uhr wurde fälschlich als Verstoß gemeldet. "6.5 Stunden" mit Dezimalpunkt im deutschen Text; die ungenutzte Theater-Regel war als "Aufführung" beschrieben, gilt nach § 6 Abs. 1 Nr. 1 aber nur für Theatervorstellungen. | ja: 17:00-01:00 ohne Verstoß; 16 Jahre 14:00-22:00 "Ende nach 20 Uhr" (alter Stand ausgeführt); Gesetzestext § 14 Abs. 7 und § 6 Abs. 1 | behoben: Ende vor Beginn zählt in den nächsten Tag (Dauer und Zeitfenster); Jugendliche bis 23 Uhr, Grund nennt die 14 Stunden Freizeit; Dezimalkomma; Wortlaut Theatervorstellung. Tests ergänzt, ein bestehender Test hatte "3.5" festgeschrieben. Danach: 17:00-01:00 meldet 8 Stunden und Ende nach 22 Uhr |
+| 110 | `server/src/routes/tabellen.ts` (Import) | Fehler | Die Vorschau eines Listenimports wich vom Ergebnis ab, wenn dieselbe Person (Adresse, sonst Name) zweimal in der Datei stand: Die Übernahme findet die erste Zeile in der Transaktion wieder und ergänzt, die Vorschau schreibt nichts und meldete beide als neu - gegen die erste Regel im Dateikopf ("Nichts geht ungesehen in die Datenbank"). | ja: Vorschau "neu 4", Übernahme "neu 2, ergänzt 2" | behoben: die Vorschau merkt sich die Schlüssel der Datei. Danach gemessen: beide "neu 2, ergänzt 2" |
 
 ## Abhakliste
 
@@ -363,7 +365,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/shots.ts` (100) - Funde 76, 103
 - [x] `server/src/routes/stickyNotes.ts` (92) - Fund 104
 - [x] `server/src/routes/sun.ts` (69) - Fund 105
-- [ ] `server/src/routes/tabellen.ts` (286)
+- [x] `server/src/routes/tabellen.ts` (286) - Fund 110
 - [x] `server/src/routes/tasks.ts` (67) - ohne Fund
 - [x] `server/src/routes/timesheets.ts` (193) - Fund 108
 - [x] `server/src/routes/vehicles.ts` (117) - Fund 106
