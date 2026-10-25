@@ -194,6 +194,9 @@ sind ein Render-Dienst aus demselben Bau.
 | 51 | `server/src/routes/budget.ts` (`PUT /budget-lines/:id`, `PUT /financing-entries/:id`) | Klein | Eine Zeile, die es nicht gibt: Kalkulation 200 ohne Daten, Finanzierung 500. Teilüberschreiben (alle Felder werden gesetzt) ist über die Oberfläche nicht erreichbar - `Budget.tsx` schickt immer die ganze Zeile. | ja: 200 `{"error":null}` und 500 | behoben: vorher prüfen, 404; vorhandene Zeile weiter 200 |
 | 52 | `server/src/routes/calendar.ts:14`, `services/holidays.ts:35` | Fehler (derzeit ohne Wirkung) | Standard-Bundesland `'NRW'`, die Feiertagsliste kennt nur `'NW'`: ohne Angabe 9 statt 13 Feiertage, Fronleichnam und Allerheiligen fehlten. Keine Seite ruft die Feiertage ab (`api.calendar.holidays` ungenutzt). | ja: ohne Angabe 9, mit `NW` 13 | behoben: Standard `NW`, Jahr aus `heuteISO`; danach 13 |
 | 53 | `server/src/routes/calendar.ts` (`POST .../events`, `PUT /events/:id`) | Fehler | Termine in Textspalten: `"abc"` als Datum wurde gespeichert, der Kalender zeigte den Termin an keinem Tag. Ein leeres Ende aus dem Formular stand als `''` statt `null` da. Ein fehlender Termin ergab beim Ändern 500. | ja: 201 mit `abc`, 500 | behoben: echtes Datum verlangt (leeres Ende = kein Ende), 404; danach 400, 404, Formular-Termin 201 mit Ende `null` |
+| 54 | `server/src/routes/callsheets.ts` (`POST .../call-sheet/send`) | **Fehler, Datenschutz, live** | Der Dispo-Versand ordnete jede Mail über die Adresse ihrer Person zu. Teilen sich zwei eine Adresse (Eltern mehrerer Kinder, ein Haushalt), bekam jede Mail Name, Call-Time, Hinweis und Bestätigungslink der ersten Person - die zweite konnte die Anwesenheit der ersten bestätigen. | ja: Zweitinstanz mit Fang-SMTP; Ben (Call 10:00) bekam "Hallo Anna", 07:00, Annas Hinweis | behoben: Zuordnung über den Token des Eintrags; danach Ben 10:00, eigener Name, kein fremder Hinweis |
+| 55 | `server/src/routes/callsheets.ts` (Dispo-Mail) | Fehler, Text | Projekttitel, Name, Motiv und Hinweis gingen unmaskiert ins Mail-HTML (wie Fund 23); "bestaetigen" und "vollstaendige" im Mailtext. | ja: `<Kamera>`, `<Tor 2>`, `<B>` roh im HTML | behoben: `maskiere`, echte Umlaute; danach `&lt;Tor 2&gt;` |
+| 56 | `server/src/routes/callsheets.ts` (`PUT /call-sheets/:id/entries`) | Klein | Ohne Liste im Körper 500. | ja: `{}` → 500 | behoben: 400; gültige Liste 200 |
 
 ## Abhakliste
 
@@ -233,7 +236,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/buchhaltung.ts` (318) - Funde 49, 50
 - [x] `server/src/routes/budget.ts` (326) - Fund 51
 - [x] `server/src/routes/calendar.ts` (48) - Funde 52, 53
-- [ ] `server/src/routes/callsheets.ts` (370)
+- [x] `server/src/routes/callsheets.ts` (370) - Funde 54-56
 - [ ] `server/src/routes/cameraPresets.ts` (97)
 - [ ] `server/src/routes/cameraReports.ts` (188)
 - [ ] `server/src/routes/catering.ts` (141)

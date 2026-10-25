@@ -4,6 +4,7 @@ import { db } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { sendEmail, isSmtpConfigured, appBaseUrl } from './emailService'
 import { reiheEin, sendeFaellige } from '../lib/mailversand'
+import { maskiere } from '../lib/mailvorlagen'
 import { sendPushToUser } from './push'
 
 const router = Router()
@@ -153,6 +154,10 @@ router.post('/shoot-days/:dayId/call-sheet', async (req, res) => {
 // PUT /api/call-sheets/:id/entries
 router.put('/call-sheets/:id/entries', async (req, res) => {
   const { entries } = req.body // array of entry objects
+  // Ohne Liste vorher 500 ("entries is not iterable").
+  if (!Array.isArray(entries)) {
+    return res.status(400).json({ data: null, error: 'entries muss eine Liste sein' })
+  }
   // Das UPDATE geht über die Eintrags-Kennung. Ohne diese Prüfung ließen sich
   // Call-Zeiten und Notizen in der Dispo eines fremden Projekts ändern.
   for (const e of entries as any[]) {
@@ -310,26 +315,31 @@ router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Resp
     erstelltVon: user.id,
     anhang: pdfBuffer ? { dateiname: `tagesdispo-tag${day.day_number}.pdf`, inhalt: pdfBuffer } : null,
     empfaenger: recipients.map(r => ({ email: r.email, name: r.name, werte: { token: r.token } })),
+    // Zuordnung über den Token, nicht über die Adresse: Gemessen am 25.10.2026
+    // bekam bei geteilter Adresse (Eltern mehrerer Kinder, ein Haushalt) jede
+    // Mail Name, Call-Time, Hinweis und Bestätigungslink der ersten Person.
+    // Freitext entschärft wie in abnahme.ts - "<Tor 2>" kam roh ins HTML.
     html: (person) => {
-      const r = recipients.find(x => x.email === person.email)!
+      const r = recipients.find(x => x.token === person.werte?.token)!
+      const m = (w: any) => maskiere(String(w ?? ''))
       return `
           <div style="font-family:Arial,sans-serif;max-width:520px;">
-            <h2 style="color:#111;margin-bottom:4px;">Drehtag ${day.day_number} - ${day.project_title}</h2>
+            <h2 style="color:#111;margin-bottom:4px;">Drehtag ${day.day_number} - ${m(day.project_title)}</h2>
             <p style="color:#6b7280;margin-top:0;">${dateStr}</p>
-            <p>Hallo ${r.name},</p>
+            <p>Hallo ${m(r.name)},</p>
             <p>hier ist deine Tagesdisposition:</p>
             <table style="border-collapse:collapse;margin:16px 0;">
               <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Deine Call Time:</td>
                   <td style="padding:4px 0;font-weight:bold;font-size:18px;">${fmtCallTime(r.entry.call_time)}</td></tr>
               ${location ? `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Motiv:</td>
-                  <td style="padding:4px 0;">${location.name}${location.address ? `, ${location.address}` : ''}${location.city ? `, ${location.city}` : ''}</td></tr>` : ''}
+                  <td style="padding:4px 0;">${m(location.name)}${location.address ? `, ${m(location.address)}` : ''}${location.city ? `, ${m(location.city)}` : ''}</td></tr>` : ''}
               ${r.entry.notes ? `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Hinweis:</td>
-                  <td style="padding:4px 0;">${r.entry.notes}</td></tr>` : ''}
+                  <td style="padding:4px 0;">${m(r.entry.notes)}</td></tr>` : ''}
             </table>
             <p style="margin:24px 0;">
-              <a href="${base}/dispo/${r.token}" style="background:#0a84ff;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Online ansehen und bestaetigen</a>
+              <a href="${base}/dispo/${r.token}" style="background:#0a84ff;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Online ansehen und bestätigen</a>
             </p>
-            <p style="color:#6b7280;font-size:13px;">Die vollstaendige Dispo findest du im PDF-Anhang.</p>
+            <p style="color:#6b7280;font-size:13px;">Die vollständige Dispo findest du im PDF-Anhang.</p>
           </div>`
     },
   })
