@@ -1,8 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db'
 import multer from 'multer'
-import path from 'path'
-import fs from 'fs'
 import { requireMember } from '../middleware/projectAuth'
 
 import { speichereDatei, MAX_BYTES } from '../lib/dateien'
@@ -11,9 +9,6 @@ const router = Router()
 
 // All /projects/:projectId/* routes require membership
 router.use('/projects/:projectId', requireMember)
-
-const uploadsDir = path.join(__dirname, '../../uploads/locations')
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
 
 // In den Arbeitsspeicher, nicht auf die Platte - siehe lib/dateien.ts.
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_BYTES } })
@@ -39,6 +34,10 @@ router.post('/projects/:projectId/locations', async (req, res) => {
 
 // PUT /api/locations/:id
 router.put('/locations/:id', async (req, res) => {
+  // Gemessen am 25.10.2026: Ein Motiv, das es nicht gibt, ergab 500.
+  if (!(await db.get('SELECT id FROM locations WHERE id = ?', [req.params.id]))) {
+    return res.status(404).json({ data: null, error: 'Motiv nicht gefunden' })
+  }
   const { name, address, city, zip, country, lat, lng, contact_name, contact_phone, contact_email, rental_fee, parking_info, power_available, notes } = req.body
   await db.run(`
     UPDATE locations SET name=?, address=?, city=?, zip=?, country=?, lat=?, lng=?, contact_name=?, contact_phone=?, contact_email=?, rental_fee=?, parking_info=?, power_available=?, notes=?
@@ -57,7 +56,7 @@ router.delete('/locations/:id', async (req, res) => {
 // POST /api/locations/:id/photos
 router.post('/locations/:id/photos', upload.single('photo'), async (req, res) => {
   const loc = await db.get('SELECT * FROM locations WHERE id = ?', [req.params.id]) as any
-  if (!loc) return res.status(404).json({ data: null, error: 'Location nicht gefunden' })
+  if (!loc) return res.status(404).json({ data: null, error: 'Motiv nicht gefunden' })
   if (!req.file) return res.status(400).json({ data: null, error: 'Kein Foto hochgeladen' })
 
   const gespeichert = await speichereDatei(db, {
