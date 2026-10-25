@@ -22,6 +22,7 @@ import {
 } from '../lib/screenplayFormat'
 import { dauer, nettoDrehzeit } from '../lib/drehzeit'
 import { mitUeberschrift } from '../lib/szenenUeberschrift'
+import { dateiIdAus } from '../lib/dateien'
 
 const router = Router()
 
@@ -724,9 +725,11 @@ router.get('/projects/:projectId/pdf/motivliste', async (req, res) => {
 
 // GET /api/projects/:projectId/pdf/kalkulation/:versionId
 router.get('/projects/:projectId/pdf/kalkulation/:versionId', async (req, res) => {
+  // Nur eine Fassung des Projekts im Pfad (gemessen am 25.10.2026: vorher
+  // jede Fassung, auch aus anderen Projekten)
   const [project, version] = await Promise.all([
     db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]),
-    db.get('SELECT * FROM budget_versions WHERE id = ?', [req.params.versionId]),
+    db.get('SELECT * FROM budget_versions WHERE id = ? AND project_id = ?', [req.params.versionId, req.params.projectId]),
   ]) as any[]
   if (!version) return res.status(404).json({ data: null, error: 'Kalkulation nicht gefunden' })
 
@@ -898,13 +901,29 @@ router.get('/projects/:projectId/pdf/shotlist', async (req, res) => {
   ]) as any[]
 
   // Storyboards als Daten-URI einbetten: Der Druck laeuft in einem eigenen
-  // Browser ohne Sitzung, ein Link auf /uploads/... bliebe leer. Fehlt eine
-  // Datei - auf Render ueberlebt der Speicher keinen Deploy -, bleibt das Feld
-  // leer statt das PDF scheitern zu lassen.
+  // Browser ohne Sitzung, ein Link auf die geschützte Ausliefer-Route bliebe
+  // leer. Fehlt eine Datei, bleibt das Feld leer statt das PDF scheitern zu
+  // lassen.
   const storyboardDir = pathMod.join(__dirname, '../../uploads/storyboard')
   for (const shot of shots as any[]) {
     if (!shot.storyboard_url) continue
     try {
+      // Seit lib/dateien.ts liegen Storyboards in der Datenbank. Gemessen am
+      // 25.10.2026: Vorher wurde nur auf der Platte gesucht, ein neu
+      // hochgeladenes Storyboard fehlte in jeder Shotlist.
+      const dateiId = dateiIdAus(String(shot.storyboard_url))
+      if (dateiId) {
+        const datei = await db.get(
+          'SELECT mime, content FROM project_files WHERE id = ? AND project_id = ?', [dateiId, req.params.projectId]
+        ) as any
+        if (datei?.content) {
+          // Der Typ kommt vom hochladenden Browser und steht gleich in einem Attribut
+          const mime = /^image\/[a-z0-9.+-]+$/i.test(String(datei.mime)) ? datei.mime : 'image/png'
+          shot.storyboard = `data:${mime};base64,${Buffer.from(datei.content).toString('base64')}`
+        }
+        continue
+      }
+      // Altbestand von vor der Umstellung, sofern der Container ihn überlebt hat
       const file = pathMod.join(storyboardDir, pathMod.basename(String(shot.storyboard_url)))
       if (fileExists(file)) {
         const ext = pathMod.extname(file).toLowerCase().replace('.', '') || 'png'
