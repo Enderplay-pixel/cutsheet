@@ -8,21 +8,16 @@ const VALID_CATEGORIES = ['fehler', 'idee', 'allgemein']
 
 // POST /api/feedback - In-App-Feedback von eingeloggten Nutzern
 router.post('/feedback', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { category, message, page_path } = req.body as { category?: string; message?: string; page_path?: string }
-    const msg = String(message || '').trim()
-    if (!msg) return res.status(400).json({ data: null, error: 'Nachricht erforderlich' })
+  const { category, message, page_path } = req.body as { category?: string; message?: string; page_path?: string }
+  const msg = String(message || '').trim()
+  if (!msg) return res.status(400).json({ data: null, error: 'Nachricht erforderlich' })
 
-    const cat = VALID_CATEGORIES.includes(String(category)) ? String(category) : 'allgemein'
-    const result = await db.run(
-      'INSERT INTO feedback (user_id, user_email, category, message, page_path) VALUES (?, ?, ?, ?, ?)',
-      [req.user!.id, req.user!.email, cat, msg.slice(0, 4000), String(page_path || '').slice(0, 300)]
-    )
-    return res.status(201).json({ data: { id: result.id }, error: null })
-  } catch (err) {
-    console.error('[feedback POST]', err)
-    return res.status(500).json({ data: null, error: 'Interner Serverfehler' })
-  }
+  const cat = VALID_CATEGORIES.includes(String(category)) ? String(category) : 'allgemein'
+  const result = await db.run(
+    'INSERT INTO feedback (user_id, user_email, category, message, page_path) VALUES (?, ?, ?, ?, ?)',
+    [req.user!.id, req.user!.email, cat, msg.slice(0, 4000), String(page_path || '').slice(0, 300)]
+  )
+  return res.status(201).json({ data: { id: result.id }, error: null })
 })
 
 // GET /api/feedback - alle Einträge (nur Site-Admin)

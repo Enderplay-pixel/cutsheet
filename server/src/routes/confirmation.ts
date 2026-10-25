@@ -112,52 +112,47 @@ router.post('/cse/t/:token/confirm', async (req: Request, res: Response) => {
 // POST /api/cse/t/:token/claim - One-Click-Account für Crew-Mitglieder.
 // E-Mail kommt aus dem Cast/Crew-Eintrag (nicht frei wählbar), Rolle: read_only.
 router.post('/cse/t/:token/claim', async (req: Request, res: Response) => {
-  try {
-    const entry = await getEntryByToken(req.params.token)
-    if (!entry) return res.status(404).json({ data: null, error: 'Link ungültig' })
+  const entry = await getEntryByToken(req.params.token)
+  if (!entry) return res.status(404).json({ data: null, error: 'Link ungültig' })
 
-    const { password, name } = req.body as { password?: string; name?: string }
-    if (!password || password.length < 6) {
-      return res.status(400).json({ data: null, error: 'Passwort muss mindestens 6 Zeichen haben' })
-    }
-
-    const person = await getPersonForEntry(entry)
-    const email = (person?.email || '').trim().toLowerCase()
-    if (!email) {
-      return res.status(400).json({ data: null, error: 'Für diesen Eintrag ist keine E-Mail-Adresse hinterlegt' })
-    }
-
-    const existing = await db.get('SELECT id FROM users WHERE LOWER(email) = ?', [email])
-    if (existing) {
-      return res.status(409).json({ data: null, error: 'Es existiert bereits ein Konto mit dieser E-Mail. Bitte melde dich an.' })
-    }
-
-    const sheet = await db.get('SELECT shoot_day_id FROM call_sheets WHERE id = ?', [entry.call_sheet_id]) as any
-    const day = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [sheet?.shoot_day_id]) as any
-    if (!day?.project_id) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
-
-    const password_hash = await hashPasswort(password, 12)
-    const userName = (name || person?.name || '').trim()
-    const result = await db.run(
-      'INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)',
-      [email, password_hash, userName, 'user']
-    )
-    await db.run(
-      'INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?) ON CONFLICT DO NOTHING',
-      [day.project_id, result.id, 'read_only']
-    )
-
-    // Eine Sitzung wie bei jeder Anmeldung - siehe routes/auth.ts (Registrierung).
-    const authUser: AuthUser = { id: result.id, email, name: userName, role: 'user' }
-    const { token } = await starteSitzung(authUser, {
-      device: String(req.headers['user-agent'] || ''),
-      ip: String(req.ip || ''),
-    })
-    return res.status(201).json({ data: { token, user: authUser, project_id: day.project_id }, error: null })
-  } catch (err) {
-    console.error('[cse/claim]', err)
-    return res.status(500).json({ data: null, error: 'Interner Serverfehler' })
+  const { password, name } = req.body as { password?: string; name?: string }
+  if (!password || password.length < 6) {
+    return res.status(400).json({ data: null, error: 'Passwort muss mindestens 6 Zeichen haben' })
   }
+
+  const person = await getPersonForEntry(entry)
+  const email = (person?.email || '').trim().toLowerCase()
+  if (!email) {
+    return res.status(400).json({ data: null, error: 'Für diesen Eintrag ist keine E-Mail-Adresse hinterlegt' })
+  }
+
+  const existing = await db.get('SELECT id FROM users WHERE LOWER(email) = ?', [email])
+  if (existing) {
+    return res.status(409).json({ data: null, error: 'Es existiert bereits ein Konto mit dieser E-Mail. Bitte melde dich an.' })
+  }
+
+  const sheet = await db.get('SELECT shoot_day_id FROM call_sheets WHERE id = ?', [entry.call_sheet_id]) as any
+  const day = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [sheet?.shoot_day_id]) as any
+  if (!day?.project_id) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+
+  const password_hash = await hashPasswort(password, 12)
+  const userName = (name || person?.name || '').trim()
+  const result = await db.run(
+    'INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)',
+    [email, password_hash, userName, 'user']
+  )
+  await db.run(
+    'INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?) ON CONFLICT DO NOTHING',
+    [day.project_id, result.id, 'read_only']
+  )
+
+  // Eine Sitzung wie bei jeder Anmeldung - siehe routes/auth.ts (Registrierung).
+  const authUser: AuthUser = { id: result.id, email, name: userName, role: 'user' }
+  const { token } = await starteSitzung(authUser, {
+    device: String(req.headers['user-agent'] || ''),
+    ip: String(req.ip || ''),
+  })
+  return res.status(201).json({ data: { token, user: authUser, project_id: day.project_id }, error: null })
 })
 
 export default router

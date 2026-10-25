@@ -8,110 +8,93 @@ const router = Router()
 // All /projects/:projectId/* routes require membership
 router.use('/projects/:projectId', requireAuth, requireMember)
 
+// Fehler gehen an den Übersetzer (middleware/eingabe.ts) - vorher fing jede
+// Route sie selbst ab und meldete auch eine falsche Eingabe als 500.
+
 // GET /api/projects/:projectId/vehicles
 router.get('/projects/:projectId/vehicles', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const projectId = Number(req.params.projectId)
-    const rows = await db.all('SELECT * FROM vehicles WHERE project_id = ? ORDER BY id ASC', [projectId])
-    return res.json({ data: rows, error: null })
-  } catch (err) {
-    console.error('[vehicles GET]', err)
-    return res.status(500).json({ data: null, error: 'Interner Serverfehler' })
-  }
+  const projectId = Number(req.params.projectId)
+  const rows = await db.all('SELECT * FROM vehicles WHERE project_id = ? ORDER BY id ASC', [projectId])
+  return res.json({ data: rows, error: null })
 })
 
 // POST /api/projects/:projectId/vehicles
 router.post('/projects/:projectId/vehicles', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const projectId = Number(req.params.projectId)
-    const {
-      name = '',
-      license_plate = '',
-      type = 'PKW',
-      capacity = 4,
-      driver_name = '',
-      driver_phone = '',
-      notes = '',
-    } = req.body as {
-      name?: string
-      license_plate?: string
-      type?: string
-      capacity?: number
-      driver_name?: string
-      driver_phone?: string
-      notes?: string
-    }
-    const result = await db.run(`
-      INSERT INTO vehicles (project_id, name, license_plate, type, capacity, driver_name, driver_phone, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [projectId, name, license_plate, type, capacity, driver_name, driver_phone, notes])
-    const row = await db.get('SELECT * FROM vehicles WHERE id = ?', [result.id])
-    return res.status(201).json({ data: row, error: null })
-  } catch (err) {
-    console.error('[vehicles POST]', err)
-    return res.status(500).json({ data: null, error: 'Interner Serverfehler' })
+  const projectId = Number(req.params.projectId)
+  const {
+    name = '',
+    license_plate = '',
+    type = 'PKW',
+    capacity = 4,
+    driver_name = '',
+    driver_phone = '',
+    notes = '',
+  } = req.body as {
+    name?: string
+    license_plate?: string
+    type?: string
+    capacity?: number
+    driver_name?: string
+    driver_phone?: string
+    notes?: string
   }
+  const result = await db.run(`
+    INSERT INTO vehicles (project_id, name, license_plate, type, capacity, driver_name, driver_phone, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `, [projectId, name, license_plate, type, capacity, driver_name, driver_phone, notes])
+  const row = await db.get('SELECT * FROM vehicles WHERE id = ?', [result.id])
+  return res.status(201).json({ data: row, error: null })
 })
 
 // PUT /api/projects/:projectId/vehicles/:id
 router.put('/projects/:projectId/vehicles/:id', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const id = Number(req.params.id)
-    // Nur eine Zeile aus dem Projekt im Pfad. Sonst ließ sich über eine
-    // fremde Kennung die Zeile eines anderen Projekts ändern und auslesen.
-    const existing = await db.get('SELECT * FROM vehicles WHERE id = ? AND project_id = ?', [id, Number(req.params.projectId)])
-    if (!existing) return res.status(404).json({ data: null, error: 'Fahrzeug nicht gefunden' })
+  const id = Number(req.params.id)
+  // Nur eine Zeile aus dem Projekt im Pfad. Sonst ließ sich über eine
+  // fremde Kennung die Zeile eines anderen Projekts ändern und auslesen.
+  const existing = await db.get('SELECT * FROM vehicles WHERE id = ? AND project_id = ?', [id, Number(req.params.projectId)])
+  if (!existing) return res.status(404).json({ data: null, error: 'Fahrzeug nicht gefunden' })
 
-    const {
-      name,
-      license_plate,
-      type,
-      capacity,
-      driver_name,
-      driver_phone,
-      notes,
-    } = req.body as {
-      name?: string
-      license_plate?: string
-      type?: string
-      capacity?: number
-      driver_name?: string
-      driver_phone?: string
-      notes?: string
-    }
-
-    await db.run(`
-      UPDATE vehicles SET
-        name = COALESCE(?, name),
-        license_plate = COALESCE(?, license_plate),
-        type = COALESCE(?, type),
-        capacity = COALESCE(?, capacity),
-        driver_name = COALESCE(?, driver_name),
-        driver_phone = COALESCE(?, driver_phone),
-        notes = COALESCE(?, notes)
-      WHERE id = ?
-    `, [name ?? null, license_plate ?? null, type ?? null, capacity ?? null, driver_name ?? null, driver_phone ?? null, notes ?? null, id])
-
-    const row = await db.get('SELECT * FROM vehicles WHERE id = ?', [id])
-    return res.json({ data: row, error: null })
-  } catch (err) {
-    console.error('[vehicles PUT]', err)
-    return res.status(500).json({ data: null, error: 'Interner Serverfehler' })
+  const {
+    name,
+    license_plate,
+    type,
+    capacity,
+    driver_name,
+    driver_phone,
+    notes,
+  } = req.body as {
+    name?: string
+    license_plate?: string
+    type?: string
+    capacity?: number
+    driver_name?: string
+    driver_phone?: string
+    notes?: string
   }
+
+  await db.run(`
+    UPDATE vehicles SET
+      name = COALESCE(?, name),
+      license_plate = COALESCE(?, license_plate),
+      type = COALESCE(?, type),
+      capacity = COALESCE(?, capacity),
+      driver_name = COALESCE(?, driver_name),
+      driver_phone = COALESCE(?, driver_phone),
+      notes = COALESCE(?, notes)
+    WHERE id = ?
+  `, [name ?? null, license_plate ?? null, type ?? null, capacity ?? null, driver_name ?? null, driver_phone ?? null, notes ?? null, id])
+
+  const row = await db.get('SELECT * FROM vehicles WHERE id = ?', [id])
+  return res.json({ data: row, error: null })
 })
 
 // DELETE /api/projects/:projectId/vehicles/:id
 router.delete('/projects/:projectId/vehicles/:id', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const id = Number(req.params.id)
-    // Nur aus dem Projekt im Pfad: sonst löschte eine fremde Kennung im fremden Projekt
-    const result = await db.run('DELETE FROM vehicles WHERE id = ? AND project_id = ?', [id, Number(req.params.projectId)])
-    if (result.changes === 0) return res.status(404).json({ data: null, error: 'Fahrzeug nicht gefunden' })
-    return res.json({ data: { id }, error: null })
-  } catch (err) {
-    console.error('[vehicles DELETE]', err)
-    return res.status(500).json({ data: null, error: 'Interner Serverfehler' })
-  }
+  const id = Number(req.params.id)
+  // Nur aus dem Projekt im Pfad: sonst löschte eine fremde Kennung im fremden Projekt
+  const result = await db.run('DELETE FROM vehicles WHERE id = ? AND project_id = ?', [id, Number(req.params.projectId)])
+  if (result.changes === 0) return res.status(404).json({ data: null, error: 'Fahrzeug nicht gefunden' })
+  return res.json({ data: { id }, error: null })
 })
 
 export default router

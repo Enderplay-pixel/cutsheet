@@ -81,8 +81,9 @@ Stand am 24.10.2026, 23 Uhr:
   Client: Abmelden kündigt das Push-Abo nicht (`hooks/usePushSubscription.ts` nur aus den Einstellungen) - nach dem Logout kommen Benachrichtigungen des alten Kontos weiter in diesem Browser an (Fund 96).
   Meldungen, die über eine Konstante
   statt als `error: '...'` im Code stehen, sieht der Meldungstest nicht
-  (Fund 41). 72 Routen fangen Fehler selbst ab
-  und geben 500 "Interner Serverfehler" (Muster aus Fund 34).
+  (Fund 41). Das Muster "Fehler selbst abfangen, 500 Interner Serverfehler"
+  (Fund 34) ist mit Fund 106 in allen gelesenen Routen entfernt; offen nur noch
+  `aiBreakdown.ts` (eigene Form) und `vfx.ts` (noch nicht gelesen).
   `Kostenstand.tsx:70` liest den Betrag mit `parseFloat(x.replace(',', '.'))`
   - "1.234,56" würde 1,23 € (`parseFloat("1.234.56")` ist 1.234).
   `Equipment.tsx:38` rechnet die Summe ohne Stückzahl und schickt sie mit;
@@ -265,6 +266,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 103 | `server/src/routes/shots.ts:53` | Fehler | `PUT` auf eine Einstellung, die es nicht gibt, ergab 200 ohne Daten (Muster aus Fund 51). Beim Start legte die Datei noch `uploads/storyboard` an - Storyboards liegen seit `lib/dateien.ts` in der Datenbank (Altbestand liest `pdf.ts` weiter von der Platte, ohne den Ordner anzulegen). | ja: `PUT /shots/999999` 200 | behoben: 404; toter Ordner-Code entfernt. Danach gemessen 404 |
 | 104 | `server/src/routes/stickyNotes.ts` | Fehler | Jede Route fing Fehler selbst ab (Muster aus Fund 34): Position "abc" ergab 500. | ja: 500 | behoben: Fehler an den Übersetzer (`ohne_try.py`). Danach 400 |
 | 105 | `server/src/routes/sun.ts` | Fehler | Die Morgen-Golden-Hour begann mit der nautischen Dämmerung (Sonne 12 Grad unter dem Horizont) - für Bochum am 02.11. "ab 06:12", Sonnenaufgang 07:27. Die Oberfläche zeigt bisher nur den Beginn der Abend-Golden-Hour, der Fehler war dort unsichtbar. Ohne Datum rechnete die Route mit "jetzt" in Serverzeit (nachts der Vortag). Meldung "Location" statt "Motiv". | ja: Golden Hour Morgen 06:12-08:16 | behoben: Morgen ab Sonnenaufgang, Abend bis Sonnenuntergang (symmetrisch); Standarddatum `heuteISO()`; "Motiv nicht gefunden", unbenutzte Übersetzung entfernt. Danach gemessen: 07:27-08:16, Abend 16:15-17:04 |
+| 106 | `server/src/routes/vehicles.ts` und elf bereits gelesene Routen (`activityFeed`, `auth`, `backup`, `blackoutDates`, `cameraPresets`, `confirmation`, `equipmentCalendar`, `extras`, `feedback`, `guestTokens`, `insurances`) | Fehler | Das Muster aus Fund 34 in 42 Handlern: Jeder Fehler, auch eine falsche Eingabe, kam als 500 "Interner Serverfehler" zurück, statt beim Übersetzer als 400 mit Grund. | ja: Fahrzeug mit Kapazität "abc" 500 | behoben mit `scratchpad/ohne_try.py` - entfernt nur den äußeren Block, dessen catch allein protokolliert und 500 meldet; `git diff -w`: genau 42 × try/catch/Protokoll/Antwort/Klammer, sonst nichts. Danach: 400, Anmeldung und Stichproben in fünf Routen weiter 2xx |
 
 ## Abhakliste
 
@@ -359,9 +361,9 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/stickyNotes.ts` (92) - Fund 104
 - [x] `server/src/routes/sun.ts` (69) - Fund 105
 - [ ] `server/src/routes/tabellen.ts` (286)
-- [ ] `server/src/routes/tasks.ts` (67)
+- [x] `server/src/routes/tasks.ts` (67) - ohne Fund
 - [ ] `server/src/routes/timesheets.ts` (193)
-- [ ] `server/src/routes/vehicles.ts` (117)
+- [x] `server/src/routes/vehicles.ts` (117) - Fund 106
 - [ ] `server/src/routes/vertraege.ts` (781)
 - [ ] `server/src/routes/vfx.ts` (149)
 - [ ] `server/src/routes/youtube.ts` (445)
