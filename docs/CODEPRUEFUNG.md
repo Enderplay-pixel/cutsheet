@@ -93,8 +93,8 @@ Stand am 24.10.2026, 23 Uhr:
   404-Seite fehlt (gemessen). `CheckinBoard.tsx:221`: Hinweis auf
   `/guest/checkin/…`, den es nicht gibt (Fund 79).
   Serverzeitzone (Muster aus Fund 36/80):
-  `lib/buchhaltung.ts:114` DATEV-Zeitstempel, `optimizationSuggestions.ts:126`
-  und `lib/youtubeInsights.ts:224` Wochen/Wochentage - jeweils beim Lesen messen.
+  `lib/buchhaltung.ts:114` DATEV-Zeitstempel und `lib/youtubeInsights.ts:224`
+  Wochen/Wochentage - jeweils beim Lesen messen.
   `Budget.tsx` (Finanzierung): Der Server legt neue Zeilen mit Art
   "Förderung" an, die Auswahl kennt nur "Förderung regional"/"national" -
   prüfen, was die Auswahl dann zeigt.
@@ -250,6 +250,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 87 | `server/src/routes/moodboard.ts` | Fehler | `PUT` auf einen Eintrag, den es nicht gibt, ergab 200 ohne Daten (Muster aus Fund 51). Jede Route fing Fehler selbst ab und meldete auch eine falsche Eingabe als 500 (Muster aus Fund 34). Position und Breite sind INTEGER: Eine Position mit Bruchteil ergab 500 - das Verschieben schickt die Zeigerkoordinate, und die Oberfläche meldet einen Fehler dabei nicht. Ob echte Browser dort Bruchteile schicken, ist nicht gemessen (im Vorschaufenster bei Pixelfaktor 1 ganze Zahlen). | ja: `PUT /moodboard/999999` 200; Position 120.5 500; Position "abc" 500 | behoben: 404; Position und Breite gerundet; Fehler an den Übersetzer. Danach gemessen: 404, 120.5 gespeichert als 121, "abc" 400 |
 | 88 | `server/src/routes/morningBrief.ts` (PDF) | Fehler, live | Die Einträge der Dispo wurden mit `LIMIT 8` geladen und daraus "Crew / Cast" gezählt - bei mehr als acht Personen stimmte die Zahl nie. "Auszug" stand schon bei genau acht Einträgen da. Dazu drei fertig gebaute, nie benutzte HTML-Listen (unmaskiert). Die JSON-Route `GET /shoot-days/:id/morning-brief` ruft die Oberfläche nicht auf (nur in `api.ts` deklariert) - nicht entfernt, nur festgehalten. Sonnenzeiten der JSON-Route stimmen (Bochum, 02.11.2026: 07:27 bis 17:04). | ja: 12 Crew + 3 Cast, im PDF "8/0" | behoben: gezählt über alle Einträge, die Tabelle zeigt weiter acht; "Auszug" erst ab neun; tote Listen entfernt. Danach gemessen "12 / 3" |
 | 89 | `server/src/routes/musicCues.ts`, `client/src/pages/Musikliste.tsx` | **Fehler, live** | Die Musikliste fragte "Szene #" ab - die Szenennummer - und schickte die Eingabe als `scene_id`, die Kennung der Szene. Der Server sucht per Kennung: Szene 12 (Kennung 846) gab 404, verknüpfen ging praktisch nie. Verknüpfte Einträge (Demodaten) zeigten die Kennung als Nummer, auch im GEMA-Export ("Szene 136" statt "Szene 104"). Eine Szene ließ sich nicht mehr lösen (`COALESCE`). Jede Route fing Fehler selbst ab: Dauer "abc" ergab 500 (Muster aus Fund 34). | ja: "Szene # 12" 404; nach `scene_id: null` blieb 846; Dauer "abc" 500 | behoben: Auswahl der Szenen des Projekts statt Zahlenfeld; die Liste lädt `scene_number` dazu und zeigt sie in Tabelle und Export; `scene_id: null` löst; Fehler an den Übersetzer. Im Browser gemessen: "Szene 104", Auswahl steht auf "104 Jana jagt Amara", Lösen über die Oberfläche gespeichert |
+| 90 | `server/src/routes/optimizationSuggestions.ts` | Fehler, live | Hold-Tage zählten Kalendertage samt Wochenenden, der DOOD zählt Drehtage ohne die Person - für dieselbe Darstellerin 6 gegen 3. Ein undatierter Drehtag (`date` ist Text, `''` statt NULL) ließ den Hold-Vorschlag ganz ausfallen. Die Szenenliste der Hold-Vorschläge war immer leer (`scene_id` nicht abgefragt). Die Wochenformel für Nachtdrehs rechnete in Ortszeit: beim Hoster (UTC) Woche ab Sonntag, Nächte an Samstag und Sonntag in zwei Wochen, ebenso 31.12./01.01.; lokal (Berlin) Woche ab Samstag. Ein verworfener Vorschlag kam beim nächsten Erzeugen wieder. Eigene `try/catch` meldeten jeden Fehler als 500 (Muster aus Fund 34). | ja: 6 Hold-Tage gegen 3 im DOOD, Szenen `[]`; mit undatiertem Tag kein Vorschlag; alle verworfen und neu geladen - wieder da; Wochenformel unter `TZ=UTC`: Sa W45, So W46 | behoben: Hold wie im DOOD; `date <> ''`; Szenen abgefragt; `isoWoche` in `lib/datum.ts` (UTC, ab Montag, mit Test); verworfene Vorschläge mit denselben Szenen werden nicht wieder angelegt; Fehler an den Übersetzer. Danach gemessen: 3 wie im DOOD, Szenen gefüllt, verworfen bleibt weg |
 
 ## Abhakliste
 
@@ -327,7 +328,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/moodboard.ts` (102) - Fund 87
 - [x] `server/src/routes/morningBrief.ts` (261) - Fund 88
 - [x] `server/src/routes/musicCues.ts` (155) - Fund 89
-- [ ] `server/src/routes/optimizationSuggestions.ts` (268)
+- [x] `server/src/routes/optimizationSuggestions.ts` (268) - Fund 90
 - [ ] `server/src/routes/papierkorb.ts` (46)
 - [ ] `server/src/routes/payroll.ts` (157)
 - [ ] `server/src/routes/pdf.ts` (1083)

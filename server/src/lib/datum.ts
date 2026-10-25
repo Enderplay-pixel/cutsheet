@@ -51,3 +51,19 @@ export function berlinZeitpunkt(datum: string, minuten: number, zone = 'Europe/B
   const erster = alsUtc - versatz(alsUtc)
   return new Date(alsUtc - versatz(erster))
 }
+
+/**
+ * ISO-Kalenderwoche eines Datums "JJJJ-MM-TT", unabhängig von der Zeitzone
+ * des Servers. Vorher eine eigene Formel in Ortszeit: Beim Hoster (UTC)
+ * begann die Woche sonntags, Nachtdrehs an Samstag und Sonntag lagen in zwei
+ * Wochen, ebenso der 31.12. und 01.01. derselben Kalenderwoche (gemessen am
+ * 25.10.2026).
+ */
+export function isoWoche(datum: string): string {
+  const d = new Date(`${String(datum).slice(0, 10)}T00:00:00Z`)
+  // Auf den Donnerstag derselben Woche - der bestimmt das Jahr der Woche
+  d.setUTCDate(d.getUTCDate() + 3 - ((d.getUTCDay() + 6) % 7))
+  const jahr = d.getUTCFullYear()
+  const nummer = 1 + Math.floor((d.getTime() - Date.UTC(jahr, 0, 1)) / (7 * 86400000))
+  return `${jahr}-W${nummer}`
+}

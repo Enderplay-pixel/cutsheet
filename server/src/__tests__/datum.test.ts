@@ -6,7 +6,7 @@
  * die Stunden, in denen ein Nachtdreh noch läuft.
  */
 import { describe, it, expect } from 'vitest'
-import { heuteISO, istIsoDatum, berlinZeitpunkt } from '../lib/datum'
+import { heuteISO, istIsoDatum, berlinZeitpunkt, isoWoche } from '../lib/datum'
 
 describe('heuteISO', () => {
   it('nimmt in der Sommernacht den deutschen Tag, nicht den UTC-Tag', () => {
@@ -52,5 +52,15 @@ describe('berlinZeitpunkt', () => {
     expect(berlinZeitpunkt('2026-07-01', 25 * 60 + 30).toISOString()).toBe('2026-07-01T23:30:00.000Z')
     // Umstellungstag Ende Oktober: 07:00 ist schon Winterzeit
     expect(berlinZeitpunkt('2026-10-25', 7 * 60).toISOString()).toBe('2026-10-25T06:00:00.000Z')
+  })
+})
+
+describe('isoWoche', () => {
+  it('beginnt montags und rechnet den Jahreswechsel wie die Norm', () => {
+    expect(isoWoche('2026-11-07')).toBe('2026-W45') // Samstag
+    expect(isoWoche('2026-11-08')).toBe('2026-W45') // Sonntag - dieselbe Woche
+    expect(isoWoche('2026-11-09')).toBe('2026-W46') // Montag
+    expect(isoWoche('2027-01-01')).toBe('2026-W53') // gehört zur letzten Woche 2026
+    expect(isoWoche('2027-01-04')).toBe('2027-W1')
   })
 })
