@@ -273,6 +273,7 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'annotation_color ist eine Farbe (#rrggbb)': { en: 'annotation_color is a colour (#rrggbb)', fr: 'annotation_color est une couleur (#rrggbb)' },
   'blocks muss ein Array sein': { en: 'blocks must be an array', fr: 'blocks doit être un tableau' },
   'dates array required': { en: 'dates array required', fr: 'Tableau dates requis' },
+  'deadline ist ein Datum (JJJJ-MM-TT)': { en: 'deadline must be a date (YYYY-MM-DD)', fr: 'deadline doit être une date (AAAA-MM-JJ)' },
   'end_date darf nicht vor start_date liegen': { en: 'end_date must not be before start_date', fr: 'end_date ne doit pas être antérieure à start_date' },
   'endpoint ist erforderlich': { en: 'endpoint is required', fr: 'endpoint est requis' },
   'endpoint und keys (p256dh, auth) sind erforderlich': { en: 'endpoint and keys (p256dh, auth) are required', fr: 'endpoint et keys (p256dh, auth) sont requis' },

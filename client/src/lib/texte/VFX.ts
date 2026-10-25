@@ -9,7 +9,6 @@ export const vfxT = {
   fehlerSpeichern: { de: 'Fehler beim Speichern', en: 'Error while saving', fr: "Erreur lors de l'enregistrement" },
   fehlerLoeschen:  { de: 'Fehler beim Löschen', en: 'Error while deleting', fr: 'Erreur lors de la suppression' },
   shotPlatzh:      { de: 'VFX-001', en: 'VFX-001', fr: 'VFX-001' },
-  szenePlatzh:     { de: 'Szene #', en: 'Scene #', fr: 'Scène n°' },
   beschreibung:    { de: 'Beschreibung', en: 'Description', fr: 'Description' },
   statusAria:      { de: 'Status der Einstellung', en: 'Shot status', fr: 'Statut du plan' },
   aufwand:         { de: 'Aufwand', en: 'Effort', fr: 'Charge de travail' },

@@ -21,6 +21,8 @@ interface VFXShot {
   id: number
   shot_number: string
   scene_id: number | null
+  /** Vom Server dazugeladen - scene_id ist die Kennung, nicht die Nummer */
+  scene_number?: string | null
   description: string
   vfx_type: string
   status: string
@@ -60,8 +62,12 @@ function VFXFormRow({ initial, pid, onDone }: { initial?: VFXShot; pid: number; 
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const tt = useT()
-  const [form, setForm] = useState<Omit<VFXShot, 'id'>>(initial ? { ...initial } : { ...EMPTY })
+  const [form, setForm] = useState<Omit<VFXShot, 'id'>>(initial ? { ...initial, deadline: initial.deadline ?? '' } : { ...EMPTY })
   const set = (key: string, value: any) => setForm(f => ({ ...f, [key]: value }))
+  const { data: szenen = [] } = useQuery({
+    queryKey: ['scenes', pid],
+    queryFn: () => api.scenes.list(pid),
+  })
 
   const saveMutation = useMutation({
     mutationFn: () => initial ? api.vfx.update(pid, initial.id, form) : api.vfx.create(pid, form),
@@ -80,7 +86,14 @@ function VFXFormRow({ initial, pid, onDone }: { initial?: VFXShot; pid: number; 
   return (
     <tr className="border-b border-primary/20 bg-primary/5">
       <td className={c}><Input className={i} placeholder={tt(v.shotPlatzh)} value={form.shot_number} onChange={e => set('shot_number', e.target.value)} /></td>
-      <td className={c}><Input className={i} placeholder={tt(v.szenePlatzh)} type="number" value={form.scene_id ?? ''} onChange={e => set('scene_id', e.target.value ? Number(e.target.value) : null)} /></td>
+      <td className={c}>
+        {/* Auswahl statt Zahlenfeld: Eingetippt wurde die Szenennummer, gespeichert
+            wird die Kennung der Szene - wie in der Musikliste (Fund 89). */}
+        <select aria-label={tt(v.spalteSzene)} className={sel} value={form.scene_id ?? ''} onChange={e => set('scene_id', e.target.value ? Number(e.target.value) : null)}>
+          <option value="">-</option>
+          {(szenen as any[]).map(sz => <option key={sz.id} value={sz.id}>{[sz.scene_number, sz.title].filter(Boolean).join(' ') || sz.id}</option>)}
+        </select>
+      </td>
       <td className={c}><Input className={i} placeholder={tt(v.beschreibung)} value={form.description} onChange={e => set('description', e.target.value)} /></td>
       <td className={c}>
         <select className={sel} value={form.vfx_type} onChange={e => set('vfx_type', e.target.value)}>
@@ -137,7 +150,7 @@ function VFXRow({ shot, pid, onEdit }: { shot: VFXShot; pid: number; onEdit: (s:
   return (
     <tr className="border-b border-border/40 hover:bg-muted/30 transition-colors group">
       <td className="py-2.5 px-3 text-sm font-mono font-medium">{shot.shot_number || '-'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.scene_id ? tt(v.szeneN).replace('{n}', String(shot.scene_id)) : '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.scene_number ? tt(v.szeneN).replace('{n}', shot.scene_number) : '-'}</td>
       <td className="py-2.5 px-3 text-sm max-w-[200px] truncate" title={shot.description}>{shot.description || '-'}</td>
       <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.vfx_type ? beschriftung(vfxTypT, shot.vfx_type, tt) : '-'}</td>
       <td className="py-2.5 px-3">
