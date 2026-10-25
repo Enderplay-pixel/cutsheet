@@ -276,7 +276,11 @@ function blocksToElements(blocks: SourceBlock[], includeAnnotations: boolean): E
           lines: wrapMono(raw, GEOMETRY[type as 'note' | 'annotation'].width),
           spaceBefore: SPACE_BEFORE[type as 'note' | 'annotation'],
           keepWithNext: false,
-          color: type === 'annotation' ? (b.annotation_color || '#f59e0b') : undefined,
+          // Nur eine Farbe - der Wert steht in einem style-Attribut. Gemessen am
+          // 25.10.2026: "red;background-image:url(...)" ging unverändert durch.
+          color: type === 'annotation'
+            ? (/^#[0-9a-f]{6}$/i.test(String(b.annotation_color ?? '')) ? b.annotation_color! : '#f59e0b')
+            : undefined,
         })
         break
       }

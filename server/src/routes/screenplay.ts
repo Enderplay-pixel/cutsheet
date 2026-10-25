@@ -1,19 +1,13 @@
 import { Router, Request, Response } from 'express'
-import { db, pool } from '../db'
+import { db } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { leseUeberschrift, mitUeberschrift } from '../lib/szenenUeberschrift'
 import { fountainZeilen } from '../lib/fountainExport'
 
 const router = Router()
 
-// Ensure annotation_color column exists with a proper DEFAULT.
-// Run both statements: ADD (if missing) + SET DEFAULT (if column exists without one).
-pool.query(`ALTER TABLE screenplay_blocks ADD COLUMN IF NOT EXISTS annotation_color TEXT NOT NULL DEFAULT '#f59e0b'`)
-  .catch(() => {})
-pool.query(`ALTER TABLE screenplay_blocks ALTER COLUMN annotation_color SET DEFAULT '#f59e0b'`)
-  .catch(() => {})
-pool.query(`UPDATE screenplay_blocks SET annotation_color = '#f59e0b' WHERE annotation_color IS NULL`)
-  .catch(() => {})
+// annotation_color legt db/index.ts an. Hier liefen bis zum 25.10.2026 dieselben
+// ALTER TABLE noch einmal beim Laden des Moduls - ungeordnet neben initDatabase.
 
 // All /projects/:projectId/* routes require membership
 router.use('/projects/:projectId', requireMember)
@@ -21,6 +15,13 @@ router.use('/projects/:projectId', requireMember)
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type BlockType = 'scene_heading' | 'action' | 'character' | 'dialogue' | 'parenthetical' | 'transition' | 'note'
+
+/**
+ * Anmerkungsfarben sind #rrggbb - der Editor hängt für den Hintergrund zwei
+ * Stellen Deckkraft an, und im PDF steht der Wert in einem style-Attribut.
+ */
+const istFarbe = (wert: unknown) => /^#[0-9a-f]{6}$/i.test(String(wert))
+const FARBE_FEHLER = 'annotation_color ist eine Farbe (#rrggbb)'
 
 // ─── GET /api/projects/:projectId/screenplay ──────────────────────────────────
 // Returns all scenes with their blocks, ordered by sort_order
@@ -123,53 +124,52 @@ router.get('/scenes/:sceneId/blocks', requireMemberVia(projectIdFromTable('scene
 })
 
 // ─── POST /api/scenes/:sceneId/blocks ────────────────────────────────────────
+// Fehler gehen an den Übersetzer (middleware/eingabe.ts). Vorher ging die rohe
+// Datenbankmeldung als 500 zurück, und jede Anlage schrieb zwei Debug-Zeilen
+// ins Serverprotokoll.
 router.post('/scenes/:sceneId/blocks', async (req, res) => {
-  try {
-    const { sceneId } = req.params
-    const { block_type = 'action', content = '', sort_order = 0, annotation_color } = req.body
-
-    console.log('[blocks POST] sceneId=%s block_type=%s sort_order=%s', sceneId, block_type, sort_order)
-
-    // Get project_id from the scene
-    const scene = await db.get('SELECT project_id FROM scenes WHERE id = ?', [sceneId]) as { project_id: number } | undefined
-    if (!scene) {
-      console.log('[blocks POST] scene not found for sceneId=%s', sceneId)
-      return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
-    }
-
-    // sort_order is an INTEGER column, so fractional "insert between" values would
-    // blow up in Postgres. Round up to the target slot and push the rest down.
-    const requested = Number(sort_order)
-    const targetSort = Math.max(0, Number.isFinite(requested) ? Math.ceil(requested) : 0)
-
-    await db.run(`
-      UPDATE screenplay_blocks SET sort_order = sort_order + 1
-      WHERE scene_id = ? AND sort_order >= ?
-    `, [sceneId, targetSort])
-
-    const result = await db.run(`
-      INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
-      VALUES (?, ?, ?, ?, ?)
-    `, [sceneId, scene.project_id, targetSort, block_type, content])
-
-    console.log('[blocks POST] created block id=%s', result.id)
-
-    if (annotation_color && annotation_color !== '#f59e0b') {
-      await db.run(`UPDATE screenplay_blocks SET annotation_color = ? WHERE id = ?`, [annotation_color, result.id]).catch((e: any) => console.warn('[blocks POST] annotation_color update failed:', e?.message))
-    }
-
-    const block = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [result.id])
-    res.status(201).json({ data: block, error: null })
-  } catch (err: any) {
-    console.error('[blocks POST] ERROR:', err?.message, err?.code, err?.detail)
-    res.status(500).json({ data: null, error: err?.message || 'Interner Fehler beim Erstellen des Blocks' })
+  const { sceneId } = req.params
+  const { block_type = 'action', content = '', sort_order = 0, annotation_color } = req.body
+  if (annotation_color !== undefined && !istFarbe(annotation_color)) {
+    return res.status(400).json({ data: null, error: FARBE_FEHLER })
   }
+
+  // Get project_id from the scene
+  const scene = await db.get('SELECT project_id FROM scenes WHERE id = ?', [sceneId]) as { project_id: number } | undefined
+  if (!scene) {
+    return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+  }
+
+  // sort_order is an INTEGER column, so fractional "insert between" values would
+  // blow up in Postgres. Round up to the target slot and push the rest down.
+  const requested = Number(sort_order)
+  const targetSort = Math.max(0, Number.isFinite(requested) ? Math.ceil(requested) : 0)
+
+  await db.run(`
+    UPDATE screenplay_blocks SET sort_order = sort_order + 1
+    WHERE scene_id = ? AND sort_order >= ?
+  `, [sceneId, targetSort])
+
+  const result = await db.run(`
+    INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content)
+    VALUES (?, ?, ?, ?, ?)
+  `, [sceneId, scene.project_id, targetSort, block_type, content])
+
+  if (annotation_color && annotation_color !== '#f59e0b') {
+    await db.run(`UPDATE screenplay_blocks SET annotation_color = ? WHERE id = ?`, [annotation_color, result.id]).catch((e: any) => console.warn('[blocks POST] annotation_color update failed:', e?.message))
+  }
+
+  const block = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [result.id])
+  res.status(201).json({ data: block, error: null })
 })
 
 // ─── PUT /api/blocks/:blockId ─────────────────────────────────────────────────
 router.put('/blocks/:blockId', async (req, res) => {
   const { blockId } = req.params
   const { content, sort_order, block_type, annotation_color } = req.body
+  if (annotation_color !== undefined && annotation_color !== null && !istFarbe(annotation_color)) {
+    return res.status(400).json({ data: null, error: FARBE_FEHLER })
+  }
 
   const existing = await db.get('SELECT * FROM screenplay_blocks WHERE id = ?', [blockId]) as any
   if (!existing) {
@@ -446,10 +446,14 @@ router.post('/projects/:projectId/fdx-import', async (req, res) => {
     // Get current max sort_order
     const maxSortRow = await tx.get('SELECT COALESCE(MAX(sort_order), -1) as m FROM scenes WHERE project_id = ?', [projectId]) as { m: number }
     let sortCounter = maxSortRow.m + 1
-    // Weiterzählen hinter den vorhandenen Szenen: Vorher begann jeder Import
-    // bei 1, ein zweiter ergab doppelte Szenennummern.
-    const vorhanden = await tx.get('SELECT COUNT(*) AS anzahl FROM scenes WHERE project_id = ?', [projectId]) as { anzahl: number }
-    const nummerBasis = Number(vorhanden?.anzahl ?? 0)
+    // Weiterzählen hinter der höchsten vorhandenen Nummer, wie POST /scenes.
+    // Vorher begann jeder Import bei 1, danach bei der Anzahl der Szenen -
+    // gemessen am 25.10.2026: Szenen 1 und 3 vorhanden, der Import vergab
+    // eine zweite 3. "12A" zählt als 12.
+    const vorhanden = await tx.all('SELECT scene_number FROM scenes WHERE project_id = ?', [projectId]) as any[]
+    const nummerBasis = vorhanden.reduce(
+      (m, z) => Math.max(m, parseInt(String(z.scene_number ?? ''), 10) || 0), 0
+    )
 
     let currentSceneId: number | null = null
     let blockSortOrder = 0

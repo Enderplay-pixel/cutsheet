@@ -271,6 +271,7 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Zurückziehen geht nur bei verschickten Anfragen': { en: 'Only sent requests can be withdrawn', fr: 'Seules les demandes envoyées peuvent être retirées' },
   'Zurückziehen geht nur bei verschickten, noch nicht bestätigten Verträgen': { en: 'Only sent, not yet confirmed contracts can be withdrawn', fr: 'Seuls les contrats envoyés et pas encore confirmés peuvent être retirés' },
   'Zurückziehen geht nur, solange die Runde beim Kunden liegt': { en: 'Withdrawing is only possible while the round is with the client', fr: "Le retrait n'est possible que tant que le tour est chez le client" },
+  'annotation_color ist eine Farbe (#rrggbb)': { en: 'annotation_color is a colour (#rrggbb)', fr: 'annotation_color est une couleur (#rrggbb)' },
   'blocks muss ein Array sein': { en: 'blocks must be an array', fr: 'blocks doit être un tableau' },
   'dates array required': { en: 'dates array required', fr: 'Tableau dates requis' },
   'end_date darf nicht vor start_date liegen': { en: 'end_date must not be before start_date', fr: 'end_date ne doit pas être antérieure à start_date' },

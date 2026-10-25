@@ -261,6 +261,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 97 | `server/src/routes/reise.ts` | **Fehler, Geld, live** | Der Reisekosten-Export war nie erreichbar: `GET /reisen/:id` stand davor und nahm "export.csv" als Kennung - der Knopf in der Oberfläche bekam 400 "Eine Zahl wurde als Text übergeben.". Bei Hotel mit Frühstück trug das Anlegen einer Reise das Frühstück an **jedem** Tag ein, auch am Anreisetag - das Hotelfrühstück gibt es erst am Morgen nach der ersten Nacht. Die steuerfreie Verpflegungspauschale wurde so je Reise um 5,60 € (20 % des 24-Stunden-Satzes) zu stark gekürzt. | ja: Export 400; Reise 02.-05.11. mit Frühstückshotel 61,60 € Verpflegung | behoben: Export vor die Einzelroute; Frühstück nicht am Anreisetag und nicht an Tagen ohne Übernachtung (`einzeln`). Danach gemessen: Export 200 mit denselben Summen wie die Liste; 67,20 €. Bestehende Reisen behalten ihre Einträge - je Tag in der Oberfläche änderbar. Scan aller 487 Routen in Einhängereihenfolge auf Verschattung (`scratchpad/verschattung.py`, am alten Stand gegengeprüft): sonst keine |
 | 98 | `server/src/routes/sceneComments.ts` | Fehler | Jede Route fing Fehler selbst ab (Muster aus Fund 34): Szene "abc" ergab 500 statt 400. Rechte und Projektbindung stimmen (`/comments/:id` im Schutzmuster, POST prüft die Szene im Projekt). | ja: 500 | behoben: Fehler an den Übersetzer, mit `scratchpad/ohne_try.py` (entfernt nur den äußeren Block, der "Interner Serverfehler" meldet). Danach 400, gültige Anfrage 200 |
 | 99 | `server/src/routes/scenes.ts:115` | Fehler | `PUT` auf eine Szene, die es nicht gibt, ergab 200 ohne Daten (Muster aus Fund 51). Geprüft und verworfen: Das Aufräumen der Tagesberichte beim Löschen nimmt nur einen Drehtag - richtig, eine Szene steht per `shoot_day_scenes_scene_eindeutig` auf höchstens einem. | ja: `PUT /scenes/999999` 200 | behoben: 404. Danach gemessen 404 |
+| 100 | `server/src/routes/screenplay.ts`, `lib/screenplayFormat.ts:279` | Fehler | Der Drehbuch-Import nummerierte ab der **Anzahl** der Szenen weiter - mit Szenen 1 und 3 bekam die importierte eine zweite 3 (das Muster, das `POST /scenes` am 24.10. verloren hat). Die Anmerkungsfarbe ging ungeprüft in ein style-Attribut des Drehbuch-PDFs - weitere CSS-Eigenschaften samt externer Adresse standen im Satz, der Druck-Browser hätte sie geladen. `POST /blocks` gab die rohe Datenbankmeldung als 500 zurück und schrieb je Block zwei Debug-Zeilen ins Protokoll; beim Laden des Moduls liefen drei `ALTER TABLE` doppelt zu `db/index.ts`. | ja: Nummern `1,3,3`; im HTML `color:red;background-image:url(...)` | behoben: höchste Nummer plus eins; Farbe nur `#rrggbb` (beim Speichern 400, im Satz Rückfall auf Gelb, mit Test); Fehler an den Übersetzer; Debug-Zeilen und doppelte Schemaänderung entfernt. Danach gemessen: `1,3,4`; 400 für CSS, 200 für `#3b82f6` |
 
 ## Abhakliste
 
@@ -348,7 +349,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/reise.ts` (482) - Fund 97
 - [x] `server/src/routes/sceneComments.ts` (90) - Fund 98
 - [x] `server/src/routes/scenes.ts` (277) - Fund 99
-- [ ] `server/src/routes/screenplay.ts` (512)
+- [x] `server/src/routes/screenplay.ts` (512) - Fund 100
 - [ ] `server/src/routes/scriptSides.ts` (149)
 - [ ] `server/src/routes/search.ts` (110)
 - [ ] `server/src/routes/shots.ts` (100)

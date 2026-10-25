@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   wrapMono,
   layoutScreenplay,
+  renderScreenplayHtml,
   LINES_PER_PAGE,
   type SceneInput,
   type SourceBlock,
@@ -318,5 +319,18 @@ describe('Robustheit', () => {
     for (const l of flat(pages)) {
       expect(l.col + l.text.length).toBeLessThanOrEqual(COL_ACTION + 60)
     }
+  })
+})
+
+describe('Anmerkungsfarbe', () => {
+  it('lässt nur #rrggbb ins style-Attribut', () => {
+    const seiten = layoutScreenplay([{ scene_number: '1', blocks: [
+      { block_type: 'annotation', content: 'Notiz', annotation_color: 'red;background-image:url(http://127.0.0.1/x)' },
+      { block_type: 'annotation', content: 'Blau', annotation_color: '#3b82f6' },
+    ] }], { includeAnnotations: true })
+    const html = renderScreenplayHtml(seiten, { paper: 'a4', docTitle: 'x' })
+    expect(html).not.toContain('background-image')
+    expect(html).toContain('color:#f59e0b')
+    expect(html).toContain('color:#3b82f6')
   })
 })
