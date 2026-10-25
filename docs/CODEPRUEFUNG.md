@@ -192,6 +192,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 49 | `server/src/routes/buchhaltung.ts:100` (`jeSatz`) | Fehler, Geld (latent, siehe Fund 28) | Beim Kleinunternehmer stand in der Buchhaltungstabelle "Steuersatz 19" mit 0,00 Umsatzsteuer; die USt-Auswertung zeigte Satz 0. Der Export rechnete mit Regelbesteuerung und nullte danach nur die Steuer. | ja: Rechnung `kleinunternehmer` → CSV `19;100,00;0,00`, USt-Auswertung `satz: 0` | behoben: `summiere` mit der Steuerart des Belegs; danach CSV Satz 0, Regelbesteuerung unverändert 19 % (beides gemessen). DATEV-Erlöskonto unverändert |
 | 50 | `server/src/routes/buchhaltung.ts:268` (`wjBeginn`) | Hinweis | Der DATEV-Kopf nimmt den Beginn des Wirtschaftsjahres aus dem Startjahr des Zeitraums. Ein Zeitraum über den Jahreswechsel trägt Buchungen des neuen Jahres mit dem alten Wirtschaftsjahr. Ob DATEV so einen Stapel annimmt, ist hier nicht prüfbar. | nein, gelesen | offen: beim ersten Probeimport in der Kanzlei mitprüfen oder Zeitraum auf ein Jahr begrenzen |
 | 51 | `server/src/routes/budget.ts` (`PUT /budget-lines/:id`, `PUT /financing-entries/:id`) | Klein | Eine Zeile, die es nicht gibt: Kalkulation 200 ohne Daten, Finanzierung 500. Teilüberschreiben (alle Felder werden gesetzt) ist über die Oberfläche nicht erreichbar - `Budget.tsx` schickt immer die ganze Zeile. | ja: 200 `{"error":null}` und 500 | behoben: vorher prüfen, 404; vorhandene Zeile weiter 200 |
+| 52 | `server/src/routes/calendar.ts:14`, `services/holidays.ts:35` | Fehler (derzeit ohne Wirkung) | Standard-Bundesland `'NRW'`, die Feiertagsliste kennt nur `'NW'`: ohne Angabe 9 statt 13 Feiertage, Fronleichnam und Allerheiligen fehlten. Keine Seite ruft die Feiertage ab (`api.calendar.holidays` ungenutzt). | ja: ohne Angabe 9, mit `NW` 13 | behoben: Standard `NW`, Jahr aus `heuteISO`; danach 13 |
+| 53 | `server/src/routes/calendar.ts` (`POST .../events`, `PUT /events/:id`) | Fehler | Termine in Textspalten: `"abc"` als Datum wurde gespeichert, der Kalender zeigte den Termin an keinem Tag. Ein leeres Ende aus dem Formular stand als `''` statt `null` da. Ein fehlender Termin ergab beim Ändern 500. | ja: 201 mit `abc`, 500 | behoben: echtes Datum verlangt (leeres Ende = kein Ende), 404; danach 400, 404, Formular-Termin 201 mit Ende `null` |
 
 ## Abhakliste
 
@@ -230,7 +232,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/blackoutDates.ts` (152) - Fund 48
 - [x] `server/src/routes/buchhaltung.ts` (318) - Funde 49, 50
 - [x] `server/src/routes/budget.ts` (326) - Fund 51
-- [ ] `server/src/routes/calendar.ts` (48)
+- [x] `server/src/routes/calendar.ts` (48) - Funde 52, 53
 - [ ] `server/src/routes/callsheets.ts` (370)
 - [ ] `server/src/routes/cameraPresets.ts` (97)
 - [ ] `server/src/routes/cameraReports.ts` (188)

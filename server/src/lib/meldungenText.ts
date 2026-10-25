@@ -113,6 +113,7 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Einladungslink ungültig': { en: 'Invalid invitation link', fr: "Lien d'invitation invalide" },
   'Einladungslink ungültig oder abgelaufen': { en: 'Invitation link invalid or expired', fr: "Lien d'invitation invalide ou expiré" },
   'Einstellung nicht gefunden': { en: 'Shot not found', fr: 'Plan introuvable' },
+  'Ein Termin braucht ein Datum (JJJJ-MM-TT)': { en: 'An event needs a date (YYYY-MM-DD)', fr: 'Un rendez-vous a besoin d\'une date (AAAA-MM-JJ)' },
   'Eintrag nicht gefunden': { en: 'Entry not found', fr: 'Entrée introuvable' },
   'Element nicht gefunden': { en: 'Element not found', fr: 'Élément introuvable' },
   'Equipment-Posten nicht gefunden': { en: 'Equipment item not found', fr: "Élément d'équipement introuvable" },

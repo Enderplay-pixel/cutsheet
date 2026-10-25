@@ -32,7 +32,7 @@ interface HolidayDef {
 }
 
 // Returns array of { date: string (YYYY-MM-DD), name: string }
-export function getHolidays(year: number, state: string = 'NRW'): Array<{ date: string; name: string }> {
+export function getHolidays(year: number, state: string = 'NW'): Array<{ date: string; name: string }> {
   const easter = easterDate(year)
 
   const holidays: HolidayDef[] = [
