@@ -468,11 +468,14 @@ async function loeseGruppeAuf(
       )
     case 'drehtag': {
       const eintraege = (await db.all(
+        // Nur Drehtage dieses Projekts - auch für Verteiler, die nicht über
+        // POST .../groups entstanden sind (etwa aus einer Sicherung).
         `SELECT e.person_type, e.person_id, e.call_time
            FROM call_sheet_entries e
            JOIN call_sheets s ON e.call_sheet_id = s.id
-          WHERE s.shoot_day_id = ?`,
-        [Number(gruppe.parameter)]
+           JOIN shoot_days d ON d.id = s.shoot_day_id
+          WHERE s.shoot_day_id = ? AND d.project_id = ?`,
+        [Number(gruppe.parameter), projectId]
       )) as any[]
       const personen: Array<{ email: string; name?: string; werte?: Record<string, string> }> = []
       const istBesetzung = 'cast'
