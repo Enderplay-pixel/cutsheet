@@ -53,7 +53,7 @@ export type SendeErgebnis = {
   sent: number
   /** Wie viele in der Warteschlange liegen (später oder geplant). */
   queued: number
-  /** Wie viele nicht versendet werden konnten, weil kein Mailserver da ist. */
+  /** Wie viele nie rausgehen: kein Mailserver da, oder eine Testadresse (lib/mailversand.ts). */
   ohneVersand: number
   /** Ob überhaupt ein Mailserver eingerichtet ist. */
   configured: boolean

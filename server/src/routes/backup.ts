@@ -71,16 +71,23 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
        ORDER BY table_name`
     ) as Array<{ table_name: string }>
 
+    // Versandte Mails bleiben draussen: Ihr Text enthaelt persoenliche Links
+    // (Einladung, Dispo), und zurueckgespielt werden sie ohnehin nicht
+    // (lib/wiederherstellung.ts). Gemessen am 25.10.2026: 14 von 19 Mails des
+    // Demo-Projekts trugen einen solchen Link.
+    const OHNE_MAILS = new Set(['email_outbox', 'email_attachments', 'email_log'])
+
     for (const { table_name } of mitProjektspalte) {
       // Nur echte Bezeichner, damit nichts Fremdes in die Abfrage geraet
       if (!/^[a-z_][a-z0-9_]*$/.test(table_name)) continue
+      if (OHNE_MAILS.has(table_name)) continue
       backup[table_name] = await db.all(
         `SELECT * FROM ${table_name} WHERE project_id = ?`, [projectId]) as Record<string, unknown>[]
     }
 
     // Die Liste oben deckt nur noch Kindtabellen OHNE project_id ab.
     for (const { table, column } of tables) {
-      if (column && !backup[table]) {
+      if (column && !backup[table] && !OHNE_MAILS.has(table)) {
         backup[table] = await db.all(`SELECT * FROM ${table} WHERE ${column} = ?`, [projectId])
       }
     }

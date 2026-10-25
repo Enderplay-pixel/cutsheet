@@ -223,6 +223,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 68 | `server/src/routes/drehplan.ts` (Drehtage anlegen, Serie, ändern, Nummerierung, `reorder`) | Fehler | Drehtage nahmen jedes Datum an (`"abc"`, `"x"`, `''`). Die Nummerierung nach `date` machte einen Tag ohne Datum zu "Drehtag 1" und schob den echten ersten Tag auf 2. Ein fehlender Tag gab beim Ändern 200 ohne Daten, `reorder` ohne Liste 500. | ja: Wegwerfprojekt, alle vier | behoben: echtes Datum Pflicht (der Client schickt immer eins), alte Tage ohne Datum zählen ans Ende, 404, 400; danach gemessen. Ob es in der Produktion Tage ohne Datum gibt, ist ohne Anmeldung nicht prüfbar |
 | 69 | `server/src/routes/emailRoutes.ts` (`loeseGruppeAuf`, Regel `drehtag`) | **Datenschutz, live seit dem Deploy vom 25.10.2026** | Beim Auflösen eines Drehtag-Verteilers wurde nicht geprüft, ob der Drehtag zum Projekt gehört (nur beim Anlegen). Seit Fund 45 kann jedes Konto eine Sicherung zurückspielen, und Verteiler aus der Datei umgehen die Prüfung beim Anlegen. | ja: Verteiler aus einer Sicherung lieferte Empfänger eines fremden Projekts | behoben: Auflösen nur für Drehtage des eigenen Projekts; danach fremd 0 Empfänger, eigener Verteiler 7. **Muss mit der nächsten Freigabe raus** |
 | 70 | `server/src/lib/wiederherstellung.ts` (`importiereInhalt`) | Fehler, Datenschutz | Beim Zurückspielen kamen Verweise unverändert mit, die die Abbildung nicht kannte: Drehtag-Verteiler, Abnahme-Fassung (`cut_id`), Unterkunft (`accommodation_id`), Vertragsvorlage, Verteilermitglieder. In der Kopie zeigten sie auf Zeilen des alten Projekts. Postausgang, Anhänge und Papierkorb wurden mitkopiert - wartende Mails gingen aus der Kopie erneut hinaus. | ja: Projekt 1 gesichert und zurückgespielt - Verteiler auf fremden Drehtag, je ein fremder Verweis bei Abnahme und Reise, 19 Mails im Postausgang der Kopie | behoben: vier neue Abbildungen, Drehtag-Verteiler wird umgeschrieben, Postausgang/Anhänge/Papierkorb bleiben beim alten Projekt; danach 0 fremde Verweise, 0 Mails, Verteiler mit 7 eigenen Empfängern. Test, gegen alten Stand rot |
+| 71 | `server/src/routes/backup.ts` (Export) | Datenschutz | Die Projektsicherung (für jedes Mitglied ladbar) enthielt Postausgang, Anhänge und altes Mail-Protokoll mit vollem Mailtext - darin persönliche Links aus Einladungen und Dispositionen. Fund 44 entfernte nur Spalten mit `token` im Namen. | ja: 14 von 19 Mails des Demo-Projekts mit so einem Link in der Sicherung | behoben: diese drei Tabellen bleiben aus der Sicherung (zurückgespielt werden sie seit Fund 70 ohnehin nicht); danach nicht mehr enthalten, Zurückspielen weiter ok |
 
 ## Abhakliste
 
@@ -280,8 +281,8 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/datenschutz.ts` (202) - Funde 65, 66
 - [x] `server/src/routes/dood.ts` (126) - Fund 67
 - [x] `server/src/routes/drehplan.ts` (305) - Funde 58, 68
-- [ ] `server/src/routes/emailRoutes.ts` (646)
-- [ ] `server/src/routes/emailService.ts` (118)
+- [x] `server/src/routes/emailRoutes.ts` (646) - Fund 69
+- [x] `server/src/routes/emailService.ts` (118) - Kommentar korrigiert
 - [ ] `server/src/routes/equipment.ts` (68)
 - [ ] `server/src/routes/equipmentCalendar.ts` (165)
 - [ ] `server/src/routes/expenses.ts` (122)
