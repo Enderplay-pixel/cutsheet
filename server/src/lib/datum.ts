@@ -67,3 +67,17 @@ export function isoWoche(datum: string): string {
   const nummer = 1 + Math.floor((d.getTime() - Date.UTC(jahr, 0, 1)) / (7 * 86400000))
   return `${jahr}-W${nummer}`
 }
+
+/**
+ * Eine Laufzeit aus zwei Textspalten: jedes Ende leer oder ein echtes Datum,
+ * das Ende nicht vor dem Anfang. Die Datenbank prüft bei TEXT nichts.
+ * Gibt die Fehlermeldung zurück oder null.
+ */
+export function laufzeitFehler(start: unknown, ende: unknown): string | null {
+  const leer = (w: unknown) => w === null || w === undefined || w === ''
+  if ((!leer(start) && !istIsoDatum(start)) || (!leer(ende) && !istIsoDatum(ende))) {
+    return 'start_date und end_date sind ein Datum (JJJJ-MM-TT)'
+  }
+  if (!leer(start) && !leer(ende) && String(ende) < String(start)) return 'end_date darf nicht vor start_date liegen'
+  return null
+}

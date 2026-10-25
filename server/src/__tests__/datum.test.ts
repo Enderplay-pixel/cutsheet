@@ -6,7 +6,7 @@
  * die Stunden, in denen ein Nachtdreh noch läuft.
  */
 import { describe, it, expect } from 'vitest'
-import { heuteISO, istIsoDatum, berlinZeitpunkt, isoWoche } from '../lib/datum'
+import { heuteISO, istIsoDatum, berlinZeitpunkt, isoWoche, laufzeitFehler } from '../lib/datum'
 
 describe('heuteISO', () => {
   it('nimmt in der Sommernacht den deutschen Tag, nicht den UTC-Tag', () => {
@@ -62,5 +62,14 @@ describe('isoWoche', () => {
     expect(isoWoche('2026-11-09')).toBe('2026-W46') // Montag
     expect(isoWoche('2027-01-01')).toBe('2026-W53') // gehört zur letzten Woche 2026
     expect(isoWoche('2027-01-04')).toBe('2027-W1')
+  })
+})
+
+describe('laufzeitFehler', () => {
+  it('lässt leere Enden zu und weist Unsinn und verkehrte Reihenfolge ab', () => {
+    expect(laufzeitFehler('', null)).toBeNull()
+    expect(laufzeitFehler('2026-12-01', '2026-12-10')).toBeNull()
+    expect(laufzeitFehler('morgen', '')).toMatch(/ein Datum/)
+    expect(laufzeitFehler('2026-12-10', '2026-12-01')).toMatch(/nicht vor/)
   })
 })

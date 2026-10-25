@@ -2,20 +2,7 @@ import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
-import { istIsoDatum } from '../lib/datum'
-
-/**
- * Laufzeit einer Police: leer oder ein echtes Datum, das Ende nicht vor dem
- * Anfang. Die Spalten sind Text - die Datenbank prüft nichts.
- */
-function laufzeitFehler(start: unknown, ende: unknown): string | null {
-  const leer = (w: unknown) => w === null || w === undefined || w === ''
-  if ((!leer(start) && !istIsoDatum(start)) || (!leer(ende) && !istIsoDatum(ende))) {
-    return 'start_date und end_date sind ein Datum (JJJJ-MM-TT)'
-  }
-  if (!leer(start) && !leer(ende) && String(ende) < String(start)) return 'end_date darf nicht vor start_date liegen'
-  return null
-}
+import { laufzeitFehler } from '../lib/datum'
 
 const router = Router()
 
