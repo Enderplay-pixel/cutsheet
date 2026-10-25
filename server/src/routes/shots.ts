@@ -82,8 +82,10 @@ router.post('/shots/:id/storyboard', upload.single('image'), async (req, res) =>
   if (!shot) return res.status(404).json({ data: null, error: 'Einstellung nicht gefunden' })
 
   // Das vorherige Blatt ersetzen, nicht anhaeufen.
+  // Nur aus dem eigenen Projekt - siehe routes/floorplans.ts: eine
+  // zurückgespielte Kopie konnte so die Datei des Originals löschen.
   const alteId = dateiIdAus(shot.storyboard_url || '')
-  if (alteId) await db.run('DELETE FROM project_files WHERE id = ?', [alteId])
+  if (alteId) await db.run('DELETE FROM project_files WHERE id = ? AND project_id = ?', [alteId, shot.project_id])
 
   const gespeichert = await speichereDatei(db, {
     projectId: shot.project_id,

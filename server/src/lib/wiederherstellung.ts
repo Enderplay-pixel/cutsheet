@@ -49,6 +49,17 @@ const FREMDSCHLUESSEL: Record<string, string> = {
   accommodation_id: 'accommodations',
 }
 
+/**
+ * Spalten, die Adressen auf Dateien der Ablage tragen (lib/dateien.ts):
+ * eine Adresse oder eine JSON-Liste davon. Beim Zurückspielen zeigen sie auf
+ * die mitkopierten Dateien, sonst auf die des alten Projekts.
+ */
+const DATEI_ADRESSEN: Record<string, Record<string, 'eine' | 'liste'>> = {
+  floorplans: { image_url: 'eine' },
+  shots: { storyboard_url: 'eine' },
+  locations: { photos: 'liste' },
+}
+
 /** `person_type` entscheidet, worauf `person_id` zeigt. */
 const PERSONEN: Record<string, string> = { cast: 'cast', crew: 'crew' }
 
@@ -158,8 +169,6 @@ function reihenfolge(tabellen: string[], schema: Map<string, Spalte[]>): string[
       if (s.name === 'entity_id') for (const t of Object.values(ENTITAETEN)) if (offen.has(t)) ziele.add(t)
       // Drehtag-Verteiler: die Kennung steht als Text in parameter
       if (tabelle === 'email_groups' && s.name === 'parameter' && offen.has('shoot_days')) ziele.add('shoot_days')
-      // Set-Plan: das Hintergrundbild steht als Adresse in image_url
-      if (tabelle === 'floorplans' && s.name === 'image_url' && offen.has('project_files')) ziele.add('project_files')
     }
     return [...ziele]
   }
@@ -228,6 +237,7 @@ export async function importiereInhalt(
   )
 
   const karten = new Map<string, Map<number, number>>()
+  const nachtrag: Array<{ tabelle: string; id: number; name: string; art: 'eine' | 'liste'; wert: unknown }> = []
   const uebernommen: Record<string, number> = {}
   const ausgelassenZaehler = new Map<string, number>()
 
@@ -247,6 +257,7 @@ export async function importiereInhalt(
 
       const einfuegen: Record<string, unknown> = {}
       let ueberspringen: string | null = null
+      const spaeter: Array<{ name: string; art: 'eine' | 'liste'; wert: unknown }> = []
 
       for (const spalte of spalten) {
         const name = spalte.name
@@ -277,12 +288,15 @@ export async function importiereInhalt(
           continue
         }
 
-        // Das Hintergrundbild eines Set-Plans: Adresse auf die mitkopierte
-        // Datei umschreiben. Sonst zeigte sie auf das Bild des alten Projekts.
-        if (tabelle === 'floorplans' && name === 'image_url') {
-          const alt = /\/api\/projects\/\d+\/dateien\/(\d+)\/inhalt/.exec(String(roh[name] ?? ''))
-          const neu = alt ? abbilden('project_files', alt[1]) : null
-          einfuegen[name] = neu ? `/api/projects/${projektId}/dateien/${neu}/inhalt` : (alt ? '' : roh[name] ?? '')
+        // Adressen auf Dateien: erst leer einfügen, am Ende umschreiben (siehe
+        // unten) - die Dateien hängen ihrerseits an Einstellungen und Motiven,
+        // eine feste Reihenfolge gibt es also nicht.
+        const adressArt = DATEI_ADRESSEN[tabelle]?.[name]
+        if (adressArt) {
+          einfuegen[name] = adressArt === 'eine' ? '' : '[]'
+          if (roh[name] !== null && roh[name] !== undefined && roh[name] !== '') {
+            spaeter.push({ name, art: adressArt, wert: roh[name] })
+          }
           continue
         }
 
@@ -338,10 +352,33 @@ export async function importiereInhalt(
       if (namen.includes('id') && roh['id'] !== undefined && ergebnis.id) {
         karte.set(Number(roh['id']), Number(ergebnis.id))
       }
+      for (const a of spaeter) if (ergebnis.id) nachtrag.push({ tabelle, id: Number(ergebnis.id), ...a })
     }
 
     karten.set(tabelle, karte)
     if (anzahl > 0) uebernommen[tabelle] = anzahl
+  }
+
+  // Adressen auf Dateien der Ablage auf die mitkopierten Dateien umschreiben.
+  // Gemessen am 25.10.2026 zeigten Set-Plan-Bild, Storyboard und Motivfotos
+  // der Kopie auf die Dateien des alten Projekts. Was sich nicht abbilden
+  // lässt, fällt weg - eine Adresse ins alte Projekt soll nicht bleiben.
+  const umschreiben = (adresse: unknown): string | null => {
+    const alt = /\/api\/projects\/\d+\/dateien\/(\d+)\/inhalt/.exec(String(adresse ?? ''))
+    if (!alt) return String(adresse ?? '')
+    const neu = abbilden('project_files', alt[1])
+    return neu ? `/api/projects/${projektId}/dateien/${neu}/inhalt` : null
+  }
+  for (const n of nachtrag) {
+    let wert: string
+    if (n.art === 'eine') {
+      wert = umschreiben(n.wert) ?? ''
+    } else {
+      let liste: unknown = []
+      try { liste = typeof n.wert === 'string' ? JSON.parse(String(n.wert)) : n.wert } catch { liste = [] }
+      wert = JSON.stringify((Array.isArray(liste) ? liste : []).map(umschreiben).filter((x): x is string => !!x))
+    }
+    await db.run(`UPDATE ${n.tabelle} SET ${n.name} = ? WHERE id = ?`, [wert, n.id])
   }
 
   return {
