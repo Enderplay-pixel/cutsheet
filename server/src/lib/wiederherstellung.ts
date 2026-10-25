@@ -158,6 +158,8 @@ function reihenfolge(tabellen: string[], schema: Map<string, Spalte[]>): string[
       if (s.name === 'entity_id') for (const t of Object.values(ENTITAETEN)) if (offen.has(t)) ziele.add(t)
       // Drehtag-Verteiler: die Kennung steht als Text in parameter
       if (tabelle === 'email_groups' && s.name === 'parameter' && offen.has('shoot_days')) ziele.add('shoot_days')
+      // Set-Plan: das Hintergrundbild steht als Adresse in image_url
+      if (tabelle === 'floorplans' && s.name === 'image_url' && offen.has('project_files')) ziele.add('project_files')
     }
     return [...ziele]
   }
@@ -275,6 +277,15 @@ export async function importiereInhalt(
           continue
         }
 
+        // Das Hintergrundbild eines Set-Plans: Adresse auf die mitkopierte
+        // Datei umschreiben. Sonst zeigte sie auf das Bild des alten Projekts.
+        if (tabelle === 'floorplans' && name === 'image_url') {
+          const alt = /\/api\/projects\/\d+\/dateien\/(\d+)\/inhalt/.exec(String(roh[name] ?? ''))
+          const neu = alt ? abbilden('project_files', alt[1]) : null
+          einfuegen[name] = neu ? `/api/projects/${projektId}/dateien/${neu}/inhalt` : (alt ? '' : roh[name] ?? '')
+          continue
+        }
+
         let ziel = FREMDSCHLUESSEL[name]
         if (name === 'person_id') ziel = PERSONEN[String(roh['person_type'] ?? '')]
         if (name === 'entity_id') ziel = ENTITAETEN[String(roh['entity_type'] ?? '')]
@@ -294,6 +305,15 @@ export async function importiereInhalt(
         const jsonZiel = JSON_KENNUNGEN[tabelle]?.[name]
         if (jsonZiel) {
           einfuegen[name] = kennungslisteUmschreiben(roh[name], jsonZiel, abbilden)
+          continue
+        }
+
+        // Binärinhalt (Dateien der Ablage) steht in der Sicherung als JSON-Form
+        // eines Buffers. Gemessen am 25.10.2026: Zurückgespielt wurde genau
+        // dieser Text - aus einem PDF wurde '{"type":"Buffer","data":[...]}'.
+        const wert = roh[name] as any
+        if (wert && typeof wert === 'object' && wert.type === 'Buffer' && Array.isArray(wert.data)) {
+          einfuegen[name] = Buffer.from(wert.data)
           continue
         }
 

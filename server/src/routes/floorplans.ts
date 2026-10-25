@@ -134,9 +134,12 @@ router.delete('/floorplans/:planId', async (req, res) => {
   const plan = await loadPlan(req, res)
   if (!plan) return
 
-  // Auch das Hintergrundbild wegräumen, sonst sammeln sich Waisen in der Ablage
+  // Auch das Hintergrundbild wegräumen, sonst sammeln sich Waisen in der Ablage -
+  // aber nur aus dem eigenen Projekt. Gemessen am 25.10.2026: Eine
+  // zurückgespielte Kopie trägt die Bildadresse des Originals, und das
+  // Löschen ihres Plans löschte das Bild des Originals.
   const bildId = dateiIdAus(plan.image_url || '')
-  if (bildId) await db.run('DELETE FROM project_files WHERE id = ?', [bildId])
+  if (bildId) await db.run('DELETE FROM project_files WHERE id = ? AND project_id = ?', [bildId, plan.project_id])
   await db.run('DELETE FROM floorplans WHERE id = ?', [req.params.planId])
   res.json({ data: { ok: true }, error: null })
 })
@@ -149,7 +152,7 @@ router.post('/floorplans/:planId/image', upload.single('image'), async (req, res
 
   // Vorheriges Bild ersetzen, nicht anhäufen
   const alteId = dateiIdAus(plan.image_url || '')
-  if (alteId) await db.run('DELETE FROM project_files WHERE id = ?', [alteId])
+  if (alteId) await db.run('DELETE FROM project_files WHERE id = ? AND project_id = ?', [alteId, plan.project_id])
 
   const gespeichert = await speichereDatei(db, {
     projectId: plan.project_id,
@@ -246,7 +249,7 @@ router.get('/floorplans/:planId/pdf', async (req, res) => {
       const dateiId = dateiIdAus(plan.image_url)
       if (dateiId) {
         const datei = await db.get(
-          'SELECT mime, content FROM project_files WHERE id = ?', [dateiId]
+          'SELECT mime, content FROM project_files WHERE id = ? AND project_id = ?', [dateiId, plan.project_id]
         ) as any
         if (datei?.content) {
           dataUri = `data:${datei.mime || 'image/png'};base64,`

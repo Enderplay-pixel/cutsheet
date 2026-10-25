@@ -1988,5 +1988,20 @@ describe('Sicherung zurückspielen', () => {
     expect(gruppe.parameter).toBe(String(tag.id))
     expect((await db.get('SELECT group_id FROM email_group_members WHERE project_id = ?', [ziel])).group_id).toBe(gruppe.id)
   })
+
+  it('spielt Dateien mit ihrem Inhalt zurück und schreibt die Bildadresse um', async () => {
+    const { importiereInhalt } = await import('../lib/wiederherstellung')
+    const ziel = (await db.run("INSERT INTO projects (title, owner_id) VALUES ('Import-Ziel 3', ?)", [nutzerId])).id
+    // So steht ein Buffer nach JSON.stringify in der Sicherung
+    const inhalt = JSON.parse(JSON.stringify(Buffer.from('%PDF-1')))
+    await importiereInhalt({
+      project_files: [{ id: 701, kind: 'grundriss', filename: 'plan.png', mime: 'image/png', content: inhalt }],
+      floorplans: [{ id: 801, name: 'Plan', image_url: '/api/projects/1/dateien/701/inhalt' }],
+    }, ziel, nutzerId)
+    const datei = await db.get('SELECT id, content FROM project_files WHERE project_id = ?', [ziel])
+    expect(Buffer.from(datei.content).toString()).toBe('%PDF-1')
+    const plan = await db.get('SELECT image_url FROM floorplans WHERE project_id = ?', [ziel])
+    expect(plan.image_url).toBe(`/api/projects/${ziel}/dateien/${datei.id}/inhalt`)
+  })
 })
 

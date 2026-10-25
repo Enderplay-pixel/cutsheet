@@ -230,6 +230,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 73 | `server/src/routes/equipmentCalendar.ts` | Fehler | Die Konfliktprüfung hielt zwei Buchungen ohne Posten immer für dasselbe Gerät (`null === null`): "Kran / Dolly" als Konflikt. Datumsfelder nahmen "abc" an (Textspalten). Beim Ändern ließ sich der Anfang hinter das gespeicherte Ende legen; eine fehlende Buchung ergab 200. | ja: alle vier | behoben: ohne Posten entscheidet der Name, echtes Datum Pflicht, Reihenfolge gegen den gespeicherten Stand, 404; danach "Kran / kran" weiter Konflikt, Kran / Dolly nicht |
 | 74 | `server/src/routes/expenses.ts` (`kostenstand`) | Fehler | Kalkulationszeilen ohne Kategorie standen unter `""`, Belege ohne Kategorie unter "Ohne Kategorie" - Soll und Ist derselben Sache in zwei Zeilen. | ja: `"": Soll 500, Ist 0` und `"Ohne Kategorie": Soll 0, Ist 200` | behoben: beide unter "Ohne Kategorie"; danach eine Zeile Soll 500, Ist 200 |
 | 75 | `server/src/routes/feedback.ts` (`PUT /feedback/:id`) | Klein | Fehlender Eintrag: 200 (Muster aus Fund 51, vom Scan). | ja | behoben: 404; vorhandener 200 |
+| 76 | `server/src/routes/floorplans.ts` (Löschen, Bild ersetzen, PDF) | **Datenverlust** | Die Bilddatei eines Set-Plans wurde über die Kennung aus `image_url` gelöscht und gelesen, ohne Prüfung des Projekts. Eine zurückgespielte Kopie trägt die Adresse des Originals: Das Löschen ihres Plans löschte das Bild des Originals. | ja: Plan der Kopie gelöscht → Bild des Originals weg | behoben: nur Dateien des eigenen Projekts; danach Bild des Originals noch da |
+| 77 | `server/src/lib/wiederherstellung.ts` (Dateiinhalt, `image_url`) | **Datenverlust, live** | Beim Zurückspielen wurde jede Datei der Ablage kaputt gespeichert: In der Sicherung steht der Inhalt als `{"type":"Buffer","data":[…]}`, und genau dieser Text landete in der Datenbank (aus einem 6-Byte-PDF wurden 44 Bytes JSON). Betrifft Drehgenehmigungen, Vertragsscans, Nachweise, Grundrisse. Dazu zeigte die Bildadresse eines Set-Plans auf das Original. | ja: `%PDF-1` → `{"type":"Buf…` | behoben: Buffer-Form wird zurückgewandelt (auch für alte Sicherungen), Bildadresse auf die mitkopierte Datei umgeschrieben; danach Inhalt gleich, Kopie liefert ihr Bild aus. Test, gegen alten Stand rot. **Projekte, die schon zurückgespielt wurden, haben kaputte Dateien** - die Originale (Sicherungsdatei, altes Projekt) sind unversehrt |
 
 ## Abhakliste
 
@@ -294,7 +296,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/expenses.ts` (122) - Funde 38, 74
 - [x] `server/src/routes/extras.ts` (101)
 - [x] `server/src/routes/feedback.ts` (41) - Fund 75
-- [ ] `server/src/routes/floorplans.ts` (287)
+- [x] `server/src/routes/floorplans.ts` (287) - Funde 57, 76
 - [ ] `server/src/routes/foerderantrag.ts` (198)
 - [ ] `server/src/routes/guestTokens.ts` (96)
 - [ ] `server/src/routes/ical.ts` (143)
