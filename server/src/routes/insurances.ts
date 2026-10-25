@@ -2,6 +2,20 @@ import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
+import { istIsoDatum } from '../lib/datum'
+
+/**
+ * Laufzeit einer Police: leer oder ein echtes Datum, das Ende nicht vor dem
+ * Anfang. Die Spalten sind Text - die Datenbank prüft nichts.
+ */
+function laufzeitFehler(start: unknown, ende: unknown): string | null {
+  const leer = (w: unknown) => w === null || w === undefined || w === ''
+  if ((!leer(start) && !istIsoDatum(start)) || (!leer(ende) && !istIsoDatum(ende))) {
+    return 'start_date und end_date sind ein Datum (JJJJ-MM-TT)'
+  }
+  if (!leer(start) && !leer(ende) && String(ende) < String(start)) return 'end_date darf nicht vor start_date liegen'
+  return null
+}
 
 const router = Router()
 
@@ -45,6 +59,8 @@ router.post('/projects/:projectId/insurances', requireAuth, async (req: Request,
       notes?: string
       sort_order?: number
     }
+    const fehler = laufzeitFehler(start_date, end_date)
+    if (fehler) return res.status(400).json({ data: null, error: fehler })
     const result = await db.run(`
       INSERT INTO insurances (project_id, ins_type, provider, policy_number, coverage_amount_cents, premium_cents, start_date, end_date, notes, sort_order)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -87,6 +103,9 @@ router.put('/projects/:projectId/insurances/:id', requireAuth, async (req: Reque
       notes?: string
       sort_order?: number
     }
+    // Gegen das, was nach dem Ändern dasteht
+    const fehler = laufzeitFehler(start_date ?? existing.start_date, end_date ?? existing.end_date)
+    if (fehler) return res.status(400).json({ data: null, error: fehler })
 
     await db.run(`
       UPDATE insurances SET

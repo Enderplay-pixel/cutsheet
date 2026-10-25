@@ -242,6 +242,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 78 | `server/src/routes/foerderantrag.ts:39` | Fehler, Inhalt | "Schlüsselpositionen" im Förderantrag: jede Rolle aus Regie und Produktion und jede mit "Ton" im Namen. In der Großproduktion 16 Einträge, darunter Regiepraktikum, Produktionssekretariat, Tonangel, Schnittassistenz; Szenenbild, Kostüm- und Maskenbild fehlten. | ja: Export von Projekt 1 und 7 | behoben: Leitung der Gewerke nach Rollennamen, Assistenzen/Praktika ausgeschlossen; danach Projekt 1 acht, Projekt 7 vierzehn Gewerkleitungen. Mehrere Personen mit gleicher Rolle ("Maskenbild") bleiben mehrfach - das geben die Daten nicht her |
 | 79 | `server/src/routes/guestTokens.ts` (`GET /guest/:token`) | Datenschutz, Hinweis | Der öffentliche Gastlink lieferte ganze Zeilen (`SELECT *`) von Projekt und Dispo-Einträgen, mehr als jede Ansicht braucht. Die Gastlink-Funktion hat keine Oberfläche: Keine Seite legt Gastlinks an oder zeigt sie; die Check-in-Tafel nennt einen Pfad `/guest/checkin/{Drehtag}`, den es nicht gibt (rohe 404-Seite). Ein ungültiges `expires_at` lässt einen Gastlink nie ablaufen. | ja: Felder ausgezählt; Pfad im Browser → "Unexpected Application Error! 404" | Antwort begrenzt (Projekt: id, Titel, Format, Genre; Einträge ohne Kontakt- und Tokenfelder). **Offen für Florian:** Gastlink-Funktion fertigbauen oder entfernen; den Hinweis auf der Check-in-Tafel behebe ich bei `CheckinBoard.tsx` |
 | 80 | `server/src/routes/ical.ts` (Call-Zeiten im Kalenderexport) | **Fehler, live** | Die Call-Zeit wurde über `setHours` in der Zeitzone des Servers gerechnet. Beim Hoster (UTC) stand Call 07:00 als 07:00 UTC im Kalender - 08:00 Uhr deutscher Zeit, im Sommer 09:00. | ja: Zweitinstanz mit `TZ=UTC`: `20261102T070000Z`, lokal `060000Z` | behoben: `berlinZeitpunkt` in `lib/datum.ts` (unabhängig von der Serverzeitzone, getestet unter Berlin, UTC, New York); danach beide `060000Z` |
+| 81 | `server/src/routes/insurances.ts` | Klein | Laufzeit einer Police in Textspalten ohne jede Prüfung (wie Sperrtage, Fund 48). | nein, vorher gelesen; nach dem Fix gemessen | behoben: leer oder echtes Datum, Ende nicht vor Anfang (auch gegen den gespeicherten Stand); danach `abc` 400, Ende vor Anfang 400, leeres Formular 201 |
 
 ## Abhakliste
 
@@ -310,7 +311,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/foerderantrag.ts` (198) - Fund 78
 - [x] `server/src/routes/guestTokens.ts` (96) - Fund 79
 - [x] `server/src/routes/ical.ts` (143) - Fund 80
-- [ ] `server/src/routes/insurances.ts` (138)
+- [x] `server/src/routes/insurances.ts` (138) - Fund 81
 - [ ] `server/src/routes/invites.ts` (214)
 - [ ] `server/src/routes/invoices.ts` (675)
 - [ ] `server/src/routes/locationRelease.ts` (129)
