@@ -1301,6 +1301,14 @@ export async function initDatabase() {
   // Was beim Löschen per CASCADE mitging oder per SET NULL gelöst wurde (lib/papierkorb.ts)
   await db.exec(`ALTER TABLE deleted_items ADD COLUMN IF NOT EXISTS dependents TEXT`)
 
+  // Überstunden bei Drehschluss nach Mitternacht nachrechnen. Bis zum
+  // 25.10.2026 ergab wrap < call immer 0 (routes/timesheets.ts). Wiederholbar:
+  // trifft nur Zeilen, deren Wert noch nicht stimmt.
+  await db.exec(`UPDATE timesheets
+    SET overtime_hours = GREATEST(0, (wrap_time + 1440 - call_time) / 60.0 - 10)
+    WHERE call_time IS NOT NULL AND wrap_time IS NOT NULL AND wrap_time < call_time
+      AND overtime_hours <> GREATEST(0, (wrap_time + 1440 - call_time) / 60.0 - 10)`)
+
   // ── Zweiter Faktor und Sitzungen ──────────────────────────────────────────
   // Ein Passwort allein schuetzt Gagen, Telefonnummern und Drehorte einer
   // ganzen Produktion. Wer will, haengt ein Geraet davor.

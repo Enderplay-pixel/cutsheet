@@ -1,16 +1,24 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
+import { dauer } from '../lib/drehzeit'
+import { schreibeCsv } from '../lib/tabelle'
 
 const router = Router()
 
-// Arbeitszeiten und Gagen: bisher genuegte irgendein Konto, egal welches Projekt
+// Arbeitszeiten und Gagen: bisher genügte irgendein Konto, egal welches Projekt
 router.use('/shoot-days/:dayId', requireMemberVia(projectIdFromTable('shoot_days', 'dayId')))
 router.use('/projects/:pid', requireMemberVia(async req => Number(req.params.pid) || null))
 
+/**
+ * Stunden über zehn. Mit `dauer()`, die den Tageswechsel trägt - gemessen am
+ * 25.10.2026: 08:00 bis 02:00, also 18 Stunden, ergab 0 Überstunden. Die
+ * Gagenliste summiert diesen Wert.
+ */
 function calcOvertimeHours(callTime: number | null, wrapTime: number | null): number {
-  if (callTime == null || wrapTime == null) return 0
-  return Math.max(0, (wrapTime - callTime) / 60 - 10)
+  const minuten = dauer(callTime, wrapTime)
+  if (minuten === null) return 0
+  return Math.max(0, minuten / 60 - 10)
 }
 
 function minutesToHHMM(minutes: number | null): string {
@@ -73,7 +81,10 @@ router.get('/shoot-days/:dayId/timesheets', async (req: Request, res: Response) 
     [req.params.dayId]
   ) as any[]
 
-  const enriched = mitNamen(rows, await ladeNamen(req.params.pid))
+  // Das Projekt kommt vom Drehtag. Vorher req.params.pid - den gibt es auf
+  // dieser Route nicht, jede Zeile kam ohne Namen (gemessen am 25.10.2026).
+  const tag = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [req.params.dayId]) as any
+  const enriched = mitNamen(rows, tag ? await ladeNamen(tag.project_id) : new Map())
   return res.json({ data: enriched, error: null })
 })
 
@@ -171,23 +182,23 @@ router.get('/projects/:pid/timesheets/export.csv', async (req: Request, res: Res
   // Enrich with person names
   const enriched = mitNamen(rows, await ladeNamen(req.params.pid))
 
-  const header = 'Name,Tag,Datum,Call,Wrap,Überstunden,Notizen'
-  const lines = enriched.map((r: any) => {
-    const name = `"${(r.person_name || '').replace(/"/g, '""')}"`
-    const tag = r.day_number ?? ''
-    const datum = r.date ?? ''
-    const call = minutesToHHMM(r.call_time)
-    const wrap = minutesToHHMM(r.wrap_time)
-    const overtime = typeof r.overtime_hours === 'number' ? r.overtime_hours.toFixed(2) : '0.00'
-    const notes = `"${(r.notes || '').replace(/"/g, '""')}"`
-    return [name, tag, datum, call, wrap, overtime, notes].join(',')
-  })
-
-  const csv = [header, ...lines].join('\r\n')
+  // Wie jeder Export: Semikolon und Dezimalkomma (lib/tabelle.ts, Fund 92)
+  const csv = schreibeCsv(
+    ['Name', 'Tag', 'Datum', 'Call', 'Wrap', 'Überstunden', 'Notizen'],
+    enriched.map((r: any) => [
+      r.person_name || '',
+      r.day_number ?? '',
+      r.date ?? '',
+      minutesToHHMM(r.call_time),
+      minutesToHHMM(r.wrap_time),
+      Number(r.overtime_hours || 0).toFixed(2).replace('.', ','),
+      r.notes || '',
+    ])
+  )
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8')
   res.setHeader('Content-Disposition', `attachment; filename="timesheets-project-${req.params.pid}.csv"`)
-  return res.send('﻿' + csv) // BOM for Excel UTF-8 compatibility
+  return res.send(csv)
 })
 
 export default router
