@@ -102,9 +102,8 @@ Stand am 24.10.2026, 23 Uhr:
   das nur `RCPT TO` mitschreibt, und eine zweite Instanz mit
   `SMTP_HOST=127.0.0.1 SMTP_PORT=2525` auf Port 3099. Hinterher die
   Prozesse beenden: `netstat -ano` zeigt unter deutschem Windows "ABHÖREN".
-- **Nicht gepusht:** alles ab `da3a6ba`. Fund 5 (fremde Projekte über den Body)
-  und Fund 9 (Projekte gelöschter Konten) sind in der Produktion offen und
-  sollten mit der nächsten Freigabe raus.
+- **Gepusht und online** bis `ca38c75` (25.10.2026, siehe Deploy-Prüfung).
+  Was danach committet ist, steht mit `git log origin/master..HEAD` da.
 - Messskripte dieser Sitzung lagen im Scratchpad und sind weg; sie stehen
   sinngemäß in den Commit-Texten (`git log`), dort auch die Messwerte.
 
@@ -126,6 +125,14 @@ Je Datei:
 5. Nach jeder Gruppe: Tests, Typprüfung, Commit.
 
 ## Deploy-Prüfung
+
+**Zweiter Deploy am 25.10.2026, gegen 17:45.** Push `5612997..ca38c75`
+(31 Commits, Funde 1-64) mit Florians Freigabe. Lokal `npm run build` wie auf
+Render: fehlerfrei. Online ohne Anmeldung geprüft: `/api/health` ok, Hauptbundle
+`index-C_TjEwAf.js` → `index-CR4ALchc.js`; die neuen Texte stehen im
+ausgelieferten Code (`AdminStats`: "Adresse in Mail-Links", `Tagesdispo`:
+`nicht_zustellbar`). `curl` erreicht Render aus der Sandbox nicht
+(Namensauflösung) - geprüft über das eingebaute Browserfenster.
 
 **Erledigt am 24.10.2026, 18:21:40.** Push `a631cf2..5612997` (28 Commits) ist
 auf `https://cutsheet.onrender.com` ausgeliefert. Vorher lokal `npm run build`
