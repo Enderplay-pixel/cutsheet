@@ -209,6 +209,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 61 | `server/src/routes/conflicts.ts` (Konfliktradar) | Fehler, Text | Zwei Drehtage ohne Datum ergaben die Warnung "Mehrere Drehtage am " (Scheinkonflikt). Ohne Finanzierungsplan stand "übersteigt Finanzierung (NaN €)". Tage ohne Datum hießen "Drehtag 1 () enthält keine Szenen", sonst stand das ISO-Datum im deutschen Satz. | ja: Wegwerfprojekt mit zwei Tagen ohne Datum, Kalkulation 12.345 €, ohne Finanzierung | behoben: Tage ohne Datum zählen nicht als Konflikt, fehlende Finanzierung 0 €, Datum als `04.11.2026` oder "ohne Datum"; danach gemessen, ein echter Konflikt am selben Datum wird weiter gemeldet |
 | 62 | `server/src/routes/crew.ts` (`PUT /crew/:id`) | Klein | Fehlender Stabeintrag: 200 ohne Daten (Muster aus Fund 51, vom Scan gefunden). | ja | behoben: 404; vorhandener Eintrag 200 |
 | 63 | `server/src/routes/dailyreports.ts:50` (`time-analysis`), `PUT /daily-reports/:id` | Fehler, klein | Die Zeitanalyse sortierte nach `scene_number` (Text): "1 10 100 101 101A … 11". Ein fehlender Bericht gab beim Ändern 200 ohne Daten. | ja: Großproduktion, 160 Szenen | behoben: Reihenfolge wie die Szenenliste (`sort_order`, dann Nummer), danach identisch; 404 |
+| 64 | `server/src/routes/dateien.ts` (`GET /companies/:id/dateien/fristen`) | Fehler | Wie Fund 33: Abgelaufene Nachweise abgeschlossener Projekte standen in der Fristenliste der Firma. | ja: Drehgenehmigung des archivierten Projekts "Messarchiv" gelistet | behoben: nur nicht archivierte Projekte; Gegenprobe mit laufendem Projekt weiter gelistet |
 
 ## Abhakliste
 
@@ -262,7 +263,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/creator.ts` (710) - Fund 57
 - [x] `server/src/routes/crew.ts` (46) - Fund 62
 - [x] `server/src/routes/dailyreports.ts` (221) - Fund 63
-- [ ] `server/src/routes/dateien.ts` (236)
+- [ ] `server/src/routes/dateien.ts` (236) - Fund 64; Durchsicht noch nicht abgeschlossen
 - [ ] `server/src/routes/datenschutz.ts` (202)
 - [ ] `server/src/routes/dood.ts` (126)
 - [ ] `server/src/routes/drehplan.ts` (305)

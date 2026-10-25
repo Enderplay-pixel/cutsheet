@@ -203,7 +203,9 @@ router.get('/projects/:projectId/dateien/:id/inhalt', requireAuth, requireMember
  * Nachweise, die ablaufen - über alle Projekte einer Firma.
  *
  * Wird von der Sammelansicht gelesen. Eine Drehgenehmigung, die am Drehtag
- * abgelaufen ist, hält den Dreh an.
+ * abgelaufen ist, hält den Dreh an. Abgeschlossene Projekte nicht - wie in
+ * routes/anliegen.ts (Fund 33); gemessen am 25.10.2026 stand ihre abgelaufene
+ * Genehmigung hier noch.
  */
 router.get('/companies/:companyId/dateien/fristen', requireAuth, erfordereFirma(), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
@@ -211,7 +213,7 @@ router.get('/companies/:companyId/dateien/fristen', requireAuth, erfordereFirma(
   const zeilen = (await db.all(
     `SELECT f.id, f.kind, f.filename, f.title, f.valid_until, f.project_id, p.title AS projekt
        FROM project_files f JOIN projects p ON f.project_id = p.id
-      WHERE p.company_id = ? AND f.valid_until IS NOT NULL
+      WHERE p.company_id = ? AND p.archived = 0 AND f.valid_until IS NOT NULL
       ORDER BY f.valid_until ASC`,
     [companyId]
   )) as any[]
