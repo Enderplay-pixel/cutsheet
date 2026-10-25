@@ -207,6 +207,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 58 | `server/src/routes/drehplan.ts` (`POST /shoot-days/move-scene`) | Zugriff | Prüfte nur die Mitgliedschaft; ein Leser schob Szenen auf andere Drehtage. Der Pfad trägt keine Kennung, der Schutz kann ihn nicht auflösen. | ja: Leser verschiebt Szene 1 von Tag 1 nach 2, 200 | behoben: mindestens Abteilungsleitung; danach Leser 403, Abteilungsleitung 200. Dazu Übersetzungen für die drei Rollenmeldungen des Schutzes |
 | 59 | `server/src/routes/characters.ts` (`PUT /characters/:id`, `PUT /cast/:id`), `checkin.ts:9` | Klein, Text | Fehlende Figur oder fehlender Darsteller: 200 ohne Daten (wie Fund 51). In `checkin.ts` stand "public, no auth required" - der Check-in verlangt eine Anmeldung. | ja: 200 `{"error":null}`; Check-in ohne Anmeldung 401 | behoben: 404; Kommentar richtiggestellt |
 | 60 | `server/src/routes/confirmation.ts` (`POST /cse/t/:token/claim`) | **Sicherheit, Entscheidung** | Wer den Dispo-Link einer Person hat, legt mit deren Adresse ein Konto an (ohne Bestätigung der Adresse) und ist danach Leser im Projekt - mit Lesezugriff auf Kalkulation, Gagen, Stab und Besetzung. Dispo-Links werden am Set weitergeleitet; der echte Inhaber kann sich danach nicht mehr registrieren (409), sondern kommt nur über "Passwort vergessen" an das Konto. | ja: Link → Konto → 17 Kalkulationszeilen, Stab mit Gage, Besetzung lesbar | offen, für Florian: Bestätigungsmail an die Adresse statt sofortigem Konto, oder eine engere Rolle für so entstandene Konten |
+| 61 | `server/src/routes/conflicts.ts` (Konfliktradar) | Fehler, Text | Zwei Drehtage ohne Datum ergaben die Warnung "Mehrere Drehtage am " (Scheinkonflikt). Ohne Finanzierungsplan stand "übersteigt Finanzierung (NaN €)". Tage ohne Datum hießen "Drehtag 1 () enthält keine Szenen", sonst stand das ISO-Datum im deutschen Satz. | ja: Wegwerfprojekt mit zwei Tagen ohne Datum, Kalkulation 12.345 €, ohne Finanzierung | behoben: Tage ohne Datum zählen nicht als Konflikt, fehlende Finanzierung 0 €, Datum als `04.11.2026` oder "ohne Datum"; danach gemessen, ein echter Konflikt am selben Datum wird weiter gemeldet |
 
 ## Abhakliste
 
@@ -254,7 +255,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/checkin.ts` (65) - Fund 59
 - [x] `server/src/routes/companies.ts` (509) - Fund 28
 - [x] `server/src/routes/confirmation.ts` (159) - Funde 39, 60
-- [ ] `server/src/routes/conflicts.ts` (285)
+- [x] `server/src/routes/conflicts.ts` (285) - Fund 61
 - [ ] `server/src/routes/contactsExport.ts` (81)
 - [ ] `server/src/routes/continuity.ts` (178)
 - [ ] `server/src/routes/creator.ts` (710)

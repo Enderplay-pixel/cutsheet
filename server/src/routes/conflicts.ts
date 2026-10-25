@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { db } from '../db'
 import { requireMember } from '../middleware/projectAuth'
 import { ruhezeit } from '../lib/drehzeit'
+import { istIsoDatum } from '../lib/datum'
 
 const router = Router()
 
@@ -20,6 +21,16 @@ router.use('/projects/:projectId', requireMember)
  * Vertrauen, das sie nicht deckt. Deshalb steht ein Ausfall jetzt im Log UND
  * im Ergebnis - der Radar sagt, was er nicht prüfen konnte.
  */
+/**
+ * Ein Drehtagsdatum für den Satz: "04.11.2026" oder "ohne Datum".
+ * Gemessen am 25.10.2026 stand ohne Datum "Drehtag 1 () enthält keine
+ * Szenen", sonst das ISO-Datum mitten im deutschen Satz.
+ */
+function datumText(datum: unknown): string {
+  const d = String(datum ?? '')
+  return istIsoDatum(d) ? d.split('-').reverse().join('.') : 'ohne Datum'
+}
+
 async function pruefung(name: string, ziel: any[], fn: () => Promise<void>) {
   try {
     await fn()
@@ -93,7 +104,7 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
     emptyDays.forEach(d => {
       conflicts.push({
         severity: 'warning', category: 'Drehplan',
-        message: `Drehtag ${d.day_number} (${d.date}) enthält keine Szenen`,
+        message: `Drehtag ${d.day_number} (${datumText(d.date)}) enthält keine Szenen`,
         link: 'drehplan'
       })
     })
@@ -145,7 +156,8 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
       conflicts.push({
         severity: 'warning', category: 'Budget',
         message: `Finanzierungslücke von ${(gap / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}`,
-        detail: `Budget (${(budget?.t / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}) übersteigt Finanzierung (${(financing?.t / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })})`,
+        // Ohne Finanzierungsplan ist die Finanzierung 0 - vorher stand dort "NaN €".
+        detail: `Budget (${((budget?.t || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}) übersteigt Finanzierung (${((financing?.t || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })})`,
         link: 'budget'
       })
     }
@@ -250,7 +262,7 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
       }
       if (verletzungen.length === 0) continue
       const kuerzeste = verletzungen.reduce((a, v) => (v.stunden < a.stunden ? v : a))
-      const liste = verletzungen.slice(0, 3).map(v => `${v.von} → ${v.bis}: ${v.stunden}h`).join('; ')
+      const liste = verletzungen.slice(0, 3).map(v => `${datumText(v.von)} → ${datumText(v.bis)}: ${v.stunden}h`).join('; ')
       conflicts.push({
         severity: 'warning', category: 'Turnaround',
         message: verletzungen.length === 1
@@ -267,12 +279,15 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
     const sameDateDays = await db.all(`
       SELECT date, COUNT(*) as c FROM shoot_days
       WHERE project_id = ? AND status NOT IN ('Sperrtag', 'Drehfrei', 'Ausgefallen')
+        -- Tage ohne Datum sind noch nicht terminiert, kein Konflikt. Vorher
+        -- meldete der Radar für zwei davon "Mehrere Drehtage am ".
+        AND date <> ''
       GROUP BY date HAVING COUNT(*) > 1
     `, [pid]) as any[]
     sameDateDays.forEach(d => {
       conflicts.push({
         severity: 'warning', category: 'Drehplan',
-        message: `Mehrere Drehtage am ${d.date}`,
+        message: `Mehrere Drehtage am ${datumText(d.date)}`,
         detail: `${d.c} aktive Drehtage am selben Datum - Terminkonflikt prüfen.`,
         link: 'drehplan'
       })
