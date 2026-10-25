@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import { db } from '../db'
+import { KEINE_ID } from './eingabe'
 
 // ─── Role hierarchy ────────────────────────────────────────────────────────────
 export const ROLE_RANK: Record<string, number> = {
@@ -37,6 +38,12 @@ export async function requireMember(req: Request, res: Response, next: NextFunct
 
   // Global site admins can access any project
   if (user.role === 'admin') return next()
+
+  // POST /projects/import legt das Projekt erst an - Mitglied kann man darin
+  // noch nicht sein. Gemessen am 25.10.2026: Ohne diese Ausnahme bekam jedes
+  // Konto ausser einem globalen Admin "Kein Zugriff auf dieses Projekt" - der
+  // Schutz haengt global in index.ts und in 31 Routern, hier greift er fuer alle.
+  if (KEINE_ID.has(String(req.params.projectId))) return next()
 
   const projectId = Number(req.params.projectId)
   const role = await getUserProjectRole(user.id, projectId)

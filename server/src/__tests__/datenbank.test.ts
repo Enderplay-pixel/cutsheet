@@ -1930,3 +1930,47 @@ describe('Passwort und Sitzungen', () => {
     expect(nochmal.status).toBe(400)
   }, 60_000)
 })
+
+describe('Sicherung zurückspielen', () => {
+  /**
+   * Gemessen am 25.10.2026: Jedes Konto außer einem globalen Admin bekam beim
+   * Zurückspielen 403 - requireMember hielt "import" für eine Projektnummer.
+   * Für Admins übernahm es Verweise in fremde Firmen wörtlich und legte
+   * Rechnungen als Doppel an.
+   */
+  it('lässt /projects/import durch, aber kein fremdes Projekt', async () => {
+    const { requireMember } = await import('../middleware/projectAuth')
+    const antwort = () => {
+      const r: any = { code: 0 }
+      r.status = (c: number) => { r.code = c; return r }
+      r.json = () => r
+      return r
+    }
+    const nutzer = { id: fremdeId, role: 'user' }
+    let weiter = false
+    await requireMember({ user: nutzer, params: { projectId: 'import' } } as any, antwort(), () => { weiter = true })
+    expect(weiter).toBe(true)
+    const fremd = antwort()
+    weiter = false
+    await requireMember({ user: nutzer, params: { projectId: String(projektId) } } as any, fremd, () => { weiter = true })
+    expect(weiter).toBe(false)
+    expect(fremd.code).toBe(403)
+  })
+
+  it('übernimmt keine Verweise in Firmen und keine Rechnungen', async () => {
+    const { importiereInhalt } = await import('../lib/wiederherstellung')
+    const firma = (await db.run("INSERT INTO companies (name, owner_id) VALUES ('Fremde Firma', ?)", [fremdeId])).id
+    const kontakt = (await db.run("INSERT INTO company_contacts (company_id, name) VALUES (?, 'Geheimer Kontakt')", [firma])).id
+    const ziel = (await db.run("INSERT INTO projects (title, owner_id) VALUES ('Import-Ziel', ?)", [nutzerId])).id
+    const bericht = await importiereInhalt({
+      invoices: [{ id: 1, company_id: firma, number: 'DOPPEL-1', kind: 'rechnung', status: 'versendet' }],
+      crew: [{ id: 1, name: 'Mit Kontakt', contact_id: kontakt }],
+      contract_templates: [{ id: 1, company_id: firma, name: 'Vorlage', body: 'x' }],
+    }, ziel, nutzerId)
+    expect(bericht.uebernommen.invoices).toBeUndefined()
+    expect(Number((await db.get("SELECT COUNT(*) AS c FROM invoices WHERE number = 'DOPPEL-1'")).c)).toBe(0)
+    expect((await db.get('SELECT contact_id FROM crew WHERE project_id = ?', [ziel])).contact_id).toBeNull()
+    expect((await db.get('SELECT company_id FROM contract_templates WHERE project_id = ?', [ziel])).company_id).toBeNull()
+  })
+})
+

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
-import { importiereInhalt } from '../lib/wiederherstellung'
+import { importiereInhalt, istGeheimnis } from '../lib/wiederherstellung'
 
 const router = Router()
 
@@ -71,24 +71,11 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
        ORDER BY table_name`
     ) as Array<{ table_name: string }>
 
-    // Geheimnisse gehoeren nicht in eine Datei, die heruntergeladen und
-    // weitergereicht wird. Wer die Sicherung hat, haette sonst Zugriff auf
-    // das verknuepfte YouTube-Konto.
-    const nichtExportieren = new Set(['access_token', 'refresh_token'])
-
     for (const { table_name } of mitProjektspalte) {
       // Nur echte Bezeichner, damit nichts Fremdes in die Abfrage geraet
       if (!/^[a-z_][a-z0-9_]*$/.test(table_name)) continue
-      const zeilen = await db.all(
+      backup[table_name] = await db.all(
         `SELECT * FROM ${table_name} WHERE project_id = ?`, [projectId]) as Record<string, unknown>[]
-      backup[table_name] = zeilen.map(z => {
-        const sauber: Record<string, unknown> = {}
-        for (const [spalte, wert] of Object.entries(z)) {
-          if (nichtExportieren.has(spalte)) continue
-          sauber[spalte] = wert
-        }
-        return sauber
-      })
     }
 
     // Die Liste oben deckt nur noch Kindtabellen OHNE project_id ab.
@@ -150,6 +137,23 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
       ? await db.all(`SELECT * FROM equipment_items WHERE equipment_list_id IN ${inList(equipListIds)}`)
       : []
 
+    // Geheimnisse gehoeren nicht in eine Datei, die heruntergeladen und
+    // weitergereicht wird - aus keiner Tabelle. Dieselbe Regel wie beim
+    // Zurueckspielen, das solche Spalten ohnehin verwirft. Vorher fielen nur
+    // die YouTube-Zugaenge heraus. Gemessen am 25.10.2026: Ein Mitglied mit
+    // Lesezugriff fand in der Sicherung den Einladungslink einer Produzentin,
+    // nahm ihn an und war danach selbst Produzent - die Einladungsliste
+    // selbst sehen nur Projekt-Admins.
+    for (const tabelle of Object.keys(backup)) {
+      backup[tabelle] = (backup[tabelle] as Record<string, unknown>[]).map((zeile) => {
+        const sauber: Record<string, unknown> = {}
+        for (const [spalte, wert] of Object.entries(zeile)) {
+          if (!istGeheimnis(spalte)) sauber[spalte] = wert
+        }
+        return sauber
+      })
+    }
+
     const exportData = {
       version: 1,
       exported_at: new Date().toISOString(),
@@ -175,6 +179,7 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
  * der Datei, 0 nach dem Zurückspielen.
  */
 router.post('/projects/import', requireAuth, async (req: Request, res: Response) => {
+  let newProjectId: number | null = null
   try {
     const body = req.body as { data?: { version?: number; data?: Record<string, unknown[]> } }
     if (!body.data || !body.data.data) {
@@ -207,7 +212,7 @@ router.post('/projects/import', requireAuth, async (req: Request, res: Response)
       originalProject['shoot_end'] || null,
       nutzerId,
     ])
-    const newProjectId = newProjectResult.id
+    newProjectId = Number(newProjectResult.id)
 
     await db.run(
       'INSERT INTO project_members (project_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT (project_id, user_id) DO NOTHING',
@@ -223,6 +228,13 @@ router.post('/projects/import', requireAuth, async (req: Request, res: Response)
     })
   } catch (err) {
     console.error('[backup import POST]', err)
+    // Halb zurückgespielt ist schlimmer als gar nicht: Gemessen am 25.10.2026
+    // stand nach jedem Abbruch ein Projekt "(Import)" mit einem Teil der Daten
+    // in der Liste. Die Fremdschlüssel räumen den Rest mit ab.
+    if (newProjectId) {
+      await db.run('DELETE FROM projects WHERE id = ?', [newProjectId]).catch((e) =>
+        console.error('[backup import POST] Aufräumen fehlgeschlagen', e))
+    }
     return res.status(500).json({ data: null, error: 'Interner Serverfehler beim Import' })
   }
 })

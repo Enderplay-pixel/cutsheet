@@ -46,7 +46,7 @@ export function istIdParameter(name: string): boolean {
  * Bewusst eine kurze Liste statt einer allgemeinen Ausnahme: jede weitere
  * Route dieser Art soll hier auffallen, nicht stillschweigend durchrutschen.
  */
-const KEINE_ID = new Set(['import'])
+export const KEINE_ID = new Set(['import'])
 
 export function pruefeIdParameter(req: Request, res: Response, next: NextFunction) {
   for (const [name, wert] of Object.entries(req.params ?? {})) {

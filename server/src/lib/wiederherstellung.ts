@@ -72,7 +72,19 @@ const NICHT_IMPORTIEREN = new Set([
   // schlimmer als eine fehlende Fassung.
   'drehplan_versions',
   'creator_youtube_accounts', 'creator_youtube_ignored',
+  // Rechnungen gehören der Firma, nicht dem Projekt, und tragen eine
+  // fortlaufende Nummer. Zurückgespielt wären es Doppel derselben Rechnung -
+  // gemessen am 25.10.2026 brach das Zurückspielen des Demo-Projekts daran
+  // mit 500 ab.
+  'invoices',
 ])
+
+/**
+ * Verweise in eine Firma: Adressbuch, Auftraggeber, Agenturen, die Firma
+ * selbst. Das neue Projekt gehört keiner Firma, also zeigen sie ins Leere -
+ * oder, aus einer bearbeiteten Datei, in eine fremde Firma. Sie werden leer.
+ */
+const FIRMENBEZUG = new Set(['company_id', 'client_id', 'contact_id', 'agency_id'])
 
 /**
  * Spalten, die Kennungen als JSON-Liste tragen statt als Fremdschlüssel.
@@ -89,8 +101,8 @@ const JSON_KENNUNGEN: Record<string, Record<string, string>> = {
 /** Spalten, die nie übernommen werden. */
 const NICHT_UEBERNEHMEN = new Set(['id', 'created_at', 'updated_at'])
 
-/** Alles, was nach einem Geheimnis aussieht, bleibt draußen. */
-function istGeheimnis(spalte: string): boolean {
+/** Alles, was nach einem Geheimnis aussieht, bleibt draußen - auch aus der Sicherung (routes/backup.ts). */
+export function istGeheimnis(spalte: string): boolean {
   return /token|password|secret/i.test(spalte)
 }
 
@@ -228,6 +240,15 @@ export async function importiereInhalt(
         if (NICHT_UEBERNEHMEN.has(name) || istGeheimnis(name)) continue
 
         if (name === 'project_id') { einfuegen[name] = projektId; continue }
+
+        if (FIRMENBEZUG.has(name)) {
+          if (spalte.pflicht && roh[name] !== null && roh[name] !== undefined) {
+            ueberspringen = `${name} gehört zu einer Firma`
+            break
+          }
+          einfuegen[name] = null
+          continue
+        }
 
         // Verweise auf Konten: das ursprüngliche behalten, solange es das
         // Konto noch gibt - sonst gehört die Zeile dem Importierenden.

@@ -67,8 +67,10 @@ Stand am 24.10.2026, 23 Uhr:
 - **Fertig:** Gruppe Middleware (7 Dateien). Funde 1-9 eingetragen, 1, 4, 5, 6, 9
   behoben und committet.
 - **Fertig:** Gruppe Datenbank (`db/index.ts`, `grossproduktion.ts`).
-- **Routen bis `auth.ts` fertig** (siehe Haken). **Als Nächstes:**
-  `backup.ts`, dann alphabetisch weiter. `confirmation.ts` ist für Fund 39
+- **Routen bis `backup.ts` fertig** (siehe Haken). **Als Nächstes:**
+  der nächste offene Haken unter "Server: Routen", alphabetisch weiter.
+  `lib/wiederherstellung.ts` ist für Fund 46 angefasst, aber noch nicht
+  ganz gelesen. `confirmation.ts` ist für Fund 39
   angefasst (Sitzung statt `signToken`), aber noch nicht gelesen.
 - **Vor jedem Commit die ganze Testsuite**, nicht nur die Typprüfung -
   siehe Fund 41.
@@ -179,6 +181,10 @@ sind ein Render-Dienst aus demselben Bau.
 | 41 | `middleware/eingabe.ts`, `lib/ueberlast.ts`, `lib/meldungenText.ts` | Text | Die Sätze des Fehlerübersetzers ("Eine Zahl wurde als Text übergeben." usw.) und die Überlastmeldung hatten keine Übersetzung - mit `X-Sprache: en` kamen sie deutsch. Ebenso drei neue Meldungen dieser Prüfung (Steuerart, KSK, Datum); die KSK-Meldung hatte den Meldungstest rot gemacht (Commit `e41d870` ohne vollen Testlauf). | ja: `X-Sprache: en` → "Eine Zahl wurde als Text übergeben.", Gegenprobe "Ungültige Anmeldedaten" kam englisch | behoben: zehn Einträge in `MELDUNGEN`; `eingabe.test.ts` prüft je Satz die Übersetzung. Danach englisch und französisch gemessen |
 | 42 | `server/src/routes/auth.ts` (Rücksetz-Mail) | Klein | Der Kontoname ging unmaskiert in die Mail (wie Fund 23). | ja: `<b>Fett</b> <img src=x>` wörtlich im HTML | behoben: `maskiere` |
 | 43 | `server/src/routes/auth.ts` (`GET /me/export`) | Datenschutz | Der Export "aller personenbezogenen Daten" ließ Anmeldeverlauf, Sitzungen (je mit IP und Gerät), Firmenmitgliedschaften und den Stand des zweiten Faktors weg. | ja: Admin-Konto 69 Anmeldungen, 69 Sitzungen, 5 Firmen - im Export keine | behoben: alle vier im Export, der 2FA-Schlüssel bleibt draußen (gemessen) |
+| 44 | `server/src/routes/backup.ts` (`GET .../backup`) | **Sicherheit, live** | Jedes Mitglied darf die Sicherung laden, auch mit Lesezugriff - und darin standen alle Links mit Token: Einladungen (die sonst nur Projekt-Admins sehen), Verträge, Abnahmen, Casting-Anfragen, Dispo-Bestätigungen. Eine Einladung prüft beim Annehmen nicht, für wen sie gedacht war. | ja: Leser lädt die Sicherung, nimmt die Einladung der Produzentin an, ist danach Produzent; Einladungsliste direkt 403 | behoben: keine Spalte mit `token`/`password`/`secret` in der Sicherung, aus keiner Tabelle - dieselbe Regel wie beim Zurückspielen (`istGeheimnis`). Danach 0 Token, 78 Tabellen ohne Geheimnis-Spalte, Zurückspielen geht weiter. **Offen für Florian:** Ob ein Leser die Sicherung überhaupt laden soll, und ob Einladungen an eine Adresse gebunden sein sollen. |
+| 45 | `server/src/middleware/projectAuth.ts` (`requireMember`) | Fehler | Das Zurückspielen einer Sicherung (`POST /projects/import`) gab jedem Konto außer einem globalen Admin 403 "Kein Zugriff auf dieses Projekt" - `requireMember` hielt "import" für eine Projektnummer, global und in 31 Routern. | ja: normales Konto, eigene Sicherung → 403 | behoben: Ausnahme für `KEINE_ID` in `requireMember`; danach 201 mit 8 Szenen und 11 Drehbuchblöcken. Fremdes Projekt weiter 403 (Test) |
+| 46 | `server/src/lib/wiederherstellung.ts` (`importiereInhalt`) | **Sicherheit** (bisher nur für Admins erreichbar) | Beim Zurückspielen wurden Verweise in Firmen wörtlich übernommen (`company_id`, `client_id`, `contact_id`, `agency_id`) - aus einer bearbeiteten Datei also in jede fremde Firma. Rechnungen wurden als Doppel angelegt; beim Demo-Projekt brach das mit 500 ab. | ja: Demo-Projekt mit Rechnung → 500; präparierte Datei vor dem Fix nicht messbar (Fund 45 sperrte alle außer Admins) | behoben: Firmenverweise leer, Rechnungen nie zurückgespielt; danach Demo 201, präparierte Datei: 0 Rechnungen, alle vier Verweise `null`. Erst damit ist Fund 45 geöffnet. Test, gegen alten Stand rot |
+| 47 | `server/src/routes/backup.ts` (`POST /projects/import`) | Fehler | Scheiterte das Zurückspielen mittendrin, blieb ein Projekt "(Import)" mit einem Teil der Daten in der Liste. | ja: nach dem 500 aus Fund 46 stand "Sprachlos (Demo) (Import)" mit 9 Szenen da | behoben: Bei einem Abbruch wird das neue Projekt wieder gelöscht; gemessen mit einer Datei, an der das Einfügen scheitert: 500, kein Projekt bleibt |
 
 ## Abhakliste
 
@@ -213,7 +219,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/routes/audit.ts` (279) - Funde 34, 35
 - [x] `server/src/routes/auswertungen.ts` (361) - Funde 15, 36-38
 - [x] `server/src/routes/auth.ts` (493) - Funde 2, 6, 8, 39-43
-- [ ] `server/src/routes/backup.ts` (230)
+- [x] `server/src/routes/backup.ts` (230) - Funde 44-47
 - [ ] `server/src/routes/blackoutDates.ts` (152)
 - [ ] `server/src/routes/buchhaltung.ts` (318)
 - [ ] `server/src/routes/budget.ts` (326)
