@@ -2083,3 +2083,18 @@ describe('Mahnwesen', () => {
     expect((await hole(`/api/companies/${firmaId}/mahnlauf?stichtag=abc`, tokenInhaber)).status).toBe(400)
   })
 })
+
+describe('Musikliste', () => {
+  it('zeigt die Szenennummer und lässt die Szene wieder lösen', async () => {
+    const szene = (await db.run("INSERT INTO scenes (project_id, scene_number, title) VALUES (?, '12', 'Hafen')", [projektId])).id
+    const pfad = `/api/projects/${projektId}/music-cues`
+    const cue = (await hole(pfad, tokenInhaber, { method: 'POST', body: JSON.stringify({ title: 'Lied', scene_id: szene }) })).daten
+    const liste = (await hole(pfad, tokenInhaber)).daten
+    expect(liste.find((c: any) => c.id === cue.id).scene_number).toBe('12')
+    const geloest = await hole(`${pfad}/${cue.id}`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ scene_id: null }) })
+    expect(geloest.daten.scene_id).toBeNull()
+    // Ohne scene_id im Rumpf bleibt die Szene, wie sie ist
+    await hole(`${pfad}/${cue.id}`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ scene_id: szene }) })
+    expect((await hole(`${pfad}/${cue.id}`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ title: 'Neu' }) })).daten.scene_id).toBe(szene)
+  })
+})

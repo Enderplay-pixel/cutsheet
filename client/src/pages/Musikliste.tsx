@@ -21,6 +21,8 @@ interface MusicCue {
   cue_type: string
   usage_type: string
   scene_id: number | null
+  /** Vom Server dazugeladen - scene_id ist die Kennung, nicht die Nummer */
+  scene_number?: string | null
   notes: string
 }
 
@@ -88,6 +90,10 @@ function CueFormRow({ initial, pid, onDone }: { initial?: MusicCue; pid: number;
   const [form, setForm] = useState<Omit<MusicCue, 'id'>>(initial ? { ...initial } : { ...EMPTY })
   const [durationInput, setDurationInput] = useState(initial ? formatDuration(initial.duration_seconds) : '00:00')
   const set = (key: string, value: any) => setForm(f => ({ ...f, [key]: value }))
+  const { data: szenen = [] } = useQuery({
+    queryKey: ['scenes', pid],
+    queryFn: () => api.scenes.list(pid),
+  })
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -123,7 +129,14 @@ function CueFormRow({ initial, pid, onDone }: { initial?: MusicCue; pid: number;
           {USAGE_TYPES.map(t => <option key={t} value={t}>{beschriftung(t, tt)}</option>)}
         </select>
       </td>
-      <td className={c}><Input className={i} type="number" placeholder={tt(musiklisteT.szeneNr)} value={form.scene_id ?? ''} onChange={e => set('scene_id', e.target.value ? Number(e.target.value) : null)} /></td>
+      <td className={c}>
+        {/* Auswahl statt Zahlenfeld: Eingetippt wurde die Szenennummer, gespeichert
+            wird die Kennung der Szene - "12" fand nie Szene 12. */}
+        <select aria-label={tt(musiklisteT.szene)} className={sel} value={form.scene_id ?? ''} onChange={e => set('scene_id', e.target.value ? Number(e.target.value) : null)}>
+          <option value="">-</option>
+          {(szenen as any[]).map(sz => <option key={sz.id} value={sz.id}>{[sz.scene_number, sz.title].filter(Boolean).join(' ') || sz.id}</option>)}
+        </select>
+      </td>
       <td className={c}><Input className={i} placeholder={tt(uiT.notes)} value={form.notes} onChange={e => set('notes', e.target.value)} /></td>
       <td className="py-1.5 px-2">
         <div className="flex items-center gap-1 justify-end">
@@ -168,7 +181,7 @@ function CueRow({ cue, pid, onEdit }: { cue: MusicCue; pid: number; onEdit: (c: 
       <td className="py-2.5 px-3 text-sm font-mono text-muted-foreground">{formatDuration(cue.duration_seconds)}</td>
       <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.cue_type ? beschriftung(cue.cue_type, tt) : '-'}</td>
       <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.usage_type ? beschriftung(cue.usage_type, tt) : '-'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.scene_id ? tt(musiklisteT.szeneN).replace('{n}', String(cue.scene_id)) : '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{cue.scene_number ? tt(musiklisteT.szeneN).replace('{n}', cue.scene_number) : '-'}</td>
       <td className="py-2.5 px-3 text-sm text-muted-foreground max-w-[120px] truncate" title={cue.notes}>{cue.notes || '-'}</td>
       <td className="py-2.5 px-3 text-right">
         <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
@@ -207,7 +220,7 @@ function exportCSV(cues: MusicCue[], tt: Tt) {
     formatDuration(c.duration_seconds),
     c.cue_type ? beschriftung(c.cue_type, tt) : c.cue_type,
     c.usage_type ? beschriftung(c.usage_type, tt) : c.usage_type,
-    c.scene_id ? tt(musiklisteT.szeneN).replace('{n}', String(c.scene_id)) : '',
+    c.scene_number ? tt(musiklisteT.szeneN).replace('{n}', c.scene_number) : '',
     c.notes,
   ])
   const csv = [headers, ...rows]

@@ -26,7 +26,6 @@ export const musiklisteT = {
   textdichter:      { de: 'Textdichter', en: 'Lyricist', fr: 'Parolier' },
   mmss:             { de: 'MM:SS', en: 'MM:SS', fr: 'MM:SS' },
   artDerNutzung:    { de: 'Art der Nutzung', en: 'Type of use', fr: "Type d'utilisation" },
-  szeneNr:          { de: 'Szene #', en: 'Scene #', fr: 'Scène n°' },
   szeneN:           { de: 'Szene {n}', en: 'Scene {n}', fr: 'Scène {n}' },
   dauerMmss:        { de: 'Dauer (MM:SS)', en: 'Duration (MM:SS)', fr: 'Durée (MM:SS)' },
   dauer:            { de: 'Dauer', en: 'Duration', fr: 'Durée' },
