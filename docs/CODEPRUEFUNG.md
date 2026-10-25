@@ -75,6 +75,12 @@ Stand am 24.10.2026, 23 Uhr:
   angefasst (Sitzung statt `signToken`), aber noch nicht gelesen.
 - **Vor jedem Commit die ganze Testsuite**, nicht nur die Typprüfung -
   siehe Fund 41.
+- **Gemessen, beim Lesen der Datei beheben** (Muster aus Fund 51/59, `PUT`
+  auf eine fehlende Kennung gibt 2xx statt 404; Messweg
+  `scratchpad/fehlende_zeilen.cjs`, sinngemäß: jede PUT/PATCH-Route mit
+  Kind-Kennung 999999 als Admin aufrufen): `PUT /crew/:id`,
+  `/daily-reports/:id`, `/shoot-days/:id`, `/equipment-bookings/:id`,
+  `/feedback/:id`, `/moodboard/:id`, `/scenes/:id`, `/shots/:id`.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
   `invites.ts` ~27 setzt Projekttitel und Namen der Einladenden unmaskiert
   in die Einladungsmail (wie Fund 23). Meldungen, die über eine Konstante
