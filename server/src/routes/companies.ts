@@ -12,6 +12,7 @@
  */
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { enthaeltMuster } from '../lib/suchmuster'
 import { requireAuth } from '../middleware/auth'
 import { istAdresse } from '../lib/mailversand'
 import { STANDARDVORLAGEN } from '../lib/mailvorlagen'
@@ -181,7 +182,8 @@ router.get('/companies/:companyId/contacts', requireAuth, erfordereFirma(), asyn
   const werte: any[] = [Number(req.params.companyId)]
   if (suche) {
     bedingungen.push('(LOWER(name) LIKE ? OR LOWER(role) LIKE ? OR LOWER(department) LIKE ? OR LOWER(tags) LIKE ?)')
-    werte.push(`%${suche}%`, `%${suche}%`, `%${suche}%`, `%${suche}%`)
+    const muster = enthaeltMuster(suche)
+    werte.push(muster, muster, muster, muster)
   }
   const zeilen = await db.all(
     `SELECT * FROM company_contacts WHERE ${bedingungen.join(' AND ')} ORDER BY name ASC LIMIT 500`,

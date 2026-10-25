@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { db } from '../db'
+import { enthaeltMuster } from '../lib/suchmuster'
 import { requireAuth, AuthUser } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
 import { schreibeCsv } from '../lib/tabelle'
@@ -152,10 +153,10 @@ function einschraenkung(projectId: number, q: any): { sql: string; werte: any[] 
 
   if (q.nutzer) {
     teile.push('(user_name ILIKE ? OR user_id = ?)')
-    werte.push(`%${q.nutzer}%`, Number(q.nutzer) || -1)
+    werte.push(enthaeltMuster(q.nutzer), Number(q.nutzer) || -1)
   }
-  if (q.aktion) { teile.push('action ILIKE ?'); werte.push(`%${q.aktion}%`) }
-  if (q.bereich) { teile.push('entity_type ILIKE ?'); werte.push(`%${q.bereich}%`) }
+  if (q.aktion) { teile.push('action ILIKE ?'); werte.push(enthaeltMuster(q.aktion)) }
+  if (q.bereich) { teile.push('entity_type ILIKE ?'); werte.push(enthaeltMuster(q.bereich)) }
   if (q.von) {
     teile.push(`created_at >= (?::timestamp AT TIME ZONE '${TAGESGRENZE}')`)
     werte.push(`${q.von} 00:00:00`)
@@ -166,7 +167,7 @@ function einschraenkung(projectId: number, q: any): { sql: string; werte: any[] 
   }
   if (q.suche) {
     teile.push('(user_name ILIKE ? OR action ILIKE ? OR entity_type ILIKE ? OR new_value ILIKE ?)')
-    const muster = `%${q.suche}%`
+    const muster = enthaeltMuster(q.suche)
     werte.push(muster, muster, muster, muster)
   }
   return { sql: teile.join(' AND '), werte }

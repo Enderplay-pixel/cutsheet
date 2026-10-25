@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { db } from '../db'
 import { requireMember } from '../middleware/projectAuth'
+import { enthaeltMuster } from '../lib/suchmuster'
 
 const router = Router()
 
@@ -28,31 +29,31 @@ router.get('/projects/:projectId/search', async (req, res) => {
   if (!rawQ.trim()) {
     return res.json({ data: [], error: null })
   }
-  const q = `%${rawQ}%`
+  const q = enthaeltMuster(rawQ)
   const pid = req.params.projectId
 
   const [scenesRaw, screenplayRaw, castRaw, crewRaw, locationsRaw] = await Promise.all([
     db.all(
-      "SELECT id, scene_number, title as name FROM scenes WHERE project_id = ? AND (title ILIKE ? OR scene_number ILIKE ? OR description ILIKE ?)",
+      "SELECT id, scene_number, title as name FROM scenes WHERE project_id = ? AND (title ILIKE ? OR scene_number ILIKE ? OR description ILIKE ?) LIMIT 50",
       [pid, q, q, q]
     ),
     db.all(
       `SELECT sb.id, sb.content, sb.block_type, s.id as scene_id, s.scene_number, s.title
        FROM screenplay_blocks sb
        JOIN scenes s ON sb.scene_id = s.id
-       WHERE sb.project_id = ? AND sb.content ILIKE ?`,
+       WHERE sb.project_id = ? AND sb.content ILIKE ? LIMIT 50`,
       [pid, q]
     ),
     db.all(
-      "SELECT id, actor_name FROM cast WHERE project_id = ? AND actor_name ILIKE ?",
+      "SELECT id, actor_name FROM cast WHERE project_id = ? AND actor_name ILIKE ? LIMIT 50",
       [pid, q]
     ),
     db.all(
-      "SELECT id, name, role, department FROM crew WHERE project_id = ? AND (name ILIKE ? OR role ILIKE ?)",
+      "SELECT id, name, role, department FROM crew WHERE project_id = ? AND (name ILIKE ? OR role ILIKE ?) LIMIT 50",
       [pid, q, q]
     ),
     db.all(
-      "SELECT id, name, city FROM locations WHERE project_id = ? AND (name ILIKE ? OR city ILIKE ? OR address ILIKE ?)",
+      "SELECT id, name, city FROM locations WHERE project_id = ? AND (name ILIKE ? OR city ILIKE ? OR address ILIKE ?) LIMIT 50",
       [pid, q, q, q]
     ),
   ])
