@@ -122,6 +122,8 @@ beforeAll(async () => {
   app.use('/api/admin', adminRouter)
   app.use('/api', companiesRouter)
   app.use('/api', invoicesRouter)
+  const { default: mahnwesenRouter } = await import('../routes/mahnwesen')
+  app.use('/api', mahnwesenRouter)
   app.use('/api', dateienRouter)
   const { default: anliegenRouter } = await import('../routes/anliegen')
   app.use('/api', anliegenRouter)
@@ -2032,5 +2034,52 @@ describe('Motivvertrag', () => {
     expect((await hole(pfad, tokenInhaber, { method: 'POST', body: JSON.stringify({ status: 'Unterschrieben' }) })).status).toBe(400)
     expect((await hole(pfad, tokenInhaber, { method: 'POST', body: JSON.stringify({ fee_cents: -100 }) })).status).toBe(400)
     expect(await db.get('SELECT id FROM location_releases WHERE location_id = ?', [motiv])).toBeUndefined()
+  })
+})
+
+describe('Mahnwesen', () => {
+  let firmaId = 0
+  let kundeId = 0
+
+  beforeAll(async () => {
+    firmaId = (await hole('/api/companies', tokenInhaber, { method: 'POST', body: JSON.stringify({ name: 'Mahnfirma' }) })).daten.id
+    kundeId = (await db.run("INSERT INTO company_clients (company_id, name) VALUES (?, 'Kunde')", [firmaId])).id
+  }, 60_000)
+
+  /** Eine versendete, seit August fällige Rechnung oder ein Angebot. */
+  const offen = async (kind: string, nummer: string) => (await db.run(
+    `INSERT INTO invoices (company_id, client_id, kind, status, number, gross_cents, issue_date, due_date)
+     VALUES (?, ?, ?, 'versendet', ?, 100000, '2026-08-01', '2026-08-15')`,
+    [firmaId, kundeId, kind, nummer]
+  )).id
+
+  it('nimmt auf ein Angebot keine Zahlung an', async () => {
+    const angebot = await offen('angebot', 'A-1')
+    const antwort = await hole(`/api/companies/${firmaId}/invoices/${angebot}/payments`, tokenInhaber, {
+      method: 'POST', body: JSON.stringify({ amount_cents: 100000, paid_on: '2026-10-01' }),
+    })
+    expect(antwort.status).toBe(404)
+    expect((await db.get('SELECT status FROM invoices WHERE id = ?', [angebot])).status).toBe('versendet')
+  })
+
+  it('mahnt bei gleichzeitigen Anfragen nur einmal', async () => {
+    const rechnung = await offen('rechnung', 'R-1')
+    const antworten = await Promise.all([1, 2, 3].map(() => hole(`/api/companies/${firmaId}/invoices/${rechnung}/mahnung`, tokenInhaber, {
+      method: 'POST', body: JSON.stringify({ mail: false }),
+    })))
+    expect(antworten.filter((a) => a.status === 200)).toHaveLength(1)
+    expect(Number((await db.get('SELECT COUNT(*) AS c FROM invoice_reminders WHERE invoice_id = ?', [rechnung])).c)).toBe(1)
+  })
+
+  it('mahnt nicht bei abgeschaltetem Mahnwesen und weist einen falschen Stichtag ab', async () => {
+    const rechnung = await offen('rechnung', 'R-2')
+    await db.run('UPDATE companies SET dunning_enabled = false WHERE id = ?', [firmaId])
+    const antwort = await hole(`/api/companies/${firmaId}/invoices/${rechnung}/mahnung`, tokenInhaber, {
+      method: 'POST', body: JSON.stringify({ mail: false }),
+    })
+    await db.run('UPDATE companies SET dunning_enabled = true WHERE id = ?', [firmaId])
+    expect(antwort.status).toBe(409)
+    expect(Number((await db.get('SELECT COUNT(*) AS c FROM invoice_reminders WHERE invoice_id = ?', [rechnung])).c)).toBe(0)
+    expect((await hole(`/api/companies/${firmaId}/mahnlauf?stichtag=abc`, tokenInhaber)).status).toBe(400)
   })
 })

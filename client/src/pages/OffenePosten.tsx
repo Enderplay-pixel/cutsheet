@@ -510,7 +510,8 @@ function Mahnlauf({ firmaId }: { firmaId: number }) {
             <div className="flex items-start gap-2 text-xs p-3 rounded-lg bg-muted">
               <Info className="w-4 h-4 shrink-0 mt-0.5" />
               <span>Das Mahnwesen ist für diese Firma abgeschaltet. Vorschläge werden trotzdem
-                berechnet, damit sichtbar bleibt, was anstünde.</span>
+                berechnet, damit sichtbar bleibt, was anstünde - gemahnt wird erst, wenn es
+                wieder eingeschaltet ist.</span>
             </div>
           )}
         </CardContent>
@@ -611,7 +612,7 @@ function Mahnlauf({ firmaId }: { firmaId: number }) {
                     <FileText className="w-4 h-4 mr-1.5" />
                     Schreiben ansehen
                   </Button>
-                  <Button size="sm" onClick={() => setFrage(v)}>
+                  <Button size="sm" onClick={() => setFrage(v)} disabled={!!data?.aus}>
                     <BellRing className="w-4 h-4 mr-1.5" />
                     {v.client_email ? 'Mahnen und senden' : 'Mahnen'}
                   </Button>

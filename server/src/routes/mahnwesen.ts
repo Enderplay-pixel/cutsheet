@@ -28,7 +28,8 @@ import { reiheEin } from '../lib/mailversand'
 import { generatePdf } from './pdf'
 import { renderMahnung } from '../lib/mahnungLayout'
 import { zahlungenVerrechnen } from '../lib/zahlungen'
-import { heuteISO } from '../lib/datum'
+import { heuteISO, istIsoDatum } from '../lib/datum'
+import { maskiere } from '../lib/mailvorlagen'
 
 const router = Router()
 
@@ -171,7 +172,7 @@ router.get('/companies/:companyId/opos/export.csv', requireAuth, erfordereAbrech
 // ─── Zahlungseingänge ────────────────────────────────────────────────────────
 
 router.get('/companies/:companyId/invoices/:invoiceId/payments', requireAuth, erfordereAbrechnung('mitarbeiter'), async (req: Request, res: Response) => {
-  const rechnung = (await db.get('SELECT id FROM invoices WHERE id = ? AND company_id = ?', [
+  const rechnung = (await db.get("SELECT id FROM invoices WHERE id = ? AND company_id = ? AND kind = 'rechnung'", [
     Number(req.params.invoiceId), Number(req.params.companyId),
   ])) as any
   if (!rechnung) return res.status(404).json({ data: null, error: 'Rechnung nicht gefunden' })
@@ -192,7 +193,9 @@ router.get('/companies/:companyId/invoices/:invoiceId/payments', requireAuth, er
 router.post('/companies/:companyId/invoices/:invoiceId/payments', requireAuth, erfordereAbrechnung(), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
   const invoiceId = Number(req.params.invoiceId)
-  const rechnung = (await db.get('SELECT * FROM invoices WHERE id = ? AND company_id = ?', [invoiceId, companyId])) as any
+  // Nur Rechnungen. Gemessen am 25.10.2026: Eine Zahlung auf ein versendetes
+  // Angebot wurde angenommen, und das Angebot stand danach auf "bezahlt".
+  const rechnung = (await db.get("SELECT * FROM invoices WHERE id = ? AND company_id = ? AND kind = 'rechnung'", [invoiceId, companyId])) as any
   if (!rechnung) return res.status(404).json({ data: null, error: 'Rechnung nicht gefunden' })
   if (rechnung.status === 'entwurf') {
     return res.status(400).json({ data: null, error: 'Auf einen Entwurf kann niemand zahlen' })
@@ -203,7 +206,7 @@ router.post('/companies/:companyId/invoices/:invoiceId/payments', requireAuth, e
     return res.status(400).json({ data: null, error: 'Kein gültiger Betrag' })
   }
   const datum = String(req.body?.paid_on || heuteISO()).slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
+  if (!istIsoDatum(datum)) {
     return res.status(400).json({ data: null, error: 'Kein gültiges Datum' })
   }
 
@@ -235,21 +238,30 @@ router.delete('/companies/:companyId/invoices/:invoiceId/payments/:paymentId', r
   const companyId = Number(req.params.companyId)
   const invoiceId = Number(req.params.invoiceId)
   const zahlung = (await db.get(
-    `SELECT p.* FROM invoice_payments p
+    `SELECT p.*, i.project_id FROM invoice_payments p
        JOIN invoices i ON p.invoice_id = i.id
-      WHERE p.id = ? AND p.invoice_id = ? AND i.company_id = ?`,
+      WHERE p.id = ? AND p.invoice_id = ? AND i.company_id = ? AND i.kind = 'rechnung'`,
     [Number(req.params.paymentId), invoiceId, companyId]
   )) as any
   if (!zahlung) return res.status(404).json({ data: null, error: 'Zahlung nicht gefunden' })
 
   await db.run('DELETE FROM invoice_payments WHERE id = ?', [zahlung.id])
   const stand = await zahlungenVerrechnen(invoiceId)
-  logAudit(null, (req as any).user as AuthUser, 'zahlung gelöscht', 'invoice_payments', zahlung.id,
+  logAudit(zahlung.project_id ?? null, (req as any).user as AuthUser, 'zahlung gelöscht', 'invoice_payments', zahlung.id,
     { betrag: euro(zahlung.amount_cents), datum: String(zahlung.paid_on).slice(0, 10) }, null)
   return res.json({ data: stand, error: null })
 })
 
 // ─── Mahnlauf ────────────────────────────────────────────────────────────────
+
+/**
+ * Der Stichtag aus der Anfrage, sonst heute. `null`, wenn er kein Datum ist -
+ * gemessen am 25.10.2026 ergab "abc" still "nichts zu mahnen".
+ */
+function stichtagAus(req: Request): string | null {
+  const wert = String(req.query.stichtag || heuteISO()).slice(0, 10)
+  return istIsoDatum(wert) ? wert : null
+}
 
 /** Rechnung samt Vorschlag - der gemeinsame Teil von Vorschau und Versand. */
 async function vorschlaegeSammeln(companyId: number, heute: string, nurRechnung?: number) {
@@ -291,7 +303,8 @@ async function vorschlaegeSammeln(companyId: number, heute: string, nurRechnung?
  */
 router.get('/companies/:companyId/mahnlauf', requireAuth, erfordereAbrechnung('mitarbeiter'), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
-  const heute = String(req.query.stichtag || heuteISO()).slice(0, 10)
+  const heute = stichtagAus(req)
+  if (!heute) return res.status(400).json({ data: null, error: 'Der Stichtag ist kein gültiges Datum' })
   const { einstellungen: e, treffer } = await vorschlaegeSammeln(companyId, heute)
 
   return res.json({
@@ -332,7 +345,8 @@ router.get('/companies/:companyId/mahnlauf', requireAuth, erfordereAbrechnung('m
 router.get('/companies/:companyId/invoices/:invoiceId/mahnung.pdf', requireAuth, erfordereAbrechnung('mitarbeiter'), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
   const invoiceId = Number(req.params.invoiceId)
-  const heute = String(req.query.stichtag || heuteISO()).slice(0, 10)
+  const heute = stichtagAus(req)
+  if (!heute) return res.status(400).json({ data: null, error: 'Der Stichtag ist kein gültiges Datum' })
   const { einstellungen: e, treffer } = await vorschlaegeSammeln(companyId, heute, invoiceId)
   if (treffer.length === 0) {
     return res.status(400).json({ data: null, error: 'Für diese Rechnung steht keine Mahnung an' })
@@ -379,25 +393,41 @@ router.post('/companies/:companyId/invoices/:invoiceId/mahnung', requireAuth, er
   if (treffer.length === 0) {
     return res.status(400).json({ data: null, error: 'Für diese Rechnung steht keine Mahnung an' })
   }
+  // Gemessen am 25.10.2026: Bei abgeschaltetem Mahnwesen ging die Mahnung
+  // samt Mail trotzdem raus. Die Vorschau rechnet weiter, gemahnt wird nicht.
+  if (e.aus) {
+    return res.status(409).json({ data: null, error: 'Das Mahnwesen ist für diese Firma abgeschaltet' })
+  }
   const { rechnung, vorschlag } = treffer[0]
   const satzBp = verzugssatzBp(e.basiszinsBp, rechnung.is_business !== false)
 
-  const mahnung = await db.run(
-    `INSERT INTO invoice_reminders
-       (invoice_id, level, sent_on, due_on, open_cents, interest_cents, fee_cents,
-        lump_sum_cents, total_cents, days_overdue, rate_bp, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      invoiceId, vorschlag.stufe, heute, vorschlag.neueFrist,
-      vorschlag.offenCents, vorschlag.zinsenCents, vorschlag.gebuehrCents,
-      vorschlag.pauschaleCents, vorschlag.gesamtCents, vorschlag.tageVerzug,
-      satzBp, (req as any).user?.id ?? null,
-    ]
-  )
-  await db.run(
-    'UPDATE invoices SET reminder_level = ?, reminded_on = ?, reminder_due_on = ?, updated_at = NOW() WHERE id = ?',
-    [vorschlag.stufe, heute, vorschlag.neueFrist, invoiceId]
-  )
+  // Erst die Rechnung umstellen, und nur, wenn sie noch auf dem gelesenen Stand
+  // ist. Gemessen am 25.10.2026: Zwei gleichzeitige Anfragen (Doppelklick)
+  // legten zwei Mahnungen derselben Stufe an - mit Mail zwei Mahnmails.
+  const mahnung = await db.transaction(async (tx) => {
+    const umgestellt = await tx.run(
+      `UPDATE invoices SET reminder_level = ?, reminded_on = ?, reminder_due_on = ?, updated_at = NOW()
+        WHERE id = ? AND reminder_level = ? AND reminded_on IS NOT DISTINCT FROM ?::date`,
+      [vorschlag.stufe, heute, vorschlag.neueFrist, invoiceId,
+        Number(rechnung.reminder_level || 0), rechnung.reminded_on ? String(rechnung.reminded_on).slice(0, 10) : null]
+    )
+    if (!umgestellt.changes) return null
+    return tx.run(
+      `INSERT INTO invoice_reminders
+         (invoice_id, level, sent_on, due_on, open_cents, interest_cents, fee_cents,
+          lump_sum_cents, total_cents, days_overdue, rate_bp, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        invoiceId, vorschlag.stufe, heute, vorschlag.neueFrist,
+        vorschlag.offenCents, vorschlag.zinsenCents, vorschlag.gebuehrCents,
+        vorschlag.pauschaleCents, vorschlag.gesamtCents, vorschlag.tageVerzug,
+        satzBp, (req as any).user?.id ?? null,
+      ]
+    )
+  })
+  if (!mahnung) {
+    return res.status(409).json({ data: null, error: 'Diese Rechnung wurde gerade schon gemahnt' })
+  }
 
   // Die Mail geht in die Warteschlange, nicht direkt raus - derselbe Weg wie
   // jede andere Mail, mit Wiederholung und Protokoll.
@@ -452,7 +482,7 @@ router.post('/companies/:companyId/invoices/:invoiceId/mahnung', requireAuth, er
 
 /** Die Mahnungen einer Rechnung - für die Zeitleiste in der Oberfläche. */
 router.get('/companies/:companyId/invoices/:invoiceId/mahnungen', requireAuth, erfordereAbrechnung('mitarbeiter'), async (req: Request, res: Response) => {
-  const rechnung = (await db.get('SELECT id FROM invoices WHERE id = ? AND company_id = ?', [
+  const rechnung = (await db.get("SELECT id FROM invoices WHERE id = ? AND company_id = ? AND kind = 'rechnung'", [
     Number(req.params.invoiceId), Number(req.params.companyId),
   ])) as any
   if (!rechnung) return res.status(404).json({ data: null, error: 'Rechnung nicht gefunden' })
@@ -465,12 +495,14 @@ router.get('/companies/:companyId/invoices/:invoiceId/mahnungen', requireAuth, e
 
 /** Der Text der Mahnmail. Das Blatt im Anhang trägt die Zahlen. */
 function mahnMailText(firma: any, rechnung: any, v: Vorschlag): string {
+  // Name und Nummer kommen aus Eingaben - maskiert wie in jeder Mail
   const anrede = rechnung.contact_name
-    ? `Guten Tag ${rechnung.contact_name},`
+    ? `Guten Tag ${maskiere(rechnung.contact_name)},`
     : 'Guten Tag,'
+  const nummer = maskiere(rechnung.number)
   const einleitung = v.stufe === 1
-    ? `unsere Rechnung ${rechnung.number} ist noch offen. Vermutlich ist sie untergegangen - das passiert.`
-    : `unsere Rechnung ${rechnung.number} ist trotz unserer vorherigen Mahnung noch offen.`
+    ? `unsere Rechnung ${nummer} ist noch offen. Vermutlich ist sie untergegangen - das passiert.`
+    : `unsere Rechnung ${nummer} ist trotz unserer vorherigen Mahnung noch offen.`
   const zusatz: string[] = []
   if (v.zinsenCents > 0) zusatz.push(`Verzugszinsen ${euro(v.zinsenCents)}`)
   if (v.gebuehrCents > 0) zusatz.push(`Mahngebühr ${euro(v.gebuehrCents)}`)
@@ -483,7 +515,7 @@ function mahnMailText(firma: any, rechnung: any, v: Vorschlag): string {
 <p>Wir bitten um Zahlung bis zum ${new Date(`${v.neueFrist}T12:00:00Z`).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}.
 Die Einzelheiten stehen im angehängten Schreiben.</p>
 <p>Sollte die Zahlung bereits unterwegs sein, betrachten Sie diese Nachricht als erledigt.</p>
-<p>Mit freundlichen Grüßen<br>${firma?.name || ''}</p>`
+<p>Mit freundlichen Grüßen<br>${maskiere(firma?.name || '')}</p>`
 }
 
 export default router
