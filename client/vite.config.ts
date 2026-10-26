@@ -27,7 +27,7 @@ export default defineConfig({
         background_color: '#131110',
         display: 'standalone',
         // Nicht auf Hochformat festnageln: am Tablet quer bekommt die App die
-        // volle Sidebar und 804 px Inhalt — dort arbeitet sie am besten
+        // volle Sidebar und 804 px Inhalt - dort arbeitet sie am besten
         orientation: 'any',
         start_url: '/',
         scope: '/',

@@ -362,6 +362,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 151 | `client/src/contexts/AuthContext.tsx` | **Datenschutz** | Abmelden leerte den Abfrage-Zwischenspeicher nicht (`['projects', …]` ist nicht nach Konto getrennt, 30 s frisch). Meldete sich danach eine zweite Person am selben Gerät an - der Fall, den der Kommentar zu den Offline-Kopien ausdrücklich nennt -, sah sie die Projektliste des ersten Kontos. | ja: Konto A (67-mal "Sprachlos (Demo)" in der Liste) abgemeldet, Konto B (ein Projekt) über das Formular angemeldet: B sah 67, auch nach 4 s | behoben: `queryClient.clear()` beim Abmelden und bei jeder Anmeldung/Registrierung (auch ohne vorheriges Abmelden). Danach gemessen: B sieht 1. Temporäres Testkonto B danach gelöscht (Anmeldung 401) |
 | 152 | `client/src/hooks/usePushSubscription.ts`, `contexts/AuthContext.tsx` | **Fehler** | Der Server liefert den Push-Schlüssel als `{ key }`, der Hook las `publicKey` und nahm sonst das ganze Objekt. Ohne Schlüssel (lokal) blieb der Abschnitt "Benachrichtigungen" sichtbar statt ausgeblendet; mit Schlüssel hätte `urlBase64ToUint8Array` das Objekt bekommen - `atob('[object Object]')` wirft, jedes Abo endet in "Aktivierung fehlgeschlagen". Dazu der Merkzettel-Punkt aus Fund 96: Abmelden kündigte das Push-Abo nicht, Benachrichtigungen des alten Kontos kamen in diesem Browser weiter an. | ja: lokal `{"key":null}`, Abschnitt sichtbar (Browser verweigert Benachrichtigungen, darum "denied" statt "unavailable"); der Weg mit Schlüssel aus dem Code, nicht gemessen (kein Schlüssel lokal) | behoben: `res.key`; beim Abmelden wird das Abo dieses Browsers beim Server abgemeldet und im Browser gekündigt, vor dem Beenden der Sitzung. Danach gemessen: Abschnitt ausgeblendet; mit einer Attrappe für den Service Worker (lokal keiner, Vorschau verweigert Benachrichtigungen) `POST /api/push/unsubscribe` 200, Attrappe gekündigt. Ob Push live eingerichtet ist, ist nicht geprüft |
 | 153 | `client/src/contexts/AuthContext.tsx`, `contexts/ProjectRoleContext.tsx` | Klein | Ist der Server beim Start nicht erreichbar, liest die Oberfläche den Namen aus dem Token - per `atob`, also als Bytes: "PrÃ¼fer B" statt "Prüfer B". `canEditScenes` versprach "Szenen erst ab Regie"; der Server kennt diese Stufe nicht (Standard Abteilungsleitung), und keine Seite fragt sie ab. | ja: Dekodierung am Token eines Kontos mit Umlaut nachgerechnet; `canEditScenes` aus dem Code | behoben: `TextDecoder`; `canEditScenes` entfernt, `canEdit` mit Verweis auf die Serverregel |
+| 154 | `client/src/store/useProjectStore.ts`, `App.tsx`, `components/layout/TopBar.tsx`, `server/src/utils/calculations.ts`, `__tests__/budget.test.ts` | Klein (toter Code) | Im Store: `activeProjectId` wurde geschrieben und gespeichert, aber nie gelesen; `lastSaved` nie gesetzt - die Anzeige "Gespeichert HH:MM" in der Kopfleiste erschien nie (die Quittung kommt längst aus `lib/belohnung.ts`); Rückgängig-Stapel ohne einen Aufrufer. `utils/calculations.ts` (Sozialversicherung mit Sätzen von 2024, Beträge fest `de-DE`) benutzte nur sein eigener Test. Die Abhakliste kannte diese und 14 weitere Dateien nicht (Abgleich mit `git ls-files`, nachgetragen). | aus dem Code (keine Leser bzw. Aufrufer, `grep`) | entfernt; Typprüfung und Testsuite grün |
 
 ### Verknüpfungen
 
@@ -382,6 +383,7 @@ Kandidaten stehen hier, bis sie gebaut oder verworfen sind.
 | Papierkorb: Person zurückholen | ihre Dispo-Einträge, Zeiten, Verpflegung | Kandidat: ohne Fremdschlüssel kommen sie nicht mit zurück (gilt für Stab, Besetzung, Komparsen) |
 | Rollen der Szene | Beschriftung der Darsteller-Symbole im Set-Plan | Kandidat: ein neues Darsteller-Symbol heißt "1", "2" … (`nextLabel` in `lib/floorplan.ts`), obwohl der Plan seine Szene und damit deren Rollen kennt |
 | Komparsen-Drehtage | Kalkulation (Gagen) | Kandidat: Besetzung und Stab kommen mit Gage × Drehtage in die Kalkulation (`lib/kostenquellen.ts`), Komparsen nicht - sie haben Drehtage (Fund 119), aber keinen Tagessatz, nur eine Tarifgruppe. Braucht einen Satz je Tarifgruppe oder je Komparse |
+| Feiertage (`server/src/services/holidays.ts`) | Drehplan und Konfliktradar (Drehtag am Feiertag), Timesheets (Feiertagszuschlag) | Kandidat: Die Feiertage gibt es nur als API (`GET /projects/:id/holidays`), die Oberfläche ruft sie nie ab. Die Liste ist für NRW vollständig; es fehlen 6.1. (BW, BY, ST), 8.3. (BE, MV), 15.8. (SL), 20.9. (TH) und Buß- und Bettag (SN) |
 
 ## Abhakliste
 
@@ -806,7 +808,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `server/src/__tests__/angebote.test.ts` (189)
 - [ ] `server/src/__tests__/audit.test.ts` (73)
 - [ ] `server/src/__tests__/beschriftungen.test.ts` (149)
-- [ ] `server/src/__tests__/budget.test.ts` (87)
+- [x] `server/src/__tests__/budget.test.ts` (87) - entfernt (Fund 154)
 - [ ] `server/src/__tests__/callSheetLayout.test.ts` (283)
 - [ ] `server/src/__tests__/chromiumLookup.test.ts` (67)
 - [ ] `server/src/__tests__/creatorAreas.test.ts` (252)
@@ -853,3 +855,26 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `server/src/__tests__/youtubeOAuth.test.ts` (350)
 - [ ] `server/src/__tests__/zeitzone.test.ts` (49)
 - [ ] `server/src/__tests__/zweiterFaktor.test.ts` (144)
+
+### Nachgetragen am 27.10.2026
+
+Beim Abgleich mit `git ls-files` fehlten diese Dateien in der Liste: ältere,
+die beim Anlegen nicht erfasst wurden, und solche, die während der Prüfung
+neu entstanden sind (diese mit Fundnummer abgehakt).
+
+- [x] `client/index.html` (16) - gelesen (ohne Befund)
+- [x] `client/postcss.config.js` (6) - gelesen (ohne Befund)
+- [x] `client/src/store/useProjectStore.ts` (88) - gelesen (Fund 154)
+- [x] `client/tailwind.config.ts` (156) - gelesen (ohne Befund, Kommentar-Umlaut)
+- [x] `client/vite.config.ts` (63) - gelesen (ohne Befund, Gedankenstrich im Kommentar)
+- [x] `server/src/config/secrets.ts` (102) - gelesen (ohne Befund)
+- [x] `server/src/schemas/index.ts` (41) - gelesen (ohne Befund; `RegisterSchema` (8 Zeichen) ungenutzt, siehe Merkzettel Passwortlänge)
+- [x] `server/src/services/holidays.ts` (58) - gelesen (Kandidat unter Verknüpfungen)
+- [x] `server/src/utils/calculations.ts` (51) - entfernt (Fund 154)
+- [x] `server/vitest.config.ts` (13) - gelesen (ohne Befund)
+- [x] `server/src/lib/suchmuster.ts` (10) - neu während der Prüfung (Fund 102)
+- [x] `server/src/__tests__/suchmuster.test.ts` (12) - neu während der Prüfung (Fund 102)
+- [x] `server/src/lib/webadresse.ts` (32) - neu während der Prüfung (Fund 24)
+- [x] `server/src/__tests__/figuren.test.ts` (19) - neu während der Prüfung (Fund 115)
+- [x] `server/src/__tests__/motive.test.ts` (33) - neu während der Prüfung (Fund 120)
+- [x] `server/src/__tests__/pdfFonts.test.ts` (17) - neu während der Prüfung (Fund 131)

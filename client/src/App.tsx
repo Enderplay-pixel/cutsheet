@@ -23,7 +23,7 @@ function AppShell() {
   const { projectId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { darkMode, setActiveProjectId, searchOpen, setSearchOpen } = useProjectStore()
+  const { darkMode, searchOpen, setSearchOpen } = useProjectStore()
   const [searchVisible, setSearchVisible] = useState(false)
   const { user, justRegistered, clearJustRegistered } = useAuth()
   const [tutorialOpen, setTutorialOpen] = useState(false)
@@ -57,11 +57,6 @@ function AppShell() {
     document.documentElement.classList.toggle('dark', darkMode)
     document.documentElement.classList.toggle('light', !darkMode)
   }, [darkMode])
-
-  // Track active project
-  useEffect(() => {
-    if (projectId) setActiveProjectId(Number(projectId))
-  }, [projectId, setActiveProjectId])
 
   // Global keyboard shortcuts
   useEffect(() => {

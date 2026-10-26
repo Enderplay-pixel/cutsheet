@@ -2,16 +2,16 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Lang } from '@/lib/i18n'
 
+// Entfernt am 27.10.2026, weil nie gelesen oder nie gesetzt: activeProjectId
+// (nur geschrieben), lastSaved (nie gesetzt - "Gespeichert HH:MM" in der
+// Kopfleiste erschien nie) und ein Rückgängig-Stapel ohne Aufrufer.
 interface ProjectStore {
-  activeProjectId: number | null
-  setActiveProjectId: (id: number | null) => void
-
   darkMode: boolean
   toggleDarkMode: () => void
 
   sidebarCollapsed: boolean
   /** Navigations-Schublade am Telefon. Bewusst nicht gespeichert:
-   *  beim naechsten Laden soll sie wieder zu sein. */
+   *  beim nächsten Laden soll sie wieder zu sein. */
   mobileNavOpen: boolean
   toggleSidebar: () => void
   setMobileNav: (open: boolean) => void
@@ -21,23 +21,11 @@ interface ProjectStore {
 
   language: Lang
   setLanguage: (lang: Lang) => void
-
-  lastSaved: Date | null
-  setLastSaved: (d: Date) => void
-
-  undoStack: any[]
-  redoStack: any[]
-  pushUndo: (state: any) => void
-  undo: () => any | null
-  redo: () => any | null
 }
 
 export const useProjectStore = create<ProjectStore>()(
   persist(
     (set, get) => ({
-      activeProjectId: null,
-      setActiveProjectId: (id) => set({ activeProjectId: id }),
-
       darkMode: window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true,
       toggleDarkMode: () => {
         const next = !get().darkMode
@@ -55,34 +43,13 @@ export const useProjectStore = create<ProjectStore>()(
       setSearchOpen: (open) => set({ searchOpen: open }),
 
       // Deutsch als Voreinstellung: Strings ohne i18n-Eintrag sind deutsch,
-      // also ist 'de' die einzige Sprache ohne Mischmasch in der Oberflaeche.
+      // also ist 'de' die einzige Sprache ohne Mischmasch in der Oberfläche.
       language: 'de',
       setLanguage: (lang) => set({ language: lang }),
-
-      lastSaved: null,
-      setLastSaved: (d) => set({ lastSaved: d }),
-
-      undoStack: [],
-      redoStack: [],
-      pushUndo: (state) => set(s => ({ undoStack: [...s.undoStack.slice(-49), state], redoStack: [] })),
-      undo: () => {
-        const { undoStack, redoStack } = get()
-        if (undoStack.length === 0) return null
-        const state = undoStack[undoStack.length - 1]
-        set({ undoStack: undoStack.slice(0, -1), redoStack: [...redoStack, state] })
-        return state
-      },
-      redo: () => {
-        const { redoStack, undoStack } = get()
-        if (redoStack.length === 0) return null
-        const state = redoStack[redoStack.length - 1]
-        set({ redoStack: redoStack.slice(0, -1), undoStack: [...undoStack, state] })
-        return state
-      },
     }),
     {
       name: 'cutsheet-ui',
-      partialize: (s) => ({ activeProjectId: s.activeProjectId, darkMode: s.darkMode, sidebarCollapsed: s.sidebarCollapsed, language: s.language }),
+      partialize: (s) => ({ darkMode: s.darkMode, sidebarCollapsed: s.sidebarCollapsed, language: s.language }),
     }
   )
 )

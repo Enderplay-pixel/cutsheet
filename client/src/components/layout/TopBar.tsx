@@ -4,7 +4,7 @@ import { Search, Moon, Sun, Menu, ChevronRight } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { useT, useGebietsschema } from '@/lib/useT'
+import { useT } from '@/lib/useT'
 import { topBarT } from '@/lib/i18n'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { toggleThemeWithReveal } from '@/lib/motion'
@@ -15,12 +15,11 @@ interface TopBarProps {
 }
 
 export function TopBar({ onSearchOpen }: TopBarProps) {
-  const { darkMode, toggleDarkMode, lastSaved, setMobileNav } = useProjectStore()
+  const { darkMode, toggleDarkMode, setMobileNav } = useProjectStore()
   const { projectId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
   const tt = useT()
-  const gs = useGebietsschema()
 
   const pageTitle = resolvePageTitle(location.pathname, tt)
 
@@ -71,11 +70,6 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
             {pageTitle || project?.title || ''}
           </span>
         </div>
-        {lastSaved && (
-          <p className="text-[11px] text-muted-foreground/80 leading-none mt-1">
-            {tt(topBarT.saved)} {new Date(lastSaved).toLocaleTimeString(gs, { hour: '2-digit', minute: '2-digit' })}
-          </p>
-        )}
       </div>
 
       {/* Next shoot day - the one number everyone on a production thinks in */}
