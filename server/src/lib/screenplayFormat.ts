@@ -446,27 +446,49 @@ export function layoutScreenplay(scenes: SceneInput[], opts: LayoutOptions = {})
     const splittable = el.type === 'dialogue' || el.type === 'action' || el.type === 'note'
     const isDialogue = el.type === 'dialogue'
     // Bei Dialog kostet (MORE) eine zusätzliche Zeile auf dieser Seite
-    const budget = remaining() - lead - (isDialogue ? 1 : 0)
-    const tailAfterSplit = el.lines.length - budget
+    let budget = remaining() - lead - (isDialogue ? 1 : 0)
 
     // Trennen nur, wenn beide Hälften genug Zeilen behalten - sonst komplett
     // auf die nächste Seite schieben
-    if (!splittable || budget < MIN_SPLIT_LINES || tailAfterSplit < MIN_SPLIT_LINES) {
+    if (!splittable || budget < MIN_SPLIT_LINES || el.lines.length - budget < MIN_SPLIT_LINES) {
       flushPage()
-      pushAll()
-      continue
+      if (!splittable || el.lines.length <= remaining()) {
+        pushAll()
+        continue
+      }
+      // Länger als eine ganze Seite: dort beginnen und weiter trennen
+      lead = 0
+      budget = remaining() - (isDialogue ? 1 : 0)
     }
 
+    // So oft trennen, wie es nötig ist. Vorher nur einmal: Ein Block, der
+    // länger ist als eine Seite, stand mit dem ganzen Rest auf der Folgeseite
+    // und wurde dort abgeschnitten - gemessen am 26.10.2026 fehlten von 150
+    // Zeilen Aktion 42 im PDF, und das Drehbuch war eine Seite zu kurz.
     pushLead(lead)
-    el.lines.slice(0, budget).forEach((t, idx) => current.push(renderLine(t, idx)))
-    if (isDialogue) current.push({ col: GEOMETRY.more.col, text: '(MORE)', type: 'more' })
-    flushPage()
+    let rest = el.lines
+    let ersterTeil = true
+    for (;;) {
+      // Der Rest behält mindestens zwei Zeilen
+      const teil = Math.min(budget, rest.length - MIN_SPLIT_LINES)
+      rest.slice(0, teil).forEach((t, idx) => current.push(ersterTeil
+        ? renderLine(t, idx)
+        : { col: geo.col, text: t, type: el.type, color: el.color }))
+      ersterTeil = false
+      if (isDialogue) current.push({ col: GEOMETRY.more.col, text: '(MORE)', type: 'more' })
+      flushPage()
+      rest = rest.slice(teil)
 
-    if (isDialogue && el.speaker) {
-      const name = /\(CONT'D\)\s*$/i.test(el.speaker) ? el.speaker : `${el.speaker} (CONT'D)`
-      current.push({ col: GEOMETRY.character.col, text: name.slice(0, GEOMETRY.character.width), type: 'character' })
+      if (isDialogue && el.speaker) {
+        const name = /\(CONT'D\)\s*$/i.test(el.speaker) ? el.speaker : `${el.speaker} (CONT'D)`
+        current.push({ col: GEOMETRY.character.col, text: name.slice(0, GEOMETRY.character.width), type: 'character' })
+      }
+      if (rest.length <= remaining()) {
+        rest.forEach(t => current.push({ col: geo.col, text: t, type: el.type, color: el.color }))
+        break
+      }
+      budget = remaining() - (isDialogue ? 1 : 0)
     }
-    el.lines.slice(budget).forEach(t => current.push({ col: geo.col, text: t, type: el.type, color: el.color }))
   }
 
   flushPage()
@@ -592,7 +614,7 @@ export function renderScreenplayHtml(
     docTitle: string
     /**
      * Zeile oben links auf jeder Seite. Sides tragen sie, damit ein loses
-     * Blatt zuzuordnen ist; das Drehbuch laesst sie weg.
+     * Blatt zuzuordnen ist; das Drehbuch lässt sie weg.
      */
     header?: string
   }
@@ -650,7 +672,7 @@ export function renderScreenplayHtml(
     white-space: pre;
   }
 
-  /* Kopfzeile oben links, auf einer Hoehe mit der Seitenzahl */
+  /* Kopfzeile oben links, auf einer Höhe mit der Seitenzahl */
   .shead {
     position: absolute;
     left: ${GRID_LEFT_IN}in;

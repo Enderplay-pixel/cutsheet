@@ -334,3 +334,28 @@ describe('Anmerkungsfarbe', () => {
     expect(html).toContain('color:#3b82f6')
   })
 })
+
+describe('Blöcke länger als eine Seite', () => {
+  it('trennt sie über mehrere Seiten, ohne eine Zeile zu verlieren', () => {
+    const aktion = Array.from({ length: 150 }, (_, i) => `Zeile ${i + 1}`).join('\n')
+    const seiten = layoutScreenplay([{ scene_number: '1', blocks: [
+      { block_type: 'scene_heading', content: 'INT. HAUS - TAG' },
+      { block_type: 'action', content: aktion },
+    ] }])
+    // Vorher: zwei Seiten, die zweite mit 97 Zeilen - 42 davon abgeschnitten
+    expect(seiten.every(s => s.lines.length <= 55)).toBe(true)
+    expect(seiten.flatMap(s => s.lines).filter(l => /^Zeile \d+$/.test(l.text))).toHaveLength(150)
+  })
+
+  it('setzt bei einem Monolog über mehrere Seiten jedes Mal (MORE) und CONT\'D', () => {
+    const rede = Array.from({ length: 130 }, (_, i) => `Satz${i}`).join('\n')
+    const seiten = layoutScreenplay([{ scene_number: '1', blocks: [
+      { block_type: 'scene_heading', content: 'INT. HAUS - TAG' },
+      { block_type: 'character', content: 'MARA' },
+      { block_type: 'dialogue', content: rede },
+    ] }])
+    expect(seiten.length).toBe(3)
+    expect(seiten.flatMap(s => s.lines).filter(l => l.type === 'more')).toHaveLength(2)
+    expect(seiten.slice(1).map(s => s.lines[0].text)).toEqual(["MARA (CONT'D)", "MARA (CONT'D)"])
+  })
+})
