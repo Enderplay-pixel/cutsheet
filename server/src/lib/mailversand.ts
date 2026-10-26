@@ -192,15 +192,24 @@ export async function sendeFaellige(grenze = 25): Promise<{
   fehlgeschlagen: number
   ohneVersand: number
 }> {
-  const faellig = (await db.all(
-    `SELECT * FROM email_outbox
-      WHERE status = 'wartet'
-        AND next_attempt_at <= NOW()
-        AND (scheduled_for IS NULL OR scheduled_for <= NOW())
-      ORDER BY id ASC
-      LIMIT ?`,
+  // Beanspruchen statt nur lesen. Der Versand läuft aus der Schleife und direkt
+  // nach dem Einreihen - zwei Läufe griffen dieselbe wartende Mail, und sie
+  // kam zweimal an (gemessen am 26.10.2026 mit einem Fang-SMTP). Jetzt
+  // schiebt jeder Lauf seine Zeilen in einem Zug zehn Minuten nach hinten,
+  // gesperrte überspringt er. Bricht ein Lauf mittendrin ab, kommt die Mail
+  // nach diesen zehn Minuten wieder an die Reihe.
+  const faellig = ((await db.all(
+    `UPDATE email_outbox SET next_attempt_at = NOW() + interval '10 minutes'
+      WHERE id IN (SELECT id FROM email_outbox
+                    WHERE status = 'wartet'
+                      AND next_attempt_at <= NOW()
+                      AND (scheduled_for IS NULL OR scheduled_for <= NOW())
+                    ORDER BY id ASC
+                    LIMIT ?
+                    FOR UPDATE SKIP LOCKED)
+      RETURNING *`,
     [grenze]
-  )) as any[]
+  )) as any[]).sort((a, b) => a.id - b.id)
 
   let gesendet = 0
   let fehlgeschlagen = 0

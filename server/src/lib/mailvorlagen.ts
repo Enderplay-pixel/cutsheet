@@ -148,7 +148,7 @@ export const STANDARDVORLAGEN: Standardvorlage[] = [
       'Hallo {{vorname}},\n\n' +
       'wir sehen uns das Motiv {{motiv}} an.\n\n' +
       'Datum: {{datum}}\n' +
-      'Treffpunkt: {{call}}\n\n' +
+      'Uhrzeit: {{call}} Uhr\n\n' +
       'Kurze Rückmeldung genügt, ob du dabei bist.\n\n' +
       'Viele Grüße\n{{absender}}',
   },
@@ -181,7 +181,7 @@ export const STANDARDVORLAGEN: Standardvorlage[] = [
     text:
       'Hallo {{vorname}},\n\n' +
       'der Dreh zu {{projekt}} ist im Kasten. Danke für deine Arbeit.\n\n' +
-      'Sobald es einen Schnitt zu sehen gibt, meldest du dich als Erstes.\n\n' +
+      'Sobald es einen Schnitt zu sehen gibt, erfährst du es als Erstes.\n\n' +
       'Viele Grüße\n{{absender}}',
   },
 ]

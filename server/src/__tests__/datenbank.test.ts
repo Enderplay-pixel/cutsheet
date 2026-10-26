@@ -264,6 +264,49 @@ describe('Postausgang', () => {
     expect(await mailversand.erneutVersuchen(mail.id, projektId + 999)).toBe(false)
   })
 
+  it('stellt eine wartende Mail nur einmal zu, auch bei zwei gleichzeitigen Läufen', async () => {
+    // Schleife und Route laufen gleichzeitig. Mit einem langsamen Mailserver
+    // griffen beide dieselbe Zeile, und die Mail kam zweimal an.
+    const net = await import('net')
+    const empfangen: string[] = []
+    const falle = net.createServer((sock) => {
+      let daten = false
+      const antworte = (t: string) => setTimeout(() => sock.write(t + '\r\n'), 100)
+      sock.write('220 falle\r\n')
+      sock.on('data', (chunk) => {
+        for (const zeile of chunk.toString().split('\r\n').filter(Boolean)) {
+          if (daten) { if (zeile === '.') { daten = false; antworte('250 ok') } continue }
+          if (/^RCPT/i.test(zeile)) empfangen.push(zeile)
+          if (/^DATA/i.test(zeile)) { daten = true; antworte('354 los') } else if (/^QUIT/i.test(zeile)) sock.end('221 tschüss\r\n')
+          else antworte('250 ok')
+        }
+      })
+      sock.on('error', () => undefined)
+    })
+    await new Promise<void>((fertig) => falle.listen(0, '127.0.0.1', () => fertig()))
+    const alt = { host: process.env.SMTP_HOST, port: process.env.SMTP_PORT }
+    process.env.SMTP_HOST = '127.0.0.1'
+    process.env.SMTP_PORT = String((falle.address() as any).port)
+    mailversand.vergissTransport()
+    try {
+      // Andere wartende Zeilen aus früheren Tests stören die Zählung nicht
+      await db.run("UPDATE email_outbox SET status = 'ohne_versand' WHERE status = 'wartet'")
+      await mailversand.reiheEin({
+        projectId: projektId, betreff: 'Doppelt?', html: '<p>x</p>',
+        empfaenger: [{ email: 'doppelt@cutsheet-falle.de' }], anlass: 'test',
+      })
+      await Promise.all([mailversand.sendeFaellige(), mailversand.sendeFaellige()])
+      expect(empfangen).toHaveLength(1)
+    } finally {
+      process.env.SMTP_HOST = alt.host ?? ''
+      if (!alt.host) delete process.env.SMTP_HOST
+      if (alt.port) process.env.SMTP_PORT = alt.port
+      else delete process.env.SMTP_PORT
+      mailversand.vergissTransport()
+      falle.close()
+    }
+  })
+
   it('speichert einen Anhang einmal, auch bei mehreren Empfängern', async () => {
     const vorher = await db.get('SELECT COUNT(*) AS c FROM email_attachments')
     await mailversand.reiheEin({
