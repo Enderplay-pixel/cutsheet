@@ -321,6 +321,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 129 | `server/src/lib/mailvorlagen.ts` (Standardvorlagen) | Klein (Text) | "Motivbesichtigung": "Treffpunkt: {{call}}" setzte eine Uhrzeit als Ort ein. "Danke nach Drehschluss": "Sobald es einen Schnitt zu sehen gibt, meldest du dich als Erstes" sagte das Gegenteil des Gemeinten. | aus dem Text | behoben: "Uhrzeit: {{call}} Uhr", "erfährst du es als Erstes". Gilt für neue Projekte; schon angelegte Vorlagen eines Projekts bleiben, wie sie sind |
 | 130 | `routes/drehplan.ts:123`, `routes/tabellen.ts:183`, `lib/meldungenText.ts` | Klein (Text) | "dates array required" kam als englische Meldung bei deutschen Nutzern an; "Die Datei ist zu gross"; eine französische Meldung siezte ("Ajoutez"), alle anderen duzen. | aus dem Text | behoben: "dates ist eine Liste von Daten (JJJJ-MM-TT)", "zu groß", "Ajoute"; Übersetzungen nachgezogen, Meldungstest grün |
 | 131 | `server/src/lib/pdfFonts.ts` (`resolveAccent`) | Härtung | Die Kopffarbe eines Projekts wird beim Speichern nicht geprüft und stand ungefiltert im Stylesheet jedes PDFs, das der Server selbst rendert (Dispo, Listen, Morning Brief). | aus dem Code; `resolveAccent('red; } body { display: none')` gab den Text zurück | behoben: nur `#rgb`/`#rrggbb`, sonst der Standard - an der einen Stelle, durch die alle Dokumente laufen. Die Oberfläche bietet ohnehin nur Hex an; lokal alle 72 Projekte mit Hex. Test |
+| 132 | `server/src/lib/rechnungLayout.ts:82`, `client/src/pages/Rechnungen.tsx` | **Fehler, Geld** | Die Zeilenbeträge auf dem Rechnungsblatt und die Summe im Rechnungseditor rundeten mit `Math.round`, die Nettosumme kaufmännisch (`positionsNetto`). Bei einer negativen Position mit halbem Cent (Rabatt auf einen halben Tag) ging die Rechnung nicht auf - genau das, wovor der Kopfkommentar von `lib/rechnung.ts` warnt. | ja: Drehtag 10,00 € und Rabatt 0,5 × -1,01 € - Zeilen 10,00 € und -0,50 €, Nettobetrag 9,49 € | behoben: Blatt rechnet die Zeile mit `positionsNetto`, Editor rundet gleich. Danach gemessen: -0,51 €, Summe 9,49 € geht auf; Test |
 
 ### Verknüpfungen
 
@@ -473,8 +474,8 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/lib/passwort.ts` (83) - ohne Fund
 - [x] `server/src/lib/pdfFonts.ts` (62) - Fund 131
 - [x] `server/src/lib/person.ts` (20) - Fund 119
-- [ ] `server/src/lib/rechnung.ts` (140)
-- [x] `server/src/lib/rechnungLayout.ts` (291) - ohne Fund (gemessen: Anschrift stabil bei 55 mm)
+- [x] `server/src/lib/rechnung.ts` (140) - ohne Fund (Rundung der Darstellung: Fund 132)
+- [x] `server/src/lib/rechnungLayout.ts` (291) - ohne Fund (gemessen: Anschrift stabil bei 55 mm); Fund 132
 - [ ] `server/src/lib/screenplayFormat.ts` (675)
 - [ ] `server/src/lib/shotlist.ts` (324)
 - [ ] `server/src/lib/spesen.ts` (184)

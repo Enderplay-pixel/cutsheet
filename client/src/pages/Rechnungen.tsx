@@ -379,8 +379,14 @@ function RechnungBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
   const istEntwurf = rechnung?.status === 'entwurf'
   const firmenProjekte = (projekte || []).filter((p: any) => p.company_id === firmaId)
 
+  // Je Zeile kaufmännisch gerundet wie auf dem Server (lib/rechnung.ts,
+  // positionsNetto): Math.round rundet -0,5 Cent auf 0, und die Summe im
+  // Editor wich vom gespeicherten Nettobetrag ab
   const summe = useMemo(
-    () => zeilen.reduce((s: number, z: any) => s + Math.round((Number(z.quantity_milli || 0) * Number(z.unit_price_cents || 0)) / 1000), 0),
+    () => zeilen.reduce((s: number, z: any) => {
+      const roh = (Number(z.quantity_milli || 0) * Number(z.unit_price_cents || 0)) / 1000
+      return s + Math.sign(roh) * Math.round(Math.abs(roh))
+    }, 0),
     [zeilen]
   )
 

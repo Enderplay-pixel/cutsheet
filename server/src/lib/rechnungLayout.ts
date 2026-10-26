@@ -15,7 +15,7 @@
  *  - Entgelt nach Steuersätzen getrennt, Steuerbetrag, Bruttobetrag
  *  - bei Paragraf 19 UStG der Hinweis auf die Kleinunternehmerregelung
  */
-import { euro, menge, summiere, type Position, type Steuerart } from './rechnung'
+import { euro, menge, summiere, positionsNetto, type Position, type Steuerart } from './rechnung'
 import { pdfFontFaces, PDF_SANS } from './pdfFonts'
 
 function esc(wert: any): string {
@@ -79,7 +79,7 @@ export function renderRechnung(daten: Rechnungsdaten): string {
         <td>${esc(position.unit || '')}</td>
         <td class="zahl">${esc(euro(position.unit_price_cents))}</td>
         ${kleinunternehmen ? '' : `<td class="zahl">${esc(position.tax_percent)} %</td>`}
-        <td class="zahl">${esc(euro(Math.round((position.quantity_milli * position.unit_price_cents) / 1000)))}</td>
+        <td class="zahl">${esc(euro(positionsNetto(position)))}</td>
       </tr>`
     )
     .join('')

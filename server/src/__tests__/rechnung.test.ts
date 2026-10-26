@@ -157,3 +157,19 @@ describe('Kaufmännisch runden, auch negativ', () => {
     expect(zurueck.brutto).toBe(-hin.brutto)
   })
 })
+
+describe('Rechnungsblatt', () => {
+  it('zeigt Zeilenbeträge, die sich zum Nettobetrag addieren - auch bei einem negativen halben Cent', async () => {
+    const { renderRechnung } = await import('../lib/rechnungLayout')
+    const html = renderRechnung({
+      firma: { name: 'RuhrCut' }, kunde: { name: 'Kunde' }, rechnung: { number: 'X', status: 'versendet' },
+      positionen: [
+        { description: 'Drehtag', quantity_milli: 1000, unit_price_cents: 1000, tax_percent: 19 },
+        { description: 'Rabatt, halber Tag', quantity_milli: 500, unit_price_cents: -101, tax_percent: 19 },
+      ],
+    })
+    // Vorher stand die Rabattzeile als -0,50 €, der Nettobetrag als 9,49 €
+    expect(html).toContain('-0,51')
+    expect(html).toContain('9,49')
+  })
+})
