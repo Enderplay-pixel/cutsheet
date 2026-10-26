@@ -7,6 +7,7 @@ import { reiheEin, sendeFaellige } from '../lib/mailversand'
 import { maskiere } from '../lib/mailvorlagen'
 import { sendPushToUser } from './push'
 import { personAngaben, istPersonenart, PERSONEN_TABELLE } from '../lib/person'
+import { dispoFuellen, drehortDesTages } from '../lib/dispo'
 
 const router = Router()
 
@@ -43,43 +44,6 @@ async function getCallSheet(id: number) {
   }))
 
   return { ...sheet, entries: enriched }
-}
-
-/**
- * Trägt Stab und Besetzung des Projekts in eine neue Dispo ein - so, wie sie
- * beim ersten Anlegen gefüllt wird.
- */
-async function stabUndBesetzungEintragen(sheetId: number, projectId: number, call: number) {
-  const crew = await db.all('SELECT id FROM crew WHERE project_id = ?', [projectId]) as any[]
-  const cast = await db.all('SELECT id FROM "cast" WHERE project_id = ?', [projectId]) as any[]
-  for (const [i, c] of crew.entries()) {
-    await db.run('INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, call_time, sort_order) VALUES (?, ?, ?, ?, ?)', [sheetId, 'crew', c.id, call, i])
-  }
-  for (const [i, c] of cast.entries()) {
-    await db.run('INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, call_time, sort_order) VALUES (?, ?, ?, ?, ?)', [sheetId, 'cast', c.id, call, crew.length + i])
-  }
-}
-
-/**
- * Die Dispo eines Drehtags - angelegt, falls es noch keine gibt. Für die
- * Zuordnung von Komparsen zu Drehtagen: Wer einen Komparsen einem Tag ohne
- * Dispo zuordnet, bekommt dieselbe Dispo wie beim Anlegen von Hand.
- */
-export async function dispoFuerDrehtag(dayId: number): Promise<{ id: number; general_call: number } | null> {
-  const vorhanden = await db.get('SELECT id, general_call FROM call_sheets WHERE shoot_day_id = ?', [dayId]) as any
-  if (vorhanden) return vorhanden
-  const tag = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [dayId]) as any
-  if (!tag) return null
-  const settings = await db.get('SELECT default_call_time FROM project_settings WHERE project_id = ?', [tag.project_id]) as any
-  const call = Number(settings?.default_call_time ?? 480)
-  const neu = await db.run(
-    'INSERT INTO call_sheets (shoot_day_id, general_call, shooting_call) VALUES (?, ?, ?) ON CONFLICT (shoot_day_id) DO NOTHING',
-    [dayId, call, call + 30]
-  )
-  // Gleichzeitig angelegt: die andere Anfrage hat die Dispo schon gefüllt
-  if (!neu.id) return await db.get('SELECT id, general_call FROM call_sheets WHERE shoot_day_id = ?', [dayId]) as any
-  await stabUndBesetzungEintragen(neu.id, tag.project_id, call)
-  return { id: neu.id, general_call: call }
 }
 
 // GET /api/shoot-days/:dayId/call-sheet
@@ -167,7 +131,8 @@ router.post('/shoot-days/:dayId/call-sheet', async (req, res) => {
     `, [req.params.dayId, general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes, ...extraCols])
     sheetId = result.id
 
-    if (shootDay) await stabUndBesetzungEintragen(sheetId, shootDay.project_id, general_call)
+    // Der Stab, dazu die Besetzung der Szenen des Tages (lib/dispo.ts)
+    if (shootDay) await dispoFuellen(db, sheetId, shootDay.project_id, Number(req.params.dayId), general_call)
   }
 
   res.json({ data: await getCallSheet(sheetId), error: null })
@@ -285,9 +250,8 @@ router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Resp
   const sheet = await db.get('SELECT * FROM call_sheets WHERE shoot_day_id = ?', [req.params.dayId]) as any
   if (!sheet) return res.status(404).json({ data: null, error: 'Keine Dispo für diesen Drehtag angelegt' })
 
-  const location = sheet.location_id
-    ? await db.get('SELECT name, address, city FROM locations WHERE id = ?', [sheet.location_id]) as any
-    : null
+  // Gewähltes Motiv, sonst das der ersten Szene des Tages
+  const location = await drehortDesTages(req.params.dayId, sheet.location_id)
 
   // PDF einmal bauen (lazy import vermeidet Zirkularität beim Modul-Load)
   const { buildTagesdispoHtml, generatePdf } = require('./pdf')

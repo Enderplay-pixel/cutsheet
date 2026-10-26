@@ -3,7 +3,7 @@ import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
 import { loeschePersonenspuren } from '../lib/person'
-import { dispoFuerDrehtag } from './callsheets'
+import { dispoFuerDrehtag } from '../lib/dispo'
 
 const router = Router()
 

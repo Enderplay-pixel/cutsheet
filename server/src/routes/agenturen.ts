@@ -15,6 +15,7 @@
 import { Router, Request, Response } from 'express'
 import crypto from 'crypto'
 import { db } from '../db'
+import { besetzungNachziehen } from '../lib/dispo'
 import { requireAuth, AuthUser } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
 import { erfordereFirma } from './companies'
@@ -456,6 +457,8 @@ router.post('/projects/:projectId/casting-vorschlaege/:id/uebernehmen', requireA
     ]
   )
   await db.run('UPDATE casting_proposals SET taken_cast_id = ? WHERE id = ?', [zeile.id, vorschlag.id])
+  // Besetzt ist besetzt: Der Darsteller kommt in die Dispos seiner Rolle (lib/dispo.ts)
+  if (vorschlag.character_id) await besetzungNachziehen(db, { rolle: Number(vorschlag.character_id) })
   logAudit(projectId, (req as any).user as AuthUser, 'vorschlag übernommen', 'cast', zeile.id,
     null, { name: vorschlag.actor_name })
   return res.json({ data: { cast_id: zeile.id }, error: null })

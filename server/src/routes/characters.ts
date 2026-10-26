@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db'
+import { besetzungNachziehen } from '../lib/dispo'
 import { requireMember } from '../middleware/projectAuth'
 import { loeschePersonenspuren } from '../lib/person'
 
@@ -66,6 +67,8 @@ router.post('/projects/:projectId/cast', async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [req.params.projectId, character_id, actor_name, email, phone, agent, agent_email, agency, fee_per_day, contract_type, availability_notes, notes])
 
+  // Die Rolle hat Drehtage: Der Darsteller kommt in deren Dispos (lib/dispo.ts)
+  if (character_id) await besetzungNachziehen(db, { rolle: Number(character_id) })
   const row = await db.get('SELECT c.*, ch.name as character_name FROM cast c LEFT JOIN characters ch ON c.character_id = ch.id WHERE c.id = ?', [result.id])
   res.status(201).json({ data: row, error: null })
 })
@@ -89,6 +92,7 @@ router.put('/cast/:id', async (req, res) => {
     UPDATE cast SET character_id=?, actor_name=?, email=?, phone=?, agent=?, agent_email=?, agency=?, fee_per_day=?, contract_type=?, availability_notes=?, notes=?
     WHERE id=?
   `, [character_id, actor_name, email, phone, agent, agent_email, agency, fee_per_day, contract_type, availability_notes, notes, req.params.id])
+  if (character_id) await besetzungNachziehen(db, { rolle: Number(character_id) })
   const row = await db.get('SELECT c.*, ch.name as character_name FROM cast c LEFT JOIN characters ch ON c.character_id = ch.id WHERE c.id = ?', [req.params.id])
   res.json({ data: row, error: null })
 })

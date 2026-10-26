@@ -2,6 +2,7 @@ import { dateiname } from '../lib/dateiname'
 import { Router, Request, Response } from 'express'
 import { resolveAccent } from '../lib/pdfFonts'
 import { db } from '../db'
+import { drehortDesTages } from '../lib/dispo'
 import { ueberlastMarkieren } from '../lib/ueberlast'
 import { requireMember, getUserProjectRole } from '../middleware/projectAuth'
 import { renderCallSheetHtml } from '../lib/callSheetLayout'
@@ -492,6 +493,11 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
        FROM call_sheets cs LEFT JOIN locations l ON cs.location_id = l.id WHERE cs.shoot_day_id = ?`,
     [dayId]
   ) as any
+  // Ohne gewähltes Motiv steht das der ersten Szene als Drehort da (lib/dispo.ts)
+  if (sheet && !sheet.location_id) {
+    const ort = await drehortDesTages(dayId, null)
+    if (ort) Object.assign(sheet, { location_name: ort.name, location_address: ort.address, location_zip: ort.zip, location_city: ort.city })
+  }
 
   const entries = sheet
     ? await db.all('SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC', [sheet.id]) as any[]

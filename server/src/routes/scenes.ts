@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db'
+import { besetzungNachziehen } from '../lib/dispo'
 import { requireMember } from '../middleware/projectAuth'
 import { baueUeberschrift, leseUeberschrift } from '../lib/szenenUeberschrift'
 import { motivVerknuepfen } from '../lib/motive'
@@ -228,6 +229,8 @@ router.post('/scenes/:id/characters', async (req, res) => {
   )
   if (!figur) return res.status(404).json({ data: null, error: 'Figur nicht gefunden' })
   await db.run('INSERT INTO scene_characters (scene_id, character_id, role_in_scene) VALUES (?, ?, ?) ON CONFLICT DO NOTHING', [req.params.id, character_id, role_in_scene])
+  // Wer die Rolle spielt, kommt in die Dispos der Tage dieser Szene (lib/dispo.ts)
+  await besetzungNachziehen(db, { szene: Number(req.params.id) })
   const chars = await db.all(`SELECT sc.*, c.name as character_name FROM scene_characters sc JOIN characters c ON sc.character_id = c.id WHERE sc.scene_id = ?`, [req.params.id])
   res.json({ data: chars, error: null })
 })

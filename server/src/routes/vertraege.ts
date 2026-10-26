@@ -187,7 +187,27 @@ async function werteFuer(projectId: number, art: string, personId: number) {
     [art, personId, projectId]
   )) as any[]
 
-  const motive = (await db.all(
+  // Drehorte wie die Drehtage: aus den Dispositionen dieser Person - die
+  // Motive ihrer Szenen und der Drehort ihrer Tage. Vorher standen die ersten
+  // acht Motive des Projekts im Vertrag, auch die, an denen sie nie dreht.
+  // Ohne Dispo noch das ganze Projekt, wie bisher: Ein Vertrag entsteht oft
+  // vor dem Drehplan.
+  const eigeneMotive = (await db.all(
+    `SELECT l.name FROM call_sheet_entries cse
+       JOIN call_sheets cs ON cse.call_sheet_id = cs.id
+       JOIN shoot_day_scenes sds ON sds.shoot_day_id = cs.shoot_day_id
+       JOIN scenes s ON s.id = sds.scene_id
+       JOIN locations l ON l.id = s.location_id
+      WHERE cse.person_type = ? AND cse.person_id = ? AND l.project_id = ?
+     UNION
+     SELECT l.name FROM call_sheet_entries cse
+       JOIN call_sheets cs ON cse.call_sheet_id = cs.id
+       JOIN locations l ON l.id = cs.location_id
+      WHERE cse.person_type = ? AND cse.person_id = ? AND l.project_id = ?
+     ORDER BY name ASC LIMIT 8`,
+    [art, personId, projectId, art, personId, projectId]
+  )) as any[]
+  const motive = eigeneMotive.length > 0 ? eigeneMotive : (await db.all(
     'SELECT name FROM locations WHERE project_id = ? ORDER BY name ASC LIMIT 8', [projectId]
   )) as any[]
 

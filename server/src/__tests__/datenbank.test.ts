@@ -2245,3 +2245,31 @@ describe('Motive aus der Szenenüberschrift', () => {
     expect(await db.get('SELECT id FROM locations WHERE id = ?', [tippfehler!.id])).toBeUndefined()
   })
 })
+
+describe('Dispo aus dem Projekt', () => {
+  it('ruft die Besetzung der Szenen des Tages, nicht alle Darsteller, und zieht sie nach', async () => {
+    const { dispoFuerDrehtag, besetzungNachziehen, drehortDesTages } = await import('../lib/dispo')
+    const tag = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 8, '2026-11-21')", [projektId])).id
+    const motiv = (await db.run("INSERT INTO locations (project_id, name) VALUES (?, 'Mole')", [projektId])).id
+    const szene = (await db.run("INSERT INTO scenes (project_id, scene_number, location_id) VALUES (?, '30', ?)", [projektId, motiv])).id
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, 0)', [tag, szene])
+    const rolle = (await db.run("INSERT INTO characters (project_id, name) VALUES (?, 'Fischer')", [projektId])).id
+    const andere = (await db.run("INSERT INTO characters (project_id, name) VALUES (?, 'Wirtin')", [projektId])).id
+    await db.run('INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?)', [szene, rolle])
+    const fischer = (await db.run("INSERT INTO \"cast\" (project_id, character_id, actor_name) VALUES (?, ?, 'Ole')", [projektId, rolle])).id
+    const wirtin = (await db.run("INSERT INTO \"cast\" (project_id, character_id, actor_name) VALUES (?, ?, 'Gesa')", [projektId, andere])).id
+
+    const dispo = await dispoFuerDrehtag(tag)
+    const besetzung = async () => (await db.all(
+      "SELECT person_id FROM call_sheet_entries WHERE call_sheet_id = ? AND person_type = 'cast'", [dispo!.id]
+    )).map((e: any) => e.person_id)
+    expect(await besetzung()).toEqual([fischer])
+    expect((await drehortDesTages(tag, null))?.name).toBe('Mole')
+
+    // Die Wirtin kommt in die Szene: Ihre Darstellerin kommt nach, einmal
+    await db.run('INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?)', [szene, andere])
+    expect(await besetzungNachziehen(db, { szene })).toBe(1)
+    expect(await besetzungNachziehen(db, { rolle: andere })).toBe(0)
+    expect((await besetzung()).sort()).toEqual([fischer, wirtin].sort())
+  })
+})

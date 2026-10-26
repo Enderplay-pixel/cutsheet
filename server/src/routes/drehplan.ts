@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db'
+import { besetzungNachziehen } from '../lib/dispo'
 import { getUserProjectRole, requireMember, ROLE_RANK } from '../middleware/projectAuth'
 import { istIsoDatum } from '../lib/datum'
 
@@ -191,6 +192,8 @@ router.post('/shoot-days/:id/scenes', async (req, res) => {
     }
     throw e
   }
+  // Die Besetzung der Szene kommt in die Dispo des Tages (lib/dispo.ts)
+  await besetzungNachziehen(db, { tage: [Number(req.params.id)] })
   res.json({ data: await getShootDayWithScenes(parseInt(req.params.id)), error: null })
 })
 
@@ -266,6 +269,7 @@ router.post('/shoot-days/move-scene', async (req, res) => {
         if (!e.message?.includes('UNIQUE') && !e.message?.includes('unique')) throw e
         await tx.run('UPDATE shoot_day_scenes SET sort_order = ? WHERE shoot_day_id = ? AND scene_id = ?', [sortOrder, toDayId, sceneId])
       }
+      await besetzungNachziehen(tx, { tage: [Number(toDayId)] })
     }
   })
 
@@ -318,6 +322,7 @@ router.post('/projects/:projectId/drehplan/restore/:versionId', async (req, res)
   }
 
   const days = await db.all('SELECT * FROM shoot_days WHERE project_id = ? ORDER BY day_number', [req.params.projectId])
+  await besetzungNachziehen(db, { tage: (days as any[]).map(d => Number(d.id)) })
   const result = await Promise.all((days as any[]).map(d => getShootDayWithScenes(d.id)))
   res.json({ data: result, error: null })
 })

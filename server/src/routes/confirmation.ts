@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import { db } from '../db'
+import { drehortDesTages } from '../lib/dispo'
 import { personAngaben } from '../lib/person'
 import { starteSitzung, AuthUser } from '../middleware/auth'
 
@@ -46,9 +47,8 @@ router.get('/cse/t/:token', async (req: Request, res: Response) => {
   if (!sheet) return res.status(404).json({ data: null, error: 'Dispo nicht gefunden' })
   const day = await db.get('SELECT * FROM shoot_days WHERE id = ?', [sheet.shoot_day_id]) as any
   const project = await db.get('SELECT id, title, format, genre FROM projects WHERE id = ?', [day?.project_id]) as any
-  const location = sheet.location_id
-    ? await db.get('SELECT name, address, city, zip FROM locations WHERE id = ?', [sheet.location_id]) as any
-    : null
+  // Gewähltes Motiv, sonst das der ersten Szene des Tages (lib/dispo.ts)
+  const location = await drehortDesTages(sheet.shoot_day_id, sheet.location_id)
 
   const person = await getPersonForEntry(entry)
 

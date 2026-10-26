@@ -13,6 +13,8 @@
  * Figur ohne Dialog) bleibt, auch wenn sie im Text nicht vorkommt.
  */
 
+import { besetzungNachziehen } from './dispo'
+
 /** Was zum Lesen und Schreiben gebraucht wird - die Datenbank oder eine Transaktion. */
 type Zugriff = {
   get: (sql: string, werte?: any[]) => Promise<any>
@@ -73,5 +75,7 @@ export async function figurVerknuepfen(
     'INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?) ON CONFLICT DO NOTHING',
     [sceneId, rolle.id]
   )
+  // Ist die Rolle schon besetzt, kommt der Darsteller in die Dispos der Szene
+  await besetzungNachziehen(z, { szene: sceneId })
   return rolle
 }

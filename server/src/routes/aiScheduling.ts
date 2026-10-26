@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { besetzungNachziehen } from '../lib/dispo'
 import Anthropic from '@anthropic-ai/sdk'
 import { getUserProjectRole, ROLE_RANK } from '../middleware/projectAuth'
 
@@ -116,6 +117,7 @@ Verwende nur existierende Drehtagnummern (1-${shootDays.length}). Alle Szenen m√
   // Zeile: Scheiterte eine mittendrin (etwa an einer sort_order wie "2a" aus
   // der KI-Antwort), blieb ein halb umgebauter Drehplan stehen.
   let movedCount = 0
+  const zielTage: number[] = []
   await db.transaction(async (tx) => {
     for (const assignment of Array.isArray(assignments) ? assignments : []) {
       const day = shootDays.find((d: any) => d.day_number === Number(assignment?.shoot_day_number))
@@ -136,7 +138,10 @@ Verwende nur existierende Drehtagnummern (1-${shootDays.length}). Alle Szenen m√
       )
 
       if (scene.shoot_day_id !== day.id) movedCount++
+      zielTage.push(Number(day.id))
     }
+    // Die Besetzung der verschobenen Szenen kommt in die Dispos (lib/dispo.ts)
+    await besetzungNachziehen(tx, { tage: zielTage })
   })
 
   res.json({ data: { moved: movedCount, assignments, snapshot_created: true }, error: null })

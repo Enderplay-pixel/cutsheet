@@ -2603,8 +2603,8 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
   ]
   // Jeder Komparse steht in der Dispo seines Drehtags (Café Tag 3, Park
   // Tag 2) - dort lesen Vertrag, Verpflegung, Check-in und das Dispo-PDF.
-  // Später geladen: routes/callsheets braucht diese Datei selbst.
-  const { dispoFuerDrehtag } = await import('../routes/callsheets')
+  // Später geladen: lib/dispo braucht diese Datei selbst.
+  const { dispoFuerDrehtag } = await import('../lib/dispo')
   const komparsenTag = [dayId3, dayId3, dayId2, dayId2]
   for (const [i, [name, phone, email, tariff, notesTxt]] of extras.entries()) {
     const extra = await db.run(
