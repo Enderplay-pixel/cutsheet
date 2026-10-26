@@ -3,7 +3,7 @@
  *
  * Studio kennt die Retention-Kurve, aber nicht das Skript. CutSheet kennt das
  * Skript mit Timecodes. Erst die Verbindung beider Seiten beantwortet die
- * Frage, die zaehlt: *an welcher Stelle des Skripts* springen die Leute ab -
+ * Frage, die zählt: *an welcher Stelle des Skripts* springen die Leute ab -
  * beim Sponsor, nach dem Hook, im zweiten Hauptteil?
  *
  * Reine Rechnerei ohne Netzwerk und Datenbank, damit es testbar bleibt.
@@ -70,7 +70,7 @@ export interface SectionRetention extends TimedSection {
   /** Zuschaueranteil zu Beginn des Abschnitts, in Prozent. */
   watchStart: number | null
   watchEnd: number | null
-  /** Verlust ueber den Abschnitt in Prozentpunkten; positiv heisst Abwanderung. */
+  /** Verlust über den Abschnitt in Prozentpunkten; positiv heißt Abwanderung. */
   dropPercentPoints: number | null
   /** Verlust je Minute - macht unterschiedlich lange Abschnitte vergleichbar. */
   dropPerMinute: number | null
@@ -82,17 +82,17 @@ export interface ScriptRetentionAnalysis {
   worst: SectionRetention | null
   /** Zuschaueranteil nach 30 Sekunden - der Hook-Test. */
   hookRetention: number | null
-  /** Abwanderung waehrend der Sponsorstrecke, falls es eine gibt. */
+  /** Abwanderung während der Sponsorstrecke, falls es eine gibt. */
   sponsorDrop: number | null
   notes: string[]
 }
 
 /**
- * Legt die Retention-Kurve ueber die Skript-Abschnitte.
+ * Legt die Retention-Kurve über die Skript-Abschnitte.
  *
  * Der Verlust wird je Minute normiert, weil ein zehnminuetiger Hauptteil
  * natuerlich mehr Zuschauer verliert als ein zwanzigsekuendiger Call to Action -
- * ohne Normierung waere der laengste Abschnitt immer der vermeintlich schlechteste.
+ * ohne Normierung wäre der laengste Abschnitt immer der vermeintlich schlechteste.
  */
 export function analyseScriptRetention(
   sections: TimedSection[],
@@ -137,17 +137,17 @@ export function analyseScriptRetention(
     : null
 
   if (hookRetention !== null) {
-    if (hookRetention < 60) notes.push(`Nach 30 Sekunden sind noch ${hookRetention} % dabei - der Einstieg verliert zu früh.`)
-    else if (hookRetention >= 75) notes.push(`Nach 30 Sekunden noch ${hookRetention} % - der Hook trägt.`)
-    else notes.push(`Nach 30 Sekunden noch ${hookRetention} % - brauchbar, aber ausbaufähig.`)
+    if (hookRetention < 60) notes.push(`Nach 30 Sekunden sind noch ${komma(hookRetention)} % dabei - der Einstieg verliert zu früh.`)
+    else if (hookRetention >= 75) notes.push(`Nach 30 Sekunden noch ${komma(hookRetention)} % - der Hook trägt.`)
+    else notes.push(`Nach 30 Sekunden noch ${komma(hookRetention)} % - brauchbar, aber ausbaufähig.`)
   }
   if (worst && (worst.dropPerMinute as number) > 0) {
-    notes.push(`Stärkster Verlust in „${worst.heading || worst.kind}“: ${worst.dropPerMinute} Prozentpunkte je Minute.`)
+    notes.push(`Stärkster Verlust in „${worst.heading || worst.kind}“: ${komma(worst.dropPerMinute as number)} Prozentpunkte je Minute.`)
   }
   if (sponsorDrop !== null) {
     notes.push(sponsorDrop > 10
-      ? `Die Sponsorstrecke kostet ${sponsorDrop} Prozentpunkte - kürzer oder später platzieren.`
-      : `Die Sponsorstrecke kostet ${sponsorDrop} Prozentpunkte, das ist unauffällig.`)
+      ? `Die Sponsorstrecke kostet ${komma(sponsorDrop)} Prozentpunkte - kürzer oder später platzieren.`
+      : `Die Sponsorstrecke kostet ${komma(sponsorDrop)} Prozentpunkte, das ist unauffällig.`)
   }
 
   return { sections: analysed, worst, hookRetention, sponsorDrop, notes }
@@ -157,12 +157,17 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10
 }
 
-// ─── Vergleich ueber mehrere Videos ───────────────────────────────────────────
+/** Zahl für einen deutschen Satz: Dezimalkomma ("86,3 %" statt "86.3 %"). */
+function komma(n: number): string {
+  return String(n).replace('.', ',')
+}
+
+// ─── Vergleich über mehrere Videos ───────────────────────────────────────────
 
 export interface VideoSummary {
   id?: number
   title?: string
-  /** Laenge in Sekunden. */
+  /** Länge in Sekunden. */
   seconds?: number
   views?: number
   impressions?: number
@@ -173,13 +178,13 @@ export interface VideoSummary {
 }
 
 export interface ChannelPatterns {
-  /** Klickrate im Mittel ueber alle Videos mit Impressionen. */
+  /** Klickrate im Mittel über alle Videos mit Impressionen. */
   averageCtr: number | null
   /** Gesehener Anteil im Mittel. */
   averageRetention: number | null
   /**
    * Zusammenhang zwischen Videolaenge und gesehenem Anteil, als Korrelation
-   * zwischen -1 und 1. Negativ heisst: laengere Videos werden anteilig
+   * zwischen -1 und 1. Negativ heißt: laengere Videos werden anteilig
    * schlechter zu Ende geschaut.
    */
   lengthVsRetention: number | null
@@ -188,11 +193,16 @@ export interface ChannelPatterns {
   notes: string[]
 }
 
-const WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag']
+/**
+ * Wochentag in deutscher Zeit. Vorher `getDay()` in der Zeitzone des Servers
+ * (beim Hoster UTC): Ein Video vom Dienstag 00:30 Uhr zählte als Montag
+ * (gemessen am 26.10.2026).
+ */
+const WOCHENTAG = new Intl.DateTimeFormat('de-DE', { weekday: 'long', timeZone: 'Europe/Berlin' })
 
 /**
- * Sucht Muster ueber den ganzen Kanal. Studio zeigt die Zahlen je Video;
- * interessant wird es erst im Vergleich - welche Laenge, welcher Wochentag,
+ * Sucht Muster über den ganzen Kanal. Studio zeigt die Zahlen je Video;
+ * interessant wird es erst im Vergleich - welche Länge, welcher Wochentag,
  * welcher Hook funktioniert bei *diesem* Kanal.
  */
 export function findChannelPatterns(videos: VideoSummary[]): ChannelPatterns {
@@ -216,12 +226,12 @@ export function findChannelPatterns(videos: VideoSummary[]): ChannelPatterns {
     : null
 
   // Wochentag mit dem besten Aufruf-Schnitt
-  const byWeekday = new Map<number, number[]>()
+  const byWeekday = new Map<string, number[]>()
   for (const v of videos) {
     if (!v.published_at || !Number.isFinite(v.views ?? NaN)) continue
     const t = new Date(v.published_at)
     if (Number.isNaN(t.getTime())) continue
-    const day = t.getDay()
+    const day = WOCHENTAG.format(t)
     const list = byWeekday.get(day)
     if (list) list.push(v.views as number)
     else byWeekday.set(day, [v.views as number])
@@ -230,11 +240,11 @@ export function findChannelPatterns(videos: VideoSummary[]): ChannelPatterns {
   let bestAverage = -1
   for (const [day, views] of byWeekday) {
     const avg = views.reduce((a, b) => a + b, 0) / views.length
-    if (avg > bestAverage) { bestAverage = avg; bestWeekday = WEEKDAYS[day] }
+    if (avg > bestAverage) { bestAverage = avg; bestWeekday = day }
   }
 
-  if (averageCtr !== null) notes.push(`Klickrate im Schnitt ${averageCtr} % über ${withCtr.length} Videos.`)
-  if (averageRetention !== null) notes.push(`Im Schnitt werden ${averageRetention} % der Laufzeit gesehen.`)
+  if (averageCtr !== null) notes.push(`Klickrate im Schnitt ${komma(averageCtr)} % über ${withCtr.length} Videos.`)
+  if (averageRetention !== null) notes.push(`Im Schnitt werden ${komma(averageRetention)} % der Laufzeit gesehen.`)
   if (lengthVsRetention !== null) {
     if (lengthVsRetention < -0.4) notes.push('Längere Videos werden anteilig deutlich schlechter zu Ende gesehen - kürzer schneiden lohnt.')
     else if (lengthVsRetention > 0.4) notes.push('Längere Videos halten hier besser - das Publikum bleibt bei mehr Tiefe dran.')

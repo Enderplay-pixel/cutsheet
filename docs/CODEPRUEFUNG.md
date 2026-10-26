@@ -106,8 +106,6 @@ Stand am 24.10.2026, 23 Uhr:
   ("Unexpected Application Error! 404 Not Found", englisch) - eigene
   404-Seite fehlt (gemessen). `CheckinBoard.tsx:221`: Hinweis auf
   `/guest/checkin/…`, den es nicht gibt (Fund 79).
-  Serverzeitzone (Muster aus Fund 36/80):
-  `lib/youtubeInsights.ts:224` Wochen/Wochentage - jeweils beim Lesen messen.
   `Budget.tsx` (Finanzierung): Der Server legt neue Zeilen mit Art
   "Förderung" an, die Auswahl kennt nur "Förderung regional"/"national" -
   prüfen, was die Auswahl dann zeigt.
@@ -326,6 +324,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 135 | `server/src/lib/tabelle.ts` (`schreibeCsv`) | Härtung (Merkzettel) | Felder, die mit `=`, `+`, `@` beginnen, gingen unverändert in die CSV-Exporte; Excel nimmt sie als Formel. Namen kommen auch von außen (Casting-Vorschläge). | ja: `=HYPERLINK("x")` und `@SUM(A1)` unverändert im Export | behoben: Hochkomma davor; ein Minus nur, wenn keine Zahl folgt - Beträge wie "-12,50" bleiben Zahlen. Der DATEV-Stapel hat einen eigenen Schreiber und ist nicht betroffen. Test |
 | 136 | `server/src/lib/wiederherstellung.ts` (`PERSONEN`) | **Fehler (Folge von Fund 119), Datenschutz** | Die Wiederherstellung einer Sicherung bildet `person_id` über `person_type` auf die Kopie ab und kannte nur Besetzung und Stab. Seit Komparsen in Dispo, Zeiten und Verpflegung stehen, kam ihr `person_id` unverändert in die Kopie und zeigte auf die Kennung im alten Projekt - in einer fremden Datenbank auf einen fremden Komparsen. | ja: Test - Dispo-Eintrag der Kopie mit `person_id` 902 statt 5 | behoben: `extra` → `extras`. Danach gemessen: Dispo und Zeiten zeigen auf den kopierten Komparsen. Übrige Stellen mit nur zwei Personenarten betreffen Gagen und den persönlichen Kalender - Komparsen haben dort nichts |
 | 137 | `server/src/lib/vertraege.ts` (Vorlage Komparsenvertrag) | Klein (Text) | "Ich wirke am {{drehzeitraum}} als Komparse mit" - bei mehreren Tagen "am 12.11.2026 bis 20.11.2026", und nur männlich. Die Beschreibung des Platzhalters "drehorte" stimmte seit Fund 122 nicht mehr. | aus dem Text | behoben: "Ich wirke in der Komparserie … mit. Drehzeit: …, Drehorte: …"; Beschreibung "Die Motive der eigenen Drehtage". Gilt für neu angelegte Verträge |
+| 138 | `server/src/lib/youtubeInsights.ts` (Merkzettel :224) | Fehler | Der beste Wochentag eines Kanals kam aus `getDay()` in der Zeitzone des Servers (beim Hoster UTC): Ein Video vom Dienstag 00:30 Uhr deutscher Zeit zählte als Montag. Die Hinweise schrieben Zahlen mit Dezimalpunkt ("Klickrate im Schnitt 3.9 %", "86.3 %"), wie in Fund 117. | ja: unter `TZ=UTC` "Montag"; Hinweise mit Punkt | behoben: Wochentag über `Intl` in Europe/Berlin, Dezimalkomma in allen Hinweisen. Danach gemessen: "Dienstag", "3,9 %". Tests: Dezimalkomma; Wochentag fängt den alten Stand, wenn die Tests mit `TZ=UTC` starten (gemessen) |
 
 ### Verknüpfungen
 
@@ -489,7 +488,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/lib/vertraege.ts` (293) - Fund 137
 - [x] `server/src/lib/videoMatching.ts` (220) - ohne Fund (Kommentare mit Umlauten)
 - [x] `server/src/lib/wiederherstellung.ts` (296) - Fund 136 (früher angefasst: 46, 70)
-- [ ] `server/src/lib/youtubeInsights.ts` (270)
+- [x] `server/src/lib/youtubeInsights.ts` (270) - Fund 138
 - [ ] `server/src/lib/youtubeOAuth.ts` (456)
 - [ ] `server/src/lib/zahlungen.ts` (30)
 - [ ] `server/src/lib/zweiterFaktor.ts` (153)
