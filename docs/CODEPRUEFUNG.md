@@ -326,6 +326,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 137 | `server/src/lib/vertraege.ts` (Vorlage Komparsenvertrag) | Klein (Text) | "Ich wirke am {{drehzeitraum}} als Komparse mit" - bei mehreren Tagen "am 12.11.2026 bis 20.11.2026", und nur männlich. Die Beschreibung des Platzhalters "drehorte" stimmte seit Fund 122 nicht mehr. | aus dem Text | behoben: "Ich wirke in der Komparserie … mit. Drehzeit: …, Drehorte: …"; Beschreibung "Die Motive der eigenen Drehtage". Gilt für neu angelegte Verträge |
 | 138 | `server/src/lib/youtubeInsights.ts` (Merkzettel :224) | Fehler | Der beste Wochentag eines Kanals kam aus `getDay()` in der Zeitzone des Servers (beim Hoster UTC): Ein Video vom Dienstag 00:30 Uhr deutscher Zeit zählte als Montag. Die Hinweise schrieben Zahlen mit Dezimalpunkt ("Klickrate im Schnitt 3.9 %", "86.3 %"), wie in Fund 117. | ja: unter `TZ=UTC` "Montag"; Hinweise mit Punkt | behoben: Wochentag über `Intl` in Europe/Berlin, Dezimalkomma in allen Hinweisen. Danach gemessen: "Dienstag", "3,9 %". Tests: Dezimalkomma; Wochentag fängt den alten Stand, wenn die Tests mit `TZ=UTC` starten (gemessen) |
 | 139 | `server/src/lib/zweiterFaktor.ts`, `routes/auth.ts`, `db/index.ts` | **Sicherheit** | Ein Code des zweiten Faktors wurde innerhalb seiner Gültigkeit (rund 90 Sekunden mit Toleranz) beliebig oft angenommen. RFC 6238 (Abschnitt 5.2) verlangt, dass ein verwendeter Code kein zweites Mal gilt - sonst reicht ein abgefangener Code samt Passwort. | ja: Test - Anmeldung zweimal mit demselben Code, alter Stand 200 | behoben: Das zuletzt angenommene Zeitfenster wird je Konto abgelegt (`last_step`, bedingt geschrieben gegen gleichzeitige Anmeldungen); angenommen wird nur ein späteres. Auch der Bestätigungscode beim Einrichten ist damit verbraucht. Danach gemessen: zweiter Versuch 401. Die bestehenden Tests simulieren ein neues Zeitfenster, statt 30 Sekunden zu warten |
+| 140 | `server/src/index.ts` | Fehler (Aufbewahrung) | Die Fristen für Mailanhänge (60 Tage), Postausgang (365 Tage) und Papierkorb wurden nur beim Start durchgesetzt. Ein Server, der wochenlang ohne Deploy läuft, hielt alles über die Frist hinaus - auch gelöschte Personendaten im Papierkorb. | aus dem Code: einziger Aufruf in `main()` | behoben: beim Start und danach täglich (Zeitgeber hält den Prozess nicht am Leben). Kommentare mit echten Umlauten |
 
 ### Verknüpfungen
 
@@ -448,7 +449,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 
 ### Server: Bibliotheken
 
-- [ ] `server/src/lib/benachrichtigungen.ts` (207)
+- [ ] `server/src/lib/benachrichtigungen.ts` (207) - ausgenommen: unversioniert, bleibt unangetastet (Vorgabe von Florian)
 - [x] `server/src/lib/buchhaltung.ts` (238) - Fund 114
 - [x] `server/src/lib/callSheetLayout.ts` (429) - Fund 116
 - [x] `server/src/lib/creatorAreas.ts` (363) - ohne Fund
@@ -496,14 +497,14 @@ Gesamt: 421 Dateien, 87774 Zeilen
 
 ### Server: Skripte
 
-- [ ] `server/src/scripts/lasttestDaten.ts` (32)
-- [ ] `server/src/scripts/pdfprobe.ts` (165)
-- [ ] `server/src/scripts/seedGrossproduktion.ts` (27)
+- [x] `server/src/scripts/lasttestDaten.ts` (32) - ohne Fund
+- [x] `server/src/scripts/pdfprobe.ts` (165) - ohne Fund - am 26.10.2026 gelaufen: alle 14 Dokumente gültig
+- [x] `server/src/scripts/seedGrossproduktion.ts` (27) - ohne Fund
 - [ ] `server/src/scripts/zugriffsscan.ts` (460)
 
 ### Server: Rest
 
-- [ ] `server/src/index.ts` (472)
+- [x] `server/src/index.ts` (472) - Fund 140
 
 ### Client: Bibliotheken
 

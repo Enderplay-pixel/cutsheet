@@ -109,18 +109,18 @@ let dbReady = false
 if (!isProd) {
   app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'], credentials: true }))
 }
-// Schutzkoepfe vor allem anderen, damit sie auch auf Fehler- und
+// Schutzköpfe vor allem anderen, damit sie auch auf Fehler- und
 // Dateiantworten liegen.
 app.use(schutzkoepfe(isProd))
 
-// Hinter dem Proxy von Railway/Render: sonst sieht der Server fuer jeden
-// Nutzer dieselbe Proxy-Adresse, und die Anmeldebremse traefe alle
+// Hinter dem Proxy von Railway/Render: sonst sieht der Server für jeden
+// Nutzer dieselbe Proxy-Adresse, und die Anmeldebremse träfe alle
 // gemeinsam. Anzahl der vertrauten Proxy-Stufen per TRUST_PROXY.
 if (isProd) app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1)
 
-// gzip fuer JSON und HTML. Eine Shotlist der Grossproduktion schrumpft von
-// 258 KB auf rund 25 KB - am Set ueber Mobilfunk der Unterschied zwischen
-// sofort und zaeh. PDFs und Bilder sind schon komprimiert und bleiben aussen vor.
+// gzip für JSON und HTML. Eine Shotlist der Großproduktion schrumpft von
+// 258 KB auf rund 25 KB - am Set über Mobilfunk der Unterschied zwischen
+// sofort und zäh. PDFs und Bilder sind schon komprimiert und bleiben außen vor.
 app.use(compression({ threshold: 1024 }))
 
 app.use(express.json({ limit: '50mb' }))
@@ -140,7 +140,7 @@ app.use(optionalAuth)
 // Fehlermeldungen in der Sprache der Oberfläche (Kopf X-Sprache)
 app.use('/api', meldungenUebersetzen)
 
-// Mengenbremsen (nach optionalAuth, damit nach Konto gezaehlt wird)
+// Mengenbremsen (nach optionalAuth, damit nach Konto gezählt wird)
 app.use('/api', apiGrenze)
 app.post('/api/auth/register', registrierGrenze)
 app.post(['/api/scenes/:sceneId/ai-breakdown', '/api/projects/:pid/drehplan/ai-optimize',
@@ -148,42 +148,42 @@ app.post(['/api/scenes/:sceneId/ai-breakdown', '/api/projects/:pid/drehplan/ai-o
 
 // Project-level role enforcement (runs after optionalAuth so req.user is set)
 app.use('/api', projectWriteGuard)
-// Jede erfolgreiche Aenderung im Projekt landet im Audit-Log
+// Jede erfolgreiche Änderung im Projekt landet im Audit-Log
 app.use('/api', aenderungenProtokollieren)
 
-// Leseschutz fuer alles unter /api/projects/:projectId/
+// Leseschutz für alles unter /api/projects/:projectId/
 //
 // Warum das hier steht und nicht in den einzelnen Routern: projectWriteGuard
-// laesst GET bewusst durch. Geschuetzt waren Leserouten bisher nur dadurch,
+// lässt GET bewusst durch. Geschützt waren Leserouten bisher nur dadurch,
 // dass rund zwanzig ANDERE Router ein router.use('/projects/:projectId',
-// requireMember) tragen und frueher eingebunden werden - Express fuehrt deren
-// Middleware ueber den Pfad-Praefix mit aus. Payroll, DOOD, Continuity und
-// Foerderantrag haben selbst keine Pruefung und hingen allein daran.
+// requireMember) tragen und früher eingebunden werden - Express führt deren
+// Middleware über den Pfad-Präfix mit aus. Payroll, DOOD, Continuity und
+// Förderantrag haben selbst keine Prüfung und hingen allein daran.
 //
-// Das hat gehalten, war aber nicht beabsichtigt: eine geaenderte
+// Das hat gehalten, war aber nicht beabsichtigt: eine geänderte
 // Einbindungsreihenfolge oder eine entfernte Zeile in einem fremden Router
-// haette Gagen oeffentlich gemacht. Hier steht die Regel jetzt ausdruecklich.
+// hätte Gagen öffentlich gemacht. Hier steht die Regel jetzt ausdrücklich.
 //
-// Routen ueber eine Kind-Id (/shoot-days/7/...) deckt dieser Praefix NICHT ab.
+// Routen über eine Kind-Id (/shoot-days/7/...) deckt dieser Präfix NICHT ab.
 // Die brauchen weiterhin requireMemberVia an der Route selbst.
-// Erst pruefen, ob die Kennung ueberhaupt eine sein kann. Sonst landet
+// Erst prüfen, ob die Kennung überhaupt eine sein kann. Sonst landet
 // "abc" als NaN in der Abfrage und Postgres antwortet statt uns.
 app.use('/api/projects/:projectId', pruefeIdParameter)
 app.use('/api/projects/:projectId', requireMember)
 
-// Vor dem Loeschen sichern. Steht nach den Rechtepruefungen - wer nicht
-// loeschen darf, legt auch nichts in den Papierkorb.
+// Vor dem Löschen sichern. Steht nach den Rechteprüfungen - wer nicht
+// löschen darf, legt auch nichts in den Papierkorb.
 app.use('/api', papierkorbWaechter)
 
 // Serve uploads
 //
-// Nur noch fuer Altbestand: Neue Dateien liegen in der Datenbank
-// (`project_files`), weil das Dateisystem beim Hoster fluechtig ist - siehe
+// Nur noch für Altbestand: Neue Dateien liegen in der Datenbank
+// (`project_files`), weil das Dateisystem beim Hoster flüchtig ist - siehe
 // lib/dateien.ts.
 const uploadsDir = path.join(__dirname, '../uploads')
 app.use('/uploads', express.static(uploadsDir))
 // Ein fehlendes Bild soll als fehlendes Bild erkennbar sein. Ohne diese Zeile
-// faellt die Anfrage auf die SPA durch und liefert HTML mit Status 200 - im
+// fällt die Anfrage auf die SPA durch und liefert HTML mit Status 200 - im
 // Browser steht dann ein kaputtes Bild ohne jeden Hinweis.
 app.use('/uploads', (req, res) => {
   res.status(404).json({
@@ -203,7 +203,7 @@ if (isProd) {
       immutable: true,
     }))
     // index.html: never cache (ensures fresh chunk references after deploy)
-    // Nicht fuer /api: sonst prueft jede API-Anfrage erst per Dateisystem,
+    // Nicht für /api: sonst prüft jede API-Anfrage erst per Dateisystem,
     // ob es eine gleichnamige Datei gibt (im Profil unter Last sichtbar).
     const statisch = express.static(distPath, {
       setHeaders: (res, filePath) => {
@@ -231,16 +231,16 @@ app.get('/.well-known/assetlinks.json', (_req, res) => {
 })
 
 // Public health check - always responds, used by Railway
-// testversion: Kennzeichnung fuer die Testphase vor dem Launch (CUTSHEET_TESTVERSION=1)
+// testversion: Kennzeichnung für die Testphase vor dem Launch (CUTSHEET_TESTVERSION=1)
 const testversion = /^(1|true|ja)$/i.test(process.env.CUTSHEET_TESTVERSION ?? '')
 app.get('/api/health', (_req, res) => res.json({ ok: true, db: dbReady, testversion }))
 
 /**
  * Bereitschaft - im Gegensatz zu /api/health eine ehrliche Antwort.
  *
- * `/api/health` muss waehrend des Hochfahrens 200 liefern, sonst bricht der
- * Hoster den Start ab. Genau deshalb taugt es nicht zur Ueberwachung: Es
- * meldete auch dann Erfolg, wenn die Datenbank weg war. `/api/ready` prueft
+ * `/api/health` muss während des Hochfahrens 200 liefern, sonst bricht der
+ * Hoster den Start ab. Genau deshalb taugt es nicht zur Überwachung: Es
+ * meldete auch dann Erfolg, wenn die Datenbank weg war. `/api/ready` prüft
  * die Verbindung wirklich und antwortet mit 503, wenn etwas fehlt.
  */
 app.get('/api/ready', async (_req, res) => {
@@ -262,8 +262,8 @@ app.get('/api/ready', async (_req, res) => {
       start_abgeschlossen: dbReady,
       antwortzeit_ms: Date.now() - beginn,
       mailserver: !!process.env.SMTP_HOST,
-      // Chromium wird beim Start vorgewaermt. Steht hier `warm: false`, wartet
-      // der naechste Export auf den Browserstart - rund 30 Sekunden.
+      // Chromium wird beim Start vorgewärmt. Steht hier `warm: false`, wartet
+      // der nächste Export auf den Browserstart - rund 30 Sekunden.
       pdf: pdfBrowserZustand(),
       testversion,
     },
@@ -293,8 +293,8 @@ app.use('/api', searchRouter)
 app.use('/api', conflictsRouter)
 app.use('/api', calendarRouter)
 app.use('/api', pdfRouter)
-// Fuenf Fehlversuche je Adresse und E-Mail, dann fuenfzehn Minuten Pause.
-// Vorher waren zehn falsche Passwoerter in vier Sekunden moeglich.
+// Fünf Fehlversuche je Adresse und E-Mail, dann fünfzehn Minuten Pause.
+// Vorher waren zehn falsche Passwörter in vier Sekunden möglich.
 app.use('/api/auth', anmeldeBremse)
 app.use('/api/auth', authRouter)
 app.use('/api', auditRouter)
@@ -359,7 +359,7 @@ app.use('/api', floorplansRouter)
 app.use('/api', expensesRouter)
 app.use('/api', contactsExportRouter)
 
-// Unbekannter API-Pfad: 404 als JSON. Muss VOR dem SPA-Rueckfall stehen,
+// Unbekannter API-Pfad: 404 als JSON. Muss VOR dem SPA-Rückfall stehen,
 // sonst beantwortet der jeden Tippfehler mit einer HTML-Seite und HTTP 200.
 app.use('/api', (req, res) => {
   res.status(404).json({ data: null, error: `Unbekannter Endpunkt: ${req.method} /api${req.path}` })
@@ -379,8 +379,8 @@ if (isProd) {
   })
 }
 
-// Letzte Instanz. Uebersetzt bekannte Datenbankfehler in klare Saetze und
-// haelt die Postgres-Rohmeldung (Spaltentypen, Kodierungen) im Log statt in
+// Letzte Instanz. Uebersetzt bekannte Datenbankfehler in klare Sätze und
+// hält die Postgres-Rohmeldung (Spaltentypen, Kodierungen) im Log statt in
 // der Antwort.
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (err?.status && err.status < 500) {
@@ -391,7 +391,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // Initialize DB and start server
 async function main() {
-  // Geheimnisse pruefen, bevor irgendetwas Tokens ausstellt
+  // Geheimnisse prüfen, bevor irgendetwas Tokens ausstellt
   assertSecrets()
 
   // Start HTTP server FIRST so /api/health responds immediately.
@@ -404,8 +404,8 @@ async function main() {
     })
   })
   httpServer = server
-  // Keep-Alive laenger als der Proxy davor (meist 60 s), sonst schliesst
-  // Node Verbindungen, die der Proxy noch fuer offen haelt - sporadische 502.
+  // Keep-Alive länger als der Proxy davor (meist 60 s), sonst schließt
+  // Node Verbindungen, die der Proxy noch für offen hält - sporadische 502.
   server.keepAliveTimeout = 65_000
   server.headersTimeout = 66_000
 
@@ -421,13 +421,20 @@ async function main() {
       await initDatabase()
       dbReady = true
       console.log('[DB] Datenbankverbindung hergestellt')
-      // Der Postausgang laeuft erst, wenn die Datenbank steht - vorher gibt es
-      // nichts abzuarbeiten, und jeder Versuch waere nur ein Fehler im Log.
+      // Der Postausgang läuft erst, wenn die Datenbank steht - vorher gibt es
+      // nichts abzuarbeiten, und jeder Versuch wäre nur ein Fehler im Log.
       starteVersandSchleife()
-      raeumeMailanhaengeAuf().catch(fehler =>
-        console.warn('[Mail] Anhaenge konnten nicht aufgeraeumt werden:', fehler?.message || fehler))
-      raeumePapierkorbAuf().catch(fehler =>
-        console.warn('[Papierkorb] konnte nicht aufgeraeumt werden:', fehler?.message || fehler))
+      // Beim Start und danach täglich: Vorher nur beim Start - ein Server, der
+      // wochenlang ohne Deploy lief, hielt Anhänge und Papierkorb über ihre
+      // Frist hinaus.
+      const aufraeumen = () => {
+        raeumeMailanhaengeAuf().catch(fehler =>
+          console.warn('[Mail] Anhänge konnten nicht aufgeräumt werden:', fehler?.message || fehler))
+        raeumePapierkorbAuf().catch(fehler =>
+          console.warn('[Papierkorb] konnte nicht aufgeräumt werden:', fehler?.message || fehler))
+      }
+      aufraeumen()
+      setInterval(aufraeumen, 24 * 60 * 60 * 1000).unref()
       // Chromium im Hintergrund hochfahren: Das erste PDF nach einem Neustart
       // brauchte sonst 37 Sekunden statt vier.
       pdfBrowserVorwaermen()
@@ -445,8 +452,8 @@ async function main() {
 }
 
 // Geordnet herunterfahren: bei einem Deploy schickt die Plattform SIGTERM.
-// Laufende Anfragen duerfen fertig werden, neue nimmt der Server nicht mehr
-// an; danach Datenbank, Passwort-Worker und PDF-Browser schliessen. Nach
+// Laufende Anfragen dürfen fertig werden, neue nimmt der Server nicht mehr
+// an; danach Datenbank, Passwort-Worker und PDF-Browser schließen. Nach
 // zehn Sekunden ist trotzdem Schluss.
 let httpServer: import('http').Server | null = null
 let faehrtHerunter = false
@@ -463,7 +470,7 @@ process.on('SIGTERM', () => { void herunterfahren('SIGTERM') })
 process.on('SIGINT',  () => { void herunterfahren('SIGINT') })
 
 // Ein vergessener Promise-Fehler soll protokolliert werden, nicht den ganzen
-// Server fuer alle Nutzer beenden.
+// Server für alle Nutzer beenden.
 process.on('unhandledRejection', (grund: any) => {
   console.error('[Unbehandelt] Promise abgelehnt:', grund?.message ?? grund)
 })
