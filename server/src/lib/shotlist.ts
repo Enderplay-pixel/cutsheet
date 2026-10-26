@@ -6,8 +6,8 @@
  * Am Drehtag fragt die Kamera "was steht heute an?" - dafür nach Drehtag. Beides
  * ist dieselbe Liste, nur anders gebündelt.
  *
- * Was frueher fehlte und auf jeder Shotlist der Branche steht: das Storyboard,
- * die Notiz zur Einstellung (VFX, Requisite, Sicherheit) und ein Kaestchen zum
+ * Was früher fehlte und auf jeder Shotlist der Branche steht: das Storyboard,
+ * die Notiz zur Einstellung (VFX, Requisite, Sicherheit) und ein Kästchen zum
  * Abhaken.
  */
 import {
@@ -137,7 +137,7 @@ export function groupShots(shots: Shot[], scenes: Scene[], days: ShootDay[], mod
     }
   }
 
-  // Verweise, die ins Leere zeigen (geloeschte Szene, geloeschter Drehtag)
+  // Verweise, die ins Leere zeigen (gelöschte Szene, gelöschter Drehtag)
   for (const list of byKey.values()) lose.push(...list)
 
   if (lose.length > 0) {
@@ -194,17 +194,17 @@ export interface ShotlistOptions {
   mode: GroupMode
   groups: ShotGroup[]
   allShots: Shot[]
-  /** Fuer den Querverweis: nach Drehtag gruppiert fehlt sonst die Szene. */
+  /** Für den Querverweis: nach Drehtag gruppiert fehlt sonst die Szene. */
   scenes: Scene[]
   days: ShootDay[]
 }
 
 const EXTRA_CSS = `
-  /* Storyboard: feste Hoehe, damit die Zeilen gleich hoch bleiben */
+  /* Storyboard: feste Höhe, damit die Zeilen gleich hoch bleiben */
   .sb { width: 100%; max-height: 18mm; object-fit: contain; display: block; }
   .sb-leer { height: 18mm; border: 0.5pt dashed #d4d4d8; border-radius: 2pt; }
   .shot-note { font-size: 7.5pt; color: #71717a; margin-top: 1.5pt; }
-  /* Kaestchen zum Abhaken am Set */
+  /* Kästchen zum Abhaken am Set */
   .kasten { display: inline-block; width: 8pt; height: 8pt; border: 0.8pt solid #a1a1aa; border-radius: 1.5pt; }
   .kasten.voll { border-color: #15803d; background: #15803d; position: relative; }
   .kasten.voll::after { content: '✓'; color: #fff; font-size: 7pt; position: absolute; top: -1.5pt; left: 1pt; }
@@ -220,9 +220,9 @@ export function renderShotlistHtml(opts: ShotlistOptions): string {
 
   const szeneNach = new Map(scenes.map(sc => [sc.id, sc]))
   const tagNach = new Map(days.map(d => [d.id, d]))
-  // Quer zur Gruppierung: nach Drehtag gebuendelt braucht jede Zeile die Szene,
-  // nach Szene gebuendelt den Drehtag. Ohne das steht man am Set vor "3C" und
-  // weiss nicht, wo das hingehoert.
+  // Quer zur Gruppierung: nach Drehtag gebündelt braucht jede Zeile die Szene,
+  // nach Szene gebündelt den Drehtag. Ohne das steht man am Set vor "3C" und
+  // weiß nicht, wo das hingehört.
   const mitTag = mode === 'szene' && allShots.some(s => s.shoot_day_id != null)
 
   const columns: Column<Shot>[] = []
@@ -266,8 +266,8 @@ export function renderShotlistHtml(opts: ShotlistOptions): string {
     { header: 'Dauer', value: s => (seconds(s) > 0 ? `${seconds(s)} s` : null), align: 'right', width: '7%' },
   )
 
-  // Bester Take: nach Drehtag gebuendelt immer, denn dort wird er am Set von
-  // Hand eingetragen - ein Strich waere da im Weg. Sonst nur, wenn es ihn gibt.
+  // Bester Take: nach Drehtag gebündelt immer, denn dort wird er am Set von
+  // Hand eingetragen - ein Strich wäre da im Weg. Sonst nur, wenn es ihn gibt.
   if (mode === 'drehtag' || allShots.some(s => String(s.best_take ?? '').trim())) {
     columns.push({
       header: 'Bester Take',

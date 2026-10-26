@@ -155,6 +155,11 @@ export function leseBetragCents(wert: string): number | null {
     text = nachKomma.length === 3 && text.split(',').length > 2
       ? text.replace(/,/g, '')
       : text.replace(',', '.')
+  } else if (/^-?[1-9]\d{0,2}(\.\d{3})+$/.test(text)) {
+    // Nur Punkte in Dreiergruppen: deutsche Tausenderpunkte. Ein Betrag mit
+    // drei Nachkommastellen kommt nicht vor. Vorher wurde "12.000" zu 12 Euro
+    // und "1.234.567" gar nicht gelesen (gemessen am 26.10.2026).
+    text = text.replace(/\./g, '')
   }
 
   if (!/^-?\d*(\.\d+)?$/.test(text)) return null
@@ -177,10 +182,19 @@ export function leseBetragCents(wert: string): number | null {
   return negativ ? -cent : cent
 }
 
-/** Schreibt Zeilen als CSV, wie deutsches Excel es erwartet. */
+/**
+ * Schreibt Zeilen als CSV, wie deutsches Excel es erwartet.
+ *
+ * Ein Feld, das mit =, +, @ oder einem Steuerzeichen beginnt, nimmt Excel
+ * als Formel. Namen und Notizen kommen auch von außen (Casting-Vorschläge der
+ * Agenturen), deshalb bekommt so ein Feld ein Hochkomma davor - Excel zeigt
+ * dann den Text. Ein Minus nur, wenn dahinter keine Zahl steht: Beträge wie
+ * "-12,50" bleiben Zahlen.
+ */
 export function schreibeCsv(kopf: string[], zeilen: Array<Array<string | number | null>>): string {
   const feld = (wert: string | number | null) => {
-    const text = wert === null || wert === undefined ? '' : String(wert)
+    const roh = wert === null || wert === undefined ? '' : String(wert)
+    const text = /^[=+@\t\r]/.test(roh) || (/^-/.test(roh) && !/^-[\d.,]+$/.test(roh)) ? `'${roh}` : roh
     return /[";\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
   }
   const inhalt = [kopf.map(feld).join(';'), ...zeilen.map((z) => z.map(feld).join(';'))].join('\r\n')

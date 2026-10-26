@@ -178,3 +178,24 @@ describe('CSV schreiben', () => {
     expect(leseBetragCents(zurueck[0].gage)).toBe(45000)
   })
 })
+
+describe('Beträge mit deutschen Tausenderpunkten', () => {
+  it('liest "12.000" als zwölftausend, nicht als zwölf', () => {
+    expect(leseBetragCents('12.000')).toBe(1200000)
+    expect(leseBetragCents('1.234 €')).toBe(123400)
+    expect(leseBetragCents('1.234.567')).toBe(123456700)
+    expect(leseBetragCents('-1.234')).toBe(-123400)
+    // Dezimalpunkt bleibt Dezimalpunkt
+    expect(leseBetragCents('12.50')).toBe(1250)
+    expect(leseBetragCents('1.5')).toBe(150)
+  })
+})
+
+describe('CSV-Export gegen Formeln', () => {
+  it('setzt ein Hochkomma vor Felder, die Excel als Formel nähme - Beträge bleiben Zahlen', () => {
+    const text = schreibeCsv(['Name', 'Betrag'], [['=HYPERLINK("x")', '-12,50'], ['@SUM(A1)', '+49 170'], ['- Notiz', '5']])
+    expect(text).toContain(`"'=HYPERLINK(""x"")";-12,50`)
+    expect(text).toContain(`'@SUM(A1);'+49 170`)
+    expect(text).toContain(`'- Notiz;5`)
+  })
+})
