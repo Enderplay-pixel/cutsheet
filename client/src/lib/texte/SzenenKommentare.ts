@@ -24,6 +24,6 @@ export const szenenKommentareT = {
   offenListe:     { de: 'Offen ({n})', en: 'Open ({n})', fr: 'Ouverts ({n})' },
   geloestListe:   { de: 'Gelöst ({n})', en: 'Resolved ({n})', fr: 'Résolus ({n})' },
   neuerKommentar: { de: 'Neuer Kommentar', en: 'New comment', fr: 'Nouveau commentaire' },
-  schreiben:      { de: 'Kommentar schreiben...', en: 'Write a comment...', fr: 'Écrire un commentaire...' },
+  schreiben:      { de: 'Kommentar schreiben…', en: 'Write a comment…', fr: 'Écrire un commentaire…' },
   hinzufuegen:    { de: 'Kommentar hinzufügen', en: 'Add comment', fr: 'Ajouter un commentaire' },
 } satisfies Record<string, Text>

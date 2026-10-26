@@ -36,8 +36,8 @@ export const versicherungenT = {
   gesamtpraemie:    { de: ' · Gesamtprämie: {betrag}', en: ' · Total premium: {betrag}', fr: ' · Prime totale : {betrag}' },
   neue:             { de: 'Neue Versicherung', en: 'New insurance', fr: 'Nouvelle assurance' },
   abgelaufenEins:   { de: ' Versicherung ist abgelaufen', en: ' policy has expired', fr: ' assurance a expiré' },
-  abgelaufenMehr:   { de: ' Versicherungen ist abgelaufen', en: ' policies have expired', fr: ' assurances ont expiré' },
+  abgelaufenMehr:   { de: ' Versicherungen sind abgelaufen', en: ' policies have expired', fr: ' assurances ont expiré' },
   baldEins:         { de: ' Versicherung läuft in weniger als 30 Tagen ab', en: ' policy expires in less than 30 days', fr: ' assurance expire dans moins de 30 jours' },
-  baldMehr:         { de: ' Versicherungen läuft in weniger als 30 Tagen ab', en: ' policies expire in less than 30 days', fr: ' assurances expirent dans moins de 30 jours' },
+  baldMehr:         { de: ' Versicherungen laufen in weniger als 30 Tagen ab', en: ' policies expire in less than 30 days', fr: ' assurances expirent dans moins de 30 jours' },
   leer:             { de: 'Noch keine Versicherungen erfasst', en: 'No insurance policies recorded yet', fr: 'Aucune assurance saisie pour le moment' },
 } satisfies Record<string, Text>

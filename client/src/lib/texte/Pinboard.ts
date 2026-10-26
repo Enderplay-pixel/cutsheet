@@ -18,5 +18,5 @@ export const pinboardT = {
   anzahlMehr:      { de: '{n} Notizen', en: '{n} notes', fr: '{n} notes' },
   neueNotiz:       { de: 'Neue Notiz', en: 'New note', fr: 'Nouvelle note' },
   leer:            { de: 'Noch keine Notizen', en: 'No notes yet', fr: 'Pas encore de notes' },
-  leerHinweis:     { de: 'Klicke auf "Neue Notiz" um zu starten', en: 'Click "New note" to get started', fr: 'Clique sur « Nouvelle note » pour commencer' },
+  leerHinweis:     { de: 'Klicke auf „Neue Notiz“, um zu starten', en: 'Click "New note" to get started', fr: 'Clique sur « Nouvelle note » pour commencer' },
 } satisfies Record<string, Text>

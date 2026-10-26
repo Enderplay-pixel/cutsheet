@@ -15,7 +15,7 @@ export const onboardingT = {
   genre:           { de: 'Genre', en: 'Genre', fr: 'Genre' },
   genreWaehlen:    { de: 'Genre wählen', en: 'Choose genre', fr: 'Choisir un genre' },
   format:          { de: 'Format', en: 'Format', fr: 'Format' },
-  formatBeispiel:  { de: 'z.B. 4K, 16mm', en: 'e.g. 4K, 16mm', fr: 'ex. 4K, 16mm' },
+  formatBeispiel:  { de: 'z. B. 4K, 16 mm', en: 'e.g. 4K, 16mm', fr: 'ex. 4K, 16mm' },
   zurueck:         { de: 'Zurück', en: 'Back', fr: 'Retour' },
   weiter:          { de: 'Weiter', en: 'Next', fr: 'Suivant' },
   deinTeam:        { de: 'Dein Team', en: 'Your team', fr: 'Ton équipe' },
@@ -42,7 +42,7 @@ export const onboardingT = {
   ausDrehbuch:     { de: ' aus deinem Drehbuch importiert.', en: ' imported from your script.', fr: ' importés depuis ton scénario.' },
   loslegen:        { de: 'Du kannst jetzt loslegen und Szenen, Team und Drehtage verwalten.', en: 'You can now get started and manage scenes, team and shoot days.', fr: 'Tu peux maintenant commencer et gérer scènes, équipe et jours de tournage.' },
   zumDrehbuch:     { de: 'Zum Drehbuch', en: 'Go to script', fr: 'Vers le scénario' },
-  zumDashboard:    { de: 'Zum Projekt Dashboard', en: 'Go to project dashboard', fr: 'Vers le tableau de bord du projet' },
+  zumDashboard:    { de: 'Zum Projekt-Dashboard', en: 'Go to project dashboard', fr: 'Vers le tableau de bord du projet' },
   einrichtung:     { de: 'Einrichtung', en: 'Setup', fr: 'Configuration' },
   wirdErstellt:    { de: 'Projekt wird erstellt…', en: 'Creating project…', fr: 'Création du projet…' },
 } satisfies Record<string, Text>

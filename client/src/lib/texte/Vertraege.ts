@@ -120,7 +120,7 @@ export const vertraegeT = {
   punkteStehen: { de: 'Punkte stehen', en: 'issues stand', fr: "points s'opposent" },
   derMitwirkungEntgegen: { de: 'der Mitwirkung entgegen.', en: 'in the way of participation.', fr: 'à la participation.' },
   ohneGeburtsdatum: {
-    de: 'Bei {n} Personen aus Besetzung und Komparserie fehlt das Geburtsdatum. Ohne Alter lässt sich nichts prüfen - solange könnte ein Kind dabei sein, von dem niemand weiß.',
+    de: 'Ohne Geburtsdatum in Besetzung und Komparserie: {n}. Ohne Alter lässt sich nichts prüfen - solange könnte ein Kind dabei sein, von dem niemand weiß.',
     en: 'The date of birth is missing for {n} people from the cast and extras. Without an age nothing can be checked - until then there could be a child involved that nobody knows about.',
     fr: "La date de naissance manque pour {n} personnes du casting et des figurants. Sans âge, rien ne peut être vérifié - d'ici là, un enfant pourrait être concerné sans que personne ne le sache.",
   },

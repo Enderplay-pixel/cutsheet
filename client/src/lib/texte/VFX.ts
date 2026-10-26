@@ -32,7 +32,7 @@ export const vfxT = {
   spalteStatus:    { de: 'Status', en: 'Status', fr: 'Statut' },
   spalteKomplex:   { de: 'Komplexität', en: 'Complexity', fr: 'Complexité' },
   spalteDeadline:  { de: 'Deadline', en: 'Deadline', fr: 'Échéance' },
-  leerStatus:      { de: 'Keine VFX-Shots mit Status "{status}"', en: 'No VFX shots with status "{status}"', fr: 'Aucun plan VFX avec le statut « {status} »' },
+  leerStatus:      { de: 'Keine VFX-Shots mit Status „{status}“', en: 'No VFX shots with status "{status}"', fr: 'Aucun plan VFX avec le statut « {status} »' },
   leer:            { de: 'Noch keine VFX-Shots erfasst', en: 'No VFX shots recorded yet', fr: 'Aucun plan VFX saisi pour le moment' },
 } satisfies Record<string, Text>
 

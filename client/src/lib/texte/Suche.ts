@@ -12,5 +12,5 @@ export const sucheT = {
   platzhalter:  { de: 'Szenen, Darsteller, Crew, Motive…', en: 'Scenes, actors, crew, locations…', fr: 'Scènes, comédiens, équipe, décors…' },
   volltext:     { de: 'Volltext-Suche', en: 'Full-text search', fr: 'Recherche plein texte' },
   eingeben:     { de: 'Suchbegriff eingeben…', en: 'Enter a search term…', fr: 'Saisir un terme de recherche…' },
-  keineTreffer: { de: 'Keine Ergebnisse für ‘{q}’', en: 'No results for ‘{q}’', fr: 'Aucun résultat pour « {q} »' },
+  keineTreffer: { de: 'Keine Ergebnisse für „{q}“', en: 'No results for "{q}"', fr: 'Aucun résultat pour « {q} »' },
 } satisfies Record<string, Text>

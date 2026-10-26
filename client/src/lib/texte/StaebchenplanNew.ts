@@ -17,7 +17,7 @@ export const staebchenT = {
     en: 'Visual shooting schedule - scene strips by shoot day',
     fr: 'Plan de tournage visuel - bandes de scènes par jour de tournage',
   },
-  totalSzenen: { de: 'Total Szenen', en: 'Total scenes', fr: 'Total des scènes' },
+  totalSzenen: { de: 'Szenen gesamt', en: 'Total scenes', fr: 'Total des scènes' },
   verplanteSzenen: { de: 'Verplante Szenen', en: 'Scheduled scenes', fr: 'Scènes planifiées' },
   seitenGesamt: { de: 'Seiten gesamt', en: 'Total pages', fr: 'Pages au total' },
   drehtage: { de: 'Drehtage', en: 'Shoot days', fr: 'Jours de tournage' },

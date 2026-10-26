@@ -18,7 +18,7 @@ export const setAppT = {
   kostuem:            { de: 'Kostüm', en: 'Costume', fr: 'Costumes' },
   maskeHaare:         { de: 'Maske / Haare', en: 'Make-up / hair', fr: 'Maquillage / coiffure' },
   keineContinuity:    { de: 'Keine Continuity-Notizen vorhanden.', en: 'No continuity notes available.', fr: 'Aucune note de continuité disponible.' },
-  szeneFuerContinuity:{ de: 'Szene auswählen um Continuity anzuzeigen', en: 'Select a scene to show continuity', fr: 'Choisir une scène pour afficher la continuité' },
+  szeneFuerContinuity:{ de: 'Szene auswählen, um Continuity anzuzeigen', en: 'Select a scene to show continuity', fr: 'Choisir une scène pour afficher la continuité' },
   titel:              { de: 'Set-App', en: 'Set app', fr: 'Appli plateau' },
   offline:            { de: 'Offline - du siehst den zuletzt geladenen Stand. Änderungen wie Check-ins gehen erst wieder mit Netz.', en: 'Offline - you are seeing the last loaded state. Changes such as check-ins only work again once you are back online.', fr: "Hors ligne - tu vois le dernier état chargé. Les modifications comme les enregistrements ne fonctionnent à nouveau qu'avec du réseau." },
   projekt:            { de: 'Projekt', en: 'Project', fr: 'Projet' },
