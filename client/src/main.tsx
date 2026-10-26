@@ -12,13 +12,15 @@ import '@fontsource-variable/geist-mono'
 import './index.css'
 import { starteBeschriftungen } from './lib/beschriftungen'
 import { spracheSendenInstallieren } from './lib/spracheSenden'
+import { t, appT } from './lib/i18n'
+import { useProjectStore } from './store/useProjectStore'
 
 spracheSendenInstallieren()
 initAnalytics()
 belohnungInstallieren()
 
 // Hell/Dunkel schon vor dem ersten Rendern setzen - sonst zeigen Login
-// und öffentliche Seiten (ausserhalb der AppShell) immer den Dunkelmodus.
+// und öffentliche Seiten (außerhalb der AppShell) immer den Dunkelmodus.
 try {
   const saved = JSON.parse(localStorage.getItem('cutsheet-ui') || '{}')?.state?.darkMode
   const dark = typeof saved === 'boolean' ? saved : (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true)
@@ -37,13 +39,13 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 30000, retry: 1 },
   },
-  // Auffangnetz fuer alle Schreibvorgaenge.
+  // Auffangnetz für alle Schreibvorgänge.
   //
-  // Am 23.09.2026 nachgezaehlt: 67 von 161 useMutation-Aufrufen hatten kein
-  // onError. Schlug ein Speichern fehl, verschwand die Aenderung wortlos -
-  // der Nutzer glaubte, es sei gespeichert. Hier faellt nichts mehr durch.
+  // Am 23.09.2026 nachgezählt: 67 von 161 useMutation-Aufrufen hatten kein
+  // onError. Schlug ein Speichern fehl, verschwand die Änderung wortlos -
+  // der Nutzer glaubte, es sei gespeichert. Hier fällt nichts mehr durch.
   //
-  // Wer ein eigenes onError mitbringt, wird uebersprungen, sonst stuenden
+  // Wer ein eigenes onError mitbringt, wird übersprungen, sonst stünden
   // zwei Meldungen uebereinander.
   mutationCache: new MutationCache({
     // Jeder gelungene Schreibvorgang bekommt eine kurze Quittung.
@@ -54,10 +56,11 @@ const queryClient = new QueryClient({
     onError: (fehler, _variablen, _kontext, mutation) => {
       if (mutation.options.onError) return
       const text = fehler instanceof Error ? fehler.message : String(fehler)
+      const lang = useProjectStore.getState().language
       toast({
         variant: 'destructive',
-        title: 'Nicht gespeichert',
-        description: text || 'Die Änderung konnte nicht gespeichert werden.',
+        title: t(appT.notSaved, lang),
+        description: text || t(appT.notSavedText, lang),
       })
     },
   }),
@@ -94,7 +97,7 @@ const router = createBrowserRouter([
   },
   {
     // Ohne App-Rahmen: Wer hier landet, hat kein Konto und braucht keine
-    // Navigation - nur den Text und zwei Knoepfe.
+    // Navigation - nur den Text und zwei Knöpfe.
     path: '/vertrag/:token',
     lazy: lazyPage(() => import('./pages/VertragBestaetigen')),
   },
@@ -184,7 +187,7 @@ const router = createBrowserRouter([
           { path: 'creator', lazy: lazyPage(() => import('./pages/CreatorVideos')) },
           { path: 'creator/ideen', lazy: lazyPage(() => import('./pages/CreatorIdeen')) },
           { path: 'creator/kanal', lazy: lazyPage(() => import('./pages/CreatorKanal')) },
-          // Bereiche auf Projektebene. Muessen VOR 'creator/:videoId' stehen,
+          // Bereiche auf Projektebene. Müssen VOR 'creator/:videoId' stehen,
           // sonst frisst der Platzhalter sie als Video-ID.
           { path: 'creator/redaktionsplan', lazy: lazyPage(() => import('./pages/CreatorRedaktionsplan')) },
           { path: 'creator/serien', lazy: lazyPage(() => import('./pages/CreatorSerien')) },
@@ -218,10 +221,14 @@ const router = createBrowserRouter([
       },
     ],
   },
+  {
+    path: '*',
+    lazy: lazyPage(() => import('./pages/NichtGefunden')),
+  },
 ])
 
 
-// Beschriftungen mit ihren Feldern verknuepfen - siehe lib/beschriftungen.ts
+// Beschriftungen mit ihren Feldern verknüpfen - siehe lib/beschriftungen.ts
 starteBeschriftungen()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

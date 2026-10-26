@@ -102,9 +102,13 @@ Stand am 24.10.2026, 23 Uhr:
   - "1.234,56" würde 1,23 € (`parseFloat("1.234.56")` ist 1.234).
   `Equipment.tsx:38` rechnet die Summe ohne Stückzahl und schickt sie mit;
   der Server ignoriert sie (rechnet selbst) - toter, irreführender Code.
-  `main.tsx`: Ein unbekannter Pfad zeigt die rohe React-Router-Fehlerseite
-  ("Unexpected Application Error! 404 Not Found", englisch) - eigene
-  404-Seite fehlt (gemessen). `CheckinBoard.tsx:221`: Hinweis auf
+  Seiten mit fest deutschen Resten (`scripts/texte-pruefen.py`, 26.10.2026):
+  beim Lesen jeder Seite mitübersetzen, die gemischten zuerst - eine halb
+  übersetzte Seite sieht nach Fehler aus (Tagesdispo 56, Stammdaten 51,
+  Settings 46, ProjectList 29, Dashboard 27, Drehbuch 18, Motive 17, Login
+  16). Ganz deutsch und als "teilweise" ausgewiesen: Firma, Verträge, Reise,
+  Agenturen, Abnahme, CreatorVideo, AdminPanel, AdminStats, Auswertungen,
+  OffenePosten, Timesheets, Continuity, SperrtageKalender. `CheckinBoard.tsx:221`: Hinweis auf
   `/guest/checkin/…`, den es nicht gibt (Fund 79).
   `Budget.tsx` (Finanzierung): Der Server legt neue Zeilen mit Art
   "Förderung" an, die Auswahl kennt nur "Förderung regional"/"national" -
@@ -347,6 +351,11 @@ sind ein Render-Dienst aus demselben Bau.
 | 142 | `client/src/lib/analytics.ts`, `lib/texte/Datenschutz.ts`, `DatenschutzWerkzeuge.ts` | **Datenschutz** | Die Datenschutzerklärung beschrieb nicht, was die Software tut: Sie versprach eine "anonymisierte" Analyse mit PostHog - eingeschaltet hätte `identifyUser` Name und E-Mail übermittelt. Sie nannte ein Zählpixel in Dispo-Mails, das es nicht mehr gibt (persönlicher Link, siehe `routes/confirmation.ts`). Der Löschdialog nannte nicht die seit Fund 123 geleerten Felder. | ja: Code gelesen; live nachgesehen - kein PostHog-Schlüssel im Bundle, die Übermittlung wäre erst beim Einschalten wirksam geworden | behoben: an PostHog geht nur noch die Kontonummer, Text "pseudonymisiert … kein Name, keine E-Mail"; Mailabschnitt beschreibt den persönlichen Link; Löschdialog vollständig. Offen für Florian: Analyse mit Speicherung im Browser braucht vor dem Einschalten eine Einwilligung (§ 25 TDDDG) - Merkzettel |
 | 143 | `client/src/lib/texte/*` (Abschluss, Budget, CheckinBoard, CreatorVideos, DOOD, EmailCenter, Invite, Kostenstand, Listen, Papierkorb, PublicDispo, Vertraege, Shared, ForgotPassword, CateringListe, Moodboard, Pinboard, ProjectTemplates, Setplan, StaebchenplanNew), `lib/i18n.ts` | Klein (Text) | "Womit haeltst du die Leute in den ersten fuenf Sekunden?" und "ueblichen" in sichtbaren Texten; "{n} davon steht dem Abschluss entgegen" (falsche Zahl); "Kosten (est.)"; "{pct}% anwesend"; elfmal „…" mit geradem Schlusszeichen; das Französische siezte an 13 Stellen, an denen das Deutsche duzt (die externen Seiten - Casting, Vertrag, Abnahme - siezen auf Deutsch und behalten "vous"). | Prüfskript über alle Übersetzungstabellen: fehlende Sprache, Platzhalter, Gedankenstrich, Umschrift, Anrede | behoben; dabei eine selbst eingeführte Zeichenkette mit Apostroph sofort wieder repariert (Typprüfung). **Eigener Fehler im Commit `1b7cb63`:** Das Vereinheitlichen der Anführungszeichen lief als Python über die Shell, die den Rückverweis zerstörte - an 11 Stellen stand ein Steuerzeichen statt `{name}`, `{titel}`, `{q}`, `{text}`, "Antworten", "Übernehmen", "Person hinzufügen". Die Typprüfung sah es nicht (gültige Zeichenketten). Beim Lesen der Texte bemerkt und aus dem Vorstand wiederhergestellt; Gegenprobe gegen `1b7cb63^` zeigt nur noch das Schlusszeichen als Änderung. Im Vault ergänzt: `Fehler/Backslashes im Heredoc.md` |
 | 144 | `client/src/lib/texte/*` (Versicherungen, Suche, VFX, ZeitAnalyse, OnboardingWizard, AutoSaveIndicator, SzenenKommentare, Shared, StaebchenplanNew, Moodboard, Pinboard, SetApp, Vertraege) | Klein (Text) | Beim Lesen aller deutschen Texte: "3 Versicherungen ist abgelaufen" / "läuft … ab" (Zahl beim Verb), "Bei 1 Personen …", Anführungszeichen ‘{q}’ und "{status}", "Total Szenen", "Gesamt Geplant", "Szenen Abgedreht", "Bild URL", "Bild Datei", "Drag zum Verschieben", "Zum Projekt Dashboard", "z.B.", zwei fehlende Kommas vor "um zu", drei Punkte statt Auslassungszeichen. | aus dem Text | behoben (18 Stellen), Typ- und Textprüfung grün |
+| 145 | `client/src/lib/api.ts` (`req`, `reqMitMeta`) | Härtung (latent) | `{ headers: {…}, ...options }`: Gibt ein Aufruf eigene `headers` mit, ersetzt der Spread die zusammengeführten Kopfzeilen samt Anmeldung - die Anfrage ginge ohne Token raus. Heute übergibt kein Aufruf `headers`. | aus dem Code (kein Aufruf mit `headers`) | behoben: erst `...options`, dann die zusammengeführten `headers` |
+| 146 | `client/src/lib/belohnung.ts`, `client/src/main.tsx` | Klein (Sprache) | Die Quittung nach jedem Schreibvorgang ("Gespeichert") und die Auffangmeldung für fehlgeschlagene Schreibvorgänge ("Nicht gespeichert") standen fest auf Deutsch - im englischen und französischen Modus nach jedem Speichern sichtbar. | aus dem Code (fester Standardwert, feste Zeichenketten) | behoben: Texte aus `topBarT.saved` und `appT.notSaved` in der gewählten Sprache. Danach gemessen (englisch, lokal): neue Aufgabe angelegt, Quittung "Saved"; Statuswechsel mit absichtlich abgelehntem Schreibvorgang (die Aufgaben-Änderung hat kein eigenes onError) zeigt "Not saved". Testaufgabe wieder gelöscht |
+| 147 | `client/src/main.tsx`, neu `client/src/pages/NichtGefunden.tsx` | Klein | Ein unbekannter Pfad zeigte die rohe Fehlerseite von React Router ("Unexpected Application Error! 404 Not Found", englisch, ohne Weg zurück) - aus dem Merkzettel. | ja (Merkzettel) | behoben: Auffangroute `*` mit eigener Seite und Knopf zur Startseite. Danach gemessen: `/gibt-es-nicht/xyz` deutsch, `/projects/1/gibt-es-nicht` englisch; `/login` unverändert |
+| 148 | `client/src/lib/utils.ts`, `client/src/lib/useT.ts` | Klein (Sprache) | `formatDate`, `formatDateLong` und `formatCurrency` standen fest auf Deutsch, obwohl `useGebietsschema` genau das für andere Seiten löst: Im englischen Modus Wochentag, Monat und Beträge deutsch auf Dashboard, Tagesdispo, Budget, Besetzung, Stabliste, Kostenstand, Motive, Equipment, Stäbchenplan, Tagesbericht, Stammdaten, Projektliste und in den Drehtag-Spalten. Dazu drei nie aufgerufene Funktionen (`getStatusColor`, `parseEighths`, `eighthsToMinutes`). | aus dem Code (`locale: de`, `'de-DE'`) | behoben: die gemeinsamen Formatierer lesen die gewählte Sprache (`aktuellesGebietsschema()`), tote Funktionen entfernt. Danach gemessen auf dem Dashboard: deutsch unverändert "Samstag, 31. Oktober 2026", "18.742,50 €"; englisch "Saturday, 31 October 2026", "€18,742.50" |
+| 149 | `client/src/lib/i18n.ts`, `lib/useDownload.ts`, `lib/texte/komponenten/Shared.ts` | Klein (Text) | Die Spracheinstellung behauptete "die meisten Seiten sind deutsch" - nachgemessen sind 45 von 87 Seiten ohne Fund im Prüfskript, 21 mit bis zu zehn, 21 mit mehr. Das Französische siezte an sechs Stellen in `i18n.ts`, an denen das Deutsche duzt (Fund 143 hatte die Datei nicht ganz erfasst); "C'est parti!" und "automatiquement!" ohne Leerzeichen; "Fermer dialog"; "Call Sheet" in drei deutschen Meldungen der Tagesdispo; Platzhalter der Suche mit "..." und "Locations"; fest deutsche Meldung in `useDownload`. | `scripts/texte-pruefen.py` über alle Seiten | behoben; Kommentar an `LANGS` mit der neuen Messung |
 
 ### Verknüpfungen
 
@@ -357,6 +366,7 @@ Kandidaten stehen hier, bis sie gebaut oder verworfen sind.
 | Von | Nach | Stand |
 |---|---|---|
 | Figur im Drehbuch | Rolle, Szene, Besetzung, Dispo | gebaut, Fund 115 |
+| Gewählte Sprache | Datum, Beträge, Speicher-Quittung, Fehlermeldungen der gemeinsamen Bausteine | gebaut, Funde 146 und 148 |
 | Rollen der Szene | Spalte "Cast" der Dispo, Rollennummer | gebaut, Fund 116 |
 | Komparse ↔ Drehtag | Dispo, PDF, Vertrag, Jugendschutz, Verpflegung, Check-in | gebaut, Fund 119 |
 | Spielort der Szenenüberschrift | Motiv der Szene | gebaut, Fund 120 |
@@ -529,13 +539,13 @@ Gesamt: 421 Dateien, 87774 Zeilen
 ### Client: Bibliotheken
 
 - [x] `client/src/lib/analytics.ts` (27) - Fund 142
-- [ ] `client/src/lib/api.ts` (1184)
-- [ ] `client/src/lib/belohnung.ts` (183)
-- [ ] `client/src/lib/beschriftungen.ts` (130)
-- [ ] `client/src/lib/i18n.ts` (629)
-- [ ] `client/src/lib/motion.ts` (68)
-- [ ] `client/src/lib/projectKind.ts` (36)
-- [ ] `client/src/lib/spracheSenden.ts` (20)
+- [x] `client/src/lib/api.ts` (1184) - gelesen (Fund 145)
+- [x] `client/src/lib/belohnung.ts` (183) - gelesen (Fund 146)
+- [x] `client/src/lib/beschriftungen.ts` (130) - gelesen (ohne Befund, Kommentar-Umlaut)
+- [x] `client/src/lib/i18n.ts` (629) - gelesen (Funde 146-149)
+- [x] `client/src/lib/motion.ts` (68) - gelesen (ohne Befund)
+- [x] `client/src/lib/projectKind.ts` (36) - gelesen (ohne Befund, Liste gleich wie `server/src/routes/projects.ts`)
+- [x] `client/src/lib/spracheSenden.ts` (20) - gelesen (ohne Befund)
 - [x] `client/src/lib/texte/AbnahmeAnsicht.ts` (32) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/Abschluss.ts` (30) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/ActivityFeed.ts` (27) - gelesen (Funde 141-144 und Prüfskript)
@@ -608,11 +618,11 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/lib/texte/komponenten/Shared.ts` (49) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/komponenten/SkipLink.ts` (7) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/komponenten/YouTubeConnection.ts` (37) - gelesen (Funde 141-144 und Prüfskript)
-- [ ] `client/src/lib/useDownload.ts` (82)
-- [ ] `client/src/lib/useSchreibrecht.ts` (28)
-- [ ] `client/src/lib/useT.ts` (22)
-- [ ] `client/src/lib/utils.ts` (119)
-- [ ] `client/src/lib/version.ts` (37)
+- [x] `client/src/lib/useDownload.ts` (82) - gelesen (Fund 149)
+- [x] `client/src/lib/useSchreibrecht.ts` (28) - gelesen (ohne Befund)
+- [x] `client/src/lib/useT.ts` (22) - gelesen (Fund 148)
+- [x] `client/src/lib/utils.ts` (119) - gelesen (Fund 148)
+- [x] `client/src/lib/version.ts` (37) - gelesen (ohne Befund)
 
 ### Client: Kontexte
 
@@ -734,6 +744,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/Moodboard.tsx` (575)
 - [ ] `client/src/pages/Motive.tsx` (476)
 - [ ] `client/src/pages/Musikliste.tsx` (311)
+- [x] `client/src/pages/NichtGefunden.tsx` (24) - neu (Fund 147)
 - [ ] `client/src/pages/OffenePosten.tsx` (673)
 - [ ] `client/src/pages/Papierkorb.tsx` (100)
 - [ ] `client/src/pages/Pinboard.tsx` (161)
@@ -769,7 +780,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 
 - [ ] `client/src/App.tsx` (139)
 - [ ] `client/src/index.css` (751)
-- [ ] `client/src/main.tsx` (235)
+- [x] `client/src/main.tsx` (235) - gelesen (Funde 146 und 147)
 - [ ] `client/src/sw.ts` (95)
 - [ ] `client/src/vite-env.d.ts` (9)
 

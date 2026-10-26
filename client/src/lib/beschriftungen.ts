@@ -16,7 +16,7 @@
  * Sie läuft beim Start und bei jeder Änderung am Dokument, weil Dialoge erst
  * später aufgehen.
  *
- * Geändert werden ausschliesslich `for` und `id`. Wer `for` selbst setzt,
+ * Geändert werden ausschließlich `for` und `id`. Wer `for` selbst setzt,
  * behält die Oberhand.
  */
 

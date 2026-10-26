@@ -1,4 +1,6 @@
 import { prefersReducedMotion } from './motion'
+import { t, topBarT } from './i18n'
+import { useProjectStore } from '@/store/useProjectStore'
 
 /*
  * Belohnendes Feedback für die ganze App.
@@ -117,8 +119,8 @@ export function feiern(ziel: Element | { x: number; y: number }, stark = false) 
 
 let pille: HTMLDivElement | null = null
 let pilleTimer = 0
-/** Kurze Quittung „Gespeichert“ unten in der Mitte, nach jedem Schreibvorgang. */
-export function gespeichert(text = 'Gespeichert') {
+/** Kurze Quittung „Gespeichert“ (in der gewählten Sprache) unten in der Mitte, nach jedem Schreibvorgang. */
+export function gespeichert(text = t(topBarT.saved, useProjectStore.getState().language)) {
   if (typeof document === 'undefined') return
   window.clearTimeout(pilleTimer)
   if (!pille || !document.body.contains(pille)) {

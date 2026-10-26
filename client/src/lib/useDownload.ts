@@ -142,7 +142,7 @@ export function useDownload() {
         // Sehr alte Safari-/iOS-Versionen kennen kein download-Attribut.
         // Dort bleibt nur: im neuen Tab öffnen und den Nutzer speichern lassen.
         const win = window.open(objectUrl, '_blank')
-        if (!win) throw new Error('Der Browser hat das Öffnen des Downloads blockiert.')
+        if (!win) throw new Error(tt(uiT.downloadBlocked))
       }
     } catch (err: any) {
       toast({

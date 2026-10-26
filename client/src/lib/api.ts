@@ -39,9 +39,11 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
+  // Erst die Optionen, dann die Kopfzeilen: andersherum ersetzten eigene
+  // `headers` eines Aufrufs die zusammengeführten samt Anmeldung.
   const res = await fetchMitWiederholung(`${API_BASE}${path}`, {
-    headers: { ...headers, ...options?.headers },
     ...options,
+    headers: { ...headers, ...options?.headers },
   })
   const { data, error } = await antwortLesen(res)
   if (error) throw new Error(error)
@@ -59,9 +61,11 @@ async function reqMitMeta<T>(path: string, options?: RequestInit): Promise<{ dat
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
+  // Erst die Optionen, dann die Kopfzeilen: andersherum ersetzten eigene
+  // `headers` eines Aufrufs die zusammengeführten samt Anmeldung.
   const res = await fetchMitWiederholung(`${API_BASE}${path}`, {
-    headers: { ...headers, ...options?.headers },
     ...options,
+    headers: { ...headers, ...options?.headers },
   })
   const json = await res.json().catch(() => null)
   if (!res.ok) {

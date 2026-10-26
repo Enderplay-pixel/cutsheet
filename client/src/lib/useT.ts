@@ -20,3 +20,8 @@ export function useGebietsschema(): string {
   const lang = useProjectStore(s => s.language) as Lang
   return GEBIETSSCHEMA[lang] ?? 'de-DE'
 }
+
+/** Dasselbe außerhalb von Hooks (lib/utils.ts) - liest die Sprache beim Aufruf. */
+export function aktuellesGebietsschema(): string {
+  return GEBIETSSCHEMA[useProjectStore.getState().language as Lang] ?? 'de-DE'
+}

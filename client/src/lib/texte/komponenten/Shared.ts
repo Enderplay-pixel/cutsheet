@@ -21,7 +21,7 @@ export const feedbackT = {
 
 /** Texte für components/shared/GlobalSearch.tsx */
 export const globalSearchT = {
-  platzhalter:   { de: 'Szenen, Darsteller, Locations suchen...', en: 'Search scenes, actors, locations...', fr: 'Rechercher scènes, comédiens, décors...' },
+  platzhalter:   { de: 'Szenen, Darsteller, Motive suchen…', en: 'Search scenes, actors, locations…', fr: 'Rechercher scènes, comédiens, décors…' },
   laeuft:        { de: 'Suche läuft…', en: 'Searching…', fr: 'Recherche en cours…' },
   keineFuer:     { de: 'Keine Ergebnisse für „{q}“', en: 'No results for "{q}"', fr: 'Aucun résultat pour « {q} »' },
   ergebnisse:    { de: 'Ergebnisse', en: 'Results', fr: 'Résultats' },

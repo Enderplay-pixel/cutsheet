@@ -8,6 +8,11 @@ export type Lang = 'en' | 'de' | 'fr'
  * "die Sprache für die gesamte App" - das stimmte nicht, und eine halb
  * übersetzte Seite sieht nach Fehler aus. Lieber vorher sagen, was einen
  * erwartet.
+ *
+ * Nachgemessen am 26.10.2026 mit scripts/texte-pruefen.py: 45 von 87 Seiten
+ * ohne Fund, 21 mit bis zu zehn, 21 mit mehr (Firma, Verträge, Reise,
+ * Agenturen, Abnahme, CreatorVideo, AdminPanel vorneweg). "Teilweise"
+ * stimmt also noch, "die meisten Seiten sind deutsch" nicht mehr.
  */
 export const LANGS: { code: Lang; label: string; flag: string; teilweise?: boolean }[] = [
   { code: 'en', label: 'English',  flag: '🇬🇧', teilweise: true },
@@ -182,6 +187,13 @@ export const appT = {
     fr: 'Tu as un accès en lecture seule à ce projet - les modifications ne sont pas possibles.',
   },
   readOnlyLabel: { en: 'read-only access', de: 'Lesezugriff', fr: 'lecture seule' },
+  // Auffangnetz in main.tsx für Schreibvorgänge ohne eigenes onError
+  notSaved:      { en: 'Not saved', de: 'Nicht gespeichert', fr: 'Non enregistré' },
+  notSavedText:  { en: 'The change could not be saved.', de: 'Die Änderung konnte nicht gespeichert werden.', fr: "La modification n'a pas pu être enregistrée." },
+  // Unbekannter Pfad
+  notFound:      { en: 'Page not found', de: 'Seite nicht gefunden', fr: 'Page introuvable' },
+  notFoundText:  { en: 'This address does not exist (any more).', de: 'Diese Adresse gibt es nicht (mehr).', fr: "Cette adresse n'existe pas (ou plus)." },
+  toStart:       { en: 'Go to start page', de: 'Zur Startseite', fr: "Aller à l'accueil" },
 }
 
 // ─── Common UI ────────────────────────────────────────────────────────────────
@@ -202,6 +214,7 @@ export const uiT = {
   pdfExport:    { en: 'PDF',            de: 'PDF',             fr: 'PDF'             },
   import:       { en: 'Import',         de: 'Import',          fr: 'Importer'        },
   downloadFailed: { en: 'Download failed', de: 'Download fehlgeschlagen', fr: 'Échec du téléchargement' },
+  downloadBlocked: { en: 'The browser blocked opening the download.', de: 'Der Browser hat das Öffnen des Downloads blockiert.', fr: "Le navigateur a bloqué l'ouverture du téléchargement." },
   search:       { en: 'Search…',        de: 'Suchen…',         fr: 'Rechercher…'     },
   noResults:    { en: 'No results found', de: 'Keine Ergebnisse', fr: 'Aucun résultat' },
   loading:      { en: 'Loading…',       de: 'Laden…',          fr: 'Chargement…'    },
@@ -273,7 +286,7 @@ export const projectsT = {
   archivedBadge:  { en: 'Archived',             de: 'Archiviert',              fr: 'Archivé'                 },
   empty:          { en: 'No projects yet.',     de: 'Noch keine Projekte.',    fr: 'Aucun projet pour l\'instant.' },
   emptyArchive:   { en: 'No archived projects.',de: 'Keine archivierten Projekte.', fr: 'Aucun projet archivé.' },
-  createFirst:    { en: 'Create your first project', de: 'Erstes Projekt erstellen', fr: 'Créer votre premier projet' },
+  createFirst:    { en: 'Create your first project', de: 'Erstes Projekt erstellen', fr: 'Créer ton premier projet' },
   modalTitle:     { en: 'New Project',          de: 'Neues Projekt',           fr: 'Nouveau projet'          },
   labelTitle:     { en: 'Title',                de: 'Titel',                   fr: 'Titre'                   },
   labelGenre:     { en: 'Genre',                de: 'Genre',                   fr: 'Genre'                   },
@@ -337,7 +350,7 @@ export const scenesT = {
   subtitle:       { en: '{n} scenes · {p} pages · ~{m} min.', de: '{n} Szenen · {p} Seiten · ca. {m} Min.', fr: '{n} scènes · {p} pages · ~{m} min.' },
   newScene:       { en: 'New Scene',            de: 'Neue Szene',              fr: 'Nouvelle scène'          },
   noScenes:       { en: 'No scenes yet',        de: 'Noch keine Szenen',       fr: 'Aucune scène'            },
-  noScenesHint:   { en: 'Create the first scene or import from a script.', de: 'Erstelle die erste Szene oder importiere aus einem Skript.', fr: 'Créez la première scène ou importez depuis un script.' },
+  noScenesHint:   { en: 'Create the first scene or import from a script.', de: 'Erstelle die erste Szene oder importiere aus einem Skript.', fr: 'Crée la première scène ou importe-la depuis un script.' },
   noneFound:      { en: 'No scenes found',      de: 'Keine Szenen gefunden',   fr: 'Aucune scène trouvée'    },
   filterAll:      { en: 'All',                  de: 'Alle',                    fr: 'Tous'                    },
   filterDay:      { en: 'Day',                  de: 'Tag',                     fr: 'Jour'                    },
@@ -456,7 +469,7 @@ export const masterT = {
 export const dispoT = {
   title:          { en: 'Call Sheet',           de: 'Tagesdispo',              fr: 'Feuille de service'      },
   nodays:         { en: 'No shoot days planned.', de: 'Keine Drehtage geplant.', fr: 'Aucun jour de tournage planifié.' },
-  nodaysHint:     { en: 'Create shoot days in the shooting plan first.', de: 'Lege zuerst Drehtage im Drehplan an.', fr: "Créez d'abord des jours de tournage dans le plan." },
+  nodaysHint:     { en: 'Create shoot days in the shooting plan first.', de: 'Lege zuerst Drehtage im Drehplan an.', fr: "Crée d'abord des jours de tournage dans le plan." },
   dayLabel:       { en: 'Day',                  de: 'Tag',                     fr: 'Jour'                    },
   generalCall:    { en: 'General Call',         de: 'General Call',            fr: 'Appel général'           },
   shootingCall:   { en: 'Shooting Call',        de: 'Shooting Call',           fr: 'Appel tournage'          },
@@ -472,7 +485,7 @@ export const dispoT = {
   addPerson:      { en: 'Add Person',           de: 'Person hinzufügen',       fr: 'Ajouter personne'        },
   saveDispo:      { en: 'Save',                 de: 'Speichern',               fr: 'Enregistrer'             },
   createDispo:    { en: 'Create Call Sheet',    de: 'Tagesdispo erstellen',    fr: 'Créer feuille de service'},
-  callSheetNotCreated: { en: 'Call sheet not yet created', de: 'Call Sheet noch nicht angelegt', fr: 'Feuille de service non créée' },
+  callSheetNotCreated: { en: 'Call sheet not yet created', de: 'Tagesdispo noch nicht angelegt', fr: 'Feuille de service non créée' },
   callSheetHint:  { en: 'Save to enable the participant list.', de: 'Speichere die Tagesdispo, um die Teilnehmerliste zu aktivieren.', fr: 'Enregistre pour activer la liste des participants.' },
   shiftTimes:     { en: 'Shift All Times',      de: 'Alle Zeiten verschieben', fr: 'Décaler tous les horaires'},
   generalNotes:   { en: 'General Notes',        de: 'Allgemeine Notizen',      fr: 'Notes générales'         },
@@ -492,9 +505,9 @@ export const dispoT = {
   colCallTime:    { en: 'Call Time',            de: 'Call Time',               fr: 'Heure d\'appel'          },
   colPickup:      { en: 'Pickup',               de: 'Abholort',                fr: 'Lieu de ramassage'       },
   colNotes:       { en: 'Notes',                de: 'Notiz',                   fr: 'Notes'                   },
-  allPersonsAdded:{ en: 'All persons already in call sheet.', de: 'Alle Personen sind bereits im Call Sheet.', fr: 'Toutes les personnes sont déjà dans la feuille.' },
+  allPersonsAdded:{ en: 'All persons already in call sheet.', de: 'Alle Personen stehen bereits in der Tagesdispo.', fr: 'Toutes les personnes sont déjà dans la feuille.' },
   saved:          { en: 'Call sheet saved',     de: 'Tagesdispo gespeichert',  fr: 'Feuille enregistrée'     },
-  updated:        { en: 'Call sheet updated',   de: 'Call Sheet aktualisiert', fr: 'Feuille mise à jour'     },
+  updated:        { en: 'Call sheet updated',   de: 'Tagesdispo aktualisiert', fr: 'Feuille mise à jour'     },
   shiftedToast:   { en: 'All times shifted by {n} min.', de: 'Alle Zeiten um {n} Min. verschoben', fr: 'Tous les horaires décalés de {n} min.' },
 }
 
@@ -503,7 +516,7 @@ export const tutorialT = {
   skip:   { en: 'Skip',          de: 'Überspringen', fr: 'Passer'          },
   back:   { en: 'Back',          de: 'Zurück',       fr: 'Retour'          },
   next:   { en: 'Next',          de: 'Weiter',       fr: 'Suivant'         },
-  finish: { en: "Let's go! 🚀",  de: 'Los geht\'s! 🚀', fr: 'C\'est parti! 🚀' },
+  finish: { en: "Let's go! 🚀",  de: 'Los geht\'s! 🚀', fr: 'C\'est parti ! 🚀' },
   step:   { en: 'Step',          de: 'Schritt',      fr: 'Étape'           },
   of:     { en: 'of',            de: 'von',          fr: 'sur'             },
 
@@ -531,7 +544,7 @@ export const tutorialT = {
     {
       emoji: '📋',
       title: { en: 'Shooting Plan & Call Sheet',   de: 'Drehplan & Tagesdispo',          fr: 'Plan & Feuille de service'        },
-      body:  { en: 'Build your shooting schedule and distribute scenes across shoot days. Each day gets its own call sheet with General Call, Shooting Call, weather forecast (fetched automatically!), catering count, cast & crew call times, and a PDF export.', de: 'Erstelle deinen Drehplan und verteile Szenen auf Drehtage. Jeder Tag bekommt eine eigene Tagesdispo mit General Call, Shooting Call, Wettervorhersage (automatisch abrufbar!), Catering-Zähler, Call Times für Cast & Crew und PDF-Export.', fr: "Construis ton planning de tournage et répartis les scènes sur les jours de tournage. Chaque jour dispose de sa propre feuille de service avec Appel général, Appel tournage, météo (récupérée automatiquement!), compteur repas, horaires d'appel et export PDF." },
+      body:  { en: 'Build your shooting schedule and distribute scenes across shoot days. Each day gets its own call sheet with General Call, Shooting Call, weather forecast (fetched automatically!), catering count, cast & crew call times, and a PDF export.', de: 'Erstelle deinen Drehplan und verteile Szenen auf Drehtage. Jeder Tag bekommt eine eigene Tagesdispo mit General Call, Shooting Call, Wettervorhersage (automatisch abrufbar!), Catering-Zähler, Call Times für Cast & Crew und PDF-Export.', fr: "Construis ton planning de tournage et répartis les scènes sur les jours de tournage. Chaque jour dispose de sa propre feuille de service avec Appel général, Appel tournage, météo (récupérée automatiquement !), compteur repas, horaires d'appel et export PDF." },
     },
     {
       emoji: '🚀',
@@ -552,7 +565,7 @@ export const shortcutsT = {
   openCallSheet:{ en: 'Open call sheet',     de: 'Tagesdispo öffnen',       fr: 'Ouvrir feuille service'   },
   openSearch:   { en: 'Open search',         de: 'Suche öffnen',            fr: 'Ouvrir recherche'         },
   showShortcuts:{ en: 'Show shortcuts',      de: 'Shortcuts anzeigen',      fr: 'Afficher raccourcis'      },
-  closeDialog:  { en: 'Close dialog',        de: 'Dialog schließen',        fr: 'Fermer dialog'            },
+  closeDialog:  { en: 'Close dialog',        de: 'Dialog schließen',        fr: 'Fermer la fenêtre'        },
   noInputs:     { en: 'Shortcuts do not work inside input fields.', de: 'Shortcuts funktionieren nicht in Eingabefeldern.', fr: 'Les raccourcis ne fonctionnent pas dans les champs de saisie.' },
 }
 
@@ -560,14 +573,14 @@ export const shortcutsT = {
 export const settingsT = {
   title:           { en: 'Settings',              de: 'Einstellungen',            fr: 'Paramètres'               },
   account:         { en: 'Account',               de: 'Konto',                    fr: 'Compte'                   },
-  accountDesc:     { en: 'Manage your personal profile information.', de: 'Verwalte deine persönlichen Profildaten.', fr: 'Gérez vos informations de profil personnel.' },
+  accountDesc:     { en: 'Manage your personal profile information.', de: 'Verwalte deine persönlichen Profildaten.', fr: 'Gère tes informations de profil.' },
   name:            { en: 'Full name',              de: 'Name',                     fr: 'Nom complet'              },
   email:           { en: 'Email',                  de: 'E-Mail',                   fr: 'E-mail'                   },
   emailNote:       { en: 'Email address cannot be changed.',  de: 'E-Mail-Adresse kann nicht geändert werden.', fr: "L'adresse e-mail ne peut pas être modifiée." },
   saveProfile:     { en: 'Save profile',           de: 'Profil speichern',         fr: 'Enregistrer le profil'    },
   profileSaved:    { en: 'Profile saved',          de: 'Profil gespeichert',       fr: 'Profil enregistré'        },
   security:        { en: 'Security',               de: 'Sicherheit',               fr: 'Sécurité'                 },
-  securityDesc:    { en: 'Change your password to keep your account secure.', de: 'Ändere dein Passwort, um dein Konto zu schützen.', fr: 'Changez votre mot de passe pour sécuriser votre compte.' },
+  securityDesc:    { en: 'Change your password to keep your account secure.', de: 'Ändere dein Passwort, um dein Konto zu schützen.', fr: 'Change ton mot de passe pour protéger ton compte.' },
   currentPassword: { en: 'Current password',       de: 'Aktuelles Passwort',       fr: 'Mot de passe actuel'      },
   newPassword:     { en: 'New password',           de: 'Neues Passwort',           fr: 'Nouveau mot de passe'     },
   confirmPassword: { en: 'Confirm new password',   de: 'Neues Passwort bestätigen',fr: 'Confirmer le nouveau mot de passe' },
@@ -576,11 +589,11 @@ export const settingsT = {
   passwordMismatch:{ en: 'Passwords do not match', de: 'Passwörter stimmen nicht überein', fr: 'Les mots de passe ne correspondent pas' },
   passwordShort:   { en: 'At least 6 characters',  de: 'Mindestens 6 Zeichen',     fr: 'Au moins 6 caractères'    },
   appearance:      { en: 'Appearance',             de: 'Darstellung',              fr: 'Apparence'                },
-  appearanceDesc:  { en: 'Customise how CutSheet looks for you.', de: 'Passe das Aussehen von CutSheet an.', fr: 'Personnalisez l\'apparence de CutSheet.' },
+  appearanceDesc:  { en: 'Customise how CutSheet looks for you.', de: 'Passe das Aussehen von CutSheet an.', fr: 'Personnalise l\'apparence de CutSheet.' },
   darkMode:        { en: 'Dark mode',              de: 'Dunkles Design',           fr: 'Mode sombre'              },
   darkModeDesc:    { en: 'Switch between light and dark interface.', de: 'Zwischen hellem und dunklem Design wechseln.', fr: 'Basculer entre l\'interface claire et sombre.' },
   language:        { en: 'Language',               de: 'Sprache',                  fr: 'Langue'                   },
-  languageDesc:    { en: 'Navigation and key screens. Marked languages are partial - most pages are German.', de: 'Navigation und zentrale Ansichten. Gekennzeichnete Sprachen sind unvollständig - die meisten Seiten sind deutsch.', fr: 'Navigation et écrans principaux. Les langues marquées sont partielles - la plupart des pages sont en allemand.' },
+  languageDesc:    { en: 'Marked languages are partial - some pages are still in German.', de: 'Gekennzeichnete Sprachen sind unvollständig - einige Seiten sind noch deutsch.', fr: 'Les langues marquées sont partielles - certaines pages sont encore en allemand.' },
   languagePartial: { en: 'partial',                de: 'teilweise',                fr: 'partiel'                  },
   settings:        { en: 'Settings',               de: 'Einstellungen',            fr: 'Paramètres'               },
 }
