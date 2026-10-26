@@ -1,17 +1,17 @@
 /**
- * Kennzahlen und Regeln rund um ein Creator-Video, die ueber das reine Skript
+ * Kennzahlen und Regeln rund um ein Creator-Video, die über das reine Skript
  * hinausgehen: Ideenbewertung, Upload-Checkliste, Shorts-Auskopplungen,
- * Rechte an verwendetem Material, Performance nach Veroeffentlichung und der
- * Veroeffentlichungsrhythmus.
+ * Rechte an verwendetem Material, Performance nach Veröffentlichung und der
+ * Veröffentlichungsrhythmus.
  *
- * Alles hier ist bewusst reine Rechnerei ohne Datenbank - so laesst es sich
+ * Alles hier ist bewusst reine Rechnerei ohne Datenbank - so lässt es sich
  * testen und sowohl im Server als auch im PDF verwenden.
  */
 
 // ─── Ideen-Backlog ────────────────────────────────────────────────────────────
 
 /**
- * Prioritaet einer Idee aus Wirkung und Aufwand (je 1-5).
+ * Priorität einer Idee aus Wirkung und Aufwand (je 1-5).
  *
  * Bewusst Wirkung geteilt durch Aufwand statt Differenz: eine Idee mit
  * Wirkung 4 und Aufwand 1 soll deutlich vor einer mit 5 und 4 liegen, weil
@@ -43,7 +43,7 @@ export const UPLOAD_CHECKLIST: string[] = [
   'Playlist zugeordnet',
   'Endcard gesetzt (letzte 20 Sekunden)',
   'Infokarten platziert',
-  'Untertitel geprueft (automatische korrigiert)',
+  'Untertitel geprüft (automatische korrigiert)',
   'Sichtbarkeit und Veröffentlichungszeit gesetzt',
   'Zielgruppe "nicht für Kinder" korrekt beantwortet',
   'Werbekennzeichnung gesetzt, falls bezahlt',
@@ -54,7 +54,7 @@ export const UPLOAD_CHECKLIST: string[] = [
 
 // ─── Shorts und Auskopplungen ─────────────────────────────────────────────────
 
-/** Maximale Laenge eines Shorts in Sekunden. */
+/** Maximale Länge eines Shorts in Sekunden. */
 export const SHORTS_MAX_SECONDS = 180
 
 export interface Clip {
@@ -66,13 +66,13 @@ export interface Clip {
 
 export interface ClipCheck {
   durationSeconds: number
-  /** Beanstandungen; leer heisst brauchbar. */
+  /** Beanstandungen; leer heißt brauchbar. */
   problems: string[]
   valid: boolean
 }
 
 /**
- * Prueft eine Auskopplung. Shorts sind laengenbegrenzt, und ein Clip ohne
+ * Prüft eine Auskopplung. Shorts sind längenbegrenzt, und ein Clip ohne
  * sinnvolle Dauer ist im Schnitt nichts wert.
  */
 export function checkClip(clip: Clip, videoSeconds?: number): ClipCheck {
@@ -84,7 +84,7 @@ export function checkClip(clip: Clip, videoSeconds?: number): ClipCheck {
   if (end <= start) {
     problems.push('Ende muss nach dem Anfang liegen.')
   } else {
-    if (duration < 5) problems.push(`Mit ${duration}s zu kurz - unter 5s traegt kein Clip.`)
+    if (duration < 5) problems.push(`Mit ${duration}s zu kurz - unter 5s trägt kein Clip.`)
     const isShortFormat = /short|reel|tiktok/i.test(String(clip.platform ?? ''))
     if (isShortFormat && duration > SHORTS_MAX_SECONDS) {
       problems.push(`${duration}s überschreitet das Limit von ${SHORTS_MAX_SECONDS}s für dieses Format.`)
@@ -110,9 +110,9 @@ export interface Asset {
 }
 
 /**
- * Bewertet das Content-ID-Risiko eines Videos. Ein einziger ungeklaerter Track
- * kann die Monetarisierung des ganzen Videos kosten, deshalb schlaegt das
- * hoechste Einzelrisiko durch und fehlende Lizenzangaben zaehlen als Risiko.
+ * Bewertet das Content-ID-Risiko eines Videos. Ein einziger ungeklärter Track
+ * kann die Monetarisierung des ganzen Videos kosten, deshalb schlägt das
+ * höchste Einzelrisiko durch und fehlende Lizenzangaben zählen als Risiko.
  */
 export function assessRights(assets: Asset[]): {
   risk: ClaimRisk
@@ -144,7 +144,7 @@ export function assessRights(assets: Asset[]): {
   return { risk, unlicensed, problems }
 }
 
-// ─── Performance nach Veroeffentlichung ───────────────────────────────────────
+// ─── Performance nach Veröffentlichung ───────────────────────────────────────
 
 export interface Performance {
   views?: number
@@ -158,13 +158,13 @@ export interface Performance {
 export interface PerformanceInsight {
   /** Klickrate in Prozent, null ohne Impressionen. */
   ctr: number | null
-  /** Anteil der gesehenen Laufzeit in Prozent, null ohne Videolaenge. */
+  /** Anteil der gesehenen Laufzeit in Prozent, null ohne Videolänge. */
   retention: number | null
   /** Likes je 1000 Aufrufe. */
   engagementPer1000: number | null
   /** Aufrufe je gewonnenem Abo, null ohne Abos. */
   viewsPerSub: number | null
-  /** Klartext-Einordnung, an den ueblichen YouTube-Richtwerten. */
+  /** Klartext-Einordnung, an den üblichen YouTube-Richtwerten. */
   notes: string[]
 }
 
@@ -185,14 +185,14 @@ export function analysePerformance(p: Performance, videoSeconds?: number): Perfo
 
   const notes: string[] = []
   if (ctr !== null) {
-    if (ctr < 2) notes.push(`Klickrate ${ctr} % liegt unter dem üblichen Bereich - Titel und Thumbnail prüfen.`)
-    else if (ctr > 10) notes.push(`Klickrate ${ctr} % ist überdurchschnittlich - Titel und Thumbnail funktionieren.`)
-    else notes.push(`Klickrate ${ctr} % liegt im üblichen Bereich von 2 bis 10 %.`)
+    if (ctr < 2) notes.push(`Klickrate ${komma(ctr)} % liegt unter dem üblichen Bereich - Titel und Thumbnail prüfen.`)
+    else if (ctr > 10) notes.push(`Klickrate ${komma(ctr)} % ist überdurchschnittlich - Titel und Thumbnail funktionieren.`)
+    else notes.push(`Klickrate ${komma(ctr)} % liegt im üblichen Bereich von 2 bis 10 %.`)
   }
   if (retention !== null) {
-    if (retention < 30) notes.push(`Im Schnitt nur ${retention} % gesehen - der Einstieg hält nicht.`)
-    else if (retention >= 50) notes.push(`${retention} % gesehen - das ist ein guter Wert.`)
-    else notes.push(`${retention} % gesehen - solide, Luft nach oben im Mittelteil.`)
+    if (retention < 30) notes.push(`Im Schnitt nur ${komma(retention)} % gesehen - der Einstieg hält nicht.`)
+    else if (retention >= 50) notes.push(`${komma(retention)} % gesehen - das ist ein guter Wert.`)
+    else notes.push(`${komma(retention)} % gesehen - solide, Luft nach oben im Mittelteil.`)
   }
   if (viewsPerSub !== null) {
     notes.push(`Ein neues Abo je ${viewsPerSub} Aufrufe.`)
@@ -205,20 +205,28 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10
 }
 
-// ─── Veroeffentlichungsrhythmus ───────────────────────────────────────────────
+/**
+ * Zahl für einen deutschen Satz: Dezimalkomma. Die Hinweise stehen so in der
+ * Oberfläche; vorher "Klickrate 4.5 %" (gemessen am 26.10.2026).
+ */
+function komma(n: number): string {
+  return String(n).replace('.', ',')
+}
+
+// ─── Veröffentlichungsrhythmus ───────────────────────────────────────────────
 
 export interface CadenceInsight {
-  /** Durchschnittlicher Abstand zwischen Veroeffentlichungen in Tagen. */
+  /** Durchschnittlicher Abstand zwischen Veröffentlichungen in Tagen. */
   averageDays: number | null
-  /** Laengste Pause in Tagen. */
+  /** Längste Pause in Tagen. */
   longestGapDays: number | null
   count: number
   notes: string[]
 }
 
 /**
- * Wie regelmaessig wird veroeffentlicht? Regelmaessigkeit schlaegt Frequenz -
- * deshalb wird neben dem Schnitt auch die groesste Luecke ausgewiesen.
+ * Wie regelmäßig wird veröffentlicht? Regelmäßigkeit schlägt Frequenz -
+ * deshalb wird neben dem Schnitt auch die größte Lücke ausgewiesen.
  */
 export function analyseCadence(dates: Array<string | null | undefined>): CadenceInsight {
   const times = dates
@@ -245,9 +253,9 @@ export function analyseCadence(dates: Array<string | null | undefined>): Cadence
   const longest = round1(Math.max(...gaps))
   const shortest = round1(Math.min(...gaps))
 
-  const notes: string[] = [`Im Schnitt alle ${average} Tage, laengste Pause ${longest} Tage.`]
-  // Bewusst laengste gegen kuerzeste Pause statt gegen den Schnitt: ein einzelner
-  // Ausreisser zieht den Schnitt selbst mit hoch und wuerde sich so verstecken.
+  const notes: string[] = [`Im Schnitt alle ${komma(average)} Tage, längste Pause ${komma(longest)} Tage.`]
+  // Bewusst längste gegen kürzeste Pause statt gegen den Schnitt: ein einzelner
+  // Ausreißer zieht den Schnitt selbst mit hoch und würde sich so verstecken.
   if (longest >= shortest * 3 && longest - shortest > 7) {
     notes.push('Der Rhythmus schwankt stark - Regelmäßigkeit wiegt bei YouTube schwerer als Frequenz.')
   }

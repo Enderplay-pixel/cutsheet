@@ -1301,6 +1301,11 @@ export async function initDatabase() {
   // Was beim Löschen per CASCADE mitging oder per SET NULL gelöst wurde (lib/papierkorb.ts)
   await db.exec(`ALTER TABLE deleted_items ADD COLUMN IF NOT EXISTS dependents TEXT`)
 
+  // Der Checklistenpunkt stand bis zum 26.10.2026 mit "geprueft" in jeder neuen
+  // Upload-Checkliste (lib/creatorInsights.ts). Wiederholbar.
+  await db.exec(`UPDATE creator_checklist SET label = 'Untertitel geprüft (automatische korrigiert)'
+    WHERE label = 'Untertitel geprueft (automatische korrigiert)'`)
+
   // Überstunden bei Drehschluss nach Mitternacht nachrechnen. Bis zum
   // 25.10.2026 ergab wrap < call immer 0 (routes/timesheets.ts). Wiederholbar:
   // trifft nur Zeilen, deren Wert noch nicht stimmt.
