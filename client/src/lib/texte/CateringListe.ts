@@ -41,7 +41,7 @@ export const cateringListeT = {
   drehtagWaehlenPh:{ de: 'Drehtag auswählen…', en: 'Select shoot day…', fr: 'Choisir le jour de tournage…' },
   dtOption:       { de: 'DT {n} - {datum}', en: 'Day {n} - {datum}', fr: 'Jour {n} - {datum}' },
   pdfExportieren: { de: 'PDF exportieren', en: 'Export PDF', fr: 'Exporter en PDF' },
-  bitteDrehtag:   { de: 'Bitte einen Drehtag auswählen.', en: 'Please select a shoot day.', fr: 'Veuillez choisir un jour de tournage.' },
+  bitteDrehtag:   { de: 'Bitte einen Drehtag auswählen.', en: 'Please select a shoot day.', fr: 'Choisis un jour de tournage.' },
   diaetSumme:     { de: 'Ernährungsübersicht', en: 'Dietary overview', fr: 'Aperçu des régimes' },
   keinePersonenTag:{ de: 'Keine Personen für diesen Drehtag.', en: 'No people for this shoot day.', fr: 'Aucune personne pour ce jour de tournage.' },
   anzahlPersonen: { de: '{n} Personen', en: '{n} people', fr: '{n} personnes' },

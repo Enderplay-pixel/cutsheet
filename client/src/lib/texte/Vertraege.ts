@@ -56,7 +56,7 @@ export const vertraegeT = {
   nochNiemand: {
     de: 'Noch niemand im Projekt. Besetzung und Stab anlegen, dann erscheinen sie hier.',
     en: 'Nobody in the project yet. Add cast and crew and they will appear here.',
-    fr: "Personne dans le projet pour l'instant. Ajoutez le casting et l'équipe, ils apparaîtront ici.",
+    fr: "Personne dans le projet pour l'instant. Ajoute le casting et l'équipe, ils apparaîtront ici.",
   },
   jahre: { de: '{n} Jahre', en: '{n} years', fr: '{n} ans' },
   minderjaehrig: { de: 'minderjährig, {n}', en: 'minor, {n}', fr: 'mineur(e), {n}' },
@@ -64,7 +64,7 @@ export const vertraegeT = {
   vertrag: { de: 'Vertrag', en: 'Contract', fr: 'Contrat' },
   seit: { de: 'seit {zeit}', en: 'since {zeit}', fr: 'depuis le {zeit}' },
   zurueckziehenFrage: {
-    de: '„{titel}" zurückziehen? Der Link in der Mail gilt danach nicht mehr.',
+    de: '„“ zurückziehen? Der Link in der Mail gilt danach nicht mehr.',
     en: 'Withdraw "{titel}"? The link in the email will no longer be valid afterwards.',
     fr: "Retirer « {titel} » ? Le lien dans l'e-mail ne sera plus valable ensuite.",
   },

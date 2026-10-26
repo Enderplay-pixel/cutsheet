@@ -42,7 +42,7 @@ export const listenT = {
   anzahlErgaenzt: { de: '{n} ergänzt', en: '{n} updated', fr: '{n} complété(s)' },
   anzahlUebersprungen: { de: '{n} übersprungen', en: '{n} skipped', fr: '{n} ignoré(s)' },
   nichtsGespeichert: {
-    de: 'Nichts ist gespeichert. Erst „Übernehmen" schreibt - und dann entweder alles oder nichts.',
+    de: 'Nichts ist gespeichert. Erst „“ schreibt - und dann entweder alles oder nichts.',
     en: 'Nothing has been saved yet. Only "Import" writes - and then either everything or nothing.',
     fr: "Rien n'est encore enregistré. Seul « Importer » écrit - et alors tout ou rien.",
   },

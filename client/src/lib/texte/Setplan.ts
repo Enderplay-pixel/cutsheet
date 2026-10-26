@@ -45,7 +45,7 @@ export const setplanT = {
   symbolHinweis: {
     de: 'Symbol anklicken, um es hinzuzufügen - dann auf dem Plan an die richtige Stelle ziehen.',
     en: 'Click a symbol to add it - then drag it to the right spot on the plan.',
-    fr: "Cliquez sur un symbole pour l'ajouter - puis faites-le glisser au bon endroit sur le plan.",
+    fr: "Clique sur un symbole pour l'ajouter - puis fais-le glisser au bon endroit sur le plan.",
   },
   name: { de: 'Name', en: 'Name', fr: 'Nom' },
   grundriss: { de: 'Grundriss', en: 'Floor plan', fr: 'Plan au sol' },
@@ -59,7 +59,7 @@ export const setplanT = {
   elementHinweis: {
     de: 'Ein Element auf dem Plan anklicken, um Beschriftung, Richtung und Größe zu ändern.',
     en: 'Click an element on the plan to change its label, direction and size.',
-    fr: 'Cliquez sur un élément du plan pour modifier son libellé, son orientation et sa taille.',
+    fr: 'Clique sur un élément du plan pour modifier son libellé, son orientation et sa taille.',
   },
   notizen: { de: 'Notizen', en: 'Notes', fr: 'Notes' },
   notizenBeispiel: {

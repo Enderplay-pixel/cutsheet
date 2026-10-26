@@ -6,7 +6,7 @@ import { impressumT } from '@/lib/texte/Impressum'
 import { VERSION } from '@/lib/version'
 
 // HINWEIS FÜR DEN BETREIBER: Platzhalter in [ECKIGEN KLAMMERN] vor dem
-// öffentlichen Betrieb durch echte Angaben ersetzen (§ 5 TMG / § 18 MStV).
+// öffentlichen Betrieb durch echte Angaben ersetzen (§ 5 DDG / § 18 MStV).
 
 export function Component() {
   const tt = useT()

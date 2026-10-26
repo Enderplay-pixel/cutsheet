@@ -67,9 +67,9 @@ export const budgetT = {
   beschreibung:     { de: 'Beschreibung', en: 'Description', fr: 'Description' },
   einzelpreis:      { de: 'Einzelpreis', en: 'Unit price', fr: 'Prix unitaire' },
   keinePositionen:  {
-    de: 'Noch keine Positionen. Wähle eine Kategorie und klicke „Position".',
+    de: 'Noch keine Positionen. Wähle eine Kategorie und klicke „Position“.',
     en: 'No items yet. Choose a category and click "Item".',
-    fr: 'Aucun poste pour le moment. Choisissez une catégorie et cliquez sur « Poste ».',
+    fr: 'Aucun poste pour le moment. Choisis une catégorie et clique sur « Poste ».',
   },
   gesamtbudget:     { de: 'Gesamtbudget', en: 'Total budget', fr: 'Budget total' },
   finFassungWaehlen:{ de: 'Finanzierungsfassung wählen', en: 'Choose financing version', fr: 'Choisir la version du financement' },

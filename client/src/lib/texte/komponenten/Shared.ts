@@ -23,7 +23,7 @@ export const feedbackT = {
 export const globalSearchT = {
   platzhalter:   { de: 'Szenen, Darsteller, Locations suchen...', en: 'Search scenes, actors, locations...', fr: 'Rechercher scènes, comédiens, décors...' },
   laeuft:        { de: 'Suche läuft...', en: 'Searching...', fr: 'Recherche en cours...' },
-  keineFuer:     { de: 'Keine Ergebnisse für „{q}"', en: 'No results for "{q}"', fr: 'Aucun résultat pour « {q} »' },
+  keineFuer:     { de: 'Keine Ergebnisse für „“', en: 'No results for "{q}"', fr: 'Aucun résultat pour « {q} »' },
   ergebnisse:    { de: 'Ergebnisse', en: 'Results', fr: 'Résultats' },
   schnellzugriff:{ de: 'Schnellzugriff', en: 'Quick access', fr: 'Accès rapide' },
   drehplan:      { de: 'Drehplan öffnen', en: 'Open shooting schedule', fr: 'Ouvrir le plan de tournage' },

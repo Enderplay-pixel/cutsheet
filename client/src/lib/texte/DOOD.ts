@@ -13,7 +13,7 @@ export const doodT = {
   dt:                 { de: 'DT{n}', en: 'D{n}', fr: 'J{n}' },
   arbeitstage:        { de: 'Arbeitstage', en: 'Work days', fr: 'Jours de travail' },
   haltetage:          { de: 'Haltetage', en: 'Hold days', fr: 'Jours de réserve' },
-  kosten:             { de: 'Kosten (est.)', en: 'Cost (est.)', fr: 'Coût (est.)' },
+  kosten:             { de: 'Kosten (geschätzt)', en: 'Cost (est.)', fr: 'Coût (estimé)' },
   dateiname:          { de: 'dood-projekt-{n}.csv', en: 'dood-project-{n}.csv', fr: 'dood-projet-{n}.csv' },
   fehlerLaden:        { de: 'Fehler beim Laden', en: 'Error while loading', fr: 'Erreur lors du chargement' },
   nichtBesetzt:       { de: 'Noch nicht besetzt', en: 'Not cast yet', fr: 'Pas encore distribué' },

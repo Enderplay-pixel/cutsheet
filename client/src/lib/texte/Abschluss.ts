@@ -16,7 +16,7 @@ export const abschlussT = {
   nichtsOffen:        { de: 'Nichts Offenes gefunden', en: 'Nothing outstanding found', fr: 'Rien en suspens trouvé' },
   nichtsOffenText:    { de: 'Das heißt: Es spricht nichts Erkennbares dagegen - nicht, dass alles erledigt ist. Das weiß nur, wer am Projekt gearbeitet hat.', en: 'That means: nothing apparent stands in the way - not that everything is done. Only those who worked on the project know that.', fr: "Cela signifie : rien de visible ne s'y oppose - pas que tout est fait. Seuls ceux qui ont travaillé sur le projet le savent." },
   offen:              { de: 'Offen', en: 'Outstanding', fr: 'En suspens' },
-  davonBlockiert:     { de: '{n} davon steht dem Abschluss entgegen', en: '{n} of them block the wrap-up', fr: "{n} d'entre eux bloquent la clôture" },
+  davonBlockiert:     { de: 'Davon gegen den Abschluss: {n}', en: 'Blocking the wrap-up: {n}', fr: 'Bloquant la clôture : {n}' },
   erledigt:           { de: 'Erledigt', en: 'Done', fr: 'Terminé' },
   abschliessenKnopf:  { de: 'Projekt abschließen', en: 'Wrap up project', fr: 'Clôturer le projet' },
   aufheben:           { de: 'Was aufzuheben ist', en: 'What must be kept', fr: 'Ce qui doit être conservé' },

@@ -7,7 +7,7 @@ export const vorlagenT = {
   untertitel: {
     de: 'Wähle eine Vorlage, um das neue Projekt vorzubefüllen',
     en: 'Choose a template to pre-fill the new project',
-    fr: 'Choisissez un modèle pour pré-remplir le nouveau projet',
+    fr: 'Choisis un modèle pour pré-remplir le nouveau projet',
   },
 } satisfies Record<string, Text>
 

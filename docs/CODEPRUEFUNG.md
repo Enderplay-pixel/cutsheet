@@ -124,6 +124,14 @@ Stand am 24.10.2026, 23 Uhr:
   Rumpf scheitert an NOT NULL (Muster "Teiländerung löscht Felder", hier ohne
   Datenverlust). Die Oberfläche schickt volle Objekte; beim Lesen der
   Client-Seiten prüfen, ob irgendwo nur ein Feld geschickt wird.
+  **Für Florian, vor dem Einschalten der Nutzungsanalyse:** PostHog speichert
+  eine Kennung im Browser (localStorage). Das braucht nach § 25 TDDDG eine
+  Einwilligung, solange es nicht unbedingt nötig ist - also einen
+  Einwilligungsdialog, bevor `VITE_POSTHOG_KEY` gesetzt wird. Live ist kein
+  Schlüssel gesetzt (Bundle am 26.10.2026 geprüft).
+  **Entscheidung für Florian:** Passwörter brauchen mindestens 6 Zeichen
+  (Oberfläche und Server einig); ein ungenutztes Schema in
+  `server/src/schemas/index.ts` verlangt 8. Üblich sind heute mindestens 8.
   **Zweite Rechtsfrage** (`lib/mailaufbewahrung.ts`): Postausgangszeilen
   werden nach 365 Tagen gelöscht, auch die von Rechnungs- und Mahnmails.
   Abgesandte Handelsbriefe sind nach § 257 HGB sechs Jahre aufzubewahren -
@@ -335,6 +343,9 @@ sind ein Render-Dienst aus demselben Bau.
 | 138 | `server/src/lib/youtubeInsights.ts` (Merkzettel :224) | Fehler | Der beste Wochentag eines Kanals kam aus `getDay()` in der Zeitzone des Servers (beim Hoster UTC): Ein Video vom Dienstag 00:30 Uhr deutscher Zeit zählte als Montag. Die Hinweise schrieben Zahlen mit Dezimalpunkt ("Klickrate im Schnitt 3.9 %", "86.3 %"), wie in Fund 117. | ja: unter `TZ=UTC` "Montag"; Hinweise mit Punkt | behoben: Wochentag über `Intl` in Europe/Berlin, Dezimalkomma in allen Hinweisen. Danach gemessen: "Dienstag", "3,9 %". Tests: Dezimalkomma; Wochentag fängt den alten Stand, wenn die Tests mit `TZ=UTC` starten (gemessen) |
 | 139 | `server/src/lib/zweiterFaktor.ts`, `routes/auth.ts`, `db/index.ts` | **Sicherheit** | Ein Code des zweiten Faktors wurde innerhalb seiner Gültigkeit (rund 90 Sekunden mit Toleranz) beliebig oft angenommen. RFC 6238 (Abschnitt 5.2) verlangt, dass ein verwendeter Code kein zweites Mal gilt - sonst reicht ein abgefangener Code samt Passwort. | ja: Test - Anmeldung zweimal mit demselben Code, alter Stand 200 | behoben: Das zuletzt angenommene Zeitfenster wird je Konto abgelegt (`last_step`, bedingt geschrieben gegen gleichzeitige Anmeldungen); angenommen wird nur ein späteres. Auch der Bestätigungscode beim Einrichten ist damit verbraucht. Danach gemessen: zweiter Versuch 401. Die bestehenden Tests simulieren ein neues Zeitfenster, statt 30 Sekunden zu warten |
 | 140 | `server/src/index.ts` | Fehler (Aufbewahrung) | Die Fristen für Mailanhänge (60 Tage), Postausgang (365 Tage) und Papierkorb wurden nur beim Start durchgesetzt. Ein Server, der wochenlang ohne Deploy läuft, hielt alles über die Frist hinaus - auch gelöschte Personendaten im Papierkorb. | aus dem Code: einziger Aufruf in `main()` | behoben: beim Start und danach täglich (Zeitgeber hält den Prozess nicht am Leben). Kommentare mit echten Umlauten |
+| 141 | `client/src/lib/texte/Impressum.ts`, `Datenschutz.ts`, `pages/Impressum.tsx` | **Recht, live - offen für Florian** | Das öffentliche Impressum zeigt Platzhalter statt Angaben: "[VOR- UND NACHNAME DES BETREIBERS]", "[STRASSE UND HAUSNUMMER]", "[PLZ UND ORT]", "[KONTAKT-E-MAIL]"; die Datenschutzerklärung ebenso (Verantwortlicher, Hosting-Anbieter, Serverstandort). Beide verwiesen auf das TMG, das seit dem 14.05.2024 durch das Digitale-Dienste-Gesetz ersetzt ist. | ja: https://cutsheet.onrender.com/impressum ohne Anmeldung gelesen - Platzhalter und "§ 5 TMG" | teilweise: Verweise auf § 5, § 7, §§ 8-10 DDG umgestellt (lokal angesehen). **Die Angaben selbst kann nur Florian eintragen** (Name, Anschrift, Kontakt, Hosting); ein Impressum mit Platzhaltern erfüllt die Anbieterkennzeichnung nicht |
+| 142 | `client/src/lib/analytics.ts`, `lib/texte/Datenschutz.ts`, `DatenschutzWerkzeuge.ts` | **Datenschutz** | Die Datenschutzerklärung beschrieb nicht, was die Software tut: Sie versprach eine "anonymisierte" Analyse mit PostHog - eingeschaltet hätte `identifyUser` Name und E-Mail übermittelt. Sie nannte ein Zählpixel in Dispo-Mails, das es nicht mehr gibt (persönlicher Link, siehe `routes/confirmation.ts`). Der Löschdialog nannte nicht die seit Fund 123 geleerten Felder. | ja: Code gelesen; live nachgesehen - kein PostHog-Schlüssel im Bundle, die Übermittlung wäre erst beim Einschalten wirksam geworden | behoben: an PostHog geht nur noch die Kontonummer, Text "pseudonymisiert … kein Name, keine E-Mail"; Mailabschnitt beschreibt den persönlichen Link; Löschdialog vollständig. Offen für Florian: Analyse mit Speicherung im Browser braucht vor dem Einschalten eine Einwilligung (§ 25 TDDDG) - Merkzettel |
+| 143 | `client/src/lib/texte/*` (Abschluss, Budget, CheckinBoard, CreatorVideos, DOOD, EmailCenter, Invite, Kostenstand, Listen, Papierkorb, PublicDispo, Vertraege, Shared, ForgotPassword, CateringListe, Moodboard, Pinboard, ProjectTemplates, Setplan, StaebchenplanNew), `lib/i18n.ts` | Klein (Text) | "Womit haeltst du die Leute in den ersten fuenf Sekunden?" und "ueblichen" in sichtbaren Texten; "{n} davon steht dem Abschluss entgegen" (falsche Zahl); "Kosten (est.)"; "{pct}% anwesend"; elfmal „…" mit geradem Schlusszeichen; das Französische siezte an 13 Stellen, an denen das Deutsche duzt (die externen Seiten - Casting, Vertrag, Abnahme - siezen auf Deutsch und behalten "vous"). | Prüfskript über alle Übersetzungstabellen: fehlende Sprache, Platzhalter, Gedankenstrich, Umschrift, Anrede | behoben; dabei eine selbst eingeführte Zeichenkette mit Apostroph sofort wieder repariert (Typprüfung) |
 
 ### Verknüpfungen
 
@@ -516,7 +527,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 
 ### Client: Bibliotheken
 
-- [ ] `client/src/lib/analytics.ts` (27)
+- [x] `client/src/lib/analytics.ts` (27) - Fund 142
 - [ ] `client/src/lib/api.ts` (1184)
 - [ ] `client/src/lib/belohnung.ts` (183)
 - [ ] `client/src/lib/beschriftungen.ts` (130)

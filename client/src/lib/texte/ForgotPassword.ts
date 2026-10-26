@@ -9,17 +9,17 @@ export const vergessenT = {
   gesendet:      {
     de: 'Falls ein Konto mit dieser Adresse existiert, haben wir dir einen Link zum Zurücksetzen geschickt. Der Link ist 60 Minuten gültig.',
     en: 'If an account with this address exists, we have sent you a link to reset your password. The link is valid for 60 minutes.',
-    fr: 'Si un compte existe avec cette adresse, nous vous avons envoyé un lien de réinitialisation. Le lien est valable 60 minutes.',
+    fr: "Si un compte existe avec cette adresse, nous t'avons envoyé un lien de réinitialisation. Le lien est valable 60 minutes.",
   },
   keinVersand:   {
     de: 'Auf diesem Server ist kein E-Mail-Versand konfiguriert. Bitte wende dich an die Person, die CutSheet betreibt - sie kann dein Passwort zurücksetzen.',
     en: 'Email sending is not configured on this server. Please contact the person who runs CutSheet - they can reset your password.',
-    fr: "L'envoi d'e-mails n'est pas configuré sur ce serveur. Veuillez contacter la personne qui gère CutSheet - elle peut réinitialiser votre mot de passe.",
+    fr: "L'envoi d'e-mails n'est pas configuré sur ce serveur. Contacte la personne qui gère CutSheet - elle peut réinitialiser ton mot de passe.",
   },
   hinweis:       {
     de: 'Gib deine E-Mail-Adresse ein - wir schicken dir einen Link, mit dem du ein neues Passwort festlegen kannst.',
     en: "Enter your email address - we'll send you a link to set a new password.",
-    fr: 'Saisissez votre adresse e-mail - nous vous enverrons un lien pour définir un nouveau mot de passe.',
+    fr: "Saisis ton adresse e-mail - nous t'enverrons un lien pour définir un nouveau mot de passe.",
   },
   email:         { de: 'E-Mail', en: 'Email', fr: 'E-mail' },
   emailBeispiel: { de: 'name@example.com', en: 'name@example.com', fr: 'nom@exemple.fr' },

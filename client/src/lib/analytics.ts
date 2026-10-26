@@ -18,8 +18,13 @@ export function track(event: string, props?: Record<string, unknown>) {
   if (KEY) posthog.capture(event, props)
 }
 
-export function identifyUser(u: { id: number; email: string; name: string }) {
-  if (KEY) posthog.identify(String(u.id), { email: u.email, name: u.name })
+/**
+ * Nur die Kontonummer, kein Name und keine E-Mail: Die Datenschutzerklärung
+ * verspricht eine pseudonymisierte Auswertung. Vorher gingen Name und Adresse
+ * an PostHog (gemessen am Code, 26.10.2026).
+ */
+export function identifyUser(u: { id: number }) {
+  if (KEY) posthog.identify(String(u.id))
 }
 
 export function resetAnalytics() {

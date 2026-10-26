@@ -11,9 +11,9 @@ export const impressumT = {
   },
   titel: { de: 'Impressum', en: 'Legal notice (Impressum)', fr: 'Mentions légales (Impressum)' },
   angaben: {
-    de: 'Angaben gemäß § 5 TMG',
-    en: 'Information pursuant to § 5 TMG (German Telemedia Act)',
-    fr: 'Informations conformément au § 5 TMG (loi allemande sur les télémédias)',
+    de: 'Angaben gemäß § 5 DDG',
+    en: 'Information pursuant to § 5 DDG (German Digital Services Act)',
+    fr: 'Informations conformément au § 5 DDG (loi allemande sur les services numériques)',
   },
   betreiberName: {
     de: '[VOR- UND NACHNAME DES BETREIBERS]',
@@ -42,9 +42,9 @@ export const impressumT = {
   },
   haftungInhalte: { de: 'Haftung für Inhalte', en: 'Liability for content', fr: 'Responsabilité quant aux contenus' },
   haftungInhalteText: {
-    de: 'Als Diensteanbieter sind wir gemäß § 7 Abs. 1 TMG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen.',
-    en: 'As a service provider, we are responsible for our own content on these pages under general law pursuant to § 7(1) TMG. Under §§ 8 to 10 TMG, however, we as a service provider are not obliged to monitor transmitted or stored third-party information or to investigate circumstances that indicate unlawful activity.',
-    fr: "En tant que prestataire de services, nous sommes responsables de nos propres contenus sur ces pages conformément au § 7, al. 1 TMG et au droit commun. Selon les §§ 8 à 10 TMG, nous ne sommes toutefois pas tenus, en tant que prestataire de services, de surveiller les informations de tiers transmises ou stockées, ni de rechercher des circonstances révélant une activité illicite.",
+    de: 'Als Diensteanbieter sind wir gemäß § 7 Abs. 1 DDG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 DDG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen.',
+    en: 'As a service provider, we are responsible for our own content on these pages under general law pursuant to § 7(1) DDG. Under §§ 8 to 10 DDG, however, we as a service provider are not obliged to monitor transmitted or stored third-party information or to investigate circumstances that indicate unlawful activity.',
+    fr: "En tant que prestataire de services, nous sommes responsables de nos propres contenus sur ces pages conformément au § 7, al. 1 DDG et au droit commun. Selon les §§ 8 à 10 DDG, nous ne sommes toutefois pas tenus, en tant que prestataire de services, de surveiller les informations de tiers transmises ou stockées, ni de rechercher des circonstances révélant une activité illicite.",
   },
   haftungLinks: { de: 'Haftung für Links', en: 'Liability for links', fr: 'Responsabilité quant aux liens' },
   haftungLinksText: {

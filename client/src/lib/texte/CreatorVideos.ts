@@ -21,8 +21,8 @@ export const creatorVideosT = {
   plattform:         { de: 'Plattform', en: 'Platform', fr: 'Plateforme' },
   zielLaufzeit:      { de: 'Ziel-Laufzeit (Minuten)', en: 'Target running time (minutes)', fr: 'Durée visée (minutes)' },
   hook:              { de: 'Hook - die ersten Sekunden entscheiden', en: 'Hook - the first seconds decide', fr: 'Accroche - les premières secondes sont décisives' },
-  hookPlatzhalter:   { de: 'Womit haeltst du die Leute in den ersten fuenf Sekunden?', en: 'How do you keep people watching in the first five seconds?', fr: 'Comment retiens-tu les gens pendant les cinq premières secondes ?' },
-  gliederung:        { de: 'Das Skript wird mit der ueblichen Gliederung angelegt: Hook, Intro, zwei Hauptteile, Call to Action, Outro.', en: 'The script is created with the usual structure: hook, intro, two main parts, call to action, outro.', fr: "Le script est créé avec la structure habituelle : accroche, intro, deux parties principales, appel à l'action, outro." },
+  hookPlatzhalter:   { de: 'Womit hältst du die Leute in den ersten fünf Sekunden?', en: 'How do you keep people watching in the first five seconds?', fr: 'Comment retiens-tu les gens pendant les cinq premières secondes ?' },
+  gliederung:        { de: 'Das Skript wird mit der üblichen Gliederung angelegt: Hook, Intro, zwei Hauptteile, Call to Action, Outro.', en: 'The script is created with the usual structure: hook, intro, two main parts, call to action, outro.', fr: "Le script est créé avec la structure habituelle : accroche, intro, deux parties principales, appel à l'action, outro." },
   abbrechen:         { de: 'Abbrechen', en: 'Cancel', fr: 'Annuler' },
   wirdAngelegt:      { de: 'Wird angelegt…', en: 'Creating…', fr: 'Création…' },
   anlegen:           { de: 'Anlegen', en: 'Create', fr: 'Créer' },
@@ -43,5 +43,5 @@ export const creatorVideosT = {
   laufzeitTitel:     { de: 'Geschätzte Laufzeit aus dem Sprechtext', en: 'Estimated running time based on the spoken text', fr: 'Durée estimée à partir du texte parlé' },
   woerterTitel:      { de: 'Wörter im Sprechtext', en: 'Words in the spoken text', fr: 'Mots dans le texte parlé' },
   videoErsatz:       { de: 'Video', en: 'Video', fr: 'Vidéo' },
-  loeschenFrage:     { de: '"{titel}" mit allen Skript-Abschnitten löschen?', en: 'Delete "{titel}" with all script sections?', fr: 'Supprimer « {titel} » avec toutes les sections du script ?' },
+  loeschenFrage:     { de: '„{titel}“ mit allen Skript-Abschnitten löschen?', en: 'Delete "{titel}" with all script sections?', fr: 'Supprimer « {titel} » avec toutes les sections du script ?' },
 } satisfies Record<string, Text>

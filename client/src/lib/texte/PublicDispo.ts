@@ -21,7 +21,7 @@ export const publicDispoT = {
   impressum:         { de: 'Impressum', en: 'Legal notice', fr: 'Mentions légales' },
   datenschutz:       { de: 'Datenschutz', en: 'Privacy', fr: 'Confidentialité' },
   fehlerAufgetreten: { de: 'Ein Fehler ist aufgetreten', en: 'An error occurred', fr: "Une erreur s'est produite" },
-  teilDerCrew:       { de: 'Du bist Teil der Crew von „{titel}"', en: 'You are part of the crew of "{titel}"', fr: "Tu fais partie de l'équipe de « {titel} »" },
+  teilDerCrew:       { de: 'Du bist Teil der Crew von „“', en: 'You are part of the crew of "{titel}"', fr: "Tu fais partie de l'équipe de « {titel} »" },
   kontoText:         { de: 'Erstelle dein kostenloses Konto, um Drehplan, Shotlist und Check-in des Projekts zu sehen.', en: "Create your free account to see the project's shooting schedule, shot list and check-in.", fr: 'Crée ton compte gratuit pour voir le plan de tournage, la liste des plans et le check-in du projet.' },
   deinName:          { de: 'Dein Name', en: 'Your name', fr: 'Ton nom' },
   passwortWaehlen:   { de: 'Passwort wählen (min. 6 Zeichen)', en: 'Choose a password (min. 6 characters)', fr: 'Choisis un mot de passe (6 caractères min.)' },

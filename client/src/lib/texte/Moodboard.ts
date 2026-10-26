@@ -30,7 +30,7 @@ export const moodboardT = {
   dragHinweis:      { de: 'Drag zum Verschieben', en: 'Drag to move', fr: 'Glisser pour déplacer' },
   laedt:            { de: 'Lädt…', en: 'Loading…', fr: 'Chargement…' },
   leer:             { de: 'Board ist leer', en: 'Board is empty', fr: 'La planche est vide' },
-  leerHinweis:      { de: 'Füge Bilder, Notizen und Farben hinzu', en: 'Add images, notes and colours', fr: 'Ajoutez des images, des notes et des couleurs' },
+  leerHinweis:      { de: 'Füge Bilder, Notizen und Farben hinzu', en: 'Add images, notes and colours', fr: 'Ajoute des images, des notes et des couleurs' },
   rollenOben:       { de: 'Nach oben rollen', en: 'Scroll up', fr: 'Défiler vers le haut' },
   rollenUnten:      { de: 'Nach unten rollen', en: 'Scroll down', fr: 'Défiler vers le bas' },
   rollenLinks:      { de: 'Nach links rollen', en: 'Scroll left', fr: 'Défiler vers la gauche' },

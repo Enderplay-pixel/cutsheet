@@ -34,7 +34,7 @@ export const emailCenterT = {
   keinServerSatz:      { de: 'Es ist kein Mailserver eingerichtet.', en: 'No mail server is set up.', fr: "Aucun serveur de messagerie n'est configuré." },
   erneutWarteschlange: { de: 'Erneut in die Warteschlange gelegt', en: 'Put back in the queue', fr: "Remis dans la file d'attente" },
   zurueckgezogen:      { de: 'Mail zurückgezogen', en: 'Email withdrawn', fr: 'E-mail retiré' },
-  vorlageUebernommen:  { de: 'Vorlage „{name}" übernommen', en: 'Template "{name}" applied', fr: 'Modèle « {name} » appliqué' },
+  vorlageUebernommen:  { de: 'Vorlage „“ übernommen', en: 'Template "{name}" applied', fr: 'Modèle « {name} » appliqué' },
   platzhalterGefuellt: { de: 'Platzhalter werden beim Senden gefüllt.', en: 'Placeholders are filled in when sending.', fr: "Les variables sont remplies à l'envoi." },
 
   // Kopf
@@ -110,7 +110,7 @@ export const emailCenterT = {
   absendernameHinweis: { de: 'Steht als Name vor der Absenderadresse des Servers.', en: "Shown as the name in front of the server's sender address.", fr: "Apparaît comme nom devant l'adresse d'expédition du serveur." },
   antwortadresse:      { de: 'Antwortadresse', en: 'Reply-to address', fr: 'Adresse de réponse' },
   antwortPlatzhalter:  { de: 'produktion@beispiel.de', en: 'production@example.com', fr: 'production@exemple.fr' },
-  antwortHinweis:      { de: 'Hierhin geht die Antwort, wenn jemand auf „Antworten" drückt.', en: 'Replies go here when someone clicks "Reply".', fr: "Les réponses arrivent ici quand quelqu'un clique sur « Répondre »." },
+  antwortHinweis:      { de: 'Hierhin geht die Antwort, wenn jemand auf „“ drückt.', en: 'Replies go here when someone clicks "Reply".', fr: "Les réponses arrivent ici quand quelqu'un clique sur « Répondre »." },
   signatur:            { de: 'Signatur', en: 'Signature', fr: 'Signature' },
   signaturPlatzhalter: { de: 'Produktion Sprachlos\nTelefon 0123 456789', en: 'Sprachlos Production\nPhone 0123 456789', fr: 'Production Sprachlos\nTéléphone 0123 456789' },
   hinweisFuss:         { de: 'Hinweis im Fuß', en: 'Footer note', fr: 'Mention en pied de page' },

@@ -25,7 +25,7 @@ export const staebchenT = {
   keinDrehplanText: {
     de: 'Erstelle Drehtage im Drehplan, um den Stäbchenplan zu befüllen.',
     en: 'Create shoot days in the shooting schedule to fill the stripboard.',
-    fr: 'Créez des jours de tournage dans le plan de tournage pour remplir le tableau de bandes.',
+    fr: 'Crée des jours de tournage dans le plan de tournage pour remplir le tableau de bandes.',
   },
   alleVerplant: { de: 'Alle Szenen verplant', en: 'All scenes scheduled', fr: 'Toutes les scènes sont planifiées' },
 } satisfies Record<string, Text>

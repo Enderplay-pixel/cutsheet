@@ -29,7 +29,7 @@ export const datenschutzWerkzeugeT = {
   alsDatei:          { de: 'Als Datei', en: 'As file', fr: 'En fichier' },
 
   // Entfernen (Art. 17)
-  jetzt:          { de: 'Jetzt „{name}"', en: 'Now "{name}"', fr: 'Désormais « {name} »' },
+  jetzt:          { de: 'Jetzt „{name}“', en: 'Now "{name}"', fr: 'Désormais « {name} »' },
   nichtEntfernt:  { de: 'Nicht entfernt', en: 'Not removed', fr: 'Non supprimé' },
   entfernenTitel: { de: 'Daten entfernen nach Artikel 17 DSGVO', en: 'Erasure of data under Article 17 GDPR (DSGVO)', fr: "Effacement des données selon l'article 17 du RGPD (DSGVO)" },
   entfernenHinweis: {
@@ -42,16 +42,16 @@ export const datenschutzWerkzeugeT = {
   personenbezugEntfernen: { de: 'Personenbezug entfernen', en: 'Remove personal data', fr: 'Supprimer les données personnelles' },
   dialogTitel:      { de: '{name} entfernen?', en: 'Remove {name}?', fr: 'Supprimer {name} ?' },
   dialogText: {
-    de: 'Name, E-Mail, Telefon und Notizen werden geleert und durch die Funktion ersetzt. Das lässt sich nicht rückgängig machen. Dispositionen und Arbeitszeiten bleiben ohne Namen bestehen.',
-    en: 'Name, email, phone and notes are cleared and replaced by the job title. This cannot be undone. Call sheets and working hours remain, without names.',
-    fr: "Le nom, l'e-mail, le téléphone et les notes sont effacés et remplacés par la fonction. Cette action est irréversible. Les feuilles de service et les heures de travail restent, sans nom.",
+    de: 'Name, E-Mail, Telefon, Notizen, Geburtsdatum und Angaben der Erziehungsberechtigten werden geleert, der Name durch die Funktion ersetzt. Das lässt sich nicht rückgängig machen. Dispositionen und Arbeitszeiten bleiben ohne Namen bestehen.',
+    en: 'Name, email, phone, notes, date of birth and guardian details are cleared; the name is replaced by the job title. This cannot be undone. Call sheets and working hours remain, without names.',
+    fr: "Le nom, l'e-mail, le téléphone, les notes, la date de naissance et les coordonnées des représentants légaux sont effacés ; le nom est remplacé par la fonction. Cette action est irréversible. Les feuilles de service et les heures de travail restent, sans nom.",
   },
   wirdEntfernt:     { de: 'Wird entfernt …', en: 'Removing …', fr: 'Suppression …' },
   endgueltig:       { de: 'Endgültig entfernen', en: 'Remove permanently', fr: 'Supprimer définitivement' },
 
   // Zugriff
   rolleAdmin:    { de: 'Alles, auch Löschen', en: 'Everything, including deleting', fr: 'Tout, y compris la suppression' },
-  rolleProducer: { de: 'Alles ausser Projekt löschen', en: 'Everything except deleting the project', fr: 'Tout sauf supprimer le projet' },
+  rolleProducer: { de: 'Alles außer Projekt löschen', en: 'Everything except deleting the project', fr: 'Tout sauf supprimer le projet' },
   rolleDirector: { de: 'Planung und Inhalte', en: 'Planning and content', fr: 'Planification et contenus' },
   rolleDeptHead: { de: 'Eigenes Gewerk', en: 'Own department', fr: 'Son propre département' },
   rolleReadOnly: { de: 'Nur lesen', en: 'Read only', fr: 'Lecture seule' },

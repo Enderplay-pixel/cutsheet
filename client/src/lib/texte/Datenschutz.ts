@@ -33,9 +33,9 @@ export const datenschutzT = {
   },
   mailTitel: { de: 'E-Mail-Versand', en: 'Sending emails', fr: "Envoi d'e-mails" },
   mailText: {
-    de: 'CutSheet versendet in deinem Auftrag E-Mails (z. B. Tagesdispositionen, Einladungen, Passwort-Resets). Dispo-E-Mails enthalten ein Zählpixel, das den Empfang registriert (Öffnungsstatus für die Produktionsleitung). Rechtsgrundlage: Art. 6 Abs. 1 lit. b und f DSGVO.',
-    en: 'CutSheet sends emails on your behalf (e.g. call sheets, invitations, password resets). Call sheet emails contain a tracking pixel that records receipt (open status for the production management). Legal basis: Art. 6(1)(b) and (f) GDPR.',
-    fr: "CutSheet envoie des e-mails en ton nom (p. ex. feuilles de service, invitations, réinitialisations de mot de passe). Les e-mails de feuille de service contiennent un pixel de suivi qui enregistre la réception (statut d'ouverture pour la direction de production). Base juridique : art. 6, par. 1, points b) et f) du RGPD.",
+    de: 'CutSheet versendet in deinem Auftrag E-Mails (z. B. Tagesdispositionen, Einladungen, Passwort-Resets). Dispo-E-Mails enthalten einen persönlichen Link. Öffnet die empfangende Person ihn oder bestätigt sie die Dispo, sieht die Produktion das (gesehen, bestätigt). Auf Wunsch enthält eine Mail einen Link, mit dem der Empfang bestätigt wird. Ein Zählpixel gibt es nicht. Rechtsgrundlage: Art. 6 Abs. 1 lit. b und f DSGVO.',
+    en: 'CutSheet sends emails on your behalf (e.g. call sheets, invitations, password resets). Call sheet emails contain a personal link. If the recipient opens it or confirms the call sheet, the production can see this (seen, confirmed). On request, an email contains a link to confirm receipt. There is no tracking pixel. Legal basis: Art. 6(1)(b) and (f) GDPR.',
+    fr: "CutSheet envoie des e-mails en ton nom (p. ex. feuilles de service, invitations, réinitialisations de mot de passe). Les e-mails de feuille de service contiennent un lien personnel. Si la personne destinataire l'ouvre ou confirme la feuille de service, la production le voit (vue, confirmée). Sur demande, un e-mail contient un lien permettant de confirmer la réception. Il n'y a pas de pixel de suivi. Base juridique : art. 6, par. 1, points b) et f) du RGPD.",
   },
   pushTitel: { de: 'Push-Benachrichtigungen', en: 'Push notifications', fr: 'Notifications push' },
   pushText: {
@@ -45,9 +45,9 @@ export const datenschutzT = {
   },
   analyseTitel: { de: 'Nutzungsanalyse (PostHog)', en: 'Usage analytics (PostHog)', fr: "Analyse d'utilisation (PostHog)" },
   analyseText: {
-    de: 'Sofern aktiviert, nutzen wir PostHog (PostHog EU, Hosting in der EU) zur anonymisierten Analyse der Funktionsnutzung, um das Produkt zu verbessern. Es werden keine Daten an Server außerhalb der EU übertragen. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO.',
-    en: 'Where enabled, we use PostHog (PostHog EU, hosted in the EU) for anonymised analysis of feature usage in order to improve the product. No data is transferred to servers outside the EU. Legal basis: Art. 6(1)(f) GDPR.',
-    fr: "Lorsque cette fonction est activée, nous utilisons PostHog (PostHog EU, hébergement dans l'UE) pour une analyse anonymisée de l'utilisation des fonctions, afin d'améliorer le produit. Aucune donnée n'est transférée vers des serveurs situés hors de l'UE. Base juridique : art. 6, par. 1, point f) du RGPD.",
+    de: 'Sofern aktiviert, nutzen wir PostHog (PostHog EU, Hosting in der EU) zur pseudonymisierten Analyse der Funktionsnutzung, um das Produkt zu verbessern. Übermittelt wird nur eine Kennnummer des Kontos, kein Name und keine E-Mail-Adresse. Es werden keine Daten an Server außerhalb der EU übertragen. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO.',
+    en: 'Where enabled, we use PostHog (PostHog EU, hosted in the EU) for pseudonymised analysis of feature usage in order to improve the product. Only an account number is transmitted, no name and no email address. No data is transferred to servers outside the EU. Legal basis: Art. 6(1)(f) GDPR.',
+    fr: "Lorsque cette fonction est activée, nous utilisons PostHog (PostHog EU, hébergement dans l'UE) pour une analyse pseudonymisée de l'utilisation des fonctions, afin d'améliorer le produit. Seul un numéro de compte est transmis, ni nom ni adresse e-mail. Aucune donnée n'est transférée vers des serveurs situés hors de l'UE. Base juridique : art. 6, par. 1, point f) du RGPD.",
   },
   lokalTitel: { de: 'Lokale Speicherung', en: 'Local storage', fr: 'Stockage local' },
   lokalText: {

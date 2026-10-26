@@ -8,7 +8,7 @@ export const checkinBoardT = {
   titel:            { de: 'Check-in Board', en: 'Check-in board', fr: 'Tableau des arrivées' },
   untertitel:       { de: 'Anwesenheit live verfolgen und bestätigen', en: 'Track and confirm attendance live', fr: 'Suivre et confirmer les présences en direct' },
   eingechecktZahl:  { de: 'Eingecheckt', en: 'Checked in', fr: 'Arrivés' },
-  anwesend:         { de: '{pct}% anwesend', en: '{pct}% present', fr: '{pct} % présents' },
+  anwesend:         { de: '{pct} % anwesend', en: '{pct}% present', fr: '{pct} % présents' },
   vonPersonen:      { de: '{n} von {total} Personen', en: '{n} of {total} people', fr: '{n} sur {total} personnes' },
   drehtag:          { de: 'Drehtag', en: 'Shoot day', fr: 'Jour de tournage' },
   drehtagWaehlen:   { de: 'Drehtag auswählen…', en: 'Select shoot day…', fr: 'Choisir un jour de tournage…' },
