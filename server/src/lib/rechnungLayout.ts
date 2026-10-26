@@ -247,7 +247,7 @@ ${rechnung.outro ? `<div class="hinweis">${mehrzeilig(rechnung.outro)}</div>` : 
 <div class="zahlung">
   ${
     istAngebot
-      // Ein Angebot nennt seine Gueltigkeit, nicht eine Zahlungsfrist. Die
+      // Ein Angebot nennt seine Gültigkeit, nicht eine Zahlungsfrist. Die
       // Bankverbindung bleibt weg: Niemand soll auf ein Angebot zahlen.
       ? `Dieses Angebot ist ${rechnung.valid_until
           ? `bis zum <b>${esc(datum(rechnung.valid_until))}</b> gültig`

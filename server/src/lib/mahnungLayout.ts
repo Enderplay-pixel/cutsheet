@@ -102,18 +102,24 @@ ${pdfFontFaces()}
   * { box-sizing: border-box; }
   body { margin: 0; font-family: ${PDF_SANS}; font-size: 10.5pt; color: #111; line-height: 1.5; }
   .blatt { width: 210mm; min-height: 297mm; padding: 20mm 20mm 20mm 25mm; position: relative; }
-  .kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 10mm; }
+  /* Feste Höhe: Das Adressfeld darunter muss bei 45 mm beginnen, egal wie
+     viele Kontaktzeilen der Kopf trägt. Vorher rutschte es ohne Telefon, Mail
+     und Website auf 39,9 mm, die Absenderzeile lag über dem Fenster des
+     Umschlags (gemessen am 26.10.2026). */
+  .kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 10mm; height: 25mm; }
   .kopf h1 { margin: 0; font-size: 15pt; letter-spacing: -0.01em; }
   .kopf .kontakt { font-size: 8.5pt; color: #555; text-align: right; line-height: 1.45; }
-  /* Adressfeld nach DIN 5008: 45 mm von oben, damit es im Fenster steht. */
-  .fenster { margin-top: 12mm; height: 40mm; }
+  /* Anschriftfeld nach DIN 5008 (Form B): 45 mm von oben, 45 mm hoch. Die
+     Rücksendeangabe steht unten in der Zusatz- und Vermerkzone, die Anschrift
+     darunter - wie auf der Rechnung. */
+  .fenster { height: 45mm; padding-top: 10mm; }
   .fenster .absender { font-size: 7pt; color: #666; border-bottom: 0.3pt solid #bbb;
     padding-bottom: 1mm; margin-bottom: 2mm; }
   .fenster .empfaenger { font-size: 10.5pt; line-height: 1.45; }
-  .angaben { display: flex; justify-content: space-between; margin-top: 6mm; font-size: 9.5pt; }
+  .angaben { display: flex; justify-content: space-between; margin-top: 4mm; font-size: 9.5pt; }
   .angaben div { color: #444; }
   .angaben b { color: #111; }
-  h2.titel { font-size: 13pt; margin: 10mm 0 4mm; }
+  h2.titel { font-size: 13pt; margin: 7mm 0 4mm; }
   p.text { margin: 0 0 4mm; }
   table { width: 100%; border-collapse: collapse; margin-top: 4mm; font-size: 10pt; }
   th { text-align: left; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.04em;

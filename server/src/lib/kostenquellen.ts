@@ -1,13 +1,13 @@
 /**
  * Woraus sich die Kosten einer Produktion ergeben - an einer Stelle.
  *
- * Gagen, Mieten und Praemien werden an vier verschiedenen Orten erfasst
+ * Gagen, Mieten und Prämien werden an vier verschiedenen Orten erfasst
  * (Besetzung, Stab, Equipment, Versicherungen) und tauchten in der
  * Kalkulation bisher gar nicht auf. Man musste sie ein zweites Mal eintippen,
  * und ab dem Moment liefen beide Zahlen auseinander.
  *
- * Die Funktionen hier sind rein: sie bekommen Zeilen und geben Posten zurueck.
- * Das Laden macht die Route, damit sich das Rechnen testen laesst.
+ * Die Funktionen hier sind rein: sie bekommen Zeilen und geben Posten zurück.
+ * Das Laden macht die Route, damit sich das Rechnen testen lässt.
  */
 
 /** Ein Kostenposten, wie er in der Kalkulation stehen soll. */
@@ -23,7 +23,7 @@ export type Kostenposten = {
 }
 
 /**
- * Number(null) ist 0 und Number('') auch - eine nie gefuellte Gage darf nicht
+ * Number(null) ist 0 und Number('') auch - eine nie gefüllte Gage darf nicht
  * als echte Null durchgehen, sonst steht in der Kalkulation eine 0,00 Euro,
  * wo in Wahrheit nichts erfasst wurde.
  */
@@ -55,7 +55,7 @@ export type Person = {
 
 /**
  * Gage mal Drehtage. Ohne Gage oder ohne Drehtag entsteht KEIN Posten - eine
- * Zeile ueber 0,00 Euro behauptet, die Person koste nichts.
+ * Zeile über 0,00 Euro behauptet, die Person koste nichts.
  */
 export function gagenPosten(
   personen: Person[],
@@ -160,8 +160,8 @@ export type Abgleich = {
 /**
  * Was muss passieren, damit die Kalkulation den Daten entspricht?
  *
- * Betrachtet werden ausschliesslich Zeilen MIT Herkunftsschluessel. Alles von
- * Hand Eingetragene bleibt unangetastet - sonst waere die Uebernahme ein
+ * Betrachtet werden ausschließlich Zeilen MIT Herkunftsschlüssel. Alles von
+ * Hand Eingetragene bleibt unangetastet - sonst wäre die Übernahme ein
  * Datenverlust statt einer Hilfe.
  */
 export function abgleiche(vorhanden: Zeile[], soll: Kostenposten[]): Abgleich {
@@ -187,7 +187,7 @@ export function abgleiche(vorhanden: Zeile[], soll: Kostenposten[]): Abgleich {
     else geaendert.push({ id: alt.id, posten: p })
   }
 
-  // Quelle geloescht oder Gage auf 0 gesetzt: die erzeugte Zeile muss weg,
+  // Quelle gelöscht oder Gage auf 0 gesetzt: die erzeugte Zeile muss weg,
   // sonst bleibt eine Kostenstelle stehen, die es nicht mehr gibt.
   const entfallen = erzeugt
     .filter(z => !gesehen.has(String(z.source_key)))

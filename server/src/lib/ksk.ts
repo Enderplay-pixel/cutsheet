@@ -191,14 +191,22 @@ const STAEMME = [
 ]
 
 /**
+ * Kaufmännische Funktionen, in denen ein Stamm zufällig steckt: "buch" in
+ * "Buchhaltung", "edit" in "Kreditoren". Gemessen am 26.10.2026 schlug der
+ * Vorschlag die Produktionsbuchhaltung als künstlerisch vor.
+ */
+const KEIN_GEWERK = ['buchhalt', 'buchung', 'kreditor', 'debitor']
+
+/**
  * Ein Vorschlag anhand der Funktionsbezeichnung.
  *
  * Vergleicht ohne Rücksicht auf Groß- und Kleinschreibung und auf Zusätze:
  * "1. Kameraassistenz" trifft, "Regisseurin" trifft, "Director of Photography"
- * trifft. "Produktionsleitung" und "Aufnahmeleitung" treffen nicht.
+ * trifft. "Produktionsleitung", "Aufnahmeleitung" und "Buchhaltung" treffen nicht.
  */
 export function gewerkVorschlag(funktion: string): boolean {
   const text = String(funktion || '').toLowerCase()
   if (!text.trim()) return false
+  if (KEIN_GEWERK.some((stamm) => text.includes(stamm))) return false
   return STAEMME.some((stamm) => text.includes(stamm))
 }

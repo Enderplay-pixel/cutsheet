@@ -112,6 +112,13 @@ Stand am 24.10.2026, 23 Uhr:
   `Budget.tsx` (Finanzierung): Der Server legt neue Zeilen mit Art
   "Förderung" an, die Auswahl kennt nur "Förderung regional"/"national" -
   prüfen, was die Auswahl dann zeigt.
+  **Rechtsfrage für Florian** (`lib/mahnwesen.ts`): Verzugszinsen laufen ab
+  dem Fälligkeitsdatum der Rechnung. Ob ein einseitig auf der Rechnung
+  gesetztes Zahlungsziel schon Verzug begründet (§ 286 Abs. 2 Nr. 1 BGB)
+  oder erst die Mahnung bzw. die 30-Tage-Regel (§ 286 Abs. 3), ist eine
+  Rechtsfrage - nach meinem Wissen verlangt die Rechtsprechung für Abs. 2
+  Nr. 1 eine vereinbarte Zeit. Nicht geändert, nicht gemessen; vor dem ersten
+  echten Mahnlauf klären (Steuerberatung oder Anwalt).
 - **Zeitstempel:** `pg` liefert TIMESTAMPTZ als `Date`, nur DATE kommt als
   Text (`db/index.ts:14`). `String(zeitstempel).slice(0, 10)` ist immer
   falsch - siehe Fund 29.
@@ -300,6 +307,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 123 | `server/src/lib/datenschutz.ts` (`anonymisiere`) | **Fehler, Datenschutz (Art. 17 DSGVO), live** | Die Löschung nach DSGVO leerte nur Name, Mail, Telefon, Notiz (Besetzung: Agentur). Geburtsdatum, Erziehungsberechtigte (Name, Mail, Telefon), Agent mit Mail, Verfügbarkeitsnotiz, Foto und die Verknüpfung zum Adressbuch blieben - bei Minderjährigen genug, um das Kind wiederzuerkennen. Notizen der Arbeitszeiten blieben stehen. Der Ersatzname war bei Besetzung und Komparserie "Person (entfernt)", obwohl der Kommentar die Funktion verspricht. | ja: minderjähriger Komparse anonymisiert - `guardian_name 'Petra Probe'`, `guardian_email`, Geburtsdatum noch da | behoben: alle wiedererkennbaren Felder je Personenart geleert bzw. auf NULL (Gage, Vertragsart, Bewilligungsaktenzeichen bleiben als Buchhaltung und Nachweis), Zeitnotizen geleert; Ersatzname = Funktion im Stab, gespielte Figur, "Komparse". Test mit Komparse und Darstellerin |
 | 124 | `server/src/lib/dateiname.ts` | Klein | Lag die 80-Zeichen-Grenze auf einem Trenner, endete der Dateiname auf "-" - die Randstriche wurden vor dem Kürzen entfernt. | ja: "drehplan-xxx…x-" | behoben: erst kürzen, dann Randstriche weg; Test |
 | 125 | `server/src/lib/fountainExport.ts` | Fehler | Der Fountain-Export galt deutsche Überschriften ("INNEN.", "AUSSEN.") als von Fountain erkannt und erzwang sie nicht mit Punkt. Fountain kennt nur INT, EXT, EST, INT./EXT, INT/EXT und I/E (fountain.io/syntax, im Browser nachgelesen) - in jeder Fountain-App wurde "INNEN. KÜCHE - TAG" damit zu Aktionstext, die Szene verschwand aus der Gliederung. EST wurde unnötig erzwungen. | ja: Ausgabe `INNEN. KÜCHE - TAG` ohne Punkt | behoben: Liste wie in der Spezifikation. Danach gemessen: `.INNEN. KÜCHE - TAG`, `.AUSSEN. HAFEN - NACHT`, `EST. STADT - TAG`, `INT./EXT. AUTO - TAG`; Test |
+| 126 | `server/src/lib/ksk.ts` (`gewerkVorschlag`) | Fehler (Recht, Geld) | Der Vorschlag für die Künstlersozialabgabe sprang auf Wortstämme an, die in kaufmännischen Funktionen zufällig stecken: "buch" in "Buchhaltung", "edit" in "Kreditoren". Produktions- und Kreditorenbuchhaltung wurden als künstlerisch vorgeschlagen - wer den Vorschlag übernimmt, meldet zu viel. | ja: `Buchhaltung`, `Produktionsbuchhaltung`, `Kreditorenbuchhaltung` → `true` | behoben: Ausschlussliste (Buchhaltung, Buchung, Kreditor, Debitor) vor den Stämmen. Danach gemessen: alle drei `false`, "Drehbuch" und "Buch" weiter `true`; Test |
+| 127 | `server/src/lib/mahnungLayout.ts` | Fehler (Druck) | Das Adressfeld der Mahnung hing an der Höhe des Kopfs: Mit Telefon, Mail und Website begann es bei 45 mm, ohne sie bei 39,9 mm - die Absenderzeile lag dann über dem Fenster des Umschlags. Der Kommentar versprach "45 mm von oben". | ja: im Druckmodus gerendert - mit Kontakt 45,0 mm, ohne 39,9 mm | behoben: Kopf mit fester Höhe, Anschriftfeld nach DIN 5008 Form B wie auf der Rechnung (Absender bei 55 mm, Anschrift ab 61,9 mm); Abstände darunter ausgeglichen. Danach gemessen: in allen Fällen 45 mm; mit allen Angaben endet der Inhalt bei 276,4 mm wie vorher, einseitig, vor der Fußzeile. Die Rechnung stand schon stabil bei 55 mm (gemessen) |
 
 ### Verknüpfungen
 
@@ -318,6 +327,7 @@ Kandidaten stehen hier, bis sie gebaut oder verworfen sind.
 | Drehtage einer Person | "Drehorte" im Vertrag | gebaut, Fund 122 |
 | Papierkorb: Person zurückholen | ihre Dispo-Einträge, Zeiten, Verpflegung | Kandidat: ohne Fremdschlüssel kommen sie nicht mit zurück (gilt für Stab, Besetzung, Komparsen) |
 | Rollen der Szene | Beschriftung der Darsteller-Symbole im Set-Plan | Kandidat: ein neues Darsteller-Symbol heißt "1", "2" … (`nextLabel` in `lib/floorplan.ts`), obwohl der Plan seine Szene und damit deren Rollen kennt |
+| Komparsen-Drehtage | Kalkulation (Gagen) | Kandidat: Besetzung und Stab kommen mit Gage × Drehtage in die Kalkulation (`lib/kostenquellen.ts`), Komparsen nicht - sie haben Drehtage (Fund 119), aber keinen Tagessatz, nur eine Tarifgruppe. Braucht einen Satz je Tarifgruppe oder je Komparse |
 
 ## Abhakliste
 
@@ -439,10 +449,10 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/lib/floorplan.ts` (231) - ohne Fund (Kommentare mit Umlauten)
 - [x] `server/src/lib/fountainExport.ts` (52) - Fund 125
 - [x] `server/src/lib/jugendschutz.ts` (240) - Fund 109
-- [ ] `server/src/lib/kostenquellen.ts` (197)
-- [ ] `server/src/lib/ksk.ts` (204)
-- [ ] `server/src/lib/mahnungLayout.ts` (201)
-- [ ] `server/src/lib/mahnwesen.ts` (287)
+- [x] `server/src/lib/kostenquellen.ts` (197) - ohne Fund (Kommentare mit Umlauten)
+- [x] `server/src/lib/ksk.ts` (204) - Fund 126
+- [x] `server/src/lib/mahnungLayout.ts` (201) - Fund 127
+- [x] `server/src/lib/mahnwesen.ts` (287) - ohne Fund (Rechtsfrage im Merkzettel)
 - [ ] `server/src/lib/mailaufbewahrung.ts` (32)
 - [ ] `server/src/lib/mailversand.ts` (291)
 - [ ] `server/src/lib/mailvorlagen.ts` (187)
@@ -452,7 +462,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `server/src/lib/pdfFonts.ts` (62)
 - [x] `server/src/lib/person.ts` (20) - Fund 119
 - [ ] `server/src/lib/rechnung.ts` (140)
-- [ ] `server/src/lib/rechnungLayout.ts` (291)
+- [x] `server/src/lib/rechnungLayout.ts` (291) - ohne Fund (gemessen: Anschrift stabil bei 55 mm)
 - [ ] `server/src/lib/screenplayFormat.ts` (675)
 - [ ] `server/src/lib/shotlist.ts` (324)
 - [ ] `server/src/lib/spesen.ts` (184)
