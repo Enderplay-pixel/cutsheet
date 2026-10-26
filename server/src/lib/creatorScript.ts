@@ -220,9 +220,9 @@ export function renderCreatorScriptHtml(
   opts: {
     wpm?: number
     projectTitle?: string
-    /** Verwendetes Material mit Lizenz - fuer die Rechteseite. */
+    /** Verwendetes Material mit Lizenz - für die Rechteseite. */
     assets?: Array<{ kind?: string; name?: string; source?: string; license?: string; claim_risk?: string }>
-    /** Geplante Auskopplungen fuer Shorts und Reels. */
+    /** Geplante Auskopplungen für Shorts und Reels. */
     clips?: Array<{ title?: string; start_seconds?: number; end_seconds?: number; platform?: string; status?: string }>
     /** Upload-Checkliste zum Abhaken auf Papier. */
     checklist?: Array<{ label?: string; done?: boolean }>

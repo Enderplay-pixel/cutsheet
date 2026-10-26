@@ -2273,3 +2273,26 @@ describe('Dispo aus dem Projekt', () => {
     expect((await besetzung()).sort()).toEqual([fischer, wirtin].sort())
   })
 })
+
+describe('Anonymisierung nach DSGVO', () => {
+  it('entfernt auch Geburtsdatum und Erziehungsberechtigte und nennt die Funktion', async () => {
+    const { anonymisiere } = await import('../lib/datenschutz')
+    const kind = (await db.run(
+      `INSERT INTO extras (project_id, name, email, birthdate, guardian_name, guardian_email, notes)
+       VALUES (?, 'Lina Probe', 'l@example.com', '2014-05-02', 'Petra Probe', 'petra@example.com', 'Brille')`, [projektId]
+    )).id
+    const ergebnis = await anonymisiere(projektId, 'extra', kind, 'Test')
+    expect(ergebnis?.ersatzname).toBe('Komparse (entfernt)')
+    expect(await db.get('SELECT name, email, birthdate, guardian_name, guardian_email, notes FROM extras WHERE id = ?', [kind]))
+      .toEqual({ name: 'Komparse (entfernt)', email: '', birthdate: null, guardian_name: '', guardian_email: '', notes: '' })
+
+    const figur = (await db.run("INSERT INTO characters (project_id, name) VALUES (?, 'Lotsin')", [projektId])).id
+    const darstellerin = (await db.run(
+      `INSERT INTO "cast" (project_id, character_id, actor_name, agent, guardian_phone, birthdate)
+       VALUES (?, ?, 'Mara Probe', 'Agent Pohl', '0170 9', '2012-01-01')`, [projektId, figur]
+    )).id
+    expect((await anonymisiere(projektId, 'cast', darstellerin))?.ersatzname).toBe('Lotsin (entfernt)')
+    expect(await db.get('SELECT agent, guardian_phone, birthdate FROM "cast" WHERE id = ?', [darstellerin]))
+      .toEqual({ agent: '', guardian_phone: '', birthdate: null })
+  })
+})

@@ -13,7 +13,9 @@ export function dateiname(titel: unknown, ersatz = 'dokument'): string {
     .normalize('NFKD').replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
     .slice(0, 80)
+    // Nach dem Kürzen: Endete die Grenze auf einem Trenner, blieb er hängen
+    // ("drehplan-…-", gemessen am 26.10.2026)
+    .replace(/^-+|-+$/g, '')
   return out || ersatz
 }

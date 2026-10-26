@@ -68,47 +68,45 @@ export async function auskunft(
     },
   ]
 
-  {
-    const dispo = (await db.all(
-      `SELECT e.call_time, e.notes, e.confirmed_at, e.viewed_at, e.sent_at,
-              d.day_number, d.date
-         FROM call_sheet_entries e
-         JOIN call_sheets s ON s.id = e.call_sheet_id
-         JOIN shoot_days d ON d.id = s.shoot_day_id
-        WHERE e.person_type = ? AND e.person_id = ? AND d.project_id = ?
-        ORDER BY d.date ASC`,
-      [art, personId, projectId]
-    )) as any[]
-    posten.push({
-      bereich: 'Dispositionen',
-      erklaerung: 'Für welche Drehtage die Person eingeteilt war, mit ihrer Call-Zeit.',
-      eintraege: dispo.map((z) => ({ ...z, call_time: uhrzeit(z.call_time) })),
-    })
+  const dispo = (await db.all(
+    `SELECT e.call_time, e.notes, e.confirmed_at, e.viewed_at, e.sent_at,
+            d.day_number, d.date
+       FROM call_sheet_entries e
+       JOIN call_sheets s ON s.id = e.call_sheet_id
+       JOIN shoot_days d ON d.id = s.shoot_day_id
+      WHERE e.person_type = ? AND e.person_id = ? AND d.project_id = ?
+      ORDER BY d.date ASC`,
+    [art, personId, projectId]
+  )) as any[]
+  posten.push({
+    bereich: 'Dispositionen',
+    erklaerung: 'Für welche Drehtage die Person eingeteilt war, mit ihrer Call-Zeit.',
+    eintraege: dispo.map((z) => ({ ...z, call_time: uhrzeit(z.call_time) })),
+  })
 
-    const zeiten = (await db.all(
-      `SELECT t.*, d.day_number, d.date
-         FROM timesheets t
-         LEFT JOIN shoot_days d ON d.id = t.shoot_day_id
-        WHERE t.person_type = ? AND t.person_id = ? AND t.project_id = ?
-        ORDER BY d.date ASC`,
-      [art, personId, projectId]
-    )) as any[]
-    posten.push({
-      bereich: 'Arbeitszeiten',
-      erklaerung: 'Erfasste Anwesenheit, Pausen und Zuschläge.',
-      eintraege: zeiten,
-    })
+  const zeiten = (await db.all(
+    `SELECT t.*, d.day_number, d.date
+       FROM timesheets t
+       LEFT JOIN shoot_days d ON d.id = t.shoot_day_id
+      WHERE t.person_type = ? AND t.person_id = ? AND t.project_id = ?
+      ORDER BY d.date ASC`,
+    [art, personId, projectId]
+  )) as any[]
+  posten.push({
+    bereich: 'Arbeitszeiten',
+    erklaerung: 'Erfasste Anwesenheit, Pausen und Zuschläge.',
+    eintraege: zeiten,
+  })
 
-    const verpflegung = (await db.all(
-      'SELECT * FROM catering_preferences WHERE person_type = ? AND person_id = ? AND project_id = ?',
-      [art, personId, projectId]
-    )) as any[]
-    posten.push({
-      bereich: 'Verpflegung',
-      erklaerung: 'Angaben zur Ernährung, etwa Unverträglichkeiten.',
-      eintraege: verpflegung,
-    })
-  }
+  const verpflegung = (await db.all(
+    'SELECT * FROM catering_preferences WHERE person_type = ? AND person_id = ? AND project_id = ?',
+    [art, personId, projectId]
+  )) as any[]
+  posten.push({
+    bereich: 'Verpflegung',
+    erklaerung: 'Angaben zur Ernährung, etwa Unverträglichkeiten.',
+    eintraege: verpflegung,
+  })
 
   const mails = (await db.all(
     `SELECT subject, status, sent_at, read_at FROM email_outbox
@@ -146,49 +144,70 @@ export async function anonymisiere(
   if (!person) return null
 
   // Der Ersatzname nennt die Funktion, nicht die Person: Auf einer alten
-  // Dispo soll stehen, dass dort jemand in dieser Rolle gearbeitet hat.
-  const funktion = String(person.role || person.department || 'Person').trim() || 'Person'
+  // Dispo soll stehen, dass dort jemand in dieser Rolle gearbeitet hat - im
+  // Stab die Funktion, in der Besetzung die gespielte Figur, sonst die
+  // Komparserie. Vorher stand bei Besetzung und Komparserie "Person".
+  const figur = art === 'cast' && person.character_id
+    ? ((await db.get('SELECT name FROM characters WHERE id = ?', [person.character_id])) as any)?.name
+    : ''
+  const funktion = String(
+    art === 'crew' ? person.role || person.department : art === 'cast' ? figur || 'Darsteller' : 'Komparse'
+  ).trim() || 'Person'
   const ersatzname = `${funktion} (entfernt)`
   const betroffen: Record<string, number> = {}
 
-  const felderLeeren: Record<Personenart, string[]> = {
-    crew: ['email', 'phone', 'notes'],
-    cast: ['email', 'phone', 'notes', 'agency'],
-    extra: ['email', 'phone', 'notes'],
+  // Alles, was die Person wiedererkennbar macht. Geburtsdatum und
+  // Erziehungsberechtigte gehören dazu: Gemessen am 26.10.2026 standen nach
+  // der Anonymisierung eines minderjährigen Komparsen noch Name und Mail der
+  // Mutter und sein Geburtstag in der Datenbank. Gage, Vertragsart und
+  // Bewilligungsaktenzeichen bleiben - Buchhaltung und Nachweis des Drehs.
+  const leeren: Record<Personenart, string[]> = {
+    crew: ['email', 'phone', 'notes', 'availability_notes'],
+    cast: ['email', 'phone', 'notes', 'agency', 'agent', 'agent_email', 'availability_notes',
+      'guardian_name', 'guardian_email', 'guardian_phone'],
+    extra: ['email', 'phone', 'notes', 'guardian_name', 'guardian_email'],
   }
-  const vorhandene: string[] = []
-  for (const feld of felderLeeren[art]) {
-    const spalte = (await db.get(
-      `SELECT column_name FROM information_schema.columns
-        WHERE table_name = ? AND column_name = ?`,
-      [art === 'cast' ? 'cast' : tabelle.replace(/"/g, ''), feld]
-    )) as any
-    if (spalte) vorhandene.push(feld)
+  const aufNull: Record<Personenart, string[]> = {
+    crew: ['birthdate', 'contact_id'],
+    cast: ['birthdate', 'contact_id', 'photo_url'],
+    extra: ['birthdate'],
   }
+  const spalten = new Set(((await db.all(
+    'SELECT column_name FROM information_schema.columns WHERE table_name = ?',
+    [tabelle.replace(/"/g, '')]
+  )) as any[]).map((z) => z.column_name))
 
-  const zuweisungen = [`${namensfeld} = ?`, ...vorhandene.map((f) => `${f} = ''`)]
+  const zuweisungen = [
+    `${namensfeld} = ?`,
+    ...leeren[art].filter((f) => spalten.has(f)).map((f) => `${f} = ''`),
+    ...aufNull[art].filter((f) => spalten.has(f)).map((f) => `${f} = NULL`),
+  ]
   const zeile = await db.run(
     `UPDATE ${tabelle} SET ${zuweisungen.join(', ')} WHERE id = ? AND project_id = ?`,
     [ersatzname, personId, projectId]
   )
   betroffen[art] = zeile.changes
 
-  {
-    // Freitexte, in denen der Name stehen könnte, werden geleert - nicht
-    // durchsucht. Eine Teilsuche in Fliesstext würde entweder zu viel oder
-    // zu wenig treffen.
-    const notizen = await db.run(
-      `UPDATE call_sheet_entries SET notes = '' WHERE person_type = ? AND person_id = ?`,
-      [art, personId]
-    )
-    betroffen.dispo_notizen = notizen.changes
+  // Freitexte, in denen der Name stehen könnte, werden geleert - nicht
+  // durchsucht. Eine Teilsuche in Fließtext würde entweder zu viel oder zu
+  // wenig treffen.
+  const notizen = await db.run(
+    `UPDATE call_sheet_entries SET notes = '' WHERE person_type = ? AND person_id = ?`,
+    [art, personId]
+  )
+  betroffen.dispo_notizen = notizen.changes
 
-    const verpflegung = await db.run(
-      'DELETE FROM catering_preferences WHERE person_type = ? AND person_id = ? AND project_id = ?',
-      [art, personId, projectId]
-    )
-    betroffen.verpflegung = verpflegung.changes
-  }
+  const zeitnotizen = await db.run(
+    `UPDATE timesheets SET notes = '' WHERE person_type = ? AND person_id = ? AND project_id = ? AND notes <> ''`,
+    [art, personId, projectId]
+  )
+  betroffen.zeiten_notizen = zeitnotizen.changes
+
+  const verpflegung = await db.run(
+    'DELETE FROM catering_preferences WHERE person_type = ? AND person_id = ? AND project_id = ?',
+    [art, personId, projectId]
+  )
+  betroffen.verpflegung = verpflegung.changes
 
   // Verschickte Mails: Adresse unkenntlich, der Beleg bleibt.
   if (person.email) {
