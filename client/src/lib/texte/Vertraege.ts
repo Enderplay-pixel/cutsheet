@@ -64,7 +64,7 @@ export const vertraegeT = {
   vertrag: { de: 'Vertrag', en: 'Contract', fr: 'Contrat' },
   seit: { de: 'seit {zeit}', en: 'since {zeit}', fr: 'depuis le {zeit}' },
   zurueckziehenFrage: {
-    de: '„“ zurückziehen? Der Link in der Mail gilt danach nicht mehr.',
+    de: '„{titel}“ zurückziehen? Der Link in der Mail gilt danach nicht mehr.',
     en: 'Withdraw "{titel}"? The link in the email will no longer be valid afterwards.',
     fr: "Retirer « {titel} » ? Le lien dans l'e-mail ne sera plus valable ensuite.",
   },

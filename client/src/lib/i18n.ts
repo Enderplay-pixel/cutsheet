@@ -482,7 +482,7 @@ export const dispoT = {
   cateringEmpty:  { en: 'Not specified yet',    de: 'Noch nicht angegeben',    fr: 'Non encore spécifié'     },
   cateringPlan:   { en: 'Plan meals',           de: 'Mahlzeiten planen',       fr: 'Planifier repas'         },
   noPeople:       { en: 'No people added yet.', de: 'Noch keine Personen eingetragen.', fr: 'Aucune personne ajoutée.' },
-  noPeopleHint:   { en: 'Click "Add person".', de: 'Klicke auf „“.', fr: 'Clique sur « Ajouter personne ».' },
+  noPeopleHint:   { en: 'Click "Add person".', de: 'Klicke auf „Person hinzufügen“.', fr: 'Clique sur « Ajouter personne ».' },
   castSection:    { en: 'Cast',                 de: 'Darsteller',              fr: 'Acteurs'                 },
   crewSection:    { en: 'Crew',                 de: 'Stab',                    fr: 'Équipe'                  },
   extrasSection:  { en: 'Background',           de: 'Komparserie',             fr: 'Figuration'              },

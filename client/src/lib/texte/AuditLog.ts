@@ -26,7 +26,7 @@ export const auditLogT = {
   keineTreffer:   {
     de: 'Keine Einträge zu dieser Suche. Weniger Filter setzen oder den Zeitraum weiten.',
     en: 'No entries for this search. Set fewer filters or widen the time range.',
-    fr: 'Aucune entrée pour cette recherche. Utilisez moins de filtres ou élargissez la période.',
+    fr: 'Aucune entrée pour cette recherche. Utilise moins de filtres ou élargis la période.',
   },
   leer:           {
     de: 'Noch keine Einträge. Hier erscheint jede Änderung mit Zeitpunkt und Benutzer.',

@@ -6,7 +6,7 @@ export const kostenstandT = {
   nichtGespeichert: { de: 'Nicht gespeichert', en: 'Not saved', fr: 'Non enregistré' },
   fehler:           { de: 'Fehler', en: 'Error', fr: 'Erreur' },
   titel:            { de: 'Kostenstand', en: 'Cost status', fr: 'État des coûts' },
-  istGegenVersion:  { de: 'Ist-Kosten gegen Kalkulation „“', en: 'Actual costs against budget "{name}"', fr: 'Coûts réels par rapport au budget « {name} »' },
+  istGegenVersion:  { de: 'Ist-Kosten gegen Kalkulation „{name}“', en: 'Actual costs against budget "{name}"', fr: 'Coûts réels par rapport au budget « {name} »' },
   istGegen:         { de: 'Ist-Kosten gegen die Kalkulation', en: 'Actual costs against the budget', fr: 'Coûts réels par rapport au budget' },
   ueberzogen:       {
     de: 'Budget überzogen: {p} % der Kalkulation ausgegeben.',
