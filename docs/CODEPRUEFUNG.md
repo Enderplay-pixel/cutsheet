@@ -94,8 +94,7 @@ Stand am 24.10.2026, 23 Uhr:
   404-Seite fehlt (gemessen). `CheckinBoard.tsx:221`: Hinweis auf
   `/guest/checkin/…`, den es nicht gibt (Fund 79).
   Serverzeitzone (Muster aus Fund 36/80):
-  `lib/buchhaltung.ts:114` DATEV-Zeitstempel und `lib/youtubeInsights.ts:224`
-  Wochen/Wochentage - jeweils beim Lesen messen.
+  `lib/youtubeInsights.ts:224` Wochen/Wochentage - jeweils beim Lesen messen.
   `Budget.tsx` (Finanzierung): Der Server legt neue Zeilen mit Art
   "Förderung" an, die Auswahl kennt nur "Förderung regional"/"national" -
   prüfen, was die Auswahl dann zeigt.
@@ -275,6 +274,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 111 | `server/src/routes/vertraege.ts`, `routes/abnahme.ts`, `routes/agenturen.ts` | **Fehler, Recht, live** | Jugendschutzprüfung: Eine Bewilligung galt unbegrenzt - `permit_valid_until` wurde nicht beachtet; Bewilligung bis 31.10., Drehtag 02.11.: kein Verstoß. Undatierte Drehtage gingen in die Prüfung und meldeten "Ohne Geburtsdatum lässt sich nichts entscheiden", obwohl es hinterlegt war. Versand von Vertrag, Abnahmerunde und Besetzungsanfrage (auch Nachfassen): Verwarf der Postausgang die Adresse als ungültig, stand die Sache trotzdem auf "versendet". Vertragstage zählten undatierte Drehtage mit; eine Vorlage ließ sich auf eine unbekannte Vertragsart ändern. | ja: 02.11. "nichts"; undatiert "Ohne Geburtsdatum"; Vertrag an "kaputt" 200 "versendet", 0 Mails; Abnahme an "kaputt" am alten Stand 200 "versendet" | behoben: abgelaufene Bewilligung zählt nicht und meldet "gilt nur bis ..."; `sd.date <> ''`; Status nur mit eingereihter Mail (sonst 400 "Die E-Mail-Adresse ist nicht gültig"); Artprüfung beim Ändern. Danach gemessen: Verstoß am 02.11.; Vertrag und Abnahme an "kaputt" 400, Status Entwurf; gültige Adresse 200 mit Mail |
 | 112 | `server/src/routes/youtube.ts:60` | Fehler, Rechte | `GET /creator/youtube/connect` gab die Google-Anmeldeadresse samt signiertem State für das Projekt heraus. Als GET lief die Route am Schreibschutz vorbei, der Rücklauf vertraut allein dem State - ein Mitglied mit Lesezugriff konnte so einen eigenen Kanal an das Projekt hängen, während Trennen für es 403 ergab. Das Analytics-Enddatum kam aus der UTC-Uhr. | ja (zweite Instanz mit Platzhalter-Zugangsdaten): Leser 200 mit Adresse, Trennen 403 | behoben: Verbinden verlangt denselben Rang wie Trennen (Abteilung); `heuteISO()`. Danach gemessen: Leser 403, Inhaber 200. Scan aller schreibenden GET-Handler (`scratchpad/get_schreibt.py`): sonst nur Absicht (Dispo-Quittung per Token, Standardvorlagen beim ersten Aufruf, abgeleitete Vorschläge) |
 | 113 | `server/src/routes/dateien.ts:179`, `client/src/lib/useDownload.ts`, `client/src/pages/Setplan.tsx`, `client/src/pages/Dateien.tsx` | **Fehler, live** | Seit Bilder und Dokumente in der Datenbank liegen, prüft die Auslieferung die Anmeldung - per Header. `<img src>` und `window.open` schicken keinen: Der Grundriss im Setplan kam mit 401 und blieb leer, "Ansehen" in der Dateiablage öffnete einen Tab mit "Nicht authentifiziert". Dazu die Härtung: Der Upload nimmt jedes `image/*` an, auch SVG; die Auslieferung zeigte es mit dem gemeldeten Typ inline an. | ja: Setplan-Bild 401, `naturalWidth 0`; SVG `image/svg+xml` inline | behoben: `useGeschuetztesBild` lädt mit Token als Blob (Setplan); `useAnsehen` öffnet das Fenster im Klick und füllt es nach dem Laden; inline nur noch PNG/JPEG/GIF/WebP/PDF, alles andere `application/octet-stream` als Download. Danach gemessen: Setplan-Bild geladen (Blob, 2×2 - die Testdatei ist so groß), Ansehen setzt eine Blob-Adresse (mit Attrappe für `window.open`, das Vorschaufenster öffnet keine Tabs), SVG als Download |
+| 114 | `server/src/lib/buchhaltung.ts:112`, `routes/buchhaltung.ts` (DATEV) | Fehler, Geld | Ein DATEV-Stapel über den Jahreswechsel ließ sich erzeugen: 01.11.2026 bis 31.01.2027 ergab Wirtschaftsjahr 2026, das Belegdatum steht nur als TTMM - eine Rechnung vom 15.01.2027 als "1501", in DATEV also der 15.01.2026. Ungültige oder vertauschte Daten gingen durch. "Erzeugt am" kam aus der Serveruhr (beim Hoster UTC, eine bis zwei Stunden zu früh). | ja: Kopf `20260101`, Bereich `20261101`-`20270131`, Belegdatum `1501`; unter `TZ=UTC` Zeitstempel 02:15 bei 03:15 deutscher Zeit | behoben: DATEV-Export nur innerhalb eines Kalenderjahres, Daten geprüft (400 mit Grund); Zeitstempel in deutscher Zeit. Danach gemessen: Jahreswechsel 400, 30.02. 400, Jahreszeitraum 200 mit Datei; `TZ=UTC` 03:15 |
 
 ## Abhakliste
 
@@ -379,7 +379,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 ### Server: Bibliotheken
 
 - [ ] `server/src/lib/benachrichtigungen.ts` (207)
-- [ ] `server/src/lib/buchhaltung.ts` (238)
+- [x] `server/src/lib/buchhaltung.ts` (238) - Fund 114
 - [ ] `server/src/lib/callSheetLayout.ts` (429)
 - [ ] `server/src/lib/creatorAreas.ts` (363)
 - [ ] `server/src/lib/creatorInsights.ts` (256)

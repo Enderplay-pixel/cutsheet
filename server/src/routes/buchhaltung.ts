@@ -16,7 +16,7 @@ import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { erfordereAbrechnung } from './invoices'
 import { schreibeCsv, cents } from '../lib/tabelle'
-import { heuteISO } from '../lib/datum'
+import { heuteISO, istIsoDatum } from '../lib/datum'
 import { summiere, type Steuerart } from '../lib/rechnung'
 import {
   datevStapel, datevKodieren, erloeskonto, ERLOESKONTEN,
@@ -246,6 +246,16 @@ router.get('/companies/:companyId/buchhaltung/datev/pruefung', requireAuth, erfo
 router.get('/companies/:companyId/buchhaltung/datev', requireAuth, erfordereAbrechnung('produktion'), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
   const { von, bis } = zeitraum(req)
+  // Ein Stapel gehört in ein Wirtschaftsjahr: Das Belegdatum steht nur als
+  // TTMM darin, das Jahr kommt aus dem Kopf. Gemessen am 26.10.2026: 01.11.2026
+  // bis 31.01.2027 ergab WJ 2026 und für den 15.01.2027 das Belegdatum "1501" -
+  // in DATEV der 15.01.2026.
+  if (!istIsoDatum(von) || !istIsoDatum(bis) || bis < von) {
+    return res.status(400).json({ data: null, error: 'Der Zeitraum braucht zwei gültige Daten, das Ende nicht vor dem Anfang' })
+  }
+  if (von.slice(0, 4) !== bis.slice(0, 4)) {
+    return res.status(400).json({ data: null, error: 'Ein DATEV-Stapel umfasst ein Kalenderjahr - bitte den Zeitraum darauf begrenzen' })
+  }
   const { firma, buchungen, fehlt } = await buchungenBauen(companyId, von, bis)
 
   if (fehlt.length > 0) {

@@ -109,11 +109,15 @@ export function datevText(text: string): string {
  * diese Funktion, sondern wer die Datei schreibt (`datevKodieren`).
  */
 export function datevStapel(kopf: DatevKopf, buchungen: Buchung[]): string {
-  const jetzt = new Date()
-  const zeitstempel =
-    `${jetzt.getFullYear()}${String(jetzt.getMonth() + 1).padStart(2, '0')}` +
-    `${String(jetzt.getDate()).padStart(2, '0')}${String(jetzt.getHours()).padStart(2, '0')}` +
-    `${String(jetzt.getMinutes()).padStart(2, '0')}${String(jetzt.getSeconds()).padStart(2, '0')}000`
+  // "Erzeugt am" in deutscher Zeit, nicht in der des Servers - beim Hoster
+  // (UTC) stand dort eine bis zwei Stunden zu früh (gemessen am 26.10.2026).
+  const teile = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Europe/Berlin', hourCycle: 'h23',
+      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+    }).formatToParts(new Date()).map((t) => [t.type, t.value])
+  )
+  const zeitstempel = `${teile.year}${teile.month}${teile.day}${teile.hour}${teile.minute}${teile.second}000`
 
   const alsZahl = (iso: string) => Number(String(iso).slice(0, 10).replace(/-/g, ''))
 
