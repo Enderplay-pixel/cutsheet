@@ -2,25 +2,31 @@
  * Call Sheet im Branchenstandard - zwei Seiten.
  *
  * Seite 1 ist das Blatt, das am Set in der Hand liegt: Zeiten, Sicherheit,
- * Szenen, Cast, Departmentnotizen, Vorschau auf die naechsten Tage.
+ * Szenen, Cast, Departmentnotizen, Vorschau auf die nächsten Tage.
  * Seite 2 ist die Crewliste nach Departments in drei Spalten.
  *
- * Die Anordnung folgt der ueblichen Vorlage, weil jeder am Set weiss, wo er
+ * Die Anordnung folgt der üblichen Vorlage, weil jeder am Set weiß, wo er
  * schauen muss - die Position einer Angabe ist hier Teil der Information.
+ * Maßstab für den Inhalt sind die Pflichtangaben einer Tagesdisposition:
+ * Drehort mit Adresse, Zeitplan bis Drehschluss, Pensum, Datum, Projekt,
+ * Anschrift und Kontakt der Produktion, Produktionsvertretung am Set.
  */
 import { pdfFontFaces, PDF_SANS, resolveAccent } from './pdfFonts'
 
 // ─── Formatierung ─────────────────────────────────────────────────────────────
 
-/** Minuten seit Mitternacht als 12-Stunden-Zeit, wie im Standard ueblich. */
+/**
+ * Minuten seit Mitternacht als Uhrzeit im 24-Stunden-Format, wie in
+ * Deutschland üblich (DIN 5008) und wie überall sonst in CutSheet. Vorher
+ * "7:00 AM" nach US-Vorlage - auf einer deutschen Dispo fremd. Werte über
+ * 24 Stunden (Drehschluss 01:30 als 1530) laufen in den nächsten Tag.
+ */
 export function fmtCallTime(minutes: number | null | undefined): string {
   if (minutes === null || minutes === undefined || !Number.isFinite(Number(minutes))) return ''
   const total = Math.max(0, Math.floor(Number(minutes)))
   const h24 = Math.floor(total / 60) % 24
   const m = total % 60
-  const suffix = h24 < 12 ? 'AM' : 'PM'
-  const h12 = h24 % 12 === 0 ? 12 : h24 % 12
-  return `${h12}:${String(m).padStart(2, '0')} ${suffix}`
+  return `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
 /**
@@ -43,12 +49,20 @@ export function sumEighths(values: Array<number | null | undefined>): string {
   return fmtEighths(values.reduce((n: number, v) => n + (Number(v) || 0), 0))
 }
 
-/** INT/EXT und Tag/Nacht zum Kuerzel der Vorlage: D1, N3, … */
-export function dayNightCode(intExt: string | null | undefined, dayNight: string | null | undefined, index = 1): string {
-  const night = /nacht|night|nite/i.test(String(dayNight ?? ''))
-  const dusk = /dämmer|daemmer|dusk|dawn/i.test(String(dayNight ?? ''))
-  const letter = night ? 'N' : dusk ? 'X' : 'D'
-  return `${letter}${index}`
+/**
+ * Tageszeit als Kürzel der Spalte T/N: T Tag, N Nacht, D Dämmerung, M Morgen.
+ *
+ * Ohne Zahl dahinter. Im Standard steht dort der Erzähltag (N3 = dritte Nacht
+ * der Geschichte); den kennt CutSheet nicht. Vorher zählte die Zahl einfach
+ * die Szenen des Drehtags hoch - vier Tagesszenen standen als D1 bis D4 da,
+ * als spielten sie an vier Tagen (gemessen am 26.10.2026).
+ */
+export function dayNightCode(dayNight: string | null | undefined): string {
+  const wert = String(dayNight ?? '')
+  if (/nacht|night|nite/i.test(wert)) return 'N'
+  if (/dämmer|daemmer|dusk|dawn/i.test(wert)) return 'D'
+  if (/morgen|morning/i.test(wert)) return 'M'
+  return 'T'
 }
 
 /** Deutsches Datum mit Wochentag, wie es oben rechts auf dem Blatt steht. */
@@ -56,6 +70,20 @@ export function fmtSheetDate(date: string | null | undefined): string {
   const d = new Date(String(date ?? ''))
   if (Number.isNaN(d.getTime())) return String(date ?? '')
   return d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+/** Anschrift aus Straße, PLZ und Ort - fehlende Teile fallen weg. */
+function anschrift(strasse: any, plz: any, ort: any): string {
+  return [strasse, [plz, ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+}
+
+/**
+ * Motiv mit der realen Adresse. Die Adresse gehört zu den Pflichtangaben einer
+ * Dispo; vorher stand nur der Name des Motivs da.
+ */
+function motivZelle(sc: any): string {
+  const adresse = anschrift(sc.location_address, sc.location_zip, sc.location_city)
+  return `${esc(sc.location_name || '')}${adresse ? `<div class="desc">${esc(adresse)}</div>` : ''}`
 }
 
 function esc(s: any): string {
@@ -149,6 +177,12 @@ export interface CallSheetData {
   totalDays: number
   /** Kopffarbe des Projekts; ohne Angabe der Standard. */
   accent?: string
+  /** Die Produktionsfirma, wenn das Projekt einer zugeordnet ist. */
+  firma?: { name?: string; address?: string; zip?: string; city?: string; phone?: string; email?: string } | null
+  /** Geplanter Drehschluss in Minuten seit Mitternacht. */
+  drehschluss?: number | null
+  /** Produktionsvertretung am Set. */
+  aufnahmeleitung?: { name?: string; rolle?: string; telefon?: string } | null
 }
 
 /** Ein Abschnitt der Departmentnotizen auf Seite 1. */
@@ -159,20 +193,20 @@ const DEPT_NOTE_ROWS = [
 
 export function renderCallSheetHtml(data: CallSheetData): string {
   const accent = resolveAccent(data.accent)
-  const { project, day, sheet, scenes, cast, background, crew, advance, totalDays } = data
+  const { project, day, sheet, scenes, cast, background, crew, advance, totalDays, firma, drehschluss, aufnahmeleitung } = data
   const s = sheet ?? {}
 
-  const sceneRows = scenes.map((sc, i) => `<tr>
+  const sceneRows = scenes.map((sc) => `<tr>
     <td class="c b">${esc(sc.scene_number)}</td>
     <td class="c">${esc(fmtEighths(sc.eighths))}</td>
     <td class="set ${sc.int_ext === 'EXT' ? 'ext' : 'int'}">
       <b>${esc(String(sc.int_ext || 'INT').toUpperCase())}. ${esc(String(sc.title || '').toUpperCase())}</b>
       ${sc.description ? `<div class="desc">${esc(sc.description)}</div>` : ''}
     </td>
-    <td class="c">${esc(dayNightCode(sc.int_ext, sc.day_night, i + 1))}</td>
+    <td class="c">${esc(dayNightCode(sc.day_night))}</td>
     <td class="c">${esc(sc.cast_ids || '')}</td>
     <td>${esc(sc.notes || '')}</td>
-    <td>${esc(sc.location_name || '')}</td>
+    <td>${motivZelle(sc)}</td>
   </tr>`).join('')
 
   const castRows = cast.map(c => `<tr>
@@ -204,17 +238,17 @@ export function renderCallSheetHtml(data: CallSheetData): string {
     <tr class="advhead"><td colspan="7">
       Drehtag ${esc(a.day.day_number)} - ${esc(fmtSheetDate(a.day.date))}
     </td></tr>
-    ${a.scenes.map((sc, i) => `<tr>
+    ${a.scenes.map((sc) => `<tr>
       <td class="c b">${esc(sc.scene_number)}</td>
       <td class="c">${esc(fmtEighths(sc.eighths))}</td>
       <td class="set ${sc.int_ext === 'EXT' ? 'ext' : 'int'}">
         <b>${esc(String(sc.int_ext || 'INT').toUpperCase())}. ${esc(String(sc.title || '').toUpperCase())}</b>
         ${sc.description ? `<div class="desc">${esc(sc.description)}</div>` : ''}
       </td>
-      <td class="c">${esc(dayNightCode(sc.int_ext, sc.day_night, i + 1))}</td>
+      <td class="c">${esc(dayNightCode(sc.day_night))}</td>
       <td class="c">${esc(sc.cast_ids || '')}</td>
       <td>${esc(sc.notes || '')}</td>
-      <td>${esc(sc.location_name || '')}</td>
+      <td>${motivZelle(sc)}</td>
     </tr>`).join('')}
     <tr class="sum"><td colspan="2" class="r">Seiten gesamt</td><td colspan="5">${esc(sumEighths(a.scenes.map(x => x.eighths)))}</td></tr>
   `).join('')
@@ -307,8 +341,11 @@ export function renderCallSheetHtml(data: CallSheetData): string {
 <table class="top">
   <tr>
     <td class="prod">
-      <b>${esc(project?.production_company || project?.title)}</b><br>
+      <b>${esc(firma?.name || project?.production_company || project?.title)}</b><br>
+      ${firma && anschrift(firma.address, firma.zip, firma.city) ? `${esc(anschrift(firma.address, firma.zip, firma.city))}<br>` : ''}
+      ${firma && (firma.phone || firma.email) ? `${esc([firma.phone, firma.email].filter(Boolean).join(' · '))}<br>` : ''}
       ${project?.producer ? `${esc(project.producer)}<br>` : ''}
+      ${aufnahmeleitung ? `<b>${esc(aufnahmeleitung.rolle || 'Aufnahmeleitung')}:</b> ${esc([aufnahmeleitung.name, aufnahmeleitung.telefon].filter(Boolean).join(', '))}<br>` : ''}
       ${s.basecamp ? `${esc(s.basecamp)}<br>` : ''}
     </td>
     <td class="titlebox">
@@ -323,6 +360,7 @@ export function renderCallSheetHtml(data: CallSheetData): string {
         ${s.breakfast_call ? `<tr><td class="lbl">Frühstück</td><td class="c b">${esc(fmtCallTime(s.breakfast_call))}</td></tr>` : ''}
         <tr><td class="lbl">Drehbeginn</td><td class="c b">${esc(fmtCallTime(s.shooting_call))}</td></tr>
         ${s.lunch_call ? `<tr><td class="lbl">Mittag</td><td class="c b">${esc(fmtCallTime(s.lunch_call))}</td></tr>` : ''}
+        ${drehschluss !== null && drehschluss !== undefined ? `<tr><td class="lbl">Drehschluss (geplant)</td><td class="c b">${esc(fmtCallTime(drehschluss))}</td></tr>` : ''}
       </table>
     </td>
   </tr>
@@ -330,9 +368,11 @@ export function renderCallSheetHtml(data: CallSheetData): string {
 
 <table>
   <tr>
-    <td style="width:22%"><b>Regie</b><br>${esc(project?.director || '')}</td>
-    <td style="width:26%"><b>Nächstes Krankenhaus</b><br>${esc(s.hospital_name || '')}<br>${esc(s.hospital_address || '')}</td>
-    <td style="width:26%"><b>Crew-Parken</b><br>${esc(s.crew_parking || '')}</td>
+    <td style="width:16%"><b>Regie</b><br>${esc(project?.director || '')}</td>
+    <td style="width:24%"><b>Drehort</b><br>${esc(s.location_name || '')}
+      ${anschrift(s.location_address, s.location_zip, s.location_city) ? `<br>${esc(anschrift(s.location_address, s.location_zip, s.location_city))}` : ''}</td>
+    <td style="width:22%"><b>Nächstes Krankenhaus</b><br>${esc(s.hospital_name || '')}<br>${esc(s.hospital_address || '')}</td>
+    <td style="width:18%"><b>Crew-Parken</b><br>${esc(s.crew_parking || '')}</td>
     <td><b>Wetter</b><br>${esc(s.weather_forecast || '')}
       ${(s.weather_high || s.weather_low) ? `<br>Max ${esc(s.weather_high || '-')} · Min ${esc(s.weather_low || '-')}` : ''}
       ${(s.sunrise || s.sunset) ? `<br>SA ${esc(s.sunrise || '-')} · SU ${esc(s.sunset || '-')}` : ''}

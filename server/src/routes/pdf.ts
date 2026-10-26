@@ -488,13 +488,23 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
 
   const project = await db.get('SELECT * FROM projects WHERE id = ?', [day.project_id]) as any
   const sheet = await db.get(
-    'SELECT cs.*, l.name as location_name FROM call_sheets cs LEFT JOIN locations l ON cs.location_id = l.id WHERE cs.shoot_day_id = ?',
+    `SELECT cs.*, l.name as location_name, l.address as location_address, l.zip as location_zip, l.city as location_city
+       FROM call_sheets cs LEFT JOIN locations l ON cs.location_id = l.id WHERE cs.shoot_day_id = ?`,
     [dayId]
   ) as any
 
   const entries = sheet
     ? await db.all('SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC', [sheet.id]) as any[]
     : []
+
+  // Rollennummern gelten für das ganze Projekt, in der Reihenfolge der
+  // Rollenliste - dieselbe Person trägt an jedem Drehtag dieselbe Nummer, und
+  // die Spalte "Cast" der Szenen nennt genau diese Nummern. Vorher zählte jede
+  // Dispo neu ab 1, und die Spalte "Cast" blieb leer (gemessen am 26.10.2026).
+  const rollen = await db.all(
+    'SELECT id FROM characters WHERE project_id = ? ORDER BY sort_order ASC, id ASC', [day.project_id]
+  ) as any[]
+  const rollenNr = new Map<number, number>(rollen.map((r, i) => [Number(r.id), i + 1]))
 
   // Cast und Crew getrennt aufbereiten - auf dem Blatt stehen sie in
   // unterschiedlichen Tabellen mit unterschiedlichen Spalten
@@ -504,19 +514,21 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
   for (const e of entries) {
     if (e.person_type === 'cast') {
       const p = await db.get(
-        'SELECT ca.actor_name as name, ch.name as role FROM cast ca LEFT JOIN characters ch ON ca.character_id = ch.id WHERE ca.id = ?',
+        'SELECT ca.actor_name as name, ca.character_id, ch.name as role FROM cast ca LEFT JOIN characters ch ON ca.character_id = ch.id WHERE ca.id = ?',
         [e.person_id]
       ) as any
-      cast.push({ ...e, cast_no: cast.length + 1, name: p?.name || '', role: p?.role || '' })
+      cast.push({ ...e, cast_no: rollenNr.get(Number(p?.character_id)) ?? '', name: p?.name || '', role: p?.role || '' })
     } else {
       crewCalls.set(e.person_id, e.call_time)
     }
   }
+  // Nach Rollennummer, wie auf jeder Dispo - ohne Rolle ans Ende
+  cast.sort((a, b) => (Number(a.cast_no) || Infinity) - (Number(b.cast_no) || Infinity))
 
   // Ganze Crew des Projekts zeigen, nicht nur die disponierte: Auf dem Blatt
   // steht die Abteilung vollstaendig, Call-Zeiten nur wo disponiert.
   const crewRows = await db.all(
-    'SELECT id, name, role, department FROM crew WHERE project_id = ? ORDER BY sort_order ASC, id ASC',
+    'SELECT id, name, role, department, phone FROM crew WHERE project_id = ? ORDER BY sort_order ASC, id ASC',
     [day.project_id]
   ) as any[]
   const crew = crewRows.map(c => ({ ...c, call_time: crewCalls.get(c.id) ?? null }))
@@ -528,15 +540,32 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
     [day.project_id]
   ) as any[]
 
-  const loadScenes = async (id: number | string) => await db.all(`
-    SELECT sds.*, s.scene_number, s.title, s.description, s.int_ext, s.day_night, s.eighths,
-           s.notes, l.name as location_name
-    FROM shoot_day_scenes sds
-    JOIN scenes s ON sds.scene_id = s.id
-    LEFT JOIN locations l ON s.location_id = l.id
-    WHERE sds.shoot_day_id = ?
-    ORDER BY sds.sort_order
-  `, [id]) as any[]
+  const loadScenes = async (id: number | string) => {
+    const zeilen = await db.all(`
+      SELECT sds.*, s.scene_number, s.title, s.description, s.int_ext, s.day_night, s.eighths,
+             s.notes, l.name as location_name, l.address as location_address, l.zip as location_zip,
+             l.city as location_city
+      FROM shoot_day_scenes sds
+      JOIN scenes s ON sds.scene_id = s.id
+      LEFT JOIN locations l ON s.location_id = l.id
+      WHERE sds.shoot_day_id = ?
+      ORDER BY sds.sort_order
+    `, [id]) as any[]
+    // Die Rollen der Szene als Nummern, wie sie in der Cast-Tabelle stehen
+    const ids = zeilen.map(z => Number(z.scene_id))
+    const zuordnung = ids.length
+      ? await db.all('SELECT scene_id, character_id FROM scene_characters WHERE scene_id = ANY(?)', [ids]) as any[]
+      : []
+    return zeilen.map(z => ({
+      ...z,
+      cast_ids: zuordnung
+        .filter(a => Number(a.scene_id) === Number(z.scene_id))
+        .map(a => rollenNr.get(Number(a.character_id)))
+        .filter((n): n is number => n !== undefined)
+        .sort((a, b) => a - b)
+        .join(', '),
+    }))
+  }
 
   const scenes = await loadScenes(dayId)
 
@@ -552,10 +581,23 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
     'SELECT COUNT(*) as c FROM shoot_days WHERE project_id = ?', [day.project_id]
   ) as { c: number }
 
+  // Pflichtangaben einer Dispo, soweit sie in CutSheet stehen: Anschrift und
+  // Kontakt der Produktionsfirma, der Produktionsvertreter am Set, der
+  // geplante Drehschluss.
+  const firma = project?.company_id
+    ? await db.get('SELECT name, address, zip, city, phone, email FROM companies WHERE id = ?', [project.company_id]) as any
+    : null
+  const einstellungen = await db.get('SELECT default_wrap_time FROM project_settings WHERE project_id = ?', [day.project_id]) as any
+  const aufnahmeleitung = crewRows.find(c => /set.?aufnahmeleit/i.test(String(c.role || '')))
+    ?? crewRows.find(c => /aufnahmeleit/i.test(String(c.role || '')))
+
   const html = renderCallSheetHtml({
     project,
     day,
     sheet,
+    firma,
+    drehschluss: einstellungen?.default_wrap_time ?? null,
+    aufnahmeleitung: aufnahmeleitung ? { name: aufnahmeleitung.name, rolle: aufnahmeleitung.role, telefon: aufnahmeleitung.phone } : null,
     scenes,
     cast,
     background,

@@ -6,20 +6,18 @@ import {
 } from '../lib/callSheetLayout'
 
 describe('fmtCallTime', () => {
-  it('formatiert Vormittagszeiten', () => {
-    expect(fmtCallTime(7 * 60)).toBe('7:00 AM')
-    expect(fmtCallTime(6 * 60 + 30)).toBe('6:30 AM')
+  it('schreibt die Zeit im 24-Stunden-Format wie auf einer deutschen Dispo', () => {
+    expect(fmtCallTime(7 * 60)).toBe('07:00')
+    expect(fmtCallTime(6 * 60 + 30)).toBe('06:30')
+    expect(fmtCallTime(13 * 60)).toBe('13:00')
+    expect(fmtCallTime(23 * 60 + 45)).toBe('23:45')
   })
 
-  it('formatiert Nachmittagszeiten', () => {
-    expect(fmtCallTime(13 * 60)).toBe('1:00 PM')
-    expect(fmtCallTime(23 * 60 + 45)).toBe('11:45 PM')
-  })
-
-  it('behandelt Mitternacht und Mittag richtig', () => {
-    // 12 statt 0 - "0:00 AM" gibt es auf keinem Call Sheet
-    expect(fmtCallTime(0)).toBe('12:00 AM')
-    expect(fmtCallTime(12 * 60)).toBe('12:00 PM')
+  it('behandelt Mitternacht, Mittag und Zeiten nach Mitternacht richtig', () => {
+    expect(fmtCallTime(0)).toBe('00:00')
+    expect(fmtCallTime(12 * 60)).toBe('12:00')
+    // Drehschluss 01:30 am Folgetag, als 25:30 gezählt
+    expect(fmtCallTime(25 * 60 + 30)).toBe('01:30')
   })
 
   it('liefert bei fehlender Zeit nichts statt eines Platzhalters', () => {
@@ -64,22 +62,21 @@ describe('sumEighths', () => {
 })
 
 describe('dayNightCode', () => {
-  it('kennzeichnet Tag und Nacht', () => {
-    expect(dayNightCode('INT', 'TAG', 1)).toBe('D1')
-    expect(dayNightCode('EXT', 'NACHT', 3)).toBe('N3')
+  it('kennzeichnet Tag, Nacht, Dämmerung und Morgen - ohne erfundene Erzähltagnummer', () => {
+    expect(dayNightCode('TAG')).toBe('T')
+    expect(dayNightCode('NACHT')).toBe('N')
+    expect(dayNightCode('DÄMMERUNG')).toBe('D')
+    expect(dayNightCode('MORGEN')).toBe('M')
   })
 
   it('erkennt englische Angaben', () => {
-    expect(dayNightCode('INT', 'NIGHT', 2)).toBe('N2')
+    expect(dayNightCode('NIGHT')).toBe('N')
+    expect(dayNightCode('DUSK')).toBe('D')
   })
 
-  it('kennzeichnet Daemmerung eigenstaendig', () => {
-    expect(dayNightCode('EXT', 'DÄMMERUNG', 1)).toBe('X1')
-  })
-
-  it('faellt ohne Angabe auf Tag zurueck', () => {
-    expect(dayNightCode('INT', '', 4)).toBe('D4')
-    expect(dayNightCode(null, null, 1)).toBe('D1')
+  it('fällt ohne Angabe auf Tag zurück', () => {
+    expect(dayNightCode('')).toBe('T')
+    expect(dayNightCode(null)).toBe('T')
   })
 })
 
@@ -196,7 +193,7 @@ describe('renderCallSheetHtml', () => {
       walkie_channels: '1 Produktion · 2 Kamera',
     },
     scenes: [
-      { scene_number: '2', eighths: 19, title: 'Wohnküche', int_ext: 'INT', day_night: 'TAG', description: 'Andi sitzt', location_name: 'Studio', cast_ids: '1, 4' },
+      { scene_number: '2', eighths: 19, title: 'Wohnküche', int_ext: 'INT', day_night: 'TAG', description: 'Andi sitzt', location_name: 'Studio', location_address: 'Ruhrallee 3', location_zip: '44139', location_city: 'Dortmund', cast_ids: '1, 4' },
       { scene_number: '8', eighths: 2, title: 'Straße', int_ext: 'EXT', day_night: 'NACHT', location_name: 'Hauptstr.' },
     ],
     cast: [
@@ -209,17 +206,35 @@ describe('renderCallSheetHtml', () => {
     ],
     advance: [{ day: { day_number: 2, date: '2026-07-04' }, scenes: [{ scene_number: '20A', eighths: 2, title: 'Turnhalle', int_ext: 'INT' }] }],
     totalDays: 24,
+    firma: { name: 'RuhrCut', address: 'Kortumstr. 1', zip: '44787', city: 'Bochum', phone: '0234 123', email: 'post@ruhrcut.test' },
+    drehschluss: 19 * 60,
+    aufnahmeleitung: { name: 'Mira Set', rolle: 'Set-Aufnahmeleitung', telefon: '0170 555' },
   }
 
   const html = renderCallSheetHtml(data as any)
+
+  it('enthält die Pflichtangaben einer Dispo', () => {
+    // Drehort mit realer Adresse, Zeitplan bis Drehschluss, Anschrift und
+    // Kontakt der Produktion, Produktionsvertretung am Set
+    expect(html).toContain('Ruhrallee 3, 44139 Dortmund')
+    expect(html).toContain('Drehschluss (geplant)')
+    expect(html).toContain('19:00')
+    expect(html).toContain('Kortumstr. 1, 44787 Bochum')
+    expect(html).toContain('0234 123 · post@ruhrcut.test')
+    expect(html).toContain('Mira Set, 0170 555')
+  })
+
+  it('nennt die Rollennummern der Szene in der Spalte Cast', () => {
+    expect(html).toContain('>1, 4<')
+  })
 
   it('nennt Projekt, Drehtag und Gesamtzahl', () => {
     expect(html).toContain('Sprachlos')
     expect(html).toContain('Drehtag 1 von 24')
   })
 
-  it('zeigt den Crew-Call gross im Kopf', () => {
-    expect(html).toContain('7:00 AM')
+  it('zeigt den Crew-Call groß im Kopf', () => {
+    expect(html).toContain('>07:00<')
   })
 
   it('enthaelt die Sicherheitsangaben', () => {
@@ -230,7 +245,7 @@ describe('renderCallSheetHtml', () => {
   it('listet die Szenen mit Seitenzahl und Tag/Nacht', () => {
     expect(html).toContain('WOHNKÜCHE')
     expect(html).toContain('2 3/8')
-    expect(html).toContain('N2')
+    expect(html).toContain('>N<')
   })
 
   it('summiert die Seiten des Tages', () => {
