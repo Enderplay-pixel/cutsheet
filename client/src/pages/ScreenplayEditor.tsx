@@ -532,6 +532,16 @@ export function Component() {
   /** Der aktive Block, synchron lesbar - für Rückrufe, die nicht warten können. */
   const aktiverBlockRef = useRef<number | null>(null)
   function waehle(id: number | null) {
+    // Wer eine Figurenzeile verlässt, hat den Namen fertig geschrieben: Dann
+    // legt der Server die Rolle an und verknüpft sie mit der Szene. Nicht
+    // schon beim Tippen - aus "JA" und "JAN" würden sonst eigene Rollen.
+    const vorher = aktiverBlockRef.current
+    if (vorher !== null && vorher !== id) {
+      const block = szenenRef.current.flatMap(sd => sd.blocks).find(b => b.id === vorher)
+      if (block?.block_type === 'character' && String(block.content ?? '').trim()) {
+        merkeAenderung(vorher, { figur_fertig: true })
+      }
+    }
     aktiverBlockRef.current = id
     setActiveBlockId(id)
   }
@@ -632,6 +642,12 @@ export function Component() {
     offen.current.delete(blockId)
     updateBlockMutation.mutate({ blockId: id, data: daten }, {
       onSuccess: (antwort: any) => {
+        // Eine neu verknüpfte Figur steht jetzt auch in Rollen, Besetzung
+        // und Szenenliste - die sollen nicht den alten Stand zeigen.
+        if (antwort?.figur) {
+          queryClient.invalidateQueries({ queryKey: ['characters', pid] })
+          queryClient.invalidateQueries({ queryKey: ['scenes', pid] })
+        }
         // Eine geänderte Überschrift führt auf dem Server die Szene nach;
         // die Leiste links soll dasselbe zeigen, nicht den Gründungsstand.
         const szene = antwort?.szene

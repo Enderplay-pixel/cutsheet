@@ -3,6 +3,7 @@ import { db } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { leseUeberschrift, mitUeberschrift } from '../lib/szenenUeberschrift'
 import { fountainZeilen } from '../lib/fountainExport'
+import { figurVerknuepfen } from '../lib/figuren'
 
 const router = Router()
 
@@ -219,7 +220,16 @@ router.put('/blocks/:blockId', async (req, res) => {
     }
   }
 
-  res.json({ data: szene ? { ...block, szene } : block, error: null })
+  // Eine fertig geschriebene Figur wird Rolle des Projekts und gehört zur
+  // Szene (lib/figuren.ts). Erst auf `figur_fertig`: Der Editor speichert
+  // beim Tippen alle 500 ms - sonst entstünden aus "JA" und "JAN" Rollen.
+  // Der Editor schickt das Zeichen, wenn die Zeile verlassen wird.
+  let figur: any = null
+  if (req.body?.figur_fertig === true && block?.block_type === 'character') {
+    figur = await figurVerknuepfen(db, Number(block.project_id), Number(block.scene_id), block.content)
+  }
+
+  res.json({ data: { ...block, ...(szene ? { szene } : {}), ...(figur ? { figur } : {}) }, error: null })
 })
 
 // ─── DELETE /api/blocks/:blockId ──────────────────────────────────────────────
@@ -500,6 +510,10 @@ router.post('/projects/:projectId/fdx-import', async (req, res) => {
         `, [currentSceneId, projectId, blockSortOrder, block.type, block.content])
         blockSortOrder++
         blocksCreated++
+        // Jede Figur des eingelesenen Drehbuchs wird Rolle und gehört zur Szene
+        if (block.type === 'character') {
+          await figurVerknuepfen(tx, Number(projectId), Number(currentSceneId), block.content)
+        }
       }
     }
 

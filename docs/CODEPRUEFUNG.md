@@ -62,6 +62,15 @@ Aus Florians `CLAUDE.md` und der Erfahrung dieser Sitzung:
 
 ## Hier weitermachen
 
+> **Prüfmaßstab von Florian (26.10.2026): Alles ist verknüpft.** Was an einer
+> Stelle angelegt oder geändert wird, muss überall gelten - sein Beispiel: Eine
+> Figur im Drehbuch ist sofort Rolle, steht in Besetzung, Szenen, Dispo. "Und
+> das für ALLE Infos." Bei jeder Datei fragen: Kommt diese Angabe überall an,
+> wo sie gebraucht wird? Eine Angabe, die nur an einer Stelle lebt, ist ein
+> Fund. Verknüpfungen nur ergänzen, manuelle Zuordnungen nicht ungefragt lösen.
+> Zweite Notiz, **nur Idee, nicht bauen**: Zuhörer einer Vorstellung regten an,
+> dass man alles anpassen kann - Florian liefert dazu später mehr.
+
 Stand am 24.10.2026, 23 Uhr:
 
 - **Fertig:** Gruppe Middleware (7 Dateien). Funde 1-9 eingetragen, 1, 4, 5, 6, 9
@@ -275,6 +284,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 112 | `server/src/routes/youtube.ts:60` | Fehler, Rechte | `GET /creator/youtube/connect` gab die Google-Anmeldeadresse samt signiertem State für das Projekt heraus. Als GET lief die Route am Schreibschutz vorbei, der Rücklauf vertraut allein dem State - ein Mitglied mit Lesezugriff konnte so einen eigenen Kanal an das Projekt hängen, während Trennen für es 403 ergab. Das Analytics-Enddatum kam aus der UTC-Uhr. | ja (zweite Instanz mit Platzhalter-Zugangsdaten): Leser 200 mit Adresse, Trennen 403 | behoben: Verbinden verlangt denselben Rang wie Trennen (Abteilung); `heuteISO()`. Danach gemessen: Leser 403, Inhaber 200. Scan aller schreibenden GET-Handler (`scratchpad/get_schreibt.py`): sonst nur Absicht (Dispo-Quittung per Token, Standardvorlagen beim ersten Aufruf, abgeleitete Vorschläge) |
 | 113 | `server/src/routes/dateien.ts:179`, `client/src/lib/useDownload.ts`, `client/src/pages/Setplan.tsx`, `client/src/pages/Dateien.tsx` | **Fehler, live** | Seit Bilder und Dokumente in der Datenbank liegen, prüft die Auslieferung die Anmeldung - per Header. `<img src>` und `window.open` schicken keinen: Der Grundriss im Setplan kam mit 401 und blieb leer, "Ansehen" in der Dateiablage öffnete einen Tab mit "Nicht authentifiziert". Dazu die Härtung: Der Upload nimmt jedes `image/*` an, auch SVG; die Auslieferung zeigte es mit dem gemeldeten Typ inline an. | ja: Setplan-Bild 401, `naturalWidth 0`; SVG `image/svg+xml` inline | behoben: `useGeschuetztesBild` lädt mit Token als Blob (Setplan); `useAnsehen` öffnet das Fenster im Klick und füllt es nach dem Laden; inline nur noch PNG/JPEG/GIF/WebP/PDF, alles andere `application/octet-stream` als Download. Danach gemessen: Setplan-Bild geladen (Blob, 2×2 - die Testdatei ist so groß), Ansehen setzt eine Blob-Adresse (mit Attrappe für `window.open`, das Vorschaufenster öffnet keine Tabs), SVG als Download |
 | 114 | `server/src/lib/buchhaltung.ts:112`, `routes/buchhaltung.ts` (DATEV) | Fehler, Geld | Ein DATEV-Stapel über den Jahreswechsel ließ sich erzeugen: 01.11.2026 bis 31.01.2027 ergab Wirtschaftsjahr 2026, das Belegdatum steht nur als TTMM - eine Rechnung vom 15.01.2027 als "1501", in DATEV also der 15.01.2026. Ungültige oder vertauschte Daten gingen durch. "Erzeugt am" kam aus der Serveruhr (beim Hoster UTC, eine bis zwei Stunden zu früh). | ja: Kopf `20260101`, Bereich `20261101`-`20270131`, Belegdatum `1501`; unter `TZ=UTC` Zeitstempel 02:15 bei 03:15 deutscher Zeit | behoben: DATEV-Export nur innerhalb eines Kalenderjahres, Daten geprüft (400 mit Grund); Zeitstempel in deutscher Zeit. Danach gemessen: Jahreswechsel 400, 30.02. 400, Jahreszeitraum 200 mit Datei; `TZ=UTC` 03:15 |
+| 115 | `server/src/routes/screenplay.ts`, neu `lib/figuren.ts`, `client/src/pages/ScreenplayEditor.tsx` | **Fehler (Verknüpfung), live** | Eine im Drehbuch geschriebene Figur wurde weder Rolle des Projekts noch mit ihrer Szene verknüpft - sie fehlte in Rollen, Besetzung, Szenenliste, Dispo und Drehplan-Übersicht. Gilt für den Editor und für den Drehbuch-Import. | ja: "JANA (O.S.)" geschrieben - Rollen `[]`, verknüpft 0 | behoben: `figurVerknuepfen` findet die Rolle ohne Groß-/Kleinschreibung oder legt sie an ("JANA" wird "Jana", Zusätze wie (O.S.) fallen weg) und verknüpft die Szene; der Editor löst das beim Verlassen der Figurenzeile aus (`figur_fertig`), nicht beim Tippen - er speichert alle 500 ms, sonst entstünden Rollen aus "JA"; der Import für jede Figur. Danach gemessen: Zwischenstände ohne Rolle, "Jana" einmal, zweite Szene greift auf sie zurück, Import legt "Dr. Müller" an; im Browser "MARA" + Enter - Rolle "Mara", Szene verknüpft. Offen, für Florian: Soll die Szenenüberschrift auch ein Motiv anlegen? Im Drehbuch steht der Spielort ("HAFEN"), ein Motiv ist der reale Drehort mit Adresse - beides kann verschieden sein |
 
 ## Abhakliste
 
