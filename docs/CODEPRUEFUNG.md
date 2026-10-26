@@ -92,7 +92,9 @@ Stand am 24.10.2026, 23 Uhr:
   Fälle behoben, zuletzt `/shots/:id` (Fund 103). Messweg
   `scratchpad/fehlende_zeilen.cjs`.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
-  Client: Abmelden kündigt das Push-Abo nicht (`hooks/usePushSubscription.ts` nur aus den Einstellungen) - nach dem Logout kommen Benachrichtigungen des alten Kontos weiter in diesem Browser an (Fund 96).
+  `Budget.tsx` fragt keine Rechte ab: Eine Abteilungsleitung kann tippen,
+  der Server lehnt Budget und Finanzierung erst ab Produktion ab (403) - beim
+  Lesen der Seite `canEditBudget` aus `useProjectPerms` nutzen.
   Meldungen, die über eine Konstante
   statt als `error: '...'` im Code stehen, sieht der Meldungstest nicht
   (Fund 41). Das Muster "Fehler selbst abfangen, 500 Interner Serverfehler"
@@ -356,6 +358,10 @@ sind ein Render-Dienst aus demselben Bau.
 | 147 | `client/src/main.tsx`, neu `client/src/pages/NichtGefunden.tsx` | Klein | Ein unbekannter Pfad zeigte die rohe Fehlerseite von React Router ("Unexpected Application Error! 404 Not Found", englisch, ohne Weg zurück) - aus dem Merkzettel. | ja (Merkzettel) | behoben: Auffangroute `*` mit eigener Seite und Knopf zur Startseite. Danach gemessen: `/gibt-es-nicht/xyz` deutsch, `/projects/1/gibt-es-nicht` englisch; `/login` unverändert |
 | 148 | `client/src/lib/utils.ts`, `client/src/lib/useT.ts` | Klein (Sprache) | `formatDate`, `formatDateLong` und `formatCurrency` standen fest auf Deutsch, obwohl `useGebietsschema` genau das für andere Seiten löst: Im englischen Modus Wochentag, Monat und Beträge deutsch auf Dashboard, Tagesdispo, Budget, Besetzung, Stabliste, Kostenstand, Motive, Equipment, Stäbchenplan, Tagesbericht, Stammdaten, Projektliste und in den Drehtag-Spalten. Dazu drei nie aufgerufene Funktionen (`getStatusColor`, `parseEighths`, `eighthsToMinutes`). | aus dem Code (`locale: de`, `'de-DE'`) | behoben: die gemeinsamen Formatierer lesen die gewählte Sprache (`aktuellesGebietsschema()`), tote Funktionen entfernt. Danach gemessen auf dem Dashboard: deutsch unverändert "Samstag, 31. Oktober 2026", "18.742,50 €"; englisch "Saturday, 31 October 2026", "€18,742.50" |
 | 149 | `client/src/lib/i18n.ts`, `lib/useDownload.ts`, `lib/texte/komponenten/Shared.ts` | Klein (Text) | Die Spracheinstellung behauptete "die meisten Seiten sind deutsch" - nachgemessen sind 45 von 87 Seiten ohne Fund im Prüfskript, 21 mit bis zu zehn, 21 mit mehr. Das Französische siezte an sechs Stellen in `i18n.ts`, an denen das Deutsche duzt (Fund 143 hatte die Datei nicht ganz erfasst); "C'est parti!" und "automatiquement!" ohne Leerzeichen; "Fermer dialog"; "Call Sheet" in drei deutschen Meldungen der Tagesdispo; Platzhalter der Suche mit "..." und "Locations"; fest deutsche Meldung in `useDownload`. | `scripts/texte-pruefen.py` über alle Seiten | behoben; Kommentar an `LANGS` mit der neuen Messung |
+| 150 | `client/src/contexts/AuthContext.tsx` (`logout`) | **Sicherheit** | "Abmelden" löschte nur das Token im Browser. Auf dem Server blieb die Sitzung offen: Ein kopiertes Token galt bis zum Ablauf (30 Tage) weiter, die Geräteliste in den Einstellungen zeigte die Sitzung als aktiv. Der Server kann Sitzungen beenden (`DELETE /api/auth/sessions/:sid`), die Oberfläche rief es nur für fremde Geräte auf. | ja: nach Abmelden über die Seitenleiste `/me` mit dem alten Token 200, Sitzung in `/sessions` mit `diese: true`. Erster Messversuch ungültig - die Seite hatte zwischendurch neu geladen, die Anfrage lief mit "Bearer undefined" und ergab 401; wiederholt mit Zwischenspeicher, der das Neuladen übersteht | behoben: `logout` beendet die eigene Sitzung im Hintergrund. Danach gemessen: `DELETE /api/auth/sessions/…` 200, altes Token 401 "Diese Anmeldung wurde beendet" |
+| 151 | `client/src/contexts/AuthContext.tsx` | **Datenschutz** | Abmelden leerte den Abfrage-Zwischenspeicher nicht (`['projects', …]` ist nicht nach Konto getrennt, 30 s frisch). Meldete sich danach eine zweite Person am selben Gerät an - der Fall, den der Kommentar zu den Offline-Kopien ausdrücklich nennt -, sah sie die Projektliste des ersten Kontos. | ja: Konto A (67-mal "Sprachlos (Demo)" in der Liste) abgemeldet, Konto B (ein Projekt) über das Formular angemeldet: B sah 67, auch nach 4 s | behoben: `queryClient.clear()` beim Abmelden und bei jeder Anmeldung/Registrierung (auch ohne vorheriges Abmelden). Danach gemessen: B sieht 1. Temporäres Testkonto B danach gelöscht (Anmeldung 401) |
+| 152 | `client/src/hooks/usePushSubscription.ts`, `contexts/AuthContext.tsx` | **Fehler** | Der Server liefert den Push-Schlüssel als `{ key }`, der Hook las `publicKey` und nahm sonst das ganze Objekt. Ohne Schlüssel (lokal) blieb der Abschnitt "Benachrichtigungen" sichtbar statt ausgeblendet; mit Schlüssel hätte `urlBase64ToUint8Array` das Objekt bekommen - `atob('[object Object]')` wirft, jedes Abo endet in "Aktivierung fehlgeschlagen". Dazu der Merkzettel-Punkt aus Fund 96: Abmelden kündigte das Push-Abo nicht, Benachrichtigungen des alten Kontos kamen in diesem Browser weiter an. | ja: lokal `{"key":null}`, Abschnitt sichtbar (Browser verweigert Benachrichtigungen, darum "denied" statt "unavailable"); der Weg mit Schlüssel aus dem Code, nicht gemessen (kein Schlüssel lokal) | behoben: `res.key`; beim Abmelden wird das Abo dieses Browsers beim Server abgemeldet und im Browser gekündigt, vor dem Beenden der Sitzung. Danach gemessen: Abschnitt ausgeblendet; mit einer Attrappe für den Service Worker (lokal keiner, Vorschau verweigert Benachrichtigungen) `POST /api/push/unsubscribe` 200, Attrappe gekündigt. Ob Push live eingerichtet ist, ist nicht geprüft |
+| 153 | `client/src/contexts/AuthContext.tsx`, `contexts/ProjectRoleContext.tsx` | Klein | Ist der Server beim Start nicht erreichbar, liest die Oberfläche den Namen aus dem Token - per `atob`, also als Bytes: "PrÃ¼fer B" statt "Prüfer B". `canEditScenes` versprach "Szenen erst ab Regie"; der Server kennt diese Stufe nicht (Standard Abteilungsleitung), und keine Seite fragt sie ab. | ja: Dekodierung am Token eines Kontos mit Umlaut nachgerechnet; `canEditScenes` aus dem Code | behoben: `TextDecoder`; `canEditScenes` entfernt, `canEdit` mit Verweis auf die Serverregel |
 
 ### Verknüpfungen
 
@@ -626,12 +632,12 @@ Gesamt: 421 Dateien, 87774 Zeilen
 
 ### Client: Kontexte
 
-- [ ] `client/src/contexts/AuthContext.tsx` (122)
-- [ ] `client/src/contexts/ProjectRoleContext.tsx` (56)
+- [x] `client/src/contexts/AuthContext.tsx` (122) - gelesen (Funde 150-153)
+- [x] `client/src/contexts/ProjectRoleContext.tsx` (56) - gelesen (Fund 153)
 
 ### Client: Hooks
 
-- [ ] `client/src/hooks/usePushSubscription.ts` (83)
+- [x] `client/src/hooks/usePushSubscription.ts` (83) - gelesen (Fund 152)
 
 ### Client: Komponenten
 

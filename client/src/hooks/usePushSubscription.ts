@@ -26,8 +26,11 @@ export function usePushSubscription() {
         return
       }
       try {
+        // Der Server antwortet mit { key }. Vorher wurde `publicKey` gelesen und
+        // sonst das ganze Objekt genommen: Ohne Schlüssel blieb der Abschnitt
+        // sichtbar, mit Schlüssel scheiterte jedes Abo an `atob`.
         const res = await api.push.vapidKey()
-        const key = res?.publicKey ?? res ?? null
+        const key: string | null = res?.key ?? null
         if (cancelled) return
         if (!key) { setState('unavailable'); return }
         setVapidKey(key)

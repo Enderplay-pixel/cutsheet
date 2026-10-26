@@ -8,10 +8,8 @@ const RANK: Record<ProjectRole, number> = {
 
 export interface ProjectPermissions {
   role: ProjectRole
-  /** Darf irgendetwas schreiben (dept_head+) */
+  /** Darf irgendetwas schreiben (dept_head+) - wie der Server (`minRankForPath`) */
   canEdit: boolean
-  /** Darf Szenen, Drehplan, Shotlist, Screenplay bearbeiten (director+) */
-  canEditScenes: boolean
   /** Darf Budget und Finanzierung bearbeiten (producer+) */
   canEditBudget: boolean
   /** Darf Projekteinstellungen, Mitglieder, Einladungen verwalten (admin) */
@@ -23,7 +21,6 @@ export interface ProjectPermissions {
 const DEFAULT: ProjectPermissions = {
   role: 'read_only',
   canEdit: false,
-  canEditScenes: false,
   canEditBudget: false,
   canAdmin: false,
   hasRole: () => false,
@@ -36,7 +33,6 @@ export function buildPermissions(role: ProjectRole): ProjectPermissions {
   return {
     role,
     canEdit:       rank >= RANK.dept_head,
-    canEditScenes: rank >= RANK.director,
     canEditBudget: rank >= RANK.producer,
     canAdmin:      rank >= RANK.admin,
     hasRole: (min) => rank >= RANK[min],
