@@ -58,5 +58,7 @@ export const PDF_DEFAULT_ACCENT = '#0071E3'
 export function resolveAccent(color: string | null | undefined): string {
   const c = String(color ?? '').trim()
   if (!c || c.toLowerCase() === '#f59e0b') return PDF_DEFAULT_ACCENT
-  return c
+  // Nur eine Farbe: Der Wert steht im Stylesheet jedes Dokuments, das der
+  // Server selbst rendert, und wird beim Speichern nicht geprüft.
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c) ? c : PDF_DEFAULT_ACCENT
 }

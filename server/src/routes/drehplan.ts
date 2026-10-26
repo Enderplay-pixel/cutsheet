@@ -120,7 +120,7 @@ router.post('/projects/:projectId/shoot-days', async (req, res) => {
 router.post('/projects/:projectId/shoot-days/batch', async (req, res) => {
   const { dates } = req.body   // string[] of 'YYYY-MM-DD'
   if (!Array.isArray(dates) || dates.length === 0)
-    return res.status(400).json({ data: null, error: 'dates array required' })
+    return res.status(400).json({ data: null, error: 'dates ist eine Liste von Daten (JJJJ-MM-TT)' })
   if (!dates.every(istIsoDatum)) return res.status(400).json({ data: null, error: DREHTAG_DATUM_FEHLER })
 
   const neueIds: any[] = []

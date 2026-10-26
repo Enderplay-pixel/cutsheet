@@ -319,6 +319,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 127 | `server/src/lib/mahnungLayout.ts` | Fehler (Druck) | Das Adressfeld der Mahnung hing an der Höhe des Kopfs: Mit Telefon, Mail und Website begann es bei 45 mm, ohne sie bei 39,9 mm - die Absenderzeile lag dann über dem Fenster des Umschlags. Der Kommentar versprach "45 mm von oben". | ja: im Druckmodus gerendert - mit Kontakt 45,0 mm, ohne 39,9 mm | behoben: Kopf mit fester Höhe, Anschriftfeld nach DIN 5008 Form B wie auf der Rechnung (Absender bei 55 mm, Anschrift ab 61,9 mm); Abstände darunter ausgeglichen. Danach gemessen: in allen Fällen 45 mm; mit allen Angaben endet der Inhalt bei 276,4 mm wie vorher, einseitig, vor der Fußzeile. Die Rechnung stand schon stabil bei 55 mm (gemessen) |
 | 128 | `server/src/lib/mailversand.ts` (`sendeFaellige`) | **Fehler, live** | Der Postausgang wird aus der Schleife (alle 30 s) und direkt nach dem Einreihen abgearbeitet (Dispo-Versand, Serienmail, Einladung). Beide Läufe lasen die wartenden Zeilen, ohne sie zu beanspruchen: Überlappten sie, ging dieselbe Mail zweimal raus - bei einer Dispo an 40 Leute genau dann, wenn der Versand länger als bis zum nächsten Schleifentakt dauert. | ja: Fang-SMTP mit 150 ms Antwortzeit, zwei gleichzeitige Läufe - 2× RCPT für dieselbe Mail | behoben: Jeder Lauf beansprucht seine Zeilen in einem Zug (`FOR UPDATE SKIP LOCKED`, zehn Minuten nach hinten); bricht ein Lauf ab, kommt die Mail danach wieder dran. Danach gemessen: 1× RCPT. Test mit eigenem Fang-SMTP: alter Stand 2, neuer 1. Ein Absendername mit Komma war kein Fehler - nodemailer setzt ihn in Anführungszeichen (gemessen) |
 | 129 | `server/src/lib/mailvorlagen.ts` (Standardvorlagen) | Klein (Text) | "Motivbesichtigung": "Treffpunkt: {{call}}" setzte eine Uhrzeit als Ort ein. "Danke nach Drehschluss": "Sobald es einen Schnitt zu sehen gibt, meldest du dich als Erstes" sagte das Gegenteil des Gemeinten. | aus dem Text | behoben: "Uhrzeit: {{call}} Uhr", "erfährst du es als Erstes". Gilt für neue Projekte; schon angelegte Vorlagen eines Projekts bleiben, wie sie sind |
+| 130 | `routes/drehplan.ts:123`, `routes/tabellen.ts:183`, `lib/meldungenText.ts` | Klein (Text) | "dates array required" kam als englische Meldung bei deutschen Nutzern an; "Die Datei ist zu gross"; eine französische Meldung siezte ("Ajoutez"), alle anderen duzen. | aus dem Text | behoben: "dates ist eine Liste von Daten (JJJJ-MM-TT)", "zu groß", "Ajoute"; Übersetzungen nachgezogen, Meldungstest grün |
+| 131 | `server/src/lib/pdfFonts.ts` (`resolveAccent`) | Härtung | Die Kopffarbe eines Projekts wird beim Speichern nicht geprüft und stand ungefiltert im Stylesheet jedes PDFs, das der Server selbst rendert (Dispo, Listen, Morning Brief). | aus dem Code; `resolveAccent('red; } body { display: none')` gab den Text zurück | behoben: nur `#rgb`/`#rrggbb`, sonst der Standard - an der einen Stelle, durch die alle Dokumente laufen. Die Oberfläche bietet ohnehin nur Hex an; lokal alle 72 Projekte mit Hex. Test |
 
 ### Verknüpfungen
 
@@ -466,10 +468,10 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/lib/mailaufbewahrung.ts` (32) - ohne Fund (Rechtsfrage im Merkzettel)
 - [x] `server/src/lib/mailversand.ts` (291) - Fund 128
 - [x] `server/src/lib/mailvorlagen.ts` (187) - Fund 129
-- [ ] `server/src/lib/meldungenText.ts` (260)
+- [x] `server/src/lib/meldungenText.ts` (260) - Fund 130
 - [x] `server/src/lib/papierkorb.ts` (140) - Fund 91
-- [ ] `server/src/lib/passwort.ts` (83)
-- [ ] `server/src/lib/pdfFonts.ts` (62)
+- [x] `server/src/lib/passwort.ts` (83) - ohne Fund
+- [x] `server/src/lib/pdfFonts.ts` (62) - Fund 131
 - [x] `server/src/lib/person.ts` (20) - Fund 119
 - [ ] `server/src/lib/rechnung.ts` (140)
 - [x] `server/src/lib/rechnungLayout.ts` (291) - ohne Fund (gemessen: Anschrift stabil bei 55 mm)

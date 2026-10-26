@@ -180,7 +180,7 @@ router.post('/projects/:projectId/import/:art', requireAuth, async (req: Request
     return res.status(400).json({ data: null, error: 'Die Datei ist leer' })
   }
   if (text.length > 2_000_000) {
-    return res.status(400).json({ data: null, error: 'Die Datei ist zu gross - bitte in Teilen einlesen' })
+    return res.status(400).json({ data: null, error: 'Die Datei ist zu groß - bitte in Teilen einlesen' })
   }
 
   const anwenden = req.body?.anwenden === true
