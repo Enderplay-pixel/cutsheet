@@ -116,6 +116,14 @@ Stand am 24.10.2026, 23 Uhr:
   Rechtsfrage - nach meinem Wissen verlangt die Rechtsprechung für Abs. 2
   Nr. 1 eine vereinbarte Zeit. Nicht geändert, nicht gemessen; vor dem ersten
   echten Mahnlauf klären (Steuerberatung oder Anwalt).
+  **Zugriffsscan am 26.10.2026** (`scripts/zugriffsscan.ts`, nach den Funden
+  bis 139): 0 Verdachtsfälle bei 299 schreibenden Routen (721 Aufrufe) und
+  192 lesenden, Gegenprobe sieht Änderungen. Nebenbefund im Log: `PUT` auf
+  `/cast/:id`, `/characters/:id`, `/crew/:id`, Budgetzeilen, Tagesberichte und
+  Equipment-Posten setzen alle Spalten aus dem Rumpf - ein unvollständiger
+  Rumpf scheitert an NOT NULL (Muster "Teiländerung löscht Felder", hier ohne
+  Datenverlust). Die Oberfläche schickt volle Objekte; beim Lesen der
+  Client-Seiten prüfen, ob irgendwo nur ein Feld geschickt wird.
   **Zweite Rechtsfrage** (`lib/mailaufbewahrung.ts`): Postausgangszeilen
   werden nach 365 Tagen gelöscht, auch die von Rechnungs- und Mahnmails.
   Abgesandte Handelsbriefe sind nach § 257 HGB sechs Jahre aufzubewahren -
@@ -500,7 +508,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/scripts/lasttestDaten.ts` (32) - ohne Fund
 - [x] `server/src/scripts/pdfprobe.ts` (165) - ohne Fund - am 26.10.2026 gelaufen: alle 14 Dokumente gültig
 - [x] `server/src/scripts/seedGrossproduktion.ts` (27) - ohne Fund
-- [ ] `server/src/scripts/zugriffsscan.ts` (460)
+- [x] `server/src/scripts/zugriffsscan.ts` (460) - ohne Fund; am 26.10.2026 gelaufen: 0 Verdachtsfälle (Merkzettel)
 
 ### Server: Rest
 
