@@ -2,7 +2,7 @@
  * Set-Plan: Grundriss mit Kamera, Licht, Ton und Darstellern.
  *
  * Positionen liegen relativ zwischen 0 und 1, nicht in Pixeln. Nur so stimmt
- * derselbe Plan auf jedem Bildschirm und im PDF, unabhaengig davon, wie gross
+ * derselbe Plan auf jedem Bildschirm und im PDF, unabhängig davon, wie groß
  * das hochgeladene Bild ist oder wie breit der Browser gerade steht.
  */
 import { pdfFontFaces, PDF_SANS } from './pdfFonts'
@@ -13,13 +13,13 @@ export interface ItemType {
   /** Hat eine Blickrichtung - Kamera und Licht zeigen irgendwohin, ein Tisch nicht. */
   directional: boolean
   color: string
-  /** Kurzzeichen fuer die Darstellung im Plan. */
+  /** Kurzzeichen für die Darstellung im Plan. */
   glyph: string
 }
 
 /**
  * Die Symbole des Set-Plans. Die Auswahl folgt dem, was auf einem echten
- * Grundriss steht - nicht jedem denkbaren Gegenstand, sondern dem, worueber am
+ * Grundriss steht - nicht jedem denkbaren Gegenstand, sondern dem, worüber am
  * Set gesprochen wird.
  */
 export const ITEM_TYPES: ItemType[] = [
@@ -43,7 +43,7 @@ export function itemType(kind: string | null | undefined): ItemType {
   return BY_KIND.get(String(kind ?? '')) ?? BY_KIND.get('marker')!
 }
 
-/** Position auf die Flaeche begrenzen; unbrauchbare Werte landen in der Mitte. */
+/** Position auf die Fläche begrenzen; unbrauchbare Werte landen in der Mitte. */
 export function clampPosition(x: number, y: number): { x: number; y: number } {
   const fix = (n: number) => (Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0.5)
   return { x: fix(Number(x)), y: fix(Number(y)) }
@@ -53,7 +53,7 @@ export function clampPosition(x: number, y: number): { x: number; y: number } {
  * Fehlende Angabe von einer echten 0 unterscheiden.
  *
  * `Number(null)` ergibt 0 und nicht NaN - anders als bei `undefined`. Ohne
- * diese Pruefung wuerde ein fehlender Wert als Null durchgehen und in der
+ * diese Prüfung würde ein fehlender Wert als Null durchgehen und in der
  * Begrenzung auf dem Minimum landen statt auf dem Standardwert.
  */
 function givenNumber(value: unknown): number | null {
@@ -69,7 +69,7 @@ export function normalizeRotation(deg: number | null | undefined): number {
   return ((Math.round(n) % 360) + 360) % 360
 }
 
-/** Groesse in Prozent, damit ein Symbol nicht den halben Plan einnimmt. */
+/** Größe in Prozent, damit ein Symbol nicht den halben Plan einnimmt. */
 export function clampSize(size: number | null | undefined): number {
   const n = givenNumber(size)
   if (n === null) return 100
@@ -87,7 +87,7 @@ export interface PlanItem {
 }
 
 /**
- * Zusammenfassung fuer die Legende: was steht wie oft auf dem Plan.
+ * Zusammenfassung für die Legende: was steht wie oft auf dem Plan.
  * Am Set fragt jemand "wie viele Lampen brauchen wir?" - die Antwort steht
  * dann unter dem Bild statt im Kopf des Oberbeleuchters.
  */
@@ -103,8 +103,8 @@ export function summarise(items: PlanItem[]): Array<{ kind: string; label: strin
 }
 
 /**
- * Automatische Beschriftung fuer ein neues Symbol: Kamera A, Kamera B, …
- * Buchstaben fuer Kameras (Branchenkonvention), Zahlen fuer alles andere.
+ * Automatische Beschriftung für ein neues Symbol: Kamera A, Kamera B, …
+ * Buchstaben für Kameras (Branchenkonvention), Zahlen für alles andere.
  */
 export function nextLabel(kind: string, existing: PlanItem[]): string {
   const sameKind = existing.filter(i => String(i.kind) === kind)
@@ -132,8 +132,8 @@ function esc(s: any): string {
  * Set-Plan als druckbares HTML.
  *
  * Das Hintergrundbild wird als Daten-URI eingebettet statt verlinkt: Der
- * Druck laeuft in einem eigenen Browser ohne Sitzung und ohne Basis-URL, ein
- * Link auf /uploads/... waere dort schlicht leer.
+ * Druck läuft in einem eigenen Browser ohne Sitzung und ohne Basis-URL, ein
+ * Link auf /uploads/... wäre dort schlicht leer.
  */
 export function renderFloorplanHtml(plan: any, items: PlanItem[], imageDataUri: string | null): string {
   const legend = summarise(items)
@@ -166,10 +166,10 @@ export function renderFloorplanHtml(plan: any, items: PlanItem[], imageDataUri: 
   .meta { color: #6e6e73; font-size: 10px; margin-top: 2px; }
   .head { border-bottom: 0.5pt solid #d2d2d7; padding-bottom: 8px; margin-bottom: 10px; }
 
-  /* Die Buehne umschliesst das Bild genau, damit die relativen Positionen der
+  /* Die Bühne umschließt das Bild genau, damit die relativen Positionen der
      Symbole zum Bild passen und nicht zu einem Rahmen daneben. Begrenzt wird
-     in beide Richtungen: Ein hochformatiges Bild wuerde sonst auf volle Breite
-     gezogen und ueber mehrere Seiten laufen. */
+     in beide Richtungen: Ein hochformatiges Bild würde sonst auf volle Breite
+     gezogen und über mehrere Seiten laufen. */
   .stagewrap { text-align: center; }
   .stage { position: relative; display: inline-block; max-width: 100%; border: 0.5pt solid #d2d2d7; border-radius: 10px; overflow: hidden; background: #f5f5f7; }
   .stage img { display: block; max-width: 100%; max-height: 148mm; width: auto; height: auto; }

@@ -30,7 +30,7 @@ function multiline(s: any): string {
 /**
  * Fehlende Angabe von einer echten 0 unterscheiden.
  *
- * `Number(null)` ergibt 0 und nicht NaN. Ohne diese Pruefung stuende auf einem
+ * `Number(null)` ergibt 0 und nicht NaN. Ohne diese Prüfung stünde auf einem
  * Kalkulationsblatt "0,00 €", wo in Wahrheit nichts erfasst ist - eine
  * Tatsachenbehauptung statt einer Leerstelle.
  */
@@ -215,15 +215,15 @@ export interface DocumentOptions {
   landscape?: boolean
   /** Hinweis unten, etwa zur Vertraulichkeit. */
   footnote?: string
-  /** Zusaetzliches CSS fuer Bausteine, die nur ein Dokument braucht. */
+  /** Zusätzliches CSS für Bausteine, die nur ein Dokument braucht. */
   extraCss?: string
   body: string
 }
 
 /**
- * Kennung fuer die Fusszeile.
+ * Kennung für die Fußzeile.
  *
- * Bei den meisten Listen sind Titel und Projekt dasselbe - ungefiltert stuende
+ * Bei den meisten Listen sind Titel und Projekt dasselbe - ungefiltert stünde
  * der Name dort zweimal. Doppelte Teile fallen weg, die Dokumentart kommt dazu,
  * damit ein einzelnes verlorenes Blatt zuzuordnen ist.
  */
@@ -321,7 +321,7 @@ export function renderDocument(opts: DocumentOptions): string {
   /* Lange Zeichenketten umbrechen. Gemessen am 27.09.2026: ein Szenentitel
      ohne Leerzeichen (200 Zeichen, wie er aus einem Import kommen kann) lief
      im gedruckten Drehplan waagerecht aus der Seite heraus und schob die
-     Spalten daneben ueber den Rand. */
+     Spalten daneben über den Rand. */
   td, th { overflow-wrap: anywhere; word-break: break-word; }
   table.zebra tbody tr:nth-child(even) td { background: #fafafc; }
   td.r, th[style*="right"] { text-align: right; }
@@ -342,7 +342,7 @@ export function renderDocument(opts: DocumentOptions): string {
   .def .k { font-size: 7.5pt; color: var(--gray); }
   .def .v { font-size: 9.5pt; font-weight: 500; margin-top: 0.5pt; }
 
-  /* Unterschriftenfeld - bewusst grosszuegig, es wird mit der Hand ausgefuellt */
+  /* Unterschriftenfeld - bewusst großzügig, es wird mit der Hand ausgefüllt */
   .sigs { display: flex; gap: 20pt; margin-top: 28pt; }
   .sig { flex: 1; }
   .sig .line { border-bottom: 0.6pt solid var(--ink2); height: 30pt; }

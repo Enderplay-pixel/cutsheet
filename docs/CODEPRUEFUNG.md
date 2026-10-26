@@ -299,6 +299,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 122 | `routes/vertraege.ts` (`werteFuer`) | Fehler (Verknüpfung) | Die Drehorte im Vertrag waren die ersten acht Motive des Projekts - auch die, an denen die Person nie dreht. Die Drehtage im selben Vertrag kamen schon aus ihren Dispositionen. | aus dem Code (alter Stand nicht getrennt gemessen); ein nicht disponierter Komparse bekommt auch jetzt noch alle drei Demo-Motive - so sah es vorher für jeden aus | behoben: Motive der Szenen und Drehort ihrer Tage aus den Dispositionen; ohne Dispo weiter das Projekt (ein Vertrag entsteht oft vor dem Drehplan). Danach gemessen: Komparse an Tag 2 - "Stadtpark Englischer Garten", 1 Drehtag, 14.10.2026 |
 | 123 | `server/src/lib/datenschutz.ts` (`anonymisiere`) | **Fehler, Datenschutz (Art. 17 DSGVO), live** | Die Löschung nach DSGVO leerte nur Name, Mail, Telefon, Notiz (Besetzung: Agentur). Geburtsdatum, Erziehungsberechtigte (Name, Mail, Telefon), Agent mit Mail, Verfügbarkeitsnotiz, Foto und die Verknüpfung zum Adressbuch blieben - bei Minderjährigen genug, um das Kind wiederzuerkennen. Notizen der Arbeitszeiten blieben stehen. Der Ersatzname war bei Besetzung und Komparserie "Person (entfernt)", obwohl der Kommentar die Funktion verspricht. | ja: minderjähriger Komparse anonymisiert - `guardian_name 'Petra Probe'`, `guardian_email`, Geburtsdatum noch da | behoben: alle wiedererkennbaren Felder je Personenart geleert bzw. auf NULL (Gage, Vertragsart, Bewilligungsaktenzeichen bleiben als Buchhaltung und Nachweis), Zeitnotizen geleert; Ersatzname = Funktion im Stab, gespielte Figur, "Komparse". Test mit Komparse und Darstellerin |
 | 124 | `server/src/lib/dateiname.ts` | Klein | Lag die 80-Zeichen-Grenze auf einem Trenner, endete der Dateiname auf "-" - die Randstriche wurden vor dem Kürzen entfernt. | ja: "drehplan-xxx…x-" | behoben: erst kürzen, dann Randstriche weg; Test |
+| 125 | `server/src/lib/fountainExport.ts` | Fehler | Der Fountain-Export galt deutsche Überschriften ("INNEN.", "AUSSEN.") als von Fountain erkannt und erzwang sie nicht mit Punkt. Fountain kennt nur INT, EXT, EST, INT./EXT, INT/EXT und I/E (fountain.io/syntax, im Browser nachgelesen) - in jeder Fountain-App wurde "INNEN. KÜCHE - TAG" damit zu Aktionstext, die Szene verschwand aus der Gliederung. EST wurde unnötig erzwungen. | ja: Ausgabe `INNEN. KÜCHE - TAG` ohne Punkt | behoben: Liste wie in der Spezifikation. Danach gemessen: `.INNEN. KÜCHE - TAG`, `.AUSSEN. HAFEN - NACHT`, `EST. STADT - TAG`, `INT./EXT. AUTO - TAG`; Test |
 
 ### Verknüpfungen
 
@@ -316,6 +317,7 @@ Kandidaten stehen hier, bis sie gebaut oder verworfen sind.
 | Motive der Szenen des Tages | Drehort der Dispo | gebaut, Fund 121 |
 | Drehtage einer Person | "Drehorte" im Vertrag | gebaut, Fund 122 |
 | Papierkorb: Person zurückholen | ihre Dispo-Einträge, Zeiten, Verpflegung | Kandidat: ohne Fremdschlüssel kommen sie nicht mit zurück (gilt für Stab, Besetzung, Komparsen) |
+| Rollen der Szene | Beschriftung der Darsteller-Symbole im Set-Plan | Kandidat: ein neues Darsteller-Symbol heißt "1", "2" … (`nextLabel` in `lib/floorplan.ts`), obwohl der Plan seine Szene und damit deren Rollen kennt |
 
 ## Abhakliste
 
@@ -432,10 +434,10 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/lib/dateiname.ts` (19) - Fund 124
 - [x] `server/src/lib/datenschutz.ts` (218) - Funde 119, 123
 - [x] `server/src/lib/datum.ts` (15) - ohne Fund
-- [ ] `server/src/lib/documentLayout.ts` (391)
-- [ ] `server/src/lib/drehzeit.ts` (84)
-- [ ] `server/src/lib/floorplan.ts` (231)
-- [ ] `server/src/lib/fountainExport.ts` (52)
+- [x] `server/src/lib/documentLayout.ts` (391) - ohne Fund (Kommentare mit Umlauten)
+- [x] `server/src/lib/drehzeit.ts` (84) - ohne Fund
+- [x] `server/src/lib/floorplan.ts` (231) - ohne Fund (Kommentare mit Umlauten)
+- [x] `server/src/lib/fountainExport.ts` (52) - Fund 125
 - [x] `server/src/lib/jugendschutz.ts` (240) - Fund 109
 - [ ] `server/src/lib/kostenquellen.ts` (197)
 - [ ] `server/src/lib/ksk.ts` (204)

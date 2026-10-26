@@ -25,8 +25,11 @@ export function fountainZeilen(b: Block): string[] {
 
   switch (b.block_type) {
     case 'scene_heading': {
-      // Fountain erkennt INT./EXT. selbst; alles andere wird mit Punkt erzwungen.
-      const standard = /^(INT|EXT|INNEN|AUSSEN|AUßEN|I\/E)[.\s]/i.test(inhalt)
+      // Fountain erkennt nur INT, EXT, EST, INT./EXT, INT/EXT und I/E selbst
+      // (fountain.io/syntax); alles andere wird mit Punkt erzwungen. Vorher
+      // galten INNEN und AUSSEN als erkannt - in jeder Fountain-App wurde
+      // "INNEN. KÜCHE - TAG" damit zu Aktionstext (gemessen am 26.10.2026).
+      const standard = /^(INT\.?\/EXT|INT|EXT|EST|I\/E)[.\s]/i.test(inhalt)
       return [standard ? inhalt.toUpperCase() : `.${inhalt.toUpperCase()}`, '']
     }
     case 'character':

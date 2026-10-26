@@ -40,6 +40,13 @@ describe('fountainZeilen', () => {
       .toBe('INT. RAUM - TAG')
   })
 
+  it('erzwingt deutsche Überschriften - Fountain kennt nur INT, EXT, EST, INT./EXT und I/E', () => {
+    expect(fountainZeilen({ block_type: 'scene_heading', content: 'INNEN. Küche - Tag' })[0]).toBe('.INNEN. KÜCHE - TAG')
+    expect(fountainZeilen({ block_type: 'scene_heading', content: 'AUSSEN. Hafen - Nacht' })[0]).toBe('.AUSSEN. HAFEN - NACHT')
+    expect(fountainZeilen({ block_type: 'scene_heading', content: 'EST. Stadt - Tag' })[0]).toBe('EST. STADT - TAG')
+    expect(fountainZeilen({ block_type: 'scene_heading', content: 'INT./EXT. Auto - Tag' })[0]).toBe('INT./EXT. AUTO - TAG')
+  })
+
   it('setzt Figur, Klammer und Dialog ohne Leerzeile dazwischen', () => {
     // Fountain erkennt eine Figur nur, wenn der Dialog direkt darunter steht.
     expect(fountainZeilen({ block_type: 'character', content: 'Mark' })).toEqual(['MARK'])
