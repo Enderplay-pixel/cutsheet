@@ -21,7 +21,8 @@ export const feedbackT = {
 
 /** Texte für components/shared/GlobalSearch.tsx */
 export const globalSearchT = {
-  platzhalter:   { de: 'Szenen, Darsteller, Motive suchen…', en: 'Search scenes, actors, locations…', fr: 'Rechercher scènes, comédiens, décors…' },
+  titel:         { de: 'Suche im Projekt', en: 'Search in project', fr: 'Recherche dans le projet' },
+  platzhalter:   { de: 'Szenen, Figuren, Darsteller, Motive suchen…', en: 'Search scenes, characters, actors, locations…', fr: 'Rechercher scènes, personnages, comédiens, décors…' },
   laeuft:        { de: 'Suche läuft…', en: 'Searching…', fr: 'Recherche en cours…' },
   keineFuer:     { de: 'Keine Ergebnisse für „{q}“', en: 'No results for "{q}"', fr: 'Aucun résultat pour « {q} »' },
   ergebnisse:    { de: 'Ergebnisse', en: 'Results', fr: 'Résultats' },
@@ -29,12 +30,19 @@ export const globalSearchT = {
   drehplan:      { de: 'Drehplan öffnen', en: 'Open shooting schedule', fr: 'Ouvrir le plan de tournage' },
   besetzung:     { de: 'Besetzung', en: 'Cast', fr: 'Casting' },
   budget:        { de: 'Budget', en: 'Budget', fr: 'Budget' },
-} satisfies Record<string, Text>
-
-/** Texte für components/shared/PDFPreviewModal.tsx */
-export const pdfPreviewT = {
-  oeffnen:       { de: 'Öffnen', en: 'Open', fr: 'Ouvrir' },
-  download:      { de: 'Download', en: 'Download', fr: 'Télécharger' },
+  // Beschriftung der Treffer
+  szene:         { de: 'Szene {n}: {titel}', en: 'Scene {n}: {titel}', fr: 'Scène {n} : {titel}' },
+  szeneText:     { de: 'Szene {n}: {text}', en: 'Scene {n}: {text}', fr: 'Scène {n} : {text}' },
+  szeneArt:      { de: 'Szene', en: 'Scene', fr: 'Scène' },
+  mitFigur:      { de: 'Szene mit {figur}', en: 'Scene with {figur}', fr: 'Scène avec {figur}' },
+  figur:         { de: 'Figur', en: 'Character', fr: 'Personnage' },
+  gespieltVon:   { de: 'Figur · gespielt von {namen}', en: 'Character · played by {namen}', fr: 'Personnage · joué par {namen}' },
+  nichtBesetzt:  { de: 'Figur · noch nicht besetzt', en: 'Character · not cast yet', fr: 'Personnage · pas encore distribué' },
+  darsteller:    { de: 'Darsteller', en: 'Cast', fr: 'Comédien' },
+  spielt:        { de: 'Darsteller · spielt {figur}', en: 'Cast · plays {figur}', fr: 'Comédien · joue {figur}' },
+  drehtag:       { de: 'Drehtag {n} · {datum}', en: 'Shoot day {n} · {datum}', fr: 'Jour de tournage {n} · {datum}' },
+  drehtagSzene:  { de: '{figuren} in Szene {szenen}', en: '{figuren} in scene {szenen}', fr: '{figuren} dans la scène {szenen}' },
+  drehtagSzenen: { de: '{figuren} in den Szenen {szenen}', en: '{figuren} in scenes {szenen}', fr: '{figuren} dans les scènes {szenen}' },
 } satisfies Record<string, Text>
 
 /** Texte für components/shared/TestversionBadge.tsx */

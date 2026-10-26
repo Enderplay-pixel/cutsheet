@@ -363,6 +363,11 @@ sind ein Render-Dienst aus demselben Bau.
 | 152 | `client/src/hooks/usePushSubscription.ts`, `contexts/AuthContext.tsx` | **Fehler** | Der Server liefert den Push-Schlüssel als `{ key }`, der Hook las `publicKey` und nahm sonst das ganze Objekt. Ohne Schlüssel (lokal) blieb der Abschnitt "Benachrichtigungen" sichtbar statt ausgeblendet; mit Schlüssel hätte `urlBase64ToUint8Array` das Objekt bekommen - `atob('[object Object]')` wirft, jedes Abo endet in "Aktivierung fehlgeschlagen". Dazu der Merkzettel-Punkt aus Fund 96: Abmelden kündigte das Push-Abo nicht, Benachrichtigungen des alten Kontos kamen in diesem Browser weiter an. | ja: lokal `{"key":null}`, Abschnitt sichtbar (Browser verweigert Benachrichtigungen, darum "denied" statt "unavailable"); der Weg mit Schlüssel aus dem Code, nicht gemessen (kein Schlüssel lokal) | behoben: `res.key`; beim Abmelden wird das Abo dieses Browsers beim Server abgemeldet und im Browser gekündigt, vor dem Beenden der Sitzung. Danach gemessen: Abschnitt ausgeblendet; mit einer Attrappe für den Service Worker (lokal keiner, Vorschau verweigert Benachrichtigungen) `POST /api/push/unsubscribe` 200, Attrappe gekündigt. Ob Push live eingerichtet ist, ist nicht geprüft |
 | 153 | `client/src/contexts/AuthContext.tsx`, `contexts/ProjectRoleContext.tsx` | Klein | Ist der Server beim Start nicht erreichbar, liest die Oberfläche den Namen aus dem Token - per `atob`, also als Bytes: "PrÃ¼fer B" statt "Prüfer B". `canEditScenes` versprach "Szenen erst ab Regie"; der Server kennt diese Stufe nicht (Standard Abteilungsleitung), und keine Seite fragt sie ab. | ja: Dekodierung am Token eines Kontos mit Umlaut nachgerechnet; `canEditScenes` aus dem Code | behoben: `TextDecoder`; `canEditScenes` entfernt, `canEdit` mit Verweis auf die Serverregel |
 | 154 | `client/src/store/useProjectStore.ts`, `App.tsx`, `components/layout/TopBar.tsx`, `server/src/utils/calculations.ts`, `__tests__/budget.test.ts` | Klein (toter Code) | Im Store: `activeProjectId` wurde geschrieben und gespeichert, aber nie gelesen; `lastSaved` nie gesetzt - die Anzeige "Gespeichert HH:MM" in der Kopfleiste erschien nie (die Quittung kommt längst aus `lib/belohnung.ts`); Rückgängig-Stapel ohne einen Aufrufer. `utils/calculations.ts` (Sozialversicherung mit Sätzen von 2024, Beträge fest `de-DE`) benutzte nur sein eigener Test. Die Abhakliste kannte diese und 14 weitere Dateien nicht (Abgleich mit `git ls-files`, nachgetragen). | aus dem Code (keine Leser bzw. Aufrufer, `grep`) | entfernt; Typprüfung und Testsuite grün |
+| 155 | `client/src/components/shared/GlobalSearch.tsx`, `components/ui/command.tsx` | **Fehler, live** | Die globale Suche (Strg+K) zeigte nie einen Treffer: Der Server sucht, und `cmdk` filterte die Antwort ein zweites Mal selbst - dabei fiel alles heraus, auch Treffer mit dem Suchwort im sichtbaren Text. Dazu konnte eine ältere, langsamere Antwort eine neuere überschreiben. | ja: "Pflanze" 4 Treffer vom Server, 0 in der Liste; Gegenprobe am alten Stand "Mia" 6 vom Server, 0 angezeigt | behoben: `shouldFilter={false}` (der Server filtert), veraltete Antworten werden verworfen. Danach gemessen: "Pflanze" 4, "Mia" 6 sichtbar, Enter springt zum Treffer, "xyzgibtsnicht" zeigt "Keine Ergebnisse" |
+| 156 | `server/src/routes/search.ts`, `GlobalSearch.tsx`, `lib/texte/komponenten/Shared.ts` | Verknüpfung (Florian, 27.10.2026) | "Wenn Mia eine Darstellerin ist, auch alles zu ihrem Character." Die Suche kannte keine Figuren, und über eine Darstellerin fand sie nur deren Namen. Die Unterzeilen kamen fest deutsch vom Server ("Darsteller*in", Blocktyp roh als "action"). | ja: Suche nach der Darstellerin lieferte nur `cast` (Test gegen den alten Stand rot) | gebaut: Figuren werden gesucht; für jede gefundene Figur - direkt oder über ihre Darstellerin - kommen Figur (gespielt von …), Darsteller (spielt …), Drehtage (mit Szenen, Sprung in die Tagesdispo des Tages) und Szenen dazu. Beschriftung im Client in der gewählten Sprache. Test `Suche: alles zur Figur` (inklusive fremdem Projekt mit gleichnamiger Figur). Im Browser: "Anna Schmidt" zeigt Mia, Anna Schmidt, Drehtage 1-3, Szenen 3-7; englisch "Character · played by Anna Schmidt" |
+| 157 | `client/src/App.tsx` (Tastenkürzel) | **Fehler** | Die Seitenkürzel (D, S, B, T, C, E, L, M, G) griffen überall außer in Eingabefeldern - auch in einer offenen Auswahlliste, in der man Buchstaben tippt, um zu springen. | ja: Rollenauswahl von Anna Schmidt geöffnet, "d" - Wechsel auf den Drehplan mitten aus der Bearbeitung | behoben: keine Kürzel in Feldern, Auswahllisten, Menüs und Dialogen. Danach gemessen: "d" in der offenen Liste bleibt ohne Wirkung; außerhalb wechselt "d" weiter zum Drehplan; die Rolle blieb unverändert |
+| 158 | `client/src/components/ui/nur-vorlesen.tsx`, `command.tsx` | Barrierefreiheit | `NurVorlesen` reichte keine Eigenschaften weiter. Als `<DialogTitle asChild>` (Rundgang, Einrichtung) fiel damit die `id` weg, auf die der Dialog mit `aria-labelledby` zeigt - die Dialoge blieben für Vorleseanwendungen namenlos, trotz Titel. Der Suchdialog hatte gar keinen Titel; die Konsole meldete "DialogContent requires a DialogTitle". | ja: nach vollem Neuladen zeigt `aria-labelledby` des Suchdialogs mit dem alten Baustein auf kein Element (erster Versuch per Hot-Reload ungültig - der Dialog blieb mit altem DOM offen) | behoben: `forwardRef` mit allen Eigenschaften; Suchdialog mit Titel "Suche im Projekt". Danach gemessen: Suchdialog "Suche im Projekt", Rundgang "Rundgang" (mit temporärem, danach gelöschtem Konto, weil der Rundgang nur nach der Registrierung kommt) |
+| 159 | `components/shared/ShortcutsModal.tsx`, `TutorialModal.tsx`, `AutoSaveIndicator.tsx`, `PDFPreviewModal.tsx`, `TestversionBadge.tsx`, `layout/PageHeader.tsx` | Klein | Der Kürzel-Dialog nannte 4 der 9 Seitenkürzel. Die Schrittpunkte im Rundgang waren Knöpfe ohne Namen. `AutoSaveIndicator` und `PDFPreviewModal` band keine Seite ein (die PDF-Vorschau hätte geschützte PDFs zudem ohne Anmeldung geladen). Umschrift in Kommentaren. | ja: Kürzel-Dialog im Browser; Rest aus dem Code | behoben: alle neun Kürzel (gemessen), Punkte mit "Schritt n" und `aria-current`, die beiden toten Komponenten samt Texten entfernt |
 
 ### Verknüpfungen
 
@@ -374,6 +379,8 @@ Kandidaten stehen hier, bis sie gebaut oder verworfen sind.
 |---|---|---|
 | Figur im Drehbuch | Rolle, Szene, Besetzung, Dispo | gebaut, Fund 115 |
 | Gewählte Sprache | Datum, Beträge, Speicher-Quittung, Fehlermeldungen der gemeinsamen Bausteine | gebaut, Funde 146 und 148 |
+| Suche nach Figur oder Darstellerin | Figur, Besetzung, Szenen, Drehtage der Figur | gebaut, Fund 156 |
+| Suchtreffer Szene | die Szene selbst im Drehbuch | Kandidat: Treffer führen zur Szenenübersicht, die Seite kennt kein Sprungziel für eine Szene |
 | Rollen der Szene | Spalte "Cast" der Dispo, Rollennummer | gebaut, Fund 116 |
 | Komparse ↔ Drehtag | Dispo, PDF, Vertrag, Jugendschutz, Verpflegung, Check-in | gebaut, Fund 119 |
 | Spielort der Szenenüberschrift | Motiv der Szene | gebaut, Fund 120 |
@@ -617,7 +624,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/lib/texte/Vertraege.ts` (204) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/VertragBestaetigen.ts` (24) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/ZeitAnalyse.ts` (34) - gelesen (Funde 141-144 und Prüfskript)
-- [x] `client/src/lib/texte/komponenten/AutoSaveIndicator.ts` (8) - gelesen (Funde 141-144 und Prüfskript)
+- [x] `client/src/lib/texte/komponenten/AutoSaveIndicator.ts` (8) - entfernt (Fund 159)
 - [x] `client/src/lib/texte/komponenten/Drehplan.ts` (37) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/komponenten/ErrorBoundary.ts` (8) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/komponenten/Layout.ts` (70) - gelesen (Funde 141-144 und Prüfskript)
@@ -643,27 +650,27 @@ Gesamt: 421 Dateien, 87774 Zeilen
 
 ### Client: Komponenten
 
-- [ ] `client/src/components/ErrorBoundary.tsx` (41)
+- [x] `client/src/components/ErrorBoundary.tsx` (41) - gelesen (ohne Befund)
 - [ ] `client/src/components/OnboardingWizard.tsx` (506)
-- [ ] `client/src/components/ProtectedRoute.tsx` (13)
-- [ ] `client/src/components/SkipLink.tsx` (14)
+- [x] `client/src/components/ProtectedRoute.tsx` (13) - gelesen (ohne Befund)
+- [x] `client/src/components/SkipLink.tsx` (14) - gelesen (ohne Befund)
 - [ ] `client/src/components/creator/BereichLayout.tsx` (145)
 - [ ] `client/src/components/creator/RetentionChart.tsx` (199)
 - [ ] `client/src/components/creator/YouTubeConnection.tsx` (182)
 - [ ] `client/src/components/drehplan/ScenePool.tsx` (83)
 - [ ] `client/src/components/drehplan/SceneStrip.tsx` (73)
 - [ ] `client/src/components/drehplan/ShootDayColumn.tsx` (131)
-- [ ] `client/src/components/layout/PageHeader.tsx` (33)
+- [x] `client/src/components/layout/PageHeader.tsx` (33) - gelesen (Fund 159, Kommentar-Umlaute)
 - [ ] `client/src/components/layout/Sidebar.tsx` (587)
 - [ ] `client/src/components/layout/TopBar.tsx` (155)
-- [ ] `client/src/components/shared/AutoSaveIndicator.tsx` (39)
-- [ ] `client/src/components/shared/BrandMark.tsx` (26)
-- [ ] `client/src/components/shared/FeedbackWidget.tsx` (107)
-- [ ] `client/src/components/shared/GlobalSearch.tsx` (94)
-- [ ] `client/src/components/shared/PDFPreviewModal.tsx` (42)
-- [ ] `client/src/components/shared/ShortcutsModal.tsx` (81)
-- [ ] `client/src/components/shared/TestversionBadge.tsx` (39)
-- [ ] `client/src/components/shared/TutorialModal.tsx` (135)
+- [x] `client/src/components/shared/AutoSaveIndicator.tsx` (39) - entfernt (Fund 159)
+- [x] `client/src/components/shared/BrandMark.tsx` (26) - gelesen (ohne Befund)
+- [x] `client/src/components/shared/FeedbackWidget.tsx` (107) - gelesen (ohne Befund, Kategorien wie im Server)
+- [x] `client/src/components/shared/GlobalSearch.tsx` (94) - gelesen (Funde 155, 156)
+- [x] `client/src/components/shared/PDFPreviewModal.tsx` (42) - entfernt (Fund 159)
+- [x] `client/src/components/shared/ShortcutsModal.tsx` (81) - gelesen (Fund 159)
+- [x] `client/src/components/shared/TestversionBadge.tsx` (39) - gelesen (ohne Befund, Antwortform von /api/health gemessen)
+- [x] `client/src/components/shared/TutorialModal.tsx` (135) - gelesen (Funde 158, 159)
 - [ ] `client/src/components/ui/accordion.tsx` (50)
 - [ ] `client/src/components/ui/alert.tsx` (35)
 - [ ] `client/src/components/ui/avatar.tsx` (29)
@@ -671,12 +678,12 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/components/ui/button.tsx` (41)
 - [ ] `client/src/components/ui/card.tsx` (34)
 - [ ] `client/src/components/ui/checkbox.tsx` (30)
-- [ ] `client/src/components/ui/command.tsx` (94)
+- [x] `client/src/components/ui/command.tsx` (94) - gelesen (Funde 155, 158)
 - [ ] `client/src/components/ui/dialog.tsx` (101)
 - [ ] `client/src/components/ui/dropdown-menu.tsx` (173)
 - [ ] `client/src/components/ui/input.tsx` (26)
 - [ ] `client/src/components/ui/label.tsx` (74)
-- [ ] `client/src/components/ui/nur-vorlesen.tsx` (28)
+- [x] `client/src/components/ui/nur-vorlesen.tsx` (28) - gelesen (Fund 158)
 - [ ] `client/src/components/ui/popover.tsx` (34)
 - [ ] `client/src/components/ui/progress.tsx` (15)
 - [ ] `client/src/components/ui/scroll-area.tsx` (32)

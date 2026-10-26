@@ -6,7 +6,7 @@ import { testversionT } from '@/lib/texte/komponenten/Shared'
 /**
  * Kennzeichnet eine Testversion (Server mit CUTSHEET_TESTVERSION=1), damit
  * niemand echte Produktionsdaten in eine Umgebung tippt, die vor dem Launch
- * noch zurueckgesetzt werden kann.
+ * noch zurückgesetzt werden kann.
  */
 export function useTestversion() {
   const { data } = useQuery({

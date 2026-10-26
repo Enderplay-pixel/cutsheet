@@ -75,6 +75,8 @@ export function TutorialModal({ open, onClose }: TutorialModalProps) {
               <button
                 key={i}
                 onClick={() => setStep(i)}
+                aria-label={`${t(tutorialT.step, lang)} ${i + 1}`}
+                aria-current={i === step ? 'step' : undefined}
                 className={cn(
                   'rounded-full transition-all duration-300',
                   i === step

@@ -22,6 +22,12 @@ export function ShortcutsModal() {
       { keys: ['S'], label: tt(shortcutsT.openScenes) },
       { keys: ['B'], label: tt(shortcutsT.openCasting) },
       { keys: ['T'], label: tt(shortcutsT.openCallSheet) },
+      // Wie in App.tsx belegt - vorher fehlten diese fünf hier
+      { keys: ['C'], label: tt(shortcutsT.openCrew) },
+      { keys: ['E'], label: tt(shortcutsT.openEquipment) },
+      { keys: ['L'], label: tt(shortcutsT.openShotlist) },
+      { keys: ['M'], label: tt(shortcutsT.openLocations) },
+      { keys: ['G'], label: tt(shortcutsT.openBudget) },
     ]},
     { category: tt(shortcutsT.catGlobal), items: [
       { keys: ['Ctrl', 'K'], label: tt(shortcutsT.openSearch) },

@@ -20,9 +20,9 @@ function snippet(content: string, query: string, radius = 50): string {
 }
 
 /*
- * ILIKE statt LIKE: In SQLite war `LIKE` fuer ASCII unempfindlich gegenueber
- * Gross- und Kleinschreibung, in PostgreSQL ist es das nicht. Nach dem Umzug
- * fand "Jana" fuenfzig Treffer und "jana" keinen.
+ * ILIKE statt LIKE: In SQLite war `LIKE` für ASCII unempfindlich gegenüber
+ * Groß- und Kleinschreibung, in PostgreSQL ist es das nicht. Nach dem Umzug
+ * fand "Jana" fünfzig Treffer und "jana" keinen.
  */
 router.get('/projects/:projectId/search', async (req, res) => {
   const rawQ = String(req.query.q || '')
@@ -32,7 +32,7 @@ router.get('/projects/:projectId/search', async (req, res) => {
   const q = enthaeltMuster(rawQ)
   const pid = req.params.projectId
 
-  const [scenesRaw, screenplayRaw, castRaw, crewRaw, locationsRaw] = await Promise.all([
+  const [scenesRaw, screenplayRaw, castRaw, crewRaw, locationsRaw, figurenRaw] = await Promise.all([
     db.all(
       "SELECT id, scene_number, title as name FROM scenes WHERE project_id = ? AND (title ILIKE ? OR scene_number ILIKE ? OR description ILIKE ?) LIMIT 50",
       [pid, q, q, q]
@@ -45,7 +45,9 @@ router.get('/projects/:projectId/search', async (req, res) => {
       [pid, q]
     ),
     db.all(
-      "SELECT id, actor_name FROM cast WHERE project_id = ? AND actor_name ILIKE ? LIMIT 50",
+      `SELECT c.id, c.actor_name, c.character_id, ch.name AS figur
+         FROM cast c LEFT JOIN characters ch ON ch.id = c.character_id
+        WHERE c.project_id = ? AND c.actor_name ILIKE ? LIMIT 50`,
       [pid, q]
     ),
     db.all(
@@ -56,36 +58,88 @@ router.get('/projects/:projectId/search', async (req, res) => {
       "SELECT id, name, city FROM locations WHERE project_id = ? AND (name ILIKE ? OR city ILIKE ? OR address ILIKE ?) LIMIT 50",
       [pid, q, q, q]
     ),
+    db.all("SELECT id FROM characters WHERE project_id = ? AND name ILIKE ? LIMIT 20", [pid, q]),
   ])
 
-  const scenes = (scenesRaw as any[]).map(r => ({
-    type: 'scene',
-    id: r.id,
-    title: `Szene ${r.scene_number}: ${r.name}`,
-    subtitle: 'Szene',
-    url: `/projects/${pid}/drehbuch`,
-  }))
+  // Alles ist verknüpft (Florian, 27.10.2026): Wer eine Figur oder ihre
+  // Darstellerin sucht, findet auch die Figur selbst, ihre Szenen und die
+  // Drehtage, an denen sie dreht - nicht nur Textstellen mit dem Namen.
+  const figurIds = [...new Set([
+    ...(figurenRaw as any[]).map(f => f.id),
+    ...(castRaw as any[]).filter(c => c.character_id).map(c => c.character_id),
+  ])]
+  const [figuren, besetzung, figurSzenen, figurTage] = figurIds.length === 0 ? [[], [], [], []] : await Promise.all([
+    db.all('SELECT id, name FROM characters WHERE project_id = ? AND id = ANY(?::int[]) ORDER BY sort_order, name', [pid, figurIds]),
+    db.all('SELECT character_id, actor_name FROM cast WHERE project_id = ? AND character_id = ANY(?::int[]) ORDER BY id', [pid, figurIds]),
+    db.all(
+      `SELECT s.id, s.scene_number, s.title AS name, ch.name AS figur
+         FROM scene_characters sc
+         JOIN scenes s ON s.id = sc.scene_id
+         JOIN characters ch ON ch.id = sc.character_id
+        WHERE s.project_id = ? AND sc.character_id = ANY(?::int[])
+        ORDER BY s.sort_order, s.id`,
+      [pid, figurIds]
+    ),
+    db.all(
+      `SELECT sd.id, sd.day_number, sd.date, ch.name AS figur, s.scene_number
+         FROM scene_characters sc
+         JOIN characters ch ON ch.id = sc.character_id
+         JOIN scenes s ON s.id = sc.scene_id
+         JOIN shoot_day_scenes sds ON sds.scene_id = sc.scene_id
+         JOIN shoot_days sd ON sd.id = sds.shoot_day_id
+        WHERE sd.project_id = ? AND sc.character_id = ANY(?::int[])
+        ORDER BY sd.date, sd.day_number, s.sort_order`,
+      [pid, figurIds]
+    ),
+  ]) as any[][]
 
-  const screenplay = (screenplayRaw as any[]).map(r => {
-    const snip = snippet(r.content, rawQ, 50)
-    const label = `Szene ${r.scene_number}: ${snip.slice(0, 60)}${snip.length > 60 ? '…' : ''}`
-    return {
-      type: 'screenplay',
-      id: r.id,
-      title: label,
-      subtitle: r.block_type,
-      url: `/projects/${pid}/drehbuch`,
-      snippet: snip,
-      scene_id: r.scene_id,
-    }
-  })
+  // Die Beschriftungen setzt der Client in der gewählten Sprache zusammen
+  const figurTreffer = figuren.map(f => ({
+    type: 'character',
+    id: f.id,
+    title: f.name,
+    darsteller: besetzung.filter(b => b.character_id === f.id).map(b => b.actor_name).filter(Boolean),
+    url: `/projects/${pid}/besetzung`,
+  }))
 
   const cast = (castRaw as any[]).map(r => ({
     type: 'cast',
     id: r.id,
     title: r.actor_name,
-    subtitle: 'Darsteller*in',
+    figur: r.figur ?? null,
     url: `/projects/${pid}/besetzung`,
+  }))
+
+  const tage = new Map<number, { type: string; id: number; day_number: number; date: string; figuren: string[]; szenen: string[]; url: string }>()
+  for (const t of figurTage) {
+    const tag = tage.get(t.id) ?? { type: 'shoot_day', id: t.id, day_number: t.day_number, date: t.date, figuren: [], szenen: [], url: `/projects/${pid}/tagesdispo/${t.id}` }
+    if (!tag.figuren.includes(t.figur)) tag.figuren.push(t.figur)
+    if (!tag.szenen.includes(t.scene_number)) tag.szenen.push(t.scene_number)
+    tage.set(t.id, tag)
+  }
+
+  // Szenen der Figur zuerst, dann die übrigen Treffer im Titel - jede Szene einmal
+  const szenenIds = new Set<number>()
+  const scenes = [
+    ...figurSzenen.map(r => ({ ...r, figur: r.figur as string | null })),
+    ...(scenesRaw as any[]).map(r => ({ ...r, figur: null })),
+  ].filter(r => !szenenIds.has(r.id) && szenenIds.add(r.id)).map(r => ({
+    type: 'scene',
+    id: r.id,
+    scene_number: r.scene_number,
+    title: r.name,
+    figur: r.figur,
+    url: `/projects/${pid}/drehbuch`,
+  }))
+
+  const screenplay = (screenplayRaw as any[]).map(r => ({
+    type: 'screenplay',
+    id: r.id,
+    scene_number: r.scene_number,
+    block_type: r.block_type,
+    snippet: snippet(r.content, rawQ, 50),
+    scene_id: r.scene_id,
+    url: `/projects/${pid}/drehbuch`,
   }))
 
   const crew = (crewRaw as any[]).map(r => ({
@@ -104,7 +158,7 @@ router.get('/projects/:projectId/search', async (req, res) => {
     url: `/projects/${pid}/motive`,
   }))
 
-  const all = [...scenes, ...screenplay, ...cast, ...crew, ...locations].slice(0, 50)
+  const all = [...figurTreffer, ...cast, ...tage.values(), ...scenes, ...screenplay, ...crew, ...locations].slice(0, 50)
   res.json({ data: all, error: null })
 })
 

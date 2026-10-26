@@ -143,6 +143,8 @@ beforeAll(async () => {
   app.use('/api', optionalAuth, motivvertragRouter)
   const { default: drehbuchRouter } = await import('../routes/screenplay')
   app.use('/api', optionalAuth, drehbuchRouter)
+  const { default: suchRouter } = await import('../routes/search')
+  app.use('/api', optionalAuth, suchRouter)
   const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
   app.use(uebersetzeDatenbankfehler)
   await new Promise<void>((aufloesen) => {
@@ -2279,6 +2281,33 @@ describe('Komparsen an Drehtagen', () => {
     expect((await hole(pfad, tokenInhaber, { method: 'PUT', body: JSON.stringify({ drehtage: [fremderTag] }) })).status).toBe(404)
     expect((await hole(pfad, tokenInhaber, { method: 'PUT', body: JSON.stringify({ drehtage: '1' }) })).status).toBe(400)
     expect(await db.get('SELECT id FROM call_sheets WHERE shoot_day_id = ?', [fremderTag])).toBeUndefined()
+  })
+})
+
+describe('Suche: alles zur Figur', () => {
+  it('findet über die Darstellerin die Figur, ihre Szenen und Drehtage - und nichts aus fremden Projekten', async () => {
+    const figur = (await db.run("INSERT INTO characters (project_id, name) VALUES (?, 'Wanda')", [projektId])).id
+    await db.run("INSERT INTO cast (project_id, character_id, actor_name) VALUES (?, ?, 'Greta Gans')", [projektId, figur])
+    const szene = (await db.run("INSERT INTO scenes (project_id, scene_number, title) VALUES (?, '12', 'Am Hafen')", [projektId])).id
+    await db.run('INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?)', [szene, figur])
+    const tag = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 4, '2026-12-01')", [projektId])).id
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id) VALUES (?, ?)', [tag, szene])
+    // Gleichnamige Figur in einem fremden Projekt darf nicht auftauchen
+    const fremdes = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Fremd', fremdeId])).id
+    await db.run("INSERT INTO characters (project_id, name) VALUES (?, 'Wanda')", [fremdes])
+
+    const ueberDarstellerin = await hole(`/api/projects/${projektId}/search?q=greta`, tokenInhaber)
+    expect(ueberDarstellerin.status).toBe(200)
+    const arten = ueberDarstellerin.daten.map((r: any) => r.type)
+    expect(arten).toEqual(['character', 'cast', 'shoot_day', 'scene'])
+    expect(ueberDarstellerin.daten[0]).toMatchObject({ id: figur, title: 'Wanda', darsteller: ['Greta Gans'] })
+    expect(ueberDarstellerin.daten[1]).toMatchObject({ title: 'Greta Gans', figur: 'Wanda' })
+    expect(ueberDarstellerin.daten[2]).toMatchObject({ id: tag, day_number: 4, figuren: ['Wanda'], szenen: ['12'], url: `/projects/${projektId}/tagesdispo/${tag}` })
+    expect(ueberDarstellerin.daten[3]).toMatchObject({ id: szene, scene_number: '12', figur: 'Wanda' })
+
+    const ueberFigur = await hole(`/api/projects/${projektId}/search?q=wanda`, tokenInhaber)
+    expect(ueberFigur.daten.filter((r: any) => r.type === 'character').map((r: any) => r.id)).toEqual([figur])
+    expect(ueberFigur.daten.some((r: any) => r.type === 'shoot_day' && r.id === tag)).toBe(true)
   })
 })
 

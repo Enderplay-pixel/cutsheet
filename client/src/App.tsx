@@ -71,8 +71,13 @@ function AppShell() {
 
       // Project navigation shortcuts (only when project is open)
       if (projectId && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        // Nicht in Feldern, Auswahllisten, Menüs und Dialogen: Dort tippt man
+        // Buchstaben, um zu springen - gemessen am 27.10.2026 wechselte "d" in
+        // der offenen Rollenauswahl mitten aus der Bearbeitung auf den Drehplan.
         const target = e.target as HTMLElement
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+        if (target.isContentEditable || target.closest?.(
+          'input, textarea, select, [role="listbox"], [role="option"], [role="combobox"], [role="menu"], [role="menuitem"], [role="dialog"], [role="alertdialog"]'
+        )) return
 
         if (e.key === 'd') navigate(`/projects/${projectId}/drehplan`)
         if (e.key === 's') navigate(`/projects/${projectId}/drehbuch`)
