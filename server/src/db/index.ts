@@ -1327,6 +1327,8 @@ export async function initDatabase() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `)
+  // Das zuletzt angenommene Zeitfenster: Ein Code gilt nur einmal (RFC 6238, 5.2)
+  await db.exec(`ALTER TABLE user_totp ADD COLUMN IF NOT EXISTS last_step BIGINT`)
 
   // Jede Anmeldung bekommt eine Sitzung. Das Token traegt ihre Kennung, und
   // ein Widerruf wirkt sofort - ein JWT allein laesst sich nicht zurueckholen.

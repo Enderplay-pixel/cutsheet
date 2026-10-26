@@ -107,15 +107,32 @@ export function pruefeCode(
   eingabe: string,
   sekunden: number = Math.floor(Date.now() / 1000)
 ): boolean {
+  return codeFenster(schluessel, eingabe, sekunden) !== null
+}
+
+/**
+ * Das Zeitfenster, zu dem ein eingegebener Code gehört - oder null.
+ *
+ * Damit lässt sich festhalten, welcher Code zuletzt galt: Ein Code wird nur
+ * einmal angenommen (RFC 6238, Abschnitt 5.2). Vorher galt ein abgefangener
+ * Code rund 90 Sekunden lang beliebig oft.
+ */
+export function codeFenster(
+  schluessel: string,
+  eingabe: string,
+  sekunden: number = Math.floor(Date.now() / 1000)
+): number | null {
   const sauber = String(eingabe || '').replace(/\D/g, '')
-  if (sauber.length !== STELLEN) return false
+  if (sauber.length !== STELLEN) return null
   for (let versatz = -TOLERANZ_FENSTER; versatz <= TOLERANZ_FENSTER; versatz++) {
     const erwartet = totp(schluessel, sekunden + versatz * FENSTER_SEKUNDEN)
     const a = Buffer.from(erwartet)
     const b = Buffer.from(sauber)
-    if (a.length === b.length && crypto.timingSafeEqual(a, b)) return true
+    if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+      return Math.floor(sekunden / FENSTER_SEKUNDEN) + versatz
+    }
   }
-  return false
+  return null
 }
 
 /**

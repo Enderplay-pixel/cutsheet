@@ -47,8 +47,8 @@ export function getOAuthConfig(): OAuthConfig | null {
 /**
  * Baut die Zustimmungs-URL.
  *
- * `access_type=offline` und `prompt=consent` sind beide noetig: ohne sie liefert
- * Google beim zweiten Mal kein Refresh-Token mehr, und die Anbindung waere nach
+ * `access_type=offline` und `prompt=consent` sind beide nötig: ohne sie liefert
+ * Google beim zweiten Mal kein Refresh-Token mehr, und die Anbindung wäre nach
  * einer Stunde tot.
  */
 export function buildAuthUrl(config: OAuthConfig, state: string): string {
@@ -182,7 +182,7 @@ export async function revokeToken(token: string, fetchImpl: FetchLike = fetch as
 
 /**
  * Ein Refresh-Token ist Dauerzugang zu den Kanaldaten. Es liegt deshalb nur
- * verschluesselt in der Datenbank (AES-256-GCM). Der Schluessel kommt aus
+ * verschluesselt in der Datenbank (AES-256-GCM). Der Schlüssel kommt aus
  * TOKEN_ENCRYPTION_KEY, ersatzweise aus dem JWT_SECRET.
  */
 function encryptionKey(): Buffer {
@@ -265,9 +265,9 @@ export interface VideoMetrics {
 }
 
 /**
- * Kennzahlen je Video ueber einen Zeitraum. Impressionen und Klickrate liegen
+ * Kennzahlen je Video über einen Zeitraum. Impressionen und Klickrate liegen
  * in einer eigenen Metrikgruppe, die nicht jeder Kanal freigeschaltet hat -
- * deshalb werden sie getrennt geholt und duerfen fehlen.
+ * deshalb werden sie getrennt geholt und dürfen fehlen.
  */
 export async function fetchVideoMetrics(
   accessToken: string,
@@ -310,7 +310,7 @@ export async function fetchVideoMetrics(
       }
     }
   } catch {
-    // Reichweiten-Metriken sind nicht fuer jeden Kanal verfuegbar
+    // Reichweiten-Metriken sind nicht für jeden Kanal verfuegbar
   }
 
   return [...byId.values()]
@@ -341,7 +341,7 @@ export interface ChannelVideo {
 /**
  * Alle Videos des eigenen Kanals mit Titel.
  *
- * Der Weg fuehrt ueber die Uploads-Playlist: Die Analytics API liefert nur
+ * Der Weg führt über die Uploads-Playlist: Die Analytics API liefert nur
  * Video-IDs und Zahlen, aber keine Titel - die braucht es aber, um die Videos
  * den CutSheet-Eintraegen zuzuordnen.
  */
@@ -387,7 +387,7 @@ export async function fetchChannelVideos(
  * Wandelt eine ISO-8601-Dauer wie "PT12M34S" in Sekunden.
  *
  * YouTube liefert Videolaengen ausschliesslich in diesem Format. Die echte
- * Laenge ist wichtig, weil sich sonst nur die aus dem Sprechtext geschaetzte
+ * Länge ist wichtig, weil sich sonst nur die aus dem Sprechtext geschaetzte
  * Dauer verwenden laesst - und die weicht ab, sobald geschnitten wurde.
  */
 export function parseIsoDuration(value: string): number {
@@ -406,7 +406,7 @@ export interface VideoDetails {
 }
 
 /**
- * Titel, Veroeffentlichungsdatum und Laenge zu bestimmten Videos.
+ * Titel, Veroeffentlichungsdatum und Länge zu bestimmten Videos.
  * Die API nimmt bis zu 50 IDs je Aufruf entgegen.
  */
 export async function fetchVideoDetails(

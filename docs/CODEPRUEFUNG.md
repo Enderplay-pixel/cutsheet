@@ -325,6 +325,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 136 | `server/src/lib/wiederherstellung.ts` (`PERSONEN`) | **Fehler (Folge von Fund 119), Datenschutz** | Die Wiederherstellung einer Sicherung bildet `person_id` über `person_type` auf die Kopie ab und kannte nur Besetzung und Stab. Seit Komparsen in Dispo, Zeiten und Verpflegung stehen, kam ihr `person_id` unverändert in die Kopie und zeigte auf die Kennung im alten Projekt - in einer fremden Datenbank auf einen fremden Komparsen. | ja: Test - Dispo-Eintrag der Kopie mit `person_id` 902 statt 5 | behoben: `extra` → `extras`. Danach gemessen: Dispo und Zeiten zeigen auf den kopierten Komparsen. Übrige Stellen mit nur zwei Personenarten betreffen Gagen und den persönlichen Kalender - Komparsen haben dort nichts |
 | 137 | `server/src/lib/vertraege.ts` (Vorlage Komparsenvertrag) | Klein (Text) | "Ich wirke am {{drehzeitraum}} als Komparse mit" - bei mehreren Tagen "am 12.11.2026 bis 20.11.2026", und nur männlich. Die Beschreibung des Platzhalters "drehorte" stimmte seit Fund 122 nicht mehr. | aus dem Text | behoben: "Ich wirke in der Komparserie … mit. Drehzeit: …, Drehorte: …"; Beschreibung "Die Motive der eigenen Drehtage". Gilt für neu angelegte Verträge |
 | 138 | `server/src/lib/youtubeInsights.ts` (Merkzettel :224) | Fehler | Der beste Wochentag eines Kanals kam aus `getDay()` in der Zeitzone des Servers (beim Hoster UTC): Ein Video vom Dienstag 00:30 Uhr deutscher Zeit zählte als Montag. Die Hinweise schrieben Zahlen mit Dezimalpunkt ("Klickrate im Schnitt 3.9 %", "86.3 %"), wie in Fund 117. | ja: unter `TZ=UTC` "Montag"; Hinweise mit Punkt | behoben: Wochentag über `Intl` in Europe/Berlin, Dezimalkomma in allen Hinweisen. Danach gemessen: "Dienstag", "3,9 %". Tests: Dezimalkomma; Wochentag fängt den alten Stand, wenn die Tests mit `TZ=UTC` starten (gemessen) |
+| 139 | `server/src/lib/zweiterFaktor.ts`, `routes/auth.ts`, `db/index.ts` | **Sicherheit** | Ein Code des zweiten Faktors wurde innerhalb seiner Gültigkeit (rund 90 Sekunden mit Toleranz) beliebig oft angenommen. RFC 6238 (Abschnitt 5.2) verlangt, dass ein verwendeter Code kein zweites Mal gilt - sonst reicht ein abgefangener Code samt Passwort. | ja: Test - Anmeldung zweimal mit demselben Code, alter Stand 200 | behoben: Das zuletzt angenommene Zeitfenster wird je Konto abgelegt (`last_step`, bedingt geschrieben gegen gleichzeitige Anmeldungen); angenommen wird nur ein späteres. Auch der Bestätigungscode beim Einrichten ist damit verbraucht. Danach gemessen: zweiter Versuch 401. Die bestehenden Tests simulieren ein neues Zeitfenster, statt 30 Sekunden zu warten |
 
 ### Verknüpfungen
 
@@ -489,9 +490,9 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/lib/videoMatching.ts` (220) - ohne Fund (Kommentare mit Umlauten)
 - [x] `server/src/lib/wiederherstellung.ts` (296) - Fund 136 (früher angefasst: 46, 70)
 - [x] `server/src/lib/youtubeInsights.ts` (270) - Fund 138
-- [ ] `server/src/lib/youtubeOAuth.ts` (456)
-- [ ] `server/src/lib/zahlungen.ts` (30)
-- [ ] `server/src/lib/zweiterFaktor.ts` (153)
+- [x] `server/src/lib/youtubeOAuth.ts` (456) - ohne Fund (Kommentare mit Umlauten)
+- [x] `server/src/lib/zahlungen.ts` (30) - ohne Fund
+- [x] `server/src/lib/zweiterFaktor.ts` (153) - Fund 139
 
 ### Server: Skripte
 

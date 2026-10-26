@@ -8,7 +8,7 @@ import {
   starteSitzung, beendeSitzung, beendeAlleSitzungen, vergissKonto,
 } from '../middleware/auth'
 import {
-  erzeugeSchluessel, otpauthUrl, pruefeCode,
+  erzeugeSchluessel, otpauthUrl, codeFenster,
   erzeugeWiederherstellungscodes, legeCodeAb, codePasst,
 } from '../lib/zweiterFaktor'
 import { validate } from '../middleware/validate'
@@ -132,8 +132,19 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response)
         error: 'Bitte den Code aus deiner Authenticator-App eingeben',
       })
     }
-    let erkannt = pruefeCode(faktor.secret, eingabe)
-    if (!erkannt) {
+    // Ein Code gilt genau einmal: nur ein Zeitfenster nach dem zuletzt
+    // verwendeten. Bedingt geschrieben, damit zwei gleichzeitige Anmeldungen
+    // mit demselben Code nicht beide durchkommen.
+    const fenster = codeFenster(faktor.secret, eingabe)
+    let erkannt = false
+    if (fenster !== null) {
+      const zeile = await db.run(
+        'UPDATE user_totp SET last_step = ? WHERE user_id = ? AND (last_step IS NULL OR last_step < ?)',
+        [fenster, user.id, fenster]
+      )
+      erkannt = zeile.changes > 0
+    }
+    if (!erkannt && fenster === null) {
       // Wiederherstellungscode? Er gilt genau einmal. Gespeichert ist nur
       // seine Ablageform (siehe db/index.ts).
       const codes: string[] = JSON.parse(faktor.recovery_codes || '[]')
@@ -213,14 +224,16 @@ router.post('/2fa/confirm', requireAuth, async (req: Request, res: Response) => 
   const user = req.user!
   const zeile = await db.get('SELECT secret FROM user_totp WHERE user_id = ?', [user.id]) as any
   if (!zeile) return res.status(400).json({ data: null, error: 'Richte den zweiten Faktor zuerst ein' })
-  if (!pruefeCode(zeile.secret, String((req.body as any)?.code || ''))) {
+  const fenster = codeFenster(zeile.secret, String((req.body as any)?.code || ''))
+  if (fenster === null) {
     return res.status(400).json({ data: null, error: 'Der Code stimmt nicht. Geht die Uhr des Geräts richtig?' })
   }
   const codes = erzeugeWiederherstellungscodes()
   const abgelegt = await Promise.all(codes.map(legeCodeAb))
+  // Der Bestätigungscode ist damit verbraucht und gilt nicht noch für die Anmeldung
   await db.run(
-    'UPDATE user_totp SET confirmed_at = NOW(), recovery_codes = ? WHERE user_id = ?',
-    [JSON.stringify(abgelegt), user.id]
+    'UPDATE user_totp SET confirmed_at = NOW(), recovery_codes = ?, last_step = ? WHERE user_id = ?',
+    [JSON.stringify(abgelegt), fenster, user.id]
   )
   return res.json({
     data: {

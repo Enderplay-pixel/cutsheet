@@ -922,6 +922,12 @@ describe('Zweiter Faktor und Sitzungen', () => {
     expect(versuch.status).toBe(400)
   })
 
+  /**
+   * Ein Code gilt nur einmal. Statt 30 Sekunden auf das nächste Zeitfenster
+   * zu warten, vergisst der Test das zuletzt verwendete.
+   */
+  const neuesFenster = () => db.run('UPDATE user_totp SET last_step = NULL')
+
   it('schaltet mit richtigem Code scharf und gibt Wiederherstellungscodes aus', async () => {
     const code = totpModul.totp(schluessel)
     const bestaetigt = await hole('/api/auth/2fa/confirm', token, {
@@ -947,10 +953,16 @@ describe('Zweiter Faktor und Sitzungen', () => {
     const falsch = await melde('123456')
     expect([400, 401]).toContain(falsch.status)
 
-    const richtig = await melde(totpModul.totp(schluessel))
+    await neuesFenster()
+    const code = totpModul.totp(schluessel)
+    const richtig = await melde(code)
     expect(richtig.status).toBe(200)
     expect(richtig.daten.token).toBeTruthy()
     token = richtig.daten.token
+
+    // Derselbe Code ein zweites Mal: abgelehnt (RFC 6238, 5.2). Vorher galt
+    // ein abgefangener Code rund 90 Sekunden lang beliebig oft.
+    expect((await melde(code)).status).toBe(401)
   })
 
   it('nimmt einen Wiederherstellungscode an - und nur einmal', async () => {
@@ -972,6 +984,7 @@ describe('Zweiter Faktor und Sitzungen', () => {
   })
 
   it('beendet eine Sitzung, und das Token gilt sofort nicht mehr', async () => {
+    await neuesFenster()
     const zweite = await melde(totpModul.totp(schluessel))
     const zweitesToken = zweite.daten.token
 
@@ -990,6 +1003,7 @@ describe('Zweiter Faktor und Sitzungen', () => {
   })
 
   it('schaltet den zweiten Faktor nur mit Passwort ab', async () => {
+    await neuesFenster()
     const gueltig = await melde(totpModul.totp(schluessel))
     const frisch = gueltig.daten.token
 
