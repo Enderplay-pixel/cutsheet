@@ -60,8 +60,12 @@ const DATEI_ADRESSEN: Record<string, Record<string, 'eine' | 'liste'>> = {
   locations: { photos: 'liste' },
 }
 
-/** `person_type` entscheidet, worauf `person_id` zeigt. */
-const PERSONEN: Record<string, string> = { cast: 'cast', crew: 'crew' }
+/**
+ * `person_type` entscheidet, worauf `person_id` zeigt. Komparsen stehen seit
+ * dem 26.10.2026 in Dispo, Zeiten und Verpflegung (lib/person.ts) - ohne
+ * diesen Eintrag zeigte ihr Dispo-Eintrag in der Kopie auf die alte Kennung.
+ */
+const PERSONEN: Record<string, string> = { cast: 'cast', crew: 'crew', extra: 'extras' }
 
 /** `entity_type` entscheidet, worauf `entity_id` zeigt. */
 const ENTITAETEN: Record<string, string> = {
@@ -84,8 +88,8 @@ const NICHT_IMPORTIEREN = new Set([
   'password_reset_tokens', 'feedback',
   'audit_log', 'email_log',
   // Der Schnappschuss ist ein JSON-Abzug des alten Drehplans mit dessen
-  // Kennungen. Zurueckgespielt wuerde er auf Szenen zeigen, die es in der
-  // Kopie nicht gibt - eine Wiederherstellung, die den Plan zerstoert, waere
+  // Kennungen. Zurueckgespielt würde er auf Szenen zeigen, die es in der
+  // Kopie nicht gibt - eine Wiederherstellung, die den Plan zerstoert, wäre
   // schlimmer als eine fehlende Fassung.
   'drehplan_versions',
   'creator_youtube_accounts', 'creator_youtube_ignored',

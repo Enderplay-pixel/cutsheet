@@ -1,9 +1,9 @@
 /**
  * Zuordnung zwischen CutSheet-Videos und den Videos auf dem YouTube-Kanal.
  *
- * Ohne diese Zuordnung muesste man jeden Video-Link von Hand eintragen. Die
- * Titel liegen aber auf beiden Seiten vor, und in der Praxis heisst ein Video
- * auf YouTube fast genauso wie im Skript - nur mit Zusaetzen wie "(2026)",
+ * Ohne diese Zuordnung müsste man jeden Video-Link von Hand eintragen. Die
+ * Titel liegen aber auf beiden Seiten vor, und in der Praxis heißt ein Video
+ * auf YouTube fast genauso wie im Skript - nur mit Zusätzen wie "(2026)",
  * Emojis oder einem Kanalnamen hinten dran.
  */
 
@@ -16,14 +16,14 @@ export interface Candidate {
 export interface MatchResult {
   videoId: string | null
   title: string | null
-  /** 0 bis 1. Ab 0.82 wird automatisch verknuepft. */
+  /** 0 bis 1. Ab 0.82 wird automatisch verknüpft. */
   score: number
-  /** Zweitbester Treffer - bei knappem Abstand wird nicht automatisch gewaehlt. */
+  /** Zweitbester Treffer - bei knappem Abstand wird nicht automatisch gewählt. */
   runnerUpScore: number
   auto: boolean
 }
 
-/** Ab hier gilt ein Treffer als sicher genug fuer eine automatische Zuordnung. */
+/** Ab hier gilt ein Treffer als sicher genug für eine automatische Zuordnung. */
 export const AUTO_MATCH_THRESHOLD = 0.82
 /** Der beste Treffer muss den zweitbesten um diesen Abstand schlagen. */
 export const AUTO_MATCH_MARGIN = 0.08
@@ -37,13 +37,13 @@ export function normalizeTitle(title: string): string {
   return String(title ?? '')
     .toLowerCase()
     .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
-    // Alles ausser Buchstaben und Ziffern faellt weg - das trifft auch Emojis
+    // Alles außer Buchstaben und Ziffern fällt weg - das trifft auch Emojis
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()
     .replace(/\s+/g, ' ')
 }
 
-/** Wortmenge eines Titels ohne Fuellwoerter. */
+/** Wortmenge eines Titels ohne Füllwörter. */
 const STOPWORDS = new Set([
   'der', 'die', 'das', 'ein', 'eine', 'und', 'oder', 'mit', 'von', 'fuer', 'im', 'in', 'am',
   'the', 'a', 'an', 'and', 'or', 'with', 'of', 'for', 'to', 'my', 'i',
@@ -54,13 +54,13 @@ function contentWords(title: string): string[] {
 }
 
 /**
- * Aehnlichkeit zweier Titel zwischen 0 und 1.
+ * Ähnlichkeit zweier Titel zwischen 0 und 1.
  *
  * Kombiniert zwei Sichtweisen, weil beide allein danebenliegen: Die Wortmenge
- * ignoriert die Reihenfolge und erkennt Zusaetze am Ende, verliert aber bei
- * Tippfehlern. Die Zeichenaehnlichkeit faengt Tippfehler, verwechselt aber
- * Titel mit gleichen Wortstaemmen. Ein Titel, der komplett im anderen steckt,
- * gilt als sehr aehnlich - genau der Fall "Titel + Zusatz".
+ * ignoriert die Reihenfolge und erkennt Zusätze am Ende, verliert aber bei
+ * Tippfehlern. Die Zeichenähnlichkeit fängt Tippfehler, verwechselt aber
+ * Titel mit gleichen Wortstämmen. Ein Titel, der komplett im anderen steckt,
+ * gilt als sehr ähnlich - genau der Fall "Titel + Zusatz".
  */
 export function titleSimilarity(a: string, b: string): number {
   const na = normalizeTitle(a)
@@ -76,29 +76,29 @@ export function titleSimilarity(a: string, b: string): number {
   const setB = [...new Set(wb)]
   const shared = sharedWordScore(setA, setB)
 
-  // Anteil der gemeinsamen Woerter am kleineren Titel: erkennt "Titel + Zusatz"
+  // Anteil der gemeinsamen Wörter am kleineren Titel: erkennt "Titel + Zusatz"
   const containment = shared / Math.min(setA.length, setB.length)
   // Jaccard: bestraft, wenn ein Titel viel mehr Inhalt hat
   const jaccard = shared / (setA.length + setB.length - shared)
 
   const charScore = charSimilarity(na, nb)
 
-  // Gewichtung: Wortübereinstimmung traegt am meisten, Zeichenaehnlichkeit
-  // stuetzt bei Tippfehlern
+  // Gewichtung: Wortübereinstimmung trägt am meisten, Zeichenähnlichkeit
+  // stützt bei Tippfehlern
   return clamp01(0.5 * containment + 0.25 * jaccard + 0.25 * charScore)
 }
 
-/** Ab dieser Aehnlichkeit gelten zwei Woerter als dasselbe Wort. */
+/** Ab dieser Ähnlichkeit gelten zwei Wörter als dasselbe Wort. */
 const WORD_MATCH_THRESHOLD = 0.7
 
 /**
- * Wie viele Woerter haben beide Titel gemeinsam - unscharf gezaehlt.
+ * Wie viele Wörter haben beide Titel gemeinsam - unscharf gezählt.
  *
- * Ein exakter Mengenvergleich wuerde "grosses" und "grosse" als voellig
- * verschiedene Woerter behandeln und einem einzigen Tippfehler oder einer
+ * Ein exakter Mengenvergleich würde "grosses" und "grosse" als völlig
+ * verschiedene Wörter behandeln und einem einzigen Tippfehler oder einer
  * Pluralform die ganze Anrechnung nehmen. Deshalb wird jedes Wort mit seinem
- * aehnlichsten Gegenstueck gepaart und anteilig gewertet. Jedes Wort kann nur
- * einmal vergeben werden, sonst wuerde ein haeufiges Wort mehrfach zaehlen.
+ * ähnlichsten Gegenstück gepaart und anteilig gewertet. Jedes Wort kann nur
+ * einmal vergeben werden, sonst würde ein häufiges Wort mehrfach zählen.
  */
 function sharedWordScore(wordsA: string[], wordsB: string[]): number {
   const available = [...wordsB]
@@ -119,7 +119,7 @@ function sharedWordScore(wordsA: string[], wordsB: string[]): number {
   return total
 }
 
-/** Aehnlichkeit auf Zeichenebene ueber gemeinsame Zeichenpaare (Dice). */
+/** Ähnlichkeit auf Zeichenebene über gemeinsame Zeichenpaare (Dice). */
 function charSimilarity(a: string, b: string): number {
   const bigrams = (s: string) => {
     const out: string[] = []
@@ -150,9 +150,9 @@ function clamp01(n: number): number {
  * Sucht zu einem Titel das passende Video auf dem Kanal.
  *
  * Automatisch zugeordnet wird nur, wenn der beste Treffer sicher genug ist UND
- * den zweitbesten deutlich schlaegt. Bei zwei aehnlich guten Kandidaten - etwa
- * "Teil 1" und "Teil 2" - waere eine Vertauschung schlimmer als gar keine
- * Zuordnung, weil sie unbemerkt falsche Zahlen ans Video haengt.
+ * den zweitbesten deutlich schlägt. Bei zwei ähnlich guten Kandidaten - etwa
+ * "Teil 1" und "Teil 2" - wäre eine Vertauschung schlimmer als gar keine
+ * Zuordnung, weil sie unbemerkt falsche Zahlen ans Video hängt.
  */
 export function findBestMatch(title: string, candidates: Candidate[]): MatchResult {
   const empty: MatchResult = { videoId: null, title: null, score: 0, runnerUpScore: 0, auto: false }
@@ -188,8 +188,8 @@ export interface Assignment {
 /**
  * Ordnet mehrere CutSheet-Videos zu, ohne ein YouTube-Video doppelt zu vergeben.
  *
- * Die sichersten Zuordnungen kommen zuerst zum Zug: Sonst koennte ein schwacher
- * Treffer ein Video wegschnappen, das anderswo eindeutig gepasst haette.
+ * Die sichersten Zuordnungen kommen zuerst zum Zug: Sonst könnte ein schwacher
+ * Treffer ein Video wegschnappen, das anderswo eindeutig gepasst hätte.
  */
 export function assignAll(
   videos: Array<{ id: number; title: string }>,

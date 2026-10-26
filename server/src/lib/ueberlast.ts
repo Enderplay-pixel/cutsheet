@@ -1,14 +1,16 @@
 /**
- * Ueberlast erkennen und als 503 statt 500 melden - ohne jede Route anzufassen.
+ * Überlast erkennen und als 503 statt 500 melden - ohne jede Route anzufassen.
  *
- * Rund 90 Routen fangen ihre Fehler selbst und antworten pauschal mit 500.
- * Laeuft der Verbindungspool voll, ist das aber kein Programmfehler, sondern
- * ein "gleich nochmal": der Client soll kurz warten und wiederholen.
+ * Fehler landen im zentralen Fehlerhandler (`uebersetzeDatenbankfehler`) und
+ * gingen dort pauschal als 500 raus. Läuft der Verbindungspool voll, ist das
+ * aber kein Programmfehler, sondern ein "gleich nochmal".
  *
  * Deshalb merkt sich jede Anfrage in ihrem Async-Kontext, ob eine
- * Datenbankabfrage an Ueberlast gescheitert ist. Will die Route danach 500
- * senden, wird daraus 503 mit Retry-After. Nichts wurde ausgefuehrt - eine
- * Wiederholung ist sicher.
+ * Datenbankabfrage an Überlast gescheitert ist. Will danach jemand 500
+ * senden, wird daraus 503 mit Retry-After. Die gescheiterte Abfrage lief
+ * nicht - frühere Abfragen derselben Anfrage können aber gelaufen sein.
+ * Deshalb wiederholt der Client von sich aus nur lesende Anfragen
+ * (`client/src/lib/api.ts`, `fetchMitWiederholung`).
  */
 import { AsyncLocalStorage } from 'async_hooks'
 import { Request, Response, NextFunction } from 'express'
@@ -17,7 +19,7 @@ const kontext = new AsyncLocalStorage<{ ueberlastet: boolean }>()
 
 export const UEBERLAST_TEXT = 'Der Server ist gerade stark ausgelastet. Bitte gleich noch einmal versuchen.'
 
-/** Datenbank ueberlastet oder kurz weg - Anfrage kann spaeter wiederholt werden. */
+/** Datenbank überlastet oder kurz weg - Anfrage kann später wiederholt werden. */
 export function istUeberlastet(err: any): boolean {
   const text = String(err?.message ?? '')
   return /timeout exceeded when trying to connect|too many clients|remaining connection slots|Connection terminated|canceling statement due to statement timeout|ECONNREFUSED/i.test(text)
@@ -30,7 +32,7 @@ export function ueberlastMelden(err: any) {
   if (s) s.ueberlastet = true
 }
 
-/** Nach dem Body-Parser einhaengen, damit der Kontext die Route erreicht. */
+/** Nach dem Body-Parser einhängen, damit der Kontext die Route erreicht. */
 export function ueberlastKontext(req: Request, res: Response, next: NextFunction) {
   const store = { ueberlastet: false }
   const status = res.status.bind(res)
@@ -53,7 +55,7 @@ export function ueberlastKontext(req: Request, res: Response, next: NextFunction
   kontext.run(store, next)
 }
 
-/** Fuer eigene Engpaesse ausserhalb der Datenbank (z. B. PDF-Warteschlange). */
+/** Für eigene Engpässe außerhalb der Datenbank (z. B. PDF-Warteschlange). */
 export function ueberlastMarkieren() {
   const s = kontext.getStore()
   if (s) s.ueberlastet = true

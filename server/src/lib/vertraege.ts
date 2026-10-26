@@ -22,9 +22,9 @@
  * Dasselbe Muster wie bei den Mailvorlagen: {{schluessel}}.
  *
  * Eigene Kopie statt Import: Die Mailvorlagen behalten ihre Platzhalter, die
- * Vertraege ihre, und eine Aenderung an einer Seite soll die andere nicht
+ * Verträge ihre, und eine Änderung an einer Seite soll die andere nicht
  * mitnehmen. Das Muster selbst ist zwei Zeilen - eine geteilte Konstante
- * waere mehr Kopplung als Ersparnis.
+ * wäre mehr Kopplung als Ersparnis.
  */
 const PLATZHALTER_MUSTER = /\{\{\s*([a-z_]+)\s*\}\}/g
 
@@ -49,7 +49,7 @@ export const VERTRAGS_PLATZHALTER = [
   { schluessel: 'drehtage', beschreibung: 'Anzahl der Drehtage', beispiel: '6' },
   { schluessel: 'gage', beschreibung: 'Gage je Drehtag', beispiel: '450,00 €' },
   { schluessel: 'gage_gesamt', beschreibung: 'Gage mal Drehtage', beispiel: '2.700,00 €' },
-  { schluessel: 'drehorte', beschreibung: 'Die Motive der Produktion', beispiel: 'Bochum, Essen' },
+  { schluessel: 'drehorte', beschreibung: 'Die Motive der eigenen Drehtage (ohne Dispo: alle Motive)', beispiel: 'Hafen, Café Morgenrot' },
   { schluessel: 'geburtsdatum', beschreibung: 'Geburtsdatum der Person', beispiel: '10.03.2020' },
   { schluessel: 'erziehungsberechtigt', beschreibung: 'Name der erziehungsberechtigten Person', beispiel: 'Anna Müller' },
   { schluessel: 'datum', beschreibung: 'Heutiges Datum', beispiel: '12.10.2026' },
@@ -192,7 +192,8 @@ Stillschweigen bewahrt.
 
 zwischen {{produktion}} und {{name}}
 
-Ich wirke am {{drehzeitraum}} als Komparse an der Produktion "{{projekt}}" mit.
+Ich wirke in der Komparserie der Produktion "{{projekt}}" mit.
+Drehzeit: {{drehzeitraum}}, Drehorte: {{drehorte}}.
 
 **Vergütung:** {{gage}} je Drehtag, insgesamt {{gage_gesamt}}, zahlbar innerhalb
 von 14 Tagen. Verpflegung stellt die Produktion.

@@ -2036,6 +2036,25 @@ describe('Sicherung zurückspielen', () => {
     expect((await db.get('SELECT group_id FROM email_group_members WHERE project_id = ?', [ziel])).group_id).toBe(gruppe.id)
   })
 
+  it('bildet Komparsen in Dispo und Vertrag auf die Kopie ab', async () => {
+    // Seit Fund 119 stehen Komparsen in der Dispo (person_type 'extra')
+    const { importiereInhalt } = await import('../lib/wiederherstellung')
+    const ziel = (await db.run("INSERT INTO projects (title, owner_id) VALUES ('Import-Ziel Komparsen', ?)", [nutzerId])).id
+    await importiereInhalt({
+      shoot_days: [{ id: 901, day_number: 1, date: '2026-11-02' }],
+      extras: [{ id: 902, name: 'Ida Probe' }],
+      call_sheets: [{ id: 903, shoot_day_id: 901 }],
+      call_sheet_entries: [{ id: 904, call_sheet_id: 903, person_type: 'extra', person_id: 902, call_time: 420 }],
+      timesheets: [{ id: 905, shoot_day_id: 901, person_type: 'extra', person_id: 902 }],
+    }, ziel, nutzerId)
+    const komparse = await db.get('SELECT id FROM extras WHERE project_id = ?', [ziel])
+    const dispo = await db.get(
+      `SELECT e.person_id FROM call_sheet_entries e JOIN call_sheets s ON s.id = e.call_sheet_id
+         JOIN shoot_days d ON d.id = s.shoot_day_id WHERE d.project_id = ?`, [ziel])
+    expect(dispo.person_id).toBe(komparse.id)
+    expect((await db.get('SELECT person_id FROM timesheets WHERE project_id = ?', [ziel])).person_id).toBe(komparse.id)
+  })
+
   it('spielt Dateien mit ihrem Inhalt zurück und schreibt die Bildadresse um', async () => {
     const { importiereInhalt } = await import('../lib/wiederherstellung')
     const ziel = (await db.run("INSERT INTO projects (title, owner_id) VALUES ('Import-Ziel 3', ?)", [nutzerId])).id
