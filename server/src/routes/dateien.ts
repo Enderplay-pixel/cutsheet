@@ -183,10 +183,14 @@ router.get('/projects/:projectId/dateien/:id/inhalt', requireAuth, requireMember
   )) as any
   if (!datei) return res.status(404).json({ data: null, error: 'Datei nicht gefunden' })
 
-  res.setHeader('Content-Type', datei.mime || 'application/octet-stream')
+  // Ansehen im Browser nur für Rasterbilder und PDF. Der Typ kommt vom
+  // hochladenden Browser, und der Upload nimmt jedes image/* an - auch SVG,
+  // das aktive Inhalte tragen kann. Alles andere geht als Download hinaus.
+  const ansehbar = /^(image\/(png|jpeg|gif|webp)|application\/pdf)$/i.test(String(datei.mime || ''))
+  res.setHeader('Content-Type', ansehbar ? datei.mime : 'application/octet-stream')
   // Im Browser ansehen statt herunterladen - wer speichern will, kann das
   // immer noch. Umgekehrt wäre jedes Ansehen ein Download im Ordner.
-  const anhang = req.query.download === '1' ? 'attachment' : 'inline'
+  const anhang = req.query.download === '1' || !ansehbar ? 'attachment' : 'inline'
   res.setHeader(
     'Content-Disposition',
     `${anhang}; filename*=UTF-8''${encodeURIComponent(datei.filename || 'datei')}`

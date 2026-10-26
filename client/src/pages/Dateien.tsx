@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { useDownload } from '@/lib/useDownload'
+import { useDownload, useAnsehen } from '@/lib/useDownload'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,6 +36,7 @@ export function Component() {
   const qc = useQueryClient()
   const { toast } = useToast()
   const download = useDownload()
+  const ansehen = useAnsehen()
   const tt = useT()
   const gs = useGebietsschema()
   const dateiFeld = useRef<HTMLInputElement>(null)
@@ -188,7 +189,7 @@ export function Component() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => window.open(api.dateien.inhaltUrl(pid, f.id), '_blank', 'noopener')}
+                          onClick={() => ansehen(api.dateien.inhaltUrl(pid, f.id))}
                           aria-label={tt(T.ansehen).replace('{name}', f.filename)}
                         >
                           <Eye className="w-3.5 h-3.5" />

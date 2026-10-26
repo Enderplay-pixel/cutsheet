@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
-import { useDownload } from '@/lib/useDownload'
+import { useDownload, useGeschuetztesBild } from '@/lib/useDownload'
 import { Plus, Trash2, Upload, Download, RotateCw, LayoutGrid, ImageOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/useT'
@@ -74,6 +74,8 @@ export function Component() {
 
   const plan = detail?.plan
   const items: any[] = detail?.items ?? []
+  // Das Bild liegt hinter der geschützten Dateiablage - mit Token laden
+  const bildQuelle = useGeschuetztesBild(plan?.image_url)
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['floorplan', planId] })
@@ -238,7 +240,7 @@ export function Component() {
               {plan?.image_url ? (
                 // Hoehe mitbegrenzen: Ein hochformatiger Grundriss wuerde sonst
                 // den halben Bildschirm einnehmen
-                <img src={plan.image_url} alt="" className="block max-w-full max-h-[70vh] w-auto pointer-events-none" />
+                <img src={bildQuelle} alt="" className="block max-w-full max-h-[70vh] w-auto pointer-events-none" />
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground/50">
                   <ImageOff className="w-8 h-8" />
