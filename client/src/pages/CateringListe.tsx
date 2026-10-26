@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -18,12 +19,12 @@ import { cateringListeT } from '@/lib/texte/CateringListe'
 interface Person {
   id: number
   name: string
-  person_type: 'cast' | 'crew'
+  person_type: 'cast' | 'crew' | 'extra'
 }
 
 interface CateringPref {
   person_id: number
-  person_type: 'cast' | 'crew'
+  person_type: 'cast' | 'crew' | 'extra'
   dietary: string
   allergies: string
   notes: string
@@ -38,7 +39,7 @@ interface ShootDay {
 interface CateringListEntry {
   person_id: number
   name: string
-  person_type: 'cast' | 'crew'
+  person_type: 'cast' | 'crew' | 'extra'
   dietary: string
   allergies: string
   notes: string
@@ -137,8 +138,8 @@ function PrefRow({ person, pref, pid, isEven }: { person: Person; pref: Catering
     <tr className={`border-b border-border/40 hover:bg-muted/20 transition-colors ${isEven ? '' : 'bg-muted/10'}`}>
       <td className="px-4 py-2.5 font-medium text-sm">{person.name}</td>
       <td className="px-4 py-2.5">
-        <Badge variant={person.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px]">
-          {person.person_type === 'cast' ? tt(cateringListeT.darsteller) : tt(cateringListeT.crew)}
+        <Badge variant={person.person_type === 'cast' ? 'purple' : person.person_type === 'extra' ? 'cyan' : 'blue'} className="text-[10px]">
+          {person.person_type === 'cast' ? tt(cateringListeT.darsteller) : person.person_type === 'extra' ? tt(cateringListeT.komparse) : tt(cateringListeT.crew)}
         </Badge>
       </td>
       <td className="px-4 py-2.5 min-w-[160px]">
@@ -215,6 +216,12 @@ export function Component() {
     },
   })
 
+  // Komparsen, mit ihren Drehtagen
+  const { data: extras } = useQuery<any[]>({
+    queryKey: ['extras', pid],
+    queryFn: () => api.extras.list(pid),
+  })
+
   // Shoot days
   const { data: shootDays } = useQuery<ShootDay[]>({
     queryKey: ['shoot-days', pid],
@@ -242,9 +249,11 @@ export function Component() {
   })
 
   const allPersons: Person[] = [
-    // Darsteller fuehren ihren Namen als actor_name
+    // Darsteller führen ihren Namen als actor_name
     ...(cast ?? []).map((p: any) => ({ ...p, name: p.actor_name || p.name || '', person_type: 'cast' as const })),
     ...(crew ?? []).map(p => ({ ...p, person_type: 'crew' as const })),
+    // Komparsen essen an ihren Drehtagen mit - nur wer einem Tag zugeordnet ist
+    ...(extras ?? []).filter((p: any) => (p.drehtage ?? []).length > 0).map((p: any) => ({ ...p, person_type: 'extra' as const })),
   ]
 
   const prefMap = new Map<string, CateringPref>()
@@ -435,8 +444,8 @@ export function Component() {
                             >
                               <td className="px-4 py-2.5 font-medium">{e.name}</td>
                               <td className="px-4 py-2.5">
-                                <Badge variant={e.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px]">
-                                  {e.person_type === 'cast' ? tt(cateringListeT.darsteller) : tt(cateringListeT.crew)}
+                                <Badge variant={e.person_type === 'cast' ? 'purple' : e.person_type === 'extra' ? 'cyan' : 'blue'} className="text-[10px]">
+                                  {e.person_type === 'cast' ? tt(cateringListeT.darsteller) : e.person_type === 'extra' ? tt(cateringListeT.komparse) : tt(cateringListeT.crew)}
                                 </Badge>
                               </td>
                               <td className="px-4 py-2.5">

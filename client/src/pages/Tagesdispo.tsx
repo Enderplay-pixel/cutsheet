@@ -181,16 +181,26 @@ function AddPersonPanel({
     queryKey: ['cast', projectId],
     queryFn: () => api.cast.list(projectId),
   })
+  const { data: extras } = useQuery({
+    queryKey: ['extras', projectId],
+    queryFn: () => api.extras.list(projectId),
+  })
+  const queryClient = useQueryClient()
 
   const addEntryMutation = useMutation({
     mutationFn: (data: { person_type: string; person_id: number; call_time: number }) =>
       api.callSheets.addEntry(callSheet.id, data),
-    onSuccess: () => onAdded(),
+    onSuccess: () => {
+      // Die Komparsenliste zeigt die Drehtage aus der Dispo
+      queryClient.invalidateQueries({ queryKey: ['extras', projectId] })
+      onAdded()
+    },
   })
 
   const assignedIds = new Set((callSheet?.entries || []).map((e: any) => `${e.person_type}:${e.person_id}`))
   const availableCrew = (crew || []).filter((c: any) => !assignedIds.has(`crew:${c.id}`))
   const availableCast = (castList || []).filter((c: any) => !assignedIds.has(`cast:${c.id}`))
+  const availableExtras = (extras || []).filter((c: any) => !assignedIds.has(`extra:${c.id}`))
   const defaultCall = callSheet?.general_call || 480
 
   return (
@@ -258,7 +268,35 @@ function AddPersonPanel({
         </div>
       )}
 
-      {availableCrew.length === 0 && availableCast.length === 0 && (
+      {availableExtras.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
+              {tt(dispoT.extrasSection)}
+            </p>
+            <button
+              onClick={() => availableExtras.forEach((c: any) => addEntryMutation.mutate({ person_type: 'extra', person_id: c.id, call_time: defaultCall }))}
+              className="text-[11px] text-primary hover:underline"
+            >
+              Alle hinzufügen
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {availableExtras.map((c: any) => (
+              <button key={c.id}
+                onClick={() => addEntryMutation.mutate({ person_type: 'extra', person_id: c.id, call_time: defaultCall })}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border/60 text-xs hover:border-primary/40 hover:bg-muted/40 transition-colors bg-card"
+              >
+                <Plus className="w-3 h-3" />
+                <span className="font-medium">{c.name}</span>
+                {c.tariff_group && <span className="text-muted-foreground">· {c.tariff_group}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {availableCrew.length === 0 && availableCast.length === 0 && availableExtras.length === 0 && (
         <p className="text-xs text-muted-foreground">{tt(dispoT.allPersonsAdded)}</p>
       )}
     </div>
@@ -291,7 +329,7 @@ function PersonSection({
         <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
           {title}
         </span>
-        <span className="ml-auto text-xs text-muted-foreground/60">{entries.length} {tt(uiT.persons)}</span>
+        <span className="ml-auto text-xs text-muted-foreground/60">{entries.length} {tt(entries.length === 1 ? uiT.person : uiT.persons)}</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[560px]">
@@ -416,7 +454,10 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
 
   const deleteEntryMutation = useMutation({
     mutationFn: (entryId: number) => api.callSheets.deleteEntry(callSheet.id, entryId),
-    onSuccess: () => onRefresh(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['extras', projectId] })
+      onRefresh()
+    },
   })
 
   const rawOriginal = (callSheet?.entries || []).map((e: any, i: number) => ({ ...e, _idx: i }))
@@ -428,6 +469,7 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
 
   const castEntries = entries.filter(e => e.person_type === 'cast')
   const crewEntries = entries.filter(e => e.person_type === 'crew')
+  const extraEntries = entries.filter(e => e.person_type === 'extra')
 
   return (
     <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
@@ -483,7 +525,20 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
         onDelete={(id) => deleteEntryMutation.mutate(id)}
       />
 
-      {castEntries.length === 0 && crewEntries.length === 0 && (
+      {(castEntries.length > 0 || crewEntries.length > 0) && extraEntries.length > 0 && (
+        <div className="border-t border-border/40" />
+      )}
+
+      {/* Komparserie: zugeordnet hier oder auf der Komparsen-Seite */}
+      <PersonSection
+        title={tt(dispoT.extrasSection)}
+        entries={extraEntries}
+        isCast={false}
+        onUpdate={updateEntry}
+        onDelete={(id) => deleteEntryMutation.mutate(id)}
+      />
+
+      {castEntries.length === 0 && crewEntries.length === 0 && extraEntries.length === 0 && (
         <div className="py-10 text-center text-muted-foreground">
           <ClipboardList className="w-8 h-8 mx-auto mb-2 opacity-20" />
           <p className="text-sm">{tt(dispoT.noPeople)}</p>

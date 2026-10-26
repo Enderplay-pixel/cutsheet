@@ -19,6 +19,7 @@ export const checkinBoardT = {
   keineEintraege:   { de: 'Keine Einträge in dieser Tagesdispo.', en: 'No entries on this call sheet.', fr: 'Aucune entrée dans cette feuille de service.' },
   darsteller:       { de: 'Darsteller', en: 'Actor', fr: 'Comédien(ne)' },
   crew:             { de: 'Crew', en: 'Crew', fr: 'Équipe' },
+  komparse:         { de: 'Komparserie', en: 'Background', fr: 'Figuration' },
   call:             { de: 'Call:', en: 'Call:', fr: 'Convocation :' },
   eingechecktUm:    { de: 'Eingecheckt um {zeit}', en: 'Checked in at {zeit}', fr: 'Arrivé(e) à {zeit}' },
   eingecheckt:      { de: 'Eingecheckt', en: 'Checked in', fr: 'Arrivé(e)' },

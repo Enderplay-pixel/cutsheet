@@ -6,6 +6,7 @@ import { sendEmail, isSmtpConfigured, appBaseUrl } from './emailService'
 import { reiheEin, sendeFaellige } from '../lib/mailversand'
 import { maskiere } from '../lib/mailvorlagen'
 import { sendPushToUser } from './push'
+import { personAngaben, istPersonenart, PERSONEN_TABELLE } from '../lib/person'
 
 const router = Router()
 
@@ -35,18 +36,50 @@ async function getCallSheet(id: number) {
   if (!sheet) return null
   const entries = await db.all('SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC', [id]) as any[]
 
-  // Enrich entries with person names
+  // Name und Funktion dazu - für Stab, Besetzung und Komparserie
   const enriched = await Promise.all(entries.map(async (e: any) => {
-    if (e.person_type === 'cast') {
-      const person = await db.get('SELECT c.actor_name as name, ch.name as role FROM cast c LEFT JOIN characters ch ON c.character_id = ch.id WHERE c.id = ?', [e.person_id]) as any
-      return { ...e, person_name: person?.name || '', role: person?.role || '' }
-    } else {
-      const person = await db.get('SELECT name, role FROM crew WHERE id = ?', [e.person_id]) as any
-      return { ...e, person_name: person?.name || '', role: person?.role || '' }
-    }
+    const person = await personAngaben(e.person_type, e.person_id)
+    return { ...e, person_name: person?.name || '', role: person?.rolle || '' }
   }))
 
   return { ...sheet, entries: enriched }
+}
+
+/**
+ * Trägt Stab und Besetzung des Projekts in eine neue Dispo ein - so, wie sie
+ * beim ersten Anlegen gefüllt wird.
+ */
+async function stabUndBesetzungEintragen(sheetId: number, projectId: number, call: number) {
+  const crew = await db.all('SELECT id FROM crew WHERE project_id = ?', [projectId]) as any[]
+  const cast = await db.all('SELECT id FROM "cast" WHERE project_id = ?', [projectId]) as any[]
+  for (const [i, c] of crew.entries()) {
+    await db.run('INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, call_time, sort_order) VALUES (?, ?, ?, ?, ?)', [sheetId, 'crew', c.id, call, i])
+  }
+  for (const [i, c] of cast.entries()) {
+    await db.run('INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, call_time, sort_order) VALUES (?, ?, ?, ?, ?)', [sheetId, 'cast', c.id, call, crew.length + i])
+  }
+}
+
+/**
+ * Die Dispo eines Drehtags - angelegt, falls es noch keine gibt. Für die
+ * Zuordnung von Komparsen zu Drehtagen: Wer einen Komparsen einem Tag ohne
+ * Dispo zuordnet, bekommt dieselbe Dispo wie beim Anlegen von Hand.
+ */
+export async function dispoFuerDrehtag(dayId: number): Promise<{ id: number; general_call: number } | null> {
+  const vorhanden = await db.get('SELECT id, general_call FROM call_sheets WHERE shoot_day_id = ?', [dayId]) as any
+  if (vorhanden) return vorhanden
+  const tag = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [dayId]) as any
+  if (!tag) return null
+  const settings = await db.get('SELECT default_call_time FROM project_settings WHERE project_id = ?', [tag.project_id]) as any
+  const call = Number(settings?.default_call_time ?? 480)
+  const neu = await db.run(
+    'INSERT INTO call_sheets (shoot_day_id, general_call, shooting_call) VALUES (?, ?, ?) ON CONFLICT (shoot_day_id) DO NOTHING',
+    [dayId, call, call + 30]
+  )
+  // Gleichzeitig angelegt: die andere Anfrage hat die Dispo schon gefüllt
+  if (!neu.id) return await db.get('SELECT id, general_call FROM call_sheets WHERE shoot_day_id = ?', [dayId]) as any
+  await stabUndBesetzungEintragen(neu.id, tag.project_id, call)
+  return { id: neu.id, general_call: call }
 }
 
 // GET /api/shoot-days/:dayId/call-sheet
@@ -134,18 +167,7 @@ router.post('/shoot-days/:dayId/call-sheet', async (req, res) => {
     `, [req.params.dayId, general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes, ...extraCols])
     sheetId = result.id
 
-    // Auto-populate entries from crew and cast
-    if (shootDay) {
-      const crew = await db.all('SELECT id FROM crew WHERE project_id = ?', [shootDay.project_id]) as any[]
-      const cast = await db.all('SELECT id FROM cast WHERE project_id = ?', [shootDay.project_id]) as any[]
-
-      for (const [i, c] of crew.entries()) {
-        await db.run('INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, call_time, sort_order) VALUES (?, ?, ?, ?, ?)', [sheetId, 'crew', c.id, general_call, i])
-      }
-      for (const [i, c] of cast.entries()) {
-        await db.run('INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, call_time, sort_order) VALUES (?, ?, ?, ?, ?)', [sheetId, 'cast', c.id, general_call, crew.length + i])
-      }
-    }
+    if (shootDay) await stabUndBesetzungEintragen(sheetId, shootDay.project_id, general_call)
   }
 
   res.json({ data: await getCallSheet(sheetId), error: null })
@@ -180,9 +202,14 @@ router.post('/call-sheets/:id/entries/add', async (req, res) => {
   const sheet = await db.get('SELECT id FROM call_sheets WHERE id = ?', [req.params.id]) as any
   if (!sheet) return res.status(404).json({ data: null, error: 'Call Sheet nicht gefunden' })
 
+  // Vorher galt alles außer 'cast' als Stab: Eine unbekannte Art wurde mit
+  // der Kennung eines Stabmitglieds gespeichert.
+  if (!istPersonenart(person_type)) {
+    return res.status(400).json({ data: null, error: 'Unbekannte Personenart' })
+  }
   // Die Dispo holt Name und Rolle der Person per Kennung dazu, der Versand
   // ihre Mailadresse. Eine Person aus einem fremden Projekt wäre so sichtbar.
-  const personenTabelle = person_type === 'cast' ? '"cast"' : 'crew'
+  const personenTabelle = PERSONEN_TABELLE[person_type]
   const person = await db.get(
     `SELECT p.id FROM ${personenTabelle} p JOIN shoot_days sd ON sd.project_id = p.project_id
        JOIN call_sheets cs ON cs.shoot_day_id = sd.id WHERE p.id = ? AND cs.id = ?`,
@@ -282,9 +309,7 @@ router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Resp
   const recipients: Array<{ entry: any; name: string; email: string; token: string }> = []
   const skipped: string[] = []
   for (const entry of entries) {
-    const person = entry.person_type === 'cast'
-      ? await db.get('SELECT c.actor_name as name, c.email FROM "cast" c WHERE c.id = ?', [entry.person_id]) as any
-      : await db.get('SELECT name, email FROM crew WHERE id = ?', [entry.person_id]) as any
+    const person = await personAngaben(entry.person_type, entry.person_id)
     const name = person?.name || 'Unbekannt'
     if (!person?.email) { skipped.push(name); continue }
 

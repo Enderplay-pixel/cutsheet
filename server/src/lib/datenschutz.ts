@@ -68,7 +68,7 @@ export async function auskunft(
     },
   ]
 
-  if (art !== 'extra') {
+  {
     const dispo = (await db.all(
       `SELECT e.call_time, e.notes, e.confirmed_at, e.viewed_at, e.sent_at,
               d.day_number, d.date
@@ -173,7 +173,7 @@ export async function anonymisiere(
   )
   betroffen[art] = zeile.changes
 
-  if (art !== 'extra') {
+  {
     // Freitexte, in denen der Name stehen könnte, werden geleert - nicht
     // durchsucht. Eine Teilsuche in Fliesstext würde entweder zu viel oder
     // zu wenig treffen.

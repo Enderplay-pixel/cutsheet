@@ -998,7 +998,8 @@ export async function initDatabase() {
   for (const tabelle of ['call_sheet_entries', 'timesheets', 'catering_preferences']) {
     await db.exec(`DELETE FROM ${tabelle}
                    WHERE (person_type = 'crew' AND NOT EXISTS (SELECT 1 FROM crew c WHERE c.id = person_id))
-                      OR (person_type = 'cast' AND NOT EXISTS (SELECT 1 FROM "cast" ca WHERE ca.id = person_id))`)
+                      OR (person_type = 'cast' AND NOT EXISTS (SELECT 1 FROM "cast" ca WHERE ca.id = person_id))
+                      OR (person_type = 'extra' AND NOT EXISTS (SELECT 1 FROM extras ex WHERE ex.id = person_id))`)
   }
   await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false`)
   // Projektart: 'film' = klassische Produktion, 'creator' = Content-/YouTube-Kanal.
@@ -2600,10 +2601,21 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
     ['Rainer Schmid', '0162 7778899', 'r.schmid@demo.test', 'Standard', `Parkbesucher, ${tagMonat(d(6))}`],
     ['Petra Lange', '0163 0001122', 'p.lange@demo.test', 'Standard', `Parkbesucherin, ${tagMonat(d(6))}`],
   ]
-  for (const [name, phone, email, tariff, notesTxt] of extras) {
-    await db.run(
+  // Jeder Komparse steht in der Dispo seines Drehtags (Café Tag 3, Park
+  // Tag 2) - dort lesen Vertrag, Verpflegung, Check-in und das Dispo-PDF.
+  // Später geladen: routes/callsheets braucht diese Datei selbst.
+  const { dispoFuerDrehtag } = await import('../routes/callsheets')
+  const komparsenTag = [dayId3, dayId3, dayId2, dayId2]
+  for (const [i, [name, phone, email, tariff, notesTxt]] of extras.entries()) {
+    const extra = await db.run(
       'INSERT INTO extras (project_id, name, phone, email, tariff_group, notes) VALUES (?, ?, ?, ?, ?, ?)',
       [projectId, name, phone, email, tariff, notesTxt]
+    )
+    const dispo = await dispoFuerDrehtag(komparsenTag[i])
+    if (!dispo) continue
+    await db.run(
+      "INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, call_time, sort_order) VALUES (?, 'extra', ?, ?, 1000 + ?)",
+      [dispo.id, extra.id, dispo.general_call, i]
     )
   }
 

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { resolveAccent } from '../lib/pdfFonts'
 import { db } from '../db'
+import { personAngaben } from '../lib/person'
 import { generatePdf } from './pdf'
 import { requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import {
@@ -40,12 +41,8 @@ router.get('/shoot-days/:dayId/morning-brief', async (req: Request, res: Respons
 
   // Enrich entries with names
   const enrichedEntries = await Promise.all(entries.map(async (e: any) => {
-    if (e.person_type === 'cast') {
-      const p = await db.get('SELECT c.actor_name as name, ch.name as role FROM "cast" c LEFT JOIN characters ch ON c.character_id = ch.id WHERE c.id = ?', [e.person_id]) as any
-      return { ...e, name: p?.name || '', role: p?.role || '' }
-    }
-    const p = await db.get('SELECT name, role FROM crew WHERE id = ?', [e.person_id]) as any
-    return { ...e, name: p?.name || '', role: p?.role || '' }
+    const p = await personAngaben(e.person_type, e.person_id)
+    return { ...e, name: p?.name || '', role: p?.rolle || '' }
   }))
 
   // First / last call times
@@ -147,12 +144,8 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
   const AUSZUG = 8
 
   const enriched = await Promise.all(entries.slice(0, AUSZUG).map(async (e: any) => {
-    if (e.person_type === 'cast') {
-      const p = await db.get('SELECT c.actor_name as name, ch.name as role FROM "cast" c LEFT JOIN characters ch ON c.character_id = ch.id WHERE c.id = ?', [e.person_id]) as any
-      return { ...e, name: p?.name || '-', role: p?.role || '' }
-    }
-    const p = await db.get('SELECT name, role FROM crew WHERE id = ?', [e.person_id]) as any
-    return { ...e, name: p?.name || '-', role: p?.role || '' }
+    const p = await personAngaben(e.person_type, e.person_id)
+    return { ...e, name: p?.name || '-', role: p?.rolle || '' }
   }))
 
   const dateStr = shootDay.date
@@ -170,6 +163,7 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
   const seitenAchtel = scenes.reduce((sum: number, s: any) => sum + (Number(s.eighths) || 0), 0)
   const crewZahl = entries.filter((e: any) => e.person_type === 'crew').length
   const castZahl = entries.filter((e: any) => e.person_type === 'cast').length
+  const komparsenZahl = entries.filter((e: any) => e.person_type === 'extra').length
 
   const html = renderDocument({
     kind: 'Morning Brief',
@@ -186,7 +180,7 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
         { label: 'General Call', value: callSheet ? fmtTime(callSheet.general_call) : '-' },
         { label: 'Szenen', value: scenes.length, hint: scenes.map((s: any) => s.scene_number).filter(Boolean).join(', ') || undefined },
         { label: 'Seiten', value: fmtEighths(seitenAchtel) },
-        { label: 'Crew / Cast', value: `${crewZahl} / ${castZahl}` },
+        { label: komparsenZahl ? 'Crew / Cast / Komparsen' : 'Crew / Cast', value: [crewZahl, castZahl, ...(komparsenZahl ? [komparsenZahl] : [])].join(' / ') },
       ]) +
       (definitions([
         { label: 'Sonnenaufgang', value: callSheet?.sunrise },

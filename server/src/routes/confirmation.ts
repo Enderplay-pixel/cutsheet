@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import { db } from '../db'
+import { personAngaben } from '../lib/person'
 import { starteSitzung, AuthUser } from '../middleware/auth'
 
 const router = Router()
@@ -25,15 +26,8 @@ async function getEntryByToken(token: string): Promise<EntryRow | undefined> {
 }
 
 async function getPersonForEntry(entry: EntryRow): Promise<{ name: string; role: string; email: string } | undefined> {
-  if (entry.person_type === 'cast') {
-    const p = await db.get(
-      'SELECT c.actor_name as name, ch.name as role, c.email FROM "cast" c LEFT JOIN characters ch ON c.character_id = ch.id WHERE c.id = ?',
-      [entry.person_id]
-    ) as any
-    return p ? { name: p.name || '', role: p.role || '', email: p.email || '' } : undefined
-  }
-  const p = await db.get('SELECT name, role, email FROM crew WHERE id = ?', [entry.person_id]) as any
-  return p ? { name: p.name || '', role: p.role || '', email: p.email || '' } : undefined
+  const p = await personAngaben(entry.person_type, entry.person_id)
+  return p ? { name: p.name, role: p.rolle, email: p.email } : undefined
 }
 
 // GET /api/cse/t/:token - öffentliche Dispo-Daten für die Empfänger-Ansicht

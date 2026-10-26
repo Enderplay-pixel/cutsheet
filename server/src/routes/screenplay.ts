@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { leseUeberschrift, mitUeberschrift } from '../lib/szenenUeberschrift'
+import { motivVerknuepfen } from '../lib/motive'
 import { fountainZeilen } from '../lib/fountainExport'
 import { figurVerknuepfen } from '../lib/figuren'
 
@@ -202,6 +203,7 @@ router.put('/blocks/:blockId', async (req, res) => {
   // NACHT", in Drehplan und Statistik weiter "INT / DAY". Deshalb folgt der
   // Datensatz jetzt der Zeile.
   let szene: any = null
+  let motiv: any = null
   if (block?.block_type === 'scene_heading') {
     const kopf = leseUeberschrift(block.content || '')
     if (kopf && kopf.title) {
@@ -211,10 +213,15 @@ router.put('/blocks/:blockId', async (req, res) => {
          WHERE id = ?`,
         [kopf.int_ext, kopf.title, kopf.day_night, block.scene_id]
       ).catch((e: any) => console.warn('[blocks PUT] Szene nicht nachgefuehrt:', e?.message))
+      // Das Motiv erst, wenn die Zeile fertig ist (`motiv_fertig`, wie bei
+      // den Figuren): aus "INT. HA" entstünde sonst ein Motiv "Ha".
+      if (req.body?.motiv_fertig === true) {
+        motiv = await motivVerknuepfen(db, Number(block.project_id), Number(block.scene_id), kopf.title)
+      }
       // Mitschicken, damit der Editor seine Szenenleiste nachziehen kann -
       // sonst stand dort bis zum Neuladen weiter der alte Titel.
       szene = await db.get(
-        'SELECT id, int_ext, title, day_night, updated_at FROM scenes WHERE id = ?',
+        'SELECT id, int_ext, title, day_night, location_id, updated_at FROM scenes WHERE id = ?',
         [block.scene_id]
       )
     }
@@ -229,7 +236,7 @@ router.put('/blocks/:blockId', async (req, res) => {
     figur = await figurVerknuepfen(db, Number(block.project_id), Number(block.scene_id), block.content)
   }
 
-  res.json({ data: { ...block, ...(szene ? { szene } : {}), ...(figur ? { figur } : {}) }, error: null })
+  res.json({ data: { ...block, ...(szene ? { szene } : {}), ...(figur ? { figur } : {}), ...(motiv ? { motiv } : {}) }, error: null })
 })
 
 // ─── DELETE /api/blocks/:blockId ──────────────────────────────────────────────
@@ -483,6 +490,8 @@ router.post('/projects/:projectId/fdx-import', async (req, res) => {
         sortCounter++
         scenesCreated++
         blockSortOrder = 0
+        // Der Spielort der Überschrift wird Motiv des Projekts (lib/motive.ts)
+        await motivVerknuepfen(tx, Number(projectId), sceneResult.id, title)
 
         // Also store scene_heading as a block for display in editor
         await tx.run(`

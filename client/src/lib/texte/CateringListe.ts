@@ -22,6 +22,7 @@ export const cateringListeT = {
   fehlerSpeichern:{ de: 'Fehler beim Speichern', en: 'Error while saving', fr: "Erreur lors de l'enregistrement" },
   darsteller:     { de: 'Darsteller', en: 'Actor', fr: 'Comédien(ne)' },
   crew:           { de: 'Crew', en: 'Crew', fr: 'Équipe' },
+  komparse:       { de: 'Komparserie', en: 'Background', fr: 'Figuration' },
   allergienPh:    { de: 'Allergien…', en: 'Allergies…', fr: 'Allergies…' },
   notizenPh:      { de: 'Notizen…', en: 'Notes…', fr: 'Notes…' },
   titel:          { de: 'Catering', en: 'Catering', fr: 'Restauration' },

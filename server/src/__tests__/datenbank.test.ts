@@ -2163,3 +2163,85 @@ describe('Papierkorb', () => {
     expect((await db.get('SELECT location_id FROM scenes WHERE id = ?', [szene])).location_id).toBe(motiv)
   })
 })
+
+describe('Komparsen an Drehtagen', () => {
+  it('trägt den Komparsen in die Dispo des Tages ein - die Jugendschutzprüfung sieht den Tag', async () => {
+    const tag = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 7, '2026-11-20')", [projektId])).id
+    const stab = (await db.run("INSERT INTO crew (project_id, name, role) VALUES (?, 'Kim', 'Ton')", [projektId])).id
+    const komparse = (await db.run(
+      "INSERT INTO extras (project_id, name, tariff_group, birthdate) VALUES (?, 'Lio', 'Standard', '2016-03-01')", [projektId]
+    )).id
+
+    const zugeordnet = await hole(`/api/projects/${projektId}/extras/${komparse}/drehtage`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ drehtage: [tag] }) })
+    expect(zugeordnet.status).toBe(200)
+    expect(zugeordnet.daten.drehtage).toEqual([tag])
+    // Die Dispo gab es noch nicht: angelegt wie von Hand, mit dem Stab
+    const dispo = await db.get('SELECT id FROM call_sheets WHERE shoot_day_id = ?', [tag])
+    const eintraege = await db.all('SELECT person_type, person_id FROM call_sheet_entries WHERE call_sheet_id = ?', [dispo.id])
+    expect(eintraege).toEqual(expect.arrayContaining([
+      { person_type: 'crew', person_id: stab },
+      { person_type: 'extra', person_id: komparse },
+    ]))
+
+    const pruefung = await hole(`/api/projects/${projektId}/jugendschutz`, tokenInhaber)
+    const lio = pruefung.daten.personen.find((p: any) => p.person_type === 'extra' && p.person_id === komparse)
+    expect(lio.tage.map((t: any) => t.datum)).toEqual(['2026-11-20'])
+
+    // Abwählen nimmt ihn aus der Dispo, Löschen räumt den Rest
+    await hole(`/api/projects/${projektId}/extras/${komparse}/drehtage`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ drehtage: [] }) })
+    expect(await db.get("SELECT id FROM call_sheet_entries WHERE person_type = 'extra' AND person_id = ?", [komparse])).toBeUndefined()
+    await hole(`/api/projects/${projektId}/extras/${komparse}/drehtage`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ drehtage: [tag] }) })
+    expect((await hole(`/api/projects/${projektId}/extras/${komparse}`, tokenInhaber, { method: 'DELETE' })).status).toBe(200)
+    expect(await db.get("SELECT id FROM call_sheet_entries WHERE person_type = 'extra' AND person_id = ?", [komparse])).toBeUndefined()
+  })
+
+  it('nimmt keinen Drehtag eines anderen Projekts und keine Liste ohne Kennungen', async () => {
+    const anderes = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Anderes', fremdeId])).id
+    const fremderTag = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, '')", [anderes])).id
+    const komparse = (await db.run("INSERT INTO extras (project_id, name) VALUES (?, 'Ida')", [projektId])).id
+    const pfad = `/api/projects/${projektId}/extras/${komparse}/drehtage`
+    expect((await hole(pfad, tokenInhaber, { method: 'PUT', body: JSON.stringify({ drehtage: [fremderTag] }) })).status).toBe(404)
+    expect((await hole(pfad, tokenInhaber, { method: 'PUT', body: JSON.stringify({ drehtage: '1' }) })).status).toBe(400)
+    expect(await db.get('SELECT id FROM call_sheets WHERE shoot_day_id = ?', [fremderTag])).toBeUndefined()
+  })
+})
+
+describe('Motive aus der Szenenüberschrift', () => {
+  const szene = async (titel: string) => (await db.run(
+    "INSERT INTO scenes (project_id, scene_number, title) VALUES (?, '1', ?)", [projektId, titel]
+  )).id
+
+  it('legt das Motiv an und findet es ohne Groß- und Kleinschreibung wieder', async () => {
+    const { motivVerknuepfen } = await import('../lib/motive')
+    const erste = await szene('LEUCHTTURM')
+    const neu = await motivVerknuepfen(db, projektId, erste, 'LEUCHTTURM - TREPPE')
+    expect(neu).toMatchObject({ name: 'Leuchtturm', neu: true })
+    const zweite = await szene('leuchtturm')
+    expect(await motivVerknuepfen(db, projektId, zweite, 'leuchtturm')).toMatchObject({ id: neu!.id, neu: false })
+    expect((await db.get('SELECT location_id FROM scenes WHERE id = ?', [zweite])).location_id).toBe(neu!.id)
+  })
+
+  it('lässt ein ausgefülltes Motiv stehen - dort steht der reale Drehort', async () => {
+    const { motivVerknuepfen } = await import('../lib/motive')
+    const halle = (await db.run("INSERT INTO locations (project_id, name, address) VALUES (?, 'Lagerhalle', 'Hafenstr. 9')", [projektId])).id
+    const id = await szene('WERFT')
+    await db.run('UPDATE scenes SET location_id = ? WHERE id = ?', [halle, id])
+    expect(await motivVerknuepfen(db, projektId, id, 'WERFT')).toBeNull()
+    expect((await db.get('SELECT location_id FROM scenes WHERE id = ?', [id])).location_id).toBe(halle)
+    expect(await db.get("SELECT id FROM locations WHERE project_id = ? AND name = 'Werft'", [projektId])).toBeUndefined()
+  })
+
+  it('heilt einen Tippfehler: die leere Hülle wird umbenannt oder geht', async () => {
+    const { motivVerknuepfen } = await import('../lib/motive')
+    const id = await szene('KAPELLLE')
+    const huelle = await motivVerknuepfen(db, projektId, id, 'KAPELLLE')
+    expect(await motivVerknuepfen(db, projektId, id, 'KAPELLE')).toMatchObject({ id: huelle!.id, name: 'Kapelle' })
+
+    // Das richtige Motiv gibt es schon: Die Szene wechselt, die Hülle geht
+    const andere = await szene('KAPELLE ZWEI')
+    const tippfehler = await motivVerknuepfen(db, projektId, andere, 'KAPPELE')
+    const richtig = await motivVerknuepfen(db, projektId, andere, 'KAPELLE')
+    expect(richtig!.id).toBe(huelle!.id)
+    expect(await db.get('SELECT id FROM locations WHERE id = ?', [tippfehler!.id])).toBeUndefined()
+  })
+})

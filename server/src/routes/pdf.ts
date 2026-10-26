@@ -510,6 +510,7 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
   // unterschiedlichen Tabellen mit unterschiedlichen Spalten
   const cast: any[] = []
   const crewCalls = new Map<number, number>()
+  const komparsen: any[] = []
 
   for (const e of entries) {
     if (e.person_type === 'cast') {
@@ -518,8 +519,10 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
         [e.person_id]
       ) as any
       cast.push({ ...e, cast_no: rollenNr.get(Number(p?.character_id)) ?? '', name: p?.name || '', role: p?.role || '' })
-    } else {
+    } else if (e.person_type === 'crew') {
       crewCalls.set(e.person_id, e.call_time)
+    } else if (e.person_type === 'extra') {
+      komparsen.push(e)
     }
   }
   // Nach Rollennummer, wie auf jeder Dispo - ohne Rolle ans Ende
@@ -533,12 +536,16 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
   ) as any[]
   const crew = crewRows.map(c => ({ ...c, call_time: crewCalls.get(c.id) ?? null }))
 
-  // Komparserie: die Tabelle heisst extras. Call-Zeiten gibt es dort nicht,
-  // deshalb bleibt die Spalte leer und wird am Set eingetragen.
-  const background = await db.all(
-    'SELECT name, tariff_group as role FROM extras WHERE project_id = ? ORDER BY id ASC LIMIT 30',
-    [day.project_id]
-  ) as any[]
+  // Komparserie: die für diesen Drehtag disponierten, mit ihrer Call-Zeit.
+  // Vorher standen auf jeder Dispo die ersten 30 Komparsen des Projekts ohne
+  // Call-Zeit - eine Zuordnung zum Drehtag gab es nicht.
+  const komparsenNamen = komparsen.length
+    ? await db.all('SELECT id, name, tariff_group FROM extras WHERE id = ANY(?::int[])', [komparsen.map(k => Number(k.person_id))]) as any[]
+    : []
+  const background = komparsen.map(k => {
+    const p = komparsenNamen.find(n => Number(n.id) === Number(k.person_id))
+    return { name: p?.name || '', role: p?.tariff_group || '', call_time: k.call_time }
+  })
 
   const loadScenes = async (id: number | string) => {
     const zeilen = await db.all(`

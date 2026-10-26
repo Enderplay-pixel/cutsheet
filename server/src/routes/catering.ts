@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
+import { personAngaben, istPersonenart, PERSONEN_TABELLE } from '../lib/person'
 
 const router = Router()
 
@@ -9,16 +10,8 @@ router.use('/shoot-days/:dayId', requireMemberVia(projectIdFromTable('shoot_days
 router.use('/projects/:pid', requireMemberVia(async req => Number(req.params.pid) || null))
 
 async function enrichWithPersonName(entry: any): Promise<any> {
-  if (entry.person_type === 'cast') {
-    const person = await db.get(
-      'SELECT actor_name as name FROM "cast" WHERE id = ?',
-      [entry.person_id]
-    ) as any
-    return { ...entry, person_name: person?.name || '' }
-  } else {
-    const person = await db.get('SELECT name FROM crew WHERE id = ?', [entry.person_id]) as any
-    return { ...entry, person_name: person?.name || '' }
-  }
+  const person = await personAngaben(entry.person_type, entry.person_id)
+  return { ...entry, person_name: person?.name || '' }
 }
 
 // GET /api/projects/:pid/catering-preferences
@@ -46,9 +39,12 @@ router.post('/projects/:pid/catering-preferences', async (req: Request, res: Res
     return res.status(400).json({ data: null, error: 'person_type und person_id erforderlich' })
   }
 
+  if (!istPersonenart(person_type)) {
+    return res.status(400).json({ data: null, error: 'Unbekannte Personenart' })
+  }
   // Die Liste holt den Namen über die Kennung dazu - eine Person aus einem
   // fremden Projekt stünde sonst mit Namen in dieser Verpflegungsliste.
-  const personenTabelle = person_type === 'cast' ? '"cast"' : 'crew'
+  const personenTabelle = PERSONEN_TABELLE[person_type]
   const person = await db.get(`SELECT id FROM ${personenTabelle} WHERE id = ? AND project_id = ?`, [person_id, req.params.pid])
   if (!person) return res.status(404).json({ data: null, error: 'Person nicht gefunden' })
 
@@ -103,14 +99,8 @@ router.get('/shoot-days/:dayId/catering-list', async (req: Request, res: Respons
 
   // For each person, look up catering preference and name
   const entries = await Promise.all(callEntries.map(async (e: any) => {
-    let person_name = ''
-    if (e.person_type === 'cast') {
-      const person = await db.get('SELECT actor_name as name FROM "cast" WHERE id = ?', [e.person_id]) as any
-      person_name = person?.name || ''
-    } else {
-      const person = await db.get('SELECT name FROM crew WHERE id = ?', [e.person_id]) as any
-      person_name = person?.name || ''
-    }
+    // Komparsen essen mit: Sie zählen für die Verpflegung des Tages
+    const person_name = (await personAngaben(e.person_type, e.person_id))?.name || ''
 
     const pref = await db.get(
       'SELECT * FROM catering_preferences WHERE project_id = ? AND person_type = ? AND person_id = ?',

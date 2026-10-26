@@ -122,6 +122,7 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Einladungslink ungültig oder abgelaufen': { en: 'Invitation link invalid or expired', fr: "Lien d'invitation invalide ou expiré" },
   'Einstellung nicht gefunden': { en: 'Shot not found', fr: 'Plan introuvable' },
   'Ein Termin braucht ein Datum (JJJJ-MM-TT)': { en: 'An event needs a date (YYYY-MM-DD)', fr: 'Un rendez-vous a besoin d\'une date (AAAA-MM-JJ)' },
+  'drehtage muss eine Liste von Drehtag-Kennungen sein': { en: 'drehtage must be a list of shoot day ids', fr: 'drehtage doit être une liste d’identifiants de jours de tournage' },
   'entries muss eine Liste sein': { en: 'entries must be a list', fr: 'entries doit être une liste' },
   'Du hast nur Lesezugriff auf dieses Projekt.': { en: 'You only have read access to this project.', fr: 'Tu as uniquement un accès en lecture à ce projet.' },
   'Diese Aktion erfordert mindestens Produzenten-Zugriff.': { en: 'This action requires at least producer access.', fr: 'Cette action nécessite au moins un accès producteur.' },

@@ -24,7 +24,7 @@ interface CallSheetEntry {
   // Der Server liefert person_name; name nur bei aelteren Antworten
   person_name?: string
   name?: string
-  person_type: 'cast' | 'crew'
+  person_type: 'cast' | 'crew' | 'extra'
   role?: string
   call_time?: number | string | null // Minuten seit Mitternacht (Datenbank), aeltere Daten HH:MM
   checked_in: boolean
@@ -283,8 +283,8 @@ export function Component() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-[0.95rem]">{entry.person_name ?? entry.name}</span>
-                    <Badge variant={entry.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px]">
-                      {entry.person_type === 'cast' ? tt(ct.darsteller) : tt(ct.crew)}
+                    <Badge variant={entry.person_type === 'cast' ? 'purple' : entry.person_type === 'extra' ? 'cyan' : 'blue'} className="text-[10px]">
+                      {entry.person_type === 'cast' ? tt(ct.darsteller) : entry.person_type === 'extra' ? tt(ct.komparse) : tt(ct.crew)}
                     </Badge>
                     {entry.role && (
                       <span className="text-xs text-muted-foreground/60">{entry.role}</span>

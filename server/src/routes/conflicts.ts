@@ -229,13 +229,15 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
     // Namen einmal vorab laden statt je Verletzung eine Abfrage (N+1): bei
     // einer Großproduktion waren das über 2.000 Abfragen je Aufruf, und die
     // Seitenleiste fragt den Radar jede Minute ab.
-    const [castNamen, crewNamen] = await Promise.all([
+    const [castNamen, crewNamen, komparsenNamen] = await Promise.all([
       db.all('SELECT id, actor_name AS name FROM cast WHERE project_id = ?', [pid]),
       db.all('SELECT id, name FROM crew WHERE project_id = ?', [pid]),
-    ]) as [any[], any[]]
+      db.all('SELECT id, name FROM extras WHERE project_id = ?', [pid]),
+    ]) as [any[], any[], any[]]
     const namen = new Map<string, string>([
       ...castNamen.map((c): [string, string] => [`cast:${c.id}`, c.name]),
       ...crewNamen.map((c): [string, string] => [`crew:${c.id}`, c.name]),
+      ...komparsenNamen.map((c): [string, string] => [`extra:${c.id}`, c.name]),
     ])
 
     // Eine Meldung je Person, nicht je Nacht: 45 Drehtage × 100 Leute hätten

@@ -485,6 +485,7 @@ export const dispoT = {
   noPeopleHint:   { en: 'Click "Add person".', de: 'Klicke auf „Person hinzufügen".', fr: 'Clique sur « Ajouter personne ».' },
   castSection:    { en: 'Cast',                 de: 'Darsteller',              fr: 'Acteurs'                 },
   crewSection:    { en: 'Crew',                 de: 'Stab',                    fr: 'Équipe'                  },
+  extrasSection:  { en: 'Background',           de: 'Komparserie',             fr: 'Figuration'              },
   colName:        { en: 'Name',                 de: 'Name',                    fr: 'Nom'                     },
   colFunction:    { en: 'Function',             de: 'Funktion',                fr: 'Fonction'                },
   colRole:        { en: 'Role',                 de: 'Rolle',                   fr: 'Rôle'                    },

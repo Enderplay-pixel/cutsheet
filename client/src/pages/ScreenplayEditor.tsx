@@ -535,11 +535,15 @@ export function Component() {
     // Wer eine Figurenzeile verlässt, hat den Namen fertig geschrieben: Dann
     // legt der Server die Rolle an und verknüpft sie mit der Szene. Nicht
     // schon beim Tippen - aus "JA" und "JAN" würden sonst eigene Rollen.
+    // Ebenso die Überschrift: Ihr Spielort wird Motiv des Projekts.
     const vorher = aktiverBlockRef.current
     if (vorher !== null && vorher !== id) {
       const block = szenenRef.current.flatMap(sd => sd.blocks).find(b => b.id === vorher)
       if (block?.block_type === 'character' && String(block.content ?? '').trim()) {
         merkeAenderung(vorher, { figur_fertig: true })
+      }
+      if (block?.block_type === 'scene_heading' && String(block.content ?? '').trim()) {
+        merkeAenderung(vorher, { motiv_fertig: true })
       }
     }
     aktiverBlockRef.current = id
@@ -646,6 +650,11 @@ export function Component() {
         // und Szenenliste - die sollen nicht den alten Stand zeigen.
         if (antwort?.figur) {
           queryClient.invalidateQueries({ queryKey: ['characters', pid] })
+          queryClient.invalidateQueries({ queryKey: ['scenes', pid] })
+        }
+        // Ebenso ein Motiv aus der Überschrift: Motivliste und Szenen
+        if (antwort?.motiv) {
+          queryClient.invalidateQueries({ queryKey: ['locations', pid] })
           queryClient.invalidateQueries({ queryKey: ['scenes', pid] })
         }
         // Eine geänderte Überschrift führt auf dem Server die Szene nach;

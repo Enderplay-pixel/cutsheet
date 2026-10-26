@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { personAngaben, istPersonenart, PERSONEN_TABELLE } from '../lib/person'
 import { requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { dauer } from '../lib/drehzeit'
 import { schreibeCsv } from '../lib/tabelle'
@@ -29,16 +30,8 @@ function minutesToHHMM(minutes: number | null): string {
 }
 
 async function enrichWithPersonName(entry: any): Promise<any> {
-  if (entry.person_type === 'cast') {
-    const person = await db.get(
-      'SELECT actor_name as name FROM "cast" WHERE id = ?',
-      [entry.person_id]
-    ) as any
-    return { ...entry, person_name: person?.name || '' }
-  } else {
-    const person = await db.get('SELECT name FROM crew WHERE id = ?', [entry.person_id]) as any
-    return { ...entry, person_name: person?.name || '' }
-  }
+  const person = await personAngaben(entry.person_type, entry.person_id)
+  return { ...entry, person_name: person?.name || '' }
 }
 
 /**
@@ -109,8 +102,13 @@ router.post('/shoot-days/:dayId/timesheets', async (req: Request, res: Response)
     return res.status(400).json({ data: null, error: 'person_type und person_id erforderlich' })
   }
 
+  // Vorher galt alles außer 'cast' als Stab: Eine unbekannte Art wurde mit
+  // der Kennung eines Stabmitglieds gespeichert.
+  if (!istPersonenart(person_type)) {
+    return res.status(400).json({ data: null, error: 'Unbekannte Personenart' })
+  }
   // Antwort, Liste und Gagen-Export holen den Namen über die Kennung dazu
-  const personenTabelle = person_type === 'cast' ? '"cast"' : 'crew'
+  const personenTabelle = PERSONEN_TABELLE[person_type]
   const person = await db.get(`SELECT id FROM ${personenTabelle} WHERE id = ? AND project_id = ?`, [person_id, day.project_id])
   if (!person) return res.status(404).json({ data: null, error: 'Person nicht gefunden' })
 

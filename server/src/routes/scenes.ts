@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { db } from '../db'
 import { requireMember } from '../middleware/projectAuth'
 import { baueUeberschrift, leseUeberschrift } from '../lib/szenenUeberschrift'
+import { motivVerknuepfen } from '../lib/motive'
 
 const router = Router()
 
@@ -267,11 +268,16 @@ router.post('/projects/:projectId/scenes/import', async (req, res) => {
     const line = lines[i]
     const match = line.match(sceneRegex)
     if (match) {
-      const [, num, intExt, title, dayNight] = match
+      const [, num, intExt, titelRoh, dayNight] = match
+      // Ohne den Trenner vor der Tageszeit: Aus "41 INT. HAFEN - NACHT"
+      // wurde vorher der Titel "HAFEN -" (gemessen am 26.10.2026).
+      const title = titelRoh.replace(/[\s\-–—]+$/, '').trim()
       const result = await db.run(`
         INSERT INTO scenes (project_id, scene_number, sort_order, title, int_ext, day_night)
         VALUES (?, ?, ?, ?, ?, ?)
-      `, [req.params.projectId, num, maxSort + 1 + i, title.trim(), intExt.toUpperCase(), dayNight.toUpperCase()])
+      `, [req.params.projectId, num, maxSort + 1 + i, title, intExt.toUpperCase(), dayNight.toUpperCase()])
+      // Der Spielort wird Motiv des Projekts (lib/motive.ts)
+      await motivVerknuepfen(db, Number(req.params.projectId), result.id, title)
       created.push(await db.get('SELECT * FROM scenes WHERE id = ?', [result.id]))
     }
   }

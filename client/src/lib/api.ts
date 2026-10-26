@@ -400,6 +400,7 @@ export const api = {
     create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/extras`, { method: 'POST', body: JSON.stringify(data) }),
     update: (projectId: number, id: number, data: any) => req<any>(`/projects/${projectId}/extras/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (projectId: number, id: number) => req<void>(`/projects/${projectId}/extras/${id}`, { method: 'DELETE' }),
+    setDrehtage: (projectId: number, id: number, drehtage: number[]) => req<any>(`/projects/${projectId}/extras/${id}/drehtage`, { method: 'PUT', body: JSON.stringify({ drehtage }) }),
   },
 
   // ─── Camera Presets ────────────────────────────────────────────────────────

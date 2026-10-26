@@ -9,6 +9,7 @@
  */
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { personAngaben } from '../lib/person'
 import { requireAuth } from '../middleware/auth'
 import { getUserProjectRole, ROLE_RANK } from '../middleware/projectAuth'
 import { sendEmail, isSmtpConfigured, appBaseUrl } from './emailService'
@@ -478,12 +479,11 @@ async function loeseGruppeAuf(
         [Number(gruppe.parameter), projectId]
       )) as any[]
       const personen: Array<{ email: string; name?: string; werte?: Record<string, string> }> = []
-      const istBesetzung = 'cast'
       for (const eintrag of eintraege) {
-        const person =
-          eintrag.person_type === istBesetzung
-            ? ((await db.get('SELECT actor_name AS name, email FROM "cast" WHERE id = ?', [eintrag.person_id])) as any)
-            : ((await db.get('SELECT name, email, role FROM crew WHERE id = ?', [eintrag.person_id])) as any)
+        // Rolle: Funktion im Stab, Rolle der Besetzung, Gruppe der Komparserie.
+        // Vorher bekam die Besetzung eine leere Rolle.
+        const angaben = await personAngaben(eintrag.person_type, eintrag.person_id)
+        const person = angaben && { ...angaben, role: angaben.rolle }
         if (person?.email) {
           const stunden = Math.floor((eintrag.call_time ?? 0) / 60)
           const minuten = (eintrag.call_time ?? 0) % 60

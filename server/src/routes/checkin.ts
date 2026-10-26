@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { personAngaben } from '../lib/person'
 import { requireMemberVia, projectIdFromCallSheet } from '../middleware/projectAuth'
 
 const router = Router()
@@ -38,16 +39,8 @@ router.get('/call-sheets/:id/checkin-status', async (req: Request, res: Response
   ) as any[]
 
   const enriched = await Promise.all(entries.map(async (e: any) => {
-    if (e.person_type === 'cast') {
-      const person = await db.get(
-        'SELECT c.actor_name as name, ch.name as role FROM "cast" c LEFT JOIN characters ch ON c.character_id = ch.id WHERE c.id = ?',
-        [e.person_id]
-      ) as any
-      return { ...e, person_name: person?.name || '', role: person?.role || '' }
-    } else {
-      const person = await db.get('SELECT name, role FROM crew WHERE id = ?', [e.person_id]) as any
-      return { ...e, person_name: person?.name || '', role: person?.role || '' }
-    }
+    const person = await personAngaben(e.person_type, e.person_id)
+    return { ...e, person_name: person?.name || '', role: person?.rolle || '' }
   }))
 
   const total = enriched.length
