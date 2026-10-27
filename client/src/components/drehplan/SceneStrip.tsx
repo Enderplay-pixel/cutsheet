@@ -2,6 +2,8 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { cn, getStripClass, eighthsToString } from '@/lib/utils'
 import { GripVertical, X } from 'lucide-react'
+import { useT } from '@/lib/useT'
+import { sceneStripT } from '@/lib/texte/komponenten/Drehplan'
 
 interface SceneStripProps {
   scene: any
@@ -18,8 +20,10 @@ export function SceneStrip({ scene, shootDayId, onRemove, draggable = true }: Sc
   })
 
   const style = { transform: CSS.Transform.toString(transform), transition }
+  const tt = useT()
   const stripClass = getStripClass(scene.int_ext, scene.day_night)
-  const sceneLabel = `Szene ${scene.scene_number}: ${scene.title}`
+  const sceneLabel = tt(sceneStripT.szene).replace('{n}', scene.scene_number).replace('{titel}', scene.title)
+  const verschieben = tt(sceneStripT.verschieben).replace('{szene}', sceneLabel)
 
   return (
     <div
@@ -39,8 +43,8 @@ export function SceneStrip({ scene, shootDayId, onRemove, draggable = true }: Sc
           {...attributes}
           {...listeners}
           className="px-1 py-2 text-muted-foreground hover:text-foreground"
-          aria-label={`${sceneLabel} verschieben`}
-          title={`${sceneLabel} verschieben`}
+          aria-label={verschieben}
+          title={verschieben}
         >
           <GripVertical className="w-3 h-3" aria-hidden="true" />
         </div>
@@ -62,7 +66,7 @@ export function SceneStrip({ scene, shootDayId, onRemove, draggable = true }: Sc
       {onRemove && (
         <button
           onClick={() => onRemove(scene.scene_id || scene.id)}
-          aria-label={`${sceneLabel} aus Drehtag entfernen`}
+          aria-label={tt(sceneStripT.entfernen).replace('{szene}', sceneLabel)}
           className="px-1 py-2 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
         >
           <X className="w-3 h-3" aria-hidden="true" />

@@ -9,6 +9,13 @@ export const scenePoolT = {
   alleGeplant:     { de: 'Alle Szenen geplant', en: 'All scenes scheduled', fr: 'Toutes les scènes sont planifiées' },
 } satisfies Record<string, Text>
 
+/** Texte für components/drehplan/SceneStrip.tsx */
+export const sceneStripT = {
+  szene:           { de: 'Szene {n}: {titel}', en: 'Scene {n}: {titel}', fr: 'Scène {n} : {titel}' },
+  verschieben:     { de: '{szene} verschieben', en: 'Move {szene}', fr: 'Déplacer {szene}' },
+  entfernen:       { de: '{szene} aus dem Drehtag entfernen', en: 'Remove {szene} from the shoot day', fr: 'Retirer {szene} du jour de tournage' },
+} satisfies Record<string, Text>
+
 /** Texte für components/drehplan/ShootDayColumn.tsx */
 export const shootDayColumnT = {
   drehtagDatum:    { de: 'Drehtag {n}: {d}', en: 'Shoot day {n}: {d}', fr: 'Jour de tournage {n} : {d}' },

@@ -92,6 +92,11 @@ Stand am 24.10.2026, 23 Uhr:
   Fälle behoben, zuletzt `/shots/:id` (Fund 103). Messweg
   `scratchpad/fehlende_zeilen.cjs`.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
+  Drehplan: Wird ein Tag mit Szenen auf "Sperrtag" gesetzt, verschwinden
+  seine Szenen aus der Ansicht (die Spalte zeigt nur "Sperrtag"), bleiben aber
+  dem Tag zugeordnet und fehlen in der Ablage - beim Lesen von `Drehplan.tsx`
+  messen. Szenenübersicht und Drehplan färben INT/EXT × Tageszeit
+  verschieden (INT TAG gelb bzw. orange, EXT TAG blau bzw. grün) - für Florian.
   `Budget.tsx` fragt keine Rechte ab: Eine Abteilungsleitung kann tippen,
   der Server lehnt Budget und Finanzierung erst ab Produktion ab (403) - beim
   Lesen der Seite `canEditBudget` aus `useProjectPerms` nutzen.
@@ -371,6 +376,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 160 | `components/layout/Sidebar.tsx`, `TopBar.tsx`, `pages/Dashboard.tsx`, `pages/ZeitAnalyse.tsx` | **Fehler (Verknüpfung)** | Abfrageschlüssel mit der Projektkennung als Text (`['project', '186']`), während Stammdaten, App, Tagesdispo u. a. sie als Zahl bauen (`['project', 186]`). Für React Query sind das zwei Einträge: Eine Änderung invalidiert nur den einen. Ebenso `conflicts`, `stats`, `creator-overview`. | ja: Projekttitel in den Stammdaten geändert, `PUT` 200 - Kopf- und Seitenleiste zeigten weiter den alten Titel; das Projekt wurde je Seitenwechsel zweimal geladen. Das Prüfskript (`scratchpad/schluessel.py`) meldete zunächst zehn gemischte Schlüssel; die meisten waren Fehlalarm (in Unterkomponenten ist `projectId` eine Zahl als Prop), echt waren die vier Dateien | behoben: überall `Number(projectId)`. Danach gemessen: Titel sofort in Kopf- und Seitenleiste, `/api/projects/186` einmal je Seite; Demo-Titel zurückgesetzt |
 | 161 | `components/layout/TopBar.tsx` | Fehler | Der Knopf "Drehtag 2 in 4 Tagen" öffnete die Tagesdispo ohne Kennung - die Seite zeigte Tag 1 (24.10., vorbei). Das Tastenkürzel stand als ⌘K auch unter Windows da. | ja: Klick führte nach `/tagesdispo`, Seite "Tag 1 - 24.10.2026" | behoben: Sprung nach `/tagesdispo/<Kennung des Tages>`, Anzeige "Strg K" außerhalb von Apple-Geräten. Danach gemessen: `/tagesdispo/402`, "Tag 2 - 31.10.2026", Anzeige "Strg K" |
 | 162 | `components/layout/Sidebar.tsx` | Fehler (Navigation) | Die aktive Seite wurde nur am ersten Pfadabschnitt erkannt: Jede Creator-Unterseite (Kanal, Serien, Sponsoren …) galt als "Videos" - zwei Einträge markiert, die Gruppe der Seite blieb zugeklappt. Der Trenner der schmalen Leiste verglich die Gruppe mit dem Wort "Übersicht" (englisch nie gleich). Die Zahl am Eintrag "Konflikte" fehlte im vorgelesenen Namen. | ja: in einem dafür angelegten Creator-Projekt auf "Kanal" markiert "Kanal" und "Videos", Gruppe "Kanal & Planung" zu | behoben: Zuordnung über zwei Abschnitte, Projekt-Einträge markiert die eigene Zuordnung; Trenner nach Position; Name mit Zahl. Danach gemessen: "Kanal" allein und Gruppe offen, "Videos" auf der Videoliste, "Tagesdispo" auf `/tagesdispo/402`, "Konflikte (1)", Admin-Statistik einfach markiert. Prüfprojekt gelöscht |
+| 163 | `client/src/lib/utils.ts` (`getStripClass`) | Fehler (Anzeige) | Die Streifenfarbe im Drehplan, in der Ablage und in der Shotlist kannte nur INT/EXT × TAG/NACHT. Alles andere wurde Außen-Nacht: INT MORGEN, INT DÄMMERUNG, EXT MORGEN und jede INT/EXT-Szene. Die Szenenübersicht bietet MORGEN, DÄMMERUNG und INT/EXT zur Auswahl an, der Textimport erkennt sie. | ja: alle zwölf Kombinationen über das Modul im Browser - acht davon "ext-nacht" | behoben: MORGEN zählt als Tag, DÄMMERUNG als Nacht, INT/EXT als Außen. **Die beiden letzten Zuordnungen sind ein Vorschlag - Florian kann umentscheiden.** Danach gemessen: INT MORGEN "int-tag", INT DÄMMERUNG "int-nacht", INT/EXT TAG "ext-tag" |
+| 164 | `client/src/index.css`, `components/drehplan/SceneStrip.tsx` | Barrierefreiheit | 27 Bedienknöpfe erscheinen nur beim Überfahren mit der Maus (`opacity-0 group-hover:opacity-100`); für Touch gab es eine Regel, für die Tastatur nicht - wer mit Tab dorthin kam, fokussierte einen unsichtbaren Knopf. Dazu fest deutsche Vorlesetexte am Szenenstreifen ("… verschieben", "… aus Drehtag entfernen"). | ja: Entfernen-Knopf am Szenenstreifen mit Fokus Deckkraft 0. Erster Messversuch ungültig - Übergänge laufen im Vorschaufenster nicht weiter, erst `getAnimations().finish()` zeigt den Endwert | behoben: eine Regel `.group:focus-within` für alle 27 Stellen; Texte übersetzt. Danach gemessen: mit Fokus 1, ohne 0; Gegenprobe mit zur Laufzeit entfernter Regel: mit Fokus 0 |
 
 ### Verknüpfungen
 
@@ -662,9 +669,9 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/components/creator/BereichLayout.tsx` (145)
 - [ ] `client/src/components/creator/RetentionChart.tsx` (199)
 - [ ] `client/src/components/creator/YouTubeConnection.tsx` (182)
-- [ ] `client/src/components/drehplan/ScenePool.tsx` (83)
-- [ ] `client/src/components/drehplan/SceneStrip.tsx` (73)
-- [ ] `client/src/components/drehplan/ShootDayColumn.tsx` (131)
+- [x] `client/src/components/drehplan/ScenePool.tsx` (83) - gelesen (ohne eigenen Befund (Farben: Fund 163))
+- [x] `client/src/components/drehplan/SceneStrip.tsx` (73) - gelesen (Funde 163, 164)
+- [x] `client/src/components/drehplan/ShootDayColumn.tsx` (131) - gelesen (ohne Befund; Sperrtag siehe Merkzettel)
 - [x] `client/src/components/layout/PageHeader.tsx` (33) - gelesen (Fund 159, Kommentar-Umlaute)
 - [x] `client/src/components/layout/Sidebar.tsx` (587) - gelesen (Funde 160, 162)
 - [x] `client/src/components/layout/TopBar.tsx` (155) - gelesen (Funde 160, 161)

@@ -50,11 +50,18 @@ export function eighthsToString(eighths: number): string {
   return `${full} ${remainder}/8`
 }
 
+/**
+ * Streifenfarbe aus INT/EXT und Tageszeit.
+ *
+ * Vorher kannte die Zuordnung nur INT/EXT × TAG/NACHT, alles andere wurde
+ * Außen-Nacht - gemessen am 27.10.2026: INT MORGEN, INT DÄMMERUNG und jede
+ * INT/EXT-Szene erschienen so. Jetzt: MORGEN zählt als Tag, DÄMMERUNG als
+ * Nacht, INT/EXT als Außen (Wetter und Licht hängen am Außenteil).
+ */
 export function getStripClass(intExt: string, dayNight: string): string {
-  if (intExt === 'INT' && dayNight === 'TAG') return 'strip-int-tag'
-  if (intExt === 'EXT' && dayNight === 'TAG') return 'strip-ext-tag'
-  if (intExt === 'INT' && dayNight === 'NACHT') return 'strip-int-nacht'
-  return 'strip-ext-nacht'
+  const innen = intExt === 'INT'
+  const nacht = dayNight === 'NACHT' || dayNight === 'DÄMMERUNG'
+  return `strip-${innen ? 'int' : 'ext'}-${nacht ? 'nacht' : 'tag'}`
 }
 
 export function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {

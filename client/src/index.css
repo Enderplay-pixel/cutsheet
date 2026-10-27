@@ -248,6 +248,15 @@ kbd {
   }
 }
 
+/* ─── Tastatur ──────────────────────────────────────── */
+/* Dieselben 27 Nur-Hover-Knöpfe: Wer mit Tab in die Zeile kommt, fokussierte
+   bisher einen unsichtbaren Knopf (Deckkraft 0, auch der Fokusring). Sobald
+   etwas in der Zeile den Fokus hat, sind sie da - gemessen am 27.10.2026. */
+.group:focus-within .group-hover\:opacity-100,
+.group:focus-within .md\:group-hover\:opacity-100 {
+  opacity: 1;
+}
+
 /* ─── Touch-Geräte ──────────────────────────────────── */
 /* Gilt für Telefone und Tablets ohne Maus. Ein Laptop mit Touchscreen meldet
    seinen Mauszeiger als primär und bleibt davon unberührt. */
