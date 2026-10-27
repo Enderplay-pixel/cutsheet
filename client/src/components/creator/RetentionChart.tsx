@@ -29,9 +29,9 @@ function clamp01(n: number): number {
 }
 
 /**
- * Zuschaueranteil an einer Position im Video, linear zwischen den Stuetzpunkten.
- * Bewusst herausgezogen: als reine Funktion laesst sie sich pruefen, ohne die
- * Kurve tatsaechlich zeichnen zu muessen.
+ * Zuschaueranteil an einer Position im Video, linear zwischen den Stützpunkten.
+ * Bewusst herausgezogen: als reine Funktion lässt sie sich prüfen, ohne die
+ * Kurve tatsächlich zeichnen zu müssen.
  */
 export function watchAtRatio(curve: Point[], ratio: number): number {
   if (curve.length === 0) return 0
@@ -102,10 +102,10 @@ export function RetentionChart({
 
   if (curve.length === 0 || videoSeconds <= 0) return null
 
-  function onMove(e: React.MouseEvent<SVGSVGElement>) {
+  function onMove(e: React.PointerEvent<SVGSVGElement>) {
     const rect = e.currentTarget.getBoundingClientRect()
-    // Ohne gerenderte Breite waere die Umrechnung eine Division durch null und
-    // ergaebe NaN - dann lieber gar keinen Wert anzeigen
+    // Ohne gerenderte Breite wäre die Umrechnung eine Division durch null und
+    // ergäbe NaN - dann lieber gar keinen Wert anzeigen
     if (rect.width <= 0) return
 
     // Auf das viewBox-Koordinatensystem umrechnen, damit es bei jeder Breite stimmt
@@ -119,8 +119,10 @@ export function RetentionChart({
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full h-auto select-none"
-        onMouseMove={onMove}
-        onMouseLeave={() => setHover(null)}
+        // Zeiger statt Maus: am Tablet zeigt Antippen und Ziehen den Wert
+        onPointerMove={onMove}
+        onPointerDown={onMove}
+        onPointerLeave={() => setHover(null)}
       >
         {/* Abschnitte als Bänder hinter der Kurve */}
         {sections.map((s, i) => {
@@ -189,9 +191,11 @@ export function RetentionChart({
               <span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-500/40" />{tt(retentionChartT.sponsor)}
             </span>
           )}
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm bg-red-500/30" />{tt(retentionChartT.hook)}
-          </span>
+          {sections.some(s => s.kind === 'hook') && (
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-red-500/30" />{tt(retentionChartT.hook)}
+            </span>
+          )}
         </span>
       </div>
     </div>

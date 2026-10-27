@@ -13,9 +13,8 @@ export const onboardingT = {
   titelPflicht:    { de: 'Titel *', en: 'Title *', fr: 'Titre *' },
   meinFilm:        { de: 'Mein Film', en: 'My film', fr: 'Mon film' },
   genre:           { de: 'Genre', en: 'Genre', fr: 'Genre' },
-  genreWaehlen:    { de: 'Genre wählen', en: 'Choose genre', fr: 'Choisir un genre' },
+  genreBeispiel:   { de: 'z. B. Drama', en: 'e.g. Drama', fr: 'ex. Drame' },
   format:          { de: 'Format', en: 'Format', fr: 'Format' },
-  formatBeispiel:  { de: 'z. B. 4K, 16 mm', en: 'e.g. 4K, 16mm', fr: 'ex. 4K, 16mm' },
   zurueck:         { de: 'Zurück', en: 'Back', fr: 'Retour' },
   weiter:          { de: 'Weiter', en: 'Next', fr: 'Suivant' },
   deinTeam:        { de: 'Dein Team', en: 'Your team', fr: 'Ton équipe' },
@@ -47,11 +46,20 @@ export const onboardingT = {
   wirdErstellt:    { de: 'Projekt wird erstellt…', en: 'Creating project…', fr: 'Création du projet…' },
 } satisfies Record<string, Text>
 
-/** Beschriftungen der Genre-Werte - der Wert selbst geht deutsch an den Server. */
-export const onboardingGenreT: Record<string, Text> = {
+/**
+ * Beschriftungen der Formate (`lib/projectKind.ts`) - der Wert selbst geht
+ * deutsch an den Server und entscheidet dort über Film- oder Creator-Projekt.
+ */
+export const onboardingFormatT: Record<string, Text> = {
   Spielfilm:     { de: 'Spielfilm', en: 'Feature film', fr: 'Long métrage' },
   Dokumentation: { de: 'Dokumentation', en: 'Documentary', fr: 'Documentaire' },
   Kurzfilm:      { de: 'Kurzfilm', en: 'Short film', fr: 'Court métrage' },
   Serie:         { de: 'Serie', en: 'Series', fr: 'Série' },
   Werbefilm:     { de: 'Werbefilm', en: 'Commercial', fr: 'Film publicitaire' },
+  Imagefilm:     { de: 'Imagefilm', en: 'Corporate film', fr: "Film d'entreprise" },
+  'YouTube-Video':  { de: 'YouTube-Video', en: 'YouTube video', fr: 'Vidéo YouTube' },
+  'YouTube Shorts': { de: 'YouTube Shorts', en: 'YouTube Shorts', fr: 'YouTube Shorts' },
+  'Reel / TikTok':  { de: 'Reel / TikTok', en: 'Reel / TikTok', fr: 'Reel / TikTok' },
+  Podcast:       { de: 'Podcast', en: 'Podcast', fr: 'Podcast' },
+  'Stream / Live':  { de: 'Stream / Live', en: 'Stream / live', fr: 'Stream / direct' },
 }

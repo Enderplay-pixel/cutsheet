@@ -128,7 +128,7 @@ export function Marke({ text, ton = 'neutral' }: {
 }
 
 /** Tabelle mit waagerechtem Scrollen in der eigenen Karte statt auf der
- *  ganzen Seite - sonst laeuft am Telefon das Layout ueber. */
+ *  ganzen Seite - sonst läuft am Telefon das Layout über. */
 export function BereichTabelle({ kopf, minBreite = 560, children }: {
   kopf: React.ReactNode
   minBreite?: number

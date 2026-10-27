@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Clapperboard, Film, Users, CheckCircle, FileUp, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/useT'
-import { onboardingT, onboardingGenreT } from '@/lib/texte/komponenten/OnboardingWizard'
+import { onboardingT, onboardingFormatT } from '@/lib/texte/komponenten/OnboardingWizard'
+import { ALL_FORMATS } from '@/lib/projectKind'
 
 const TOTAL_STEPS = 5
 
@@ -117,26 +118,30 @@ function StepProjekt({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
+            {/* Wie in Projektliste und Stammdaten: Genre frei, Format aus der
+                Liste. Vorher bot "Genre" die Formate an und "Format" war ein
+                Freitext für die Technik - gemessen am 27.10.2026: Genre
+                "Kurzfilm", Format leer. Am Format hängt Film oder Creator. */}
             <Label className="text-xs text-muted-foreground">{tt(onboardingT.genre)}</Label>
-            <Select value={data.genre} onValueChange={v => onChange('genre', v)}>
-              <SelectTrigger className="mt-1 h-8 text-xs">
-                <SelectValue placeholder={tt(onboardingT.genreWaehlen)} />
-              </SelectTrigger>
-              <SelectContent>
-                {['Spielfilm', 'Dokumentation', 'Kurzfilm', 'Serie', 'Werbefilm'].map(g => (
-                  <SelectItem key={g} value={g} className="text-xs">{tt(onboardingGenreT[g])}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              value={data.genre}
+              onChange={e => onChange('genre', e.target.value)}
+              placeholder={tt(onboardingT.genreBeispiel)}
+              className="mt-1 h-8 text-xs"
+            />
           </div>
           <div>
             <Label className="text-xs text-muted-foreground">{tt(onboardingT.format)}</Label>
-            <Input
-              value={data.format}
-              onChange={e => onChange('format', e.target.value)}
-              placeholder={tt(onboardingT.formatBeispiel)}
-              className="mt-1 h-8 text-xs"
-            />
+            <Select value={data.format} onValueChange={v => onChange('format', v)}>
+              <SelectTrigger className="mt-1 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ALL_FORMATS.map(f => (
+                  <SelectItem key={f} value={f} className="text-xs">{onboardingFormatT[f] ? tt(onboardingFormatT[f]) : f}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
@@ -369,8 +374,8 @@ export function OnboardingWizard({ kontoId }: { kontoId?: number }) {
   const [importResult, setImportResult] = useState<{ scenes_created: number; blocks_created: number } | null>(null)
   const [form, setForm] = useState<FormData>({
     title: '',
-    genre: 'Kurzfilm',
-    format: '',
+    genre: '',
+    format: 'Kurzfilm',
     director: '',
     producer: '',
     dop: '',
@@ -443,7 +448,9 @@ export function OnboardingWizard({ kontoId }: { kontoId?: number }) {
           }
         }
       `}</style>
-      <Dialog open={open} onOpenChange={() => {}}>
+      {/* Klick daneben und Escape bleiben gesperrt; das X oben rechts beendet den
+          Assistenten wie "Überspringen" - vorher tat es nichts. */}
+      <Dialog open={open} onOpenChange={offen => { if (!offen) handleSkip() }}>
         <DialogContent
           className="sm:max-w-md"
           onInteractOutside={e => e.preventDefault()}
@@ -451,7 +458,7 @@ export function OnboardingWizard({ kontoId }: { kontoId?: number }) {
         >
           {/* Der Titel bleibt unsichtbar - der Dialog hat seine eigene
               Kopfzeile. Eine Vorleseanwendung braucht ihn trotzdem, sonst (texte-ok: Kommentar)
-              kuendigt sie nur "Dialog" an. */}
+              kündigt sie nur "Dialog" an. */}
           <DialogTitle asChild>
             <NurVorlesen>{tt(onboardingT.einrichtung)}</NurVorlesen>
           </DialogTitle>

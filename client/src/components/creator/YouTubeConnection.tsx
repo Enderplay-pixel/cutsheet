@@ -57,8 +57,9 @@ export function YouTubeConnection({ projectId }: { projectId: number }) {
     onSuccess: (data: any) => {
       setSyncResult(data)
       queryClient.invalidateQueries({ queryKey: ['yt-status', projectId] })
-      queryClient.invalidateQueries({ queryKey: ['creator-overview', projectId] })
-      queryClient.invalidateQueries({ queryKey: ['creator-videos', projectId] })
+      // Der Abgleich ändert Aufrufe, Haltekurven und Zuordnungen - also alles,
+      // was die Creator-Seiten zeigen, nicht nur Übersicht und Videoliste
+      queryClient.invalidateQueries({ predicate: q => String(q.queryKey[0]).startsWith('creator-') })
       toast({
         title: tt(youTubeT.abgleichFertig),
         description: [

@@ -378,6 +378,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 162 | `components/layout/Sidebar.tsx` | Fehler (Navigation) | Die aktive Seite wurde nur am ersten Pfadabschnitt erkannt: Jede Creator-Unterseite (Kanal, Serien, Sponsoren …) galt als "Videos" - zwei Einträge markiert, die Gruppe der Seite blieb zugeklappt. Der Trenner der schmalen Leiste verglich die Gruppe mit dem Wort "Übersicht" (englisch nie gleich). Die Zahl am Eintrag "Konflikte" fehlte im vorgelesenen Namen. | ja: in einem dafür angelegten Creator-Projekt auf "Kanal" markiert "Kanal" und "Videos", Gruppe "Kanal & Planung" zu | behoben: Zuordnung über zwei Abschnitte, Projekt-Einträge markiert die eigene Zuordnung; Trenner nach Position; Name mit Zahl. Danach gemessen: "Kanal" allein und Gruppe offen, "Videos" auf der Videoliste, "Tagesdispo" auf `/tagesdispo/402`, "Konflikte (1)", Admin-Statistik einfach markiert. Prüfprojekt gelöscht |
 | 163 | `client/src/lib/utils.ts` (`getStripClass`) | Fehler (Anzeige) | Die Streifenfarbe im Drehplan, in der Ablage und in der Shotlist kannte nur INT/EXT × TAG/NACHT. Alles andere wurde Außen-Nacht: INT MORGEN, INT DÄMMERUNG, EXT MORGEN und jede INT/EXT-Szene. Die Szenenübersicht bietet MORGEN, DÄMMERUNG und INT/EXT zur Auswahl an, der Textimport erkennt sie. | ja: alle zwölf Kombinationen über das Modul im Browser - acht davon "ext-nacht" | behoben: MORGEN zählt als Tag, DÄMMERUNG als Nacht, INT/EXT als Außen. **Die beiden letzten Zuordnungen sind ein Vorschlag - Florian kann umentscheiden.** Danach gemessen: INT MORGEN "int-tag", INT DÄMMERUNG "int-nacht", INT/EXT TAG "ext-tag" |
 | 164 | `client/src/index.css`, `components/drehplan/SceneStrip.tsx` | Barrierefreiheit | 27 Bedienknöpfe erscheinen nur beim Überfahren mit der Maus (`opacity-0 group-hover:opacity-100`); für Touch gab es eine Regel, für die Tastatur nicht - wer mit Tab dorthin kam, fokussierte einen unsichtbaren Knopf. Dazu fest deutsche Vorlesetexte am Szenenstreifen ("… verschieben", "… aus Drehtag entfernen"). | ja: Entfernen-Knopf am Szenenstreifen mit Fokus Deckkraft 0. Erster Messversuch ungültig - Übergänge laufen im Vorschaufenster nicht weiter, erst `getAnimations().finish()` zeigt den Endwert | behoben: eine Regel `.group:focus-within` für alle 27 Stellen; Texte übersetzt. Danach gemessen: mit Fokus 1, ohne 0; Gegenprobe mit zur Laufzeit entfernter Regel: mit Fokus 0 |
+| 165 | `components/creator/YouTubeConnection.tsx`, `RetentionChart.tsx`, `BereichLayout.tsx` | Klein | Nach dem YouTube-Abgleich wurden nur Übersicht und Videoliste neu geladen; Performance, Muster, Haltekurven und Einzelvideo zeigten bis zu 30 Sekunden alte Zahlen. Die Haltekurve zeigte Werte nur bei Mausbewegung - am Tablet nie - und die Legende nannte "Hook" auch ohne Hook-Abschnitt. | Abgleich aus dem Code (lokal keine YouTube-Zugangsdaten, nicht gemessen); Haltekurve ja: mit Beispieldaten in der Seite gerendert | behoben: der Abgleich erneuert alle `creator-…`-Abfragen; Zeigerereignisse statt Maus, Hinweistext angepasst, "Hook" nur bei Hook-Abschnitt. Danach gemessen: Legende ohne Hook-Abschnitt nur "Sponsor"; Antippen bei der Hälfte zeigt "Bei 1:00 schauen noch 60 %" (Kurve 60 %) |
+| 166 | `components/OnboardingWizard.tsx` | **Fehler** | Der Einrichtungsassistent für neue Konten bot unter "Genre" die Formate an (Spielfilm, Kurzfilm …) und unter "Format" einen Freitext für die Technik ("z. B. 4K, 16 mm"). Überall sonst ist das Genre frei und das Format eine Auswahl - und am Format hängt, ob ein Film- oder Creator-Projekt entsteht. Wer einen YouTube-Kanal anlegen wollte, bekam immer ein Filmprojekt. Das X oben rechts tat nichts (`onOpenChange={() => {}}`). | ja, mit temporärem Konto über die Oberfläche: Projekt mit Genre "Kurzfilm", Format leer; X geklickt, Dialog blieb offen | behoben: Genre Freitext, Format Auswahl aller Formate (mit Creator-Formaten, übersetzt), X beendet wie "Überspringen". Danach gemessen: Genre "Doku", Format "YouTube-Video", Projektart `creator`; X schließt und setzt den Merker. Konto samt Projekten gelöscht |
 
 ### Verknüpfungen
 
@@ -392,6 +394,8 @@ Kandidaten stehen hier, bis sie gebaut oder verworfen sind.
 | Suche nach Figur oder Darstellerin | Figur, Besetzung, Szenen, Drehtage der Figur | gebaut, Fund 156 |
 | Projekttitel und andere Projektangaben | Kopfleiste, Seitenleiste, Dashboard sofort nach dem Speichern | gebaut, Fund 160 |
 | Nächster Drehtag (Kopfleiste) | Tagesdispo genau dieses Tages | gebaut, Fund 161 |
+| Format im Einrichtungsassistenten | Projektart Film oder Creator (Seitenleiste, Bereiche) | gebaut, Fund 166 |
+| YouTube-Abgleich | alle Creator-Seiten (Performance, Haltekurven, Einzelvideo) | gebaut, Fund 165 |
 | Suchtreffer Szene | die Szene selbst im Drehbuch | Kandidat: Treffer führen zur Szenenübersicht, die Seite kennt kein Sprungziel für eine Szene |
 | Rollen der Szene | Spalte "Cast" der Dispo, Rollennummer | gebaut, Fund 116 |
 | Komparse ↔ Drehtag | Dispo, PDF, Vertrag, Jugendschutz, Verpflegung, Check-in | gebaut, Fund 119 |
@@ -663,12 +667,12 @@ Gesamt: 421 Dateien, 87774 Zeilen
 ### Client: Komponenten
 
 - [x] `client/src/components/ErrorBoundary.tsx` (41) - gelesen (ohne Befund)
-- [ ] `client/src/components/OnboardingWizard.tsx` (506)
+- [x] `client/src/components/OnboardingWizard.tsx` (506) - gelesen (Fund 166)
 - [x] `client/src/components/ProtectedRoute.tsx` (13) - gelesen (ohne Befund)
 - [x] `client/src/components/SkipLink.tsx` (14) - gelesen (ohne Befund)
-- [ ] `client/src/components/creator/BereichLayout.tsx` (145)
-- [ ] `client/src/components/creator/RetentionChart.tsx` (199)
-- [ ] `client/src/components/creator/YouTubeConnection.tsx` (182)
+- [x] `client/src/components/creator/BereichLayout.tsx` (145) - gelesen (ohne Befund, Kommentar-Umlaut)
+- [x] `client/src/components/creator/RetentionChart.tsx` (199) - gelesen (Fund 165)
+- [x] `client/src/components/creator/YouTubeConnection.tsx` (182) - gelesen (Fund 165)
 - [x] `client/src/components/drehplan/ScenePool.tsx` (83) - gelesen (ohne eigenen Befund (Farben: Fund 163))
 - [x] `client/src/components/drehplan/SceneStrip.tsx` (73) - gelesen (Funde 163, 164)
 - [x] `client/src/components/drehplan/ShootDayColumn.tsx` (131) - gelesen (ohne Befund; Sperrtag siehe Merkzettel)
