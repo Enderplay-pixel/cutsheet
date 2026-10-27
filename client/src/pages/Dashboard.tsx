@@ -81,7 +81,7 @@ export function Component() {
   const firstName = (user?.name || '').split(' ')[0]
 
   const { data: project } = useQuery({
-    queryKey: ['project', projectId],
+    queryKey: ['project', Number(projectId)],
     queryFn: () => api.projects.get(Number(projectId))
   })
 
@@ -90,11 +90,11 @@ export function Component() {
     if (project?.is_demo) track('demo_project_opened')
   }, [project?.is_demo])
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['stats', projectId],
+    queryKey: ['stats', Number(projectId)],
     queryFn: () => api.projects.stats(Number(projectId))
   })
   const { data: conflicts } = useQuery({
-    queryKey: ['conflicts', projectId],
+    queryKey: ['conflicts', Number(projectId)],
     queryFn: () => api.conflicts(Number(projectId))
   })
 
@@ -102,7 +102,7 @@ export function Component() {
   // vorher standen dort vier Nullen aus der Filmwelt.
   const creatorProjekt = isCreatorProject(project)
   const { data: kanal } = useQuery({
-    queryKey: ['creator-overview', projectId],
+    queryKey: ['creator-overview', Number(projectId)],
     queryFn: () => api.creator.overview(Number(projectId)),
     enabled: !!projectId && creatorProjekt,
   })

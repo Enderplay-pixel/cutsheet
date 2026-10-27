@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useProjectStore } from '@/store/useProjectStore'
 import { useQuery } from '@tanstack/react-query'
@@ -51,13 +51,13 @@ export function Sidebar() {
   ]
 
   const { data: project } = useQuery({
-    queryKey: ['project', projectId],
+    queryKey: ['project', Number(projectId)],
     queryFn: () => api.projects.get(Number(projectId)),
     enabled: !!projectId,
   })
 
   const { data: conflicts } = useQuery({
-    queryKey: ['conflicts', projectId],
+    queryKey: ['conflicts', Number(projectId)],
     queryFn: () => api.conflicts(Number(projectId)),
     enabled: !!projectId,
     refetchInterval: 60_000,
@@ -66,11 +66,11 @@ export function Sidebar() {
 
   const isCreator = isCreatorProject(project)
 
-  // Creator hat eigene Bereiche, nicht umbenannte Filmseiten. Die Daten dafuer
-  // lagen laengst in creator_videos - Serie, Zielbegriff, Titelvarianten,
-  // Sponsorenfelder, Haltequote - nur sichtbar war das alles ausschliesslich
-  // innerhalb eines einzelnen Videos. Ein Kanal wird aber quer ueber alle
-  // Videos gefuehrt.
+  // Creator hat eigene Bereiche, nicht umbenannte Filmseiten. Die Daten dafür
+  // lagen längst in creator_videos - Serie, Zielbegriff, Titelvarianten,
+  // Sponsorenfelder, Haltequote - nur sichtbar war das alles ausschließlich
+  // innerhalb eines einzelnen Videos. Ein Kanal wird aber quer über alle
+  // Videos geführt.
   const creatorGroups: NavGroupDef[] = [
     {
       label: tt(navT.overview),
@@ -222,7 +222,7 @@ export function Sidebar() {
         { label: tt(navT.dailyReport), icon: FileCheck, path: 'tagesbericht' },
         { label: tt(navT.timeAnalysis), icon: TableProperties, path: 'zeitanalyse' },
         { label: tt(navT.timesheets), icon: Clock, path: 'timesheets' },
-        // Eigene Ansicht fuers Telefon am Set, ausserhalb des Projektlayouts.
+        // Eigene Ansicht fürs Telefon am Set, außerhalb des Projektlayouts.
         // Absoluter Pfad, deshalb der Sonderfall beim Linkbau weiter unten.
         { label: tt(navT.setView), icon: Clapperboard, path: '/set' },
       ]
@@ -254,20 +254,28 @@ export function Sidebar() {
 
   const navGroups = isCreator ? creatorGroups : filmGroups
 
-  // Which group contains the currently active route?
-  const activeSegment = useMemo(() => {
+  // Welcher Eintrag gehört zur aktuellen Seite? Zwei Abschnitte vor einem:
+  // Vorher zählte nur der erste, und jede Seite unter creator/ (Kanal, Serien,
+  // Sponsoren …) galt als "Videos" - gemessen am 27.10.2026: auf "Kanal"
+  // waren "Kanal" und "Videos" markiert, die Gruppe von "Kanal" blieb zu.
+  // creator/<Kennung> (ein einzelnes Video) gehört weiter zu "Videos".
+  const aktiverPfad = useMemo(() => {
     if (!projectId) return null
     const rest = location.pathname.split(`/projects/${projectId}`)[1] || ''
-    return rest.split('/').filter(Boolean)[0] ?? ''
-  }, [location.pathname, projectId])
-
-  const activeGroupLabel = useMemo(() => {
-    if (activeSegment === null) return null
-    const group = navGroups.find(g => g.items.some(i => i.path === activeSegment))
-    return group?.label ?? null
+    const abschnitte = rest.split('/').filter(Boolean)
+    const zwei = abschnitte.slice(0, 2).join('/')
+    if (abschnitte.length >= 2 && navGroups.some(g => g.items.some(i => i.path === zwei))) return zwei
+    return abschnitte[0] ?? ''
     // navGroups is rebuilt each render but its structure is static
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSegment, conflictCount])
+  }, [location.pathname, projectId, isCreator])
+
+  const activeGroupLabel = useMemo(() => {
+    if (aktiverPfad === null) return null
+    const group = navGroups.find(g => g.items.some(i => i.path === aktiverPfad))
+    return group?.label ?? null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aktiverPfad, conflictCount, isCreator])
 
   // Open/closed state per group - persisted, default: open
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(loadOpenGroups)
@@ -289,7 +297,7 @@ export function Sidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGroupLabel])
 
-  // Nach der Auswahl schliessen, sonst verdeckt die Schublade genau die Seite,
+  // Nach der Auswahl schließen, sonst verdeckt die Schublade genau die Seite,
   // die man gerade angetippt hat
   useEffect(() => { setMobileNav(false) }, [location.pathname, setMobileNav])
 
@@ -312,8 +320,8 @@ export function Sidebar() {
       'flex flex-col h-dvh bg-canvas border-r border-border/70 sidebar-transition relative',
       // Ab md wie bisher eine feste Spalte im Fluss
       'md:shrink-0 md:translate-x-0 md:static md:z-auto',
-      // Darunter eine Schublade ueber dem Inhalt: 220 px fester Abzug waeren
-      // auf einem 375-px-Display mehr als die Haelfte des Bildschirms
+      // Darunter eine Schublade über dem Inhalt: 220 px fester Abzug wären
+      // auf einem 375-px-Display mehr als die Hälfte des Bildschirms
       'fixed inset-y-0 left-0 z-50 w-[248px]',
       mobileNavOpen ? 'translate-x-0' : '-translate-x-full',
       sidebarCollapsed ? 'md:w-[60px]' : 'md:w-[240px]'
@@ -347,11 +355,13 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3 px-2" aria-label={tt(sidebarT.hauptnavigation)} role="navigation">
         {pid ? (
-          navGroups.map((group) => (
+          navGroups.map((group, index) => (
             <NavGroup
               key={group.label}
               group={group}
               pid={pid}
+              erste={index === 0}
+              aktiverPfad={aktiverPfad}
               collapsed={sidebarCollapsed}
               open={openGroups[group.label] !== false}
               isActiveGroup={group.label === activeGroupLabel}
@@ -414,19 +424,22 @@ export function Sidebar() {
   )
 }
 
-function NavGroup({ group, pid, collapsed, open, isActiveGroup, onToggle }: {
+function NavGroup({ group, pid, erste, aktiverPfad, collapsed, open, isActiveGroup, onToggle }: {
   group: NavGroupDef
   pid: string
+  erste: boolean
+  aktiverPfad: string | null
   collapsed: boolean
   open: boolean
   isActiveGroup: boolean
   onToggle: () => void
 }) {
   // Collapsed rail: no group headers, just a thin separator
+  // (vorher per Vergleich mit 'Übersicht' - englisch heißt die Gruppe anders)
   if (collapsed) {
     return (
       <div className="mb-1">
-        {group.label !== 'Übersicht' && <div className="my-2 mx-2 h-px bg-border" />}
+        {!erste && <div className="my-2 mx-2 h-px bg-border" />}
         {group.items.map(item => (
           <NavItem
             key={item.path}
@@ -434,7 +447,7 @@ function NavGroup({ group, pid, collapsed, open, isActiveGroup, onToggle }: {
             to={item.path === '' ? `/projects/${pid}`
               : item.path.startsWith('/') ? item.path
               : `/projects/${pid}/${item.path}`}
-            end={item.path === ''}
+            aktiv={item.path === aktiverPfad}
             collapsed
           />
         ))}
@@ -483,7 +496,7 @@ function NavGroup({ group, pid, collapsed, open, isActiveGroup, onToggle }: {
               to={item.path === '' ? `/projects/${pid}`
               : item.path.startsWith('/') ? item.path
               : `/projects/${pid}/${item.path}`}
-              end={item.path === ''}
+              aktiv={item.path === aktiverPfad}
               collapsed={false}
             />
           ))}
@@ -493,47 +506,53 @@ function NavGroup({ group, pid, collapsed, open, isActiveGroup, onToggle }: {
   )
 }
 
-function NavItem({ item, to, end, collapsed }: {
+function NavItem({ item, to, aktiv, collapsed }: {
   item: NavItemDef
   to: string
-  end?: boolean
+  /** Projektseiten: aus dem genauen Pfad bestimmt. Ohne Angabe entscheidet der Router. */
+  aktiv?: boolean
   collapsed: boolean
 }) {
-  return (
-    <NavLink
-      to={to}
-      end={end}
-      title={item.label}
-      aria-label={item.label}
-      className={({ isActive }) => cn(
-        'flex items-center gap-2.5 px-2.5 h-[30px] rounded-lg text-[13px] group relative',
-        'transition-[background-color,color,box-shadow,transform] duration-150',
-        'active:scale-[0.98]',
-        collapsed && 'md:justify-center md:px-0',
-        isActive
-          ? 'bg-foreground/[0.08] text-foreground font-medium'
-          : 'text-foreground/80 hover:text-foreground hover:bg-foreground/[0.04]'
-      )}
-    >
-      {({ isActive }) => (
+  // Die Zahl am Eintrag (Konflikte) gehört auch in den vorgelesenen Namen
+  const name = item.badge != null ? `${item.label} (${item.badge})` : item.label
+  const klasse = (an: boolean) => cn(
+    'flex items-center gap-2.5 px-2.5 h-[30px] rounded-lg text-[13px] group relative',
+    'transition-[background-color,color,box-shadow,transform] duration-150',
+    'active:scale-[0.98]',
+    collapsed && 'md:justify-center md:px-0',
+    an
+      ? 'bg-foreground/[0.08] text-foreground font-medium'
+      : 'text-foreground/80 hover:text-foreground hover:bg-foreground/[0.04]'
+  )
+  const inhalt = (
+    <>
+      <item.icon className={cn(
+        'shrink-0 transition-[color,transform] duration-150',
+        collapsed ? 'w-[15px] h-[15px]' : 'w-[14px] h-[14px]',
+        'text-primary'
+      )} />
+      {!collapsed && (
         <>
-          <item.icon className={cn(
-            'shrink-0 transition-[color,transform] duration-150',
-            collapsed ? 'w-[15px] h-[15px]' : 'w-[14px] h-[14px]',
-            'text-primary'
-          )} />
-          {!collapsed && (
-            <>
-              <span className="flex-1 truncate">{item.label}</span>
-              {item.badge != null && (
-                <span className="ml-1 min-w-[18px] h-[18px] px-1.5 rounded-full bg-foreground/[0.08] text-muted-foreground text-[11px] font-medium flex items-center justify-center tabular-nums">
-                  {item.badge}
-                </span>
-              )}
-            </>
+          <span className="flex-1 truncate">{item.label}</span>
+          {item.badge != null && (
+            <span className="ml-1 min-w-[18px] h-[18px] px-1.5 rounded-full bg-foreground/[0.08] text-muted-foreground text-[11px] font-medium flex items-center justify-center tabular-nums">
+              {item.badge}
+            </span>
           )}
         </>
       )}
+    </>
+  )
+  if (aktiv !== undefined) {
+    return (
+      <Link to={to} title={item.label} aria-label={name} aria-current={aktiv ? 'page' : undefined} className={klasse(aktiv)}>
+        {inhalt}
+      </Link>
+    )
+  }
+  return (
+    <NavLink to={to} end title={item.label} aria-label={name} className={({ isActive }) => klasse(isActive)}>
+      {inhalt}
     </NavLink>
   )
 }

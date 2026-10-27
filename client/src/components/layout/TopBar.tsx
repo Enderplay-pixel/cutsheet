@@ -10,6 +10,9 @@ import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { toggleThemeWithReveal } from '@/lib/motion'
 import { topBarTexteT, topBarDrehtagT, topBarExtraTitelT } from '@/lib/texte/komponenten/Layout'
 
+// Strg+K und ⌘K öffnen beide die Suche; angezeigt wird, was auf der Tastatur steht
+const IST_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+
 interface TopBarProps {
   onSearchOpen: () => void
 }
@@ -24,13 +27,13 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
   const pageTitle = resolvePageTitle(location.pathname, tt)
 
   const { data: project } = useQuery({
-    queryKey: ['project', projectId],
+    queryKey: ['project', Number(projectId)],
     queryFn: () => api.projects.get(Number(projectId)),
     enabled: !!projectId,
   })
 
   const { data: stats } = useQuery({
-    queryKey: ['stats', projectId],
+    queryKey: ['stats', Number(projectId)],
     queryFn: () => api.projects.stats(Number(projectId)),
     enabled: !!projectId,
   })
@@ -75,7 +78,8 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
       {/* Next shoot day - the one number everyone on a production thinks in */}
       {daysUntilShoot !== null && daysUntilShoot >= 0 && (
         <button
-          onClick={() => navigate(`/projects/${projectId}/tagesdispo`)}
+          // Direkt in die Dispo dieses Tages - ohne Kennung zeigte die Seite Tag 1
+          onClick={() => navigate(`/projects/${projectId}/tagesdispo/${stats.next_shoot_day.id}`)}
           title={tt(topBarDrehtagT.oeffnen).replace('{n}', String(stats.next_shoot_day.day_number))}
           className={cn(
             'hidden md:flex items-center gap-2 h-8 pl-3 pr-3.5 rounded-full text-xs font-medium tabular-nums',
@@ -101,7 +105,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
       >
         <Search className="w-3 h-3 shrink-0" />
         <span className="flex-1 text-left">{tt(topBarT.searchBtn)}</span>
-        <kbd>⌘K</kbd>
+        <kbd>{IST_MAC ? '⌘K' : tt(topBarTexteT.strgK)}</kbd>
       </button>
 
       <button
@@ -125,7 +129,7 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
   )
 }
 
-// Seiten ohne Eintrag in topBarT.pageTitles - sonst stuende in der Kopfzeile
+// Seiten ohne Eintrag in topBarT.pageTitles - sonst stünde in der Kopfzeile
 // nur der Projektname
 const EXTRA_TITLES = topBarExtraTitelT
 

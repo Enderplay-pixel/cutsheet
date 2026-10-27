@@ -22,6 +22,7 @@ export const sidebarT = {
 /** Texte für components/layout/TopBar.tsx, die in topBarT fehlen */
 export const topBarTexteT = {
   navigationOeffnen: { de: 'Navigation öffnen', en: 'Open navigation', fr: 'Ouvrir la navigation' },
+  strgK:             { de: 'Strg K', en: 'Ctrl K', fr: 'Ctrl K' },
 } satisfies Record<string, Text>
 
 /** Weitere Texte für components/layout/TopBar.tsx */

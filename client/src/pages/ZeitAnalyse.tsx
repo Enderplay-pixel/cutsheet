@@ -34,7 +34,7 @@ export function Component() {
   const tt = useT()
 
   const { data: rows, isLoading } = useQuery({
-    queryKey: ['time-analysis', projectId],
+    queryKey: ['time-analysis', Number(projectId)],
     queryFn: () => api.timeAnalysis(Number(projectId)),
   })
 
