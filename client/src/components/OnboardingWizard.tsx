@@ -93,6 +93,10 @@ function StepProjekt({
   onBack: () => void
 }) {
   const tt = useT()
+  // Wie in Projektliste und Stammdaten: Genre frei, Format aus der Liste.
+  // Vorher bot "Genre" die Formate an und "Format" war ein Freitext für die
+  // Technik - gemessen am 27.10.2026: Genre "Kurzfilm", Format leer. Am
+  // Format hängt, ob ein Film- oder Creator-Projekt entsteht.
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
@@ -118,10 +122,6 @@ function StepProjekt({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            {/* Wie in Projektliste und Stammdaten: Genre frei, Format aus der
-                Liste. Vorher bot "Genre" die Formate an und "Format" war ein
-                Freitext für die Technik - gemessen am 27.10.2026: Genre
-                "Kurzfilm", Format leer. Am Format hängt Film oder Creator. */}
             <Label className="text-xs text-muted-foreground">{tt(onboardingT.genre)}</Label>
             <Input
               value={data.genre}
