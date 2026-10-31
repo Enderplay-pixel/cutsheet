@@ -21,6 +21,7 @@ import type { Lang } from '@/lib/i18n'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { angeboteT, angebotStatusT } from '@/lib/texte/Angebote'
 import { parseISO } from 'date-fns'
+import { heuteISO } from '@/lib/utils'
 
 const euro = (cents: number, gebietsschema: string) =>
   (Number(cents || 0) / 100).toLocaleString(gebietsschema, { style: 'currency', currency: 'EUR' })
@@ -28,7 +29,7 @@ const euro = (cents: number, gebietsschema: string) =>
 const datum = (wert: string | null | undefined, gebietsschema: string) =>
   wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString(gebietsschema) : '-'
 
-const heute = () => new Date().toISOString().slice(0, 10)
+const heute = () => heuteISO()
 
 const STATUS: Record<string, { label: Record<Lang, string>; klasse: string }> = {
   entwurf:    { label: angebotStatusT.entwurf,    klasse: 'bg-muted text-muted-foreground' },

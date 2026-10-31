@@ -13,11 +13,12 @@ import { useToast } from '@/components/ui/use-toast'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { buchhaltungT } from '@/lib/texte/Buchhaltung'
 import { Download, Info, AlertTriangle, ArrowLeft, Save, FileSpreadsheet } from 'lucide-react'
+import { heuteISO } from '@/lib/utils'
 
 const euro = (cents: number, gebietsschema: string) =>
   (Number(cents || 0) / 100).toLocaleString(gebietsschema, { style: 'currency', currency: 'EUR' })
 
-const heute = () => new Date().toISOString().slice(0, 10)
+const heute = () => heuteISO()
 const jahresanfang = () => `${new Date().getFullYear()}-01-01`
 
 export function Component() {

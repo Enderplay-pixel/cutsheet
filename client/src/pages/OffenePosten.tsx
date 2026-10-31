@@ -19,6 +19,7 @@ import {
   FileText, ArrowLeft, Info,
 } from 'lucide-react'
 import { parseISO } from 'date-fns'
+import { heuteISO } from '@/lib/utils'
 
 const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
@@ -26,7 +27,7 @@ const euro = (cents: number) =>
 const datum = (wert: string | null | undefined) =>
   wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
 
-const heute = () => new Date().toISOString().slice(0, 10)
+const heute = () => heuteISO()
 
 /** Basispunkte als Prozentsatz: 1052 wird zu "10,52 %". */
 const prozent = (bp: number) =>

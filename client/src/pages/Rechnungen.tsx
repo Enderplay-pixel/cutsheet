@@ -22,6 +22,7 @@ import { useDownload, useAnsehen } from '@/lib/useDownload'
 import type { Lang } from '@/lib/i18n'
 import { rechnungenT as T } from '@/lib/texte/Rechnungen'
 import { parseISO } from 'date-fns'
+import { heuteISO } from '@/lib/utils'
 
 const STATUS: Record<string, { label: Record<Lang, string>; klasse: string }> = {
   entwurf:    { label: T.entwurf,    klasse: 'bg-muted text-muted-foreground' },
@@ -36,7 +37,7 @@ const euro = (cents: number, gs: string) =>
 const datum = (wert: string | null, gs: string) =>
   wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString(gs) : ''
 
-const heute = () => new Date().toISOString().slice(0, 10)
+const heute = () => heuteISO()
 
 export function Component() {
   const { companyId, invoiceId } = useParams()

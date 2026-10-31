@@ -15,11 +15,12 @@ import {
   TrendingUp, Download, ArrowLeft, Info, AlertTriangle, Palette, Check, X, HelpCircle,
 } from 'lucide-react'
 import { parseISO } from 'date-fns'
+import { heuteISO } from '@/lib/utils'
 
 const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
 
-const heute = () => new Date().toISOString().slice(0, 10)
+const heute = () => heuteISO()
 const jahresanfang = () => `${new Date().getFullYear()}-01-01`
 
 /** Promille als Prozent mit einer Nachkommastelle: 723 wird zu "72,3 %". */

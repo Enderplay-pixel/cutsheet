@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { formatCurrency, formatDateLong, cn } from '@/lib/utils'
+import { formatCurrency, formatDateLong, cn, heuteISO } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import {
@@ -153,7 +153,7 @@ export function Component() {
   const go = (path: string) => navigate(`/projects/${projectId}/${path}`)
 
   const isCreator = creatorProjekt
-  const heuteIso = new Date().toISOString().slice(0, 10)
+  const heuteIso = heuteISO()
   const naechstesVideo = (kanal?.calendar ?? []).find((e: any) => !e.published && e.date && e.date >= heuteIso)
   const tageBisVideo = naechstesVideo ? differenceInCalendarDays(parseISO(naechstesVideo.date), new Date()) : null
   const veroeffentlichtPct = kanal?.video_count ? Math.round((kanal.published_count / kanal.video_count) * 100) : 0

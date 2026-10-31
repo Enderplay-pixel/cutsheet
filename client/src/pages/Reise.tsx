@@ -17,6 +17,7 @@ import {
 import { useToast } from '@/components/ui/use-toast'
 import { BedDouble, Car, Plus, Trash2, Download, Info, Coffee } from 'lucide-react'
 import { parseISO } from 'date-fns'
+import { heuteISO } from '@/lib/utils'
 
 const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
@@ -212,7 +213,7 @@ function ReiseAnlegen({ pid, schliessen, angelegt }: {
   pid: number; schliessen: () => void; angelegt: (id: number) => void
 }) {
   const { toast } = useToast()
-  const heute = new Date().toISOString().slice(0, 10)
+  const heute = heuteISO()
   const [werte, setWerte] = useState({
     person_type: 'crew',
     person_id: '',

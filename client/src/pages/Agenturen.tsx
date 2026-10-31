@@ -18,6 +18,7 @@ import {
   Building2, Send, Plus, Trash2, Clock, Check, X, UserPlus, Bell, Info, AlertTriangle,
 } from 'lucide-react'
 import { parseISO } from 'date-fns'
+import { heuteISO } from '@/lib/utils'
 
 const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
@@ -25,7 +26,7 @@ const euro = (cents: number) =>
 const datum = (wert: string | null | undefined) =>
   wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
 
-const heute = () => new Date().toISOString().slice(0, 10)
+const heute = () => heuteISO()
 
 /** Betrag aus einem Textfeld in Cent - ganzzahlig, ohne Fließkomma. */
 function alsCents(text: string): number {
