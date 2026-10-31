@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertTriangle, Plus, Trash2, CalendarOff, Users } from 'lucide-react'
+import { formatDate } from '@/lib/utils'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 const API_BASE = '/api'
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
@@ -21,6 +23,11 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
   if (!res.ok) throw new Error(json.error || 'Fehler')
   return json.data
 }
+
+/** Deckender Hintergrund der festen Namensspalte (wie Fund 205 im DOOD). */
+const deckend = (tönung: number) => ({
+  background: `linear-gradient(hsl(var(--muted) / ${tönung}), hsl(var(--muted) / ${tönung})), hsl(var(--card))`,
+})
 
 function addDays(date: Date, days: number): Date {
   const d = new Date(date)
@@ -63,6 +70,7 @@ export function Component() {
   const { projectId: id } = useParams<{ projectId: string }>()
   const pid = Number(id)
   const queryClient = useQueryClient()
+  const { darfSchreiben } = useSchreibrecht()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState({ cast_id: '', start_date: '', end_date: '', reason: '' })
@@ -106,6 +114,13 @@ export function Component() {
     },
   })
 
+  // Ein Sperrtag kann eine Absprache sein, die ein anderer getroffen hat -
+  // nicht auf einen Klick löschen
+  const loeschen = (b: any, name: string) => {
+    if (confirm(`Sperrtag von ${name} (${formatDate(b.start_date)} - ${formatDate(b.end_date)}) löschen?`)) deleteMutation.mutate(b.id)
+  }
+  const endeVorBeginn = !!form.start_date && !!form.end_date && form.end_date < form.start_date
+
   const allDates: Date[] = []
   ;(shootDays || []).forEach((d: any) => { if (d.date) allDates.push(parseDate(d.date)) })
   ;(blackouts || []).forEach((b: any) => {
@@ -144,14 +159,16 @@ export function Component() {
                 <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mt-1">Sperrtage</div>
               </div>
             </div>
-            <Button
-              size="sm"
-              onClick={() => setDialogOpen(true)}
-              className="active:scale-[0.97] ml-4"
-            >
-              <Plus className="w-4 h-4 mr-1.5" />
-              Sperrtag hinzufügen
-            </Button>
+            {darfSchreiben && (
+              <Button
+                size="sm"
+                onClick={() => setDialogOpen(true)}
+                className="active:scale-[0.97] ml-4"
+              >
+                <Plus className="w-4 h-4 mr-1.5" />
+                Sperrtag hinzufügen
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -167,7 +184,9 @@ export function Component() {
           </div>
           {conflicts.map((c: any, i: number) => (
             <div key={i} className="text-xs text-destructive/70 pl-11">
-              {c.cast_name || c.actor_name}: Drehtag {c.shoot_date} kollidiert mit Sperrtag ({c.start_date} - {c.end_date})
+              {/* Der Server liefert { shoot_day, cast_name, blackout } (routes/blackoutDates.ts).
+                  Vorher las die Seite flache Felder: "Drehtag  kollidiert mit Sperrtag ( - )". */}
+              {c.cast_name}: Drehtag {c.shoot_day?.day_number} ({formatDate(c.shoot_day?.date)}) kollidiert mit Sperrtag ({formatDate(c.blackout?.start_date)} - {formatDate(c.blackout?.end_date)})
             </div>
           ))}
         </div>
@@ -183,7 +202,7 @@ export function Component() {
           <table className="w-full text-xs border-collapse min-w-[600px]">
             <thead>
               <tr className="border-b border-border/40">
-                <th className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground bg-muted/30 w-44 min-w-[176px] sticky left-0 z-10">
+                <th style={deckend(0.3)} className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-44 min-w-[176px] sticky left-0 z-10">
                   Darsteller
                 </th>
                 {weeks.map((w, i) => (
@@ -221,7 +240,7 @@ export function Component() {
                     key={member.id}
                     className={`border-b border-border/30 transition-colors ${rowIdx % 2 === 1 ? 'bg-muted/10' : ''} hover:bg-muted/20`}
                   >
-                    <td className="px-5 py-3 sticky left-0 z-10 bg-inherit border-r border-border/30">
+                    <td style={deckend(rowIdx % 2 === 1 ? 0.1 : 0)} className="px-5 py-3 sticky left-0 z-10 border-r border-border/30">
                       <div className="flex items-center gap-2.5">
                         <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center shrink-0 text-[11px] font-bold text-muted-foreground/70">
                           {initials}
@@ -260,17 +279,18 @@ export function Component() {
                     })}
                     <td className="px-2 py-2">
                       <div className="flex flex-col gap-1">
-                        {memberBlackouts.map((b: any) => (
+                        {darfSchreiben && memberBlackouts.map((b: any) => (
                           <button
                             key={b.id}
-                            onClick={() => deleteMutation.mutate(b.id)}
+                            onClick={() => loeschen(b, name)}
                             className="flex items-center gap-1 text-[10px] text-muted-foreground/50 hover:text-destructive transition-colors active:scale-[0.97] group"
-                            title={`${b.start_date} - ${b.end_date}${b.reason ? ': ' + b.reason : ''}`}
+                            title={`${formatDate(b.start_date)} - ${formatDate(b.end_date)}${b.reason ? ': ' + b.reason : ''}`}
+                            aria-label={`Sperrtag ${formatDate(b.start_date)} - ${formatDate(b.end_date)} löschen`}
                           >
                             <div className="w-5 h-5 rounded-md flex items-center justify-center group-hover:bg-destructive/10 transition-colors">
                               <Trash2 className="w-3 h-3" />
                             </div>
-                            <span className="truncate max-w-[56px] tabular-nums">{b.start_date}</span>
+                            <span className="truncate max-w-[56px] tabular-nums">{formatDate(b.start_date)}</span>
                           </button>
                         ))}
                       </div>
@@ -323,17 +343,19 @@ export function Component() {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium">{name}</div>
                     <div className="text-xs text-muted-foreground/60 mt-0.5 tabular-nums">
-                      {b.start_date} - {b.end_date}
+                      {formatDate(b.start_date)} - {formatDate(b.end_date)}
                       {b.reason && <span className="ml-2 not-italic">· {b.reason}</span>}
                     </div>
                   </div>
-                  <button
-                    onClick={() => deleteMutation.mutate(b.id)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors active:scale-[0.97]"
-                    title="Sperrtag löschen"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {darfSchreiben && (
+                    <button
+                      onClick={() => loeschen(b, name)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors active:scale-[0.97]"
+                      title="Sperrtag löschen" aria-label={`Sperrtag ${formatDate(b.start_date)} - ${formatDate(b.end_date)} löschen`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               )
             })}
@@ -388,6 +410,7 @@ export function Component() {
                 />
               </div>
             </div>
+            {endeVorBeginn && <p role="alert" className="text-xs text-destructive">Das Ende liegt vor dem Beginn</p>}
             <div>
               <Label className="text-sm font-medium">
                 Grund <span className="text-muted-foreground/50 font-normal">(optional)</span>
@@ -411,7 +434,7 @@ export function Component() {
                   end_date: form.end_date,
                   reason: form.reason,
                 })}
-                disabled={!form.cast_id || !form.start_date || !form.end_date || addMutation.isPending}
+                disabled={!form.cast_id || !form.start_date || !form.end_date || endeVorBeginn || addMutation.isPending}
                 className="active:scale-[0.97]"
               >
                 Hinzufügen

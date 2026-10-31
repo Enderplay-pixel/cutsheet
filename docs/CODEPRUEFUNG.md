@@ -106,8 +106,6 @@ Stand am 24.10.2026, 23 Uhr:
   **`Tagesdispo.tsx:725`** speichert verzögert auf Seitenebene mit wechselndem
   Drehtag - beim Lesen wie Fund 201 messen (tippen, innerhalb der Wartezeit
   blättern).
-  **Feste Namensspalte durchsichtig** (wie Fund 205): `SperrtageKalender.tsx:224`
-  hat `bg-inherit` auf durchsichtigen Zeilen (EquipmentKalender: Fund 214).
   **Drei Tageszählungen je Darsteller:** Die Kalkulation (`routes/budget.ts`,
   `tageJePerson`) zählt Dispo-Einträge, DOOD und Besetzung zählen Drehtage mit
   Szenen der Figur. Seit Fund 121 trägt die Dispo die Darsteller selbst ein,
@@ -442,6 +440,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 212 | `server/src/routes/aiScheduling.ts`, `server/src/routes/drehplan.ts` | **Fehler, Datenverlust** | Die KI-Optimierung sicherte den Plan vorher als `{ shoot_days, scenes }`. Das Wiederherstellen erwartete eine Liste von Tagen und brach mit 500 ab. Weil der Fehler erst nach dem Löschen aller Zuordnungen kam, stand danach ein leerer Drehplan da. Die versprochene "Sicherung vorher" ließ sich nie zurückholen. | ja: Test mit einer Sicherung im alten Format, 500 | behoben: KI sichert über `ladeDrehtageMitSzenen` im selben Format wie "Version speichern". Wiederherstellen liest auch das alte Format und läuft als Transaktion: alles oder nichts, `ON CONFLICT DO NOTHING` statt abgefangener Fehler. Danach gemessen: Test grün, Szene wieder an Tag 1; Fund-211-Test weiter grün |
 | 213 | `client/src/pages/Setplan.tsx` | Fehler | Neue Symbole wurden nach Anzahl beschriftet. Nach dem Löschen von Kamera B aus A, B, C hieß die neue wieder C (wie Fund 207). Die Schieberegler für Blickrichtung und Größe sendeten jeden Schritt als eigene Anfrage samt Neuladen: zehn Schritte, zehn Anfragen, ein Zug über die Blickrichtung leicht dreihundert. Leser sahen Palette, Neuer Plan, Hochladen und Löschen, konnten Symbole ziehen und Felder bearbeiten. | ja: A, B, C, B gelöscht, neu ergab A, C, C; 10 Schritte = 10 Anfragen | behoben: Kameras bekommen den ersten freien Buchstaben, andere die höchste Zahl plus eins. Regler speichern beim Loslassen (Maus, Tastatur, Fokuswechsel), die Anzeige folgt live. Leser sehen den Plan ohne Bearbeitung. Danach gemessen: neue Kamera "B". 10 Schritte: 0 Anfragen während, 1 beim Loslassen, gespeichert 100°. Die Lese-Sperre nicht gesondert gemessen |
 | 214 | `client/src/pages/EquipmentKalender.tsx` | Fehler | Die Doppelbuchungs-Anzeige las die Server-Antwort falsch. Der Server meldet Paare `{ booking_a, booking_b }`, die Seite erwartete einzelne Buchungen. Text: "Equipment #undefined: Überlappung undefined - undefined". Die rote Markierung im Raster, das Warnsymbol und die Plakette "Konflikt" erschienen nie. Dazu: Namensspalte durchscheinend wie Fund 205 (Merkzettel), Daten roh, Buchungen ohne Rückfrage gelöscht, der Löschknopf der Übersicht ohne Namen. "Ende vor Beginn" wurde angenommen, Leser sahen alle Knöpfe. | ja: Prüfprojekt mit zwei überlappenden Buchungen | behoben: Überlappung je Paar berechnet. Deckender Hintergrund der Namensspalte, `formatDate`, Rückfrage mit Gerät und Zeitraum, Namen für alle Löschknöpfe, Hinweis und Sperre bei Ende vor Beginn, Anlegen und Löschen nur mit Schreibrecht. Danach gemessen: "Alexa Mini: Überlappung 10.11.2026 - 12.11.2026", 7 rote Wochenzellen, Warnsymbol, Plaketten. Rückfrage "Buchung von Alexa Mini (02.11.2026 - 20.12.2026) löschen?", 0 Knöpfe ohne Namen, Hinweis "Das Ende liegt vor dem Beginn". Die Knopfsperre dabei nicht gemessen |
+| 215 | `client/src/pages/SperrtageKalender.tsx` | Fehler | Die Konfliktmeldung las die Server-Antwort falsch (wie Fund 214). Der Server liefert `{ shoot_day, cast_name, blackout }`, angezeigt wurde "Greta Gans: Drehtag  kollidiert mit Sperrtag ( - )", also ohne Drehtag und ohne Zeitraum. Dazu: Namensspalte durchscheinend (Merkzettel), Daten roh, Sperrtage ohne Rückfrage gelöscht, "Ende vor Beginn" angenommen, Leser sahen alle Knöpfe. | ja: Prüfprojekt mit Darstellerin, Szene am Drehtag 11.11. und Sperrtag 10.-12.11. | behoben: Konflikt aus `shoot_day` und `blackout` gelesen. Deckender Hintergrund, `formatDate`, Rückfrage mit Name und Zeitraum, Namen für die Löschknöpfe, Hinweis und Sperre bei Ende vor Beginn, Knöpfe nur mit Schreibrecht. Die Seite bleibt bis zu Florians Entscheidung deutsch. Danach gemessen: "Greta Gans: Drehtag 1 (11.11.2026) kollidiert mit Sperrtag (10.11.2026 - 12.11.2026)", Rückfrage "Sperrtag von Greta Gans (10.11.2026 - 12.11.2026) löschen?", Übersicht "10.11.2026 - 12.11.2026" |
 
 ### Verknüpfungen
 
@@ -860,7 +859,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/pages/Setplan.tsx` (420) - gelesen (Fund 213)
 - [ ] `client/src/pages/Settings.tsx` (648)
 - [x] `client/src/pages/Shotlist.tsx` (372) - gelesen (Fund 207)
-- [ ] `client/src/pages/SperrtageKalender.tsx` (425)
+- [x] `client/src/pages/SperrtageKalender.tsx` (425) - gelesen (Fund 215; bleibt deutsch (Merkzettel))
 - [x] `client/src/pages/Stabliste.tsx` (312) - gelesen (Fund 198)
 - [ ] `client/src/pages/StaebchenplanNew.tsx` (472)
 - [ ] `client/src/pages/Stammdaten.tsx` (496)
