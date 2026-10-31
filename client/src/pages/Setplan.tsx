@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -32,10 +33,7 @@ const ITEM_TYPES = [
 ]
 const typeOf = (kind: string) => ITEM_TYPES.find(t => t.kind === kind) ?? ITEM_TYPES[ITEM_TYPES.length - 1]
 
-/** Nächste Beschriftung: Kameras bekommen Buchstaben, alles andere Zahlen. */
-function nextLabel(kind: string, items: any[]): string {
-  const n = items.filter(i => i.kind === kind).length
-  if (kind !== 'kamera') return String(n + 1)
+const buchstaben = (n: number) => {
   let label = ''
   let rest = n
   do {
@@ -45,6 +43,48 @@ function nextLabel(kind: string, items: any[]): string {
   return label
 }
 
+/**
+ * Nächste Beschriftung: Kameras den ersten freien Buchstaben, alles andere die
+ * höchste Zahl plus eins. Vorher die Anzahl - nach dem Löschen von Kamera B aus
+ * A, B, C hieß die neue wieder C (gemessen am 31.10.2026).
+ */
+function nextLabel(kind: string, items: any[]): string {
+  const vergeben = new Set(items.filter(i => i.kind === kind).map(i => String(i.label ?? '')))
+  if (kind === 'kamera') {
+    let n = 0
+    while (vergeben.has(buchstaben(n))) n++
+    return buchstaben(n)
+  }
+  const hoechste = [...vergeben].reduce((m, l) => Math.max(m, parseInt(l, 10) || 0), 0)
+  return String(hoechste + 1)
+}
+
+/**
+ * Schieberegler, der erst beim Loslassen speichert. Vorher ging jeder Schritt
+ * als eigene Anfrage hinaus: zehn Schritte, zehn Anfragen (gemessen am
+ * 31.10.2026), ein Zug über die Blickrichtung leicht dreihundert.
+ */
+function Regler({ wert, min, max, step, onFertig, beschriftung, disabled }: {
+  wert: number; min: number; max: number; step?: number
+  onFertig: (wert: number) => void
+  beschriftung: (wert: number) => React.ReactNode
+  disabled?: boolean
+}) {
+  const [lokal, setLokal] = useState(wert)
+  useEffect(() => setLokal(wert), [wert])
+  const fertig = () => { if (lokal !== wert) onFertig(lokal) }
+  return (
+    <div>
+      {beschriftung(lokal)}
+      <input
+        type="range" min={min} max={max} step={step} value={lokal} disabled={disabled} className="w-full mt-1"
+        onChange={e => setLokal(Number(e.target.value))}
+        onPointerUp={fertig} onKeyUp={fertig} onBlur={fertig}
+      />
+    </div>
+  )
+}
+
 export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
@@ -52,6 +92,7 @@ export function Component() {
   const { toast } = useToast()
   const download = useDownload()
   const tt = useT()
+  const { darfSchreiben } = useSchreibrecht()
 
   const [activeId, setActiveId] = useState<number | null>(null)
   const [selected, setSelected] = useState<number | null>(null)
@@ -182,9 +223,11 @@ export function Component() {
                 <Download className="w-3.5 h-3.5 mr-1.5" />PDF
               </Button>
             )}
-            <Button size="sm" onClick={() => createPlan.mutate()}>
-              <Plus className="w-4 h-4 mr-1.5" />{tt(setplanT.neuerPlan)}
-            </Button>
+            {darfSchreiben && (
+              <Button size="sm" onClick={() => createPlan.mutate()}>
+                <Plus className="w-4 h-4 mr-1.5" />{tt(setplanT.neuerPlan)}
+              </Button>
+            )}
           </div>
         }
       />
@@ -196,9 +239,11 @@ export function Component() {
           <p className="mt-1 text-xs text-muted-foreground/70 max-w-md mx-auto">
             {tt(setplanT.nochKeinerText)}
           </p>
-          <Button size="sm" className="mt-4" onClick={() => createPlan.mutate()}>
-            <Plus className="w-4 h-4 mr-1.5" />{tt(setplanT.erstenPlanAnlegen)}
-          </Button>
+          {darfSchreiben && (
+            <Button size="sm" className="mt-4" onClick={() => createPlan.mutate()}>
+              <Plus className="w-4 h-4 mr-1.5" />{tt(setplanT.erstenPlanAnlegen)}
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid lg:grid-cols-[210px_1fr_230px] gap-4">
@@ -257,8 +302,9 @@ export function Component() {
                     id={`sym-${i.id}`}
                     onPointerDown={e => {
                       e.preventDefault()
-                      ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
                       setSelected(i.id)
+                      if (!darfSchreiben) return
+                      ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
                       setDragging(i.id)
                     }}
                     style={{ left: `${i.x * 100}%`, top: `${i.y * 100}%` }}
@@ -306,7 +352,7 @@ export function Component() {
             </div>
 
             {/* Symbolpalette */}
-            <div className="flex flex-wrap gap-1.5 mt-3">
+            {darfSchreiben && <div className="flex flex-wrap gap-1.5 mt-3">
               {ITEM_TYPES.map(t => (
                 <button
                   key={t.kind}
@@ -317,14 +363,16 @@ export function Component() {
                   {tt(t.label)}
                 </button>
               ))}
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground/70">
-              {tt(setplanT.symbolHinweis)}
-            </p>
+            </div>}
+            {darfSchreiben && (
+              <p className="mt-2 text-xs text-muted-foreground/70">
+                {tt(setplanT.symbolHinweis)}
+              </p>
+            )}
           </div>
 
-          {/* Einstellungen */}
-          <div className="space-y-4">
+          {/* Einstellungen - ohne Schreibrecht gesperrt */}
+          <fieldset disabled={!darfSchreiben} className="space-y-4 border-0 p-0 m-0 min-w-0">
             <div>
               <Label className="text-xs text-muted-foreground">{tt(setplanT.name)}</Label>
               <Input
@@ -371,24 +419,24 @@ export function Component() {
                 </div>
 
                 {typeOf(selectedItem.kind).directional && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                      <RotateCw className="w-3 h-3" />{tt(setplanT.blickrichtung).replace('{n}', String(selectedItem.rotation ?? 0))}
-                    </Label>
-                    <input
-                      type="range" min="0" max="359" value={selectedItem.rotation ?? 0} className="w-full mt-1"
-                      onChange={e => updateItem.mutate({ id: selectedItem.id, patch: { rotation: Number(e.target.value) } })}
-                    />
-                  </div>
+                  <Regler
+                    key={`r-${selectedItem.id}`}
+                    wert={selectedItem.rotation ?? 0} min={0} max={359}
+                    onFertig={w => updateItem.mutate({ id: selectedItem.id, patch: { rotation: w } })}
+                    beschriftung={w => (
+                      <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                        <RotateCw className="w-3 h-3" />{tt(setplanT.blickrichtung).replace('{n}', String(w))}
+                      </Label>
+                    )}
+                  />
                 )}
 
-                <div>
-                  <Label className="text-xs text-muted-foreground">{tt(setplanT.groesse).replace('{n}', String(selectedItem.size ?? 100))}</Label>
-                  <input
-                    type="range" min="40" max="300" step="10" value={selectedItem.size ?? 100} className="w-full mt-1"
-                    onChange={e => updateItem.mutate({ id: selectedItem.id, patch: { size: Number(e.target.value) } })}
-                  />
-                </div>
+                <Regler
+                  key={`g-${selectedItem.id}`}
+                  wert={selectedItem.size ?? 100} min={40} max={300} step={10}
+                  onFertig={w => updateItem.mutate({ id: selectedItem.id, patch: { size: w } })}
+                  beschriftung={w => <Label className="text-xs text-muted-foreground">{tt(setplanT.groesse).replace('{n}', String(w))}</Label>}
+                />
 
                 <Button variant="ghost" size="sm" className="w-full text-muted-foreground hover:text-destructive"
                   onClick={() => removeItem.mutate(selectedItem.id)}>
@@ -414,7 +462,7 @@ export function Component() {
               onClick={() => { if (confirm(tt(setplanT.loeschenFrage).replace('{name}', plan?.name ?? ''))) deletePlan.mutate() }}>
               <Trash2 className="w-3.5 h-3.5 mr-1.5" />{tt(setplanT.planLoeschen)}
             </Button>
-          </div>
+          </fieldset>
         </div>
       )}
     </div>
