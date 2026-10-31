@@ -447,6 +447,18 @@ export const contactsT = {
   colDept:        { en: 'Dept / Role',          de: 'Abteilung / Rolle',       fr: 'Département / Rôle'      },
   colEmail:       { en: 'Email',                de: 'E-Mail',                  fr: 'E-mail'                  },
   colPhone:       { en: 'Phone',                de: 'Telefon',                 fr: 'Téléphone'               },
+  filterExtras:   { en: 'Extras',               de: 'Komparsen',               fr: 'Figurants'               },
+  filterLocations:{ en: 'Locations',            de: 'Motive',                  fr: 'Décors'                  },
+  als:            { en: 'as {figur}',           de: 'als {figur}',             fr: 'dans le rôle de {figur}' },
+  rolleDarsteller:{ en: 'Actor',                de: 'Darsteller',              fr: 'Comédien'                },
+  gruppeCast:     { en: 'Cast',                 de: 'Cast',                    fr: 'Casting'                 },
+  rolleKomparse:  { en: 'Extra',                de: 'Komparse',                fr: 'Figurant'                },
+  gruppeKomparse: { en: 'Background',           de: 'Komparserie',             fr: 'Figuration'              },
+  rolleMotiv:     { en: 'Contact for {motiv}',  de: 'Kontakt für {motiv}',     fr: 'Contact pour {motiv}'    },
+  gruppeMotiv:    { en: 'Location',             de: 'Motiv',                   fr: 'Décor'                   },
+  keineMails:     { en: 'No email addresses',   de: 'Keine E-Mail-Adressen vorhanden', fr: 'Aucune adresse e-mail' },
+  csvExport:      { en: 'CSV export',           de: 'CSV-Export',              fr: 'Export CSV'              },
+  vcardTitel:     { en: 'All contacts as vCard for your address book (iOS/Android/Outlook)', de: 'Alle Kontakte als vCard fürs Adressbuch (iOS/Android/Outlook)', fr: "Tous les contacts en vCard pour le carnet d'adresses (iOS/Android/Outlook)" },
 }
 
 // ─── Stammdaten ───────────────────────────────────────────────────────────────

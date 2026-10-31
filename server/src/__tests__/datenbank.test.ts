@@ -147,6 +147,8 @@ beforeAll(async () => {
   app.use('/api', optionalAuth, suchRouter)
   const { default: abschlussRouter } = await import('../routes/abschluss')
   app.use('/api', optionalAuth, abschlussRouter)
+  const { default: kontakteRouter } = await import('../routes/contactsExport')
+  app.use('/api', optionalAuth, kontakteRouter)
   const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
   app.use(uebersetzeDatenbankfehler)
   await new Promise<void>((aufloesen) => {
@@ -2283,6 +2285,21 @@ describe('Komparsen an Drehtagen', () => {
     expect((await hole(pfad, tokenInhaber, { method: 'PUT', body: JSON.stringify({ drehtage: [fremderTag] }) })).status).toBe(404)
     expect((await hole(pfad, tokenInhaber, { method: 'PUT', body: JSON.stringify({ drehtage: '1' }) })).status).toBe(400)
     expect(await db.get('SELECT id FROM call_sheets WHERE shoot_day_id = ?', [fremderTag])).toBeUndefined()
+  })
+})
+
+describe('Kontakt-Export', () => {
+  it('nimmt Komparsen und die Mail der Motiv-Kontakte mit und entschärft Formeln', async () => {
+    await db.run("INSERT INTO crew (project_id, name, role) VALUES (?, '=1+1', 'Licht')", [projektId])
+    await db.run("INSERT INTO extras (project_id, name, phone, tariff_group) VALUES (?, 'Kim Komparse', '0151 1', 'Standard')", [projektId])
+    await db.run("INSERT INTO locations (project_id, name, contact_name, contact_email) VALUES (?, 'Hafen', 'Hanna Hafen', 'hanna@beispiel.de')", [projektId])
+
+    const antwort = await fetch(`${basis}/api/projects/${projektId}/kontakte/export.csv`, { headers: { Authorization: `Bearer ${tokenInhaber}` } })
+    expect(antwort.status).toBe(200)
+    const zeilen = (await antwort.text()).split('\r\n')
+    expect(zeilen).toContain("'=1+1;Licht;Stab;;")
+    expect(zeilen).toContain('Kim Komparse;Komparse (Standard);Komparserie;;0151 1')
+    expect(zeilen.find(z => z.startsWith('Hanna Hafen'))).toContain('hanna@beispiel.de')
   })
 })
 

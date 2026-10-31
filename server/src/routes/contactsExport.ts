@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
+import { schreibeCsv } from '../lib/tabelle'
 
 const router = Router()
 
@@ -24,14 +25,21 @@ async function collectContacts(projectId: string | number): Promise<Contact[]> {
     [projectId]
   ) as any[]
   const locations = await db.all(
-    'SELECT contact_name as name, name as role, contact_phone as phone FROM locations WHERE project_id = ? AND contact_name != \'\'',
+    'SELECT contact_name as name, name as role, contact_phone as phone, contact_email as email FROM locations WHERE project_id = ? AND contact_name != \'\'',
+    [projectId]
+  ) as any[]
+  // Komparsen gehören dazu (Fund 179): vorher fehlten sie, und Motiv-Kontakte
+  // kamen ohne ihre E-Mail, obwohl die Spalte gepflegt wird
+  const extras = await db.all(
+    'SELECT name, tariff_group, email, phone FROM extras WHERE project_id = ? ORDER BY name',
     [projectId]
   ) as any[]
 
   return [
     ...crew.map(c => ({ name: c.name || '', role: c.role || '', group: 'Stab', email: c.email || '', phone: c.phone || '' })),
     ...cast.map(c => ({ name: c.name || '', role: c.role ? `Rolle: ${c.role}` : 'Cast', group: 'Besetzung', email: c.email || '', phone: c.phone || '' })),
-    ...locations.map(l => ({ name: l.name || '', role: `Motiv-Kontakt: ${l.role || ''}`, group: 'Motive', email: '', phone: l.phone || '' })),
+    ...extras.map(e => ({ name: e.name || '', role: e.tariff_group ? `Komparse (${e.tariff_group})` : 'Komparse', group: 'Komparserie', email: e.email || '', phone: e.phone || '' })),
+    ...locations.map(l => ({ name: l.name || '', role: `Motiv-Kontakt: ${l.role || ''}`, group: 'Motive', email: l.email || '', phone: l.phone || '' })),
   ].filter(c => c.name)
 }
 
@@ -67,15 +75,14 @@ router.get('/projects/:projectId/kontakte/export.vcf', requireAuth, requireMembe
 // GET /api/projects/:projectId/kontakte/export.csv
 router.get('/projects/:projectId/kontakte/export.csv', requireAuth, requireMember, async (req: Request, res: Response) => {
   const contacts = await collectContacts(req.params.projectId)
-  const q = (s: string) => `"${s.replace(/"/g, '""')}"`
-  const csv = ['Name;Funktion;Gruppe;E-Mail;Telefon',
-    ...contacts.map(c => [c.name, c.role, c.group, c.email, c.phone].map(q).join(';'))
-  ].join('\r\n')
+  // schreibeCsv setzt vor =, +, @ … ein Hochkomma: Vorher stand ein Name wie
+  // =HYPERLINK(…) unverändert in der Datei, Excel hätte ihn ausgeführt
+  const csv = schreibeCsv(['Name', 'Funktion', 'Gruppe', 'E-Mail', 'Telefon'],
+    contacts.map(c => [c.name, c.role, c.group, c.email, c.phone]))
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8')
   res.setHeader('Content-Disposition', 'attachment; filename="cutsheet-kontakte.csv"')
-  // BOM für Excel-Umlaute
-  return res.send('﻿' + csv)
+  return res.send(csv)
 })
 
 export default router

@@ -6,10 +6,20 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { Search, Mail, Phone, Copy, Check, Users, User, Download } from 'lucide-react'
+import { Search, Mail, Copy, Check, Users, User, Download, UserRound, MapPin } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { useT } from '@/lib/useT'
 import { contactsT, uiT } from '@/lib/i18n'
+import { useDownload } from '@/lib/useDownload'
+
+type Art = 'crew' | 'cast' | 'extra' | 'location'
+
+const AVATAR: Record<Art, string> = {
+  crew: 'bg-primary/10 text-primary',
+  cast: 'bg-amber-500/10 text-amber-500',
+  extra: 'bg-teal-500/10 text-teal-600 dark:text-teal-400',
+  location: 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
+}
 
 const DEPT_COLORS: Record<string, string> = {
   Regie: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
@@ -37,7 +47,7 @@ function CopyBtn({ text }: { text: string }) {
 }
 
 function ContactRow({ name, role, dept, email, phone, type }: {
-  name: string; role?: string; dept?: string; email?: string; phone?: string; type: 'crew' | 'cast'
+  name: string; role?: string; dept?: string; email?: string; phone?: string; type: Art
 }) {
   return (
     <tr className="border-b border-border/30 hover:bg-muted/20 transition-colors group">
@@ -45,7 +55,7 @@ function ContactRow({ name, role, dept, email, phone, type }: {
         <div className="flex items-center gap-2.5">
           <div className={cn(
             'w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0',
-            type === 'crew' ? 'bg-primary/10 text-primary' : 'bg-amber-500/10 text-amber-500'
+            AVATAR[type]
           )}>
             {name?.[0]?.toUpperCase() || '?'}
           </div>
@@ -86,7 +96,8 @@ export function Component() {
   const { toast } = useToast()
   const tt = useT()
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<'all' | 'crew' | 'cast'>('all')
+  const [filter, setFilter] = useState<'all' | Art>('all')
+  const herunterladen = useDownload()
 
   const { data: crew, isLoading: crewLoading } = useQuery({
     queryKey: ['crew', pid],
@@ -100,6 +111,16 @@ export function Component() {
     queryKey: ['characters', pid],
     queryFn: () => api.characters.list(pid),
   })
+  // Alle Menschen des Projekts an einem Ort (Fund 179): vorher fehlten
+  // Komparsen und die Ansprechpartner der Motive
+  const { data: extras } = useQuery({
+    queryKey: ['extras', pid],
+    queryFn: () => api.extras.list(pid),
+  })
+  const { data: locations } = useQuery({
+    queryKey: ['locations', pid],
+    queryFn: () => api.locations.list(pid),
+  })
 
   const isLoading = crewLoading || castLoading
 
@@ -108,13 +129,23 @@ export function Component() {
   }))
   const castContacts = (castList || []).map((c: any) => {
     const char = (characters || []).find((ch: any) => ch.id === c.character_id)
-    // Darsteller fuehren ihren Namen als actor_name, nicht als name
-    return { ...c, name: c.actor_name || c.name || '', type: 'cast' as const, role: char ? `als ${char.name}` : (c.character_name ? `als ${c.character_name}` : 'Darsteller'), dept: 'Cast' }
+    // Darsteller führen ihren Namen als actor_name, nicht als name
+    const figur = char?.name || c.character_name
+    return { ...c, name: c.actor_name || c.name || '', type: 'cast' as const, role: figur ? tt(contactsT.als).replace('{figur}', figur) : tt(contactsT.rolleDarsteller), dept: tt(contactsT.gruppeCast) }
   })
+  const extraContacts = (extras || []).map((e: any) => ({
+    ...e, type: 'extra' as const, role: e.tariff_group ? `${tt(contactsT.rolleKomparse)} (${e.tariff_group})` : tt(contactsT.rolleKomparse), dept: tt(contactsT.gruppeKomparse),
+  }))
+  const locationContacts = (locations || []).filter((l: any) => l.contact_name).map((l: any) => ({
+    name: l.contact_name, email: l.contact_email, phone: l.contact_phone, type: 'location' as const,
+    role: tt(contactsT.rolleMotiv).replace('{motiv}', l.name || ''), dept: tt(contactsT.gruppeMotiv),
+  }))
 
   const allContacts = [
-    ...(filter !== 'cast' ? crewContacts : []),
-    ...(filter !== 'crew' ? castContacts : []),
+    ...(filter === 'all' || filter === 'crew' ? crewContacts : []),
+    ...(filter === 'all' || filter === 'cast' ? castContacts : []),
+    ...(filter === 'all' || filter === 'extra' ? extraContacts : []),
+    ...(filter === 'all' || filter === 'location' ? locationContacts : []),
   ].filter(c =>
     !search || [c.name, c.role, c.dept, c.email, c.phone]
       .some(v => v?.toLowerCase().includes(search.toLowerCase()))
@@ -122,53 +153,38 @@ export function Component() {
 
   const copyAllEmails = () => {
     const emails = allContacts.map(c => c.email).filter(Boolean).join(', ')
-    if (!emails) { toast({ title: 'Keine E-Mail-Adressen vorhanden', variant: 'destructive' }); return }
+    if (!emails) { toast({ title: tt(contactsT.keineMails), variant: 'destructive' }); return }
     navigator.clipboard.writeText(emails)
     toast({ title: tt(contactsT.copiedToast) })
   }
 
-  const exportCsv = () => {
-    const rows = [['Name', 'Funktion', 'Abteilung', 'E-Mail', 'Telefon']]
-    allContacts.forEach(c => rows.push([c.name || '', c.role || '', c.dept || '', c.email || '', c.phone || '']))
-    const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n')
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = 'kontakte.csv'; a.click()
-    URL.revokeObjectURL(url)
-  }
 
   return (
     <div className="px-5 py-6 sm:p-7 max-w-6xl mx-auto animate-fade-up">
-      {/* Umbrechend statt nebeneinander: drei Ausgabeknoepfe neben der
-          Ueberschrift waren am Telefon 415px breit und zwangen die Seite zum
-          Seitwaertsscrollen. Gemessen am 27.09.2026 bei 375px. */}
+      {/* Umbrechend statt nebeneinander: drei Ausgabeknöpfe neben der
+          Überschrift waren am Telefon 415px breit und zwangen die Seite zum
+          Seitwärtsscrollen. Gemessen am 27.09.2026 bei 375px. */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div className="min-w-0">
           <h1 className="font-display text-[28px] sm:text-[34px]">{tt(contactsT.title)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {tt(contactsT.subtitle).replace('{n}', String(crewContacts.length + castContacts.length))}
+            {tt(contactsT.subtitle).replace('{n}', String(crewContacts.length + castContacts.length + extraContacts.length + locationContacts.length))}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={copyAllEmails} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
             <Mail className="w-3.5 h-3.5" /> {tt(contactsT.copyAllEmails)}
           </button>
-          <button onClick={exportCsv} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
-            <Download className="w-3.5 h-3.5" /> CSV Export
+          {/* Beide Exporte kommen vom Server - eine Quelle, mit Formelschutz
+              (schreibeCsv). Vorher baute die Seite die CSV selbst, ohne Schutz,
+              und der vCard-Knopf schwieg bei einem Fehler. */}
+          <button onClick={() => herunterladen(api.contactsExport.csvUrl(pid), 'cutsheet-kontakte.csv')} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
+            <Download className="w-3.5 h-3.5" /> {tt(contactsT.csvExport)}
           </button>
           <button
-            onClick={async () => {
-              // vCard-Export: alle Kontakte (Stab, Besetzung, Motiv-Kontakte) fürs Adressbuch
-              const token = localStorage.getItem('token')
-              const res = await fetch(api.contactsExport.vcfUrl(pid), { headers: { Authorization: `Bearer ${token}` } })
-              if (!res.ok) return
-              const blob = await res.blob()
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a'); a.href = url; a.download = 'cutsheet-kontakte.vcf'; a.click()
-              URL.revokeObjectURL(url)
-            }}
+            onClick={() => herunterladen(api.contactsExport.vcfUrl(pid), 'cutsheet-kontakte.vcf')}
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
-            title="Alle Kontakte als vCard fürs Adressbuch (iOS/Android/Outlook)"
+            title={tt(contactsT.vcardTitel)}
           >
             <Download className="w-3.5 h-3.5" /> vCard
           </button>
@@ -176,19 +192,23 @@ export function Component() {
       </div>
 
       {/* Filter + Search */}
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex flex-wrap items-center gap-3 mb-5">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input value={search} onChange={e => setSearch(e.target.value)}
             placeholder={tt(contactsT.search)} aria-label={tt(contactsT.search)} className="pl-8 h-8 text-sm" />
         </div>
-        <div className="flex gap-1 bg-muted/40 rounded-lg p-0.5">
-          {(['all', 'crew', 'cast'] as const).map(f => (
+        <div className="flex flex-wrap gap-1 bg-muted/40 rounded-lg p-0.5">
+          {(['all', 'crew', 'cast', 'extra', 'location'] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={cn('flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md transition-colors font-medium',
                 filter === f ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}>
-              {f === 'all' ? tt(contactsT.filterAll) : f === 'crew' ? <><Users className="w-3 h-3" />{tt(contactsT.filterCrew)}</> : <><User className="w-3 h-3" />{tt(contactsT.filterCast)}</>}
+              {f === 'all' ? tt(contactsT.filterAll)
+                : f === 'crew' ? <><Users className="w-3 h-3" />{tt(contactsT.filterCrew)}</>
+                : f === 'cast' ? <><User className="w-3 h-3" />{tt(contactsT.filterCast)}</>
+                : f === 'extra' ? <><UserRound className="w-3 h-3" />{tt(contactsT.filterExtras)}</>
+                : <><MapPin className="w-3 h-3" />{tt(contactsT.filterLocations)}</>}
             </button>
           ))}
         </div>
