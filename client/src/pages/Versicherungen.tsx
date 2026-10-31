@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
 import { Plus, Trash2, Pencil, Check, X, Shield, AlertTriangle } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
-import { cn, betragInCent } from '@/lib/utils'
+import { cn, betragInCent, formatDate } from '@/lib/utils'
+import { parseISO } from 'date-fns'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { uiT, type Lang } from '@/lib/i18n'
 import { versicherungenT } from '@/lib/texte/Versicherungen'
@@ -53,17 +54,25 @@ function formatEuro(cents: number, gebietsschema: string): string {
   return (cents / 100).toLocaleString(gebietsschema, { style: 'currency', currency: 'EUR' })
 }
 
+/** Betrag für das Eingabefeld, so wie man ihn tippt: "1200,00" */
+const alsText = (cents: number) => (Number(cents || 0) / 100).toFixed(2).replace('.', ',')
+
 function parseEuro(val: string): number {
   const cent = betragInCent(val)
   return Number.isNaN(cent) ? 0 : cent
 }
 
+/**
+ * Eine Police gilt bis zum Ende ihres letzten Tages. Vorher galt sie ab
+ * 1 Uhr nachts dieses Tages als abgelaufen (`new Date("JJJJ-MM-TT")` ist
+ * Mitternacht UTC) - gemessen am 31.10.2026: Ende heute, Anzeige "Abgelaufen".
+ */
 function getExpiryStatus(end_date: string): 'expired' | 'soon' | 'ok' | 'none' {
   if (!end_date) return 'none'
-  const end = new Date(end_date).getTime()
+  const tagesende = parseISO(String(end_date).slice(0, 10)).getTime() + 24 * 60 * 60 * 1000
   const now = Date.now()
-  if (end < now) return 'expired'
-  if (end - now < 30 * 24 * 60 * 60 * 1000) return 'soon'
+  if (tagesende <= now) return 'expired'
+  if (tagesende - now < 30 * 24 * 60 * 60 * 1000) return 'soon'
   return 'ok'
 }
 
@@ -88,8 +97,8 @@ function InsuranceCard({ ins, pid, canEdit }: { ins: Insurance; pid: number; can
   const gebietsschema = useGebietsschema()
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ ...ins })
-  const [coverageInput, setCoverageInput] = useState(String(ins.coverage_amount_cents / 100))
-  const [premiumInput, setPremiumInput] = useState(String(ins.premium_cents / 100))
+  const [coverageInput, setCoverageInput] = useState(alsText(ins.coverage_amount_cents))
+  const [premiumInput, setPremiumInput] = useState(alsText(ins.premium_cents))
 
   const set = (key: string, value: any) => setForm(f => ({ ...f, [key]: value }))
 
@@ -145,11 +154,11 @@ function InsuranceCard({ ins, pid, canEdit }: { ins: Insurance; pid: number; can
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">{tt(versicherungenT.deckungEuro)}</label>
-            <Input className={i} type="number" step="0.01" value={coverageInput} onChange={e => setCoverageInput(e.target.value)} placeholder="1000000" />
+            <Input className={i} inputMode="decimal" value={coverageInput} onChange={e => setCoverageInput(e.target.value)} placeholder="1000000" />
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">{tt(versicherungenT.praemieEuro)}</label>
-            <Input className={i} type="number" step="0.01" value={premiumInput} onChange={e => setPremiumInput(e.target.value)} placeholder="1200" />
+            <Input className={i} inputMode="decimal" value={premiumInput} onChange={e => setPremiumInput(e.target.value)} placeholder="1200" />
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">{tt(versicherungenT.beginn)}</label>
@@ -207,7 +216,7 @@ function InsuranceCard({ ins, pid, canEdit }: { ins: Insurance; pid: number; can
             {(ins.start_date || ins.end_date) && (
               <div>
                 <p className="text-xs text-muted-foreground">{tt(versicherungenT.laufzeit)}</p>
-                <p className="text-sm">{ins.start_date || '?'} - {ins.end_date || '?'}</p>
+                <p className="text-sm">{ins.start_date ? formatDate(ins.start_date) : '?'} - {ins.end_date ? formatDate(ins.end_date) : '?'}</p>
               </div>
             )}
           </div>
@@ -218,7 +227,7 @@ function InsuranceCard({ ins, pid, canEdit }: { ins: Insurance; pid: number; can
         {canEdit && (
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             <button
-              onClick={() => { setForm({ ...ins }); setCoverageInput(String(ins.coverage_amount_cents / 100)); setPremiumInput(String(ins.premium_cents / 100)); setEditing(true) }}
+              onClick={() => { setForm({ ...ins }); setCoverageInput(alsText(ins.coverage_amount_cents)); setPremiumInput(alsText(ins.premium_cents)); setEditing(true) }}
               className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground"
               title={tt(uiT.edit)}
             >
@@ -244,8 +253,8 @@ function NewInsuranceForm({ pid, onDone }: { pid: number; onDone: () => void }) 
   const { toast } = useToast()
   const tt = useT()
   const [form, setForm] = useState({ ...EMPTY })
-  const [coverageInput, setCoverageInput] = useState('0')
-  const [premiumInput, setPremiumInput] = useState('0')
+  const [coverageInput, setCoverageInput] = useState('')
+  const [premiumInput, setPremiumInput] = useState('')
   const set = (key: string, value: any) => setForm(f => ({ ...f, [key]: value }))
 
   const createMutation = useMutation({
@@ -284,11 +293,11 @@ function NewInsuranceForm({ pid, onDone }: { pid: number; onDone: () => void }) 
         </div>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">{tt(versicherungenT.deckungEuro)}</label>
-          <Input className={i} type="number" step="0.01" value={coverageInput} onChange={e => setCoverageInput(e.target.value)} placeholder="1000000" />
+          <Input className={i} inputMode="decimal" value={coverageInput} onChange={e => setCoverageInput(e.target.value)} placeholder="1000000" />
         </div>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">{tt(versicherungenT.praemieEuro)}</label>
-          <Input className={i} type="number" step="0.01" value={premiumInput} onChange={e => setPremiumInput(e.target.value)} placeholder="1200" />
+          <Input className={i} inputMode="decimal" value={premiumInput} onChange={e => setPremiumInput(e.target.value)} placeholder="1200" />
         </div>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">{tt(versicherungenT.beginn)}</label>
