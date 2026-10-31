@@ -100,6 +100,11 @@ Stand am 24.10.2026, 23 Uhr:
   **Lesezugriff gesammelt messen:** Aufgaben (Fund 177) und `Budget.tsx` mit
   einem Konto mit Projektrolle `read_only` prüfen, sobald weitere Seiten mit
   Rechte-Lücken dazukommen.
+  **Doppelte Protokolleinträge:** Routen mit eigenem `logAudit` (Abschluss,
+  Verträge, Rechnungen, Zahlungen, Casting …) landen zusätzlich über die
+  automatische Protokollierung (`aenderungenProtokollieren`) im Log - gemessen:
+  Wiederöffnen als "projects" und als "zuruecknehmen". Beim Lesen der
+  Server-Tests klären, ob die Middleware solche Pfade auslassen soll.
   `Budget.tsx` fragt keine Rechte ab: Eine Abteilungsleitung kann tippen,
   der Server lehnt Budget und Finanzierung erst ab Produktion ab (403) - beim
   Lesen der Seite `canEditBudget` aus `useProjectPerms` nutzen.
@@ -397,6 +402,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 178 | `client/src/pages/Abschluss.tsx`, `server/src/routes/abschluss.ts` | Fehler | Nach dem Abschließen blieb das Projekt in der Projektliste bei den aktiven stehen, bis die Liste neu geladen wurde - der Server führt es dann im Archiv. Beim Wiederöffnen setzte der Server immer "Postproduktion", obwohl er den Status von vorher ins Protokoll schreibt, und "öffnete" auch ein gar nicht abgeschlossenes Projekt (wurde dann still Postproduktion). | ja: Demo-Projekt abgeschlossen, Liste zeigte es weiter (66), erst nach Neuladen 65; nach Wiederöffnen "Postproduktion", Zwilling 184 "Vorproduktion" | behoben: Abschließen und Wiederöffnen erneuern die Projektliste; Wiederöffnen nimmt den Status aus dem Protokolleintrag, öffnet nur Abgeschlossenes (sonst 409, Meldung übersetzt). Danach gemessen: nach Wiederöffnen sofort in der Liste (66) ohne Neuladen; Test `Projektabschluss zurücknehmen` (Drehphase bleibt Drehphase, zweites Wiederöffnen 409), gegen den alten Stand rot. Demo-Projekt auf "Vorproduktion" zurückgesetzt |
 | 179 | `client/src/pages/Kontaktliste.tsx`, `server/src/routes/contactsExport.ts`, `lib/i18n.ts` | **Fehler + Verknüpfung** | Die Kontaktliste zeigte nur Stab und Besetzung - Komparsen und die Ansprechpartner der Motive fehlten (der vCard-Export hatte immerhin die Motive). Der CSV-Export der Seite entstand im Browser ohne den Formelschutz, den die Server-Exporte haben; der CSV-Export des Servers hatte ihn auch nicht und blieb ungenutzt. Motiv-Kontakte kamen ohne ihre E-Mail. Der vCard-Knopf schwieg bei einem Fehler. Mehrere Texte fest deutsch ("als …", "Darsteller", "CSV Export"). | ja: 4 Komparsen mit Telefon/Mail nicht in Liste und Export; ein Stabname `=HYPERLINK(…)` stand unverändert in der CSV | behoben: Liste und Filter mit Komparsen und Motiv-Kontakten; beide Exporte vom Server über `useDownload`, CSV über `schreibeCsv`; Texte übersetzt. Danach gemessen: 18 Kontakte (4 Komparsen, 3 Motiv-Kontakte), CSV mit `'=HYPERLINK…` und 4 Komparsen, vCard 18 Karten. Test `Kontakt-Export` (Komparse, Motiv-Mail, Formel), gegen den alten Stand rot. Prüfeintrag gelöscht |
 | 180 | neu `client/src/lib/csv.ts`; `pages/Besetzung.tsx`, `Stabliste.tsx`, `DOOD.tsx`, `Musikliste.tsx` | Fehler (Export) | Vier Seiten bauten ihre CSV im Browser: Komma als Trenner (deutsches Excel zeigt alles in einer Spalte), Beträge als "450.5" statt "450,50", und ohne den Formelschutz der Server-Exporte - ein Name wie `=HYPERLINK(…)` wäre in Excel ausgeführt worden. | aus dem Code, Regeln wie `schreibeCsv` im Server (Fund 134 und Tabellen-Funde) | behoben: ein gemeinsamer Baustein mit denselben Regeln wie der Server (Semikolon, CRLF, Byte-Reihenfolge-Marke, Hochkomma vor Formeln, Beträge mit Komma). Danach gemessen: im Modul `'=1+1`, "-5" unverändert, "450,50", Anführungszeichen richtig; Stabliste-Export mit Semikolon und "450,00" |
+| 181 | `client/src/pages/ActivityFeed.tsx` | Fehler | Der Aktivitäts-Feed filterte und beschriftete nach Tabellennamen (`crew`, `scenes` …). Die automatische Protokollierung schreibt aber deutsche Bezeichnungen ("Stab", "Szene", "Budgetposten" - `ENTITAET` in `routes/audit.ts`), nur einzelne Routen den Tabellennamen. Jeder Filter außer "Alle" blieb leer, kein Eintrag bekam sein Abzeichen. Dazu eine eigene Kopie von `req` mit dem Kopfzeilen-Fehler aus Fund 145. | ja: 19 Einträge, 4 davon "Stab"; Filter "Stab" zeigte 0 | behoben: Zuordnung beider Formen zu den Filtergruppen, Filter "Musik" ergänzt, Abfrage über `api.activity`. Danach gemessen: Filter "Stab" 4 von 19, Abzeichen "Stab" und "Drehtage" (Tagesdispo) |
 
 ### Verknüpfungen
 
@@ -740,7 +746,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/Abnahme.tsx` (672)
 - [ ] `client/src/pages/AbnahmeAnsicht.tsx` (282)
 - [x] `client/src/pages/Abschluss.tsx` (226) - gelesen (Fund 178)
-- [ ] `client/src/pages/ActivityFeed.tsx` (229)
+- [x] `client/src/pages/ActivityFeed.tsx` (229) - gelesen (Fund 181)
 - [ ] `client/src/pages/AdminPanel.tsx` (870)
 - [ ] `client/src/pages/AdminStats.tsx` (504)
 - [ ] `client/src/pages/Agenturen.tsx` (704)

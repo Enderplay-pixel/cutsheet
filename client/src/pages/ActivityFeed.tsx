@@ -8,19 +8,9 @@ import { Activity, Film, Users, Briefcase, DollarSign, Camera, Map, Package, Mus
 import { useT, useGebietsschema } from '@/lib/useT'
 import type { Lang } from '@/lib/i18n'
 import { activityFeedT as T } from '@/lib/texte/ActivityFeed'
+import { api } from '@/lib/api'
 
 type Tt = (map: Record<Lang, string>) => string
-
-const API_BASE = '/api'
-async function req<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('token')
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-  const res = await fetch(`${API_BASE}${path}`, { headers: { ...headers, ...options?.headers }, ...options })
-  const json = await res.json()
-  if (!res.ok) throw new Error(json.error || 'Fehler')
-  return json.data
-}
 
 function formatRelativeTime(ts: string, tt: Tt): string {
   const now = Date.now()
@@ -62,6 +52,28 @@ const ENTITY_CONFIG: Record<string, { label: Record<Lang, string>; icon: any; co
   shots:      { label: T.shotlist, icon: Camera,       color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
 }
 
+/**
+ * entity_type kommt in zwei Formen: Die automatische Protokollierung schreibt
+ * deutsche Bezeichnungen (server/src/routes/audit.ts, ENTITAET), einzelne
+ * Routen den Tabellennamen. Vorher kannte die Seite nur Tabellennamen wie
+ * "crew" - gemessen am 31.10.2026: Filter "Stab" zeigte nichts, obwohl vier
+ * Stab-Einträge da waren, und kein Eintrag bekam sein Abzeichen.
+ */
+const GRUPPE: Record<string, string> = {
+  Szene: 'scenes', Drehbuchblock: 'scenes', Drehbuch: 'scenes', scenes: 'scenes',
+  Darsteller: 'cast', Figur: 'cast', cast: 'cast', characters: 'cast',
+  Stab: 'crew', crew: 'crew',
+  Budgetposten: 'budget', Kalkulationsfassung: 'budget', Finanzierungsfassung: 'budget',
+  Finanzierungsposten: 'budget', Beleg: 'budget', budget: 'budget',
+  Drehtag: 'shoot_days', Tagesdispo: 'shoot_days', 'Dispo-Eintrag': 'shoot_days', Drehplan: 'shoot_days',
+  'Drehplan-Version': 'shoot_days', Tagesbericht: 'shoot_days', shoot_days: 'shoot_days',
+  Motiv: 'locations', Motivvertrag: 'locations', locations: 'locations',
+  Equipment: 'equipment', 'Equipment-Liste': 'equipment', 'Equipment-Position': 'equipment', equipment: 'equipment',
+  'Musik-Cue': 'music', music: 'music',
+  Einstellung: 'shots', Take: 'shots', Kamerabericht: 'shots', shots: 'shots',
+}
+const gruppeVon = (entityType: string) => GRUPPE[entityType] ?? entityType
+
 const FILTER_OPTIONS = [
   { value: 'all',        label: T.alle },
   { value: 'scenes',     label: T.szenen },
@@ -72,11 +84,12 @@ const FILTER_OPTIONS = [
   { value: 'locations',  label: T.motive },
   { value: 'equipment',  label: T.equipment },
   { value: 'shots',      label: T.shotlist },
+  { value: 'music',      label: T.musik },
 ]
 
 function ActivityItem({ item }: { item: any }) {
   const tt = useT()
-  const config = ENTITY_CONFIG[item.entity_type] || {
+  const config = ENTITY_CONFIG[gruppeVon(item.entity_type)] || {
     label: { de: item.entity_type, en: item.entity_type, fr: item.entity_type },
     icon: Activity,
     color: 'bg-muted text-muted-foreground border-border',
@@ -129,12 +142,12 @@ export function Component() {
 
   const { data: activities, isLoading } = useQuery({
     queryKey: ['activity', pid],
-    queryFn: () => req<any[]>(`/projects/${pid}/activity?limit=100`),
+    queryFn: () => api.activity.list(pid, 100),
     refetchInterval: 30000,
   })
 
   const filtered = (activities || []).filter(
-    (a: any) => filter === 'all' || a.entity_type === filter
+    (a: any) => filter === 'all' || gruppeVon(a.entity_type) === filter
   )
 
   // Group by date
