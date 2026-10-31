@@ -149,6 +149,8 @@ beforeAll(async () => {
   app.use('/api', optionalAuth, abschlussRouter)
   const { default: kontakteRouter } = await import('../routes/contactsExport')
   app.use('/api', optionalAuth, kontakteRouter)
+  const { default: einladungRouter } = await import('../routes/invites')
+  app.use('/api', einladungRouter)
   const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
   app.use(uebersetzeDatenbankfehler)
   await new Promise<void>((aufloesen) => {
@@ -2439,5 +2441,26 @@ describe('Anonymisierung nach DSGVO', () => {
     expect((await anonymisiere(projektId, 'cast', darstellerin))?.ersatzname).toBe('Lotsin (entfernt)')
     expect(await db.get('SELECT agent, guardian_phone, birthdate FROM "cast" WHERE id = ?', [darstellerin]))
       .toEqual({ agent: '', guardian_phone: '', birthdate: null })
+  })
+})
+
+describe('Einladung annehmen', () => {
+  it('stuft niemanden herab, der schon mehr Rechte hat - und hebt an, wenn die Einladung mehr gibt', async () => {
+    const projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Einladungsprobe', nutzerId])).id
+    await db.run("INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, 'producer')", [projekt, fremdeId])
+    await db.run("INSERT INTO project_invites (project_id, token, role) VALUES (?, 'lese-link', 'read_only')", [projekt])
+    await db.run("INSERT INTO project_invites (project_id, token, role) VALUES (?, 'admin-link', 'admin')", [projekt])
+    const rolle = async () => (await db.get('SELECT role FROM project_members WHERE project_id = ? AND user_id = ?', [projekt, fremdeId])).role
+
+    // Die Seite nimmt angemeldet automatisch an - ein weitergeleiteter
+    // Lese-Link machte so aus der Produktion still einen Lesezugriff
+    const lesen = await hole('/api/invites/lese-link/accept', tokenFremd, { method: 'POST' })
+    expect(lesen.status).toBe(200)
+    expect(await rolle()).toBe('producer')
+    expect(lesen.daten.role).toBe('producer')
+
+    const mehr = await hole('/api/invites/admin-link/accept', tokenFremd, { method: 'POST' })
+    expect(mehr.status).toBe(200)
+    expect(await rolle()).toBe('admin')
   })
 })

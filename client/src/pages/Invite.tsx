@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,6 +26,7 @@ export function Component() {
   const navigate = useNavigate()
   const tt = useT()
   const { user, login, register } = useAuth()
+  const queryClient = useQueryClient()
 
   const [invite, setInvite]       = useState<any>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -62,6 +64,10 @@ export function Component() {
       })
       const { data, error } = await r.json()
       if (error) throw new Error(error)
+      // Der Server stuft nie herab: angezeigt wird die Rolle, die jetzt gilt,
+      // und das neue Projekt gehört sofort in die Projektliste
+      setInvite((alt: any) => ({ ...alt, role: data.role }))
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
       setAccepted(true)
       setTimeout(() => navigate(`/projects/${data.project_id}`), 2500)
     } catch (e: any) {

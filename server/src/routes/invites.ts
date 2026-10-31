@@ -4,6 +4,7 @@ import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { sendEmail, isSmtpConfigured, appBaseUrl } from './emailService'
 import { maskiere } from '../lib/mailvorlagen'
+import { ROLE_RANK } from '../middleware/projectAuth'
 
 const router = Router()
 
@@ -164,16 +165,19 @@ router.post('/invites/:token/accept', requireAuth, async (req: Request, res: Res
     return res.status(410).json({ data: null, error: 'Dieser Einladungslink ist abgelaufen' })
   }
 
-  // Don't overwrite owner's existing admin role
+  // Eine Einladung hebt an, stuft aber nie herab. Die Seite nimmt angemeldet
+  // automatisch an - vorher machte ein weitergeleiteter Lese-Link aus der
+  // Produktion still einen Lesezugriff (gemessen am 31.10.2026).
   const existing = await db.get('SELECT role FROM project_members WHERE project_id = ? AND user_id = ?', [invite.project_id, req.user!.id]) as any
-  if (!existing || existing.role !== 'admin') {
+  const behalten = existing && (ROLE_RANK[existing.role] ?? 0) >= (ROLE_RANK[invite.role] ?? 0)
+  if (!behalten) {
     await db.run(`
       INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?)
       ON CONFLICT(project_id, user_id) DO UPDATE SET role = excluded.role
     `, [invite.project_id, req.user!.id, invite.role])
   }
 
-  return res.json({ data: { project_id: invite.project_id, project_title: invite.project_title, role: invite.role }, error: null })
+  return res.json({ data: { project_id: invite.project_id, project_title: invite.project_title, role: behalten ? existing.role : invite.role }, error: null })
 })
 
 // ── Mitglieder ─────────────────────────────────────────────────────────────────
