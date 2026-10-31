@@ -380,6 +380,9 @@ sind ein Render-Dienst aus demselben Bau.
 | 164 | `client/src/index.css`, `components/drehplan/SceneStrip.tsx` | Barrierefreiheit | 27 Bedienknöpfe erscheinen nur beim Überfahren mit der Maus (`opacity-0 group-hover:opacity-100`); für Touch gab es eine Regel, für die Tastatur nicht - wer mit Tab dorthin kam, fokussierte einen unsichtbaren Knopf. Dazu fest deutsche Vorlesetexte am Szenenstreifen ("… verschieben", "… aus Drehtag entfernen"). | ja: Entfernen-Knopf am Szenenstreifen mit Fokus Deckkraft 0. Erster Messversuch ungültig - Übergänge laufen im Vorschaufenster nicht weiter, erst `getAnimations().finish()` zeigt den Endwert | behoben: eine Regel `.group:focus-within` für alle 27 Stellen; Texte übersetzt. Danach gemessen: mit Fokus 1, ohne 0; Gegenprobe mit zur Laufzeit entfernter Regel: mit Fokus 0 |
 | 165 | `components/creator/YouTubeConnection.tsx`, `RetentionChart.tsx`, `BereichLayout.tsx` | Klein | Nach dem YouTube-Abgleich wurden nur Übersicht und Videoliste neu geladen; Performance, Muster, Haltekurven und Einzelvideo zeigten bis zu 30 Sekunden alte Zahlen. Die Haltekurve zeigte Werte nur bei Mausbewegung - am Tablet nie - und die Legende nannte "Hook" auch ohne Hook-Abschnitt. | Abgleich aus dem Code (lokal keine YouTube-Zugangsdaten, nicht gemessen); Haltekurve ja: mit Beispieldaten in der Seite gerendert | behoben: der Abgleich erneuert alle `creator-…`-Abfragen; Zeigerereignisse statt Maus, Hinweistext angepasst, "Hook" nur bei Hook-Abschnitt. Danach gemessen: Legende ohne Hook-Abschnitt nur "Sponsor"; Antippen bei der Hälfte zeigt "Bei 1:00 schauen noch 60 %" (Kurve 60 %) |
 | 166 | `components/OnboardingWizard.tsx` | **Fehler** | Der Einrichtungsassistent für neue Konten bot unter "Genre" die Formate an (Spielfilm, Kurzfilm …) und unter "Format" einen Freitext für die Technik ("z. B. 4K, 16 mm"). Überall sonst ist das Genre frei und das Format eine Auswahl - und am Format hängt, ob ein Film- oder Creator-Projekt entsteht. Wer einen YouTube-Kanal anlegen wollte, bekam immer ein Filmprojekt. Das X oben rechts tat nichts (`onOpenChange={() => {}}`). | ja, mit temporärem Konto über die Oberfläche: Projekt mit Genre "Kurzfilm", Format leer; X geklickt, Dialog blieb offen | behoben: Genre Freitext, Format Auswahl aller Formate (mit Creator-Formaten, übersetzt), X beendet wie "Überspringen". Danach gemessen: Genre "Doku", Format "YouTube-Video", Projektart `creator`; X schließt und setzt den Merker. Konto samt Projekten gelöscht |
+| 167 | `client/src/lib/utils.ts` (`parseTime`), genutzt von `components/ui/time-input.tsx` | **Fehler (Daten)** | Das Zeitfeld (General Call, Shooting Call, Calls der Personen) trennte nur am Doppelpunkt. "1630" ohne Doppelpunkt wurde 1630 Stunden, "930" 930 Stunden, "16.30" - in Deutschland üblich - still 16:18, "25:99" 26:39, "-1" -1:00; das Feld übernahm jeden dieser Werte. | ja: über das Modul im Browser, alle Fälle wie beschrieben | behoben: versteht 16:30, 16.30, 1630, 930 und 9; außerhalb 00:00-23:59 ungültig, das Feld springt auf den letzten gültigen Wert. Danach gemessen: im Modul alle Fälle richtig; in der Tagesdispo "0630" wird 06:30, "16.30" wird 16:30; Demo-Wert auf 08:00 zurückgesetzt (Server: 480) |
+| 168 | `client/src/components/ui/label.tsx` | Barrierefreiheit | `Label` verknüpfte sich mit dem ersten Feld im Elternelement. Stehen zwei Paare im selben Container, zeigen beide Beschriftungen auf das erste Feld. `lib/beschriftungen.ts` (für native Beschriftungen) prüfte dagegen schon zuerst das Nachbarelement. | ja: am Baustein gerendert, "Nachname" zeigte auf das Feld von "Vorname". Auf 23 Seiten (ohne geöffnete Dialoge) war es nicht zu sehen: 28 verknüpfte Beschriftungen, keine geteilt | behoben: zuerst das Nachbarelement, sonst das erste noch unbeschriftete Feld. Danach gemessen: zwei Paare richtig, übliches Muster und Hinweistext dazwischen unverändert richtig |
+| 169 | `client/src/components/ui/toast.tsx` | Klein (Barrierefreiheit) | Der Schließen-Knopf der Hinweisfenster war ein Symbol ohne Namen. | aus dem Code | behoben wie beim Dialog (unsichtbarer Text "Schließen" in der gewählten Sprache). Danach gemessen: Name "Schließen" |
 
 ### Verknüpfungen
 
@@ -687,34 +690,34 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/components/shared/ShortcutsModal.tsx` (81) - gelesen (Fund 159)
 - [x] `client/src/components/shared/TestversionBadge.tsx` (39) - gelesen (ohne Befund, Antwortform von /api/health gemessen)
 - [x] `client/src/components/shared/TutorialModal.tsx` (135) - gelesen (Funde 158, 159)
-- [ ] `client/src/components/ui/accordion.tsx` (50)
-- [ ] `client/src/components/ui/alert.tsx` (35)
-- [ ] `client/src/components/ui/avatar.tsx` (29)
-- [ ] `client/src/components/ui/badge.tsx` (36)
-- [ ] `client/src/components/ui/button.tsx` (41)
-- [ ] `client/src/components/ui/card.tsx` (34)
-- [ ] `client/src/components/ui/checkbox.tsx` (30)
+- [x] `client/src/components/ui/accordion.tsx` (50) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/alert.tsx` (35) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/avatar.tsx` (29) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/badge.tsx` (36) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/button.tsx` (41) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/card.tsx` (34) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/checkbox.tsx` (30) - gelesen (ohne Befund)
 - [x] `client/src/components/ui/command.tsx` (94) - gelesen (Funde 155, 158)
-- [ ] `client/src/components/ui/dialog.tsx` (101)
-- [ ] `client/src/components/ui/dropdown-menu.tsx` (173)
-- [ ] `client/src/components/ui/input.tsx` (26)
-- [ ] `client/src/components/ui/label.tsx` (74)
+- [x] `client/src/components/ui/dialog.tsx` (101) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/dropdown-menu.tsx` (173) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/input.tsx` (26) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/label.tsx` (74) - gelesen (Fund 168)
 - [x] `client/src/components/ui/nur-vorlesen.tsx` (28) - gelesen (Fund 158)
-- [ ] `client/src/components/ui/popover.tsx` (34)
-- [ ] `client/src/components/ui/progress.tsx` (15)
-- [ ] `client/src/components/ui/scroll-area.tsx` (32)
-- [ ] `client/src/components/ui/select.tsx` (130)
-- [ ] `client/src/components/ui/separator.tsx` (19)
-- [ ] `client/src/components/ui/skeleton.tsx` (7)
-- [ ] `client/src/components/ui/switch.tsx` (19)
-- [ ] `client/src/components/ui/table.tsx` (48)
-- [ ] `client/src/components/ui/tabs.tsx` (51)
-- [ ] `client/src/components/ui/textarea.tsx` (20)
-- [ ] `client/src/components/ui/time-input.tsx` (77)
-- [ ] `client/src/components/ui/toast.tsx` (106)
-- [ ] `client/src/components/ui/toaster.tsx` (21)
-- [ ] `client/src/components/ui/tooltip.tsx` (32)
-- [ ] `client/src/components/ui/use-toast.ts` (81)
+- [x] `client/src/components/ui/popover.tsx` (34) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/progress.tsx` (15) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/scroll-area.tsx` (32) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/select.tsx` (130) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/separator.tsx` (19) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/skeleton.tsx` (7) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/switch.tsx` (19) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/table.tsx` (48) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/tabs.tsx` (51) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/textarea.tsx` (20) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/time-input.tsx` (77) - gelesen (Fund 167)
+- [x] `client/src/components/ui/toast.tsx` (106) - gelesen (Fund 169)
+- [x] `client/src/components/ui/toaster.tsx` (21) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/tooltip.tsx` (32) - gelesen (ohne Befund)
+- [x] `client/src/components/ui/use-toast.ts` (81) - gelesen (ohne Befund)
 
 ### Client: Seiten
 

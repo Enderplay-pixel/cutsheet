@@ -3,6 +3,13 @@ import * as ToastPrimitives from '@radix-ui/react-toast'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/useT'
+import { uiT } from '@/lib/i18n'
+
+function SchliessenText() {
+  const tt = useT()
+  return <>{tt(uiT.close)}</>
+}
 
 const ToastProvider = ToastPrimitives.Provider
 
@@ -80,6 +87,8 @@ const ToastClose = React.forwardRef<
     {...props}
   >
     <X className="h-4 w-4" />
+    {/* Wie beim Dialog: ohne Text ist der Knopf für Vorleseanwendungen namenlos */}
+    <span className="sr-only"><SchliessenText /></span>
   </ToastPrimitives.Close>
 ))
 ToastClose.displayName = ToastPrimitives.Close.displayName

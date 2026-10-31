@@ -33,9 +33,31 @@ export function formatTime(minutes: number): string {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
 }
 
+/**
+ * Uhrzeit aus Text in Minuten seit Mitternacht, NaN bei Unsinn.
+ *
+ * Versteht 16:30, 16.30, 1630, 930 und 9. Vorher wurde nur am Doppelpunkt
+ * getrennt - gemessen am 31.10.2026: "1630" ergab 1630 Stunden ("1630:00"),
+ * "16.30" still 16:18, "25:99" 26:39, "-1" -1:00, und das Zeitfeld übernahm
+ * es. Gültig ist 00:00 bis 23:59; über Mitternacht rechnet `dauer`.
+ */
 export function parseTime(timeStr: string): number {
-  const [h, m] = timeStr.split(':').map(Number)
-  return h * 60 + (m || 0)
+  const text = timeStr.trim()
+  const mitTrenner = /^(\d{1,2})[:.](\d{1,2})$/.exec(text)
+  const nurZiffern = /^\d{1,4}$/.exec(text)
+  let h: number
+  let m: number
+  if (mitTrenner) {
+    h = Number(mitTrenner[1])
+    m = Number(mitTrenner[2])
+  } else if (nurZiffern) {
+    // Bis zwei Ziffern sind Stunden, drei oder vier enden auf die Minuten
+    h = text.length <= 2 ? Number(text) : Number(text.slice(0, -2))
+    m = text.length <= 2 ? 0 : Number(text.slice(-2))
+  } else {
+    return NaN
+  }
+  return h > 23 || m > 59 ? NaN : h * 60 + m
 }
 
 export function formatCurrency(cents: number): string {

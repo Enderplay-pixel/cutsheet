@@ -25,20 +25,30 @@ let zaehler = 0
  *
  * Statt 217 Stellen von Hand nachzuziehen (und bei der nächsten neuen Zeile
  * wieder daran denken zu müssen), sucht die Beschriftung sich ihr Feld
- * selbst: das erste Eingabefeld im selben Elternelement. Wer `htmlFor`
- * ausdrücklich setzt, behält die Oberhand - dann rührt sich hier nichts.
+ * selbst: zuerst im nächsten Element, sonst das erste noch unbeschriftete
+ * Feld im selben Elternelement. Wer `htmlFor` ausdrücklich setzt, behält die
+ * Oberhand - dann rührt sich hier nichts.
  *
- * Geändert werden ausschliesslich Zugänglichkeitsattribute, nie Werte oder
+ * Vorher galt nur "erstes Feld im Elternelement": Stehen zwei Paare im selben
+ * Container (zweispaltige Zeile), zeigten beide Beschriftungen auf das erste
+ * Feld - gemessen am 31.10.2026, "Nachname" las "Vorname" vor.
+ *
+ * Geändert werden ausschließlich Zugänglichkeitsattribute, nie Werte oder
  * Verhalten.
  */
+const FELD = 'input, textarea, select, [role="combobox"], [role="textbox"]'
+
 function verknuepfe(beschriftung: HTMLLabelElement | null) {
   if (!beschriftung || beschriftung.getAttribute('for')) return
-  const gruppe = beschriftung.parentElement
-  if (!gruppe) return
 
-  const feld = gruppe.querySelector<HTMLElement>(
-    'input, textarea, select, [role="combobox"], [role="textbox"]'
-  )
+  const nachbar = beschriftung.nextElementSibling
+  let feld: HTMLElement | null = nachbar
+    ? (nachbar.matches(FELD) ? nachbar as HTMLElement : nachbar.querySelector<HTMLElement>(FELD))
+    : null
+  if (!feld) {
+    const felder = beschriftung.parentElement?.querySelectorAll<HTMLElement>(FELD) ?? []
+    feld = [...felder].find(f => !f.id || !document.querySelector(`label[for="${CSS.escape(f.id)}"]`)) ?? null
+  }
   if (!feld) return
 
   if (!feld.id) feld.id = `feld-${++zaehler}`
