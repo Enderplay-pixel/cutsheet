@@ -3,7 +3,7 @@ import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import { db } from '../db'
 import { drehortDesTages } from '../lib/dispo'
 import { personAngaben } from '../lib/person'
-import { starteSitzung, AuthUser } from '../middleware/auth'
+import { starteSitzung, AuthUser, requireAuth } from '../middleware/auth'
 
 const router = Router()
 
@@ -37,8 +37,8 @@ router.get('/cse/t/:token', async (req: Request, res: Response) => {
   const entry = await getEntryByToken(req.params.token)
   if (!entry) return res.status(404).json({ data: null, error: 'Link ungültig' })
 
-  // Gesehen heisst: Der persoenliche Link wurde geoeffnet. Frueher stand hier
-  // ein Zaehlpixel in der Mail - das misst nur das Nachladen von Bildern.
+  // Gesehen heißt: Der persönliche Link wurde geöffnet. Früher stand hier
+  // ein Zählpixel in der Mail - das misst nur das Nachladen von Bildern.
   if (!entry.viewed_at) {
     await db.run('UPDATE call_sheet_entries SET viewed_at = NOW() WHERE id = ?', [entry.id])
   }
@@ -101,6 +101,34 @@ router.post('/cse/t/:token/confirm', async (req: Request, res: Response) => {
 
   await db.run('UPDATE call_sheet_entries SET confirmed_at = NOW() WHERE id = ?', [entry.id])
   return res.json({ data: { confirmed: true }, error: null })
+})
+
+// POST /api/cse/t/:token/beitreten - Wer schon ein Konto hat, kommt nach der
+// Anmeldung über den eigenen Dispo-Link ins Projekt (Lesezugriff). Die Seite
+// versprach das schon ("hier anmelden, um das ganze Projekt zu sehen"), es gab
+// aber keinen Weg dorthin. Nur mit der E-Mail-Adresse des Eintrags - ein
+// weitergeleiteter Link reicht nicht.
+router.post('/cse/t/:token/beitreten', requireAuth, async (req: Request, res: Response) => {
+  const entry = await getEntryByToken(req.params.token)
+  if (!entry) return res.status(404).json({ data: null, error: 'Link ungültig' })
+
+  const person = await getPersonForEntry(entry)
+  const email = (person?.email || '').trim().toLowerCase()
+  const konto = await db.get('SELECT email FROM users WHERE id = ?', [req.user!.id]) as { email: string } | undefined
+  if (!email || email !== (konto?.email || '').trim().toLowerCase()) {
+    return res.status(403).json({ data: null, error: 'Dieser Dispo-Link gehört zu einer anderen E-Mail-Adresse' })
+  }
+
+  const sheet = await db.get('SELECT shoot_day_id FROM call_sheets WHERE id = ?', [entry.call_sheet_id]) as any
+  const day = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [sheet?.shoot_day_id]) as any
+  if (!day?.project_id) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+
+  // Wer schon Mitglied ist, behält seine Rolle
+  await db.run(
+    'INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?) ON CONFLICT DO NOTHING',
+    [day.project_id, req.user!.id, 'read_only']
+  )
+  return res.json({ data: { project_id: day.project_id }, error: null })
 })
 
 // POST /api/cse/t/:token/claim - One-Click-Account für Crew-Mitglieder.

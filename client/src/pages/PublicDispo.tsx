@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { Link, useParams, useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,8 +11,8 @@ import {
   Clapperboard, MapPin, CheckCircle2, Clock, CloudSun, Sunrise, Sunset, UserPlus
 } from 'lucide-react'
 import { AppIcon } from '@/components/shared/BrandMark'
-import { cn } from '@/lib/utils'
-import { useT, useGebietsschema } from '@/lib/useT'
+import { cn, formatDateLong } from '@/lib/utils'
+import { useT } from '@/lib/useT'
 import { publicDispoT as T } from '@/lib/texte/PublicDispo'
 
 const fmtTime = (mins: number | null | undefined) =>
@@ -20,7 +21,9 @@ const fmtTime = (mins: number | null | undefined) =>
 export function Component() {
   const { token } = useParams<{ token: string }>()
   const tt = useT()
-  const gebietsschema = useGebietsschema()
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['public-dispo', token],
@@ -32,6 +35,16 @@ export function Component() {
   const confirmMutation = useMutation({
     mutationFn: () => api.publicDispo.confirm(token!),
     onSuccess: () => refetch(),
+  })
+
+  // Vorhandenes Konto: angemeldet direkt ins Projekt (Lesezugriff, Server
+  // prüft die E-Mail-Adresse des Eintrags)
+  const beitreten = useMutation({
+    mutationFn: () => api.publicDispo.beitreten(token!),
+    onSuccess: ({ project_id }) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      navigate(`/projects/${project_id}`)
+    },
   })
 
   if (isLoading) {
@@ -59,9 +72,9 @@ export function Component() {
 
   const { project, day, sheet, location, me, schedule, has_account } = data
   const confirmed = !!me.confirmed_at
-  const dateStr = day.date
-    ? new Date(day.date).toLocaleDateString(gebietsschema, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-    : ''
+  // formatDateLong liest "2026-12-02" als Ortszeit - new Date() las es als
+  // UTC und zeigte westlich von Greenwich den Vortag
+  const dateStr = day.date ? formatDateLong(day.date) : ''
 
   return (
     <div className="min-h-screen bg-background pb-16">
@@ -171,9 +184,17 @@ export function Component() {
 
         {/* Viral-Hook: One-Click-Account */}
         {!has_account && me.email && <ClaimCard token={token!} project={project} myName={me.name} email={me.email} />}
-        {has_account && (
+        {has_account && user && (
+          <div className="text-center space-y-2">
+            <Button variant="outline" className="w-full" onClick={() => beitreten.mutate()} disabled={beitreten.isPending}>
+              {tt(T.projektOeffnen)}
+            </Button>
+            {beitreten.error && <p className="text-[13px] text-destructive">{(beitreten.error as Error).message}</p>}
+          </div>
+        )}
+        {has_account && !user && (
           <p className="text-center text-[13px] text-muted-foreground">
-            {tt(T.kontoVorhanden)} <Link to="/login" className="text-primary hover:underline">{tt(T.hierAnmelden)}</Link>{tt(T.ganzesProjekt)}
+            {tt(T.kontoVorhanden)} <Link to={`/login?weiter=${encodeURIComponent(`/dispo/${token}`)}`} className="text-primary hover:underline">{tt(T.hierAnmelden)}</Link>{tt(T.ganzesProjekt)}
           </p>
         )}
 

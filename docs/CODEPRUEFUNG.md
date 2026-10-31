@@ -120,8 +120,8 @@ Stand am 24.10.2026, 23 Uhr:
   Seiten mit fest deutschen Resten (`scripts/texte-pruefen.py`, 26.10.2026):
   beim Lesen jeder Seite mitübersetzen, die gemischten zuerst - eine halb
   übersetzte Seite sieht nach Fehler aus (Tagesdispo 56, Stammdaten 51,
-  Settings 46, ProjectList 29, Dashboard 27, Drehbuch 18, Motive 17, Login
-  16). Ganz deutsch und als "teilweise" ausgewiesen: Firma, Verträge, Reise,
+  Settings 46, ProjectList 29, Dashboard 27, Drehbuch 18, Motive 17; Login übersetzt, Fund
+  186). Ganz deutsch und als "teilweise" ausgewiesen: Firma, Verträge, Reise,
   Agenturen, Abnahme, CreatorVideo, AdminPanel, AdminStats, Auswertungen,
   OffenePosten, Timesheets, Continuity, SperrtageKalender. `CheckinBoard.tsx:221`: Hinweis auf
   `/guest/checkin/…`, den es nicht gibt (Fund 79).
@@ -406,6 +406,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 182 | `client/src/pages/CreatorIdeen.tsx`, `CreatorVideos.tsx`, `CreatorVideo.tsx` | Fehler | Eine Idee zum Video machen, ein Video löschen oder seinen Status ändern erneuerte nur die Videoliste. Redaktionsplan, Kanal, Serien, Performance zeigten bis zu 30 Sekunden (`staleTime`) den alten Stand. Dazu: In der Videoliste öffnete nur ein Mausklick auf die Zeile das Video, die Tastatur kam nicht hin; Knöpfe mit nur einem Symbol (Löschen, Status, Wirkung, Aufwand, Abschnitt hoch/runter, Material, Auskopplung, Checklistenpunkt) hatten keinen Namen. | ja: Idee umgewandelt, Redaktionsplan zeigte "Ohne Datum 2", der Server 3 (Gegenprobe mit altem Stand) | behoben: alle `creator-`-Abfragen werden erneuert, Titel ist ein echter Link, alle Symbolknöpfe benannt. Danach gemessen: "Ohne Datum" sofort richtig, zweite Abfrage innerhalb der 30 Sekunden; Eingabetaste auf dem Titel öffnet das Video; in allen vier Reitern des Einzelvideos 0 Knöpfe ohne Namen |
 | 183 | `client/src/pages/CreatorVideo.tsx` | Fehler | Titel und Hook speicherten verzögert (600 ms). Wer tippte und gleich die Seite verließ, verlor die Eingabe: Der Zeitgeber wurde beim Verlassen nicht ausgelöst, sondern verworfen. | ja: Titel getippt, sofort zurück zur Liste - Server behielt den alten Titel; mit 1,2 s Pause kam er an (Messaufbau geprüft) | behoben: Beim Verlassen wird die offene Eingabe sofort gespeichert, danach alle Creator-Abfragen erneuert. Danach gemessen: Server-Titel "Titel sofort weg", die Liste zeigt ihn |
 | 184 | `server/src/routes/invites.ts`, `client/src/pages/Invite.tsx` | Fehler | Einladung annehmen überschrieb jede Rolle außer Admin. Die Seite nimmt angemeldet automatisch an: Wer als Produktion einen weitergeleiteten Lese-Link öffnete, war ohne Rückfrage nur noch Lesezugriff. Die Seite zeigte zudem die Rolle der Einladung statt der geltenden, und die Projektliste kannte das neue Projekt erst nach Ablauf des Caches. | ja: Test - Produktion nimmt Lese-Link an, danach `read_only` | behoben: Einladung hebt an, stuft nie herab, Antwort nennt die geltende Rolle; Seite zeigt sie und erneuert `['projects']`. Danach gemessen: Test grün (bleibt Produktion, Admin-Link hebt an); im Browser "Du bist jetzt Regisseur" nach Lese-Link, neues Projekt sofort in der Liste (Gegenprobe ohne Erneuern nicht gemacht) |
+| 185 | `client/src/pages/PublicDispo.tsx`, `server/src/routes/confirmation.ts`, `client/src/pages/Login.tsx` | Fehler | Die öffentliche Dispo schrieb bei vorhandenem Konto "hier anmelden, um das ganze Projekt zu sehen". Nach der Anmeldung war man aber kein Mitglied, und die Anmeldung führte zur Projektliste statt zurück. Es gab keinen Weg ins Projekt. Außerdem las die Seite das Drehdatum mit `new Date("2026-12-02")` als UTC: Westlich von Greenwich stand der Vortag. | ja: Test - Konto erkannt (`has_account`), Beitritt 404, keine Mitgliedschaft | behoben: `POST /cse/t/:token/beitreten` (nur mit der E-Mail des Eintrags, sonst 403; Lesezugriff, vorhandene Rolle bleibt). Die Anmeldung springt über `?weiter=` zurück, nur zu Pfaden dieser App. Angemeldet zeigt die Dispo "Ganzes Projekt öffnen". Datum über `formatDateLong`. Danach gemessen: Test grün. Im Browser abgemeldet Link mit Rücksprung, Anmeldung zurück zur Dispo, Knopf öffnet das Projekt mit Lesezugriff-Hinweis. `//boese.de` und `https://…` führen zu `/` |
+| 186 | `client/src/pages/Login.tsx`, `client/src/lib/i18n.ts` | Klein | Die Anmeldeseite, die neue Nutzer zuerst sehen, hatte 16 feste deutsche Texte: Überschrift, Untertitel, "Passwort vergessen?", Zwei-Faktor-Hinweis, Dispo-Beispiel, Fußzeile. Dazu der Fehlertext fest englisch. Ein Code-Feld aus einem Zwei-Faktor-Versuch blieb beim Wechsel auf "Registrieren" als Pflichtfeld stehen. Die Sprachwahl hatte eine Beschriftung ohne Bezug. | ja: Textprüfung, Code-Feld aus dem Code | behoben: alle Texte in `loginT`, Code-Feld wird beim Wechsel zurückgesetzt, Sprachwahl als benannte Gruppe mit `aria-pressed`. Danach gemessen: Englisch und Französisch ohne deutsches Wort, auch in der linken Spalte. Das Code-Feld nicht gemessen, dafür fehlt ein Konto mit zweitem Faktor |
 
 ### Verknüpfungen
 
@@ -436,6 +438,7 @@ Kandidaten stehen hier, bis sie gebaut oder verworfen sind.
 | Fahrer eines Fahrzeugs | Stab (Person mit Telefon), Drehtage der Dispo | Kandidat: Fahrer ist Freitext, Fahrzeuge hängen an keinem Drehtag (`vehicleT.labelDay` gibt es, die Seite nutzt es nicht) |
 | Stab, Besetzung, Komparsen, Motiv-Kontakte | eine Kontaktliste, CSV und vCard | gebaut, Fund 179 |
 | Video anlegen, umwandeln, Status, Löschen | Redaktionsplan, Kanal, Serien, Performance, Sponsoren, Rechte | gebaut, Fund 182 |
+| Dispo-Eintrag einer Person mit Konto | Zugang zum Projekt (Lesezugriff) | gebaut, Fund 185 |
 
 ## Abhakliste
 
@@ -800,7 +803,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/pages/Kontaktliste.tsx` (227) - gelesen (Fund 179)
 - [ ] `client/src/pages/Kostenstand.tsx` (287)
 - [x] `client/src/pages/Listen.tsx` (225) - gelesen (Fund 176)
-- [ ] `client/src/pages/Login.tsx` (280)
+- [x] `client/src/pages/Login.tsx` (280) - gelesen (Funde 185 und 186)
 - [ ] `client/src/pages/Moodboard.tsx` (575)
 - [ ] `client/src/pages/Motive.tsx` (476)
 - [ ] `client/src/pages/Musikliste.tsx` (311)
@@ -811,7 +814,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/Postplan.tsx` (369)
 - [ ] `client/src/pages/ProjectList.tsx` (352)
 - [x] `client/src/pages/ProjectTemplates.tsx` (151) - entfernt (Fund 173)
-- [ ] `client/src/pages/PublicDispo.tsx` (242)
+- [x] `client/src/pages/PublicDispo.tsx` (242) - gelesen (Fund 185)
 - [ ] `client/src/pages/Rechnungen.tsx` (651)
 - [ ] `client/src/pages/Reise.tsx` (772)
 - [x] `client/src/pages/ResetPassword.tsx` (88) - gelesen (ohne Befund)

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,6 +25,11 @@ export function Component() {
   const { language, setLanguage } = useProjectStore()
   const navigate = useNavigate()
   const lang = language
+  // Rücksprung nach der Anmeldung, z. B. zur eigenen Dispo. Nur Pfade dieser
+  // App - "//andere-seite.de" wäre eine Weiterleitung nach draußen.
+  const [suche] = useSearchParams()
+  const weiter = suche.get('weiter') || ''
+  const ziel = /^\/(?![/\\])/.test(weiter) ? weiter : '/'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,13 +41,13 @@ export function Component() {
       } else {
         await register(email, password, name)
       }
-      navigate('/', { replace: true })
+      navigate(ziel, { replace: true })
     } catch (err: any) {
       if (err?.zweiterFaktor) {
         setCodeNoetig(true)
         setError(code ? err.message : null)
       } else {
-        setError(err.message || 'An error occurred')
+        setError(err.message || t(loginT.fehler, lang))
       }
     } finally {
       setLoading(false)
@@ -64,23 +69,23 @@ export function Component() {
 
         <div className="relative max-w-[540px]">
           <p className="font-display text-[52px] xl:text-[60px] leading-[1.04]">
-            Vom Drehbuch.<br /><span className="text-muted-foreground">Bis zur letzten Klappe.</span>
+            {t(loginT.heroOben, lang)}<br /><span className="text-muted-foreground">{t(loginT.heroUnten, lang)}</span>
           </p>
           <p className="text-[17px] text-muted-foreground mt-6 max-w-[42ch] leading-relaxed">
-            {t(loginT.tagline, lang)} - Drehplan, Dispo, Besetzung und Budget in einem Dokument, das alle am Set lesen können.
+            {t(loginT.tagline, lang)} - {t(loginT.heroText, lang)}
           </p>
 
           {/* Dispo-Auszug */}
           <div className="mt-12 rounded-3xl border border-border/60 bg-card/80 backdrop-blur-xl shadow-2xl animate-fade-up overflow-hidden">
             <div className="flex items-center justify-between px-6 pt-5 pb-3">
-              <span className="text-[13px] font-semibold">Tagesdispo · Drehtag 4 von 10</span>
-              <span className="text-[13px] text-muted-foreground tabular-nums">Sa, 3. Okt.</span>
+              <span className="text-[13px] font-semibold">{t(loginT.beispielKopf, lang)}</span>
+              <span className="text-[13px] text-muted-foreground tabular-nums">{t(loginT.beispielDatum, lang)}</span>
             </div>
             <dl className="grid grid-cols-3 gap-2 px-4 pb-4 text-[13px]">
               {[
-                ['Crew Call', '06:30'],
-                ['Drehbeginn', '08:15'],
-                ['Sonnenunterg.', '18:52'],
+                [t(loginT.beispielCrewCall, lang), '06:30'],
+                [t(loginT.beispielDrehbeginn, lang), '08:15'],
+                [t(loginT.beispielSonne, lang), '18:52'],
               ].map(([k, v]) => (
                 <div key={k} className="rounded-2xl bg-foreground/[0.04] px-4 py-3">
                   <dt className="text-[12px] text-muted-foreground">{k}</dt>
@@ -90,8 +95,8 @@ export function Component() {
             </dl>
             <div className="border-t border-border/70">
               {[
-                ['12', 'Int. Schneideraum - Nacht', '2 ⅛'],
-                ['14A', 'Ext. Archiv, Hof - Tag', '⅝'],
+                ['12', t(loginT.beispielSzene1, lang), '2 ⅛'],
+                ['14A', t(loginT.beispielSzene2, lang), '⅝'],
               ].map(([sc, set, pg]) => (
                 <div key={sc} className="flex items-center gap-4 px-6 py-3 border-b border-border/70 last:border-0 text-[13px]">
                   <span className="w-9 font-semibold tabular-nums">{sc}</span>
@@ -103,7 +108,7 @@ export function Component() {
           </div>
         </div>
 
-        <p className="relative text-[12px] text-muted-foreground">Produktionsmanagement für Film</p>
+        <p className="relative text-[12px] text-muted-foreground">{t(loginT.fusszeile, lang)}</p>
       </aside>
 
       {/* ── Rechts: Formular ─────────────────────────────── */}
@@ -121,9 +126,7 @@ export function Component() {
               {mode === 'login' ? t(loginT.tabLogin, lang) : t(loginT.tabRegister, lang)}
             </h1>
             <p className="text-[15px] text-muted-foreground mt-1.5">
-              {mode === 'login'
-                ? 'Melde dich in deinem Workspace an.'
-                : 'Erstelle deinen Account, um loszulegen.'}
+              {mode === 'login' ? t(loginT.untertitelLogin, lang) : t(loginT.untertitelRegister, lang)}
             </p>
           </div>
 
@@ -133,7 +136,7 @@ export function Component() {
               <button
                 key={m}
                 type="button"
-                onClick={() => { setMode(m); setError(null) }}
+                onClick={() => { setMode(m); setError(null); setCodeNoetig(false); setCode('') }}
                 className={cn(
                   'flex-1 text-[13px] py-1.5 rounded-[8px] font-medium transition-[background-color,color,box-shadow] duration-150 active:scale-[0.98]',
                   mode === m
@@ -200,7 +203,7 @@ export function Component() {
                     to="/forgot-password"
                     className="text-[13px] text-primary hover:underline underline-offset-4"
                   >
-                    Passwort vergessen?
+                    {t(loginT.passwortVergessen, lang)}
                   </Link>
                 </div>
               )}
@@ -209,15 +212,16 @@ export function Component() {
             {/* Language picker - register only */}
             {mode === 'register' && (
               <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-foreground/80">
+                <span id="anmelde-sprache" className="block text-[13px] font-medium text-foreground/80">
                   {t(loginT.labelLanguage, lang)}
-                </label>
-                <div className="flex gap-2">
+                </span>
+                <div className="flex gap-2" role="group" aria-labelledby="anmelde-sprache">
                   {LANGS.map(l => (
                     <button
                       key={l.code}
                       type="button"
                       onClick={() => setLanguage(l.code as Lang)}
+                      aria-pressed={language === l.code}
                       className={cn(
                         'flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg border text-xs font-medium',
                         'transition-[background-color,border-color,color] duration-150 active:scale-[0.97]',
@@ -242,7 +246,7 @@ export function Component() {
             {codeNoetig && (
               <div className="space-y-1.5">
                 <label className="text-[13px] font-medium text-foreground/80" htmlFor="zweiter-faktor">
-                  Code aus deiner Authenticator-App
+                  {t(loginT.codeLabel, lang)}
                 </label>
                 <Input
                   id="zweiter-faktor"
@@ -256,7 +260,7 @@ export function Component() {
                   required
                 />
                 <p className="text-[12px] text-muted-foreground">
-                  Kein Zugriff auf die App? Gib einen deiner Wiederherstellungscodes ein.
+                  {t(loginT.codeHinweis, lang)}
                 </p>
               </div>
             )}
@@ -270,8 +274,8 @@ export function Component() {
           </form>
 
           <p className="text-[12px] mt-10 flex gap-4 text-muted-foreground">
-            <Link to="/impressum" className="hover:text-foreground transition-colors">Impressum</Link>
-            <Link to="/datenschutz" className="hover:text-foreground transition-colors">Datenschutz</Link>
+            <Link to="/impressum" className="hover:text-foreground transition-colors">{t(loginT.impressum, lang)}</Link>
+            <Link to="/datenschutz" className="hover:text-foreground transition-colors">{t(loginT.datenschutz, lang)}</Link>
           </p>
         </div>
       </main>

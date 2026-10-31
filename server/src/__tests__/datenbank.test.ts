@@ -151,6 +151,8 @@ beforeAll(async () => {
   app.use('/api', optionalAuth, kontakteRouter)
   const { default: einladungRouter } = await import('../routes/invites')
   app.use('/api', einladungRouter)
+  const { default: dispoLinkRouter } = await import('../routes/confirmation')
+  app.use('/api', dispoLinkRouter)
   const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
   app.use(uebersetzeDatenbankfehler)
   await new Promise<void>((aufloesen) => {
@@ -2462,5 +2464,28 @@ describe('Einladung annehmen', () => {
     const mehr = await hole('/api/invites/admin-link/accept', tokenFremd, { method: 'POST' })
     expect(mehr.status).toBe(200)
     expect(await rolle()).toBe('admin')
+  })
+})
+
+describe('Dispo-Link mit vorhandenem Konto', () => {
+  it('bringt die angemeldete Person mit der E-Mail des Eintrags ins Projekt - sonst niemanden', async () => {
+    const projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Dispoprobe', nutzerId])).id
+    const person = (await db.run("INSERT INTO crew (project_id, name, role, email) VALUES (?, 'Fremde Person', 'Ton', 'Fremde@Example.com')", [projekt])).id
+    const tag = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, '2026-12-02')", [projekt])).id
+    const dispo = (await db.run('INSERT INTO call_sheets (shoot_day_id) VALUES (?)', [tag])).id
+    await db.run("INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, public_token) VALUES (?, 'crew', ?, 'dispo-link-0123456789')", [dispo, person])
+
+    // Die Seite sagt "hier anmelden, um das ganze Projekt zu sehen" - das muss stimmen
+    const ansicht = await hole('/api/cse/t/dispo-link-0123456789', tokenFremd)
+    expect(ansicht.daten.has_account).toBe(true)
+
+    // Wer den Link nur weitergeleitet bekommen hat, kommt nicht hinein
+    const falsch = await hole('/api/cse/t/dispo-link-0123456789/beitreten', tokenInhaber, { method: 'POST' })
+    expect(falsch.status).toBe(403)
+
+    const rein = await hole('/api/cse/t/dispo-link-0123456789/beitreten', tokenFremd, { method: 'POST' })
+    expect(rein.status).toBe(200)
+    expect(rein.daten.project_id).toBe(projekt)
+    expect((await db.get('SELECT role FROM project_members WHERE project_id = ? AND user_id = ?', [projekt, fremdeId])).role).toBe('read_only')
   })
 })

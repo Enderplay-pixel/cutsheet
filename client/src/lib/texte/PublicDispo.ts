@@ -16,6 +16,7 @@ export const publicDispoT = {
   du:                { de: ' (du)', en: ' (you)', fr: ' (toi)' },
   kontoVorhanden:    { de: 'Du hast bereits ein CutSheet-Konto -', en: 'You already have a CutSheet account -', fr: 'Tu as déjà un compte CutSheet -' },
   hierAnmelden:      { de: 'hier anmelden', en: 'sign in here', fr: 'connecte-toi ici' },
+  projektOeffnen:    { de: 'Ganzes Projekt öffnen', en: 'Open the whole project', fr: 'Ouvrir tout le projet' },
   ganzesProjekt:     { de: ', um das ganze Projekt zu sehen.', en: ' to see the whole project.', fr: ' pour voir tout le projet.' },
   erstelltMit:       { de: 'Erstellt mit CutSheet', en: 'Made with CutSheet', fr: 'Créé avec CutSheet' },
   impressum:         { de: 'Impressum', en: 'Legal notice', fr: 'Mentions légales' },

@@ -1186,5 +1186,6 @@ export const api = {
     confirm: (token: string) => req<any>(`/cse/t/${token}/confirm`, { method: 'POST' }),
     claim: (token: string, data: { password: string; name?: string }) =>
       req<{ token: string; user: any; project_id: number }>(`/cse/t/${token}/claim`, { method: 'POST', body: JSON.stringify(data) }),
+    beitreten: (token: string) => req<{ project_id: number }>(`/cse/t/${token}/beitreten`, { method: 'POST' }),
   },
 }
