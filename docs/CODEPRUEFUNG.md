@@ -97,9 +97,10 @@ Stand am 24.10.2026, 23 Uhr:
   dem Tag zugeordnet und fehlen in der Ablage - beim Lesen von `Drehplan.tsx`
   messen. Szenenübersicht und Drehplan färben INT/EXT × Tageszeit
   verschieden (INT TAG gelb bzw. orange, EXT TAG blau bzw. grün) - für Florian.
-  **Lesezugriff gesammelt messen:** Aufgaben (Fund 177) und `Budget.tsx` mit
-  einem Konto mit Projektrolle `read_only` prüfen, sobald weitere Seiten mit
-  Rechte-Lücken dazukommen.
+  **Lesezugriff:** Gemessen am 31.10.2026 mit einem Lese-Konto. Equipment ist
+  gesperrt (Fund 187). Aufgaben zeigte keinen offenen Knopf, das Testprojekt
+  hatte aber keine Aufgaben. `Budget.tsx` fragt keine Rechte ab: Kategorie-Auswahl
+  und "Position" stehen auch Lesern offen. Beim Lesen von Budget beheben.
   **Doppelte Protokolleinträge:** Routen mit eigenem `logAudit` (Abschluss,
   Verträge, Rechnungen, Zahlungen, Casting …) landen zusätzlich über die
   automatische Protokollierung (`aenderungenProtokollieren`) im Log - gemessen:
@@ -115,8 +116,6 @@ Stand am 24.10.2026, 23 Uhr:
   `aiBreakdown.ts` (eigene Form).
   `Kostenstand.tsx:70` liest den Betrag mit `parseFloat(x.replace(',', '.'))`
   - "1.234,56" würde 1,23 € (`parseFloat("1.234.56")` ist 1.234).
-  `Equipment.tsx:38` rechnet die Summe ohne Stückzahl und schickt sie mit;
-  der Server ignoriert sie (rechnet selbst) - toter, irreführender Code.
   Seiten mit fest deutschen Resten (`scripts/texte-pruefen.py`, 26.10.2026):
   beim Lesen jeder Seite mitübersetzen, die gemischten zuerst - eine halb
   übersetzte Seite sieht nach Fehler aus (Tagesdispo 56, Stammdaten 51,
@@ -408,6 +407,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 184 | `server/src/routes/invites.ts`, `client/src/pages/Invite.tsx` | Fehler | Einladung annehmen überschrieb jede Rolle außer Admin. Die Seite nimmt angemeldet automatisch an: Wer als Produktion einen weitergeleiteten Lese-Link öffnete, war ohne Rückfrage nur noch Lesezugriff. Die Seite zeigte zudem die Rolle der Einladung statt der geltenden, und die Projektliste kannte das neue Projekt erst nach Ablauf des Caches. | ja: Test - Produktion nimmt Lese-Link an, danach `read_only` | behoben: Einladung hebt an, stuft nie herab, Antwort nennt die geltende Rolle; Seite zeigt sie und erneuert `['projects']`. Danach gemessen: Test grün (bleibt Produktion, Admin-Link hebt an); im Browser "Du bist jetzt Regisseur" nach Lese-Link, neues Projekt sofort in der Liste (Gegenprobe ohne Erneuern nicht gemacht) |
 | 185 | `client/src/pages/PublicDispo.tsx`, `server/src/routes/confirmation.ts`, `client/src/pages/Login.tsx` | Fehler | Die öffentliche Dispo schrieb bei vorhandenem Konto "hier anmelden, um das ganze Projekt zu sehen". Nach der Anmeldung war man aber kein Mitglied, und die Anmeldung führte zur Projektliste statt zurück. Es gab keinen Weg ins Projekt. Außerdem las die Seite das Drehdatum mit `new Date("2026-12-02")` als UTC: Westlich von Greenwich stand der Vortag. | ja: Test - Konto erkannt (`has_account`), Beitritt 404, keine Mitgliedschaft | behoben: `POST /cse/t/:token/beitreten` (nur mit der E-Mail des Eintrags, sonst 403; Lesezugriff, vorhandene Rolle bleibt). Die Anmeldung springt über `?weiter=` zurück, nur zu Pfaden dieser App. Angemeldet zeigt die Dispo "Ganzes Projekt öffnen". Datum über `formatDateLong`. Danach gemessen: Test grün. Im Browser abgemeldet Link mit Rücksprung, Anmeldung zurück zur Dispo, Knopf öffnet das Projekt mit Lesezugriff-Hinweis. `//boese.de` und `https://…` führen zu `/` |
 | 186 | `client/src/pages/Login.tsx`, `client/src/lib/i18n.ts` | Klein | Die Anmeldeseite, die neue Nutzer zuerst sehen, hatte 16 feste deutsche Texte: Überschrift, Untertitel, "Passwort vergessen?", Zwei-Faktor-Hinweis, Dispo-Beispiel, Fußzeile. Dazu der Fehlertext fest englisch. Ein Code-Feld aus einem Zwei-Faktor-Versuch blieb beim Wechsel auf "Registrieren" als Pflichtfeld stehen. Die Sprachwahl hatte eine Beschriftung ohne Bezug. | ja: Textprüfung, Code-Feld aus dem Code | behoben: alle Texte in `loginT`, Code-Feld wird beim Wechsel zurückgesetzt, Sprachwahl als benannte Gruppe mit `aria-pressed`. Danach gemessen: Englisch und Französisch ohne deutsches Wort, auch in der linken Spalte. Das Code-Feld nicht gemessen, dafür fehlt ein Konto mit zweitem Faktor |
+| 187 | `client/src/pages/Equipment.tsx`, `client/src/lib/i18n.ts` | Fehler | Die Equipment-Seite rechnete Tagessatz × Tage ohne Menge. Server, PDF und Kalkulation rechnen mit Menge. Zwei Leuchten zu 50 € für drei Tage standen auf der Seite mit 150 €, im PDF und im Budget mit 300 €. Weitere Mängel: Ein geleertes Mengen- oder Tagefeld sprang sofort auf 1, aus "3" tippen wurde "13". Bei Lesezugriff ließen sich alle Felder bearbeiten, der Klick scheiterte erst am Server. Spalten, Untertitel, Abteilungen und Bildschirmleser-Namen waren fest deutsch. | ja: Seite 150,00 €, Server `total_cents` 30000 | behoben: eine Rechnung wie der Server, leere Zahlenfelder bleiben beim Tippen leer, Felder bei Lesezugriff gesperrt, alle Texte übersetzt (Abteilung bleibt deutsch gespeichert, Anzeige übersetzt). Danach gemessen: Zeile und Summe 300,00 €. Menge geleert und "3" getippt ergibt 3, Server 3 Stück / 45000. Mit einem Lese-Konto 6 von 6 Feldern gesperrt, kein Löschen, kein Anlegen |
 
 ### Verknüpfungen
 
@@ -790,7 +790,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/Drehbuch.tsx` (552)
 - [ ] `client/src/pages/Drehplan.tsx` (419)
 - [ ] `client/src/pages/EmailCenter.tsx` (700)
-- [ ] `client/src/pages/Equipment.tsx` (271)
+- [x] `client/src/pages/Equipment.tsx` (271) - gelesen (Fund 187)
 - [ ] `client/src/pages/EquipmentKalender.tsx` (422)
 - [x] `client/src/pages/Fahrzeuge.tsx` (169) - gelesen (Fund 174)
 - [ ] `client/src/pages/Firma.tsx` (897)
@@ -836,7 +836,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/VFX.tsx` (304)
 - [ ] `client/src/pages/Versicherungen.tsx` (394)
 - [ ] `client/src/pages/Vertraege.tsx` (837)
-- [ ] `client/src/pages/VertragBestaetigen.tsx` (254)
+- [x] `client/src/pages/VertragBestaetigen.tsx` (254) - gelesen (ohne Befund: Name Pflicht, bestätigt nicht mehr ablehnbar, Grund kommt als `reason` an)
 - [ ] `client/src/pages/ZeitAnalyse.tsx` (301)
 
 ### Client: Rest

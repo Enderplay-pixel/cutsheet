@@ -22,6 +22,14 @@ import { equipT, uiT } from '@/lib/i18n'
 
 const DEPARTMENTS = ['Kamera', 'Licht', 'Grip', 'Ton', 'Requisite', 'Kostüm', 'Maske', 'Fahrzeuge', 'Sonstiges']
 
+/**
+ * Tagessatz × Tage × Menge - wie Server (`routes/equipment.ts`), PDF und
+ * Kalkulation. Vorher ohne Menge: Zwei Leuchten zu 50 € für drei Tage standen
+ * hier mit 150 €, im PDF und im Budget mit 300 € (gemessen am 31.10.2026).
+ */
+const gesamtVon = (f: any) =>
+  (Number(f.rental_per_day_cents) || 0) * (Number(f.total_days) || 1) * (Number(f.quantity) || 1)
+
 function EquipmentItemRow({ item, shootDayCount, onDelete }: { item: any; shootDayCount: number; onDelete: () => void }) {
   const [form, setForm] = useState(item)
   const queryClient = useQueryClient()
@@ -34,58 +42,59 @@ function EquipmentItemRow({ item, shootDayCount, onDelete }: { item: any; shootD
   })
 
   const debouncedUpdate = useRef(debounce((data: any) => mutation.mutate(data), 500)).current
+  // Die Summe rechnet der Server. Ein geleertes Zahlenfeld ist ein Zwischenstand
+  // beim Tippen - vorher sprang es sofort auf 1, aus "3" tippen wurde "13".
   const update = (key: string, value: any) => {
-    const total = key === 'rental_per_day_cents' || key === 'total_days'
-      ? (key === 'rental_per_day_cents' ? value : form.rental_per_day_cents) *
-        (key === 'total_days' ? value : form.total_days)
-      : form.total_cents
-    const next = { ...form, [key]: value, total_cents: key === 'quantity' ? form.total_cents : total }
+    const next = { ...form, [key]: value }
     setForm(next)
-    debouncedUpdate(next)
+    debouncedUpdate({ ...next, quantity: Number(next.quantity) || 1, total_days: Number(next.total_days) || 1 })
   }
+  const zahl = (wert: string) => (wert === '' ? '' : Number(wert))
+  const name = form.item || tt(equipT.position)
 
   return (
     <tr className="border-b border-border/20 hover:bg-muted/10 group">
       <td className="py-2 pl-3">
-        <Checkbox checked={!!form.checked} onCheckedChange={v => update('checked', v ? 1 : 0)}
-          aria-label={`${form.item || 'Position'} als gepackt markieren`} />
+        <Checkbox checked={!!form.checked} onCheckedChange={v => update('checked', v ? 1 : 0)} disabled={!canEdit}
+          aria-label={tt(equipT.ariaGepackt).replace('{item}', name)} />
       </td>
       <td className="py-2 px-2">
-        <Input value={form.item || ''} onChange={e => update('item', e.target.value)}
-          aria-label="Bezeichnung des Equipments"
+        <Input value={form.item || ''} onChange={e => update('item', e.target.value)} disabled={!canEdit}
+          aria-label={tt(equipT.ariaBezeichnung)}
           className={`h-7 text-sm border-0 bg-transparent focus-visible:ring-1 ${form.checked ? 'line-through text-muted-foreground' : ''}`} />
       </td>
       <td className="py-2 px-2 w-16">
-        <Input type="number" value={form.quantity || 1} onChange={e => update('quantity', Number(e.target.value))}
-          aria-label={`Menge${form.item ? ` von ${form.item}` : ''}`}
+        <Input type="number" value={form.quantity ?? ''} onChange={e => update('quantity', zahl(e.target.value))} disabled={!canEdit}
+          aria-label={tt(equipT.ariaMenge).replace('{item}', name)}
           className="h-7 text-xs text-center" min="1" />
       </td>
       <td className="py-2 px-2 w-36">
-        <Input value={form.supplier || ''} onChange={e => update('supplier', e.target.value)}
-          aria-label={`Verleiher${form.item ? ` von ${form.item}` : ''}`}
-          className="h-7 text-xs" placeholder="Verleiher" />
+        <Input value={form.supplier || ''} onChange={e => update('supplier', e.target.value)} disabled={!canEdit}
+          aria-label={tt(equipT.ariaVerleiher).replace('{item}', name)}
+          className="h-7 text-xs" placeholder={tt(equipT.verleiher)} />
       </td>
       <td className="py-2 px-2 w-28">
         <div className="relative">
           <Input type="number" value={(form.rental_per_day_cents || 0) / 100}
-            onChange={e => update('rental_per_day_cents', Math.round(Number(e.target.value) * 100))}
-            aria-label={`Tagessatz in Euro${form.item ? ` für ${form.item}` : ''}`}
+            onChange={e => update('rental_per_day_cents', Math.round(Number(e.target.value) * 100))} disabled={!canEdit}
+            aria-label={tt(equipT.ariaTagessatz).replace('{item}', name)}
             className="h-7 text-xs text-right pr-5" />
-          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€/T</span>
+          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{tt(equipT.proTag)}</span>
         </div>
       </td>
       <td className="py-2 px-2 w-16">
-        <Input type="number" value={form.total_days || shootDayCount || 1}
-          onChange={e => update('total_days', Number(e.target.value))}
-          aria-label={`Anzahl Tage${form.item ? ` für ${form.item}` : ''}`}
+        <Input type="number" value={form.total_days ?? shootDayCount}
+          onChange={e => update('total_days', zahl(e.target.value))} disabled={!canEdit}
+          aria-label={tt(equipT.ariaTage).replace('{item}', name)}
           className="h-7 text-xs text-center" min="1" />
       </td>
       <td className="py-2 px-2 w-24 text-right font-mono text-sm font-medium">
-        {formatCurrency((form.rental_per_day_cents || 0) * (form.total_days || 1))}
+        {formatCurrency(gesamtVon(form))}
       </td>
       <td className="py-2 pr-3 w-8">
         {canEdit && (
-          <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive" title={tt(uiT.delete)}>
+          <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+            title={tt(uiT.delete)} aria-label={`${tt(uiT.delete)}: ${name}`}>
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
@@ -107,7 +116,7 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
 
   const createItem = useMutation({
     mutationFn: () => api.equipment.createItem(list.id, {
-      item: 'Neues Equipment', quantity: 1, supplier: '', rental_per_day_cents: 0, total_days: shootDayCount || 1
+      item: tt(equipT.neuePosition), quantity: 1, supplier: '', rental_per_day_cents: 0, total_days: shootDayCount || 1
     }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['equipment-items', list.id] }),
   })
@@ -117,8 +126,7 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['equipment-items', list.id] }),
   })
 
-  const totalCost = (items || []).reduce((sum: number, item: any) =>
-    sum + (item.rental_per_day_cents || 0) * (item.total_days || 1), 0)
+  const totalCost = (items || []).reduce((sum: number, item: any) => sum + gesamtVon(item), 0)
 
   const checkedCount = (items || []).filter((item: any) => item.checked).length
   const totalCount = (items || []).length
@@ -130,7 +138,7 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 min-w-0 w-full mr-2 md:mr-4">
           <Package className="w-4 h-4 text-muted-foreground" />
           <span className="font-semibold text-sm">{list.name}</span>
-          <Badge variant="secondary" className="text-xs">{list.department}</Badge>
+          <Badge variant="secondary" className="text-xs">{equipT.abteilung[list.department] ? tt(equipT.abteilung[list.department]) : list.department}</Badge>
           <div className="hidden sm:block flex-1" />
           {items && items.length > 0 && (
             <div className="flex items-center gap-1.5 shrink-0">
@@ -141,7 +149,7 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
             </div>
           )}
           <span className="text-sm font-mono">{formatCurrency(totalCost)}</span>
-          {items && <Badge variant="outline" className="text-xs">{items.length} Positionen</Badge>}
+          {items && <Badge variant="outline" className="text-xs">{tt(equipT.positionen).replace('{n}', String(items.length))}</Badge>}
         </div>
       </AccordionTrigger>
       <AccordionContent className="px-4 pb-4">
@@ -153,10 +161,10 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
                   <th className="py-1.5 pl-3 w-8" />
                   <th className="text-left py-1.5 px-2">{tt(equipT.labelItem)}</th>
                   <th className="text-center py-1.5 px-2 w-16">{tt(equipT.labelQty)}</th>
-                  <th className="text-left py-1.5 px-2 w-36">Verleiher</th>
-                  <th className="text-right py-1.5 px-2 w-28">Preis/Tag</th>
-                  <th className="text-center py-1.5 px-2 w-16">Tage</th>
-                  <th className="text-right py-1.5 px-2 w-24">Gesamt</th>
+                  <th className="text-left py-1.5 px-2 w-36">{tt(equipT.verleiher)}</th>
+                  <th className="text-right py-1.5 px-2 w-28">{tt(equipT.preisTag)}</th>
+                  <th className="text-center py-1.5 px-2 w-16">{tt(equipT.tage)}</th>
+                  <th className="text-right py-1.5 px-2 w-24">{tt(equipT.gesamt)}</th>
                   <th className="w-8" />
                 </tr>
               </thead>
@@ -165,13 +173,13 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
                   <EquipmentItemRow key={item.id} item={item} shootDayCount={shootDayCount} onDelete={() => deleteItem.mutate(item.id)} />
                 ))}
                 {(!items || items.length === 0) && (
-                  <tr><td colSpan={8} className="py-4 text-center text-muted-foreground text-sm">Noch keine Positionen.</td></tr>
+                  <tr><td colSpan={8} className="py-4 text-center text-muted-foreground text-sm">{tt(equipT.keinePositionen)}</td></tr>
                 )}
               </tbody>
               {(items && items.length > 0) && (
                 <tfoot className="border-t border-border bg-muted/20">
                   <tr>
-                    <td colSpan={6} className="py-1.5 pl-3 text-xs font-semibold">Summe</td>
+                    <td colSpan={6} className="py-1.5 pl-3 text-xs font-semibold">{tt(equipT.summe)}</td>
                     <td className="py-1.5 pr-4 text-right font-mono text-sm font-bold">{formatCurrency(totalCost)}</td>
                     <td />
                   </tr>
@@ -219,7 +227,7 @@ export function Component() {
   const shootDayCount = Math.max(1, drehtage)
 
   const createList = useMutation({
-    mutationFn: () => api.equipment.createList(pid, { name: newListName || 'Neue Equipmentliste', department: newListDept }),
+    mutationFn: () => api.equipment.createList(pid, { name: newListName || tt(equipT.neueListe), department: newListDept }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['equipment-lists', pid] }); setNewListName('') },
   })
 
@@ -227,7 +235,8 @@ export function Component() {
     <div className="px-5 py-6 sm:p-6 max-w-5xl mx-auto space-y-4">
       <PageHeader
         title={tt(equipT.title)}
-        subtitle={`${lists?.length || 0} Listen · ${drehtage} ${drehtage === 1 ? 'Drehtag' : 'Drehtage'} geplant`}
+        subtitle={tt(drehtage === 1 ? equipT.untertitelEins : equipT.untertitel)
+          .replace('{listen}', String(lists?.length || 0)).replace('{tage}', String(drehtage))}
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={() => download(api.pdf.equipment(pid), 'equipment.pdf')}>
@@ -236,11 +245,11 @@ export function Component() {
             {canEdit && (
               <>
                 <Input value={newListName} onChange={e => setNewListName(e.target.value)}
-                  aria-label="Name der neuen Equipment-Liste"
+                  aria-label={tt(equipT.ariaListenname)}
                   placeholder={tt(equipT.newList)} className="h-8 w-40 text-sm" />
                 <Select value={newListDept} onValueChange={setNewListDept}>
-                  <SelectTrigger className="w-32 h-8 text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                  <SelectTrigger className="w-32 h-8 text-sm" aria-label={tt(equipT.ariaAbteilung)}><SelectValue /></SelectTrigger>
+                  <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{tt(equipT.abteilung[d])}</SelectItem>)}</SelectContent>
                 </Select>
                 <Button size="sm" onClick={() => createList.mutate()} disabled={createList.isPending}>
                   <Plus className="w-4 h-4 mr-1" />{tt(equipT.createList)}
