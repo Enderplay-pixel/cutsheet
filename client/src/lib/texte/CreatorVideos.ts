@@ -14,6 +14,8 @@ export const creatorVideosStatusT = {
 } satisfies Record<string, Text>
 
 export const creatorVideosT = {
+  status:         { de: 'Status', en: 'Status', fr: 'Statut' },
+  loeschen:       { de: 'Video löschen', en: 'Delete video', fr: 'Supprimer la vidéo' },
   neuesVideo:        { de: 'Neues Video', en: 'New video', fr: 'Nouvelle vidéo' },
   anlegenFehler:     { de: 'Video konnte nicht angelegt werden', en: 'Video could not be created', fr: "La vidéo n'a pas pu être créée" },
   arbeitstitel:      { de: 'Arbeitstitel', en: 'Working title', fr: 'Titre provisoire' },

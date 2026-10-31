@@ -56,21 +56,34 @@ function timecode(totalSeconds: number): string {
   return h > 0 ? `${h}:${two(m % 60)}:${two(s % 60)}` : `${m}:${two(s % 60)}`
 }
 
-/** Speichert erst nach kurzer Pause - wie im Drehbuch-Editor. */
+/**
+ * Speichert erst nach kurzer Pause - wie im Drehbuch-Editor.
+ *
+ * Eine noch offene Eingabe wird beim Verlassen der Seite nachgereicht, nicht
+ * verworfen: Vorher löschte das Aufräumen den Zeitgeber - gemessen am
+ * 31.10.2026: Titel geändert, sofort zurück zur Liste, Änderung weg.
+ */
 function useDebouncedSave<T>(save: (value: T) => void, delay = 600) {
   const timer = useRef<ReturnType<typeof setTimeout>>()
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
+  const offen = useRef<{ wert: T } | null>(null)
+  const speichern = useRef(save)
+  speichern.current = save
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current)
+    if (offen.current) speichern.current(offen.current.wert)
+  }, [])
   return (value: T) => {
     if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => save(value), delay)
+    offen.current = { wert: value }
+    timer.current = setTimeout(() => { offen.current = null; speichern.current(value) }, delay)
   }
 }
 
 // ─── Teleprompter ─────────────────────────────────────────────────────────────
 
 /**
- * Vollbild-Ablauf des Sprechtexts fuer die Aufnahme. Die Scrollgeschwindigkeit
- * ergibt sich aus dem eingestellten Sprechtempo, laesst sich aber live regeln -
+ * Vollbild-Ablauf des Sprechtexts für die Aufnahme. Die Scrollgeschwindigkeit
+ * ergibt sich aus dem eingestellten Sprechtempo, lässt sich aber live regeln -
  * kein Creator spricht exakt im Schnitt.
  */
 function Teleprompter({ sections, wpm, onClose }: { sections: any[]; wpm: number; onClose: () => void }) {
@@ -79,8 +92,8 @@ function Teleprompter({ sections, wpm, onClose }: { sections: any[]; wpm: number
   const [fontSize, setFontSize] = useState(44)
   const boxRef = useRef<HTMLDivElement>(null)
 
-  // Pixel pro Sekunde aus Sprechtempo und Schriftgroesse: eine Zeile fasst grob
-  // sieben Woerter, eine Zeile ist etwa 1.4 Zeilenhoehen hoch.
+  // Pixel pro Sekunde aus Sprechtempo und Schriftgröße: eine Zeile fasst grob
+  // sieben Wörter, eine Zeile ist etwa 1.4 Zeilenhöhen hoch.
   const pxPerSecond = ((wpm / 60) / 7) * (fontSize * 1.4) * speed
 
   useEffect(() => {
@@ -153,7 +166,7 @@ function Teleprompter({ sections, wpm, onClose }: { sections: any[]; wpm: number
         ))}
       </div>
 
-      {/* Lesemarke auf Augenhoehe */}
+      {/* Lesemarke auf Augenhöhe */}
       <div className="pointer-events-none absolute left-0 right-0 top-[40%] border-t-2 border-red-500/40" />
     </div>
   )
@@ -171,7 +184,7 @@ export function Component() {
   const download = useDownload()
   const [prompterOpen, setPrompterOpen] = useState(false)
 
-  // Reiter in der URL halten: so ueberlebt die Auswahl einen Reload und laesst
+  // Reiter in der URL halten: so ueberlebt die Auswahl einen Reload und lässt
   // sich verlinken - praktisch, wenn man jemandem eine bestimmte Ansicht zeigt
   const [searchParams, setSearchParams] = useSearchParams()
   const TABS = ['script', 'upload', 'rights', 'clips', 'checklist', 'numbers']
@@ -194,7 +207,7 @@ export function Component() {
     queryFn: () => api.creator.retention(vid),
   })
 
-  // Videos des verbundenen Kanals fuer die Auswahlliste. Schlaegt fehl, wenn
+  // Videos des verbundenen Kanals für die Auswahlliste. Schlägt fehl, wenn
   // kein Kanal verbunden ist - dann bleibt es beim Link-Feld.
   const { data: ytVideoList } = useQuery({
     queryKey: ['yt-videos', pid],
@@ -203,10 +216,11 @@ export function Component() {
   })
   const ytVideos = (ytVideoList || []) as any[]
 
+  // Abschnitte, Rechte, Clips, Checkliste, Sponsor … erscheinen auch in den
+  // Creator-Bereichen (SEO, Rechte, Auskopplungen, Checklisten, Sponsoren …) -
+  // vorher wurden nur Video, Liste und Übersicht erneuert
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['creator-video', vid] })
-    queryClient.invalidateQueries({ queryKey: ['creator-videos', pid] })
-    queryClient.invalidateQueries({ queryKey: ['creator-overview', pid] })
+    queryClient.invalidateQueries({ predicate: q => String(q.queryKey[0]).startsWith('creator-') })
   }
   const fail = (title: string) => (err: any) =>
     toast({ title, description: err?.message, variant: 'destructive' })
@@ -458,14 +472,16 @@ export function Component() {
                 </div>
 
                 <div className="flex md:flex-col items-center gap-1">
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={i === 0} onClick={() => move(i, -1)}>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={i === 0} onClick={() => move(i, -1)}
+                    aria-label="Abschnitt nach oben" title="Abschnitt nach oben">
                     <ChevronUp className="w-3.5 h-3.5" />
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={i === sections.length - 1} onClick={() => move(i, 1)}>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={i === sections.length - 1} onClick={() => move(i, 1)}
+                    aria-label="Abschnitt nach unten" title="Abschnitt nach unten">
                     <ChevronDown className="w-3.5 h-3.5" />
                   </Button>
                   <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => removeSection.mutate(s.id)}>
+                    onClick={() => removeSection.mutate(s.id)} aria-label="Abschnitt löschen" title="Abschnitt löschen">
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -628,7 +644,7 @@ export function Component() {
                   </SelectContent>
                 </Select>
                 <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                  onClick={() => removeAsset.mutate(a.id)}>
+                  onClick={() => removeAsset.mutate(a.id)} aria-label="Material löschen" title="Material löschen">
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               </div>
@@ -669,7 +685,7 @@ export function Component() {
                     </SelectContent>
                   </Select>
                   <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => removeClip.mutate(c.id)}>
+                    onClick={() => removeClip.mutate(c.id)} aria-label="Auskopplung löschen" title="Auskopplung löschen">
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -715,7 +731,8 @@ export function Component() {
                   <span className={cn('text-sm flex-1', item.done && 'line-through text-muted-foreground')}>{item.label}</span>
                   <Button variant="ghost" size="sm"
                     className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                    onClick={e => { e.preventDefault(); removeCheck.mutate(item.id) }}>
+                    onClick={e => { e.preventDefault(); removeCheck.mutate(item.id) }}
+                    aria-label="Punkt löschen" title="Punkt löschen">
                     <Trash2 className="w-3 h-3" />
                   </Button>
                 </label>
@@ -732,7 +749,8 @@ export function Component() {
                 className="h-8 text-sm"
               />
               <Button variant="outline" size="sm" disabled={!newCheck.trim()}
-                onClick={() => { addCheck.mutate(newCheck.trim()); setNewCheck('') }}>
+                onClick={() => { addCheck.mutate(newCheck.trim()); setNewCheck('') }}
+                aria-label="Punkt ergänzen" title="Punkt ergänzen">
                 <Plus className="w-3.5 h-3.5" />
               </Button>
             </div>
@@ -761,8 +779,8 @@ export function Component() {
               <div>
                 <Label className="text-xs text-muted-foreground">YouTube-Video</Label>
                 {ytVideos.length > 0 ? (
-                  // Ist der Kanal verbunden, direkt aus seinen Videos waehlen -
-                  // Links heraussuchen und einfuegen ist unnoetige Fleissarbeit
+                  // Ist der Kanal verbunden, direkt aus seinen Videos wählen -
+                  // Links heraussuchen und einfügen ist unnötige Fleißarbeit
                   <Select
                     value={video.youtube_video_id || 'keins'}
                     onValueChange={v => updateVideo.mutate({ youtube_video_id: v === 'keins' ? '' : v })}

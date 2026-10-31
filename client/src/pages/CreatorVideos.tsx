@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -55,7 +55,7 @@ function NewVideoDialog({ open, onClose, projectId }: { open: boolean; onClose: 
       target_seconds: Math.round((Number(form.targetMinutes) || 0) * 60),
     }),
     onSuccess: (video: any) => {
-      queryClient.invalidateQueries({ queryKey: ['creator-videos', projectId] })
+      queryClient.invalidateQueries({ predicate: q => String(q.queryKey[0]).startsWith('creator-') })
       onClose()
       navigate(`/projects/${projectId}/creator/${video.id}`)
     },
@@ -132,16 +132,20 @@ export function Component() {
     queryFn: () => api.creator.videos(pid),
   })
 
+  // Status und Löschen ändern auch Kanal, Redaktionsplan, Performance … -
+  // nicht nur diese Liste
+  const alleCreatorSeiten = () => queryClient.invalidateQueries({ predicate: q => String(q.queryKey[0]).startsWith('creator-') })
+
   const setStatus = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => api.creator.updateVideo(id, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['creator-videos', pid] }),
+    onSuccess: alleCreatorSeiten,
     onError: (err: any) => toast({ title: tt(vt.statusFehler), description: err?.message, variant: 'destructive' }),
   })
 
   const remove = useMutation({
     mutationFn: (id: number) => api.creator.deleteVideo(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['creator-videos', pid] })
+      alleCreatorSeiten()
       toast({ title: tt(vt.videoGeloescht) })
     },
     onError: (err: any) => toast({ title: tt(vt.loeschenFehler), description: err?.message, variant: 'destructive' }),
@@ -192,7 +196,12 @@ export function Component() {
               onClick={() => navigate(`/projects/${pid}/creator/${v.id}`)}
             >
               <div className="min-w-0 flex-1">
-                <div className="font-medium truncate">{v.title || tt(vt.unbenannt)}</div>
+                {/* Ein echter Link, damit die Tastatur das Video öffnen kann - die
+                    Zeile selbst reagiert nur auf die Maus */}
+                <Link to={`/projects/${pid}/creator/${v.id}`} onClick={e => e.stopPropagation()}
+                  className="block font-medium truncate hover:underline underline-offset-4">
+                  {v.title || tt(vt.unbenannt)}
+                </Link>
                 <div className="text-xs text-muted-foreground/70 mt-0.5 truncate">
                   {v.platform}
                   {v.hook ? ` · ${v.hook}` : ''}
@@ -218,7 +227,8 @@ export function Component() {
 
               <div onClick={e => e.stopPropagation()} className="shrink-0">
                 <Select value={v.status} onValueChange={s => setStatus.mutate({ id: v.id, status: s })}>
-                  <SelectTrigger className={cn('h-7 w-[136px] text-xs border', STATUS_STYLE[v.status as Status] ?? STATUS_STYLE['Idee'])}>
+                  <SelectTrigger className={cn('h-7 w-[136px] text-xs border', STATUS_STYLE[v.status as Status] ?? STATUS_STYLE['Idee'])}
+                    aria-label={tt(vt.status)}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -230,6 +240,7 @@ export function Component() {
               <Button
                 variant="ghost" size="sm"
                 className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                aria-label={tt(vt.loeschen)} title={tt(vt.loeschen)}
                 onClick={e => {
                   e.stopPropagation()
                   if (confirm(tt(vt.loeschenFrage).replace('{titel}', v.title || tt(vt.videoErsatz)))) remove.mutate(v.id)

@@ -24,4 +24,6 @@ export const creatorIdeenT = {
   statusOffen:     { de: 'offen', en: 'open', fr: 'ouverte' },
   statusGeplant:   { de: 'geplant', en: 'planned', fr: 'planifiée' },
   statusVerworfen: { de: 'verworfen', en: 'discarded', fr: 'abandonnée' },
+  status:         { de: 'Status', en: 'Status', fr: 'Statut' },
+  loeschen:       { de: 'Idee löschen', en: 'Delete idea', fr: "Supprimer l'idée" },
 } satisfies Record<string, Text>

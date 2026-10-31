@@ -81,8 +81,8 @@ export function Component() {
   const convert = useMutation({
     mutationFn: (id: number) => api.creator.convertIdea(id),
     onSuccess: (video: any) => {
-      queryClient.invalidateQueries({ queryKey: ['creator-videos', pid] })
-      invalidate()
+      // Ein neues Video taucht in Kanal, Redaktionsplan, Serien … auf - nicht nur in der Videoliste
+      queryClient.invalidateQueries({ predicate: q => String(q.queryKey[0]).startsWith('creator-') })
       navigate(`/projects/${pid}/creator/${video.id}`)
     },
     onError: fail(tt(T.umwandelnFehl)),
@@ -182,7 +182,7 @@ export function Component() {
                   <span className="flex items-center gap-1">
                     <Flame className="w-3 h-3" />{tt(T.wirkung)}
                     <Select value={String(idea.impact)} onValueChange={v => update.mutate({ id: idea.id, patch: { impact: Number(v) } })}>
-                      <SelectTrigger className="h-5 w-11 px-1 text-[11px]"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-5 w-11 px-1 text-[11px]" aria-label={tt(T.wirkung)}><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {[1, 2, 3, 4, 5].map(n => <SelectItem key={n} value={String(n)} className="text-xs">{n}</SelectItem>)}
                       </SelectContent>
@@ -191,7 +191,7 @@ export function Component() {
                   <span className="flex items-center gap-1">
                     {tt(T.aufwand)}
                     <Select value={String(idea.effort)} onValueChange={v => update.mutate({ id: idea.id, patch: { effort: Number(v) } })}>
-                      <SelectTrigger className="h-5 w-11 px-1 text-[11px]"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-5 w-11 px-1 text-[11px]" aria-label={tt(T.aufwand)}><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {[1, 2, 3, 4, 5].map(n => <SelectItem key={n} value={String(n)} className="text-xs">{n}</SelectItem>)}
                       </SelectContent>
@@ -202,7 +202,7 @@ export function Component() {
 
               <div className="flex items-center gap-2 shrink-0">
                 <Select value={idea.status} onValueChange={s => update.mutate({ id: idea.id, patch: { status: s } })}>
-                  <SelectTrigger className={cn('h-7 w-[104px] text-xs border', STATUS_STYLE[idea.status])}>
+                  <SelectTrigger className={cn('h-7 w-[104px] text-xs border', STATUS_STYLE[idea.status])} aria-label={tt(T.status)}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -227,6 +227,7 @@ export function Component() {
                   variant="ghost" size="sm"
                   className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
                   onClick={() => remove.mutate(idea.id)}
+                  aria-label={tt(T.loeschen)} title={tt(T.loeschen)}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
