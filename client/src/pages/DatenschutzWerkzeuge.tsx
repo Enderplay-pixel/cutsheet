@@ -90,7 +90,9 @@ function Auskunft({ pid }: { pid: number }) {
     a.href = url
     a.download = `auskunft-${ergebnis.person?.name || ergebnis.person?.actor_name || 'person'}.json`
     a.click()
-    URL.revokeObjectURL(url)
+    // Erst später freigeben: Sofort freigegeben bricht manchem Browser der
+    // Download ab (wie in lib/useDownload.ts)
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
   }
 
   return (
@@ -179,9 +181,11 @@ function Entfernen({ pid }: { pid: number }) {
   const entfernen = useMutation({
     mutationFn: () => api.datenschutz.anonymisieren(pid, art, Number(person), grund),
     onSuccess: (daten: any) => {
-      qc.invalidateQueries({ queryKey: ['crew', pid] })
-      qc.invalidateQueries({ queryKey: ['cast', pid] })
-      qc.invalidateQueries({ queryKey: ['extras', pid] })
+      // Der Name steht auch in Dispo, Verträgen, Timesheets, Catering … - nach
+      // einer Löschung nach Art. 17 darf ihn keine Seite mehr aus dem Cache
+      // zeigen. Vorher erneuerte nur Stab, Besetzung und Komparserie; die
+      // Vertragsseite zeigte den Namen weiter (gemessen am 31.10.2026).
+      qc.invalidateQueries()
       setOffen(false)
       setPerson('')
       setGrund('')
