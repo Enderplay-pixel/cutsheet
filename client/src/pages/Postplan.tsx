@@ -7,7 +7,9 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
 import { Plus, Trash2, CalendarClock } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
-import { cn } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
+import { uiT } from '@/lib/i18n'
+import { parseISO } from 'date-fns'
 import { useT } from '@/lib/useT'
 import { postplanT as T } from '@/lib/texte/Postplan'
 
@@ -43,19 +45,24 @@ function statusBadgeClass(status: string) {
   }
 }
 
+const TAG = 86400000
+const zeit = (datum: string) => parseISO(datum).getTime()
+
+/**
+ * Dauer einschließlich Endtag: Rohschnitt vom 2. bis 22. sind 21 Tage. Vorher
+ * zählte die Seite 20, ein eintägiger Schritt hatte 0 Tage.
+ */
 function daysBetween(a: string, b: string): number {
-  const da = new Date(a).getTime()
-  const db = new Date(b).getTime()
-  return Math.max(0, Math.round((db - da) / 86400000))
+  return Math.max(0, Math.round((zeit(b) - zeit(a)) / TAG)) + 1
 }
 
 function GanttBar({ phase, minDate, totalDays }: { phase: PostPhase; minDate: Date; totalDays: number }) {
   if (!phase.start_date || !phase.end_date || totalDays === 0) return null
-  const start = new Date(phase.start_date).getTime()
-  const end = new Date(phase.end_date).getTime()
+  const start = zeit(phase.start_date)
+  const end = zeit(phase.end_date) + TAG // der Endtag gehört dazu
   const minTs = minDate.getTime()
-  const left = ((start - minTs) / (totalDays * 86400000)) * 100
-  const width = Math.max(1, ((end - start) / (totalDays * 86400000)) * 100)
+  const left = ((start - minTs) / (totalDays * TAG)) * 100
+  const width = Math.max(1, ((end - start) / (totalDays * TAG)) * 100)
 
   const colorClass =
     phase.status === 'Abgeschlossen' ? 'bg-green-500/60' :
@@ -115,7 +122,7 @@ function PhaseRow({
       <div className="border border-primary/30 bg-primary/5 rounded-lg p-3 mb-2">
         <div className="grid grid-cols-12 gap-2 items-center">
           <div className="col-span-3">
-            <Input className={i} value={form.phase} onChange={e => set('phase', e.target.value)} placeholder={tt(T.phasenname)} />
+            <Input className={i} aria-label={tt(T.phasenname)} value={form.phase} onChange={e => set('phase', e.target.value)} placeholder={tt(T.phasenname)} />
           </div>
           <div className="col-span-2">
             <Input aria-label={tt(T.beginnPhase)} className={i} type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
@@ -129,7 +136,7 @@ function PhaseRow({
             </select>
           </div>
           <div className="col-span-2">
-            <Input className={i} value={form.responsible} onChange={e => set('responsible', e.target.value)} placeholder={tt(T.verantwortlich)} />
+            <Input className={i} aria-label={tt(T.verantwortlich)} value={form.responsible} onChange={e => set('responsible', e.target.value)} placeholder={tt(T.verantwortlich)} />
           </div>
           <div className="col-span-1 flex gap-1 justify-end">
             <button
@@ -142,13 +149,14 @@ function PhaseRow({
             <button
               onClick={() => setEditing(false)}
               className="px-2 h-7 text-xs rounded hover:bg-muted text-muted-foreground"
+              aria-label={tt(uiT.cancel)} title={tt(uiT.cancel)}
             >
               ✕
             </button>
           </div>
         </div>
         <div className="mt-2">
-          <Input className="h-7 text-sm" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder={tt(T.notizen)} />
+          <Input className="h-7 text-sm" aria-label={tt(T.notizen)} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder={tt(T.notizen)} />
         </div>
       </div>
     )
@@ -170,8 +178,8 @@ function PhaseRow({
             )}
           </div>
           <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground flex-wrap">
-            {phase.start_date && <span>{tt(T.von).replace('{d}', phase.start_date)}</span>}
-            {phase.end_date && <span>{tt(T.bis).replace('{d}', phase.end_date)}</span>}
+            {phase.start_date && <span>{tt(T.von).replace('{d}', formatDate(phase.start_date))}</span>}
+            {phase.end_date && <span>{tt(T.bis).replace('{d}', formatDate(phase.end_date))}</span>}
             {phase.responsible && <span>{tt(T.verantwortlichWer).replace('{n}', phase.responsible)}</span>}
             {phase.notes && <span className="italic truncate max-w-[200px]">{phase.notes}</span>}
           </div>
@@ -182,7 +190,7 @@ function PhaseRow({
             <button
               onClick={() => { setForm({ ...phase }); setEditing(true) }}
               className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground text-xs"
-              title={tt(T.bearbeiten)}
+              title={tt(T.bearbeiten)} aria-label={tt(T.bearbeiten)}
             >
               ✎
             </button>
@@ -190,7 +198,7 @@ function PhaseRow({
               onClick={() => deleteMutation.mutate()}
               disabled={deleteMutation.isPending}
               className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-destructive"
-              title={tt(T.loeschen)}
+              title={tt(T.loeschen)} aria-label={tt(T.loeschen)}
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -236,21 +244,22 @@ export function Component() {
     const dates = allPhases
       .flatMap(p => [p.start_date, p.end_date])
       .filter(Boolean)
-      .map(d => new Date(d).getTime())
+      .map(d => zeit(d))
       .filter(t => !isNaN(t))
 
     if (dates.length < 2) return { minDate: new Date(), totalDays: 0 }
     const min = Math.min(...dates)
     const max = Math.max(...dates)
-    return { minDate: new Date(min), totalDays: Math.max(1, Math.round((max - min) / 86400000)) }
+    // + 1: der letzte Tag gehört zur Skala, sonst ragt sein Balken heraus
+    return { minDate: new Date(min), totalDays: Math.max(1, Math.round((max - min) / TAG) + 1) }
   }, [allPhases])
 
   // Total post duration
   const totalPostDays = useMemo(() => {
-    const starts = allPhases.filter(p => p.start_date).map(p => new Date(p.start_date).getTime()).filter(t => !isNaN(t))
-    const ends = allPhases.filter(p => p.end_date).map(p => new Date(p.end_date).getTime()).filter(t => !isNaN(t))
+    const starts = allPhases.filter(p => p.start_date).map(p => zeit(p.start_date)).filter(t => !isNaN(t))
+    const ends = allPhases.filter(p => p.end_date).map(p => zeit(p.end_date)).filter(t => !isNaN(t))
     if (!starts.length || !ends.length) return null
-    return Math.round((Math.max(...ends) - Math.min(...starts)) / 86400000)
+    return Math.round((Math.max(...ends) - Math.min(...starts)) / TAG) + 1
   }, [allPhases])
 
   const i = 'h-7 text-sm'
@@ -299,7 +308,7 @@ export function Component() {
         <div className="border border-primary/30 bg-primary/5 rounded-lg p-3 mb-4">
           <div className="grid grid-cols-12 gap-2 items-center">
             <div className="col-span-3">
-              <Input className={i} value={newForm.phase} onChange={e => setNewForm(f => ({ ...f, phase: e.target.value }))} placeholder={tt(T.phasenname)} />
+              <Input className={i} aria-label={tt(T.phasenname)} value={newForm.phase} onChange={e => setNewForm(f => ({ ...f, phase: e.target.value }))} placeholder={tt(T.phasenname)} />
             </div>
             <div className="col-span-2">
               <Input aria-label={tt(T.beginnNeu)} className={i} type="date" value={newForm.start_date} onChange={e => setNewForm(f => ({ ...f, start_date: e.target.value }))} />
@@ -313,7 +322,7 @@ export function Component() {
               </select>
             </div>
             <div className="col-span-2">
-              <Input className={i} value={newForm.responsible} onChange={e => setNewForm(f => ({ ...f, responsible: e.target.value }))} placeholder={tt(T.verantwortlich)} />
+              <Input className={i} aria-label={tt(T.verantwortlich)} value={newForm.responsible} onChange={e => setNewForm(f => ({ ...f, responsible: e.target.value }))} placeholder={tt(T.verantwortlich)} />
             </div>
             <div className="col-span-1 flex gap-1 justify-end">
               <button
@@ -326,13 +335,14 @@ export function Component() {
               <button
                 onClick={() => setAdding(false)}
                 className="px-2 h-7 text-xs rounded hover:bg-muted text-muted-foreground"
+                aria-label={tt(uiT.cancel)} title={tt(uiT.cancel)}
               >
                 ✕
               </button>
             </div>
           </div>
           <div className="mt-2">
-            <Input className="h-7 text-sm" value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} placeholder={tt(T.notizen)} />
+            <Input className="h-7 text-sm" aria-label={tt(T.notizen)} value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} placeholder={tt(T.notizen)} />
           </div>
         </div>
       )}

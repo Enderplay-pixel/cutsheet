@@ -109,6 +109,8 @@ Stand am 24.10.2026, 23 Uhr:
   **`Tagesdispo.tsx:725`** speichert verzögert auf Seitenebene mit wechselndem
   Drehtag - beim Lesen wie Fund 201 messen (tippen, innerhalb der Wartezeit
   blättern).
+  **Feste Namensspalte durchsichtig** (wie Fund 205): `EquipmentKalender.tsx:228`
+  und `SperrtageKalender.tsx:224` haben `bg-inherit` auf durchsichtigen Zeilen.
   `Budget.tsx` fragt keine Rechte ab: Eine Abteilungsleitung kann tippen,
   der Server lehnt Budget und Finanzierung erst ab Produktion ab (403) - beim
   Lesen der Seite `canEditBudget` aus `useProjectPerms` nutzen.
@@ -428,6 +430,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 203 | `client/src/pages/ProjectList.tsx`, `client/src/lib/i18n.ts` | Fehler | Demo-Projekte trugen eine zweite "Demo"-Plakette als eigenes Rasterelement. Bei Desktop-Breite stand "Demo" in der Datumsspalte, das Datum in der 20-px-Pfeilspalte, der Pfeil rutschte in eine neue Zeile. Dazu rund 30 feste deutsche Texte (Dialog, Meldungen, Kopf, Leerseite, Zähler, Bildschirmleser-Namen), Status und Format unübersetzt. | ja: bei 1280 px Datum x=902 (Pfeilspalte), Pfeil y=71 | behoben: zweite Plakette entfernt, alle Texte in `projectsT`, Status-Übersetzung `projectsT.status` (auch für Stammdaten nutzbar), Format über `onboardingFormatT`. Danach gemessen: Datum x=766, Pfeil x=902 in derselben Zeile. Englisch "Productions", "Short film · Drama · 15 min · Director: …", "Pre-production", "78 projects" |
 | 204 | `client/src/pages/SzenenKommentare.tsx`, `server/src/routes/sceneComments.ts` | Fehler, Leistung | Die Zähler der offenen Kommentare holten jede Szene einzeln. Bei einem Projekt mit 160 Szenen waren das 160 Anfragen und 2,7 s lokal, bei 1200 erlaubten Anfragen pro Minute und Nutzer. Ein gelöster Kommentar ließ sich nicht wieder öffnen, obwohl der Server umschaltet. Die Seite hatte eine eigene Kopie von `req` (Muster aus Fund 145) statt `api.sceneComments`. | ja: 160 Anfragen auf `.../comments`, 2732 ms | behoben: `GET /projects/:id/scene-comments/open` zählt in einer Abfrage, nur Mitglieder (Test: 2 offene, gelöste nicht gezählt, Fremde 403). Seite über `api`, "Wieder öffnen" bei gelösten Kommentaren. Danach gemessen: 1 Anfrage, Summe weiter 57 über 50 Szenen. Lösen ergibt 56, Wiederöffnen 57 |
 | 205 | `client/src/pages/DOOD.tsx` | Klein | Die feste Namensspalte hatte `bg-inherit` auf durchsichtigen Zeilen. Beim Waagerecht-Scrollen lagen die Tageszellen ("SW", "W") über den Namen, auch der Spaltenkopf schien durch. Der CSV-Export schrieb Kosten als "1.234,00 €" statt im CSV-Format aus Fund 180. In der Summenzeile fehlten die Haltetage. | ja: Hintergrund `rgba(0,0,0,0)` bzw. 10 %; Bildausschnitt mit "SW" über "Katharina Brodersen" | behoben: deckender Hintergrund im Farbton der Zeile, CSV über `betragCsv`, Summe der Haltetage. Danach gemessen: Bildausschnitt ohne Überlagerung, CSV-Zeile endet mit "292500,00", Fußzeile 289 Arbeitstage / 817 Haltetage |
+| 206 | `client/src/pages/Postplan.tsx` | Fehler | Die Dauer zählte den Endtag nicht mit: Rohschnitt vom 2. bis 22.11. stand mit 20 Tagen da (es sind 21), ein eintägiger Schritt mit 0, die Gesamtdauer einen Tag zu kurz. Die Balken endeten einen Tag zu früh. Daten standen roh als "2026-11-02". "Bearbeiten", "Abbrechen" (✎/✕) und drei Felder hatten keinen Namen. | ja: Demo "20 Tage", "7 Tage", "Gesamtdauer: 38 Tage", "Von: 2026-11-02" | behoben: Dauer einschließlich Endtag (auch Balken und Skala), Datum über `formatDate`, Namen für Knöpfe und Felder. Danach gemessen: 21 Tage, 8 Tage, Gesamtdauer 39, "Von: 02.11.2026", letzter Balken endet bei 100 % |
 
 ### Verknüpfungen
 
@@ -461,6 +464,7 @@ Kandidaten stehen hier, bis sie gebaut oder verworfen sind.
 | Dispo-Eintrag einer Person mit Konto | Zugang zum Projekt (Lesezugriff) | gebaut, Fund 185 |
 | Termin vom Typ "Sperrtag" im Kalender | Sperrtage-Kalender und Konfliktradar | Kandidat: Der Kalender kennt den Termintyp "Sperrtag", die Sperrtage (`blackout_dates`) sind eine eigene Tabelle. Ein im Kalender eingetragener Sperrtag warnt den Drehplan nicht |
 | Tagesbericht (Szenenstand, Minuten) | Drehplan, Zeitanalyse sofort | gebaut, Fund 201 |
+| VFX-Shots (Status, Deadlines) | Postplan-Phase "VFX-Abnahme" | Kandidat: Der Postplan kennt die Phase, die VFX-Liste ihre Shots mit Deadline und Status - Fortschritt und spätestes Datum könnten die Phase füllen |
 
 ## Abhakliste
 
@@ -833,7 +837,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/OffenePosten.tsx` (673)
 - [x] `client/src/pages/Papierkorb.tsx` (100) - gelesen (ohne Befund)
 - [x] `client/src/pages/Pinboard.tsx` (161) - gelesen (Fund 172)
-- [ ] `client/src/pages/Postplan.tsx` (369)
+- [x] `client/src/pages/Postplan.tsx` (369) - gelesen (Fund 206)
 - [x] `client/src/pages/ProjectList.tsx` (352) - gelesen (Fund 203)
 - [x] `client/src/pages/ProjectTemplates.tsx` (151) - entfernt (Fund 173)
 - [x] `client/src/pages/PublicDispo.tsx` (242) - gelesen (Fund 185)
