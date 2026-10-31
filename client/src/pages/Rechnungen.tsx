@@ -21,6 +21,7 @@ import { useT, useGebietsschema } from '@/lib/useT'
 import { useDownload, useAnsehen } from '@/lib/useDownload'
 import type { Lang } from '@/lib/i18n'
 import { rechnungenT as T } from '@/lib/texte/Rechnungen'
+import { parseISO } from 'date-fns'
 
 const STATUS: Record<string, { label: Record<Lang, string>; klasse: string }> = {
   entwurf:    { label: T.entwurf,    klasse: 'bg-muted text-muted-foreground' },
@@ -33,7 +34,7 @@ const euro = (cents: number, gs: string) =>
   (Number(cents || 0) / 100).toLocaleString(gs, { style: 'currency', currency: 'EUR' })
 
 const datum = (wert: string | null, gs: string) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString(gs) : ''
+  wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString(gs) : ''
 
 const heute = () => new Date().toISOString().slice(0, 10)
 

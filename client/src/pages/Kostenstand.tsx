@@ -11,6 +11,7 @@ import { Receipt, Plus, Trash2, TrendingDown, TrendingUp, Wallet, AlertTriangle 
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { kostenstandT as T } from '@/lib/texte/Kostenstand'
+import { parseISO } from 'date-fns'
 
 // Kostenstand: Ist-Kosten (Belege) gegen die aktive Kalkulation - Soll/Ist je Kategorie
 
@@ -261,7 +262,7 @@ export function Component() {
               {expenses.map((e: any) => (
                 <tr key={e.id} className="group">
                   <td className="tabular-nums text-muted-foreground">
-                    {e.expense_date ? new Date(e.expense_date).toLocaleDateString(gs) : '-'}
+                    {e.expense_date ? parseISO(e.expense_date).toLocaleDateString(gs) : '-'}
                   </td>
                   <td className="text-muted-foreground">{e.receipt_no || '-'}</td>
                   <td className="font-medium">{e.description}</td>

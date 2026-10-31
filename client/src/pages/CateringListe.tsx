@@ -13,6 +13,7 @@ import { Download, UtensilsCrossed, Users } from 'lucide-react'
 import { useT, useGebietsschema } from '@/lib/useT'
 import type { Lang } from '@/lib/i18n'
 import { cateringListeT } from '@/lib/texte/CateringListe'
+import { parseISO } from 'date-fns'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -78,7 +79,7 @@ const DIETARY_COLORS: Record<string, string> = {
 
 function formatDate(iso: string, gebietsschema: string) {
   if (!iso) return ''
-  return new Date(iso).toLocaleDateString(gebietsschema, { weekday: 'short', day: '2-digit', month: '2-digit' })
+  return parseISO(iso).toLocaleDateString(gebietsschema, { weekday: 'short', day: '2-digit', month: '2-digit' })
 }
 
 // ─── Debounce hook ────────────────────────────────────────────────────────────

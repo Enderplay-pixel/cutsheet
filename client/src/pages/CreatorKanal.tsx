@@ -10,6 +10,7 @@ import { ChevronLeft, ChevronRight, CalendarDays, Eye, Heart, UserPlus, Banknote
 import { cn } from '@/lib/utils'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { creatorKanalT as T, WOCHENTAGE, STATUS_TEXT } from '@/lib/texte/CreatorKanal'
+import { parseISO } from 'date-fns'
 
 const STATUS_DOT: Record<string, string> = {
   'Idee': 'bg-muted-foreground/50',
@@ -70,7 +71,7 @@ export function Component() {
     const map = new Map<string, any[]>()
     for (const entry of (data?.calendar || []) as any[]) {
       if (!entry.date) continue
-      const key = isoDay(new Date(entry.date))
+      const key = isoDay(parseISO(entry.date))
       const list = map.get(key)
       if (list) list.push(entry)
       else map.set(key, [entry])

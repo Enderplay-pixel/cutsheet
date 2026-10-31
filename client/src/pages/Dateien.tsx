@@ -20,9 +20,10 @@ import {
 } from 'lucide-react'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { dateienT as T, FRIST_TEXT } from '@/lib/texte/Dateien'
+import { parseISO } from 'date-fns'
 
 const datum = (wert: string | null | undefined, gs: string) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString(gs) : '-'
+  wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString(gs) : '-'
 
 const FRIST: Record<string, { label: (typeof FRIST_TEXT)[string]; klasse: string }> = {
   gueltig:    { label: FRIST_TEXT.gueltig,    klasse: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },

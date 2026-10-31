@@ -9,7 +9,7 @@ export const abnahmeAnsichtT = {
   linkUngueltig:        { de: 'Dieser Link gilt nicht mehr', en: 'This link is no longer valid', fr: "Ce lien n'est plus valable" },
   linkUngueltigText:    { de: 'Möglicherweise ist eine neuere Fassung unterwegs. Eine kurze Mail an die Produktion genügt, dann bekommen Sie einen neuen Link.', en: 'A newer cut may be on its way. A short email to the production is enough and you will receive a new link.', fr: "Une version plus récente est peut-être en route. Un court e-mail à la production suffit pour recevoir un nouveau lien." },
   laenge:               { de: 'Länge {n}', en: 'Length {n}', fr: 'Durée {n}' },
-  rueckmeldungBis:      { de: ' · Rückmeldung erbeten bis {datum}', en: ' · Feedback requested by {datum}', fr: ' · Retour souhaité avant le {datum}' },
+  rueckmeldungBis:      { de: 'Rückmeldung erbeten bis {datum}', en: 'Feedback requested by {datum}', fr: 'Retour souhaité avant le {datum}' },
   fassungAnsehen:       { de: 'Fassung ansehen', en: 'Watch cut', fr: 'Voir la version' },
   abgenommen:           { de: 'Abgenommen', en: 'Approved', fr: 'Validée' },
   seiteSchliessen:      { de: 'Sie können diese Seite schließen. Das Protokoll liegt bei der Produktion.', en: 'You can close this page. The record is kept by the production.', fr: 'Vous pouvez fermer cette page. Le procès-verbal est conservé par la production.' },

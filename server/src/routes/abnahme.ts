@@ -30,6 +30,12 @@ import { heuteISO } from '../lib/datum'
 const router = Router()
 
 /** Sekunden als Zeitstelle: 134 wird zu "2:14". */
+/**
+ * Länge einer Fassung. 0 ist der Vorgabewert der Spalte und heißt "nicht
+ * eingetragen" - vorher stand beim Auftraggeber dann "Länge 0:00".
+ */
+const laenge = (sekunden: number | null | undefined) => (Number(sekunden) > 0 ? alsZeitstelle(sekunden) : '')
+
 export function alsZeitstelle(sekunden: number | null | undefined): string {
   if (sekunden === null || sekunden === undefined || !Number.isFinite(Number(sekunden))) return ''
   const s = Math.max(0, Math.round(Number(sekunden)))
@@ -83,7 +89,7 @@ router.get('/projects/:projectId/fassungen', requireAuth, requireMember, async (
   )) as any[]
   return res.json({
     data: {
-      fassungen: fassungen.map((f) => ({ ...f, dauer: alsZeitstelle(f.duration_seconds) })),
+      fassungen: fassungen.map((f) => ({ ...f, dauer: laenge(f.duration_seconds) })),
       stufen: STUFEN,
     },
     error: null,
@@ -526,7 +532,7 @@ router.get('/abnahme/:token', async (req: Request, res: Response) => {
       version: runde.version,
       stufe: runde.stage,
       watch_url: runde.watch_url,
-      dauer: alsZeitstelle(runde.duration_seconds),
+      dauer: laenge(runde.duration_seconds),
       format: runde.format,
       nachricht: runde.message,
       frist: runde.deadline,

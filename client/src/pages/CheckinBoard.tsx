@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { CheckCircle2, Circle, QrCode, Clock, Users } from 'lucide-react'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { checkinBoardT as ct } from '@/lib/texte/CheckinBoard'
+import { parseISO } from 'date-fns'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -64,12 +65,12 @@ function formatDateTime(iso: string | undefined, gebietsschema: string) {
 
 function formatDateLong(iso: string, gebietsschema: string) {
   if (!iso) return ''
-  return new Date(iso).toLocaleDateString(gebietsschema, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+  return parseISO(iso).toLocaleDateString(gebietsschema, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
 }
 
 function formatDateShort(iso: string, gebietsschema: string) {
   if (!iso) return ''
-  return new Date(iso).toLocaleDateString(gebietsschema, { weekday: 'short', day: '2-digit', month: '2-digit' })
+  return parseISO(iso).toLocaleDateString(gebietsschema, { weekday: 'short', day: '2-digit', month: '2-digit' })
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────

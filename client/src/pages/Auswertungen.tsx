@@ -14,6 +14,7 @@ import { useToast } from '@/components/ui/use-toast'
 import {
   TrendingUp, Download, ArrowLeft, Info, AlertTriangle, Palette, Check, X, HelpCircle,
 } from 'lucide-react'
+import { parseISO } from 'date-fns'
 
 const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
@@ -351,7 +352,7 @@ function Ksk({ firmaId }: { firmaId: number }) {
             <div className="text-xl font-semibold mt-1 tabular-nums">{euro(data?.abgabeCents ?? 0)}</div>
             <div className={`text-xs mt-1 ${data?.ueberfaellig ? 'text-destructive' : 'text-muted-foreground'}`}>
               {data?.ueberfaellig ? 'Frist war ' : 'Meldung bis '}
-              {data?.frist ? new Date(data.frist).toLocaleDateString('de-DE') : '-'}
+              {data?.frist ? parseISO(data.frist).toLocaleDateString('de-DE') : '-'}
             </div>
           </CardContent>
         </Card>

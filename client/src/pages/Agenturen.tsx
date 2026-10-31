@@ -17,12 +17,13 @@ import { useToast } from '@/components/ui/use-toast'
 import {
   Building2, Send, Plus, Trash2, Clock, Check, X, UserPlus, Bell, Info, AlertTriangle,
 } from 'lucide-react'
+import { parseISO } from 'date-fns'
 
 const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
 
 const datum = (wert: string | null | undefined) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
+  wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
 
 const heute = () => new Date().toISOString().slice(0, 10)
 

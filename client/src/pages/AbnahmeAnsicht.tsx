@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { Check, ExternalLink, Plus, MessageSquare, Clock } from 'lucide-react'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { abnahmeAnsichtT as T } from '@/lib/texte/AbnahmeAnsicht'
+import { parseISO } from 'date-fns'
 
 /**
  * Die Seite, die ein Auftraggeber über den Link aus der Mail öffnet.
@@ -25,7 +26,7 @@ import { abnahmeAnsichtT as T } from '@/lib/texte/AbnahmeAnsicht'
  */
 
 const datum = (wert: string | null | undefined, gebietsschema: string) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString(gebietsschema) : ''
+  wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString(gebietsschema) : ''
 
 const zeitpunkt = (wert: string | null | undefined, gebietsschema: string) => {
   if (!wert) return ''
@@ -33,7 +34,7 @@ const zeitpunkt = (wert: string | null | undefined, gebietsschema: string) => {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(gebietsschema)
 }
 
-/** Nur Webadressen oeffnen - aeltere Eintraege koennen anderes enthalten. */
+/** Nur Webadressen öffnen - ältere Einträge können anderes enthalten. */
 function oeffneSichtungslink(link: string) {
   if (/^https?:\/\//i.test(String(link ?? '').trim())) window.open(link, '_blank', 'noopener')
 }
@@ -105,9 +106,13 @@ export function Component() {
           <p className="text-xs uppercase tracking-wide text-muted-foreground">{data.projekt}</p>
           <h1 className="font-display text-2xl sm:text-3xl mt-1">{data.fassung}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {data.dauer && tt(T.laenge).replace('{n}', String(data.dauer))}
-            {data.format && ` · ${data.format}`}
-            {data.frist && tt(T.rueckmeldungBis).replace('{datum}', datum(data.frist, gebietsschema))}
+            {/* Nur vorhandene Angaben, mit Trenner dazwischen - vorher begann die
+                Zeile ohne Länge mit " · " */}
+            {[
+              data.dauer && tt(T.laenge).replace('{n}', String(data.dauer)),
+              data.format,
+              data.frist && tt(T.rueckmeldungBis).replace('{datum}', datum(data.frist, gebietsschema)),
+            ].filter(Boolean).join(' · ')}
           </p>
         </div>
 

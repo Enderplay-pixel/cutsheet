@@ -8,6 +8,7 @@ import { useT, useGebietsschema } from '@/lib/useT'
 import type { Lang } from '@/lib/i18n'
 import { doodT as T } from '@/lib/texte/DOOD'
 import { csvHerunterladen } from '@/lib/csv'
+import { parseISO } from 'date-fns'
 
 type Tt = (map: Record<Lang, string>) => string
 
@@ -71,7 +72,7 @@ function statusCell(status: string) {
 
 function formatDate(iso: string, gebietsschema: string) {
   if (!iso) return ''
-  const d = new Date(iso)
+  const d = parseISO(iso)
   return d.toLocaleDateString(gebietsschema, { day: '2-digit', month: '2-digit' })
 }
 

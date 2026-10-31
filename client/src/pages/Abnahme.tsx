@@ -18,9 +18,10 @@ import { useToast } from '@/components/ui/use-toast'
 import {
   Film, Send, Plus, Trash2, Check, X, Clock, FileText, ExternalLink, AlertTriangle, Info,
 } from 'lucide-react'
+import { parseISO } from 'date-fns'
 
 const datum = (wert: string | null | undefined) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
+  wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
 
 const zeitpunkt = (wert: string | null | undefined) => {
   if (!wert) return '-'
@@ -231,7 +232,7 @@ function RundeAnlegen({ pid, schliessen, angelegt }: {
               <SelectContent>
                 {fassungen.map((f: any) => (
                   <SelectItem key={f.id} value={String(f.id)}>
-                    {f.label || `Fassung ${f.version}`} ({f.dauer})
+                    {f.label || `Fassung ${f.version}`}{f.dauer ? ` (${f.dauer})` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>

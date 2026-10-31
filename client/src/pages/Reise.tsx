@@ -16,12 +16,13 @@ import {
 } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/use-toast'
 import { BedDouble, Car, Plus, Trash2, Download, Info, Coffee } from 'lucide-react'
+import { parseISO } from 'date-fns'
 
 const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
 
 const datum = (wert: string | null | undefined) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
+  wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
 
 /** Betrag aus einem Textfeld in Cent - ganzzahlig. */
 function alsCents(text: string): number {

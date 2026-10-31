@@ -16,6 +16,7 @@ import { feiern } from '@/lib/belohnung'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { uiT, type Lang } from '@/lib/i18n'
 import { aufgabenT as at } from '@/lib/texte/Aufgaben'
+import { parseISO } from 'date-fns'
 
 // Abnahmeschleife wie bei PreProducer: offen → in Arbeit → Abnahme → erledigt
 const STATUS_META: Record<string, { label: Record<Lang, string>; icon: any; cls: string }> = {
@@ -198,7 +199,7 @@ function TaskList({ tasks, gesperrt, onCycle, onDelete, muted }: {
                 {t.due_date && (
                   <span className={cn('flex items-center gap-1 tabular-nums', overdue && 'text-danger font-semibold')}>
                     <CalendarDays className="w-3 h-3" />
-                    {new Date(t.due_date).toLocaleDateString(gs, { day: '2-digit', month: '2-digit' })}
+                    {parseISO(t.due_date).toLocaleDateString(gs, { day: '2-digit', month: '2-digit' })}
                     {overdue && ` ${tt(at.ueberfaellig)}`}
                   </span>
                 )}

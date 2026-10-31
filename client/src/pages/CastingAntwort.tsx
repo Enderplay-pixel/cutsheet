@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { Plus, Trash2, Check, Send } from 'lucide-react'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { castingAntwortT } from '@/lib/texte/CastingAntwort'
+import { parseISO } from 'date-fns'
 
 /**
  * Die Seite, die eine Agentur über den Link aus der Mail öffnet.
@@ -25,7 +26,7 @@ const euro = (cents: number, gebietsschema: string) =>
   (Number(cents || 0) / 100).toLocaleString(gebietsschema, { style: 'currency', currency: 'EUR' })
 
 const datum = (wert: string | null | undefined, gebietsschema: string) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString(gebietsschema) : ''
+  wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString(gebietsschema) : ''
 
 /** Betrag aus einem Textfeld in Cent - ganzzahlig. */
 function alsCents(text: string): number {

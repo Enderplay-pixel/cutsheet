@@ -20,12 +20,13 @@ import {
 import type { Lang } from '@/lib/i18n'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { angeboteT, angebotStatusT } from '@/lib/texte/Angebote'
+import { parseISO } from 'date-fns'
 
 const euro = (cents: number, gebietsschema: string) =>
   (Number(cents || 0) / 100).toLocaleString(gebietsschema, { style: 'currency', currency: 'EUR' })
 
 const datum = (wert: string | null | undefined, gebietsschema: string) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString(gebietsschema) : '-'
+  wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString(gebietsschema) : '-'
 
 const heute = () => new Date().toISOString().slice(0, 10)
 

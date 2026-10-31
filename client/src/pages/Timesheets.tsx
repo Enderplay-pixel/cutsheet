@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
 import { api } from '@/lib/api'
 import { Plus, Download, AlertTriangle, Clock, Users, FileText, CalendarDays } from 'lucide-react'
+import { parseISO } from 'date-fns'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -65,7 +66,7 @@ function calcOvertime(callMin: number | null, wrapMin: number | null): number {
 
 function formatDate(iso: string) {
   if (!iso) return ''
-  return new Date(iso).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })
+  return parseISO(iso).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })
 }
 
 function totalMinutesToH(mins: number) {

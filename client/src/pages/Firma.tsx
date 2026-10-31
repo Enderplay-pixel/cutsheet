@@ -18,6 +18,7 @@ import {
   TrendingUp, FileSignature, ShieldAlert, Send, Palette, AlertTriangle
 } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
+import { parseISO } from 'date-fns'
 
 const FIRMENROLLEN: Record<string, string> = {
   inhaber: 'Inhaberin oder Inhaber',
@@ -377,7 +378,7 @@ function Adressbuch({ firmaId, projekte }: { firmaId: number; projekte: any[] })
                   {(termine || []).map((termin: any, i: number) => (
                     <div key={i} className="flex items-center gap-3 text-sm py-1 border-b border-border/60 last:border-0">
                       <span className="tabular-nums text-muted-foreground w-24 shrink-0">
-                        {termin.date ? new Date(termin.date).toLocaleDateString('de-DE') : ''}
+                        {termin.date ? parseISO(termin.date).toLocaleDateString('de-DE') : ''}
                       </span>
                       <span className="truncate flex-1">{termin.title}</span>
                       <span className="text-xs text-muted-foreground">Drehtag {termin.day_number}</span>

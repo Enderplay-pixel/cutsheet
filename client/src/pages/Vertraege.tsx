@@ -19,9 +19,10 @@ import {
   FileSignature, Send, FileText, Check, Clock, AlertTriangle, Baby,
   Plus, Trash2, Info, ShieldAlert,
 } from 'lucide-react'
+import { parseISO } from 'date-fns'
 
 const datum = (wert: string | null | undefined) =>
-  wert ? new Date(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
+  wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
 
 const zeitpunkt = (wert: string | null | undefined) => {
   if (!wert) return '-'
