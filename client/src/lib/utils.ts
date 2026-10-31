@@ -112,6 +112,38 @@ export function dauer(von: number | null | undefined, bis: number | null | undef
 }
 
 /**
+ * Betrag aus einem Eingabefeld in Cent - ganzzahlig, ohne Fließkomma.
+ *
+ * Versteht "1.234,56", "1234,56", "1234.56", "12.50", "1 234,5", "1,234.56"
+ * und ein Minus davor. Stehen Punkt und Komma beide drin, ist das letzte das
+ * Dezimalzeichen. Ein einzelner Punkt vor genau drei Ziffern ("1.234") ist
+ * ein Tausenderpunkt, sonst ein Dezimalpunkt. Leer ergibt 0, Unlesbares NaN.
+ *
+ * Vorher hatte jede Seite ihren eigenen Parser, und sie irrten in beide
+ * Richtungen (gemessen am 31.10.2026): Kostenstand machte aus "1.234,56"
+ * 1,23 €, Agenturen, Angebote, Casting und Reise aus "12.50" 1.250 €.
+ */
+export function betragInCent(text: string): number {
+  let s = String(text ?? '').replace(/[\s €]/g, '')
+  if (!s) return 0
+  const negativ = s.startsWith('-')
+  s = s.replace(/^[-+]/, '')
+  const komma = s.lastIndexOf(',')
+  const punkt = s.lastIndexOf('.')
+  if (komma >= 0 && punkt >= 0) {
+    s = komma > punkt ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '')
+  } else if (komma >= 0) {
+    s = s.replace(',', '.')
+  } else if (punkt >= 0 && (s.indexOf('.') !== punkt || /^\d{1,3}\.\d{3}$/.test(s))) {
+    s = s.replace(/\./g, '')
+  }
+  if (!/^\d*(\.\d*)?$/.test(s) || !/\d/.test(s)) return NaN
+  const [ganz, bruch = ''] = s.split('.')
+  const cent = Number(ganz || 0) * 100 + Number((bruch + '00').slice(0, 2)) + (Number(bruch[2] ?? 0) >= 5 ? 1 : 0)
+  return negativ ? -cent : cent
+}
+
+/**
  * Heutiges Datum als YYYY-MM-DD - aus den LOKALEN Bestandteilen.
  *
  * `new Date().toISOString().slice(0, 10)` liefert das Datum in UTC. In

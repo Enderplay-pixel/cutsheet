@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
 import { Plus, Trash2, Pencil, Check, X, Shield, AlertTriangle } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
-import { cn } from '@/lib/utils'
+import { cn, betragInCent } from '@/lib/utils'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { uiT, type Lang } from '@/lib/i18n'
 import { versicherungenT } from '@/lib/texte/Versicherungen'
@@ -54,8 +54,8 @@ function formatEuro(cents: number, gebietsschema: string): string {
 }
 
 function parseEuro(val: string): number {
-  const num = parseFloat(val.replace(',', '.')) || 0
-  return Math.round(num * 100)
+  const cent = betragInCent(val)
+  return Number.isNaN(cent) ? 0 : cent
 }
 
 function getExpiryStatus(end_date: string): 'expired' | 'soon' | 'ok' | 'none' {

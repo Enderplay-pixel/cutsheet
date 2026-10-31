@@ -13,6 +13,7 @@ import { Plus, Trash2, Check, Send } from 'lucide-react'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { castingAntwortT } from '@/lib/texte/CastingAntwort'
 import { parseISO } from 'date-fns'
+import { betragInCent } from '@/lib/utils'
 
 /**
  * Die Seite, die eine Agentur über den Link aus der Mail öffnet.
@@ -30,11 +31,7 @@ const datum = (wert: string | null | undefined, gebietsschema: string) =>
 
 /** Betrag aus einem Textfeld in Cent - ganzzahlig. */
 function alsCents(text: string): number {
-  const sauber = String(text).replace(/\s|\./g, '').replace(',', '.')
-  const teile = sauber.split('.')
-  const ganz = Math.abs(Math.trunc(Number(teile[0] || 0)))
-  const rest = teile[1] ? Math.round(Number((teile[1] + '00').slice(0, 2))) : 0
-  return ganz * 100 + rest
+  return Math.abs(betragInCent(text))
 }
 
 type Vorschlag = {

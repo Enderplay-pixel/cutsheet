@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency, cn, betragInCent } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -68,7 +68,7 @@ export function Component() {
     mutationFn: () => api.expenses.create(pid, {
       description: desc,
       category,
-      amount_cents: Math.round(parseFloat(amount.replace(',', '.')) * 100),
+      amount_cents: betragInCent(amount),
       receipt_no: receiptNo,
       expense_date: date || null,
     }),
@@ -159,9 +159,11 @@ export function Component() {
               ) : (
                 <>
                   <span className="font-semibold text-foreground">{an ? `${schwelle} %` : tt(T.aus)}</span>
-                  <Button size="sm" variant="ghost" className="h-7 text-[12px]"
-                    onClick={() => setSchwelleBearbeiten(true)}>{tt(T.aendern)}</Button>
-                  {an && (
+                  {darfSchreiben && (
+                    <Button size="sm" variant="ghost" className="h-7 text-[12px]"
+                      onClick={() => setSchwelleBearbeiten(true)}>{tt(T.aendern)}</Button>
+                  )}
+                  {an && darfSchreiben && (
                     <Button size="sm" variant="ghost" className="h-7 text-[12px]"
                       onClick={() => warnungSpeichern.mutate({ threshold_percent: schwelle, enabled: false })}>
                       {tt(T.abschalten)}
@@ -228,7 +230,15 @@ export function Component() {
       {/* Beleg erfassen */}
       <p className="section-label mb-3">{tt(T.belegErfassen)}</p>
       <form
-        onSubmit={e => { e.preventDefault(); if (desc.trim() && amount) createMutation.mutate() }}
+        onSubmit={e => {
+          e.preventDefault()
+          if (!desc.trim() || !amount) return
+          if (Number.isNaN(betragInCent(amount))) {
+            toast({ variant: 'destructive', title: tt(T.betragUnlesbar), description: amount })
+            return
+          }
+          createMutation.mutate()
+        }}
         className="grid grid-cols-2 lg:grid-cols-6 gap-2 mb-6"
       >
         <Input disabled={!darfSchreiben} value={desc} onChange={e => setDesc(e.target.value)} placeholder={tt(T.beschreibung)} className="col-span-2" required />
@@ -240,7 +250,8 @@ export function Component() {
         <Input disabled={!darfSchreiben} value={date} onChange={e => setDate(e.target.value)} type="date" aria-label={tt(T.belegdatum)} />
         <div className="flex gap-2">
           <Input disabled={!darfSchreiben} value={receiptNo} onChange={e => setReceiptNo(e.target.value)} placeholder={tt(T.belegNr)} className="flex-1" />
-          <Button type="submit" size="icon" disabled={createMutation.isPending} title={tt(T.belegHinzufuegen)}>
+          <Button type="submit" size="icon" disabled={!darfSchreiben || createMutation.isPending}
+            title={tt(T.belegHinzufuegen)} aria-label={tt(T.belegHinzufuegen)}>
             <Plus className="w-4 h-4" />
           </Button>
         </div>
@@ -269,13 +280,13 @@ export function Component() {
                   <td className="text-muted-foreground">{e.category || '-'}</td>
                   <td className="text-right tabular-nums font-semibold">{formatCurrency(e.amount_cents)}</td>
                   <td className="w-8">
-                    <button
+                    {darfSchreiben && <button
                       onClick={() => deleteMutation.mutate(e.id)}
                       className="p-1.5 rounded-md text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-[color,background-color,opacity] duration-150 active:scale-[0.88]"
-                      title={tt(T.belegLoeschen)}
+                      title={tt(T.belegLoeschen)} aria-label={tt(T.belegLoeschen)}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    </button>}
                   </td>
                 </tr>
               ))}

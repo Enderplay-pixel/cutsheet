@@ -17,7 +17,7 @@ import {
 import { useToast } from '@/components/ui/use-toast'
 import { BedDouble, Car, Plus, Trash2, Download, Info, Coffee } from 'lucide-react'
 import { parseISO } from 'date-fns'
-import { heuteISO } from '@/lib/utils'
+import { heuteISO, betragInCent } from '@/lib/utils'
 
 const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
@@ -27,11 +27,7 @@ const datum = (wert: string | null | undefined) =>
 
 /** Betrag aus einem Textfeld in Cent - ganzzahlig. */
 function alsCents(text: string): number {
-  const sauber = String(text).replace(/\s|\./g, '').replace(',', '.')
-  const teile = sauber.split('.')
-  const ganz = Math.abs(Math.trunc(Number(teile[0] || 0)))
-  const rest = teile[1] ? Math.round(Number((teile[1] + '00').slice(0, 2))) : 0
-  return ganz * 100 + rest
+  return Math.abs(betragInCent(text))
 }
 
 const alsText = (cents: number) => (Number(cents || 0) / 100).toFixed(2).replace('.', ',')

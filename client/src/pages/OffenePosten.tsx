@@ -19,7 +19,7 @@ import {
   FileText, ArrowLeft, Info,
 } from 'lucide-react'
 import { parseISO } from 'date-fns'
-import { heuteISO } from '@/lib/utils'
+import { heuteISO, betragInCent } from '@/lib/utils'
 
 const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
@@ -319,14 +319,9 @@ function ZahlungenDialog({ firmaId, posten, schliessen }: { firmaId: number; pos
 
   const erfassen = useMutation({
     mutationFn: () => {
-      // Ganzzahlig aus dem Text: parseFloat und × 100 verliert Cent.
-      const sauber = betrag.replace(/\s/g, '').replace(',', '.')
-      const stellen = sauber.split('.')
-      const cents = Math.round(Number(stellen[0] || 0)) * 100
-        + (stellen[1] ? Math.round(Number((stellen[1] + '00').slice(0, 2))) : 0)
-      const vorzeichen = sauber.trimStart().startsWith('-') ? -1 : 1
+      // Ganzzahlig aus dem Text, Tausenderpunkte erkannt (lib/utils.ts)
       return api.mahnwesen.zahlungErfassen(firmaId, posten.id, {
-        amount_cents: vorzeichen * Math.abs(cents),
+        amount_cents: betragInCent(betrag),
         paid_on: am,
         method: weg,
         note: vermerk,

@@ -21,7 +21,7 @@ import type { Lang } from '@/lib/i18n'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { angeboteT, angebotStatusT } from '@/lib/texte/Angebote'
 import { parseISO } from 'date-fns'
-import { heuteISO } from '@/lib/utils'
+import { heuteISO, betragInCent } from '@/lib/utils'
 
 const euro = (cents: number, gebietsschema: string) =>
   (Number(cents || 0) / 100).toLocaleString(gebietsschema, { style: 'currency', currency: 'EUR' })
@@ -40,12 +40,7 @@ const STATUS: Record<string, { label: Record<Lang, string>; klasse: string }> = 
 
 /** Betrag aus einem Textfeld in Cent - ganzzahlig, ohne Fließkomma. */
 function alsCents(text: string): number {
-  const sauber = String(text).replace(/\s|\./g, '').replace(',', '.')
-  const teile = sauber.split('.')
-  const ganz = Math.abs(Math.trunc(Number(teile[0] || 0)))
-  const rest = teile[1] ? Math.round(Number((teile[1] + '00').slice(0, 2))) : 0
-  const betrag = ganz * 100 + rest
-  return sauber.trimStart().startsWith('-') ? -betrag : betrag
+  return betragInCent(text)
 }
 
 const alsText = (cents: number) => (Number(cents || 0) / 100).toFixed(2).replace('.', ',')

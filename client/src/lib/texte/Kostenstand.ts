@@ -5,6 +5,7 @@ type Text = Record<Lang, string>
 export const kostenstandT = {
   nichtGespeichert: { de: 'Nicht gespeichert', en: 'Not saved', fr: 'Non enregistré' },
   fehler:           { de: 'Fehler', en: 'Error', fr: 'Erreur' },
+  betragUnlesbar:   { de: 'Betrag nicht lesbar', en: 'Amount not readable', fr: 'Montant illisible' },
   titel:            { de: 'Kostenstand', en: 'Cost status', fr: 'État des coûts' },
   istGegenVersion:  { de: 'Ist-Kosten gegen Kalkulation „{name}“', en: 'Actual costs against budget "{name}"', fr: 'Coûts réels par rapport au budget « {name} »' },
   istGegen:         { de: 'Ist-Kosten gegen die Kalkulation', en: 'Actual costs against the budget', fr: 'Coûts réels par rapport au budget' },
