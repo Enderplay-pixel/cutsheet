@@ -7,7 +7,7 @@ import { Download, Users, CalendarDays, AlertCircle } from 'lucide-react'
 import { useT, useGebietsschema } from '@/lib/useT'
 import type { Lang } from '@/lib/i18n'
 import { doodT as T } from '@/lib/texte/DOOD'
-import { csvHerunterladen } from '@/lib/csv'
+import { csvHerunterladen, betragCsv } from '@/lib/csv'
 import { parseISO } from 'date-fns'
 
 type Tt = (map: Record<Lang, string>) => string
@@ -76,6 +76,15 @@ function formatDate(iso: string, gebietsschema: string) {
   return d.toLocaleDateString(gebietsschema, { day: '2-digit', month: '2-digit' })
 }
 
+/**
+ * Deckender Hintergrund für die feste Namensspalte im Farbton der Zeile. Vorher
+ * `bg-inherit` auf durchsichtigen Zeilen: Beim Waagerecht-Scrollen lagen die
+ * Tageszellen ("SW", "W") über den Namen (gemessen am 31.10.2026).
+ */
+const deckend = (tönung: number) => ({
+  background: `linear-gradient(hsl(var(--muted) / ${tönung}), hsl(var(--muted) / ${tönung})), hsl(var(--card))`,
+})
+
 function formatCurrency(cents: number, gebietsschema: string) {
   return (cents / 100).toLocaleString(gebietsschema, { style: 'currency', currency: 'EUR' })
 }
@@ -89,7 +98,8 @@ function downloadCSV(report: DoodReport, pid: number, tt: Tt, gebietsschema: str
     ...days.map(d => c.days[d.shoot_day_id]?.status ?? ''),
     String(c.total_work),
     String(c.total_hold),
-    formatCurrency(c.estimated_cost_cents, gebietsschema),
+    // Wie alle CSV-Ausfuhren (Fund 180): Zahl mit Komma, ohne Währungszeichen
+    betragCsv(c.estimated_cost_cents),
   ])
   csvHerunterladen(tt(T.dateiname).replace('{n}', String(pid)), header, rows)
 }
@@ -161,6 +171,7 @@ export function Component() {
   const days = report.shoot_days ?? []
   const cast = report.cast ?? []
   const totalWork = cast.reduce((sum, c) => sum + c.total_work, 0)
+  const totalHold = cast.reduce((sum, c) => sum + c.total_hold, 0)
   const totalCost = cast.reduce((sum, c) => sum + c.estimated_cost_cents, 0)
 
   return (
@@ -226,7 +237,7 @@ export function Component() {
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="border-b border-border/40">
-                  <th className="sticky left-0 z-10 bg-muted/30 px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground min-w-[180px] border-r border-border/30">
+                  <th style={deckend(0.3)} className="sticky left-0 z-10 px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground min-w-[180px] border-r border-border/30">
                     {tt(T.darsteller)}
                   </th>
                   {days.map(d => (
@@ -245,7 +256,7 @@ export function Component() {
                     key={c.cast_id}
                     className={`border-b border-border/30 transition-colors hover:bg-muted/20 ${i % 2 === 1 ? 'bg-muted/10' : ''}`}
                   >
-                    <td className="sticky left-0 z-10 bg-inherit px-5 py-2 border-r border-border/30">
+                    <td style={deckend(i % 2 === 1 ? 0.1 : 0)} className="sticky left-0 z-10 px-5 py-2 border-r border-border/30">
                       <div className="flex items-center gap-2.5">
                         <div className="w-7 h-7 rounded-lg bg-muted/60 flex items-center justify-center text-[10px] font-bold text-muted-foreground/70 shrink-0">
                           {c.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
@@ -342,7 +353,11 @@ export function Component() {
                       {totalWork}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-center" />
+                  <td className="px-4 py-3 text-center">
+                    <span className="inline-flex items-center justify-center min-w-[28px] h-6 rounded-md bg-amber-400/15 text-amber-700 dark:text-amber-300 border border-amber-400/25 text-xs font-bold tabular-nums px-1.5">
+                      {totalHold}
+                    </span>
+                  </td>
                   <td className="px-5 py-3 text-right font-mono text-sm font-bold tabular-nums">
                     {formatCurrency(totalCost, gebietsschema)}
                   </td>
