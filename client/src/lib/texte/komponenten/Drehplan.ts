@@ -28,6 +28,8 @@ export const shootDayColumnT = {
   morningBriefPdf: { de: 'Morning Brief PDF', en: 'Morning brief PDF', fr: 'PDF Morning Brief' },
   morningBriefDl:  { de: 'Morning Brief für Drehtag {n} herunterladen', en: 'Download morning brief for shoot day {n}', fr: 'Télécharger le Morning Brief du jour de tournage {n}' },
   sperrtagN:       { de: 'Sperrtag {n}', en: 'Blocked day {n}', fr: 'Jour bloqué {n}' },
+  sperrtagMitSzenen: { de: 'Sperrtag - diese Szenen umplanen', en: 'Blocked day - reschedule these scenes', fr: 'Jour bloqué - replanifier ces scènes' },
+  loeschenFrage:   { de: 'Drehtag {n} löschen? Seine Dispo, der Tagesbericht und die Check-ins werden mit gelöscht.', en: 'Delete shoot day {n}? Its call sheet, daily report and check-ins are deleted too.', fr: 'Supprimer le jour {n} ? Sa feuille de service, son rapport et les arrivées sont supprimés aussi.' },
   szenenFuer:      { de: 'Szenen für Drehtag {n}', en: 'Scenes for shoot day {n}', fr: 'Scènes du jour de tournage {n}' },
   keineSzenen:     { de: 'Keine Szenen - Szenen hierhin ziehen', en: 'No scenes - drag scenes here', fr: 'Aucune scène - glisse des scènes ici' },
   hierhinZiehen:   { de: 'Szenen hierhin ziehen', en: 'Drag scenes here', fr: 'Glisse des scènes ici' },

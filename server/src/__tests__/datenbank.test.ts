@@ -155,6 +155,8 @@ beforeAll(async () => {
   app.use('/api', dispoLinkRouter)
   const { default: kommentarRouter } = await import('../routes/sceneComments')
   app.use('/api', optionalAuth, kommentarRouter)
+  const { default: drehplanRouter } = await import('../routes/drehplan')
+  app.use('/api', optionalAuth, drehplanRouter)
   const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
   app.use(uebersetzeDatenbankfehler)
   await new Promise<void>((aufloesen) => {
@@ -2509,5 +2511,36 @@ describe('Offene Szenenkommentare je Szene', () => {
     // Fremde sehen nichts
     const fremd = await hole(`/api/projects/${projektId}/scene-comments/open`, tokenFremd)
     expect(fremd.status).toBe(403)
+  })
+})
+
+describe('Drehplan-Version wiederherstellen', () => {
+  it('sichert den aktuellen Plan vorher und behält gemessene Minuten', async () => {
+    const projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Versionsprobe', nutzerId])).id
+    await db.run("INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, 'admin')", [projekt, nutzerId])
+    const a = (await db.run("INSERT INTO scenes (project_id, scene_number, title) VALUES (?, '1', 'A')", [projekt])).id
+    const b = (await db.run("INSERT INTO scenes (project_id, scene_number, title) VALUES (?, '2', 'B')", [projekt])).id
+    const tag = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, '2026-11-02')", [projekt])).id
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, 0)', [tag, a])
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, 1)', [tag, b])
+
+    const version = await hole(`/api/projects/${projekt}/drehplan/snapshot`, tokenInhaber, { method: 'POST', body: JSON.stringify({ name: 'Stand A+B' }) })
+    expect(version.status).toBe(201)
+
+    // Danach gedreht und gemessen, Szene B verschoben
+    await db.run('UPDATE shoot_day_scenes SET actual_minutes = 75 WHERE shoot_day_id = ? AND scene_id = ?', [tag, a])
+    await db.run('DELETE FROM shoot_day_scenes WHERE shoot_day_id = ? AND scene_id = ?', [tag, b])
+
+    const zurueck = await hole(`/api/projects/${projekt}/drehplan/restore/${version.daten.id}`, tokenInhaber, { method: 'POST' })
+    expect(zurueck.status).toBe(200)
+
+    const zeilen = await db.all('SELECT scene_id, actual_minutes FROM shoot_day_scenes WHERE shoot_day_id = ? ORDER BY scene_id', [tag]) as any[]
+    expect(zeilen.map(z => Number(z.scene_id))).toEqual([a, b])
+    // Die Messung vom Set geht beim Zurückholen nicht verloren
+    expect(zeilen.find(z => Number(z.scene_id) === a)?.actual_minutes).toBe(75)
+    // Der Stand vor dem Zurückholen liegt als Version bereit
+    const versionen = await db.all('SELECT name FROM drehplan_versions WHERE project_id = ? ORDER BY id', [projekt]) as any[]
+    expect(versionen.length).toBe(2)
+    expect(versionen[1].name).toContain('Stand A+B')
   })
 })

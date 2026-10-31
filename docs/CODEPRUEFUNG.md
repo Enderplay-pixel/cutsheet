@@ -92,10 +92,7 @@ Stand am 24.10.2026, 23 Uhr:
   Fälle behoben, zuletzt `/shots/:id` (Fund 103). Messweg
   `scratchpad/fehlende_zeilen.cjs`.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
-  Drehplan: Wird ein Tag mit Szenen auf "Sperrtag" gesetzt, verschwinden
-  seine Szenen aus der Ansicht (die Spalte zeigt nur "Sperrtag"), bleiben aber
-  dem Tag zugeordnet und fehlen in der Ablage - beim Lesen von `Drehplan.tsx`
-  messen. Szenenübersicht und Drehplan färben INT/EXT × Tageszeit
+  Szenenübersicht und Drehplan färben INT/EXT × Tageszeit
   verschieden (INT TAG gelb bzw. orange, EXT TAG blau bzw. grün) - für Florian.
   **Lesezugriff:** Gemessen am 31.10.2026 mit einem Lese-Konto. Equipment ist
   gesperrt (Fund 187). Aufgaben zeigte keinen offenen Knopf, das Testprojekt
@@ -440,6 +437,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 207 | `client/src/pages/Shotlist.tsx` | Fehler | Neue und duplizierte Einstellungen bekamen "Anzahl plus eins" als Nummer. Nach dem Löschen von Nr. 2 aus 1, 2, 3 entstand eine zweite Nr. 3, im Drehtag-PDF zwei gleiche Einstellungen. Bei Lesezugriff war jede Einstellung bearbeitbar, die Eingaben scheiterten erst am Server. Eine Drehtage-Abfrage und zwei Importe waren ungenutzt. Der Erledigt-Knopf hatte keinen Namen. | ja: Prüfprojekt 1, 2, 3, Nr. 2 gelöscht, neu ergab 1, 3, 3 | behoben: höchste Nummer plus eins, Einstellungen in einem gesperrten `fieldset`, Hinzufügen nur mit Schreibrecht, tote Abfrage entfernt, Erledigt-Knopf mit Name und `aria-pressed`. Danach gemessen: neu ergibt 4, Duplizieren 5. Ein Lese-Konto sieht nur noch die PDFs und das Aufklappen |
 | 208 | `client/src/pages/Besetzung.tsx`, `client/src/lib/i18n.ts` | Klein | Aufgeklappte Figuren- und Darstellerkarten waren auch für Leser bearbeitbar, die Eingaben scheiterten erst am Server. Die Kopfzeilen der Karten ließen sich nur mit der Maus aufklappen. Rund zwölf feste deutsche Reste: "(Kein Name)", "als …", "Rolle wählen", "z.B. 25-35", Löschknöpfe ohne Bezug ("Eintrag löschen"), CSV-Kopf, Namen neuer Einträge. | ja: Lese-Konto, Tastatur | behoben: Felder in gesperrtem `fieldset`, Kopfzeilen per Enter und Leertaste (`aria-expanded`), Löschknöpfe mit Namen der Figur oder Person, alle Texte in `castT`. Danach gemessen: Enter klappt die Karte auf. Ein Lese-Konto sieht in der aufgeklappten Karte kein offenes Feld, nur CSV, PDF und Reiter |
 | 209 | `client/src/pages/Versicherungen.tsx` | Fehler | Eine Police mit Ende heute stand schon als "Abgelaufen" da, mit rotem Hinweis oben. `new Date("2026-10-31")` ist 1 Uhr nachts dieses Tages, die Police gilt aber bis Tagesende. Die Laufzeit stand roh als "2026-01-01 - 2026-10-31". Die Betragsfelder waren Zahlenfelder (Wert "1200"), passend zum gemeinsamen Parser aus Fund 192 gehört dort Text in deutscher Schreibweise hin. | ja: Testpolice Ende heute um 23:40, Karte "Abgelaufen" | behoben: gültig bis Ende des letzten Tages, Laufzeit über `formatDate`, Betragsfelder als Text ("1200,00"). Danach gemessen: "Läuft bald ab", "01.01.2026 - 31.10.2026". Eingabe "1.500.000" ergibt 1.500.000,00 €, "1.234,56" ergibt 1.234,56 € |
+| 210 | `client/src/pages/Drehplan.tsx`, `client/src/components/drehplan/ShootDayColumn.tsx` | Fehler | Ein Sperrtag mit Szenen versteckte sie: nicht in der Spalte, nicht in der Ablage, aber als "geplant" gezählt (seit dem Lesen der Spalte im Merkzettel). Ein Drehtag ließ sich mit einem Klick hart löschen, samt Dispo, Tagesbericht und Check-ins (Kaskade). Leser und Abteilungsleitung sahen Versionen und KI-Optimierung, Leser auch Ziehen, Anlegen, Löschen und Statuswechsel, alles scheiterte erst am Server. | ja: Prüfprojekt, Szene 7 auf Sperrtag unsichtbar, "1 von 1 Szenen geplant" | behoben: Ein Sperrtag zeigt seine Szenen mit "Sperrtag - diese Szenen umplanen", leer bleibt er gesperrt. Ablegen auf Sperrtagen wird abgewiesen. Rückfrage vor dem Löschen eines Drehtags und vor dem Wiederherstellen. Ziehen, Anlegen, Löschen, Status ab Abteilungsleitung, Versionen und KI ab Produktion. Danach gemessen: Spalte zeigt "Sperrtag - diese Szenen umplanen 7 Sperrprobe". Löschen fragt "Drehtag 1 löschen? Seine Dispo, …", Abbrechen lässt den Tag stehen. Das Abweisen beim Ziehen nicht gemessen (Ziehen nicht nachgestellt) |
+| 211 | `server/src/routes/drehplan.ts` (`POST .../drehplan/restore/:versionId`) | **Fehler, Datenverlust** | Eine Drehplan-Version wiederherstellen löschte alle aktuellen Zuordnungen ohne Sicherung, der Klick war nicht rückgängig zu machen. Mit den Zuordnungen gingen die im Tagesbericht gemessenen Minuten verloren (`actual_minutes` hängt an `shoot_day_scenes`). | ja: Test, gemessene 75 Minuten waren nach dem Zurückholen `null` | behoben: Vor dem Zurückholen wird der aktuelle Plan als Version gesichert ("Vor Wiederherstellung von …"). Gemessene Minuten bleiben, wo Tag und Szene wieder zusammenkommen. Danach gemessen: Test grün (75 Minuten erhalten, zweite Version vorhanden, beide Szenen zurück) |
 
 ### Verknüpfungen
 
@@ -823,7 +822,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/pages/Datenschutz.tsx` (48) - gelesen (ohne Befund (Platzhalter: Fund 141))
 - [x] `client/src/pages/DatenschutzWerkzeuge.tsx` (297) - gelesen (Fund 194)
 - [ ] `client/src/pages/Drehbuch.tsx` (552)
-- [ ] `client/src/pages/Drehplan.tsx` (419)
+- [x] `client/src/pages/Drehplan.tsx` (419) - gelesen (Funde 210 und 211)
 - [ ] `client/src/pages/EmailCenter.tsx` (700)
 - [x] `client/src/pages/Equipment.tsx` (271) - gelesen (Fund 187)
 - [ ] `client/src/pages/EquipmentKalender.tsx` (422)

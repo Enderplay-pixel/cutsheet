@@ -20,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { drehplanT as T } from '@/lib/texte/Drehplan'
+import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 
 function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: () => void; projectId: number }) {
   const [mode, setMode] = useState<'single' | 'range'>('single')
@@ -119,6 +120,9 @@ export function Component() {
   const tt = useT()
   const gebietsschema = useGebietsschema()
   const download = useDownload()
+  // Drehtage und Szenen ab Abteilungsleitung, Versionen und KI ab Produktion -
+  // so prüft es der Server (middleware/projectAuth.ts)
+  const { canEdit, canEditBudget: darfVersionen } = useProjectPerms()
   const [addDayOpen, setAddDayOpen] = useState(false)
   const [activeDrag, setActiveDrag] = useState<any>(null)
   const [showVersions, setShowVersions] = useState(false)
@@ -185,6 +189,8 @@ export function Component() {
     mutationFn: (versionId: number) => api.drehplan.restore(pid, versionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] })
+      // Die Sicherung des alten Stands ist eine neue Version
+      queryClient.invalidateQueries({ queryKey: ['drehplan-versions', pid] })
       setShowVersions(false)
       toast({ title: tt(T.wiederhergestellt) })
     },
@@ -236,6 +242,11 @@ export function Component() {
     // Same location, no-op
     if (fromDayId === toDayId) return
 
+    if (toDayId && (shootDays || []).find((d: any) => d.id === toDayId)?.status === 'Sperrtag') {
+      toast({ title: tt(T.sperrtagZiel), variant: 'destructive' })
+      return
+    }
+
     const sceneId = scene.scene_id || scene.id
 
     moveSceneMutation.mutate({
@@ -268,18 +279,22 @@ export function Component() {
               <Button variant="outline" size="sm" onClick={() => download(api.pdf.drehplan(pid), 'drehplan.pdf')}>
                   <Download className="w-4 h-4 mr-2" />PDF
                 </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowAiOptimize(true)}>
-                <Sparkles className="w-4 h-4 mr-2" />{tt(T.kiOptimierung)}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => { snapshotMutation.mutate(); setShowVersions(true) }}>
-                <Save className="w-4 h-4 mr-2" />{tt(T.versionSpeichern)}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowVersions(v => !v)}>
-                <History className="w-4 h-4 mr-2" />{tt(T.versionen)}
-              </Button>
-              <Button size="sm" onClick={() => setAddDayOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />{tt(T.drehtag)}
-              </Button>
+              {darfVersionen && <>
+                <Button variant="outline" size="sm" onClick={() => setShowAiOptimize(true)}>
+                  <Sparkles className="w-4 h-4 mr-2" />{tt(T.kiOptimierung)}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => { snapshotMutation.mutate(); setShowVersions(true) }}>
+                  <Save className="w-4 h-4 mr-2" />{tt(T.versionSpeichern)}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowVersions(v => !v)}>
+                  <History className="w-4 h-4 mr-2" />{tt(T.versionen)}
+                </Button>
+              </>}
+              {canEdit && (
+                <Button size="sm" onClick={() => setAddDayOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />{tt(T.drehtag)}
+                </Button>
+              )}
             </div>
           }
         />
@@ -289,7 +304,7 @@ export function Component() {
         <ScrollArea className="h-full w-full">
           <div className="flex gap-4 p-4 sm:p-6 pt-0 min-h-full">
             <DndContext
-              sensors={sensors}
+              sensors={canEdit ? sensors : []}
               collisionDetection={closestCenter}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
@@ -305,11 +320,12 @@ export function Component() {
                   onRemoveScene={(dayId, sceneId) => removeSceneMutation.mutate({ dayId, sceneId })}
                   onDeleteDay={(dayId) => deleteDayMutation.mutate(dayId)}
                   onStatusChange={(dayId, status) => statusMutation.mutate({ dayId, status })}
+                  darfAendern={canEdit}
                 />
               ))}
 
               {/* Add day button inline */}
-              <div className="flex items-start">
+              {canEdit && <div className="flex items-start">
                 <button
                   onClick={() => setAddDayOpen(true)}
                   className="w-[200px] h-full min-h-[120px] border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
@@ -317,7 +333,7 @@ export function Component() {
                   <Plus className="w-6 h-6" />
                   <span className="text-sm">{tt(T.drehtag)}</span>
                 </button>
-              </div>
+              </div>}
 
               <DragOverlay>
                 {activeDrag?.scene && (
@@ -350,7 +366,7 @@ export function Component() {
                   <span className="font-medium">{v.name}</span>
                   <span className="text-xs text-muted-foreground">{new Date(v.created_at).toLocaleDateString(gebietsschema)}</span>
                   <button
-                    onClick={() => restoreMutation.mutate(v.id)}
+                    onClick={() => { if (confirm(tt(T.wiederherstellenFrage).replace('{name}', v.name))) restoreMutation.mutate(v.id) }}
                     className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
                     title={tt(T.wiederherstellen)}
                   >

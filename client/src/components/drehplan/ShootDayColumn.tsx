@@ -14,9 +14,11 @@ interface ShootDayColumnProps {
   onRemoveScene: (dayId: number, sceneId: number) => void
   onDeleteDay: (dayId: number) => void
   onStatusChange: (dayId: number, status: string) => void
+  /** Ohne Schreibrecht: kein Löschen, kein Statuswechsel, keine Szene entfernen */
+  darfAendern?: boolean
 }
 
-export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange }: ShootDayColumnProps) {
+export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange, darfAendern = true }: ShootDayColumnProps) {
   const download = useDownload()
   const tt = useT()
   const { setNodeRef, isOver } = useDroppable({
@@ -27,6 +29,10 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
   const sceneIds = (day.scenes || []).map((s: any) => `scene-${s.scene_id}`)
   const totalEighths = day.total_eighths || 0
   const isSperrtag = day.status === 'Sperrtag'
+  // Ein Sperrtag mit Szenen zeigt sie weiter an. Vorher verschwanden sie: nicht
+  // in der Spalte, nicht in der Ablage, aber als "geplant" gezählt (gemessen
+  // am 31.10.2026). So lassen sie sich wegziehen.
+  const leerGesperrt = isSperrtag && (day.scenes || []).length === 0
 
   return (
     <div
@@ -40,15 +46,18 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
       <div className={cn('px-3 py-2 border-b border-border', isSperrtag && 'bg-yellow-500/10')}>
         <div className="flex items-center justify-between mb-1">
           <span className="font-semibold text-sm">{tt(shootDayColumnT.tagN).replace('{n}', String(day.day_number))}</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 opacity-50 hover:opacity-100 hover:text-destructive"
-            onClick={() => onDeleteDay(day.id)}
-            aria-label={tt(shootDayColumnT.loeschen).replace('{n}', String(day.day_number))}
-          >
-            <Trash2 className="w-3 h-3" aria-hidden="true" />
-          </Button>
+          {darfAendern && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5 opacity-50 hover:opacity-100 hover:text-destructive"
+              // Löschen nimmt Dispo, Tagesbericht und Check-ins mit - nicht auf einen Klick
+              onClick={() => { if (confirm(tt(shootDayColumnT.loeschenFrage).replace('{n}', String(day.day_number)))) onDeleteDay(day.id) }}
+              aria-label={tt(shootDayColumnT.loeschen).replace('{n}', String(day.day_number))}
+            >
+              <Trash2 className="w-3 h-3" aria-hidden="true" />
+            </Button>
+          )}
         </div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
           <Calendar className="w-3 h-3" aria-hidden="true" />
@@ -56,6 +65,7 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
         </div>
         <select
           value={day.status}
+          disabled={!darfAendern}
           onChange={(e) => onStatusChange(day.id, e.target.value)}
           aria-label={tt(shootDayColumnT.statusFuer).replace('{n}', String(day.day_number))}
           className={cn(
@@ -96,14 +106,17 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
         className={cn(
           'flex-1 p-2 min-h-[120px] transition-colors',
           isOver && 'bg-primary/10',
-          isSperrtag && 'opacity-50 pointer-events-none'
+          leerGesperrt && 'opacity-50 pointer-events-none'
         )}
         aria-label={isSperrtag ? tt(shootDayColumnT.sperrtagN).replace('{n}', String(day.day_number)) : tt(shootDayColumnT.szenenFuer).replace('{n}', String(day.day_number))}
       >
-        {isSperrtag ? (
+        {leerGesperrt ? (
           <div className="flex items-center justify-center h-full text-xs text-yellow-400 italic">{tt(drehtagStatusT.Sperrtag)}</div>
         ) : (
           <SortableContext items={sceneIds} strategy={verticalListSortingStrategy}>
+            {isSperrtag && (
+              <p role="alert" className="text-[11px] text-yellow-500 mb-1.5">{tt(shootDayColumnT.sperrtagMitSzenen)}</p>
+            )}
             {(day.scenes || []).length === 0 ? (
               <div
                 className="flex items-center justify-center h-full text-xs text-muted-foreground italic"
@@ -118,7 +131,7 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
                     key={scene.scene_id}
                     scene={scene}
                     shootDayId={day.id}
-                    onRemove={(sceneId) => onRemoveScene(day.id, sceneId)}
+                    onRemove={darfAendern ? (sceneId) => onRemoveScene(day.id, sceneId) : undefined}
                   />
                 ))}
               </div>

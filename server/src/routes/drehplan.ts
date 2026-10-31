@@ -297,6 +297,25 @@ router.post('/projects/:projectId/drehplan/restore/:versionId', async (req, res)
 
   const snapshot: any[] = JSON.parse(version.snapshot_json)
 
+  // Den aktuellen Plan vorher als Version sichern - sonst ist ein Klick auf
+  // "Wiederherstellen" nicht mehr rückgängig zu machen.
+  await db.run('INSERT INTO drehplan_versions (project_id, name, snapshot_json) VALUES (?, ?, ?)', [
+    req.params.projectId,
+    `Vor Wiederherstellung von „${version.name}" (${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })})`,
+    JSON.stringify(await ladeDrehtageMitSzenen(req.params.projectId)),
+  ])
+
+  // Gemessene Minuten hängen an der Zuordnung Drehtag-Szene (Tagesbericht).
+  // Vorher gingen sie beim Zurückholen mit den Zuordnungen verloren (gemessen
+  // am 31.10.2026); jetzt bleiben sie, wo Tag und Szene wieder zusammenkommen.
+  const gemessen = new Map<string, number>()
+  for (const z of await db.all(
+    `SELECT sds.shoot_day_id, sds.scene_id, sds.actual_minutes FROM shoot_day_scenes sds
+       JOIN shoot_days sd ON sd.id = sds.shoot_day_id
+      WHERE sd.project_id = ? AND sds.actual_minutes IS NOT NULL`, [req.params.projectId]) as any[]) {
+    gemessen.set(`${z.shoot_day_id}:${z.scene_id}`, Number(z.actual_minutes))
+  }
+
   // Delete all current shoot day ↔ scene assignments, keep the days + scenes themselves
   const currentDays = await db.all('SELECT id FROM shoot_days WHERE project_id = ?', [req.params.projectId]) as any[]
   for (const d of currentDays) {
@@ -314,7 +333,8 @@ router.post('/projects/:projectId/drehplan/restore/:versionId', async (req, res)
       const sceneExists = await db.get('SELECT id FROM scenes WHERE id = ? AND project_id = ?', [sceneId, req.params.projectId])
       if (!sceneExists) continue
       try {
-        await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, ?)', [liveDay.id, sceneId, i])
+        await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order, actual_minutes) VALUES (?, ?, ?, ?)',
+          [liveDay.id, sceneId, i, gemessen.get(`${liveDay.id}:${sceneId}`) ?? null])
       } catch (e: any) {
         if (!e.message?.includes('UNIQUE') && !e.message?.includes('unique')) throw e
       }
