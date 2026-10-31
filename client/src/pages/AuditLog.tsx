@@ -14,15 +14,15 @@ import { auditLogT as T } from '@/lib/texte/AuditLog'
 /** Wie viele Zeilen eine Seite zeigt. */
 const SEITE = 100
 
-function formatTimestamp(ts: string) {
+// In der gewählten Sprache - vorher fest "31.10.2026 18:00:00", auch auf Englisch
+function formatTimestamp(ts: string, gs: string, mitUhrzeit = true) {
   if (!ts) return '-'
-  try {
-    const d = new Date(ts)
-    const pad = (n: number) => String(n).padStart(2, '0')
-    return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-  } catch {
-    return ts
-  }
+  const d = new Date(ts)
+  if (Number.isNaN(d.getTime())) return ts
+  return d.toLocaleString(gs, {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    ...(mitUhrzeit ? { hour: '2-digit', minute: '2-digit', second: '2-digit' } : {}),
+  })
 }
 
 function ActionBadge({ action }: { action: string }) {
@@ -130,7 +130,7 @@ export function Component() {
                   : tt(T.eintraege).replace('{n}', gesamt.toLocaleString(gs))}
               {werte?.erste && !gefiltert && (
                 <span className="text-muted-foreground/70">
-                  {' '}· {tt(T.seit).replace('{d}', formatTimestamp(werte.erste).slice(0, 10))}
+                  {' '}· {tt(T.seit).replace('{d}', formatTimestamp(werte.erste, gs, false))}
                 </span>
               )}
             </p>
@@ -231,7 +231,7 @@ export function Component() {
                 entries.map((entry: any, idx: number) => (
                   <tr key={entry.id ?? idx} className="border-b border-border/40 hover:bg-muted/20 transition-colors">
                     <td className="py-2.5 px-4 text-xs text-muted-foreground font-mono whitespace-nowrap">
-                      {formatTimestamp(entry.created_at || entry.timestamp || '')}
+                      {formatTimestamp(entry.created_at || entry.timestamp || '', gs)}
                     </td>
                     <td className="py-2.5 px-4 text-sm">
                       {entry.user_name || entry.user?.name || entry.user_email || '-'}
