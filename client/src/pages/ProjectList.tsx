@@ -17,6 +17,7 @@ import { OnboardingWizard } from '@/components/OnboardingWizard'
 import { useT } from '@/lib/useT'
 import { projectsT, uiT } from '@/lib/i18n'
 import { useAuth } from '@/contexts/AuthContext'
+import { onboardingFormatT } from '@/lib/texte/komponenten/OnboardingWizard'
 
 // Status als Phase der Produktion: gedämpfte Punkte statt farbiger Kästen
 const STATUS_META: Record<string, { text: string; dot: string }> = {
@@ -39,9 +40,14 @@ const TINTS = ['bg-blue-500', 'bg-orange-500', 'bg-violet-500', 'bg-green-500', 
 
 const FORMATS = ALL_FORMATS
 
+type Tt = ReturnType<typeof useT>
+/** Gespeicherte Werte (Format, Status) bleiben deutsch, angezeigt wird übersetzt. */
+const formatName = (wert: string, tt: Tt) => (onboardingFormatT[wert] ? tt(onboardingFormatT[wert]) : wert)
+const statusName = (wert: string, tt: Tt) => (projectsT.status[wert] ? tt(projectsT.status[wert]) : wert)
+
 /**
  * Icon je Projektart. Film und Content sehen in der Liste sonst gleich aus,
- * obwohl dahinter voellig verschiedene Arbeitsweisen stecken - und wer beides
+ * obwohl dahinter völlig verschiedene Arbeitsweisen stecken - und wer beides
  * macht, sucht sonst in einer gemischten Liste.
  */
 function projectIcon(project: any) {
@@ -69,14 +75,14 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
       api.projects.create({ ...data, company_id: data.company_id ? Number(data.company_id) : undefined }),
     onSuccess: (project) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
-      toast({ title: 'Projekt erstellt' })
+      toast({ title: tt(projectsT.erstellt) })
       // Creator-Projekte starten bei den Videos - das Film-Dashboard zeigt
       // Drehtage und Dispo, die es dort nicht gibt.
       const isCreator = isCreatorProject(project) || isCreatorFormat(form.format)
       navigate(isCreator ? `/projects/${project.id}/creator` : `/projects/${project.id}`)
       onClose()
     },
-    onError: () => toast({ title: 'Fehler beim Erstellen', variant: 'destructive' }),
+    onError: () => toast({ title: tt(projectsT.fehlerErstellen), variant: 'destructive' }),
   })
 
   const f = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }))
@@ -89,12 +95,12 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
           <div>
             <Label className="text-xs text-muted-foreground">{tt(projectsT.labelTitle)}</Label>
             <Input value={form.title} onChange={e => f('title', e.target.value)}
-              placeholder="Mein Film" className="mt-1 h-10 text-base font-medium" autoFocus />
+              placeholder={tt(projectsT.phTitel)} className="mt-1 h-10 text-base font-medium" autoFocus />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs text-muted-foreground">{tt(projectsT.labelGenre)}</Label>
-              <Input value={form.genre} onChange={e => f('genre', e.target.value)} placeholder="Drama" className="mt-1" />
+              <Input value={form.genre} onChange={e => f('genre', e.target.value)} placeholder={tt(projectsT.phGenre)} className="mt-1" />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">{tt(projectsT.labelFormat)}</Label>
@@ -102,7 +108,7 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
                 <SelectTrigger className="mt-1 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {FORMATS.map(v =>
-                    <SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>
+                    <SelectItem key={v} value={v} className="text-xs">{formatName(v, tt)}</SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -110,34 +116,34 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-muted-foreground">Regie</Label>
+              <Label className="text-xs text-muted-foreground">{tt(projectsT.regie)}</Label>
               <Input value={form.director} onChange={e => f('director', e.target.value)} className="mt-1" />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Produzent/in</Label>
+              <Label className="text-xs text-muted-foreground">{tt(projectsT.produzent)}</Label>
               <Input value={form.producer} onChange={e => f('producer', e.target.value)} className="mt-1" />
             </div>
           </div>
           {(firmen || []).length > 0 && (
             <div>
-              <Label className="text-xs text-muted-foreground">Firma</Label>
+              <Label className="text-xs text-muted-foreground">{tt(projectsT.firma)}</Label>
               <Select value={form.company_id || 'keine'} onValueChange={v => f('company_id', v === 'keine' ? '' : v)}>
                 <SelectTrigger className="mt-1 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="keine" className="text-xs">Ohne Firma</SelectItem>
+                  <SelectItem value="keine" className="text-xs">{tt(projectsT.ohneFirma)}</SelectItem>
                   {(firmen || []).map((firma: any) => (
                     <SelectItem key={firma.id} value={String(firma.id)} className="text-xs">{firma.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Adressbuch und Gagensätze der Firma stehen dann in diesem Projekt bereit.
+                {tt(projectsT.firmaHinweis)}
               </p>
             </div>
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Abbrechen</Button>
+          <Button variant="outline" onClick={onClose}>{tt(uiT.cancel)}</Button>
           <Button onClick={() => createMutation.mutate(form)} disabled={!form.title || createMutation.isPending}>
             {createMutation.isPending ? tt(projectsT.creating) : tt(uiT.create)}
           </Button>
@@ -160,13 +166,13 @@ export function Component() {
     queryFn: () => api.projects.list(showArchived),
   })
 
-  // Das Willkommensfenster laeuft genau dann, wenn App.tsx es oeffnet:
-  // frisch registriert und noch nicht gesehen. Derselbe Schluessel, damit die
+  // Das Willkommensfenster läuft genau dann, wenn App.tsx es öffnet:
+  // frisch registriert und noch nicht gesehen. Derselbe Schlüssel, damit die
   // beiden Erstlauf-Fenster nicht uebereinander stehen.
   const { user, justRegistered } = useAuth()
   const tutorialLaeuft = !!user && justRegistered
     && !localStorage.getItem(`cutsheet-tutorial-seen-${user.id}`)
-  // Das Demoprojekt zaehlt nicht als eigenes: wer nur das hat, steht noch am
+  // Das Demoprojekt zählt nicht als eigenes: wer nur das hat, steht noch am
   // Anfang und soll den Assistenten bekommen.
   // Nur in der normalen Liste: ein leeres Archiv heißt nicht "neues Konto".
   // Vorher sprang der Assistent auf, sobald jemand das leere Archiv öffnete.
@@ -174,14 +180,14 @@ export function Component() {
     && Array.isArray(projects)
     && (projects as any[]).filter(p => !p.is_demo).length === 0
 
-  /** Ab Abteilungsleitung darf geschrieben werden - so haelt es der Server. */
+  /** Ab Abteilungsleitung darf geschrieben werden - so hält es der Server. */
   const darfAendern = (p: any) =>
     p.owner_id === user?.id || ['admin', 'producer', 'director', 'dept_head'].includes(p.my_role)
   const istEigentuemerin = (p: any) => p.owner_id === user?.id
 
   const duplicateMutation = useMutation({
     mutationFn: (id: number) => api.projects.duplicate(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['projects'] }); toast({ title: 'Projekt dupliziert' }) },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['projects'] }); toast({ title: tt(projectsT.dupliziert) }) },
   })
 
   const archiveMutation = useMutation({
@@ -194,8 +200,8 @@ export function Component() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.projects.delete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['projects'] }); toast({ title: 'Projekt gelöscht' }) },
-    onError: () => toast({ title: 'Fehler beim Löschen', variant: 'destructive' }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['projects'] }); toast({ title: tt(projectsT.geloescht) }) },
+    onError: () => toast({ title: tt(projectsT.fehlerLoeschen), variant: 'destructive' }),
   })
 
   return (
@@ -204,9 +210,9 @@ export function Component() {
         {/* Kopf */}
         <header className="flex flex-wrap items-end justify-between gap-6 pb-8 animate-fade-up">
           <div>
-            <p className="text-[15px] text-muted-foreground">{showArchived ? tt(projectsT.archived) : 'Produktionen'}</p>
+            <p className="text-[15px] text-muted-foreground">{showArchived ? tt(projectsT.archived) : tt(projectsT.produktionen)}</p>
             <h1 className="font-display text-[40px] sm:text-[52px] mt-1">
-              {showArchived ? 'Archiv' : tt(projectsT.title)}
+              {showArchived ? tt(projectsT.archived) : tt(projectsT.title)}
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -216,7 +222,7 @@ export function Component() {
             </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate('/firma')}>
               <Building2 className="w-3.5 h-3.5" />
-              Firma
+              {tt(projectsT.firma)}
             </Button>
             <Button onClick={() => setShowNew(true)}>
               <Plus className="w-4 h-4" />{tt(projectsT.newProject)}
@@ -241,7 +247,7 @@ export function Component() {
                 {tt(projectsT.empty)}
               </p>
               <p className="text-[15px] text-muted-foreground mt-4 max-w-[46ch] leading-relaxed">
-                Lege ein Projekt an - danach führt dich CutSheet vom Drehbuch über den Drehplan bis zur Tagesdispo.
+                {tt(projectsT.leerText)}
               </p>
             </div>
             <Button size="lg" onClick={() => setShowNew(true)}>
@@ -268,28 +274,23 @@ export function Component() {
                         <span className="flex items-center gap-2.5">
                           <span className="text-[17px] font-semibold tracking-[-0.02em] truncate">{project.title}</span>
                           {project.is_demo && (
-                            <span className="chip shrink-0" title="Demo-Projekt zum Ausprobieren - kann jederzeit gelöscht werden">Demo</span>
+                            <span className="chip shrink-0" title={tt(projectsT.demoHinweis)}>Demo</span>
                           )}
                         </span>
                         <span className="mt-0.5 block text-[13px] text-muted-foreground truncate">
-                          {[project.format, project.genre,
-                            project.length_minutes ? `${project.length_minutes} Min.` : null,
-                            project.director ? `Regie: ${project.director}` : null]
+                          {[project.format ? formatName(project.format, tt) : null, project.genre,
+                            project.length_minutes ? tt(projectsT.minuten).replace('{n}', String(project.length_minutes)) : null,
+                            project.director ? tt(projectsT.regieVon).replace('{name}', project.director) : null]
                             .filter(Boolean).join(' · ')}
                         </span>
                       </span>
                       <span className={cn('col-start-2 sm:col-start-auto flex items-center gap-2 text-[13px]', meta.text)}>
                         <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', meta.dot)} />
-                        {project.status}
+                        {statusName(project.status, tt)}
                       </span>
-                      {project.is_demo && (
-                        <span
-                          className="text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 bg-info/15 text-info border border-info/25"
-                          title="Demo-Projekt zum Ausprobieren - kann jederzeit gelöscht werden"
-                        >
-                          Demo
-                        </span>
-                      )}
+                      {/* Hier stand eine zweite Demo-Plakette als eigenes Rasterelement:
+                          Sie schob das Datum in die Pfeilspalte und den Pfeil in eine
+                          neue Zeile. Die Plakette am Titel genügt. */}
                       <span className="hidden sm:block text-right text-[13px] text-muted-foreground tabular-nums">
                         {project.shoot_start
                           ? <>{formatDate(project.shoot_start)}{project.shoot_end ? <><br />{formatDate(project.shoot_end)}</> : null}</>
@@ -302,13 +303,13 @@ export function Component() {
                       Aktionen nur, wo sie auch erlaubt sind. Gemessen am
                       27.09.2026: ein Konto mit Lesezugriff bekam an einem
                       fremden Projekt Duplizieren, Archivieren und Loeschen
-                      angeboten - jeder Klick waere am Server gescheitert.
-                      Loeschen kann ohnehin nur die Eigentuemerin.
+                      angeboten - jeder Klick wäre am Server gescheitert.
+                      Löschen kann ohnehin nur die Eigentümerin.
                     */}
                     <div className="absolute right-0 top-6 sm:top-1/2 sm:-translate-y-1/2 sm:right-[170px] flex items-center gap-0.5 opacity-100 md:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 bg-card/95 rounded-full">
                       {!showArchived && darfAendern(project) && (
                         <Button variant="ghost" size="icon" className="h-8 w-8"
-                          onClick={() => duplicateMutation.mutate(project.id)} title="Duplizieren" aria-label="Duplizieren">
+                          onClick={() => duplicateMutation.mutate(project.id)} title={tt(projectsT.duplizieren)} aria-label={tt(projectsT.duplizieren)}>
                           <Copy className="w-3.5 h-3.5" />
                         </Button>
                       )}
@@ -322,8 +323,8 @@ export function Component() {
                       )}
                       {istEigentuemerin(project) && (
                         <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-danger hover:bg-danger/[0.08]"
-                          onClick={() => { if (confirm(`„${project.title}" wirklich löschen?`)) deleteMutation.mutate(project.id) }}
-                          title="Projekt löschen" aria-label="Projekt löschen">
+                          onClick={() => { if (confirm(tt(projectsT.wirklichLoeschen).replace('{titel}', project.title))) deleteMutation.mutate(project.id) }}
+                          title={tt(projectsT.loeschen)} aria-label={tt(projectsT.loeschen)}>
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       )}
@@ -333,7 +334,7 @@ export function Component() {
               })}
             </ul>
             <p className="mt-3 px-4 text-[12px] text-muted-foreground tabular-nums">
-              {projects.length} Projekt{projects.length !== 1 ? 'e' : ''}
+              {projects.length === 1 ? tt(projectsT.anzahlEins) : tt(projectsT.anzahl).replace('{n}', String(projects.length))}
             </p>
           </>
         )}
@@ -341,8 +342,8 @@ export function Component() {
 
       <NewProjectDialog open={showNew} onClose={() => setShowNew(false)} />
       {/*
-        Nur fuer ein Konto ohne Projekte - und nicht, solange das
-        Willkommensfenster laeuft. Vorher standen beide uebereinander, und der
+        Nur für ein Konto ohne Projekte - und nicht, solange das
+        Willkommensfenster läuft. Vorher standen beide übereinander, und der
         Assistent erschien auch jemandem mit zwanzig Projekten, sobald er den
         Browser wechselte.
       */}
