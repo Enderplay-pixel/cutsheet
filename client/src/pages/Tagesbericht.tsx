@@ -10,11 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
-import { formatDate, debounce, cn, dauer } from '@/lib/utils'
+import { formatDate, cn, dauer } from '@/lib/utils'
 import { ChevronLeft, ChevronRight, FileText, Clock, Camera, AlertTriangle, Save, Download } from 'lucide-react'
 import { TimeInput } from '@/components/ui/time-input'
 import { useT } from '@/lib/useT'
 import { tagesberichtT } from '@/lib/texte/Tagesbericht'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 export function Component() {
   const { projectId } = useParams()
@@ -23,6 +24,7 @@ export function Component() {
   const { toast } = useToast()
   const download = useDownload()
   const tt = useT()
+  const { darfSchreiben } = useSchreibrecht()
   const [selectedDayIdx, setSelectedDayIdx] = useState(0)
 
   const { data: allDays } = useQuery({
@@ -44,8 +46,13 @@ export function Component() {
   })
 
   const [form, setForm] = useState<any>(null)
+  // Nur beim ersten Laden eines Tages übernehmen. Vorher setzte jedes Neuladen
+  // (nach dem Speichern, beim Zurückkehren ins Fenster) das Formular auf den
+  // Serverstand zurück - was inzwischen weitergetippt war, war weg.
+  const geladenFuer = useRef<number | null>(null)
   useEffect(() => {
-    if (report !== undefined) {
+    if (report !== undefined && selectedDay && geladenFuer.current !== selectedDay.id) {
+      geladenFuer.current = selectedDay.id
       const defCall = project?.settings?.default_call_time ?? 480
       const defWrap = project?.settings?.default_wrap_time ?? 1140
       setForm(report || {
@@ -69,22 +76,51 @@ export function Component() {
       karte[String(s.scene_id)] = s.actual_minutes == null ? '' : String(s.actual_minutes)
     }
     setIstZeiten(karte)
-  }, [selectedDay?.id, selectedDay?.scenes])
+  }, [selectedDay?.id])
 
+  /*
+   * Speichern: verzögert, aber an den Drehtag gebunden, für den getippt wurde.
+   * Vorher las der Auftrag den Drehtag erst beim Auslösen - wer tippte und
+   * gleich weiterblätterte, schrieb den Bericht in den nächsten Tag, und der
+   * eigene Tag verlor die Eingabe (gemessen am 31.10.2026). Eine zweite
+   * Eingabe innerhalb von 700 ms verdrängte außerdem die gemessenen
+   * Szenenminuten aus dem Auftrag.
+   */
   const saveMutation = useMutation({
-    mutationFn: (data: any) => api.dailyReports.createOrUpdate(selectedDay!.id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['daily-report', selectedDay?.id] })
+    mutationFn: ({ tagId, daten }: { tagId: number; daten: any }) => api.dailyReports.createOrUpdate(tagId, daten),
+    onSuccess: (_antwort, { tagId }) => {
+      queryClient.invalidateQueries({ queryKey: ['daily-report', tagId] })
+      // Szenenstand und Minuten gelten auch in Drehplan und Zeitanalyse
+      queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] })
+      queryClient.invalidateQueries({ queryKey: ['time-analysis', pid] })
       toast({ title: tt(tagesberichtT.gespeichert) })
     },
   })
+  const offen = useRef<{ tagId: number; daten: any } | null>(null)
+  const zeitgeber = useRef<ReturnType<typeof setTimeout>>()
+  const speichern = useRef(saveMutation.mutate)
+  speichern.current = saveMutation.mutate
+  const jetztSpeichern = () => {
+    if (zeitgeber.current) clearTimeout(zeitgeber.current)
+    if (offen.current) speichern.current(offen.current)
+    offen.current = null
+  }
+  const spaeterSpeichern = (daten: any) => {
+    if (!selectedDay) return
+    if (offen.current && offen.current.tagId !== selectedDay.id) jetztSpeichern()
+    // Zusammenführen: Was noch aussteht (etwa die Minuten), bleibt im Auftrag
+    offen.current = { tagId: selectedDay.id, daten: { ...offen.current?.daten, ...daten } }
+    if (zeitgeber.current) clearTimeout(zeitgeber.current)
+    zeitgeber.current = setTimeout(jetztSpeichern, 700)
+  }
+  // Beim Blättern und beim Verlassen nichts liegen lassen
+  useEffect(() => () => jetztSpeichern(), [selectedDay?.id])
 
-  const debouncedSave = useRef(debounce((data: any) => saveMutation.mutate(data), 700)).current
   const update = (key: string, value: any) => {
     if (!form) return
     const next = { ...form, [key]: value }
     setForm(next)
-    debouncedSave(next)
+    spaeterSpeichern(next)
   }
 
   // Szenenstand des Tages. Eine Szene ist entweder offen, angefangen oder
@@ -102,7 +138,7 @@ export function Component() {
     for (const [id, wert] of Object.entries(karte)) {
       abbildung[id] = wert.trim() === '' ? null : Number(wert)
     }
-    debouncedSave({ ...form, scene_actuals: abbildung })
+    spaeterSpeichern({ ...form, scene_actuals: abbildung })
   }
 
   const szeneWeiterschalten = (sceneId: number) => {
@@ -119,7 +155,7 @@ export function Component() {
 
     const next = { ...form, scenes_completed: fertig, scenes_partial: teil }
     setForm(next)
-    debouncedSave(next)
+    spaeterSpeichern(next)
   }
 
   if (!allDays || allDays.length === 0) {
@@ -175,6 +211,9 @@ export function Component() {
         <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
       ) : (
         <>
+          {/* Ohne Schreibrecht gesperrt - vorher löste jede Eingabe eines Lesers
+              einen Speicherversuch aus, der am Server scheiterte */}
+          <fieldset disabled={!darfSchreiben} className="space-y-5 min-w-0 border-0 p-0 m-0">
           {/* Times */}
           <div className="bg-card border border-border/60 rounded-xl p-5">
             <div className="flex items-center gap-2 mb-4">
@@ -331,16 +370,20 @@ export function Component() {
             </div>
           </div>
 
+          </fieldset>
+
           <div className="flex justify-end gap-2">
             {selectedDay?.id && (
               <Button variant="outline" onClick={() => download(api.pdf.tagesbericht(selectedDay.id), 'tagesbericht.pdf')}>
                   <Download className="w-3.5 h-3.5 mr-1.5" />PDF
                 </Button>
             )}
-            <Button onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending}>
-              <Save className="w-3.5 h-3.5 mr-1.5" />
-              {saveMutation.isPending ? tt(tagesberichtT.speichere) : tt(tagesberichtT.speichern)}
-            </Button>
+            {darfSchreiben && (
+              <Button onClick={() => { spaeterSpeichern(form); jetztSpeichern() }} disabled={saveMutation.isPending}>
+                <Save className="w-3.5 h-3.5 mr-1.5" />
+                {saveMutation.isPending ? tt(tagesberichtT.speichere) : tt(tagesberichtT.speichern)}
+              </Button>
+            )}
           </div>
         </>
       )}

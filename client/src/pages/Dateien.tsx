@@ -21,6 +21,7 @@ import {
 import { useT, useGebietsschema } from '@/lib/useT'
 import { dateienT as T, FRIST_TEXT } from '@/lib/texte/Dateien'
 import { parseISO } from 'date-fns'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 const datum = (wert: string | null | undefined, gs: string) =>
   wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString(gs) : '-'
@@ -40,6 +41,7 @@ export function Component() {
   const ansehen = useAnsehen()
   const tt = useT()
   const gs = useGebietsschema()
+  const { darfSchreiben } = useSchreibrecht()
   const dateiFeld = useRef<HTMLInputElement>(null)
 
   const [art, setArt] = useState('')
@@ -77,8 +79,9 @@ export function Component() {
         </span>
       </div>
 
-      {/* Hochladen */}
-      <Card>
+      {/* Hochladen - wie Ändern und Löschen nur mit Schreibrecht; vorher
+          standen alle drei auch Lesern offen und scheiterten erst am Server */}
+      {darfSchreiben && <Card>
         <CardContent className="pt-5">
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-[200px]">
@@ -100,7 +103,7 @@ export function Component() {
             </Button>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Filter */}
       <div className="flex flex-wrap items-center gap-2">
@@ -203,15 +206,17 @@ export function Component() {
                         >
                           <Download className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setBearbeite(f)}>{tt(T.aendern)}</Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => loeschen.mutate(f.id)}
-                          aria-label={tt(T.loeschenAria).replace('{name}', f.filename)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        {darfSchreiben && <>
+                          <Button variant="ghost" size="sm" onClick={() => setBearbeite(f)}>{tt(T.aendern)}</Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => loeschen.mutate(f.id)}
+                            aria-label={tt(T.loeschenAria).replace('{name}', f.filename)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </>}
                       </td>
                     </tr>
                   ))}

@@ -420,6 +420,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 198 | `client/src/pages/Stabliste.tsx`, `client/src/lib/i18n.ts` | Fehler | Die Stabliste zeigte nur Abteilungen aus ihrer festen Liste. Wer über das Firmen-Adressbuch übernommen wurde (`routes/companies.ts`, Abteilung ist dort Freitext), etwa mit "Grip", war unsichtbar. Er zählte oben mit, ließ sich aber weder sehen noch bearbeiten noch löschen. Dazu feste deutsche Reste: Bildschirmleser-Namen, "Alle", "Einklappen", "Neues Mitglied", CSV-Kopf, Abteilungsnamen. | ja: Prüfprojekt "2 Mitarbeiter", sichtbar nur 1 ("Grip" fehlte) | behoben: Bekannte Abteilungen in fester Reihenfolge, danach jede andere. Abteilungen übersetzt angezeigt (gespeichert bleibt deutsch), alle Texte in drei Sprachen. Danach gemessen: beide sichtbar, "Grip" als eigene Gruppe mit Löschknopf. Englisch "Camera", "Position of Klara Kamera", kein deutsches Wort |
 | 199 | `client/src/pages/CheckinBoard.tsx` | Fehler | Die Check-in-Tafel nannte einen Gastlink `/guest/checkin/{Drehtag}`, den es nicht gibt (seit Fund 79 im Merkzettel). Ein Fehltipp auf "Einchecken" ließ sich nicht zurücknehmen, obwohl der Server `checked_in: false` kennt. Leser sahen "Einchecken" und bekamen 403. Geprüft und in Ordnung: Tagesdispo und Tafel teilen den Schlüssel `['call-sheet', Tag]` mit demselben Endpunkt. | ja: Hinweis im Browser; "Zurücknehmen" gab es nicht | behoben: Hinweis entfernt, "Zurücknehmen" bei eingecheckten Personen, Knöpfe nur mit Schreibrecht. Danach gemessen: Einchecken setzt den Server auf eingecheckt, Zurücknehmen wieder zurück, der Knopf "Einchecken" ist wieder da. Ein Lese-Konto sieht die Person ohne Knopf |
 | 200 | `client/src/pages/Terminkalender.tsx` | Fehler | Ein Termin mit "Datum bis" stand nur an seinem ersten Tag: eine Reise vom 10. bis 12.11. fehlte am 11. und 12. Der Dialog "Termin hinzufügen" übernahm den gewählten Tag nicht. Er bleibt eingehängt, und der Startwert von `useState` galt nur beim ersten Mal. Die Tage ließen sich nur mit der Maus wählen. Anlegen und Löschen standen auch Lesern offen. | ja: Reise nur am 10. sichtbar; nach Wahl des 20. stand im Dialog ein leeres Datum | behoben: Termine an jedem Tag ihres Zeitraums, Dialog setzt beim Öffnen den gewählten Tag, Tage per Tastatur wählbar (Enter/Leertaste, mit Namen), Anlegen und Löschen nur mit Schreibrecht. Danach gemessen: Reise am 10., 11. und 12., nicht am 9. und 13. Enter auf dem 20. wählt ihn, der Dialog zeigt "2026-11-20". Die Lese-Sperre nicht gesondert gemessen |
+| 201 | `client/src/pages/Tagesbericht.tsx` | **Fehler, Datenverlust** | Das verzögerte Speichern (700 ms) las den Drehtag erst beim Auslösen. Wer tippte und gleich zum nächsten Tag blätterte, schrieb den Bericht in den nächsten Tag, und der eigene Tag verlor die Eingabe. Eine zweite Eingabe innerhalb von 700 ms verdrängte die gemessenen Szenenminuten aus dem Auftrag: Das Feld zeigte 75, gespeichert wurde nichts. Jedes Neuladen (nach dem Speichern, beim Zurückkehren ins Fenster) setzte das Formular auf den Serverstand zurück. Drehplan und Zeitanalyse wurden nach dem Speichern nicht erneuert. | ja: Tag 2 bekam "Zweite Notiz von Tag 1", Tag 1 behielt die alte; Minutenfeld 75, Server leer | behoben: Jeder Speicherauftrag trägt seinen Drehtag. Beim Blättern und Verlassen wird sofort gespeichert. Ausstehende Teile (Minuten) bleiben im Auftrag. Das Formular wird nur beim ersten Laden eines Tages übernommen, danach `shoot-days` und `time-analysis` erneuert. Danach gemessen: Tag 1 "Neu Tag 1", Tag 2 unverändert. Minuten 80 mit schneller Notiz danach: beides gespeichert. Weitertippen während des Neuladens: Feld und Server "Drehbericht ABC". Den dritten Fall habe ich am alten Stand nicht gemessen |
+| 202 | `client/src/pages/Tagesbericht.tsx`, `client/src/pages/Dateien.tsx` | Klein | Bei Lesezugriff war der Tagesbericht voll bearbeitbar, jede Eingabe löste einen Speicherversuch aus, der am Server scheiterte. In der Dateiablage standen Hochladen, Ändern und Löschen offen. | ja, Lese-Konto: im Tagesbericht 15 offene Felder und Knöpfe | behoben: Tagesbericht-Felder in einem gesperrten `fieldset`, Speichern-Knopf nur mit Schreibrecht; Dateien ohne Hochladen, Ändern, Löschen. Danach gemessen mit einem Lese-Konto: Tagesbericht nur noch Blättern und PDF. Dateien: ansehen und herunterladen, sonst nichts |
 
 ### Verknüpfungen
 
@@ -452,6 +454,7 @@ Kandidaten stehen hier, bis sie gebaut oder verworfen sind.
 | Video anlegen, umwandeln, Status, Löschen | Redaktionsplan, Kanal, Serien, Performance, Sponsoren, Rechte | gebaut, Fund 182 |
 | Dispo-Eintrag einer Person mit Konto | Zugang zum Projekt (Lesezugriff) | gebaut, Fund 185 |
 | Termin vom Typ "Sperrtag" im Kalender | Sperrtage-Kalender und Konfliktradar | Kandidat: Der Kalender kennt den Termintyp "Sperrtag", die Sperrtage (`blackout_dates`) sind eine eigene Tabelle. Ein im Kalender eingetragener Sperrtag warnt den Drehplan nicht |
+| Tagesbericht (Szenenstand, Minuten) | Drehplan, Zeitanalyse sofort | gebaut, Fund 201 |
 
 ## Abhakliste
 
@@ -797,7 +800,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/pages/CreatorVideos.tsx` (249) - gelesen (Fund 182)
 - [ ] `client/src/pages/DOOD.tsx` (362)
 - [ ] `client/src/pages/Dashboard.tsx` (440)
-- [ ] `client/src/pages/Dateien.tsx` (341)
+- [x] `client/src/pages/Dateien.tsx` (341) - gelesen (Fund 202)
 - [x] `client/src/pages/Datenschutz.tsx` (48) - gelesen (ohne Befund (Platzhalter: Fund 141))
 - [x] `client/src/pages/DatenschutzWerkzeuge.tsx` (297) - gelesen (Fund 194)
 - [ ] `client/src/pages/Drehbuch.tsx` (552)
@@ -842,7 +845,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/Stammdaten.tsx` (496)
 - [x] `client/src/pages/Suche.tsx` (209) - gelesen (Fund 175)
 - [ ] `client/src/pages/SzenenKommentare.tsx` (359)
-- [ ] `client/src/pages/Tagesbericht.tsx` (349)
+- [x] `client/src/pages/Tagesbericht.tsx` (349) - gelesen (Funde 201 und 202)
 - [ ] `client/src/pages/Tagesdispo.tsx` (1116)
 - [x] `client/src/pages/Terminkalender.tsx` (335) - gelesen (Fund 200)
 - [ ] `client/src/pages/Timesheets.tsx` (562)
