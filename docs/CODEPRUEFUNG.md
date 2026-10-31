@@ -383,6 +383,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 167 | `client/src/lib/utils.ts` (`parseTime`), genutzt von `components/ui/time-input.tsx` | **Fehler (Daten)** | Das Zeitfeld (General Call, Shooting Call, Calls der Personen) trennte nur am Doppelpunkt. "1630" ohne Doppelpunkt wurde 1630 Stunden, "930" 930 Stunden, "16.30" - in Deutschland üblich - still 16:18, "25:99" 26:39, "-1" -1:00; das Feld übernahm jeden dieser Werte. | ja: über das Modul im Browser, alle Fälle wie beschrieben | behoben: versteht 16:30, 16.30, 1630, 930 und 9; außerhalb 00:00-23:59 ungültig, das Feld springt auf den letzten gültigen Wert. Danach gemessen: im Modul alle Fälle richtig; in der Tagesdispo "0630" wird 06:30, "16.30" wird 16:30; Demo-Wert auf 08:00 zurückgesetzt (Server: 480) |
 | 168 | `client/src/components/ui/label.tsx` | Barrierefreiheit | `Label` verknüpfte sich mit dem ersten Feld im Elternelement. Stehen zwei Paare im selben Container, zeigen beide Beschriftungen auf das erste Feld. `lib/beschriftungen.ts` (für native Beschriftungen) prüfte dagegen schon zuerst das Nachbarelement. | ja: am Baustein gerendert, "Nachname" zeigte auf das Feld von "Vorname". Auf 23 Seiten (ohne geöffnete Dialoge) war es nicht zu sehen: 28 verknüpfte Beschriftungen, keine geteilt | behoben: zuerst das Nachbarelement, sonst das erste noch unbeschriftete Feld. Danach gemessen: zwei Paare richtig, übliches Muster und Hinweistext dazwischen unverändert richtig |
 | 169 | `client/src/components/ui/toast.tsx` | Klein (Barrierefreiheit) | Der Schließen-Knopf der Hinweisfenster war ein Symbol ohne Namen. | aus dem Code | behoben wie beim Dialog (unsichtbarer Text "Schließen" in der gewählten Sprache). Danach gemessen: Name "Schließen" |
+| 170 | `client/src/App.tsx`, `client/src/main.tsx` | **Fehler** | Der `Toaster` hing nur im App-Rahmen. Die Seiten ohne Rahmen - Vertrag bestätigen (2 Meldungen), Casting-Antwort (1), Abnahme (3), dazu die globale Fehlermeldung für Schreibvorgänge auf öffentlicher Dispo und Set-App - zeigten ihre Meldungen nie: Wer dort etwas falsch machte oder wessen Speichern scheiterte, erfuhr es nicht. | ja: auf `/casting/…` eine Meldung ausgelöst, nichts erschien | behoben: `Toaster` einmal in `main.tsx` für alle Seiten. Danach gemessen: Meldung auf der Casting-Seite sichtbar; im App-Rahmen genau ein Meldungsbereich und eine Meldung |
+| 171 | `client/src/App.tsx`, `store/useProjectStore.ts` | Klein | Solange das Projekt lud, galt die Rolle als "nur lesen" - der Hinweis "Du hast Lesezugriff" stand dann über jeder Projektseite, auch für die Leitung. `searchOpen` im Store wurde nie benutzt (die Suche führt ihren Zustand in `App.tsx`). | ja: Projektabfrage um 1,5 s verzögert, Hinweis beim Laden sichtbar, danach weg | behoben: Hinweis erst mit geladenem Projekt; `searchOpen` entfernt. Danach gemessen: kein Hinweis beim verzögerten Laden |
 
 ### Verknüpfungen
 
@@ -812,9 +814,9 @@ Gesamt: 421 Dateien, 87774 Zeilen
 
 ### Client: Rest
 
-- [ ] `client/src/App.tsx` (139)
+- [x] `client/src/App.tsx` (139) - gelesen (Funde 157, 170, 171)
 - [ ] `client/src/index.css` (751)
-- [x] `client/src/main.tsx` (235) - gelesen (Funde 146 und 147)
+- [x] `client/src/main.tsx` (235) - gelesen (Funde 146 und 147, 170)
 - [ ] `client/src/sw.ts` (95)
 - [ ] `client/src/vite-env.d.ts` (9)
 

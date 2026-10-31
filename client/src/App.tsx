@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Outlet, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
-import { Toaster } from '@/components/ui/toaster'
 import { GlobalSearch } from '@/components/shared/GlobalSearch'
 import { ShortcutsModal } from '@/components/shared/ShortcutsModal'
 import { TutorialModal } from '@/components/shared/TutorialModal'
@@ -23,7 +22,7 @@ function AppShell() {
   const { projectId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { darkMode, searchOpen, setSearchOpen } = useProjectStore()
+  const { darkMode } = useProjectStore()
   const [searchVisible, setSearchVisible] = useState(false)
   const { user, justRegistered, clearJustRegistered } = useAuth()
   const [tutorialOpen, setTutorialOpen] = useState(false)
@@ -92,7 +91,7 @@ function AppShell() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [projectId, navigate, setSearchOpen])
+  }, [projectId, navigate])
 
   return (
     <ProjectRoleProvider role={myRole}>
@@ -103,8 +102,10 @@ function AppShell() {
           <div className="flex flex-col flex-1 min-w-0 overflow-hidden relative">
             <div className="ambient-glow absolute inset-x-0 top-0 h-[420px] pointer-events-none" aria-hidden />
             <TopBar onSearchOpen={() => setSearchVisible(true)} />
-            {/* Read-only banner */}
-            {projectId && myRole === 'read_only' && (
+            {/* Lesezugriff-Hinweis erst, wenn die Rolle feststeht - vorher stand
+                er beim Laden jedes Projekts kurz da, auch für die Leitung
+                (gemessen am 31.10.2026 mit verzögerter Antwort) */}
+            {projectId && project && myRole === 'read_only' && (
               <div className="flex items-center gap-2 px-4 py-1.5 bg-warning/[0.08] border-b border-warning/20 text-xs text-warning shrink-0">
                 <EyeOff className="w-3.5 h-3.5 shrink-0" />
                 <span>{tt(appT.readOnlyBanner)}</span>
@@ -124,7 +125,7 @@ function AppShell() {
         <GlobalSearch open={searchVisible} onClose={() => setSearchVisible(false)} />
         <ShortcutsModal />
         <TutorialModal open={tutorialOpen} onClose={handleTutorialClose} />
-        <Toaster />
+        {/* Der Toaster hängt in main.tsx - auch öffentliche Seiten brauchen ihn */}
       </TooltipProvider>
     </ProjectRoleProvider>
   )

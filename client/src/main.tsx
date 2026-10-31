@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query'
 import { toast } from '@/components/ui/use-toast'
+import { Toaster } from '@/components/ui/toaster'
 import { RouterProvider, createBrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
@@ -236,6 +237,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <RouterProvider router={router} />
+        {/* Außerhalb des App-Rahmens, damit auch Vertrag, Casting-Antwort,
+            Abnahme, öffentliche Dispo und Set-App ihre Meldungen zeigen -
+            gemessen am 31.10.2026: dort erschien keine. */}
+        <Toaster />
       </AuthProvider>
     </QueryClientProvider>
   </React.StrictMode>

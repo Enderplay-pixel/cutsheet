@@ -4,7 +4,8 @@ import type { Lang } from '@/lib/i18n'
 
 // Entfernt am 27.10.2026, weil nie gelesen oder nie gesetzt: activeProjectId
 // (nur geschrieben), lastSaved (nie gesetzt - "Gespeichert HH:MM" in der
-// Kopfleiste erschien nie) und ein Rückgängig-Stapel ohne Aufrufer.
+// Kopfleiste erschien nie) und ein Rückgängig-Stapel ohne Aufrufer. Am
+// 31.10.2026 dazu searchOpen: die Suche führt ihren Zustand in App.tsx.
 interface ProjectStore {
   darkMode: boolean
   toggleDarkMode: () => void
@@ -15,9 +16,6 @@ interface ProjectStore {
   mobileNavOpen: boolean
   toggleSidebar: () => void
   setMobileNav: (open: boolean) => void
-
-  searchOpen: boolean
-  setSearchOpen: (open: boolean) => void
 
   language: Lang
   setLanguage: (lang: Lang) => void
@@ -38,9 +36,6 @@ export const useProjectStore = create<ProjectStore>()(
       mobileNavOpen: false,
       toggleSidebar: () => set(s => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setMobileNav: (open: boolean) => set({ mobileNavOpen: open }),
-
-      searchOpen: false,
-      setSearchOpen: (open) => set({ searchOpen: open }),
 
       // Deutsch als Voreinstellung: Strings ohne i18n-Eintrag sind deutsch,
       // also ist 'de' die einzige Sprache ohne Mischmasch in der Oberfläche.
