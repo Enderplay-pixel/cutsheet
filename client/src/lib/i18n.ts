@@ -419,6 +419,17 @@ export const castT = {
   genderD:        { en: 'Non-binary',           de: 'Divers',                  fr: 'Non-binaire'             },
   genderN:        { en: 'Prefer not to say',    de: 'Keine Angabe',            fr: 'Non spécifié'            },
   pdfBtn:         { en: 'Casting List PDF',     de: 'Besetzungsliste PDF',     fr: 'Casting PDF'             },
+  keinName:       { en: '(No name)', de: '(Kein Name)', fr: '(Sans nom)' },
+  figurLoeschen:  { en: 'Delete character {name}', de: 'Figur {name} löschen', fr: 'Supprimer le personnage {name}' },
+  darstellerLoeschen: { en: 'Delete cast member {name}', de: 'Darsteller {name} löschen', fr: "Supprimer l'acteur {name}" },
+  alterBeispiel:  { en: 'e.g. 25-35', de: 'z. B. 25-35', fr: 'ex. 25-35' },
+  als:            { en: 'as {name}', de: 'als {name}', fr: 'dans le rôle de {name}' },
+  rolleWaehlen:   { en: 'Choose role', de: 'Rolle wählen', fr: 'Choisir un rôle' },
+  neueFigurName:  { en: 'New character', de: 'Neue Figur', fr: 'Nouveau personnage' },
+  neuerDarstellerName: { en: 'New cast member', de: 'Neuer Darsteller', fr: 'Nouvel acteur' },
+  figur:          { en: 'Character', de: 'Figur', fr: 'Personnage' },
+  agentur:        { en: 'Agency', de: 'Agentur', fr: 'Agence' },
+  darsteller:     { en: 'Cast member', de: 'Darsteller', fr: 'Acteur' },
 }
 
 // ─── Scenes / Drehbuch ────────────────────────────────────────────────────────

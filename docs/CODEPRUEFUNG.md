@@ -111,6 +111,12 @@ Stand am 24.10.2026, 23 Uhr:
   blättern).
   **Feste Namensspalte durchsichtig** (wie Fund 205): `EquipmentKalender.tsx:228`
   und `SperrtageKalender.tsx:224` haben `bg-inherit` auf durchsichtigen Zeilen.
+  **Drei Tageszählungen je Darsteller:** Die Kalkulation (`routes/budget.ts`,
+  `tageJePerson`) zählt Dispo-Einträge, DOOD und Besetzung zählen Drehtage mit
+  Szenen der Figur. Seit Fund 121 trägt die Dispo die Darsteller selbst ein,
+  meist stimmen die Zahlen deshalb überein. Weicht die Dispo von Hand ab, zeigt
+  die Kalkulation andere Gagen als DOOD und Besetzung. Florian: welche Zählung
+  gilt?
   `Budget.tsx` fragt keine Rechte ab: Eine Abteilungsleitung kann tippen,
   der Server lehnt Budget und Finanzierung erst ab Produktion ab (403) - beim
   Lesen der Seite `canEditBudget` aus `useProjectPerms` nutzen.
@@ -432,6 +438,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 205 | `client/src/pages/DOOD.tsx` | Klein | Die feste Namensspalte hatte `bg-inherit` auf durchsichtigen Zeilen. Beim Waagerecht-Scrollen lagen die Tageszellen ("SW", "W") über den Namen, auch der Spaltenkopf schien durch. Der CSV-Export schrieb Kosten als "1.234,00 €" statt im CSV-Format aus Fund 180. In der Summenzeile fehlten die Haltetage. | ja: Hintergrund `rgba(0,0,0,0)` bzw. 10 %; Bildausschnitt mit "SW" über "Katharina Brodersen" | behoben: deckender Hintergrund im Farbton der Zeile, CSV über `betragCsv`, Summe der Haltetage. Danach gemessen: Bildausschnitt ohne Überlagerung, CSV-Zeile endet mit "292500,00", Fußzeile 289 Arbeitstage / 817 Haltetage |
 | 206 | `client/src/pages/Postplan.tsx` | Fehler | Die Dauer zählte den Endtag nicht mit: Rohschnitt vom 2. bis 22.11. stand mit 20 Tagen da (es sind 21), ein eintägiger Schritt mit 0, die Gesamtdauer einen Tag zu kurz. Die Balken endeten einen Tag zu früh. Daten standen roh als "2026-11-02". "Bearbeiten", "Abbrechen" (✎/✕) und drei Felder hatten keinen Namen. | ja: Demo "20 Tage", "7 Tage", "Gesamtdauer: 38 Tage", "Von: 2026-11-02" | behoben: Dauer einschließlich Endtag (auch Balken und Skala), Datum über `formatDate`, Namen für Knöpfe und Felder. Danach gemessen: 21 Tage, 8 Tage, Gesamtdauer 39, "Von: 02.11.2026", letzter Balken endet bei 100 % |
 | 207 | `client/src/pages/Shotlist.tsx` | Fehler | Neue und duplizierte Einstellungen bekamen "Anzahl plus eins" als Nummer. Nach dem Löschen von Nr. 2 aus 1, 2, 3 entstand eine zweite Nr. 3, im Drehtag-PDF zwei gleiche Einstellungen. Bei Lesezugriff war jede Einstellung bearbeitbar, die Eingaben scheiterten erst am Server. Eine Drehtage-Abfrage und zwei Importe waren ungenutzt. Der Erledigt-Knopf hatte keinen Namen. | ja: Prüfprojekt 1, 2, 3, Nr. 2 gelöscht, neu ergab 1, 3, 3 | behoben: höchste Nummer plus eins, Einstellungen in einem gesperrten `fieldset`, Hinzufügen nur mit Schreibrecht, tote Abfrage entfernt, Erledigt-Knopf mit Name und `aria-pressed`. Danach gemessen: neu ergibt 4, Duplizieren 5. Ein Lese-Konto sieht nur noch die PDFs und das Aufklappen |
+| 208 | `client/src/pages/Besetzung.tsx`, `client/src/lib/i18n.ts` | Klein | Aufgeklappte Figuren- und Darstellerkarten waren auch für Leser bearbeitbar, die Eingaben scheiterten erst am Server. Die Kopfzeilen der Karten ließen sich nur mit der Maus aufklappen. Rund zwölf feste deutsche Reste: "(Kein Name)", "als …", "Rolle wählen", "z.B. 25-35", Löschknöpfe ohne Bezug ("Eintrag löschen"), CSV-Kopf, Namen neuer Einträge. | ja: Lese-Konto, Tastatur | behoben: Felder in gesperrtem `fieldset`, Kopfzeilen per Enter und Leertaste (`aria-expanded`), Löschknöpfe mit Namen der Figur oder Person, alle Texte in `castT`. Danach gemessen: Enter klappt die Karte auf. Ein Lese-Konto sieht in der aufgeklappten Karte kein offenes Feld, nur CSV, PDF und Reiter |
 
 ### Verknüpfungen
 
@@ -789,7 +796,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/pages/Aufgaben.tsx` (220) - gelesen (Fund 177)
 - [ ] `client/src/pages/Auswertungen.tsx` (464)
 - [x] `client/src/pages/Benutzerverwaltung.tsx` (222) - entfernt (Fund 177)
-- [ ] `client/src/pages/Besetzung.tsx` (388)
+- [x] `client/src/pages/Besetzung.tsx` (388) - gelesen (Fund 208)
 - [x] `client/src/pages/Buchhaltung.tsx` (282) - gelesen (Fund 190; Mahnwesen-Haken stimmt (Spalte BOOLEAN))
 - [ ] `client/src/pages/Budget.tsx` (501)
 - [x] `client/src/pages/CastingAntwort.tsx` (322) - gelesen (ohne neuen Befund; Gage über `betragInCent` (Fund 192), vorbelegte Gage wird richtig zurückgelesen)

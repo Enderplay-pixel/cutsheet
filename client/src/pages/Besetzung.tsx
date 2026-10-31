@@ -17,6 +17,7 @@ import { Plus, Trash2, User, Users, Phone, Mail, ChevronDown, ChevronUp, Downloa
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { useT } from '@/lib/useT'
 import { castT, uiT } from '@/lib/i18n'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 function Avatar({ name, color = 'primary' }: { name: string; color?: string }) {
   return (
@@ -29,6 +30,18 @@ function Avatar({ name, color = 'primary' }: { name: string; color?: string }) {
   )
 }
 
+/** Kopfzeile einer Karte: per Maus und per Tastatur (Enter, Leertaste) aufklappbar. */
+const aufklappbar = (expanded: boolean, umschalten: () => void) => ({
+  role: 'button' as const,
+  tabIndex: 0,
+  'aria-expanded': expanded,
+  onClick: umschalten,
+  onKeyDown: (e: React.KeyboardEvent) => {
+    if (e.target !== e.currentTarget) return
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); umschalten() }
+  },
+})
+
 function CharacterCard({ char, scenes, onDelete }: { char: any; scenes: any[]; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false)
   const [form, setForm] = useState(char)
@@ -36,6 +49,7 @@ function CharacterCard({ char, scenes, onDelete }: { char: any; scenes: any[]; o
   const { projectId } = useParams()
   const pid = Number(projectId)
   const { canEdit } = useProjectPerms()
+  const { darfSchreiben } = useSchreibrecht()
 
   const tt = useT()
 
@@ -56,12 +70,12 @@ function CharacterCard({ char, scenes, onDelete }: { char: any; scenes: any[]; o
     <div className="border border-border/60 rounded-xl overflow-hidden bg-card hover:border-border transition-colors">
       <div
         className="flex items-center gap-3 p-4 cursor-pointer"
-        onClick={() => setExpanded(!expanded)}
+        {...aufklappbar(expanded, () => setExpanded(!expanded))}
       >
         <Avatar name={form.name} color="primary" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold truncate">{form.name || '(Kein Name)'}</span>
+            <span className="text-sm font-semibold truncate">{form.name || tt(castT.keinName)}</span>
           </div>
           <p className="text-xs text-muted-foreground">
             {[form.age_range, form.gender].filter(Boolean).join(' · ')}
@@ -70,7 +84,7 @@ function CharacterCard({ char, scenes, onDelete }: { char: any; scenes: any[]; o
         </div>
         {canEdit && (
           <button onClick={e => { e.stopPropagation(); onDelete() }}
-            aria-label="Eintrag löschen" title="Löschen"
+            aria-label={tt(castT.figurLoeschen).replace('{name}', form.name || '')} title={tt(castT.figurLoeschen).replace('{name}', form.name || '')}
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -79,7 +93,8 @@ function CharacterCard({ char, scenes, onDelete }: { char: any; scenes: any[]; o
       </div>
 
       {expanded && (
-        <div className="border-t border-border/40 p-4 bg-muted/20 space-y-3 animate-fade-up">
+        // Ohne Schreibrecht gesperrt - vorher scheiterten Eingaben erst am Server
+        <fieldset disabled={!darfSchreiben} className="border-0 border-t border-border/40 m-0 min-w-0 p-4 bg-muted/20 space-y-3 animate-fade-up">
           <div>
             <Label className="text-xs text-muted-foreground">{tt(uiT.name)}</Label>
             <Input value={form.name || ''} onChange={e => update('name', e.target.value)} className="mt-1 h-8 text-sm" />
@@ -87,7 +102,7 @@ function CharacterCard({ char, scenes, onDelete }: { char: any; scenes: any[]; o
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs text-muted-foreground">{tt(castT.labelAge)}</Label>
-              <Input value={form.age_range || ''} onChange={e => update('age_range', e.target.value)} className="mt-1 h-8 text-sm" placeholder="z.B. 25-35" />
+              <Input value={form.age_range || ''} onChange={e => update('age_range', e.target.value)} className="mt-1 h-8 text-sm" placeholder={tt(castT.alterBeispiel)} />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">{tt(castT.labelGender)}</Label>
@@ -119,7 +134,7 @@ function CharacterCard({ char, scenes, onDelete }: { char: any; scenes: any[]; o
               </div>
             </div>
           )}
-        </div>
+        </fieldset>
       )}
     </div>
   )
@@ -132,6 +147,7 @@ function CastCard({ castMember, characters, shootDays, onDelete }: { castMember:
   const { projectId } = useParams()
   const pid = Number(projectId)
   const { canEdit } = useProjectPerms()
+  const { darfSchreiben } = useSchreibrecht()
 
   const tt = useT()
 
@@ -156,19 +172,19 @@ function CastCard({ castMember, characters, shootDays, onDelete }: { castMember:
 
   return (
     <div className="border border-border/60 rounded-xl overflow-hidden bg-card hover:border-border transition-colors">
-      <div className="flex items-center gap-3 p-4 cursor-pointer" onClick={() => setExpanded(!expanded)}>
+      <div className="flex items-center gap-3 p-4 cursor-pointer" {...aufklappbar(expanded, () => setExpanded(!expanded))}>
         <Avatar name={form.actor_name} color="amber" />
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold truncate">{form.actor_name || '(Kein Name)'}</div>
+          <div className="text-sm font-semibold truncate">{form.actor_name || tt(castT.keinName)}</div>
           <p className="text-xs text-muted-foreground">
-            {character ? `als ${character.name}` : tt(castT.noRole)}
+            {character ? tt(castT.als).replace('{name}', character.name) : tt(castT.noRole)}
             {daysCount > 0 && ` · ${daysCount} ${tt(castT.shootDays)}`}
             {totalFee > 0 && ` · ${formatCurrency(totalFee)}`}
           </p>
         </div>
         {canEdit && (
           <button onClick={e => { e.stopPropagation(); onDelete() }}
-            aria-label="Eintrag löschen" title="Löschen"
+            aria-label={tt(castT.darstellerLoeschen).replace('{name}', form.actor_name || '')} title={tt(castT.darstellerLoeschen).replace('{name}', form.actor_name || '')}
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -177,7 +193,7 @@ function CastCard({ castMember, characters, shootDays, onDelete }: { castMember:
       </div>
 
       {expanded && (
-        <div className="border-t border-border/40 p-4 bg-muted/20 space-y-3 animate-fade-up">
+        <fieldset disabled={!darfSchreiben} className="border-0 border-t border-border/40 m-0 min-w-0 p-4 bg-muted/20 space-y-3 animate-fade-up">
           <div>
             <Label className="text-xs text-muted-foreground">{tt(castT.labelActor)}</Label>
             <Input value={form.actor_name || ''} onChange={e => update('actor_name', e.target.value)} className="mt-1 h-8 text-sm" />
@@ -185,7 +201,7 @@ function CastCard({ castMember, characters, shootDays, onDelete }: { castMember:
           <div>
             <Label className="text-xs text-muted-foreground">{tt(castT.labelRole)}</Label>
             <Select value={String(form.character_id || '__none__')} onValueChange={v => update('character_id', v === '__none__' ? null : Number(v))}>
-              <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder="Rolle wählen" /></SelectTrigger>
+              <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder={tt(castT.rolleWaehlen)} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__" className="text-xs">{tt(castT.noRole)}</SelectItem>
                 {characters.map(c => <SelectItem key={c.id} value={String(c.id)} className="text-xs">{c.name}</SelectItem>)}
@@ -220,7 +236,7 @@ function CastCard({ castMember, characters, shootDays, onDelete }: { castMember:
               <span className="text-sm font-semibold">{formatCurrency(totalFee)}</span>
             </div>
           )}
-        </div>
+        </fieldset>
       )}
     </div>
   )
@@ -254,7 +270,7 @@ export function Component() {
   })
 
   const createChar = useMutation({
-    mutationFn: () => api.characters.create(pid, { name: 'Neue Figur', gender: '', age_range: '' }),
+    mutationFn: () => api.characters.create(pid, { name: tt(castT.neueFigurName), gender: '', age_range: '' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['characters', pid] }),
   })
   const deleteChar = useMutation({
@@ -262,7 +278,7 @@ export function Component() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['characters', pid] }),
   })
   const createCast = useMutation({
-    mutationFn: () => api.cast.create(pid, { actor_name: 'Neuer Darsteller' }),
+    mutationFn: () => api.cast.create(pid, { actor_name: tt(castT.neuerDarstellerName) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cast', pid] }),
   })
   const deleteCast = useMutation({
@@ -278,7 +294,7 @@ export function Component() {
   }, 0)
 
   const exportCsv = () => {
-    csvHerunterladen('besetzung.csv', ['Darsteller', 'Figur', 'E-Mail', 'Telefon', 'Agentur', 'Gage/Tag'],
+    csvHerunterladen('besetzung.csv', [castT.darsteller, castT.figur, uiT.email, uiT.phone, castT.agentur, uiT.feePerDay].map(tt),
       (castList || []).map((c: any) => {
         const char = (characters || []).find((ch: any) => ch.id === c.character_id)
         return [c.actor_name, char?.name, c.email, c.phone, c.agency, betragCsv(c.fee_per_day || 0)]
