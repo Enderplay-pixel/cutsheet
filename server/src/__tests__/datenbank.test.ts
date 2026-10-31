@@ -153,6 +153,8 @@ beforeAll(async () => {
   app.use('/api', einladungRouter)
   const { default: dispoLinkRouter } = await import('../routes/confirmation')
   app.use('/api', dispoLinkRouter)
+  const { default: kommentarRouter } = await import('../routes/sceneComments')
+  app.use('/api', optionalAuth, kommentarRouter)
   const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
   app.use(uebersetzeDatenbankfehler)
   await new Promise<void>((aufloesen) => {
@@ -2487,5 +2489,25 @@ describe('Dispo-Link mit vorhandenem Konto', () => {
     expect(rein.status).toBe(200)
     expect(rein.daten.project_id).toBe(projekt)
     expect((await db.get('SELECT role FROM project_members WHERE project_id = ? AND user_id = ?', [projekt, fremdeId])).role).toBe('read_only')
+  })
+})
+
+describe('Offene Szenenkommentare je Szene', () => {
+  it('zählt in einer Abfrage nur offene Kommentare und nur im eigenen Projekt', async () => {
+    const a = (await db.run("INSERT INTO scenes (project_id, scene_number, title) VALUES (?, '30', 'Kommentarprobe A')", [projektId])).id
+    const b = (await db.run("INSERT INTO scenes (project_id, scene_number, title) VALUES (?, '31', 'Kommentarprobe B')", [projektId])).id
+    const neu = (szene: number, erledigt: number) => db.run(
+      "INSERT INTO comments (project_id, entity_type, entity_id, author, content, resolved) VALUES (?, 'scene', ?, 'Probe', 'Text', ?)",
+      [projektId, szene, erledigt])
+    await neu(a, 0); await neu(a, 0); await neu(a, 1); await neu(b, 1)
+
+    const antwort = await hole(`/api/projects/${projektId}/scene-comments/open`, tokenInhaber)
+    expect(antwort.status).toBe(200)
+    expect(antwort.daten[a]).toBe(2)
+    expect(antwort.daten[b]).toBeUndefined()
+
+    // Fremde sehen nichts
+    const fremd = await hole(`/api/projects/${projektId}/scene-comments/open`, tokenFremd)
+    expect(fremd.status).toBe(403)
   })
 })

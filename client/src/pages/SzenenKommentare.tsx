@@ -5,22 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MessageSquare, Check, Trash2, ChevronRight } from 'lucide-react'
+import { MessageSquare, Check, Trash2, ChevronRight, RotateCcw } from 'lucide-react'
+import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { Lang } from '@/lib/i18n'
 import { useT } from '@/lib/useT'
 import { szenenKommentareT as sk } from '@/lib/texte/SzenenKommentare'
-
-const API_BASE = '/api'
-async function req<T>(path: string, options?: RequestInit): Promise<T> { // texte-ok
-  const token = localStorage.getItem('token')
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-  const res = await fetch(`${API_BASE}${path}`, { headers: { ...headers, ...options?.headers }, ...options })
-  const json = await res.json()
-  if (!res.ok) throw new Error(json.error || 'Fehler')
-  return json.data
-}
 
 function formatRelativeTime(ts: string, tt: (map: Record<Lang, string>) => string): string {
   const now = Date.now()
@@ -67,19 +57,21 @@ function CommentItem({ comment, onResolve, onDelete }: { comment: any; onResolve
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0 mt-0.5">
-          {!comment.resolved && (
-            <button
-              onClick={onResolve}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-500/10 text-muted-foreground/30 hover:text-green-600 transition-colors active:scale-[0.97]"
-              title={tt(sk.alsGeloest)}
-            >
-              <Check className="w-3.5 h-3.5" />
-            </button>
-          )}
+          {/* Der Server schaltet um - ein versehentlich gelöster Kommentar
+              lässt sich so wieder öffnen */}
+          <button
+            onClick={onResolve}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-500/10 text-muted-foreground/30 hover:text-green-600 transition-colors active:scale-[0.97]"
+            title={tt(comment.resolved ? sk.wiederOeffnen : sk.alsGeloest)}
+            aria-label={tt(comment.resolved ? sk.wiederOeffnen : sk.alsGeloest)}
+          >
+            {comment.resolved ? <RotateCcw className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
+          </button>
           <button
             onClick={onDelete}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors active:scale-[0.97]"
             title={tt(sk.loeschen)}
+            aria-label={tt(sk.loeschen)}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -100,36 +92,24 @@ export function Component() {
 
   const { data: scenes, isLoading: scenesLoading } = useQuery({
     queryKey: ['scenes', pid],
-    queryFn: () => req<any[]>(`/projects/${pid}/scenes`), // texte-ok
+    queryFn: () => api.scenes.list(pid),
   })
 
   const { data: comments, isLoading: commentsLoading } = useQuery({
     queryKey: ['scene-comments', selectedSceneId],
-    queryFn: () => req<any[]>(`/projects/${pid}/scenes/${selectedSceneId}/comments`), // texte-ok
+    queryFn: () => api.sceneComments.list(pid, selectedSceneId!),
     enabled: selectedSceneId !== null,
   })
 
+  // Eine Abfrage für alle Szenen - vorher eine je Szene (160 bei einem
+  // großen Projekt, gemessen am 31.10.2026)
   const { data: allCommentCounts } = useQuery({
     queryKey: ['all-comment-counts', pid],
-    queryFn: async () => {
-      const sceneIds = (scenes || []).map((s: any) => s.id)
-      const results = await Promise.all(
-        sceneIds.map((sid: number) => req<any[]>(`/projects/${pid}/scenes/${sid}/comments`).catch(() => [])) // texte-ok
-      )
-      const counts: Record<number, number> = {}
-      sceneIds.forEach((sid: number, i: number) => {
-        counts[sid] = (results[i] || []).filter((c: any) => !c.resolved).length
-      })
-      return counts
-    },
-    enabled: !!scenes && scenes.length > 0,
+    queryFn: () => api.sceneComments.offen(pid),
   })
 
   const addCommentMutation = useMutation({
-    mutationFn: (content: string) => req<any>(`/projects/${pid}/scenes/${selectedSceneId}/comments`, { // texte-ok
-      method: 'POST',
-      body: JSON.stringify({ content }),
-    }),
+    mutationFn: (content: string) => api.sceneComments.create(pid, selectedSceneId!, content),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scene-comments', selectedSceneId] })
       queryClient.invalidateQueries({ queryKey: ['all-comment-counts', pid] })
@@ -138,7 +118,7 @@ export function Component() {
   })
 
   const resolveMutation = useMutation({
-    mutationFn: (commentId: number) => req<any>(`/comments/${commentId}/resolve`, { method: 'PATCH' }), // texte-ok
+    mutationFn: (commentId: number) => api.sceneComments.resolve(commentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scene-comments', selectedSceneId] })
       queryClient.invalidateQueries({ queryKey: ['all-comment-counts', pid] })
@@ -146,7 +126,7 @@ export function Component() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (commentId: number) => req<any>(`/comments/${commentId}`, { method: 'DELETE' }), // texte-ok
+    mutationFn: (commentId: number) => api.sceneComments.delete(commentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scene-comments', selectedSceneId] })
       queryClient.invalidateQueries({ queryKey: ['all-comment-counts', pid] })

@@ -9,6 +9,20 @@ router.use('/projects/:projectId', requireMember)
 // Fehler gehen an den Übersetzer (middleware/eingabe.ts) - vorher fing jede
 // Route sie selbst ab: Szene "abc" ergab 500 statt 400 (gemessen am 25.10.2026).
 
+// GET /api/projects/:pid/scene-comments/open - offene Kommentare je Szene in
+// einer Abfrage. Die Kommentarseite holte vorher jede Szene einzeln: bei 160
+// Szenen 160 Anfragen und 2,7 s (gemessen am 31.10.2026), bei einer Grenze von
+// 1200 Anfragen pro Minute.
+router.get('/projects/:projectId/scene-comments/open', async (req: Request, res: Response) => {
+  const zeilen = await db.all(`
+    SELECT entity_id AS scene_id, COUNT(*)::int AS offen
+    FROM comments
+    WHERE project_id = ? AND entity_type = 'scene' AND resolved = 0
+    GROUP BY entity_id
+  `, [req.params.projectId]) as any[]
+  res.json({ data: Object.fromEntries(zeilen.map(z => [z.scene_id, z.offen])), error: null })
+})
+
 // GET /api/projects/:pid/scenes/:sceneId/comments
 router.get('/projects/:projectId/scenes/:sceneId/comments', async (req: Request, res: Response) => {
   const comments = await db.all(`

@@ -631,6 +631,8 @@ export const api = {
     create: (projectId: number, sceneId: number, content: string) => req<any>(`/projects/${projectId}/scenes/${sceneId}/comments`, { method: 'POST', body: JSON.stringify({ content }) }),
     resolve: (id: number) => req<any>(`/comments/${id}/resolve`, { method: 'PATCH' }),
     delete: (id: number) => req<any>(`/comments/${id}`, { method: 'DELETE' }),
+    /** Offene Kommentare je Szene: { [szenenId]: Anzahl } */
+    offen: (projectId: number) => req<Record<string, number>>(`/projects/${projectId}/scene-comments/open`),
   },
 
   // ─── Equipment Calendar (E3) ───────────────────────────────────────────────

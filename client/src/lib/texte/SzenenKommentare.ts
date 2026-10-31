@@ -11,6 +11,7 @@ export const szenenKommentareT = {
   geloest:        { de: 'Gelöst', en: 'Resolved', fr: 'Résolu' },
   alsGeloest:     { de: 'Als gelöst markieren', en: 'Mark as resolved', fr: 'Marquer comme résolu' },
   loeschen:       { de: 'Kommentar löschen', en: 'Delete comment', fr: 'Supprimer le commentaire' },
+  wiederOeffnen:  { de: 'Wieder öffnen', en: 'Reopen', fr: 'Rouvrir' },
   titel:          { de: 'Szenen-Kommentare', en: 'Scene comments', fr: 'Commentaires de scène' },
   untertitel:     { de: 'Projektweite Übersicht aller Kommentare', en: 'Project-wide overview of all comments', fr: "Vue d'ensemble de tous les commentaires du projet" },
   ungeloest:      { de: 'Ungelöst', en: 'Unresolved', fr: 'Non résolus' },
