@@ -5,29 +5,28 @@ import { api } from '@/lib/api'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { Search, Film, FileText, Users, Briefcase, MapPin } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useT } from '@/lib/useT'
 import type { Lang } from '@/lib/i18n'
 import { sucheT } from '@/lib/texte/Suche'
+import { beschriften, TREFFER_SYMBOL } from '@/lib/suchtreffer'
 
-type ResultItem = {
-  type: 'scene' | 'screenplay' | 'cast' | 'crew' | 'location'
-  id: number
-  title: string
-  subtitle: string
-  url: string
-  snippet?: string
+// Felder je nach Art verschieden (siehe server/src/routes/search.ts) - die
+// Beschriftung kommt aus lib/suchtreffer.ts, wie in der Schnellsuche
+type ResultItem = { type: string; id: number; url: string; [feld: string]: any }
+
+const TYPE_CONFIG: Record<string, { label: Record<Lang, string>; color: string }> = {
+  character:  { label: sucheT.figuren,    color: 'text-orange-400' },
+  cast:       { label: sucheT.darsteller, color: 'text-green-400' },
+  shoot_day:  { label: sucheT.drehtage,   color: 'text-cyan-400' },
+  scene:      { label: sucheT.szenen,     color: 'text-amber-400' },
+  screenplay: { label: sucheT.drehbuch,   color: 'text-blue-400' },
+  crew:       { label: sucheT.crew,       color: 'text-purple-400' },
+  location:   { label: sucheT.motive,     color: 'text-rose-400' },
 }
 
-const TYPE_CONFIG: Record<string, { label: Record<Lang, string>; icon: any; color: string }> = {
-  scene:      { label: sucheT.szenen,    icon: Film,     color: 'text-amber-400' },
-  screenplay: { label: sucheT.drehbuch,  icon: FileText,  color: 'text-blue-400' },
-  cast:       { label: sucheT.darsteller, icon: Users,    color: 'text-green-400' },
-  crew:       { label: sucheT.crew,      icon: Briefcase, color: 'text-purple-400' },
-  location:   { label: sucheT.motive,    icon: MapPin,    color: 'text-rose-400' },
-}
-
-const GROUP_ORDER = ['scene', 'screenplay', 'cast', 'crew', 'location']
+// Reihenfolge wie die Antwort: erst alles zur gefundenen Figur
+const GROUP_ORDER = ['character', 'cast', 'shoot_day', 'scene', 'screenplay', 'crew', 'location']
 
 function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): T {
   let timer: ReturnType<typeof setTimeout>
@@ -40,7 +39,8 @@ function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): T {
 function ResultRow({ item, onClick }: { item: ResultItem; onClick: () => void }) {
   const cfg = TYPE_CONFIG[item.type]
   const tt = useT()
-  const Icon = cfg?.icon || Search
+  const Icon = TREFFER_SYMBOL[item.type] || Search
+  const { titel, unter } = beschriften(item, tt)
   return (
     <button
       onClick={onClick}
@@ -48,12 +48,8 @@ function ResultRow({ item, onClick }: { item: ResultItem; onClick: () => void })
     >
       <Icon className={cn('w-4 h-4 mt-0.5 shrink-0', cfg?.color || 'text-muted-foreground')} />
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium truncate">{item.title}</div>
-        {item.snippet ? (
-          <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.snippet}</div>
-        ) : (
-          <div className="text-xs text-muted-foreground">{item.subtitle}</div>
-        )}
+        <div className="text-sm font-medium truncate">{titel}</div>
+        <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{unter}</div>
       </div>
       <div className="text-[10px] text-muted-foreground/50 uppercase tracking-wider shrink-0 mt-0.5">
         {cfg && tt(cfg.label)}
@@ -73,7 +69,7 @@ function ResultGroup({
 }) {
   const cfg = TYPE_CONFIG[type]
   const tt = useT()
-  const Icon = cfg?.icon || Search
+  const Icon = TREFFER_SYMBOL[type] || Search
   return (
     <div className="mb-4">
       <div className="flex items-center gap-2 px-4 py-2 mb-1">

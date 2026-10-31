@@ -388,6 +388,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 172 | `client/src/pages/Pinboard.tsx` | **Fehler (Datenverlust)** | Eine Notiz speichert beim Tippen, die zwischengespeicherte Liste blieb aber auf dem alten Stand (30 s frisch). Wer die Seite verließ und zurückkam, sah den alten Text - und wer dann weitertippte, überschrieb den gespeicherten. | ja: Notiz angelegt, Text getippt (Server hatte ihn), über Aufgaben zurück: Notiz leer | behoben: gespeicherte Änderungen werden in die Liste geschrieben. Danach gemessen: nach Rückkehr steht der gespeicherte Text da (Server und Anzeige gleich); Prüfnotiz gelöscht |
 | 173 | `pages/CreatorRedaktionsplan.tsx`, `CreatorPerformance.tsx`, `ProjectTemplates.tsx` | Klein | Redaktionsplan und Performance bauten Daten fest als "TT.MM.JJJJ", Performance Prozente mit Punkt ("4.2 %" auch im Deutschen). `ProjectTemplates.tsx` war weder eine Route noch eingebunden und hätte Formate gesetzt, die es nicht gibt ("Dokumentarfilm", "Musikvideo"). | aus dem Code | behoben: `formatDate` und `toLocaleString` in der gewählten Sprache; Vorlagenseite samt Texten entfernt. Messung der Creator-Seiten folgt gesammelt mit einem Prüfprojekt |
 | 174 | `client/src/pages/Fahrzeuge.tsx`, `lib/i18n.ts` | Klein (Sprache) | Meldungen (gelöscht, gespeichert, Fehler), Platzhalter, "Speichern"/"Abbrechen" und die Spalten "Name", "Plätze", "Telefon" standen fest deutsch. | `scripts/texte-pruefen.py`: 9 Funde, dazu zwei vom Skript nicht erkannte | behoben. Danach gemessen (englisch): Spalten NAME, PLATE, TYPE, SEATS, DRIVER, PHONE, Platzhalter und Knöpfe englisch; Prüfskript 0 |
+| 175 | `client/src/pages/Suche.tsx`, neu `client/src/lib/suchtreffer.ts`, `components/shared/GlobalSearch.tsx` | **Eigener Fehler (Regression aus Fund 156)** | Fund 156 hatte die Antwort der Suche auf Daten statt deutscher Sätze umgestellt und nur die Schnellsuche (Strg+K) angepasst. Die Suchseite nutzt denselben Endpunkt: Szenen standen ohne Nummer da, Textstellen ohne Titel, und Figur und Drehtage fehlten ganz, weil die Seite diese Arten nicht kannte. | ja: Suchseite, "Mia": Gruppen nur SZENEN (ohne Nummer) und DREHBUCH (ohne Titel) | behoben: Beschriftung und Symbole in `lib/suchtreffer.ts`, von Schnellsuche und Suchseite gemeinsam genutzt; die Suchseite kennt Figuren und Drehtage. Danach gemessen: Suchseite FIGUREN (Mia, gespielt von Anna Schmidt), DREHTAGE, SZENEN ("Szene 3: Mia vor der Tür"), DREHBUCH mit Blockart; Schnellsuche unverändert richtig. Merksatz: Wer eine Antwortform ändert, sucht alle Aufrufer des Endpunkts (`grep api.search`) |
 
 ### Verknüpfungen
 
@@ -749,7 +750,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/pages/CreatorChecklisten.tsx` (86) - gelesen (ohne Befund)
 - [x] `client/src/pages/CreatorClips.tsx` (75) - gelesen (ohne Befund)
 - [ ] `client/src/pages/CreatorIdeen.tsx` (240)
-- [ ] `client/src/pages/CreatorKanal.tsx` (200)
+- [x] `client/src/pages/CreatorKanal.tsx` (200) - gelesen (ohne Befund)
 - [x] `client/src/pages/CreatorPerformance.tsx` (105) - gelesen (Fund 173)
 - [x] `client/src/pages/CreatorRechte.tsx` (85) - gelesen (ohne Befund)
 - [x] `client/src/pages/CreatorRedaktionsplan.tsx` (89) - gelesen (Fund 173)
@@ -804,7 +805,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/Stabliste.tsx` (312)
 - [ ] `client/src/pages/StaebchenplanNew.tsx` (472)
 - [ ] `client/src/pages/Stammdaten.tsx` (496)
-- [ ] `client/src/pages/Suche.tsx` (209)
+- [x] `client/src/pages/Suche.tsx` (209) - gelesen (Fund 175)
 - [ ] `client/src/pages/SzenenKommentare.tsx` (359)
 - [ ] `client/src/pages/Tagesbericht.tsx` (349)
 - [ ] `client/src/pages/Tagesdispo.tsx` (1116)
