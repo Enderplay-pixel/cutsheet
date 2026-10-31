@@ -14,7 +14,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
-import { debounce, getStripClass, eighthsToString, cn } from '@/lib/utils'
+import { debounce, cn } from '@/lib/utils'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 import { Plus, Trash2, Camera, Film, Clock, Download, Check, Copy, Star } from 'lucide-react'
 import { feiern } from '@/lib/belohnung'
 import type { Lang } from '@/lib/i18n'
@@ -24,6 +25,16 @@ import { shotlistT as st, shotGroesseT, shotBewegungT, tagNachtT } from '@/lib/t
 /** Beschriftung eines gespeicherten Werts; was keine Übersetzung hat, erscheint, wie es ist. */
 type Uebersetzer = (map: Record<Lang, string>) => string
 const beschriftung = (tabelle: Record<string, Record<Lang, string>>, wert: string, tt: Uebersetzer) => (tabelle[wert] ? tt(tabelle[wert]) : wert)
+
+/**
+ * Nächste freie Einstellungsnummer der Szene: höchste plus eins. Vorher Anzahl
+ * plus eins - nach dem Löschen von Nr. 2 aus 1, 2, 3 gab es zweimal Nr. 3
+ * (gemessen am 31.10.2026).
+ */
+function naechsteNummer(szenenShots: any[]): string {
+  const hoechste = szenenShots.reduce((m: number, s: any) => Math.max(m, parseInt(String(s.shot_number), 10) || 0), 0)
+  return String(hoechste + 1)
+}
 
 const SHOT_SIZES = ['ECU', 'CU', 'MCU', 'MS', 'MWS', 'WS', 'EWS', 'Totale', 'Vogelperspektive', 'Froschperspektive']
 const MOVEMENTS = ['Statisch', 'Pan', 'Tilt', 'Pan + Tilt', 'Dolly', 'Fahrt', 'Gimbal', 'Handheld', 'Kran', 'Drohne', 'Zoom']
@@ -94,6 +105,7 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
   const { projectId } = useParams()
   const pid = Number(projectId)
   const tt = useT()
+  const { darfSchreiben } = useSchreibrecht()
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.shots.update(shot.id, data),
@@ -117,7 +129,9 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
   }
 
   return (
-    <div className="border rounded p-2 bg-card/30 hover:bg-card/50 transition-colors space-y-1.5">
+    // Ohne Schreibrecht gesperrt - vorher scheiterte jede Eingabe eines Lesers
+    // erst am Server
+    <fieldset disabled={!darfSchreiben} className="border rounded p-2 m-0 min-w-0 bg-card/30 hover:bg-card/50 transition-colors space-y-1.5">
       {/* Kopfzeile: die kurzen, festen Angaben. Am Telefon umbrechend -
           nebeneinander braucht die Reihe rund 570 px. */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -161,10 +175,12 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
             isDone ? 'bg-success border-success text-success-foreground scale-110' : 'border-muted-foreground/40 hover:border-success/60'
           )}
           title={isDone ? tt(st.alsOffen) : tt(st.alsErledigt)}
+          aria-label={isDone ? tt(st.alsOffen) : tt(st.alsErledigt)}
+          aria-pressed={isDone}
         >
           {isDone && <Check className="w-3 h-3" />}
         </button>
-        <button onClick={onDuplicate} className="text-muted-foreground hover:text-primary shrink-0" title={tt(st.duplizieren)}>
+        <button onClick={onDuplicate} className="text-muted-foreground hover:text-primary shrink-0" title={tt(st.duplizieren)} aria-label={tt(st.duplizieren)}>
           <Copy className="w-3.5 h-3.5" />
         </button>
         <button onClick={onDelete} aria-label={tt(st.loeschen)} title={tt(st.loeschen)} className="text-muted-foreground hover:text-destructive shrink-0">
@@ -187,7 +203,7 @@ function ShotRow({ shot, onDelete, onDuplicate }: { shot: any; onDelete: () => v
         aria-label={tt(st.notizAria)}
         className="text-xs text-muted-foreground"
       />
-    </div>
+    </fieldset>
   )
 }
 
@@ -198,6 +214,7 @@ export function Component() {
   const { toast } = useToast()
   const download = useDownload()
   const tt = useT()
+  const { darfSchreiben } = useSchreibrecht()
 
   const { data: scenes, isLoading: scenesLoading } = useQuery({
     queryKey: ['scenes', pid],
@@ -209,16 +226,11 @@ export function Component() {
     queryFn: () => api.shots.list(pid),
   })
 
-  const { data: shootDays } = useQuery({
-    queryKey: ['shoot-days', pid],
-    queryFn: () => api.drehplan.listDays(pid),
-  })
-
   const createShot = useMutation({
     mutationFn: (sceneId: number) => {
       const existingShots = (shots || []).filter((s: any) => s.scene_id === sceneId)
       return api.shots.create(sceneId, {
-        shot_number: String(existingShots.length + 1),
+        shot_number: naechsteNummer(existingShots),
         size: 'MS',
         movement: 'Statisch',
         description: '',
@@ -236,7 +248,7 @@ export function Component() {
     mutationFn: (shot: any) => {
       const sceneShots = (shots || []).filter((s: any) => s.scene_id === shot.scene_id)
       return api.shots.create(shot.scene_id, {
-        shot_number: String(sceneShots.length + 1),
+        shot_number: naechsteNummer(sceneShots),
         size: shot.size,
         movement: shot.movement,
         lens_mm: shot.lens_mm,
@@ -356,10 +368,12 @@ export function Component() {
                   {sceneShots.map((shot: any) => (
                     <ShotRow key={shot.id} shot={shot} onDelete={() => deleteShot.mutate(shot.id)} onDuplicate={() => duplicateShot.mutate(shot)} />
                   ))}
-                  <Button variant="ghost" size="sm" className="text-xs w-full mt-1"
-                    onClick={() => createShot.mutate(scene.id)} disabled={createShot.isPending}>
-                    <Plus className="w-3 h-3 mr-1" />{tt(st.hinzufuegen)}
-                  </Button>
+                  {darfSchreiben && (
+                    <Button variant="ghost" size="sm" className="text-xs w-full mt-1"
+                      onClick={() => createShot.mutate(scene.id)} disabled={createShot.isPending}>
+                      <Plus className="w-3 h-3 mr-1" />{tt(st.hinzufuegen)}
+                    </Button>
+                  )}
                 </AccordionContent>
               </AccordionItem>
             )
