@@ -10,6 +10,7 @@ export const zeitAnalyseT = {
   untertitel:      { de: 'Vergleich von geplantem und tatsächlichem Drehaufwand pro Szene', en: 'Planned versus actual shooting time per scene', fr: 'Comparaison du temps de tournage prévu et réel par scène' },
   gesamtGeplant:   { de: 'Gesamt geplant', en: 'Total planned', fr: 'Total prévu' },
   gesamtIst:       { de: 'Gesamt Ist', en: 'Total actual', fr: 'Total réel' },
+  nurAbgedrehte: { de: 'nur abgedrehte Szenen', en: 'shot scenes only', fr: 'scènes tournées uniquement' },
   differenz:       { de: 'Differenz', en: 'Difference', fr: 'Écart' },
   szenenAbgedreht: { de: 'Szenen abgedreht', en: 'Scenes shot', fr: 'Scènes tournées' },
   ueberzogen:      { de: '{n} überzogen', en: '{n} over time', fr: '{n} en dépassement' },

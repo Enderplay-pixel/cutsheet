@@ -54,12 +54,15 @@ export function Component() {
 
   const totalEstimated = data.reduce((s, r) => s + (r.estimated_minutes || 0), 0)
   const totalActual = data.reduce((s, r) => s + (r.actual_minutes || 0), 0)
-  const totalDiff = totalActual - totalEstimated
 
   // Max value for bar chart scaling
   const maxVal = Math.max(...data.map(r => Math.max(r.estimated_minutes || 0, r.actual_minutes || 0)), 1)
 
   const shotScenes = data.filter(r => r.actual_minutes > 0)
+  // Nur abgedrehte Szenen vergleichen. Vorher Ist der gedrehten minus Plan
+  // ALLER Szenen: Ohne eine gedrehte Szene stand "-12 Std." in Grün da, als
+  // wäre ein halber Drehtag gespart (gemessen am 31.10.2026).
+  const totalDiff = shotScenes.reduce((s, r) => s + (r.difference_minutes || 0), 0)
   const geschaetzteZeilen = data.filter(r => r.geschaetzt).length
   const overBudgetCount = shotScenes.filter(r => r.difference_minutes > 0).length
   const underBudgetCount = shotScenes.filter(r => r.difference_minutes < 0).length
@@ -98,8 +101,9 @@ export function Component() {
             'text-xl font-bold tabular-nums',
             totalDiff > 0 ? 'text-red-400' : totalDiff < 0 ? 'text-green-400' : ''
           )}>
-            {totalDiff >= 0 ? '+' : ''}{formatMinutes(totalDiff, tt)}
+            {shotScenes.length > 0 ? `${totalDiff >= 0 ? '+' : ''}${formatMinutes(totalDiff, tt)}` : '-'}
           </div>
+          <div className="text-xs text-muted-foreground mt-1">{tt(T.nurAbgedrehte)}</div>
         </div>
         <div className="bg-card border border-border/60 rounded-xl p-4">
           <div className="text-xs text-muted-foreground mb-1">{tt(T.szenenAbgedreht)}</div>
