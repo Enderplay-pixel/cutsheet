@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Download, Upload, FileSpreadsheet, Check, AlertTriangle, Plus } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { useT, useGebietsschema } from '@/lib/useT'
+import { useDownload } from '@/lib/useDownload'
 import { listenT } from '@/lib/texte/Listen'
 
 const LISTEN = [
@@ -42,6 +43,7 @@ export function Component() {
   const { toast } = useToast()
   const tt = useT()
   const gebietsschema = useGebietsschema()
+  const herunterladen = useDownload()
 
   const [art, setArt] = useState('crew')
   const [csv, setCsv] = useState('')
@@ -208,12 +210,14 @@ export function Component() {
                 {tt(listenT.oeffnetSich)}
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                {/* Über useDownload mit Anmeldung - ein einfacher Link schickt
+                    keine mit, der Export antwortet dann 401 und die Datei
+                    enthielt die Fehlermeldung (gemessen am 31.10.2026) */}
                 {AUSGABEN.map(a => (
-                  <a key={a.wert} href={api.listen.exportUrl(pid, a.wert)} download>
-                    <Button variant="outline" size="sm" className="w-full h-8 text-xs">
-                      <Download className="w-3.5 h-3.5 mr-1.5" />{tt(a.label)}
-                    </Button>
-                  </a>
+                  <Button key={a.wert} variant="outline" size="sm" className="w-full h-8 text-xs"
+                    onClick={() => herunterladen(api.listen.exportUrl(pid, a.wert), `${a.wert}.csv`)}>
+                    <Download className="w-3.5 h-3.5 mr-1.5" />{tt(a.label)}
+                  </Button>
                 ))}
               </div>
             </CardContent>

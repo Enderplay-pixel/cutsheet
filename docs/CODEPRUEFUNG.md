@@ -97,6 +97,9 @@ Stand am 24.10.2026, 23 Uhr:
   dem Tag zugeordnet und fehlen in der Ablage - beim Lesen von `Drehplan.tsx`
   messen. Szenenübersicht und Drehplan färben INT/EXT × Tageszeit
   verschieden (INT TAG gelb bzw. orange, EXT TAG blau bzw. grün) - für Florian.
+  **Lesezugriff gesammelt messen:** Aufgaben (Fund 177) und `Budget.tsx` mit
+  einem Konto mit Projektrolle `read_only` prüfen, sobald weitere Seiten mit
+  Rechte-Lücken dazukommen.
   `Budget.tsx` fragt keine Rechte ab: Eine Abteilungsleitung kann tippen,
   der Server lehnt Budget und Finanzierung erst ab Produktion ab (403) - beim
   Lesen der Seite `canEditBudget` aus `useProjectPerms` nutzen.
@@ -389,6 +392,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 173 | `pages/CreatorRedaktionsplan.tsx`, `CreatorPerformance.tsx`, `ProjectTemplates.tsx` | Klein | Redaktionsplan und Performance bauten Daten fest als "TT.MM.JJJJ", Performance Prozente mit Punkt ("4.2 %" auch im Deutschen). `ProjectTemplates.tsx` war weder eine Route noch eingebunden und hätte Formate gesetzt, die es nicht gibt ("Dokumentarfilm", "Musikvideo"). | aus dem Code | behoben: `formatDate` und `toLocaleString` in der gewählten Sprache; Vorlagenseite samt Texten entfernt. Messung der Creator-Seiten folgt gesammelt mit einem Prüfprojekt |
 | 174 | `client/src/pages/Fahrzeuge.tsx`, `lib/i18n.ts` | Klein (Sprache) | Meldungen (gelöscht, gespeichert, Fehler), Platzhalter, "Speichern"/"Abbrechen" und die Spalten "Name", "Plätze", "Telefon" standen fest deutsch. | `scripts/texte-pruefen.py`: 9 Funde, dazu zwei vom Skript nicht erkannte | behoben. Danach gemessen (englisch): Spalten NAME, PLATE, TYPE, SEATS, DRIVER, PHONE, Platzhalter und Knöpfe englisch; Prüfskript 0 |
 | 175 | `client/src/pages/Suche.tsx`, neu `client/src/lib/suchtreffer.ts`, `components/shared/GlobalSearch.tsx` | **Eigener Fehler (Regression aus Fund 156)** | Fund 156 hatte die Antwort der Suche auf Daten statt deutscher Sätze umgestellt und nur die Schnellsuche (Strg+K) angepasst. Die Suchseite nutzt denselben Endpunkt: Szenen standen ohne Nummer da, Textstellen ohne Titel, und Figur und Drehtage fehlten ganz, weil die Seite diese Arten nicht kannte. | ja: Suchseite, "Mia": Gruppen nur SZENEN (ohne Nummer) und DREHBUCH (ohne Titel) | behoben: Beschriftung und Symbole in `lib/suchtreffer.ts`, von Schnellsuche und Suchseite gemeinsam genutzt; die Suchseite kennt Figuren und Drehtage. Danach gemessen: Suchseite FIGUREN (Mia, gespielt von Anna Schmidt), DREHTAGE, SZENEN ("Szene 3: Mia vor der Tür"), DREHBUCH mit Blockart; Schnellsuche unverändert richtig. Merksatz: Wer eine Antwortform ändert, sucht alle Aufrufer des Endpunkts (`grep api.search`) |
+| 176 | `client/src/pages/Listen.tsx`, `pages/Rechnungen.tsx` | **Fehler, live** | Drei Knöpfe waren einfache Links auf geschützte Adressen: Listen-Export (Stab, Besetzung, Szenen, Drehplan), Rechnungs-Export für die Buchhaltung und "PDF" einer Rechnung. Ein Link schickt keine Anmeldung mit; die Server antworten 401 - heruntergeladen wurde die Fehlermeldung als "CSV", das PDF öffnete "Nicht authentifiziert". Dasselbe Muster wie Fund 113, an diesen Stellen übersehen. | ja: `export/crew.csv`, `invoices/report/export.csv`, `invoices/7/pdf` ohne Anmeldung 401 (mit 200); die Vorlage für den Import ist öffentlich (200) und bleibt ein Link | behoben: Exporte über `useDownload`, PDF über `useAnsehen`. Danach gemessen: Listen-Export `text/csv` 682 Bytes, Buchhaltungs-Export `text/csv` 715 Bytes, Rechnungs-PDF `application/pdf` 169 KB im neuen Fenster (Fenster per Attrappe, das Vorschaufenster öffnet keine Tabs). Andere `window.open`/Links geprüft: nur öffentliche Adressen |
+| 177 | `client/src/pages/Aufgaben.tsx`, `pages/Benutzerverwaltung.tsx` | Klein | Aufgaben: Bei Lesezugriff war nur das Eingabeformular gesperrt, Status- und Löschknöpfe nicht - der Klick scheiterte erst am Server. `Benutzerverwaltung.tsx` war weder Route noch eingebunden (die Benutzerverwaltung läuft über `AdminPanel`); sie hätte globale Rollen mit Projektrollen verwechselt und Hooks nach einem bedingten `return` aufgerufen. | aus dem Code | behoben: Knöpfe bei Lesezugriff gesperrt; tote Seite samt Texten entfernt. Lesezugriff wird gesammelt mit einem Leser-Konto gemessen (Merkzettel) |
 
 ### Verknüpfungen
 
@@ -595,7 +600,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/lib/texte/AuditLog.ts` (39) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/Aufgaben.ts` (23) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/Auswertungen.ts` (85) - gelesen (Funde 141-144 und Prüfskript)
-- [x] `client/src/lib/texte/Benutzerverwaltung.ts` (31) - gelesen (Funde 141-144 und Prüfskript)
+- [x] `client/src/lib/texte/Benutzerverwaltung.ts` (31) - entfernt (Fund 177)
 - [x] `client/src/lib/texte/Buchhaltung.ts` (48) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/Budget.ts` (105) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/CastingAntwort.ts` (64) - gelesen (Funde 141-144 und Prüfskript)
@@ -737,9 +742,9 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/Agenturen.tsx` (704)
 - [ ] `client/src/pages/Angebote.tsx` (604)
 - [ ] `client/src/pages/AuditLog.tsx` (285)
-- [ ] `client/src/pages/Aufgaben.tsx` (220)
+- [x] `client/src/pages/Aufgaben.tsx` (220) - gelesen (Fund 177)
 - [ ] `client/src/pages/Auswertungen.tsx` (464)
-- [ ] `client/src/pages/Benutzerverwaltung.tsx` (222)
+- [x] `client/src/pages/Benutzerverwaltung.tsx` (222) - entfernt (Fund 177)
 - [ ] `client/src/pages/Besetzung.tsx` (388)
 - [ ] `client/src/pages/Buchhaltung.tsx` (282)
 - [ ] `client/src/pages/Budget.tsx` (501)
@@ -780,7 +785,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/pages/Konfliktradar.tsx` (140) - gelesen (ohne Befund)
 - [ ] `client/src/pages/Kontaktliste.tsx` (227)
 - [ ] `client/src/pages/Kostenstand.tsx` (287)
-- [ ] `client/src/pages/Listen.tsx` (225)
+- [x] `client/src/pages/Listen.tsx` (225) - gelesen (Fund 176)
 - [ ] `client/src/pages/Login.tsx` (280)
 - [ ] `client/src/pages/Moodboard.tsx` (575)
 - [ ] `client/src/pages/Motive.tsx` (476)

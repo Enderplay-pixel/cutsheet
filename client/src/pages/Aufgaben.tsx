@@ -131,6 +131,7 @@ export function Component() {
           {open.length > 0 && (
             <TaskList
               tasks={open}
+              gesperrt={!darfSchreiben}
               onCycle={(t: any) => updateMutation.mutate({ id: t.id, data: { status: nextStatus(t.status) } })}
               onDelete={(t: any) => deleteMutation.mutate(t.id)}
             />
@@ -140,6 +141,7 @@ export function Component() {
               <p className="section-label mb-2">{tt(at.statusErledigt)}</p>
               <TaskList
                 tasks={done}
+                gesperrt={!darfSchreiben}
                 onCycle={(t: any) => updateMutation.mutate({ id: t.id, data: { status: 'offen' } })}
                 onDelete={(t: any) => deleteMutation.mutate(t.id)} muted
               />
@@ -151,8 +153,11 @@ export function Component() {
   )
 }
 
-function TaskList({ tasks, onCycle, onDelete, muted }: {
+function TaskList({ tasks, gesperrt, onCycle, onDelete, muted }: {
   tasks: any[]
+  /** Lesezugriff: Status und Löschen wie das Eingabeformular sperren, statt den
+   *  Klick erst am Server scheitern zu lassen */
+  gesperrt: boolean
   onCycle: (t: any) => void
   onDelete: (t: any) => void
   muted?: boolean
@@ -176,6 +181,7 @@ function TaskList({ tasks, onCycle, onDelete, muted }: {
             )}
           >
             <button
+              disabled={gesperrt}
               onClick={(e) => { if (nextStatus(t.status) === 'erledigt' && !muted) feiern(e.currentTarget); onCycle(t) }}
               title={tt(at.statusTitel).replace('{status}', tt(meta.label))}
               className={cn('shrink-0 transition-transform duration-150 active:scale-[0.85]', meta.cls)}
@@ -200,12 +206,14 @@ function TaskList({ tasks, onCycle, onDelete, muted }: {
               </div>
             </div>
             <button
+              disabled={gesperrt}
               onClick={() => onCycle(t)}
               className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground/60 hover:text-foreground transition-colors shrink-0"
             >
               {t.status !== 'erledigt' && <>{tt(STATUS_META[nextStatus(t.status)].label)}<ChevronRight className="w-3 h-3" /></>}
             </button>
             <button
+              disabled={gesperrt}
               onClick={() => onDelete(t)}
               className="shrink-0 p-1.5 rounded-md text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-[color,background-color,opacity] duration-150 active:scale-[0.88]"
               title={tt(at.aufgabeLoeschen)}

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { useT, useGebietsschema } from '@/lib/useT'
+import { useDownload, useAnsehen } from '@/lib/useDownload'
 import type { Lang } from '@/lib/i18n'
 import { rechnungenT as T } from '@/lib/texte/Rechnungen'
 
@@ -290,6 +291,7 @@ function Auswertung({ firmaId }: { firmaId: number }) {
   const [bis, setBis] = useState(heute())
   const tt = useT()
   const gs = useGebietsschema()
+  const herunterladen = useDownload()
 
   const { data } = useQuery({
     queryKey: ['ust', firmaId, von, bis],
@@ -311,11 +313,11 @@ function Auswertung({ firmaId }: { firmaId: number }) {
               <Input id="a-bis" type="date" value={bis} onChange={e => setBis(e.target.value)} className="mt-1 h-8 text-sm" />
             </div>
           </div>
-          <a href={api.rechnungen.exportUrl(firmaId, von, bis)} download>
-            <Button variant="outline" size="sm" className="w-full">
-              <Download className="w-4 h-4 mr-1.5" />{tt(T.exportBuchhaltung)}
-            </Button>
-          </a>
+          {/* Mit Anmeldung laden - ein einfacher Link bekam 401 (gemessen am 31.10.2026) */}
+          <Button variant="outline" size="sm" className="w-full"
+            onClick={() => herunterladen(api.rechnungen.exportUrl(firmaId, von, bis), `rechnungen-${von}-${bis}.csv`)}>
+            <Download className="w-4 h-4 mr-1.5" />{tt(T.exportBuchhaltung)}
+          </Button>
           <p className="text-xs text-muted-foreground">
             {tt(T.exportHinweis)}
           </p>
@@ -362,6 +364,7 @@ function RechnungBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
   const qc = useQueryClient()
   const { toast } = useToast()
   const tt = useT()
+  const ansehen = useAnsehen()
   const gs = useGebietsschema()
 
   const { data: rechnung } = useQuery({
@@ -470,9 +473,9 @@ function RechnungBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
           </Badge>
         )}
         <div className="flex-1" />
-        <a href={api.rechnungen.pdfUrl(firmaId, id)} target="_blank" rel="noreferrer">
-          <Button variant="outline" size="sm"><FileText className="w-3.5 h-3.5 mr-1" />{tt(T.pdf)}</Button>
-        </a>
+        <Button variant="outline" size="sm" onClick={() => ansehen(api.rechnungen.pdfUrl(firmaId, id))}>
+          <FileText className="w-3.5 h-3.5 mr-1" />{tt(T.pdf)}
+        </Button>
         {istEntwurf && (
           <>
             <Button variant="outline" size="sm" onClick={() => speichern.mutate()} disabled={speichern.isPending}>
