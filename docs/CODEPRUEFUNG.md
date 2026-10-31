@@ -419,6 +419,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 197 | `client/src/pages/Musikliste.tsx` | Klein | Die Dauer "1:02:30" wurde als 1 Sekunde gelesen, nur "m:ss" ging. Für die GEMA-Meldung zählt die Dauer. Im Formular hatten sieben Felder nur einen Platzhalter, die Lizenzart-Auswahl gar keinen Namen. | aus dem Code (`parseInt("1:02:30")` ist 1) | behoben: "h:mm:ss", "m:ss" und reine Sekunden, alle Felder benannt. Danach gemessen: 3:30 ergibt 210, 1:02:30 ergibt 3750, 45 ergibt 45, leer ergibt 0; 9 von 9 Feldern benannt |
 | 198 | `client/src/pages/Stabliste.tsx`, `client/src/lib/i18n.ts` | Fehler | Die Stabliste zeigte nur Abteilungen aus ihrer festen Liste. Wer über das Firmen-Adressbuch übernommen wurde (`routes/companies.ts`, Abteilung ist dort Freitext), etwa mit "Grip", war unsichtbar. Er zählte oben mit, ließ sich aber weder sehen noch bearbeiten noch löschen. Dazu feste deutsche Reste: Bildschirmleser-Namen, "Alle", "Einklappen", "Neues Mitglied", CSV-Kopf, Abteilungsnamen. | ja: Prüfprojekt "2 Mitarbeiter", sichtbar nur 1 ("Grip" fehlte) | behoben: Bekannte Abteilungen in fester Reihenfolge, danach jede andere. Abteilungen übersetzt angezeigt (gespeichert bleibt deutsch), alle Texte in drei Sprachen. Danach gemessen: beide sichtbar, "Grip" als eigene Gruppe mit Löschknopf. Englisch "Camera", "Position of Klara Kamera", kein deutsches Wort |
 | 199 | `client/src/pages/CheckinBoard.tsx` | Fehler | Die Check-in-Tafel nannte einen Gastlink `/guest/checkin/{Drehtag}`, den es nicht gibt (seit Fund 79 im Merkzettel). Ein Fehltipp auf "Einchecken" ließ sich nicht zurücknehmen, obwohl der Server `checked_in: false` kennt. Leser sahen "Einchecken" und bekamen 403. Geprüft und in Ordnung: Tagesdispo und Tafel teilen den Schlüssel `['call-sheet', Tag]` mit demselben Endpunkt. | ja: Hinweis im Browser; "Zurücknehmen" gab es nicht | behoben: Hinweis entfernt, "Zurücknehmen" bei eingecheckten Personen, Knöpfe nur mit Schreibrecht. Danach gemessen: Einchecken setzt den Server auf eingecheckt, Zurücknehmen wieder zurück, der Knopf "Einchecken" ist wieder da. Ein Lese-Konto sieht die Person ohne Knopf |
+| 200 | `client/src/pages/Terminkalender.tsx` | Fehler | Ein Termin mit "Datum bis" stand nur an seinem ersten Tag: eine Reise vom 10. bis 12.11. fehlte am 11. und 12. Der Dialog "Termin hinzufügen" übernahm den gewählten Tag nicht. Er bleibt eingehängt, und der Startwert von `useState` galt nur beim ersten Mal. Die Tage ließen sich nur mit der Maus wählen. Anlegen und Löschen standen auch Lesern offen. | ja: Reise nur am 10. sichtbar; nach Wahl des 20. stand im Dialog ein leeres Datum | behoben: Termine an jedem Tag ihres Zeitraums, Dialog setzt beim Öffnen den gewählten Tag, Tage per Tastatur wählbar (Enter/Leertaste, mit Namen), Anlegen und Löschen nur mit Schreibrecht. Danach gemessen: Reise am 10., 11. und 12., nicht am 9. und 13. Enter auf dem 20. wählt ihn, der Dialog zeigt "2026-11-20". Die Lese-Sperre nicht gesondert gemessen |
 
 ### Verknüpfungen
 
@@ -450,6 +451,7 @@ Kandidaten stehen hier, bis sie gebaut oder verworfen sind.
 | Stab, Besetzung, Komparsen, Motiv-Kontakte | eine Kontaktliste, CSV und vCard | gebaut, Fund 179 |
 | Video anlegen, umwandeln, Status, Löschen | Redaktionsplan, Kanal, Serien, Performance, Sponsoren, Rechte | gebaut, Fund 182 |
 | Dispo-Eintrag einer Person mit Konto | Zugang zum Projekt (Lesezugriff) | gebaut, Fund 185 |
+| Termin vom Typ "Sperrtag" im Kalender | Sperrtage-Kalender und Konfliktradar | Kandidat: Der Kalender kennt den Termintyp "Sperrtag", die Sperrtage (`blackout_dates`) sind eine eigene Tabelle. Ein im Kalender eingetragener Sperrtag warnt den Drehplan nicht |
 
 ## Abhakliste
 
@@ -842,7 +844,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/SzenenKommentare.tsx` (359)
 - [ ] `client/src/pages/Tagesbericht.tsx` (349)
 - [ ] `client/src/pages/Tagesdispo.tsx` (1116)
-- [ ] `client/src/pages/Terminkalender.tsx` (335)
+- [x] `client/src/pages/Terminkalender.tsx` (335) - gelesen (Fund 200)
 - [ ] `client/src/pages/Timesheets.tsx` (562)
 - [x] `client/src/pages/VFX.tsx` (304) - gelesen (Fund 196)
 - [ ] `client/src/pages/Versicherungen.tsx` (394)

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -54,6 +55,12 @@ function AddEventDialog({ open, onClose, projectId, defaultDate }: { open: boole
     color: '#6366f1',
     notes: '',
   })
+
+  // Der Dialog bleibt eingehängt - der Startwert von useState galt nur beim
+  // ersten Mal. Vorher stand nach "Termin hinzufügen" am 20. ein leeres Datum.
+  useEffect(() => {
+    if (open) setForm(f => ({ ...f, start_date: defaultDate ? format(defaultDate, 'yyyy-MM-dd') : '' }))
+  }, [open, defaultDate])
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.calendar.create(projectId, data),
@@ -127,6 +134,7 @@ export function Component() {
   const { toast } = useToast()
   const tt = useT()
   const gebietsschema = useGebietsschema()
+  const { darfSchreiben } = useSchreibrecht()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [addOpen, setAddOpen] = useState(false)
   const [addDate, setAddDate] = useState<Date | undefined>()
@@ -157,9 +165,15 @@ export function Component() {
   let d = calStart
   while (d <= calEnd) { days.push(d); d = addDays(d, 1) }
 
+  // Ein Termin mit "Datum bis" steht an jedem seiner Tage - vorher nur am
+  // ersten: eine dreitägige Reise fehlte am zweiten und dritten Tag.
   const getEventsForDate = (date: Date) => {
+    const tag = format(date, 'yyyy-MM-dd')
     return (events || []).filter((e: any) => {
-      try { return isSameDay(parseISO(e.start_date), date) } catch { return false }
+      const von = String(e.start_date || '').slice(0, 10)
+      const bisRoh = String(e.end_date || '').slice(0, 10)
+      const bis = bisRoh && bisRoh >= von ? bisRoh : von
+      return !!von && von <= tag && tag <= bis
     })
   }
 
@@ -187,9 +201,11 @@ export function Component() {
               onClick={() => download(api.ical.export(pid), 'cutsheet-kalender.ics')}>
               <Download className="w-4 h-4 mr-2" />{tt(T.icsKnopf)}
             </Button>
-            <Button size="sm" onClick={() => { setAddDate(new Date()); setAddOpen(true) }}>
-              <Plus className="w-4 h-4 mr-2" />{tt(T.termin)}
-            </Button>
+            {darfSchreiben && (
+              <Button size="sm" onClick={() => { setAddDate(new Date()); setAddOpen(true) }}>
+                <Plus className="w-4 h-4 mr-2" />{tt(T.termin)}
+              </Button>
+            )}
           </div>
         }
       />
@@ -227,7 +243,18 @@ export function Component() {
                   return (
                     <div
                       key={idx}
+                      // Per Tastatur wählbar wie per Maus
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={!!isSelected}
+                      aria-label={day.toLocaleDateString(gebietsschema, { weekday: 'long', day: 'numeric', month: 'long' })}
                       onClick={() => setSelectedDate(isSameDay(day, selectedDate!) ? null : day)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setSelectedDate(isSameDay(day, selectedDate!) ? null : day)
+                        }
+                      }}
                       className={cn(
                         'min-h-[70px] p-1 rounded cursor-pointer transition-colors border border-transparent',
                         !inMonth && 'opacity-30',
@@ -288,9 +315,11 @@ export function Component() {
                         <EventDot color={ev.color} />
                         <span className="text-sm font-medium">{ev.title}</span>
                       </div>
-                      <button onClick={() => deleteEvent.mutate(ev.id)} aria-label={tt(T.terminLoeschenAria).replace('{titel}', ev.title || '')} title={tt(T.terminLoeschen)} className="text-muted-foreground hover:text-destructive">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {darfSchreiben && (
+                        <button onClick={() => deleteEvent.mutate(ev.id)} aria-label={tt(T.terminLoeschenAria).replace('{titel}', ev.title || '')} title={tt(T.terminLoeschen)} className="text-muted-foreground hover:text-destructive">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                     <Badge variant="outline" className="text-xs mt-1">{typLabel(tt, ev.type)}</Badge>
                     {ev.notes && <p className="text-xs text-muted-foreground mt-1">{ev.notes}</p>}
@@ -298,9 +327,11 @@ export function Component() {
                 )) : (
                   <p className="text-sm text-muted-foreground">{tt(T.keineTermine)}</p>
                 )}
-                <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => { setAddDate(selectedDate); setAddOpen(true) }}>
-                  <Plus className="w-3 h-3 mr-1" />{tt(T.terminHinzu)}
-                </Button>
+                {darfSchreiben && (
+                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => { setAddDate(selectedDate); setAddOpen(true) }}>
+                    <Plus className="w-3 h-3 mr-1" />{tt(T.terminHinzu)}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
