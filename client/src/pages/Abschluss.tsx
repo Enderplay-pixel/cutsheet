@@ -31,6 +31,8 @@ export function Component() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['abschluss', pid] })
       qc.invalidateQueries({ queryKey: ['project', pid] })
+      // Abgeschlossene Projekte stehen im Archiv - die Liste muss es sofort wissen
+      qc.invalidateQueries({ queryKey: ['projects'] })
       setFrage(false)
       toast({ title: tt(T.abgeschlossenToast) })
     },
@@ -42,6 +44,8 @@ export function Component() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['abschluss', pid] })
       qc.invalidateQueries({ queryKey: ['project', pid] })
+      // Abgeschlossene Projekte stehen im Archiv - die Liste muss es sofort wissen
+      qc.invalidateQueries({ queryKey: ['projects'] })
       toast({ title: tt(T.wiederOffenToast) })
     },
     onError: (f: any) => toast({ title: tt(T.nichtZurueck), description: f.message, variant: 'destructive' }),

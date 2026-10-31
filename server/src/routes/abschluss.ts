@@ -312,16 +312,37 @@ router.post('/projects/:projectId/abschluss', requireAuth, requireMember, async 
   return res.json({ data: { status: 'Abgeschlossen', archiviert: true }, error: null })
 })
 
-/** Den Abschluss zurücknehmen - ein Projekt kann wieder aufgehen. */
+/**
+ * Den Abschluss zurücknehmen - ein Projekt kann wieder aufgehen.
+ *
+ * Mit dem Status von vor dem Abschluss (steht im Protokoll). Vorher wurde
+ * immer "Postproduktion" gesetzt - gemessen am 31.10.2026: ein versehentlich
+ * abgeschlossenes Projekt aus der Vorproduktion kam als Postproduktion
+ * zurück. Nur ein abgeschlossenes Projekt lässt sich wieder öffnen.
+ */
 router.post('/projects/:projectId/abschluss/zuruecknehmen', requireAuth, requireMember, async (req: Request, res: Response) => {
   const projectId = Number(req.params.projectId)
-  const zeile = await db.run(
-    "UPDATE projects SET status = 'Postproduktion', archived = 0 WHERE id = ?", [projectId]
-  )
-  if (zeile.changes === 0) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+  const projekt = await db.get('SELECT status FROM projects WHERE id = ?', [projectId]) as any
+  if (!projekt) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+  if (projekt.status !== 'Abgeschlossen') {
+    return res.status(409).json({ data: null, error: 'Das Projekt ist nicht abgeschlossen' })
+  }
+  const eintrag = await db.get(
+    `SELECT old_value FROM audit_log
+      WHERE project_id = ? AND action = 'projekt abgeschlossen'
+      ORDER BY id DESC LIMIT 1`,
+    [projectId]
+  ) as any
+  let vorher = 'Postproduktion'
+  try {
+    const status = JSON.parse(eintrag?.old_value ?? 'null')?.status
+    if (typeof status === 'string' && status && status !== 'Abgeschlossen') vorher = status
+  } catch { /* unlesbarer Eintrag: Postproduktion bleibt */ }
+
+  await db.run('UPDATE projects SET status = ?, archived = 0 WHERE id = ?', [vorher, projectId])
   logAudit(projectId, (req as any).user as AuthUser, 'abschluss zurückgenommen', 'projects', projectId,
-    { status: 'Abgeschlossen' }, { status: 'Postproduktion' })
-  return res.json({ data: { status: 'Postproduktion', archiviert: false }, error: null })
+    { status: 'Abgeschlossen' }, { status: vorher })
+  return res.json({ data: { status: vorher, archiviert: false }, error: null })
 })
 
 export default router

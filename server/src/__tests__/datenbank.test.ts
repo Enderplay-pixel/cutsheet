@@ -145,6 +145,8 @@ beforeAll(async () => {
   app.use('/api', optionalAuth, drehbuchRouter)
   const { default: suchRouter } = await import('../routes/search')
   app.use('/api', optionalAuth, suchRouter)
+  const { default: abschlussRouter } = await import('../routes/abschluss')
+  app.use('/api', optionalAuth, abschlussRouter)
   const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
   app.use(uebersetzeDatenbankfehler)
   await new Promise<void>((aufloesen) => {
@@ -2281,6 +2283,27 @@ describe('Komparsen an Drehtagen', () => {
     expect((await hole(pfad, tokenInhaber, { method: 'PUT', body: JSON.stringify({ drehtage: [fremderTag] }) })).status).toBe(404)
     expect((await hole(pfad, tokenInhaber, { method: 'PUT', body: JSON.stringify({ drehtage: '1' }) })).status).toBe(400)
     expect(await db.get('SELECT id FROM call_sheets WHERE shoot_day_id = ?', [fremderTag])).toBeUndefined()
+  })
+})
+
+describe('Projektabschluss zurücknehmen', () => {
+  it('stellt den Status von vor dem Abschluss wieder her und öffnet nur Abgeschlossenes', async () => {
+    const projekt = (await db.run("INSERT INTO projects (title, owner_id, status) VALUES (?, ?, 'Drehphase')", ['Abschlussprobe', nutzerId])).id
+    await db.run("INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, 'admin')", [projekt, nutzerId])
+
+    const zu = await hole(`/api/projects/${projekt}/abschluss`, tokenInhaber, { method: 'POST', body: JSON.stringify({ trotzdem: true }) })
+    expect(zu.status).toBe(200)
+    expect((await db.get('SELECT status FROM projects WHERE id = ?', [projekt])).status).toBe('Abgeschlossen')
+
+    const auf = await hole(`/api/projects/${projekt}/abschluss/zuruecknehmen`, tokenInhaber, { method: 'POST' })
+    expect(auf.status).toBe(200)
+    expect(auf.daten.status).toBe('Drehphase')
+    expect(await db.get('SELECT status, archived FROM projects WHERE id = ?', [projekt])).toEqual({ status: 'Drehphase', archived: 0 })
+
+    // Ein offenes Projekt lässt sich nicht "wieder öffnen" - vorher wurde es still Postproduktion
+    const nochmal = await hole(`/api/projects/${projekt}/abschluss/zuruecknehmen`, tokenInhaber, { method: 'POST' })
+    expect(nochmal.status).toBe(409)
+    expect((await db.get('SELECT status FROM projects WHERE id = ?', [projekt])).status).toBe('Drehphase')
   })
 })
 

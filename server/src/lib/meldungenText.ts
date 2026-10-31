@@ -220,6 +220,7 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Person bereits im Call Sheet': { en: 'Person already on the call sheet', fr: 'Personne déjà sur la feuille de service' },
   'Person nicht gefunden': { en: 'Person not found', fr: 'Personne introuvable' },
   'Positionen lassen sich nur im Entwurf ändern': { en: 'Line items can only be changed in a draft', fr: "Les lignes ne peuvent être modifiées qu'à l'état de brouillon" },
+  'Das Projekt ist nicht abgeschlossen': { en: 'The project is not wrapped up', fr: "Le projet n'est pas clôturé" },
   'Post-Phase nicht gefunden': { en: 'Post-production phase not found', fr: 'Phase de postproduction introuvable' },
   'Projekt gehört nicht zu dieser Firma': { en: 'Project does not belong to this company', fr: "Le projet n'appartient pas à cette société" },
   'Projekt nicht gefunden': { en: 'Project not found', fr: 'Projet introuvable' },
