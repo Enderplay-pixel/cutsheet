@@ -418,6 +418,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 195 | `client/src/pages/ZeitAnalyse.tsx` | Fehler | Die Differenz Plan/Ist rechnete "Ist der gedrehten Szenen minus Plan aller Szenen". Mitten im Dreh sah das wie eine große Ersparnis aus. Ohne eine einzige gedrehte Szene stand im Demo-Projekt "Differenz -12 Std." in Grün. | ja: Demo 0 von 8 Szenen gedreht, Karte "-12 Std."; Prüfprojekt mit einer Szene 75 statt 60 Min., alte Formel -195 Min. | behoben: Differenz nur über abgedrehte Szenen, ohne solche ein Strich, Hinweis "nur abgedrehte Szenen". Danach gemessen: Prüfprojekt Karte und Fußzeile "+15 Min.", Demo-Projekt "-" |
 | 196 | `client/src/pages/VFX.tsx` | Klein | Die Deadline stand roh als "2026-11-24" in der Liste. Im Formular hatten fünf Felder nur einen Platzhalter, der beim Tippen verschwindet, Typ-Auswahl und Datumsfeld gar keinen Namen. | ja: Liste und Formular | behoben: Deadline über `formatDate`, alle Felder mit Namen. Danach gemessen: "24.11.2026", "08.12.2026", 9 von 9 Feldern benannt |
 | 197 | `client/src/pages/Musikliste.tsx` | Klein | Die Dauer "1:02:30" wurde als 1 Sekunde gelesen, nur "m:ss" ging. Für die GEMA-Meldung zählt die Dauer. Im Formular hatten sieben Felder nur einen Platzhalter, die Lizenzart-Auswahl gar keinen Namen. | aus dem Code (`parseInt("1:02:30")` ist 1) | behoben: "h:mm:ss", "m:ss" und reine Sekunden, alle Felder benannt. Danach gemessen: 3:30 ergibt 210, 1:02:30 ergibt 3750, 45 ergibt 45, leer ergibt 0; 9 von 9 Feldern benannt |
+| 198 | `client/src/pages/Stabliste.tsx`, `client/src/lib/i18n.ts` | Fehler | Die Stabliste zeigte nur Abteilungen aus ihrer festen Liste. Wer über das Firmen-Adressbuch übernommen wurde (`routes/companies.ts`, Abteilung ist dort Freitext), etwa mit "Grip", war unsichtbar. Er zählte oben mit, ließ sich aber weder sehen noch bearbeiten noch löschen. Dazu feste deutsche Reste: Bildschirmleser-Namen, "Alle", "Einklappen", "Neues Mitglied", CSV-Kopf, Abteilungsnamen. | ja: Prüfprojekt "2 Mitarbeiter", sichtbar nur 1 ("Grip" fehlte) | behoben: Bekannte Abteilungen in fester Reihenfolge, danach jede andere. Abteilungen übersetzt angezeigt (gespeichert bleibt deutsch), alle Texte in drei Sprachen. Danach gemessen: beide sichtbar, "Grip" als eigene Gruppe mit Löschknopf. Englisch "Camera", "Position of Klara Kamera", kein deutsches Wort |
 
 ### Verknüpfungen
 
@@ -834,7 +835,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/Settings.tsx` (648)
 - [ ] `client/src/pages/Shotlist.tsx` (372)
 - [ ] `client/src/pages/SperrtageKalender.tsx` (425)
-- [ ] `client/src/pages/Stabliste.tsx` (312)
+- [x] `client/src/pages/Stabliste.tsx` (312) - gelesen (Fund 198)
 - [ ] `client/src/pages/StaebchenplanNew.tsx` (472)
 - [ ] `client/src/pages/Stammdaten.tsx` (496)
 - [x] `client/src/pages/Suche.tsx` (209) - gelesen (Fund 175)

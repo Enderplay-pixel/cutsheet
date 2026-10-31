@@ -330,6 +330,33 @@ export const crewT = {
   emailsCopied:   { en: 'Emails copied',        de: 'E-Mails kopiert',         fr: 'E-mails copiés'          },
   noEmails:       { en: 'No email addresses',   de: 'Keine E-Mail-Adressen',   fr: 'Aucune adresse e-mail'   },
   persons:        { en: 'members',              de: 'Personen',                fr: 'personnes'               },
+  feldVon:        { en: '{feld} of {name}', de: '{feld} von {name}', fr: '{feld} de {name}' },
+  tagesgageEuro:  { en: 'Daily rate in euros', de: 'Tagesgage in Euro', fr: 'Cachet journalier en euros' },
+  entfernen:      { en: 'Remove {name} from the crew', de: '{name} aus dem Stab entfernen', fr: "Retirer {name} de l'équipe" },
+  eintrag:        { en: 'entry', de: 'Eintrag', fr: 'entrée' },
+  einklappen:     { en: 'Collapse', de: 'Einklappen', fr: 'Replier' },
+  aufklappen:     { en: 'Expand', de: 'Aufklappen', fr: 'Déplier' },
+  neuesMitglied:  { en: 'New member', de: 'Neues Mitglied', fr: 'Nouveau membre' },
+  abteilung:      { en: 'Department', de: 'Abteilung', fr: 'Département' },
+  neueAbteilung:  { en: 'Department for new member', de: 'Abteilung für neues Mitglied', fr: 'Département du nouveau membre' },
+  // Abteilungen werden deutsch gespeichert; angezeigt in der gewählten Sprache
+  abteilungen: {
+    Regie:           { en: 'Directing', de: 'Regie', fr: 'Réalisation' },
+    Produktion:      { en: 'Production', de: 'Produktion', fr: 'Production' },
+    Aufnahmeleitung: { en: 'Location & set management', de: 'Aufnahmeleitung', fr: 'Régie' },
+    Kamera:          { en: 'Camera', de: 'Kamera', fr: 'Caméra' },
+    Licht:           { en: 'Lighting', de: 'Licht', fr: 'Lumière' },
+    Ton:             { en: 'Sound', de: 'Ton', fr: 'Son' },
+    Maske:           { en: 'Make-up', de: 'Maske', fr: 'Maquillage' },
+    'Kostüm':        { en: 'Costume', de: 'Kostüm', fr: 'Costumes' },
+    Requisite:       { en: 'Props', de: 'Requisite', fr: 'Accessoires' },
+    Ausstattung:     { en: 'Production design', de: 'Ausstattung', fr: 'Décors' },
+    Schnitt:         { en: 'Editing', de: 'Schnitt', fr: 'Montage' },
+    VFX:             { en: 'VFX', de: 'VFX', fr: 'VFX' },
+    Musik:           { en: 'Music', de: 'Musik', fr: 'Musique' },
+    Fahrer:          { en: 'Drivers', de: 'Fahrer', fr: 'Chauffeurs' },
+    Sonstiges:       { en: 'Other', de: 'Sonstiges', fr: 'Autre' },
+  } as Record<string, Record<Lang, string>>,
 }
 
 // ─── Besetzung ────────────────────────────────────────────────────────────────

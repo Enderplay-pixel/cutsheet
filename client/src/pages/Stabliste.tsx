@@ -21,6 +21,10 @@ const DEPARTMENTS = [
   'Maske', 'Kostüm', 'Requisite', 'Ausstattung', 'Schnitt', 'VFX', 'Musik', 'Fahrer', 'Sonstiges'
 ]
 
+type Tt = ReturnType<typeof useT>
+/** Bekannte Abteilung übersetzt, eine eigene (etwa aus dem Firmen-Adressbuch) wie geschrieben. */
+const abteilungName = (dept: string, tt: Tt) => (crewT.abteilungen[dept] ? tt(crewT.abteilungen[dept]) : dept)
+
 function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
   const { darfSchreiben } = useSchreibrecht()
   const [form, setForm] = useState(member)
@@ -30,6 +34,7 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
   const pid = Number(projectId)
   const { canEdit } = useProjectPerms()
   const tt = useT()
+  const von = (feld: string) => (form.name ? tt(crewT.feldVon).replace('{feld}', feld).replace('{name}', form.name) : feld)
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.crew.update(member.id, data),
@@ -58,23 +63,23 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
 
       {/* Name + Role */}
       <Input disabled={!darfSchreiben} value={form.name || ''} onChange={e => update('name', e.target.value)}
-        aria-label="Name"
-        className="h-7 text-sm font-medium basis-[calc(100%-2.25rem)] lg:basis-auto lg:flex-1 min-w-0 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Name" />
+        aria-label={tt(uiT.name)}
+        className="h-7 text-sm font-medium basis-[calc(100%-2.25rem)] lg:basis-auto lg:flex-1 min-w-0 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder={tt(uiT.name)} />
       <Input disabled={!darfSchreiben} value={form.role || ''} onChange={e => update('role', e.target.value)}
-        aria-label={`Position${form.name ? ` von ${form.name}` : ''}`}
-        className="h-7 text-xs text-muted-foreground w-full sm:w-32 lg:w-40 ml-9 sm:ml-0 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="Position" />
+        aria-label={von(tt(uiT.position))}
+        className="h-7 text-xs text-muted-foreground w-full sm:w-32 lg:w-40 ml-9 sm:ml-0 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder={tt(uiT.position)} />
 
       {/* Contact */}
       <div className="flex items-center gap-1 basis-full sm:basis-auto sm:flex-1 min-w-0 pl-9 sm:pl-0 lg:flex-none lg:shrink-0">
         <Mail className="w-3 h-3 text-muted-foreground/50" />
         <Input disabled={!darfSchreiben} value={form.email || ''} onChange={e => update('email', e.target.value)}
-          aria-label={`E-Mail${form.name ? ` von ${form.name}` : ''}`}
+          aria-label={von(tt(uiT.email))}
           className="h-7 text-xs w-full lg:w-40 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" type="email" placeholder="email@…" />
       </div>
       <div className="flex items-center gap-1 shrink-0 pl-9 sm:pl-0">
         <Phone className="w-3 h-3 text-muted-foreground/50" />
         <Input disabled={!darfSchreiben} value={form.phone || ''} onChange={e => update('phone', e.target.value)}
-          aria-label={`Telefon${form.name ? ` von ${form.name}` : ''}`}
+          aria-label={von(tt(uiT.phone))}
           className="h-7 text-xs w-24 lg:w-28 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="+49…" />
       </div>
 
@@ -82,7 +87,7 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
       <div className="flex items-center gap-1 shrink-0">
         <Input disabled={!darfSchreiben} type="number" value={(form.fee_per_day || 0) / 100}
           onChange={e => update('fee_per_day', Math.round(Number(e.target.value) * 100))}
-          aria-label={`Tagesgage in Euro${form.name ? ` von ${form.name}` : ''}`}
+          aria-label={von(tt(crewT.tagesgageEuro))}
           className="h-7 text-xs w-20 bg-transparent border-transparent hover:border-border focus:border-border transition-colors text-right" />
         <span className="text-xs text-muted-foreground/50">€</span>
       </div>
@@ -93,7 +98,8 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
           {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
         </button>
         {canEdit && (
-          <button onClick={onDelete} aria-label={`${form.name || 'Eintrag'} aus dem Stab entfernen`} title="Aus dem Stab entfernen" className="w-6 h-6 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+          <button onClick={onDelete} aria-label={tt(crewT.entfernen).replace('{name}', form.name || tt(crewT.eintrag))}
+            title={tt(crewT.entfernen).replace('{name}', form.name || tt(crewT.eintrag))} className="w-6 h-6 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
             <Trash2 className="w-3 h-3" />
           </button>
         )}
@@ -120,7 +126,7 @@ function DepartmentSection({ dept, members, onAdd, onDelete, onCopyEmails }: {
           aria-expanded={open}
           className="flex-1 min-w-0 flex items-center gap-3 pl-4 py-3 text-left"
         >
-          <span className="text-sm font-semibold flex-1">{dept}</span>
+          <span className="text-sm font-semibold flex-1">{abteilungName(dept, tt)}</span>
           <span className="text-xs text-muted-foreground tabular-nums">{members.length} {tt(crewT.persons)}</span>
           {deptTotal > 0 && (
             <span className="text-xs text-muted-foreground tabular-nums">{formatCurrency(deptTotal)}{tt(uiT.perDay)}</span>
@@ -134,7 +140,7 @@ function DepartmentSection({ dept, members, onAdd, onDelete, onCopyEmails }: {
         >
           <Mail className="w-3 h-3" />
         </button>
-        <button onClick={() => setOpen(!open)} className="pr-4 py-3" aria-label={open ? 'Einklappen' : 'Aufklappen'}>
+        <button onClick={() => setOpen(!open)} className="pr-4 py-3" aria-label={tt(open ? crewT.einklappen : crewT.aufklappen)}>
           {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </button>
       </div>
@@ -188,7 +194,7 @@ export function Component() {
   })
 
   const createMutation = useMutation({
-    mutationFn: (dept: string) => api.crew.create(pid, { name: 'Neues Mitglied', department: dept, role: '' }),
+    mutationFn: (dept: string) => api.crew.create(pid, { name: tt(crewT.neuesMitglied), department: dept, role: '' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crew', pid] }),
   })
   const deleteMutation = useMutation({
@@ -207,18 +213,24 @@ export function Component() {
     const emails = (grouped[dept] || []).map((m: any) => m.email).filter(Boolean).join(', ')
     if (emails) {
       navigator.clipboard.writeText(emails)
-      toast({ title: `${dept} ${tt(crewT.emailsCopied)}` })
+      toast({ title: `${abteilungName(dept, tt)}: ${tt(crewT.emailsCopied)}` })
     } else {
       toast({ title: tt(crewT.noEmails), variant: 'destructive' })
     }
   }
 
   const totalGage = (crew || []).reduce((sum: number, m: any) => sum + (m.fee_per_day || 0), 0)
-  const activeDepts = DEPARTMENTS.filter(d => grouped[d]?.length > 0)
+  // Bekannte Abteilungen in fester Reihenfolge, danach jede andere. Vorher
+  // fehlte, wer eine andere Abteilung hatte (etwa "Grip" aus dem Firmen-
+  // Adressbuch): oben mitgezählt, unten unsichtbar, nicht zu bearbeiten.
+  const activeDepts = [
+    ...DEPARTMENTS.filter(d => grouped[d]?.length > 0),
+    ...Object.keys(grouped).filter(d => !DEPARTMENTS.includes(d)).sort((a, b) => a.localeCompare(b)),
+  ]
 
   const exportCsv = () => {
-    csvHerunterladen('stabliste.csv', ['Name', 'Abteilung', 'Position', 'E-Mail', 'Telefon', 'Gage/Tag'],
-      (crew || []).map((m: any) => [m.name, m.department, m.role, m.email, m.phone, betragCsv(m.fee_per_day || 0)]))
+    csvHerunterladen('stabliste.csv', [uiT.name, crewT.abteilung, uiT.position, uiT.email, uiT.phone, uiT.feePerDay].map(tt),
+      (crew || []).map((m: any) => [m.name, abteilungName(m.department || 'Sonstiges', tt), m.role, m.email, m.phone, betragCsv(m.fee_per_day || 0)]))
   }
 
   return (
@@ -241,8 +253,8 @@ export function Component() {
           {canEdit && (
             <>
               <Select value={newDept} onValueChange={setNewDept}>
-                <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d} className="text-xs">{d}</SelectItem>)}</SelectContent>
+                <SelectTrigger className="w-36 h-8 text-xs" aria-label={tt(crewT.neueAbteilung)}><SelectValue /></SelectTrigger>
+                <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d} className="text-xs">{abteilungName(d, tt)}</SelectItem>)}</SelectContent>
               </Select>
               <Button size="sm" onClick={() => createMutation.mutate(newDept)} disabled={createMutation.isPending}>
                 <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(crewT.add)}
@@ -263,7 +275,7 @@ export function Component() {
                 : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground'
             )}
           >
-            Alle <span className="tabular-nums">{crew?.length || 0}</span>
+            {tt(uiT.all)} <span className="tabular-nums">{crew?.length || 0}</span>
           </button>
           {activeDepts.map(dept => (
             <button key={dept} onClick={() => setDeptFilter(dept)}
@@ -274,7 +286,7 @@ export function Component() {
                   : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground'
               )}
             >
-              {dept} <span className="tabular-nums">{grouped[dept]?.length || 0}</span>
+              {abteilungName(dept, tt)} <span className="tabular-nums">{grouped[dept]?.length || 0}</span>
             </button>
           ))}
         </div>
