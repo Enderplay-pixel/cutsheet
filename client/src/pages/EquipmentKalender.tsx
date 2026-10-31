@@ -12,6 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { AlertTriangle, Plus, Trash2, Package, CalendarDays } from 'lucide-react'
 import { useT } from '@/lib/useT'
 import { equipmentKalenderT as T, MONATE_KURZ } from '@/lib/texte/EquipmentKalender'
+import { formatDate } from '@/lib/utils'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 const API_BASE = '/api'
 async function req<T>(path: string, options?: RequestInit): Promise<T> { // texte-ok
@@ -23,6 +25,17 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> { // text
   if (!res.ok) throw new Error(json.error || 'Fehler')
   return json.data
 }
+
+/**
+ * Deckender Hintergrund der festen Namensspalte im Farbton der Zeile - mit
+ * `bg-inherit` auf durchsichtigen Zeilen schienen beim Scrollen die
+ * Wochenzellen durch (wie Fund 205 im DOOD).
+ */
+const deckend = (tönung: number, rot = false) => ({
+  background: rot
+    ? 'linear-gradient(hsl(var(--destructive) / 0.05), hsl(var(--destructive) / 0.05)), hsl(var(--card))'
+    : `linear-gradient(hsl(var(--muted) / ${tönung}), hsl(var(--muted) / ${tönung})), hsl(var(--card))`,
+})
 
 function addDays(date: Date, days: number): Date {
   const d = new Date(date)
@@ -62,6 +75,7 @@ export function Component() {
   const pid = Number(id)
   const queryClient = useQueryClient()
   const tt = useT()
+  const { darfSchreiben } = useSchreibrecht()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState({ equipment_item_id: '', start_date: '', end_date: '', notes: '' })
@@ -111,6 +125,25 @@ export function Component() {
 
   const allItems = itemQueries.data || []
 
+  // Der Server meldet Paare { booking_a, booking_b } (routes/equipmentCalendar.ts).
+  // Die Seite las sie wie einzelne Buchungen: "Equipment #undefined: Überlappung
+  // undefined - undefined", und die rote Markierung erschien nie (gemessen am
+  // 31.10.2026). Hier die Überlappung je Paar.
+  const konflikte = (conflicts || []).map((c: any) => ({
+    equipment_item_id: c.booking_a?.equipment_item_id,
+    von: [c.booking_a?.start_date, c.booking_b?.start_date].sort().pop() as string,
+    bis: [c.booking_a?.end_date, c.booking_b?.end_date].sort()[0] as string,
+  }))
+
+  // Eine Buchung gibt Equipment frei, das ein anderer womöglich schon
+  // eingeplant hat - nicht auf einen Klick
+  const loeschen = (b: any, name?: string) => {
+    const frage = tt(T.loeschenFrage).replace('{name}', name || tt(T.equipmentNr).replace('{id}', String(b.equipment_item_id)))
+      .replace('{von}', formatDate(b.start_date)).replace('{bis}', formatDate(b.end_date))
+    if (confirm(frage)) deleteMutation.mutate(b.id)
+  }
+  const endeVorBeginn = !!form.start_date && !!form.end_date && form.end_date < form.start_date
+
   const allDates: Date[] = []
   ;(bookings || []).forEach((b: any) => {
     if (b.start_date) allDates.push(parseDate(b.start_date))
@@ -147,30 +180,32 @@ export function Component() {
                 <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mt-1">{tt(T.wochen)}</div>
               </div>
             </div>
-            <Button
-              size="sm"
-              onClick={() => setDialogOpen(true)}
-              className="active:scale-[0.97] ml-4"
-            >
-              <Plus className="w-4 h-4 mr-1.5" />
-              {tt(T.neueBuchung)}
-            </Button>
+            {darfSchreiben && (
+              <Button
+                size="sm"
+                onClick={() => setDialogOpen(true)}
+                className="active:scale-[0.97] ml-4"
+              >
+                <Plus className="w-4 h-4 mr-1.5" />
+                {tt(T.neueBuchung)}
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Conflicts */}
-      {conflicts && conflicts.length > 0 && (
+      {konflikte.length > 0 && (
         <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-5 space-y-2">
           <div className="flex items-center gap-2.5 text-destructive font-semibold text-sm">
             <div className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
               <AlertTriangle className="w-4 h-4" />
             </div>
-            {tt(conflicts.length !== 1 ? T.doppelbuchungen : T.doppelbuchung).replace('{n}', String(conflicts.length))}
+            {tt(konflikte.length !== 1 ? T.doppelbuchungen : T.doppelbuchung).replace('{n}', String(konflikte.length))}
           </div>
-          {conflicts.map((c: any, i: number) => (
+          {konflikte.map((c, i) => (
             <div key={i} className="text-xs text-destructive/70 pl-11">
-              {c.item_name || tt(T.equipmentNr).replace('{id}', String(c.equipment_item_id))}: {tt(T.ueberlappung)} {c.start_date} - {c.end_date}
+              {allItems.find((it: any) => it.id === c.equipment_item_id)?.item || tt(T.equipmentNr).replace('{id}', String(c.equipment_item_id))}: {tt(T.ueberlappung)} {formatDate(c.von)} - {formatDate(c.bis)}
             </div>
           ))}
         </div>
@@ -186,7 +221,7 @@ export function Component() {
           <table className="w-full text-xs border-collapse min-w-[600px]">
             <thead>
               <tr className="border-b border-border/40">
-                <th className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground bg-muted/30 w-48 min-w-[192px] sticky left-0 z-10">
+                <th style={deckend(0.3)} className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-48 min-w-[192px] sticky left-0 z-10">
                   {tt(T.equipment)}
                 </th>
                 {weeks.map((w, i) => (
@@ -217,7 +252,7 @@ export function Component() {
               )}
               {displayItems.map((item: any, rowIdx: number) => {
                 const itemBookings = (bookings || []).filter((b: any) => b.equipment_item_id === item.id)
-                const hasConflict = (conflicts || []).some((c: any) => c.equipment_item_id === item.id)
+                const hasConflict = konflikte.some(c => c.equipment_item_id === item.id)
                 return (
                   <tr
                     key={item.id}
@@ -225,7 +260,7 @@ export function Component() {
                       rowIdx % 2 === 1 ? 'bg-muted/10' : ''
                     } ${hasConflict ? 'bg-destructive/5' : 'hover:bg-muted/20'}`}
                   >
-                    <td className="px-5 py-3 sticky left-0 z-10 bg-inherit border-r border-border/30">
+                    <td style={deckend(rowIdx % 2 === 1 ? 0.1 : 0, hasConflict)} className="px-5 py-3 sticky left-0 z-10 border-r border-border/30">
                       <div className="font-medium flex items-center gap-2 text-sm">
                         <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center shrink-0">
                           <Package className="w-4 h-4 text-muted-foreground/60" />
@@ -257,17 +292,18 @@ export function Component() {
                     })}
                     <td className="px-2 py-2">
                       <div className="flex flex-col gap-1">
-                        {itemBookings.map((b: any) => (
+                        {darfSchreiben && itemBookings.map((b: any) => (
                           <button
                             key={b.id}
-                            onClick={() => deleteMutation.mutate(b.id)}
+                            onClick={() => loeschen(b, item.item)}
                             className="flex items-center gap-1 text-[10px] text-muted-foreground/50 hover:text-destructive transition-colors active:scale-[0.97] group"
-                            title={`${b.start_date} - ${b.end_date}${b.notes ? ': ' + b.notes : ''}`}
+                            title={`${formatDate(b.start_date)} - ${formatDate(b.end_date)}${b.notes ? ': ' + b.notes : ''}`}
+                            aria-label={tt(T.buchungLoeschen).replace('{von}', formatDate(b.start_date)).replace('{bis}', formatDate(b.end_date))}
                           >
                             <div className="w-5 h-5 rounded-md flex items-center justify-center group-hover:bg-destructive/10 transition-colors">
                               <Trash2 className="w-3 h-3" />
                             </div>
-                            <span className="truncate max-w-[56px]">{b.start_date}</span>
+                            <span className="truncate max-w-[56px]">{formatDate(b.start_date)}</span>
                           </button>
                         ))}
                       </div>
@@ -306,7 +342,7 @@ export function Component() {
           <div className="divide-y divide-border/30">
             {(bookings || []).map((b: any) => {
               const item = allItems.find((it: any) => it.id === b.equipment_item_id)
-              const isConflicted = (conflicts || []).some((c: any) => c.equipment_item_id === b.equipment_item_id)
+              const isConflicted = konflikte.some(c => c.equipment_item_id === b.equipment_item_id)
               return (
                 <div
                   key={b.id}
@@ -323,16 +359,20 @@ export function Component() {
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground/60 mt-0.5 tabular-nums">
-                      {b.start_date} - {b.end_date}
+                      {formatDate(b.start_date)} - {formatDate(b.end_date)}
                       {b.notes && <span className="ml-2 not-italic">· {b.notes}</span>}
                     </div>
                   </div>
-                  <button
-                    onClick={() => deleteMutation.mutate(b.id)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors active:scale-[0.97]"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {darfSchreiben && (
+                    <button
+                      onClick={() => loeschen(b, item?.item)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors active:scale-[0.97]"
+                      aria-label={tt(T.buchungLoeschen).replace('{von}', formatDate(b.start_date)).replace('{bis}', formatDate(b.end_date))}
+                      title={tt(T.buchungLoeschen).replace('{von}', formatDate(b.start_date)).replace('{bis}', formatDate(b.end_date))}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               )
             })}
@@ -387,6 +427,7 @@ export function Component() {
                 />
               </div>
             </div>
+            {endeVorBeginn && <p role="alert" className="text-xs text-destructive">{tt(T.endeVorBeginn)}</p>}
             <div>
               <Label className="text-sm font-medium">{tt(T.notizen)} <span className="text-muted-foreground/50 font-normal">{tt(T.optional)}</span></Label>
               <Textarea
@@ -408,7 +449,7 @@ export function Component() {
                   end_date: form.end_date,
                   notes: form.notes,
                 })}
-                disabled={!form.equipment_item_id || !form.start_date || !form.end_date || addMutation.isPending}
+                disabled={!form.equipment_item_id || !form.start_date || !form.end_date || endeVorBeginn || addMutation.isPending}
                 className="active:scale-[0.97]"
               >
                 {tt(T.speichern)}

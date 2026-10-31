@@ -3,6 +3,9 @@ import type { Lang } from '@/lib/i18n'
 type Text = Record<Lang, string>
 
 export const equipmentKalenderT = {
+  buchungLoeschen: { de: 'Buchung {von} - {bis} löschen', en: 'Delete booking {von} - {bis}', fr: 'Supprimer la réservation {von} - {bis}' },
+  loeschenFrage:   { de: 'Buchung von {name} ({von} - {bis}) löschen?', en: 'Delete booking of {name} ({von} - {bis})?', fr: 'Supprimer la réservation de {name} ({von} - {bis}) ?' },
+  endeVorBeginn:   { de: 'Das Ende liegt vor dem Beginn', en: 'The end is before the start', fr: 'La fin précède le début' },
   titel:            { de: 'Equipment-Kalender', en: 'Equipment calendar', fr: 'Calendrier du matériel' },
   untertitel:       { de: 'Buchungszeiträume für Equipment-Positionen', en: 'Booking periods for equipment items', fr: 'Périodes de réservation du matériel' },
   positionen:       { de: 'Positionen', en: 'Items', fr: 'Articles' },
