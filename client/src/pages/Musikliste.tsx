@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { csvHerunterladen } from '@/lib/csv'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
@@ -223,16 +224,7 @@ function exportCSV(cues: MusicCue[], tt: Tt) {
     c.scene_number ? tt(musiklisteT.szeneN).replace('{n}', c.scene_number) : '',
     c.notes,
   ])
-  const csv = [headers, ...rows]
-    .map(row => row.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
-    .join('\n')
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'musikliste-gema.csv'
-  a.click()
-  URL.revokeObjectURL(url)
+  csvHerunterladen('musikliste-gema.csv', headers, rows)
 }
 
 export function Component() {

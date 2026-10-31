@@ -7,6 +7,7 @@ import { Download, Users, CalendarDays, AlertCircle } from 'lucide-react'
 import { useT, useGebietsschema } from '@/lib/useT'
 import type { Lang } from '@/lib/i18n'
 import { doodT as T } from '@/lib/texte/DOOD'
+import { csvHerunterladen } from '@/lib/csv'
 
 type Tt = (map: Record<Lang, string>) => string
 
@@ -89,14 +90,7 @@ function downloadCSV(report: DoodReport, pid: number, tt: Tt, gebietsschema: str
     String(c.total_hold),
     formatCurrency(c.estimated_cost_cents, gebietsschema),
   ])
-  const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = tt(T.dateiname).replace('{n}', String(pid))
-  a.click()
-  URL.revokeObjectURL(url)
+  csvHerunterladen(tt(T.dateiname).replace('{n}', String(pid)), header, rows)
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────

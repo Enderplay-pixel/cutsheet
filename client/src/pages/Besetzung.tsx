@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { csvHerunterladen, betragCsv } from '@/lib/csv'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -277,15 +278,11 @@ export function Component() {
   }, 0)
 
   const exportCsv = () => {
-    const rows = [['Darsteller', 'Figur', 'E-Mail', 'Telefon', 'Agentur', 'Gage/Tag']]
-    ;(castList || []).forEach((c: any) => {
-      const char = (characters || []).find((ch: any) => ch.id === c.character_id)
-      rows.push([c.actor_name || '', char?.name || '', c.email || '', c.phone || '', c.agency || '', c.fee_per_day ? String(c.fee_per_day / 100) : '0'])
-    })
-    const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n')
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob); const a = document.createElement('a')
-    a.href = url; a.download = 'besetzung.csv'; a.click(); URL.revokeObjectURL(url)
+    csvHerunterladen('besetzung.csv', ['Darsteller', 'Figur', 'E-Mail', 'Telefon', 'Agentur', 'Gage/Tag'],
+      (castList || []).map((c: any) => {
+        const char = (characters || []).find((ch: any) => ch.id === c.character_id)
+        return [c.actor_name, char?.name, c.email, c.phone, c.agency, betragCsv(c.fee_per_day || 0)]
+      }))
   }
 
   return (
