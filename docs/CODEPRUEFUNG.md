@@ -385,6 +385,9 @@ sind ein Render-Dienst aus demselben Bau.
 | 169 | `client/src/components/ui/toast.tsx` | Klein (Barrierefreiheit) | Der Schließen-Knopf der Hinweisfenster war ein Symbol ohne Namen. | aus dem Code | behoben wie beim Dialog (unsichtbarer Text "Schließen" in der gewählten Sprache). Danach gemessen: Name "Schließen" |
 | 170 | `client/src/App.tsx`, `client/src/main.tsx` | **Fehler** | Der `Toaster` hing nur im App-Rahmen. Die Seiten ohne Rahmen - Vertrag bestätigen (2 Meldungen), Casting-Antwort (1), Abnahme (3), dazu die globale Fehlermeldung für Schreibvorgänge auf öffentlicher Dispo und Set-App - zeigten ihre Meldungen nie: Wer dort etwas falsch machte oder wessen Speichern scheiterte, erfuhr es nicht. | ja: auf `/casting/…` eine Meldung ausgelöst, nichts erschien | behoben: `Toaster` einmal in `main.tsx` für alle Seiten. Danach gemessen: Meldung auf der Casting-Seite sichtbar; im App-Rahmen genau ein Meldungsbereich und eine Meldung |
 | 171 | `client/src/App.tsx`, `store/useProjectStore.ts` | Klein | Solange das Projekt lud, galt die Rolle als "nur lesen" - der Hinweis "Du hast Lesezugriff" stand dann über jeder Projektseite, auch für die Leitung. `searchOpen` im Store wurde nie benutzt (die Suche führt ihren Zustand in `App.tsx`). | ja: Projektabfrage um 1,5 s verzögert, Hinweis beim Laden sichtbar, danach weg | behoben: Hinweis erst mit geladenem Projekt; `searchOpen` entfernt. Danach gemessen: kein Hinweis beim verzögerten Laden |
+| 172 | `client/src/pages/Pinboard.tsx` | **Fehler (Datenverlust)** | Eine Notiz speichert beim Tippen, die zwischengespeicherte Liste blieb aber auf dem alten Stand (30 s frisch). Wer die Seite verließ und zurückkam, sah den alten Text - und wer dann weitertippte, überschrieb den gespeicherten. | ja: Notiz angelegt, Text getippt (Server hatte ihn), über Aufgaben zurück: Notiz leer | behoben: gespeicherte Änderungen werden in die Liste geschrieben. Danach gemessen: nach Rückkehr steht der gespeicherte Text da (Server und Anzeige gleich); Prüfnotiz gelöscht |
+| 173 | `pages/CreatorRedaktionsplan.tsx`, `CreatorPerformance.tsx`, `ProjectTemplates.tsx` | Klein | Redaktionsplan und Performance bauten Daten fest als "TT.MM.JJJJ", Performance Prozente mit Punkt ("4.2 %" auch im Deutschen). `ProjectTemplates.tsx` war weder eine Route noch eingebunden und hätte Formate gesetzt, die es nicht gibt ("Dokumentarfilm", "Musikvideo"). | aus dem Code | behoben: `formatDate` und `toLocaleString` in der gewählten Sprache; Vorlagenseite samt Texten entfernt. Messung der Creator-Seiten folgt gesammelt mit einem Prüfprojekt |
+| 174 | `client/src/pages/Fahrzeuge.tsx`, `lib/i18n.ts` | Klein (Sprache) | Meldungen (gelöscht, gespeichert, Fehler), Platzhalter, "Speichern"/"Abbrechen" und die Spalten "Name", "Plätze", "Telefon" standen fest deutsch. | `scripts/texte-pruefen.py`: 9 Funde, dazu zwei vom Skript nicht erkannte | behoben. Danach gemessen (englisch): Spalten NAME, PLATE, TYPE, SEATS, DRIVER, PHONE, Platzhalter und Knöpfe englisch; Prüfskript 0 |
 
 ### Verknüpfungen
 
@@ -412,6 +415,7 @@ Kandidaten stehen hier, bis sie gebaut oder verworfen sind.
 | Rollen der Szene | Beschriftung der Darsteller-Symbole im Set-Plan | Kandidat: ein neues Darsteller-Symbol heißt "1", "2" … (`nextLabel` in `lib/floorplan.ts`), obwohl der Plan seine Szene und damit deren Rollen kennt |
 | Komparsen-Drehtage | Kalkulation (Gagen) | Kandidat: Besetzung und Stab kommen mit Gage × Drehtage in die Kalkulation (`lib/kostenquellen.ts`), Komparsen nicht - sie haben Drehtage (Fund 119), aber keinen Tagessatz, nur eine Tarifgruppe. Braucht einen Satz je Tarifgruppe oder je Komparse |
 | Feiertage (`server/src/services/holidays.ts`) | Drehplan und Konfliktradar (Drehtag am Feiertag), Timesheets (Feiertagszuschlag) | Kandidat: Die Feiertage gibt es nur als API (`GET /projects/:id/holidays`), die Oberfläche ruft sie nie ab. Die Liste ist für NRW vollständig; es fehlen 6.1. (BW, BY, ST), 8.3. (BE, MV), 15.8. (SL), 20.9. (TH) und Buß- und Bettag (SN) |
+| Fahrer eines Fahrzeugs | Stab (Person mit Telefon), Drehtage der Dispo | Kandidat: Fahrer ist Freitext, Fahrzeuge hängen an keinem Drehtag (`vehicleT.labelDay` gibt es, die Seite nutzt es nicht) |
 
 ## Abhakliste
 
@@ -628,7 +632,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/lib/texte/Papierkorb.ts` (14) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/Pinboard.ts` (22) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/Postplan.ts` (44) - gelesen (Funde 141-144 und Prüfskript)
-- [x] `client/src/lib/texte/ProjectTemplates.ts` (76) - gelesen (Funde 141-144 und Prüfskript)
+- [x] `client/src/lib/texte/ProjectTemplates.ts` (76) - entfernt (Fund 173)
 - [x] `client/src/lib/texte/PublicDispo.ts` (30) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/Rechnungen.ts` (108) - gelesen (Funde 141-144 und Prüfskript)
 - [x] `client/src/lib/texte/ResetPassword.ts` (16) - gelesen (Funde 141-144 und Prüfskript)
@@ -742,37 +746,37 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/CateringListe.tsx` (467)
 - [ ] `client/src/pages/CheckinBoard.tsx` (331)
 - [ ] `client/src/pages/Continuity.tsx` (575)
-- [ ] `client/src/pages/CreatorChecklisten.tsx` (86)
-- [ ] `client/src/pages/CreatorClips.tsx` (75)
+- [x] `client/src/pages/CreatorChecklisten.tsx` (86) - gelesen (ohne Befund)
+- [x] `client/src/pages/CreatorClips.tsx` (75) - gelesen (ohne Befund)
 - [ ] `client/src/pages/CreatorIdeen.tsx` (240)
 - [ ] `client/src/pages/CreatorKanal.tsx` (200)
-- [ ] `client/src/pages/CreatorPerformance.tsx` (105)
-- [ ] `client/src/pages/CreatorRechte.tsx` (85)
-- [ ] `client/src/pages/CreatorRedaktionsplan.tsx` (89)
-- [ ] `client/src/pages/CreatorSeo.tsx` (77)
-- [ ] `client/src/pages/CreatorSerien.tsx` (75)
-- [ ] `client/src/pages/CreatorSponsoren.tsx` (102)
-- [ ] `client/src/pages/CreatorTitel.tsx` (91)
+- [x] `client/src/pages/CreatorPerformance.tsx` (105) - gelesen (Fund 173)
+- [x] `client/src/pages/CreatorRechte.tsx` (85) - gelesen (ohne Befund)
+- [x] `client/src/pages/CreatorRedaktionsplan.tsx` (89) - gelesen (Fund 173)
+- [x] `client/src/pages/CreatorSeo.tsx` (77) - gelesen (ohne Befund)
+- [x] `client/src/pages/CreatorSerien.tsx` (75) - gelesen (ohne Befund)
+- [x] `client/src/pages/CreatorSponsoren.tsx` (102) - gelesen (ohne Befund)
+- [x] `client/src/pages/CreatorTitel.tsx` (91) - gelesen (ohne Befund)
 - [ ] `client/src/pages/CreatorVideo.tsx` (887)
 - [ ] `client/src/pages/CreatorVideos.tsx` (249)
 - [ ] `client/src/pages/DOOD.tsx` (362)
 - [ ] `client/src/pages/Dashboard.tsx` (440)
 - [ ] `client/src/pages/Dateien.tsx` (341)
-- [ ] `client/src/pages/Datenschutz.tsx` (48)
+- [x] `client/src/pages/Datenschutz.tsx` (48) - gelesen (ohne Befund (Platzhalter: Fund 141))
 - [ ] `client/src/pages/DatenschutzWerkzeuge.tsx` (297)
 - [ ] `client/src/pages/Drehbuch.tsx` (552)
 - [ ] `client/src/pages/Drehplan.tsx` (419)
 - [ ] `client/src/pages/EmailCenter.tsx` (700)
 - [ ] `client/src/pages/Equipment.tsx` (271)
 - [ ] `client/src/pages/EquipmentKalender.tsx` (422)
-- [ ] `client/src/pages/Fahrzeuge.tsx` (169)
+- [x] `client/src/pages/Fahrzeuge.tsx` (169) - gelesen (Fund 174)
 - [ ] `client/src/pages/Firma.tsx` (897)
-- [ ] `client/src/pages/ForgotPassword.tsx` (95)
-- [ ] `client/src/pages/Impressum.tsx` (73)
+- [x] `client/src/pages/ForgotPassword.tsx` (95) - gelesen (ohne Befund, Antwortform wie im Server)
+- [x] `client/src/pages/Impressum.tsx` (73) - gelesen (ohne Befund (Platzhalter: Fund 141))
 - [ ] `client/src/pages/Invite.tsx` (240)
 - [ ] `client/src/pages/Kameraberichte.tsx` (501)
 - [x] `client/src/pages/Komparsen.tsx` (258) - Funde 118, 119
-- [ ] `client/src/pages/Konfliktradar.tsx` (140)
+- [x] `client/src/pages/Konfliktradar.tsx` (140) - gelesen (ohne Befund)
 - [ ] `client/src/pages/Kontaktliste.tsx` (227)
 - [ ] `client/src/pages/Kostenstand.tsx` (287)
 - [ ] `client/src/pages/Listen.tsx` (225)
@@ -782,15 +786,15 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/Musikliste.tsx` (311)
 - [x] `client/src/pages/NichtGefunden.tsx` (24) - neu (Fund 147)
 - [ ] `client/src/pages/OffenePosten.tsx` (673)
-- [ ] `client/src/pages/Papierkorb.tsx` (100)
-- [ ] `client/src/pages/Pinboard.tsx` (161)
+- [x] `client/src/pages/Papierkorb.tsx` (100) - gelesen (ohne Befund)
+- [x] `client/src/pages/Pinboard.tsx` (161) - gelesen (Fund 172)
 - [ ] `client/src/pages/Postplan.tsx` (369)
 - [ ] `client/src/pages/ProjectList.tsx` (352)
-- [ ] `client/src/pages/ProjectTemplates.tsx` (151)
+- [x] `client/src/pages/ProjectTemplates.tsx` (151) - entfernt (Fund 173)
 - [ ] `client/src/pages/PublicDispo.tsx` (242)
 - [ ] `client/src/pages/Rechnungen.tsx` (651)
 - [ ] `client/src/pages/Reise.tsx` (772)
-- [ ] `client/src/pages/ResetPassword.tsx` (88)
+- [x] `client/src/pages/ResetPassword.tsx` (88) - gelesen (ohne Befund)
 - [ ] `client/src/pages/ScreenplayEditor.tsx` (1428)
 - [ ] `client/src/pages/SetApp.tsx` (452)
 - [ ] `client/src/pages/Setplan.tsx` (420)

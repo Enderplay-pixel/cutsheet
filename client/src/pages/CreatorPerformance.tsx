@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { cn } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import { TrendingUp } from 'lucide-react'
 import {
   BereichKopf, Kennzahlen, BereichLaden, NichtsDa, VideoLink, BereichTabelle,
@@ -9,14 +9,14 @@ import {
 import { useT, useGebietsschema } from '@/lib/useT'
 import { creatorPerformanceT as pt } from '@/lib/texte/CreatorPerformance'
 
+// Datum und Dezimalzeichen in der gewählten Sprache - vorher fest
+// "TT.MM.JJJJ" und "4.2 %" auch im Deutschen
 function tag(datum: string): string {
-  if (!datum) return '-'
-  const [j, m, t] = datum.split('-')
-  return `${t}.${m}.${j}`
+  return datum ? formatDate(datum) : '-'
 }
 
-function prozent(n: number | null): string {
-  return n === null ? '-' : `${n} %`
+function prozent(n: number | null, gebietsschema: string): string {
+  return n === null ? '-' : `${n.toLocaleString(gebietsschema)} %`
 }
 
 export function Component() {
@@ -44,9 +44,9 @@ export function Component() {
       <Kennzahlen werte={[
         { label: tt(pt.veroeffentlicht), wert: data?.veroeffentlicht ?? 0 },
         { label: tt(pt.aufrufeGesamt), wert: (data?.aufrufe_gesamt ?? 0).toLocaleString(gs) },
-        { label: tt(pt.klickrateSchnitt), wert: prozent(data?.ctr_schnitt ?? null),
+        { label: tt(pt.klickrateSchnitt), wert: prozent(data?.ctr_schnitt ?? null, gs),
           hinweis: tt(pt.klickrateHinweis) },
-        { label: tt(pt.haltequoteSchnitt), wert: prozent(data?.haltequote_schnitt ?? null),
+        { label: tt(pt.haltequoteSchnitt), wert: prozent(data?.haltequote_schnitt ?? null, gs),
           hinweis: tt(pt.haltequoteHinweis) },
       ]} />
 
@@ -70,12 +70,12 @@ export function Component() {
               <td className={cn('text-right tabular-nums',
                 e.ctr !== null && e.ctr < 2 && 'text-danger',
                 e.ctr !== null && e.ctr > 10 && 'text-success')}>
-                {prozent(e.ctr)}
+                {prozent(e.ctr, gs)}
               </td>
               <td className={cn('text-right tabular-nums',
                 e.haltequote !== null && e.haltequote < 30 && 'text-danger',
                 e.haltequote !== null && e.haltequote >= 50 && 'text-success')}>
-                {prozent(e.haltequote)}
+                {prozent(e.haltequote, gs)}
               </td>
               <td className="text-right tabular-nums">{e.abos || '-'}</td>
             </tr>

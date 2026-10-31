@@ -420,6 +420,15 @@ export const vehicleT = {
   labelDriver:    { en: 'Driver',               de: 'Fahrer',                  fr: 'Conducteur'              },
   labelDay:       { en: 'Day',                  de: 'Drehtag',                 fr: 'Jour de tournage'        },
   labelNotes:     { en: 'Notes',                de: 'Notizen',                 fr: 'Notes'                   },
+  labelSeats:     { en: 'Seats',                de: 'Plätze',                  fr: 'Places'                  },
+  phName:         { en: 'Vehicle name',         de: 'Fahrzeugname',            fr: 'Nom du véhicule'         },
+  phType:         { en: 'Van, car, truck…',     de: 'Van, PKW, LKW…',          fr: 'Van, voiture, camion…'   },
+  phDriver:       { en: 'Driver name',          de: 'Fahrername',              fr: 'Nom du conducteur'       },
+  deleted:        { en: 'Vehicle deleted',      de: 'Fahrzeug gelöscht',       fr: 'Véhicule supprimé'       },
+  updated:        { en: 'Vehicle updated',      de: 'Fahrzeug aktualisiert',   fr: 'Véhicule mis à jour'     },
+  added:          { en: 'Vehicle added',        de: 'Fahrzeug hinzugefügt',    fr: 'Véhicule ajouté'         },
+  errDelete:      { en: 'Could not delete',     de: 'Fehler beim Löschen',     fr: 'Erreur lors de la suppression' },
+  errSave:        { en: 'Could not save',       de: 'Fehler beim Speichern',   fr: "Erreur lors de l'enregistrement" },
 }
 
 // ─── Contacts ─────────────────────────────────────────────────────────────────

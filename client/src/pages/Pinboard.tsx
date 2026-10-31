@@ -29,6 +29,11 @@ function StickyNoteCard({ note, pid }: { note: any; pid: number }) {
 
   const updateMutation = useMutation({
     mutationFn: (data: any) => api.stickyNotes.update(pid, note.id, data),
+    // Die Liste im Zwischenspeicher mitziehen: Sonst zeigte die Notiz nach
+    // Wegnavigieren und Zurückkommen (innerhalb von 30 s) den alten Text, und
+    // Weitertippen überschrieb den gespeicherten - gemessen am 31.10.2026.
+    onSuccess: (_antwort, data) => queryClient.setQueryData(['sticky-notes', pid], (alt: any[] | undefined) =>
+      alt?.map(n => n.id === note.id ? { ...n, ...data } : n)),
     onError: () => toast({ variant: 'destructive', title: tt(pinboardT.fehlerSpeichern) }),
   })
 

@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { formatDate } from '@/lib/utils'
 import { CalendarClock } from 'lucide-react'
 import {
   BereichKopf, Kennzahlen, BereichLaden, NichtsDa, VideoLink, Marke, BereichTabelle,
@@ -15,10 +16,9 @@ function monatsName(key: string, gebietsschema: string): string {
   return new Date(Number(jahr), i, 1).toLocaleDateString(gebietsschema, { month: 'long', year: 'numeric' })
 }
 
+// In der gewählten Sprache - vorher fest "TT.MM.JJJJ"
 function tag(datum: string | null): string {
-  if (!datum) return '-'
-  const [j, m, t] = datum.split('-')
-  return `${t}.${m}.${j}`
+  return datum ? formatDate(datum) : '-'
 }
 
 export function Component() {

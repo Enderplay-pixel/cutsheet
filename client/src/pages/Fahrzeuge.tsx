@@ -32,8 +32,8 @@ function VehicleRow({ vehicle, pid, onEdit }: { vehicle: Vehicle; pid: number; o
   const tt = useT()
   const deleteMutation = useMutation({
     mutationFn: () => api.vehicles.delete(pid, vehicle.id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['vehicles', pid] }); toast({ title: 'Fahrzeug gelöscht' }) },
-    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Löschen' }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['vehicles', pid] }); toast({ title: tt(vehicleT.deleted) }) },
+    onError: () => toast({ variant: 'destructive', title: tt(vehicleT.errDelete) }),
   })
   return (
     <tr className="border-b border-border/40 hover:bg-muted/30 transition-colors group">
@@ -64,6 +64,7 @@ function VehicleRow({ vehicle, pid, onEdit }: { vehicle: Vehicle; pid: number; o
 function VehicleFormRow({ initial, pid, onDone }: { initial?: Vehicle; pid: number; onDone: () => void }) {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const tt = useT()
   const [form, setForm] = useState<Omit<Vehicle, 'id'>>(initial ? { ...initial } : { ...EMPTY })
   const set = (key: string, value: string | number) => setForm(f => ({ ...f, [key]: value }))
 
@@ -71,28 +72,28 @@ function VehicleFormRow({ initial, pid, onDone }: { initial?: Vehicle; pid: numb
     mutationFn: () => initial ? api.vehicles.update(pid, initial.id, form) : api.vehicles.create(pid, form),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles', pid] })
-      toast({ title: initial ? 'Fahrzeug aktualisiert' : 'Fahrzeug hinzugefügt' })
+      toast({ title: initial ? tt(vehicleT.updated) : tt(vehicleT.added) })
       onDone()
     },
-    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Speichern' }),
+    onError: () => toast({ variant: 'destructive', title: tt(vehicleT.errSave) }),
   })
 
   const c = 'py-1.5 px-3'
   const i = 'h-7 text-sm'
   return (
     <tr className="border-b border-primary/20 bg-primary/5">
-      <td className={c}><Input className={i} placeholder="Fahrzeugname" value={form.name} onChange={e => set('name', e.target.value)} /></td>
-      <td className={c}><Input className={i} placeholder="B-AB 1234" value={form.license_plate} onChange={e => set('license_plate', e.target.value)} /></td>
-      <td className={c}><Input className={i} placeholder="Van, PKW, LKW…" value={form.type} onChange={e => set('type', e.target.value)} /></td>
+      <td className={c}><Input className={i} placeholder={tt(vehicleT.phName)} value={form.name} onChange={e => set('name', e.target.value)} /></td>
+      <td className={c}><Input className={i} placeholder="B-AB 1234" /* texte-ok: Beispielkennzeichen */ value={form.license_plate} onChange={e => set('license_plate', e.target.value)} /></td>
+      <td className={c}><Input className={i} placeholder={tt(vehicleT.phType)} value={form.type} onChange={e => set('type', e.target.value)} /></td>
       <td className={c}><Input className={i} type="number" min={1} placeholder="7" value={String(form.capacity)} onChange={e => set('capacity', Number(e.target.value))} /></td>
-      <td className={c}><Input className={i} placeholder="Fahrername" value={form.driver_name} onChange={e => set('driver_name', e.target.value)} /></td>
+      <td className={c}><Input className={i} placeholder={tt(vehicleT.phDriver)} value={form.driver_name} onChange={e => set('driver_name', e.target.value)} /></td>
       <td className={c}><Input className={i} placeholder="+49 151…" value={form.driver_phone} onChange={e => set('driver_phone', e.target.value)} /></td>
       <td className="py-1.5 px-3">
         <div className="flex items-center gap-1 justify-end">
-          <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.name.trim()} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-green-500 disabled:opacity-40" title="Speichern">
+          <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.name.trim()} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-green-500 disabled:opacity-40" title={tt(uiT.save)}>
             <Check className="w-4 h-4" />
           </button>
-          <button onClick={onDone} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground" title="Abbrechen">
+          <button onClick={onDone} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground" title={tt(uiT.cancel)}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -136,7 +137,7 @@ export function Component() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/60 bg-muted/30">
-                {['Name', tt(vehicleT.labelPlate), tt(vehicleT.labelType), 'Plätze', tt(vehicleT.labelDriver), 'Telefon', ''].map((h, i) => (
+                {[tt(uiT.name), tt(vehicleT.labelPlate), tt(vehicleT.labelType), tt(vehicleT.labelSeats), tt(vehicleT.labelDriver), tt(uiT.phone), ''].map((h, i) => (
                   <th key={i} className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{h}</th>
                 ))}
               </tr>
