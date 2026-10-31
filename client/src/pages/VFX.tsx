@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
 import { Plus, Trash2, Pencil, Check, X, Layers } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
-import { cn } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import type { Lang } from '@/lib/i18n'
 import { useT } from '@/lib/useT'
 import { vfxT as v, vfxTypT, vfxStatusT, vfxAufwandT } from '@/lib/texte/VFX'
@@ -85,7 +85,9 @@ function VFXFormRow({ initial, pid, onDone }: { initial?: VFXShot; pid: number; 
 
   return (
     <tr className="border-b border-primary/20 bg-primary/5">
-      <td className={c}><Input className={i} placeholder={tt(v.shotPlatzh)} value={form.shot_number} onChange={e => set('shot_number', e.target.value)} /></td>
+      {/* Jedes Feld mit Namen: Die Platzhalter verschwinden beim Tippen, das
+          Datumsfeld hatte gar keinen */}
+      <td className={c}><Input className={i} aria-label={tt(v.spalteShot)} placeholder={tt(v.shotPlatzh)} value={form.shot_number} onChange={e => set('shot_number', e.target.value)} /></td>
       <td className={c}>
         {/* Auswahl statt Zahlenfeld: Eingetippt wurde die Szenennummer, gespeichert
             wird die Kennung der Szene - wie in der Musikliste (Fund 89). */}
@@ -94,9 +96,9 @@ function VFXFormRow({ initial, pid, onDone }: { initial?: VFXShot; pid: number; 
           {(szenen as any[]).map(sz => <option key={sz.id} value={sz.id}>{[sz.scene_number, sz.title].filter(Boolean).join(' ') || sz.id}</option>)}
         </select>
       </td>
-      <td className={c}><Input className={i} placeholder={tt(v.beschreibung)} value={form.description} onChange={e => set('description', e.target.value)} /></td>
+      <td className={c}><Input className={i} aria-label={tt(v.beschreibung)} placeholder={tt(v.beschreibung)} value={form.description} onChange={e => set('description', e.target.value)} /></td>
       <td className={c}>
-        <select className={sel} value={form.vfx_type} onChange={e => set('vfx_type', e.target.value)}>
+        <select aria-label={tt(v.spalteTyp)} className={sel} value={form.vfx_type} onChange={e => set('vfx_type', e.target.value)}>
           {VFX_TYPES.map(t => <option key={t} value={t}>{beschriftung(vfxTypT, t, tt)}</option>)}
         </select>
       </td>
@@ -110,9 +112,9 @@ function VFXFormRow({ initial, pid, onDone }: { initial?: VFXShot; pid: number; 
           {COMPLEXITIES.map(c => <option key={c} value={c}>{beschriftung(vfxAufwandT, c, tt)}</option>)}
         </select>
       </td>
-      <td className={c}><Input className={i} placeholder={tt(v.artist)} value={form.artist} onChange={e => set('artist', e.target.value)} /></td>
-      <td className={c}><Input className={i} type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} /></td>
-      <td className={c}><Input className={i} placeholder={tt(v.notizen)} value={form.notes} onChange={e => set('notes', e.target.value)} /></td>
+      <td className={c}><Input className={i} aria-label={tt(v.artist)} placeholder={tt(v.artist)} value={form.artist} onChange={e => set('artist', e.target.value)} /></td>
+      <td className={c}><Input className={i} type="date" aria-label={tt(v.spalteDeadline)} value={form.deadline} onChange={e => set('deadline', e.target.value)} /></td>
+      <td className={c}><Input className={i} aria-label={tt(v.notizen)} placeholder={tt(v.notizen)} value={form.notes} onChange={e => set('notes', e.target.value)} /></td>
       <td className="py-1.5 px-2">
         <div className="flex items-center gap-1 justify-end">
           <button
@@ -160,7 +162,7 @@ function VFXRow({ shot, pid, onEdit }: { shot: VFXShot; pid: number; onEdit: (s:
       </td>
       <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.complexity ? beschriftung(vfxAufwandT, shot.complexity, tt) : '-'}</td>
       <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.artist || '-'}</td>
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.deadline || '-'}</td>
+      <td className="py-2.5 px-3 text-sm text-muted-foreground">{shot.deadline ? formatDate(shot.deadline) : '-'}</td>
       <td className="py-2.5 px-3 text-sm text-muted-foreground max-w-[120px] truncate" title={shot.notes}>{shot.notes || '-'}</td>
       <td className="py-2.5 px-3 text-right">
         <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
