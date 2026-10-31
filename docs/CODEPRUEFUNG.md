@@ -122,8 +122,7 @@ Stand am 24.10.2026, 23 Uhr:
   Settings 46, ProjectList 29, Dashboard 27, Drehbuch 18, Motive 17; Login übersetzt, Fund
   186). Ganz deutsch und als "teilweise" ausgewiesen: Firma, Verträge, Reise,
   Agenturen, Abnahme, CreatorVideo, AdminPanel, AdminStats, Auswertungen,
-  OffenePosten, Timesheets, Continuity, SperrtageKalender. `CheckinBoard.tsx:221`: Hinweis auf
-  `/guest/checkin/…`, den es nicht gibt (Fund 79).
+  OffenePosten, Timesheets, Continuity, SperrtageKalender.
   `Budget.tsx` (Finanzierung): Der Server legt neue Zeilen mit Art
   "Förderung" an, die Auswahl kennt nur "Förderung regional"/"national" -
   prüfen, was die Auswahl dann zeigt.
@@ -419,6 +418,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 196 | `client/src/pages/VFX.tsx` | Klein | Die Deadline stand roh als "2026-11-24" in der Liste. Im Formular hatten fünf Felder nur einen Platzhalter, der beim Tippen verschwindet, Typ-Auswahl und Datumsfeld gar keinen Namen. | ja: Liste und Formular | behoben: Deadline über `formatDate`, alle Felder mit Namen. Danach gemessen: "24.11.2026", "08.12.2026", 9 von 9 Feldern benannt |
 | 197 | `client/src/pages/Musikliste.tsx` | Klein | Die Dauer "1:02:30" wurde als 1 Sekunde gelesen, nur "m:ss" ging. Für die GEMA-Meldung zählt die Dauer. Im Formular hatten sieben Felder nur einen Platzhalter, die Lizenzart-Auswahl gar keinen Namen. | aus dem Code (`parseInt("1:02:30")` ist 1) | behoben: "h:mm:ss", "m:ss" und reine Sekunden, alle Felder benannt. Danach gemessen: 3:30 ergibt 210, 1:02:30 ergibt 3750, 45 ergibt 45, leer ergibt 0; 9 von 9 Feldern benannt |
 | 198 | `client/src/pages/Stabliste.tsx`, `client/src/lib/i18n.ts` | Fehler | Die Stabliste zeigte nur Abteilungen aus ihrer festen Liste. Wer über das Firmen-Adressbuch übernommen wurde (`routes/companies.ts`, Abteilung ist dort Freitext), etwa mit "Grip", war unsichtbar. Er zählte oben mit, ließ sich aber weder sehen noch bearbeiten noch löschen. Dazu feste deutsche Reste: Bildschirmleser-Namen, "Alle", "Einklappen", "Neues Mitglied", CSV-Kopf, Abteilungsnamen. | ja: Prüfprojekt "2 Mitarbeiter", sichtbar nur 1 ("Grip" fehlte) | behoben: Bekannte Abteilungen in fester Reihenfolge, danach jede andere. Abteilungen übersetzt angezeigt (gespeichert bleibt deutsch), alle Texte in drei Sprachen. Danach gemessen: beide sichtbar, "Grip" als eigene Gruppe mit Löschknopf. Englisch "Camera", "Position of Klara Kamera", kein deutsches Wort |
+| 199 | `client/src/pages/CheckinBoard.tsx` | Fehler | Die Check-in-Tafel nannte einen Gastlink `/guest/checkin/{Drehtag}`, den es nicht gibt (seit Fund 79 im Merkzettel). Ein Fehltipp auf "Einchecken" ließ sich nicht zurücknehmen, obwohl der Server `checked_in: false` kennt. Leser sahen "Einchecken" und bekamen 403. Geprüft und in Ordnung: Tagesdispo und Tafel teilen den Schlüssel `['call-sheet', Tag]` mit demselben Endpunkt. | ja: Hinweis im Browser; "Zurücknehmen" gab es nicht | behoben: Hinweis entfernt, "Zurücknehmen" bei eingecheckten Personen, Knöpfe nur mit Schreibrecht. Danach gemessen: Einchecken setzt den Server auf eingecheckt, Zurücknehmen wieder zurück, der Knopf "Einchecken" ist wieder da. Ein Lese-Konto sieht die Person ohne Knopf |
 
 ### Verknüpfungen
 
@@ -776,9 +776,9 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/Besetzung.tsx` (388)
 - [x] `client/src/pages/Buchhaltung.tsx` (282) - gelesen (Fund 190; Mahnwesen-Haken stimmt (Spalte BOOLEAN))
 - [ ] `client/src/pages/Budget.tsx` (501)
-- [ ] `client/src/pages/CastingAntwort.tsx` (322)
+- [x] `client/src/pages/CastingAntwort.tsx` (322) - gelesen (ohne neuen Befund; Gage über `betragInCent` (Fund 192), vorbelegte Gage wird richtig zurückgelesen)
 - [ ] `client/src/pages/CateringListe.tsx` (467)
-- [ ] `client/src/pages/CheckinBoard.tsx` (331)
+- [x] `client/src/pages/CheckinBoard.tsx` (331) - gelesen (Fund 199)
 - [ ] `client/src/pages/Continuity.tsx` (575)
 - [x] `client/src/pages/CreatorChecklisten.tsx` (86) - gelesen (ohne Befund)
 - [x] `client/src/pages/CreatorClips.tsx` (75) - gelesen (ohne Befund)

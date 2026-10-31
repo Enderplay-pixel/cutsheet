@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
-import { CheckCircle2, Circle, QrCode, Clock, Users } from 'lucide-react'
+import { CheckCircle2, Circle, Clock, Users } from 'lucide-react'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { checkinBoardT as ct } from '@/lib/texte/CheckinBoard'
 import { parseISO } from 'date-fns'
@@ -83,6 +84,7 @@ export function Component() {
   const [selectedDayId, setSelectedDayId] = useState<number | null>(null)
   const tt = useT()
   const gs = useGebietsschema()
+  const { darfSchreiben } = useSchreibrecht()
 
   const token = localStorage.getItem('token')
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
@@ -111,19 +113,21 @@ export function Component() {
     refetchInterval: 10000,
   })
 
-  // Check-in mutation
+  // Ein- und Auschecken. Auschecken konnte der Server schon, die Tafel bot es
+  // nicht an - ein Fehltipp am Set ließ sich nicht zurücknehmen.
   const checkinMutation = useMutation({
-    mutationFn: async (entryId: number) => {
+    mutationFn: async ({ entryId, checkedIn }: { entryId: number; checkedIn: boolean }) => {
       const res = await fetch(`/api/call-sheet-entries/${entryId}/checkin`, {
         method: 'POST',
         headers,
+        body: JSON.stringify({ checked_in: checkedIn }),
       })
       if (!res.ok) throw new Error('Fehler beim Einchecken')
       return (await res.json()).data
     },
-    onSuccess: () => {
+    onSuccess: (_daten, { checkedIn }) => {
       queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })
-      toast({ title: tt(ct.erfolgreich) })
+      toast({ title: tt(checkedIn ? ct.erfolgreich : ct.ausgecheckt) })
     },
     onError: () => {
       toast({ variant: 'destructive', title: tt(ct.fehlerEinchecken) })
@@ -215,13 +219,8 @@ export function Component() {
           </div>
         )}
 
-        {/* QR guest link */}
-        {selectedDayId && (
-          <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2 w-fit">
-            <QrCode className="h-3.5 w-3.5 shrink-0" />
-            <span>{tt(ct.gastlink)} <code className="font-mono">/guest/checkin/{selectedDayId}</code></span>
-          </div>
-        )}
+        {/* Hier stand ein Hinweis auf /guest/checkin/{Drehtag}. Den Pfad gibt es
+            nicht (Fund 79) - die Gastlink-Funktion hat keine Oberfläche. */}
       </div>
 
       {/* Empty / loading states */}
@@ -307,18 +306,27 @@ export function Component() {
                 {/* Status pill + action */}
                 <div className="shrink-0 flex items-center gap-3">
                   {entry.checked_in ? (
-                    <Badge variant="green" className="text-[11px] px-2.5 py-0.5">{tt(ct.eingecheckt)}</Badge>
+                    <>
+                      <Badge variant="green" className="text-[11px] px-2.5 py-0.5">{tt(ct.eingecheckt)}</Badge>
+                      {darfSchreiben && (
+                        <Button size="sm" variant="ghost" className="shrink-0 text-muted-foreground"
+                          onClick={() => checkinMutation.mutate({ entryId: entry.id, checkedIn: false })}
+                          disabled={checkinMutation.isPending}>
+                          {tt(ct.zuruecknehmen)}
+                        </Button>
+                      )}
+                    </>
                   ) : (
                     <>
                       <Badge variant="secondary" className="text-muted-foreground text-[11px] px-2.5 py-0.5">{tt(ct.ausstehend)}</Badge>
-                      <Button
+                      {darfSchreiben && <Button
                         size="sm"
-                        onClick={() => checkinMutation.mutate(entry.id)}
+                        onClick={() => checkinMutation.mutate({ entryId: entry.id, checkedIn: true })}
                         disabled={checkinMutation.isPending}
                         className="active:scale-[0.97] shrink-0"
                       >
                         {tt(ct.einchecken)}
-                      </Button>
+                      </Button>}
                     </>
                   )}
                 </div>
