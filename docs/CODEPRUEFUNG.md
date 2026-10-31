@@ -417,6 +417,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 194 | `client/src/pages/DatenschutzWerkzeuge.tsx` | Fehler, Datenschutz | Nach "Personenbezug entfernen" (Art. 17 DSGVO) wurden nur Stab, Besetzung und Komparserie neu geladen. Verträge, Dispo, Timesheets und Catering zeigten den gelöschten Namen weiter aus dem Cache, bis zu 30 Sekunden lang. Außerdem gab der JSON-Download der Auskunft die Datei-Adresse sofort frei. Das kann in manchen Browsern den Download abbrechen; `lib/useDownload.ts` wartet deshalb 60 s. | ja: Server "Ton (entfernt)", Vertragsseite zeigte "Mara Messperson" | behoben: nach dem Entfernen alle Abfragen erneuert, Download-Adresse erst nach 60 s freigegeben. Danach gemessen: Die Person stand vorher auf der Vertragsseite, nach dem Entfernen sofort "Kamera (entfernt)". Ein erster Nachmessversuch zählte nicht: Die Seite hatte die Person vorher gar nicht geladen |
 | 195 | `client/src/pages/ZeitAnalyse.tsx` | Fehler | Die Differenz Plan/Ist rechnete "Ist der gedrehten Szenen minus Plan aller Szenen". Mitten im Dreh sah das wie eine große Ersparnis aus. Ohne eine einzige gedrehte Szene stand im Demo-Projekt "Differenz -12 Std." in Grün. | ja: Demo 0 von 8 Szenen gedreht, Karte "-12 Std."; Prüfprojekt mit einer Szene 75 statt 60 Min., alte Formel -195 Min. | behoben: Differenz nur über abgedrehte Szenen, ohne solche ein Strich, Hinweis "nur abgedrehte Szenen". Danach gemessen: Prüfprojekt Karte und Fußzeile "+15 Min.", Demo-Projekt "-" |
 | 196 | `client/src/pages/VFX.tsx` | Klein | Die Deadline stand roh als "2026-11-24" in der Liste. Im Formular hatten fünf Felder nur einen Platzhalter, der beim Tippen verschwindet, Typ-Auswahl und Datumsfeld gar keinen Namen. | ja: Liste und Formular | behoben: Deadline über `formatDate`, alle Felder mit Namen. Danach gemessen: "24.11.2026", "08.12.2026", 9 von 9 Feldern benannt |
+| 197 | `client/src/pages/Musikliste.tsx` | Klein | Die Dauer "1:02:30" wurde als 1 Sekunde gelesen, nur "m:ss" ging. Für die GEMA-Meldung zählt die Dauer. Im Formular hatten sieben Felder nur einen Platzhalter, die Lizenzart-Auswahl gar keinen Namen. | aus dem Code (`parseInt("1:02:30")` ist 1) | behoben: "h:mm:ss", "m:ss" und reine Sekunden, alle Felder benannt. Danach gemessen: 3:30 ergibt 210, 1:02:30 ergibt 3750, 45 ergibt 45, leer ergibt 0; 9 von 9 Feldern benannt |
 
 ### Verknüpfungen
 
@@ -815,7 +816,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/pages/Login.tsx` (280) - gelesen (Funde 185 und 186)
 - [ ] `client/src/pages/Moodboard.tsx` (575)
 - [ ] `client/src/pages/Motive.tsx` (476)
-- [ ] `client/src/pages/Musikliste.tsx` (311)
+- [x] `client/src/pages/Musikliste.tsx` (311) - gelesen (Fund 197)
 - [x] `client/src/pages/NichtGefunden.tsx` (24) - neu (Fund 147)
 - [ ] `client/src/pages/OffenePosten.tsx` (673)
 - [x] `client/src/pages/Papierkorb.tsx` (100) - gelesen (ohne Befund)

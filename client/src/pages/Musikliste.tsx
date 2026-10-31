@@ -74,14 +74,10 @@ function formatTotalDuration(seconds: number): string {
   return `${hh}:${mm}:${ss}`
 }
 
+// "3:30", "1:02:30" oder nur Sekunden. Vorher las "1:02:30" als 1 Sekunde.
 function parseMMSS(val: string): number {
-  const parts = val.split(':')
-  if (parts.length === 2) {
-    const m = parseInt(parts[0], 10) || 0
-    const s = parseInt(parts[1], 10) || 0
-    return m * 60 + s
-  }
-  return parseInt(val, 10) || 0
+  const teile = val.split(':').map(t => parseInt(t, 10) || 0)
+  return teile.reduce((summe, teil) => summe * 60 + teil, 0)
 }
 
 function CueFormRow({ initial, pid, onDone }: { initial?: MusicCue; pid: number; onDone: () => void }) {
@@ -115,13 +111,14 @@ function CueFormRow({ initial, pid, onDone }: { initial?: MusicCue; pid: number;
 
   return (
     <tr className="border-b border-primary/20 bg-primary/5">
-      <td className={c}><Input className={i} placeholder={tt(musiklisteT.titel)} value={form.title} onChange={e => set('title', e.target.value)} /></td>
-      <td className={c}><Input className={i} placeholder={tt(musiklisteT.komponist)} value={form.composer} onChange={e => set('composer', e.target.value)} /></td>
-      <td className={c}><Input className={i} placeholder={tt(musiklisteT.verlag)} value={form.publisher} onChange={e => set('publisher', e.target.value)} /></td>
-      <td className={c}><Input className={i} placeholder={tt(musiklisteT.textdichter)} value={form.lyrics_author} onChange={e => set('lyrics_author', e.target.value)} /></td>
-      <td className={c}><Input className={i} placeholder={tt(musiklisteT.mmss)} value={durationInput} onChange={e => setDurationInput(e.target.value)} /></td>
+      {/* Jedes Feld mit Namen - die Platzhalter verschwinden beim Tippen */}
+      <td className={c}><Input className={i} aria-label={tt(musiklisteT.titel)} placeholder={tt(musiklisteT.titel)} value={form.title} onChange={e => set('title', e.target.value)} /></td>
+      <td className={c}><Input className={i} aria-label={tt(musiklisteT.komponist)} placeholder={tt(musiklisteT.komponist)} value={form.composer} onChange={e => set('composer', e.target.value)} /></td>
+      <td className={c}><Input className={i} aria-label={tt(musiklisteT.verlag)} placeholder={tt(musiklisteT.verlag)} value={form.publisher} onChange={e => set('publisher', e.target.value)} /></td>
+      <td className={c}><Input className={i} aria-label={tt(musiklisteT.textdichter)} placeholder={tt(musiklisteT.textdichter)} value={form.lyrics_author} onChange={e => set('lyrics_author', e.target.value)} /></td>
+      <td className={c}><Input className={i} aria-label={tt(musiklisteT.dauer)} placeholder={tt(musiklisteT.mmss)} value={durationInput} onChange={e => setDurationInput(e.target.value)} /></td>
       <td className={c}>
-        <select className={sel} value={form.cue_type} onChange={e => set('cue_type', e.target.value)}>
+        <select aria-label={tt(musiklisteT.lizenzart)} className={sel} value={form.cue_type} onChange={e => set('cue_type', e.target.value)}>
           {CUE_TYPES.map(t => <option key={t} value={t}>{beschriftung(t, tt)}</option>)}
         </select>
       </td>
@@ -138,7 +135,7 @@ function CueFormRow({ initial, pid, onDone }: { initial?: MusicCue; pid: number;
           {(szenen as any[]).map(sz => <option key={sz.id} value={sz.id}>{[sz.scene_number, sz.title].filter(Boolean).join(' ') || sz.id}</option>)}
         </select>
       </td>
-      <td className={c}><Input className={i} placeholder={tt(uiT.notes)} value={form.notes} onChange={e => set('notes', e.target.value)} /></td>
+      <td className={c}><Input className={i} aria-label={tt(uiT.notes)} placeholder={tt(uiT.notes)} value={form.notes} onChange={e => set('notes', e.target.value)} /></td>
       <td className="py-1.5 px-2">
         <div className="flex items-center gap-1 justify-end">
           <button
