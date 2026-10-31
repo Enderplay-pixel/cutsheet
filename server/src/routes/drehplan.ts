@@ -295,54 +295,65 @@ router.post('/projects/:projectId/drehplan/restore/:versionId', async (req, res)
   const version = await db.get('SELECT * FROM drehplan_versions WHERE id = ? AND project_id = ?', [req.params.versionId, req.params.projectId]) as any
   if (!version) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
 
-  const snapshot: any[] = JSON.parse(version.snapshot_json)
+  const roh = JSON.parse(version.snapshot_json)
+  // Die KI-Optimierung sicherte bis zum 31.10.2026 als { shoot_days, scenes }
+  // statt als Liste von Tagen - diese Sicherungen ergaben hier eine 500.
+  const snapshot: any[] = Array.isArray(roh) ? roh : (roh?.shoot_days ?? []).map((d: any) => ({
+    day_number: d.day_number,
+    scenes: (roh.scenes ?? [])
+      .filter((sz: any) => sz.shoot_day_id === d.id)
+      .sort((x: any, y: any) => (x.day_sort_order ?? 0) - (y.day_sort_order ?? 0))
+      .map((sz: any) => ({ scene_id: sz.id })),
+  }))
+  const pid = req.params.projectId
+  const aktuell = await ladeDrehtageMitSzenen(pid)
 
-  // Den aktuellen Plan vorher als Version sichern - sonst ist ein Klick auf
-  // "Wiederherstellen" nicht mehr rückgängig zu machen.
-  await db.run('INSERT INTO drehplan_versions (project_id, name, snapshot_json) VALUES (?, ?, ?)', [
-    req.params.projectId,
-    `Vor Wiederherstellung von „${version.name}" (${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })})`,
-    JSON.stringify(await ladeDrehtageMitSzenen(req.params.projectId)),
-  ])
+  // Alles oder nichts: Vorher lief jeder Schritt einzeln - scheiterte das
+  // Einlesen, waren die Zuordnungen schon gelöscht und der Plan stand leer da.
+  await db.transaction(async (tx) => {
+    // Den aktuellen Plan vorher als Version sichern - sonst ist ein Klick auf
+    // "Wiederherstellen" nicht mehr rückgängig zu machen.
+    await tx.run('INSERT INTO drehplan_versions (project_id, name, snapshot_json) VALUES (?, ?, ?)', [
+      pid,
+      `Vor Wiederherstellung von „${version.name}" (${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })})`,
+      JSON.stringify(aktuell),
+    ])
 
-  // Gemessene Minuten hängen an der Zuordnung Drehtag-Szene (Tagesbericht).
-  // Vorher gingen sie beim Zurückholen mit den Zuordnungen verloren (gemessen
-  // am 31.10.2026); jetzt bleiben sie, wo Tag und Szene wieder zusammenkommen.
-  const gemessen = new Map<string, number>()
-  for (const z of await db.all(
-    `SELECT sds.shoot_day_id, sds.scene_id, sds.actual_minutes FROM shoot_day_scenes sds
-       JOIN shoot_days sd ON sd.id = sds.shoot_day_id
-      WHERE sd.project_id = ? AND sds.actual_minutes IS NOT NULL`, [req.params.projectId]) as any[]) {
-    gemessen.set(`${z.shoot_day_id}:${z.scene_id}`, Number(z.actual_minutes))
-  }
+    // Gemessene Minuten hängen an der Zuordnung Drehtag-Szene (Tagesbericht).
+    // Vorher gingen sie beim Zurückholen mit den Zuordnungen verloren (gemessen
+    // am 31.10.2026); jetzt bleiben sie, wo Tag und Szene wieder zusammenkommen.
+    const gemessen = new Map<string, number>()
+    for (const z of await tx.all(
+      `SELECT sds.shoot_day_id, sds.scene_id, sds.actual_minutes FROM shoot_day_scenes sds
+         JOIN shoot_days sd ON sd.id = sds.shoot_day_id
+        WHERE sd.project_id = ? AND sds.actual_minutes IS NOT NULL`, [pid]) as any[]) {
+      gemessen.set(`${z.shoot_day_id}:${z.scene_id}`, Number(z.actual_minutes))
+    }
 
-  // Delete all current shoot day ↔ scene assignments, keep the days + scenes themselves
-  const currentDays = await db.all('SELECT id FROM shoot_days WHERE project_id = ?', [req.params.projectId]) as any[]
-  for (const d of currentDays) {
-    await db.run('DELETE FROM shoot_day_scenes WHERE shoot_day_id = ?', [d.id])
-  }
+    // Alle Zuordnungen lösen, Drehtage und Szenen bleiben
+    await tx.run('DELETE FROM shoot_day_scenes WHERE shoot_day_id IN (SELECT id FROM shoot_days WHERE project_id = ?)', [pid])
 
-  // Re-apply scene assignments from snapshot
-  for (const snapDay of snapshot) {
-    // Find matching live day by day_number (best-effort match)
-    const liveDay = await db.get('SELECT id FROM shoot_days WHERE project_id = ? AND day_number = ?', [req.params.projectId, snapDay.day_number]) as any
-    if (!liveDay) continue
-    for (const [i, s] of (snapDay.scenes || []).entries()) {
-      // scene is identified by scene_id in the snapshot
-      const sceneId = s.scene_id || s.id
-      const sceneExists = await db.get('SELECT id FROM scenes WHERE id = ? AND project_id = ?', [sceneId, req.params.projectId])
-      if (!sceneExists) continue
-      try {
-        await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order, actual_minutes) VALUES (?, ?, ?, ?)',
+    // Zuordnungen aus der Version, Tage über ihre Nummer gefunden
+    for (const snapDay of snapshot) {
+      const liveDay = await tx.get('SELECT id FROM shoot_days WHERE project_id = ? AND day_number = ?', [pid, snapDay.day_number]) as any
+      if (!liveDay) continue
+      for (const [i, sz] of (snapDay.scenes || []).entries()) {
+        const sceneId = sz.scene_id || sz.id
+        const sceneExists = await tx.get('SELECT id FROM scenes WHERE id = ? AND project_id = ?', [sceneId, pid])
+        if (!sceneExists) continue
+        // ON CONFLICT statt try/catch: ein Fehler bräche die Transaktion ab
+        await tx.run(
+          `INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order, actual_minutes) VALUES (?, ?, ?, ?)
+           ON CONFLICT DO NOTHING`,
           [liveDay.id, sceneId, i, gemessen.get(`${liveDay.id}:${sceneId}`) ?? null])
-      } catch (e: any) {
-        if (!e.message?.includes('UNIQUE') && !e.message?.includes('unique')) throw e
       }
     }
-  }
 
-  const days = await db.all('SELECT * FROM shoot_days WHERE project_id = ? ORDER BY day_number', [req.params.projectId])
-  await besetzungNachziehen(db, { tage: (days as any[]).map(d => Number(d.id)) })
+    const tage = await tx.all('SELECT id FROM shoot_days WHERE project_id = ?', [pid]) as any[]
+    await besetzungNachziehen(tx, { tage: tage.map(d => Number(d.id)) })
+  })
+
+  const days = await db.all('SELECT * FROM shoot_days WHERE project_id = ? ORDER BY day_number', [pid])
   const result = await Promise.all((days as any[]).map(d => getShootDayWithScenes(d.id)))
   res.json({ data: result, error: null })
 })

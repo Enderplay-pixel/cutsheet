@@ -3,6 +3,7 @@ import { db } from '../db'
 import { besetzungNachziehen } from '../lib/dispo'
 import Anthropic from '@anthropic-ai/sdk'
 import { getUserProjectRole, ROLE_RANK } from '../middleware/projectAuth'
+import { ladeDrehtageMitSzenen } from './drehplan'
 
 const router = Router()
 
@@ -50,15 +51,12 @@ router.post('/projects/:pid/drehplan/ai-optimize', async (req: Request, res: Res
     castByScene[sc.scene_id].push(sc.actor_name)
   }
 
-  // Save snapshot before optimizing
-  const snapshot = {
-    shoot_days: shootDays,
-    scenes: scenes,
-    created_at: new Date().toISOString(),
-  }
+  // Sicherung vor dem Umbau - im selben Format wie "Version speichern"
+  // (routes/drehplan.ts). Vorher { shoot_days, scenes }: Das Wiederherstellen
+  // erwartete eine Liste von Tagen und brach mit 500 ab.
   await db.run(
     'INSERT INTO drehplan_versions (project_id, name, snapshot_json) VALUES (?, ?, ?)',
-    [pid, `Vor KI-Optimierung ${new Date().toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}`, JSON.stringify(snapshot)]
+    [pid, `Vor KI-Optimierung ${new Date().toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}`, JSON.stringify(await ladeDrehtageMitSzenen(pid))]
   )
 
   // Build scene list for AI

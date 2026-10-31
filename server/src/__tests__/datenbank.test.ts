@@ -2544,3 +2544,27 @@ describe('Drehplan-Version wiederherstellen', () => {
     expect(versionen[1].name).toContain('Stand A+B')
   })
 })
+
+describe('Sicherung vor KI-Optimierung wiederherstellen', () => {
+  it('liest auch das ältere Format { shoot_days, scenes }', async () => {
+    const projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['KI-Sicherungsprobe', nutzerId])).id
+    await db.run("INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, 'admin')", [projekt, nutzerId])
+    const a = (await db.run("INSERT INTO scenes (project_id, scene_number, title) VALUES (?, '1', 'A')", [projekt])).id
+    const tag1 = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, '2026-11-02')", [projekt])).id
+    const tag2 = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 2, '2026-11-03')", [projekt])).id
+    // So legte die KI-Optimierung ihre Sicherung an: Szene A an Tag 1
+    const alt = JSON.stringify({
+      shoot_days: [{ id: tag1, day_number: 1 }, { id: tag2, day_number: 2 }],
+      scenes: [{ id: a, shoot_day_id: tag1, day_sort_order: 0 }],
+      created_at: '2026-10-31T12:00:00Z',
+    })
+    const version = (await db.run('INSERT INTO drehplan_versions (project_id, name, snapshot_json) VALUES (?, ?, ?)', [projekt, 'Vor KI-Optimierung', alt])).id
+    // Die KI hatte A an Tag 2 gelegt
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, 0)', [tag2, a])
+
+    const zurueck = await hole(`/api/projects/${projekt}/drehplan/restore/${version}`, tokenInhaber, { method: 'POST' })
+    expect(zurueck.status).toBe(200)
+    const zeilen = await db.all('SELECT shoot_day_id FROM shoot_day_scenes WHERE scene_id = ?', [a]) as any[]
+    expect(zeilen.map(z => Number(z.shoot_day_id))).toEqual([tag1])
+  })
+})
