@@ -11,6 +11,8 @@ import { Plus, Trash2, Download, Camera, Check, Pencil, X, Film, CircleDot, Volu
 import { cn } from '@/lib/utils'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { kameraberichteT as T } from '@/lib/texte/Kameraberichte'
+import { csvHerunterladen } from '@/lib/csv'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 const API_BASE = '/api'
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
@@ -32,6 +34,17 @@ const CAMERA_COLORS: Record<string, { bg: string; text: string; ring: string; ba
   D: { bg: 'bg-emerald-500/15', text: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-500/30', badge: 'bg-emerald-500' },
 }
 
+/**
+ * Nächste Take-Nummer je Szene. Vorher zählte sie über alle Szenen des
+ * Berichts weiter - gemessen am 01.11.2026: nach Szene 5 Take 1 bis 3 bekam
+ * Szene 6 "Take 4". Auf der Klappe beginnt jede Szene wieder bei 1.
+ */
+function naechsterTake(takes: any[], szene: string): number {
+  const s = szene.trim().toLowerCase()
+  const nummern = takes.filter(t => String(t.scene_number ?? '').trim().toLowerCase() === s).map(t => Number(t.take_number) || 0)
+  return Math.max(0, ...nummern) + 1
+}
+
 function CameraLetterCircle({ letter, size = 'md', selected = false }: { letter: string; size?: 'sm' | 'md' | 'lg'; selected?: boolean }) {
   const c = CAMERA_COLORS[letter] ?? CAMERA_COLORS['A']
   const sizeClass = size === 'lg' ? 'w-14 h-14 text-xl' : size === 'sm' ? 'w-7 h-7 text-xs' : 'w-10 h-10 text-sm'
@@ -47,9 +60,15 @@ function CameraLetterCircle({ letter, size = 'md', selected = false }: { letter:
   )
 }
 
-function TakeRow({ take, onUpdate, onDelete }: { take: any; onUpdate: (data: any) => void; onDelete: () => void }) {
+function TakeRow({ take, szenenListe, darf, onUpdate, onDelete }: { take: any; szenenListe: string; darf: boolean; onUpdate: (data: any) => void; onDelete: () => void }) {
+  const tt = useT()
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState(take)
+  const von = (feld: typeof T.szene) => tt(T.feldVon).replace('{feld}', tt(feld)).replace('{n}', String(take.take_number))
+
+  // Beim Öffnen den aktuellen Stand nehmen - vorher blieb ein abgebrochener
+  // Entwurf stehen und erschien beim nächsten Bearbeiten wieder.
+  const bearbeiten = () => { setForm(take); setEditing(true) }
 
   const save = () => {
     // Meter ist eine Zahlenspalte: leeres Feld als null, Komma als Dezimaltrenner
@@ -63,36 +82,37 @@ function TakeRow({ take, onUpdate, onDelete }: { take: any; onUpdate: (data: any
     return (
       <tr className="bg-muted/30">
         <td className="py-2 px-3">
-          <Input value={form.scene_number || ''} onChange={e => setForm((f: any) => ({ ...f, scene_number: e.target.value }))} className="h-7 text-xs w-20 bg-background" />
+          <Input value={form.scene_number || ''} onChange={e => setForm((f: any) => ({ ...f, scene_number: e.target.value }))}
+            list={szenenListe} aria-label={von(T.szene)} className="h-7 text-xs w-20 bg-background" />
         </td>
         <td className="py-2 px-3 text-center text-sm font-mono">{form.take_number}</td>
         <td className="py-2 px-3">
-          <Input value={form.timecode_in || ''} onChange={e => setForm((f: any) => ({ ...f, timecode_in: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" placeholder="00:00:00:00" />
+          <Input value={form.timecode_in || ''} onChange={e => setForm((f: any) => ({ ...f, timecode_in: e.target.value }))} aria-label={von(T.tcIn)} className="h-7 text-xs w-28 font-mono bg-background" placeholder="00:00:00:00" />
         </td>
         <td className="py-2 px-3">
-          <Input value={form.timecode_out || ''} onChange={e => setForm((f: any) => ({ ...f, timecode_out: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" placeholder="00:00:00:00" />
+          <Input value={form.timecode_out || ''} onChange={e => setForm((f: any) => ({ ...f, timecode_out: e.target.value }))} aria-label={von(T.tcOut)} className="h-7 text-xs w-28 font-mono bg-background" placeholder="00:00:00:00" />
         </td>
         <td className="py-2 px-3">
-          <Input value={form.meters || ''} onChange={e => setForm((f: any) => ({ ...f, meters: e.target.value }))} className="h-7 text-xs w-16 bg-background" />
+          <Input value={form.meters ?? ''} onChange={e => setForm((f: any) => ({ ...f, meters: e.target.value }))} aria-label={von(T.meter)} className="h-7 text-xs w-16 bg-background" />
         </td>
         <td className="py-2 px-3 text-center">
-          <Checkbox checked={!!form.circle} onCheckedChange={v => setForm((f: any) => ({ ...f, circle: !!v }))} />
+          <Checkbox checked={!!form.circle} onCheckedChange={v => setForm((f: any) => ({ ...f, circle: !!v }))} aria-label={von(T.circle)} />
         </td>
         <td className="py-2 px-3 text-center">
-          <Checkbox checked={!!form.false_start} onCheckedChange={v => setForm((f: any) => ({ ...f, false_start: !!v }))} />
+          <Checkbox checked={!!form.false_start} onCheckedChange={v => setForm((f: any) => ({ ...f, false_start: !!v }))} aria-label={von(T.fehlstart)} />
         </td>
         <td className="py-2 px-3 text-center">
-          <Checkbox checked={!!form.mute} onCheckedChange={v => setForm((f: any) => ({ ...f, mute: !!v }))} />
+          <Checkbox checked={!!form.mute} onCheckedChange={v => setForm((f: any) => ({ ...f, mute: !!v }))} aria-label={von(T.tonAus)} />
         </td>
         <td className="py-2 px-3">
-          <Input value={form.notes || ''} onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))} className="h-7 text-xs bg-background" />
+          <Input value={form.notes || ''} onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))} aria-label={von(T.notizen)} className="h-7 text-xs bg-background" />
         </td>
         <td className="py-2 px-3">
           <div className="flex gap-1">
-            <button onClick={save} className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-green-500/15 text-green-600 transition-colors">
+            <button onClick={save} aria-label={tt(T.speichern)} title={tt(T.speichern)} className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-green-500/15 text-green-600 transition-colors">
               <Check className="w-3.5 h-3.5" />
             </button>
-            <button onClick={() => setEditing(false)} className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+            <button onClick={() => setEditing(false)} aria-label={tt(T.abbrechen)} title={tt(T.abbrechen)} className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -141,27 +161,31 @@ function TakeRow({ take, onUpdate, onDelete }: { take: any; onUpdate: (data: any
       </td>
       <td className="py-2.5 px-3 text-xs text-muted-foreground max-w-[120px] truncate">{take.notes || ''}</td>
       <td className="py-2.5 px-3 opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="flex gap-1">
-          <button onClick={() => setEditing(true)} className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-            <Pencil className="w-3 h-3" />
-          </button>
-          <button onClick={onDelete} className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
-            <Trash2 className="w-3 h-3" />
-          </button>
-        </div>
+        {darf && (
+          <div className="flex gap-1">
+            <button onClick={bearbeiten} aria-label={tt(T.takeBearbeiten).replace('{n}', String(take.take_number))} className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+              <Pencil className="w-3 h-3" />
+            </button>
+            <button onClick={onDelete} aria-label={tt(T.takeLoeschen).replace('{n}', String(take.take_number))} className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        )}
       </td>
     </tr>
   )
 }
 
-function AddTakeForm({ reportId, nextTakeNumber, onAdded }: { reportId: number; nextTakeNumber: number; onAdded: () => void }) {
+function AddTakeForm({ reportId, takes, szenenListe, onAdded }: { reportId: number; takes: any[]; szenenListe: string; onAdded: () => void }) {
   const [form, setForm] = useState({ scene_number: '', timecode_in: '', timecode_out: '', notes: '', circle: false, false_start: false, mute: false })
   const tt = useT()
+  const nextTakeNumber = naechsterTake(takes, form.scene_number)
 
   const mutation = useMutation({
     mutationFn: (data: any) => req<any>(`/camera-reports/${reportId}/takes`, { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => {
-      setForm({ scene_number: '', timecode_in: '', timecode_out: '', notes: '', circle: false, false_start: false, mute: false })
+      // Szene bleibt stehen: der nächste Take ist meist dieselbe Szene
+      setForm(f => ({ scene_number: f.scene_number, timecode_in: '', timecode_out: '', notes: '', circle: false, false_start: false, mute: false }))
       onAdded()
     },
   })
@@ -171,11 +195,11 @@ function AddTakeForm({ reportId, nextTakeNumber, onAdded }: { reportId: number; 
       <div className="w-5 h-5 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
         <Plus className="w-3 h-3 text-muted-foreground" />
       </div>
-      <Input placeholder={tt(T.szene)} value={form.scene_number} onChange={e => setForm(f => ({ ...f, scene_number: e.target.value }))} className="h-7 text-xs w-20 bg-background" />
+      <Input placeholder={tt(T.szene)} aria-label={tt(T.szene)} list={szenenListe} value={form.scene_number} onChange={e => setForm(f => ({ ...f, scene_number: e.target.value }))} className="h-7 text-xs w-20 bg-background" />
       <span className="text-xs text-muted-foreground/50 font-mono">{tt(T.takeNr).replace('{n}', String(nextTakeNumber))}</span>
-      <Input placeholder={tt(T.tcIn)} value={form.timecode_in} onChange={e => setForm(f => ({ ...f, timecode_in: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" />
-      <Input placeholder={tt(T.tcOut)} value={form.timecode_out} onChange={e => setForm(f => ({ ...f, timecode_out: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" />
-      <Input placeholder={tt(T.notiz)} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="h-7 text-xs w-32 bg-background" />
+      <Input placeholder={tt(T.tcIn)} aria-label={tt(T.tcIn)} value={form.timecode_in} onChange={e => setForm(f => ({ ...f, timecode_in: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" />
+      <Input placeholder={tt(T.tcOut)} aria-label={tt(T.tcOut)} value={form.timecode_out} onChange={e => setForm(f => ({ ...f, timecode_out: e.target.value }))} className="h-7 text-xs w-28 font-mono bg-background" />
+      <Input placeholder={tt(T.notiz)} aria-label={tt(T.notiz)} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="h-7 text-xs w-32 bg-background" />
       <div className="flex items-center gap-1.5">
         <Checkbox id={`circle-${reportId}`} checked={form.circle} onCheckedChange={v => setForm(f => ({ ...f, circle: !!v }))} className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500" />
         <Label htmlFor={`circle-${reportId}`} className="text-xs text-muted-foreground cursor-pointer">{tt(T.circle)}</Label>
@@ -193,27 +217,37 @@ function AddTakeForm({ reportId, nextTakeNumber, onAdded }: { reportId: number; 
   )
 }
 
-function CameraReport({ report, onDelete }: { report: any; onDelete: () => void }) {
+function CameraReport({ report, szenenListe, darf, onDelete }: { report: any; szenenListe: string; darf: boolean; onDelete: (anzahlTakes: number) => void }) {
   const queryClient = useQueryClient()
   const tt = useT()
-  const c = CAMERA_COLORS[report.camera_letter] ?? CAMERA_COLORS['A']
 
   const { data: takes, isLoading } = useQuery({
     queryKey: ['camera-report-takes', report.id],
     queryFn: () => req<any[]>(`/camera-reports/${report.id}/takes`),
   })
 
+  // Die Kennzahlen oben rechnen aus der Berichtsliste. Vorher wurde nur die
+  // Take-Liste des Berichts erneuert - gemessen am 01.11.2026: 4 Takes in der
+  // Tabelle, "Takes gesamt" 3.
+  const erneuern = () => {
+    queryClient.invalidateQueries({ queryKey: ['camera-report-takes', report.id] })
+    queryClient.invalidateQueries({ queryKey: ['camera-reports'] })
+  }
+
   const updateTake = useMutation({
     mutationFn: ({ id, data }: { id: number; data: any }) => req<any>(`/camera-takes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['camera-report-takes', report.id] }),
+    onSuccess: erneuern,
   })
 
   const deleteTake = useMutation({
     mutationFn: (id: number) => req<any>(`/camera-takes/${id}`, { method: 'DELETE' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['camera-report-takes', report.id] }),
+    onSuccess: erneuern,
   })
+  const takeLoeschen = (take: any) => {
+    if (!window.confirm(tt(T.takeLoeschenFrage).replace('{s}', take.scene_number || '-').replace('{n}', String(take.take_number)))) return
+    deleteTake.mutate(take.id)
+  }
 
-  const nextTakeNumber = takes ? Math.max(0, ...takes.map((t: any) => t.take_number)) + 1 : 1
   const circleTakes = (takes ?? []).filter((t: any) => t.circle).length
   const totalTakes = (takes ?? []).length
 
@@ -222,9 +256,9 @@ function CameraReport({ report, onDelete }: { report: any; onDelete: () => void 
       {/* Reel info header bar */}
       <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-border/30 bg-muted/20">
         <div className="flex flex-wrap items-center gap-3">
-          <CameraLetterCircle letter={report.camera_letter} size="md" />
+          <CameraLetterCircle letter={report.camera} size="md" />
           <div>
-            <div className="font-semibold text-sm leading-tight">{tt(T.kamera).replace('{k}', report.camera_letter)}</div>
+            <div className="font-semibold text-sm leading-tight">{tt(T.kamera).replace('{k}', report.camera)}</div>
             <div className="text-xs text-muted-foreground/60 mt-0.5 flex items-center gap-2">
               {report.magazine && <span>{tt(T.magazin).replace('{m}', report.magazine)}</span>}
               {report.magazine && report.format && <span className="text-muted-foreground/30">·</span>}
@@ -247,21 +281,15 @@ function CameraReport({ report, onDelete }: { report: any; onDelete: () => void 
               </div>
             </div>
           )}
-          <div className="flex items-center gap-1.5">
+          {darf && (
             <button
-              onClick={() => alert(tt(T.pdfBald))}
-              className="h-7 px-2.5 flex items-center gap-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              {tt(T.pdf)}
-            </button>
-            <button
-              onClick={onDelete}
+              onClick={() => onDelete(totalTakes)}
+              aria-label={tt(T.berichtLoeschen).replace('{k}', report.camera)}
               className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
-          </div>
+          )}
         </div>
       </div>
 
@@ -281,11 +309,11 @@ function CameraReport({ report, onDelete }: { report: any; onDelete: () => void 
                   <th className="text-left py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-28">{tt(T.tcIn)}</th>
                   <th className="text-left py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-28">{tt(T.tcOut)}</th>
                   <th className="text-center py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-16">{tt(T.meter)}</th>
-                  <th className="text-center py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-14">
+                  <th className="text-center py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-14" aria-label={tt(T.circle)}>
                     <CircleDot className="w-3.5 h-3.5 mx-auto text-green-600" />
                   </th>
-                  <th className="text-center py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-12">{tt(T.fs)}</th>
-                  <th className="text-center py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-14">
+                  <th className="text-center py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-12" title={tt(T.fehlstart)}>{tt(T.fs)}</th>
+                  <th className="text-center py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground w-14" aria-label={tt(T.tonAus)}>
                     <VolumeX className="w-3.5 h-3.5 mx-auto" />
                   </th>
                   <th className="text-left py-2.5 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{tt(T.notizen)}</th>
@@ -304,18 +332,23 @@ function CameraReport({ report, onDelete }: { report: any; onDelete: () => void 
                   <TakeRow
                     key={take.id}
                     take={take}
+                    szenenListe={szenenListe}
+                    darf={darf}
                     onUpdate={data => updateTake.mutate({ id: take.id, data })}
-                    onDelete={() => deleteTake.mutate(take.id)}
+                    onDelete={() => takeLoeschen(take)}
                   />
                 ))}
               </tbody>
             </table>
           </div>
-          <AddTakeForm
-            reportId={report.id}
-            nextTakeNumber={nextTakeNumber}
-            onAdded={() => queryClient.invalidateQueries({ queryKey: ['camera-report-takes', report.id] })}
-          />
+          {darf && (
+            <AddTakeForm
+              reportId={report.id}
+              takes={takes ?? []}
+              szenenListe={szenenListe}
+              onAdded={erneuern}
+            />
+          )}
         </>
       )}
     </div>
@@ -328,6 +361,7 @@ export function Component() {
   const queryClient = useQueryClient()
   const tt = useT()
   const gebietsschema = useGebietsschema()
+  const { darfSchreiben } = useSchreibrecht()
 
   const [selectedDayId, setSelectedDayId] = useState<string>('')
   const [newCameraLetter, setNewCameraLetter] = useState('A')
@@ -343,10 +377,17 @@ export function Component() {
     enabled: !!selectedDayId,
   })
 
+  // Der Server nennt die Spalte `camera`. Die Seite schickte und las
+  // `camera_letter` - gemessen am 01.11.2026: jeder Bericht hieß
+  // "Kamera undefined", "Kamera B hinzufügen" speicherte A.
+  const usedLetters = new Set((reports || []).map((r: any) => r.camera))
+  const availableLetters = CAMERA_LETTERS.filter(l => !usedLetters.has(l))
+  const kamera = availableLetters.includes(newCameraLetter) ? newCameraLetter : availableLetters[0]
+
   const createReport = useMutation({
     mutationFn: () => req<any>(`/shoot-days/${selectedDayId}/camera-reports`, {
       method: 'POST',
-      body: JSON.stringify({ camera_letter: newCameraLetter }),
+      body: JSON.stringify({ camera: kamera }),
     }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['camera-reports', selectedDayId] }),
   })
@@ -355,16 +396,34 @@ export function Component() {
     mutationFn: (id: number) => req<any>(`/camera-reports/${id}`, { method: 'DELETE' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['camera-reports', selectedDayId] }),
   })
+  // Ein Bericht nimmt alle seine Takes mit (ON DELETE CASCADE)
+  const berichtLoeschen = (report: any, anzahlTakes: number) => {
+    if (!window.confirm(tt(T.berichtLoeschenFrage).replace('{k}', report.camera).replace('{n}', String(anzahlTakes)))) return
+    deleteReport.mutate(report.id)
+  }
 
-  const usedLetters = new Set((reports || []).map((r: any) => r.camera_letter))
-  const availableLetters = CAMERA_LETTERS.filter(l => !usedLetters.has(l))
+  const tag = (shootDays || []).find((d: any) => String(d.id) === selectedDayId)
+  // Szenen des gewählten Drehtags als Vorschlag im Szenenfeld
+  const szenenListe = `kamera-szenen-${selectedDayId}`
 
   // Aggregate stats
   const totalReports = (reports || []).length
-  // Der Server liefert die Takes je Bericht mit (take_count gab es nie)
-  const allTakeCounts = (reports || []).map((r: any) => r.takes?.length ?? r.take_count ?? 0)
-  const totalTakes = allTakeCounts.reduce((a: number, b: number) => a + b, 0)
-  const circleTakes = (reports || []).map((r: any) => r.takes ? r.takes.filter((t: any) => t.circle).length : (r.circle_count ?? 0)).reduce((a: number, b: number) => a + b, 0)
+  const totalTakes = (reports || []).reduce((a: number, r: any) => a + (r.takes?.length ?? 0), 0)
+  const circleTakes = (reports || []).reduce((a: number, r: any) => a + (r.takes ?? []).filter((t: any) => t.circle).length, 0)
+
+  // Vorher standen hier zwei Knöpfe "PDF", die nur "Kommt bald!" meldeten.
+  // Die Takes des Tages gehen als CSV an Schnitt und DIT.
+  const csvAusfuhr = () => {
+    const ja = tt(T.ja)
+    csvHerunterladen(
+      tt(T.dateiname).replace('{n}', String(tag?.day_number ?? selectedDayId)),
+      [T.kameraSpalte, T.magazinSpalte, T.szene, T.take, T.tcIn, T.tcOut, T.meter, T.circle, T.fehlstart, T.tonAus, T.notizen].map(t => tt(t)),
+      (reports || []).flatMap((r: any) => (r.takes ?? []).map((t: any) => [
+        r.camera, r.magazine, t.scene_number, t.take_number, t.timecode_in, t.timecode_out, t.meters ?? '',
+        t.circle ? ja : '', t.false_start ? ja : '', t.mute ? ja : '', t.notes,
+      ])),
+    )
+  }
 
   return (
     <div className="px-5 py-6 sm:p-7 max-w-6xl mx-auto animate-fade-up">
@@ -374,11 +433,17 @@ export function Component() {
           <h1 className="font-display text-[28px] sm:text-[34px]">{tt(T.titel)}</h1>
           <p className="text-sm text-muted-foreground/60 mt-1.5">{tt(T.untertitel)}</p>
         </div>
-        <Button variant="outline" size="sm" className="shrink-0 active:scale-[0.97]" onClick={() => alert(tt(T.pdfBald))}>
+        <Button variant="outline" size="sm" className="shrink-0 active:scale-[0.97]" onClick={csvAusfuhr} disabled={totalTakes === 0}>
           <Download className="w-4 h-4 mr-1.5" />
-          {tt(T.pdfExportieren)}
+          {tt(T.alsCsv)}
         </Button>
       </div>
+
+      {tag && (
+        <datalist id={szenenListe}>
+          {(tag.scenes ?? []).map((s: any) => <option key={s.id} value={s.scene_number} />)}
+        </datalist>
+      )}
 
       {/* Stats row - only when day is selected and reports loaded */}
       {selectedDayId && !reportsLoading && totalReports > 0 && (
@@ -415,7 +480,7 @@ export function Component() {
             <Skeleton className="h-9 w-56 rounded-lg" />
           ) : (
             <Select value={selectedDayId} onValueChange={setSelectedDayId}>
-              <SelectTrigger className="w-full sm:w-64 bg-muted/30 border-border/40">
+              <SelectTrigger className="w-full sm:w-64 bg-muted/30 border-border/40" aria-label={tt(T.drehtag)}>
                 <SelectValue placeholder={tt(T.drehtagWaehlen)} />
               </SelectTrigger>
               <SelectContent>
@@ -423,7 +488,7 @@ export function Component() {
                   <SelectItem key={d.id} value={String(d.id)}>
                     {d.date
                       ? new Date(d.date + 'T00:00:00').toLocaleDateString(gebietsschema, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-                      : tt(T.tagNr).replace('{n}', String(d.id))}
+                      : tt(T.tagNr).replace('{n}', String(d.day_number))}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -433,7 +498,7 @@ export function Component() {
       </div>
 
       {/* Camera letter selector + new report button */}
-      {selectedDayId && availableLetters.length > 0 && (
+      {darfSchreiben && selectedDayId && availableLetters.length > 0 && (
         <div className="mb-8">
           <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">{tt(T.neuerBericht)}</p>
           <div className="rounded-xl border border-border/60 bg-card p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -442,9 +507,11 @@ export function Component() {
                 <button
                   key={l}
                   onClick={() => setNewCameraLetter(l)}
+                  aria-label={tt(T.kameraWaehlen).replace('{k}', l)}
+                  aria-pressed={kamera === l}
                   className="transition-transform hover:scale-105 active:scale-95"
                 >
-                  <CameraLetterCircle letter={l} size="lg" selected={newCameraLetter === l} />
+                  <CameraLetterCircle letter={l} size="lg" selected={kamera === l} />
                 </button>
               ))}
             </div>
@@ -455,7 +522,7 @@ export function Component() {
               className="active:scale-[0.97]"
             >
               <Plus className="w-4 h-4 mr-2" />
-              {tt(T.kameraHinzu).replace('{k}', newCameraLetter)}
+              {tt(T.kameraHinzu).replace('{k}', kamera)}
             </Button>
           </div>
         </div>
@@ -475,7 +542,7 @@ export function Component() {
         <div className="text-center py-20 text-muted-foreground/30">
           <Camera className="w-12 h-12 mx-auto mb-4 opacity-30" />
           <p className="text-sm mb-4">{tt(T.keineBerichte)}</p>
-          {availableLetters.length > 0 && (
+          {darfSchreiben && availableLetters.length > 0 && (
             <Button onClick={() => createReport.mutate()} className="active:scale-[0.97]">
               <Plus className="w-4 h-4 mr-2" />
               {tt(T.ersterBericht)}
@@ -491,7 +558,9 @@ export function Component() {
             <CameraReport
               key={report.id}
               report={report}
-              onDelete={() => deleteReport.mutate(report.id)}
+              szenenListe={szenenListe}
+              darf={darfSchreiben}
+              onDelete={anzahl => berichtLoeschen(report, anzahl)}
             />
           ))}
         </div>
