@@ -3,6 +3,8 @@ import type { Lang } from '@/lib/i18n'
 type Text = Record<Lang, string>
 
 export const setAppT = {
+  hell:               { de: 'Helle Ansicht', en: 'Light mode', fr: 'Mode clair' },
+  dunkel:             { de: 'Dunkle Ansicht', en: 'Dark mode', fr: 'Mode sombre' },
   drehtagAuswaehlen:  { de: 'Drehtag auswählen', en: 'Select shoot day', fr: 'Choisir un jour de tournage' },
   keineEintraege:     { de: 'Keine Einträge in der Disposition', en: 'No entries on the call sheet', fr: 'Aucune entrée dans la feuille de service' },
   calltime:           { de: 'Calltime', en: 'Call time', fr: 'Convocation' },

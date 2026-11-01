@@ -10,6 +10,7 @@ import { cn, heuteISO } from '@/lib/utils'
 import { feiern, gespeichert } from '@/lib/belohnung'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { setAppT as T } from '@/lib/texte/SetApp'
+import { useProjectStore } from '@/store/useProjectStore'
 
 const API_BASE = '/api'
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
@@ -311,7 +312,9 @@ function useOnline() {
 }
 
 export function Component() {
-  const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'))
+  // Die gespeicherte Einstellung der App - vorher ein eigener Zustand: Umschalten
+  // am Set galt nur bis zum Neuladen (gemessen am 31.10.2026)
+  const { darkMode, toggleDarkMode } = useProjectStore()
   // Auswahl merken: offline neu geöffnet, soll die App direkt den Tag zeigen
   const gemerkt = (() => { try { return JSON.parse(localStorage.getItem('set-auswahl') || '{}') } catch { return {} } })()
   const [selectedProjectId, setSelectedProjectId] = useState<string>(gemerkt.projekt ?? '')
@@ -325,13 +328,6 @@ export function Component() {
 
   useEffect(() => { track('set_app_used') }, [])
 
-  const toggleDark = () => {
-    setDarkMode(d => {
-      document.documentElement.classList.toggle('dark', !d)
-      document.documentElement.classList.toggle('light', d)
-      return !d
-    })
-  }
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
     networkMode: 'offlineFirst',
@@ -346,8 +342,15 @@ export function Component() {
     enabled: !!selectedProjectId,
   })
 
-  // Auto-select today's shoot day
+  // Den heutigen Drehtag von selbst wählen, wenn keiner (mehr) gewählt ist.
+  // Der Kommentar versprach das schon, gebaut war nur die Markierung "Heute".
   const today = heuteISO()
+  useEffect(() => {
+    if (!shootDays?.length) return
+    if (selectedDayId && shootDays.some((d: any) => String(d.id) === selectedDayId)) return
+    const heutiger = shootDays.find((d: any) => d.date === today)
+    if (heutiger) setSelectedDayId(String(heutiger.id))
+  }, [shootDays, selectedDayId, today])
 
   return (
     <div className={cn('min-h-screen bg-background text-foreground', darkMode ? 'dark' : '')}>
@@ -359,7 +362,8 @@ export function Component() {
             <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString(gebietsschema, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
           <button
-            onClick={toggleDark}
+            onClick={toggleDarkMode}
+            aria-label={tt(darkMode ? T.hell : T.dunkel)} title={tt(darkMode ? T.hell : T.dunkel)}
             className="w-12 h-12 rounded-2xl border-2 border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
           >
             {darkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}

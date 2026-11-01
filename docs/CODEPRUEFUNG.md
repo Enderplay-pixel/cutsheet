@@ -126,7 +126,7 @@ Stand am 24.10.2026, 23 Uhr:
   beim Lesen jeder Seite mitübersetzen, die gemischten zuerst - eine halb
   übersetzte Seite sieht nach Fehler aus (Tagesdispo 56, Stammdaten 51,
   Settings 46, Drehbuch 18, Motive 17; Login, ProjectList, Dashboard übersetzt, Funde
-  186). Ganz deutsch und als "teilweise" ausgewiesen: Firma, Verträge, Reise,
+  186, 203, 216). Ganz deutsch und als "teilweise" ausgewiesen: Firma, Verträge, Reise,
   Agenturen, Abnahme, CreatorVideo, AdminPanel, AdminStats, Auswertungen,
   OffenePosten, Timesheets, Continuity, SperrtageKalender.
   `Budget.tsx` (Finanzierung): Der Server legt neue Zeilen mit Art
@@ -442,6 +442,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 214 | `client/src/pages/EquipmentKalender.tsx` | Fehler | Die Doppelbuchungs-Anzeige las die Server-Antwort falsch. Der Server meldet Paare `{ booking_a, booking_b }`, die Seite erwartete einzelne Buchungen. Text: "Equipment #undefined: Überlappung undefined - undefined". Die rote Markierung im Raster, das Warnsymbol und die Plakette "Konflikt" erschienen nie. Dazu: Namensspalte durchscheinend wie Fund 205 (Merkzettel), Daten roh, Buchungen ohne Rückfrage gelöscht, der Löschknopf der Übersicht ohne Namen. "Ende vor Beginn" wurde angenommen, Leser sahen alle Knöpfe. | ja: Prüfprojekt mit zwei überlappenden Buchungen | behoben: Überlappung je Paar berechnet. Deckender Hintergrund der Namensspalte, `formatDate`, Rückfrage mit Gerät und Zeitraum, Namen für alle Löschknöpfe, Hinweis und Sperre bei Ende vor Beginn, Anlegen und Löschen nur mit Schreibrecht. Danach gemessen: "Alexa Mini: Überlappung 10.11.2026 - 12.11.2026", 7 rote Wochenzellen, Warnsymbol, Plaketten. Rückfrage "Buchung von Alexa Mini (02.11.2026 - 20.12.2026) löschen?", 0 Knöpfe ohne Namen, Hinweis "Das Ende liegt vor dem Beginn". Die Knopfsperre dabei nicht gemessen |
 | 215 | `client/src/pages/SperrtageKalender.tsx` | Fehler | Die Konfliktmeldung las die Server-Antwort falsch (wie Fund 214). Der Server liefert `{ shoot_day, cast_name, blackout }`, angezeigt wurde "Greta Gans: Drehtag  kollidiert mit Sperrtag ( - )", also ohne Drehtag und ohne Zeitraum. Dazu: Namensspalte durchscheinend (Merkzettel), Daten roh, Sperrtage ohne Rückfrage gelöscht, "Ende vor Beginn" angenommen, Leser sahen alle Knöpfe. | ja: Prüfprojekt mit Darstellerin, Szene am Drehtag 11.11. und Sperrtag 10.-12.11. | behoben: Konflikt aus `shoot_day` und `blackout` gelesen. Deckender Hintergrund, `formatDate`, Rückfrage mit Name und Zeitraum, Namen für die Löschknöpfe, Hinweis und Sperre bei Ende vor Beginn, Knöpfe nur mit Schreibrecht. Die Seite bleibt bis zu Florians Entscheidung deutsch. Danach gemessen: "Greta Gans: Drehtag 1 (11.11.2026) kollidiert mit Sperrtag (10.11.2026 - 12.11.2026)", Rückfrage "Sperrtag von Greta Gans (10.11.2026 - 12.11.2026) löschen?", Übersicht "10.11.2026 - 12.11.2026" |
 | 216 | `client/src/pages/Dashboard.tsx`, `client/src/lib/i18n.ts` | Klein | Das Dashboard, die Startseite jedes Projekts, hatte rund 27 feste deutsche Texte: Gruß, "x von y", Creator-Kennzahlen, "Stand heute", "Details anzeigen", Schnellzugriff samt Bildschirmleser-Namen. Status und Format standen deutsch, Zahlen fest mit "de-DE". Geprüft und in Ordnung: Die Kürzel am Schnellzugriff (D, T, S, B, M, G) stimmen mit `App.tsx` überein. | ja: Textprüfung, Merkzettel | behoben: alle Texte in `dashT`, Status über `projectsT.status`, Format über `onboardingFormatT`, Zahlen im Gebietsschema. Danach gemessen: Englisch "Good night, Test · Pre-production · Short film · Drama · 15 min … 8 of 8 … €18,742.50" ohne deutsches Wort |
+| 217 | `client/src/pages/SetApp.tsx` | Fehler | Der Hell/Dunkel-Knopf der Set-App hatte einen eigenen Zustand an der gespeicherten Einstellung vorbei. Am Set auf hell umgestellt, nach dem Neuladen wieder dunkel. Der Knopf hatte keinen Namen. Ein Kommentar versprach "Auto-select today's shoot day", gebaut war nur die Markierung "Heute". Wer die Set-App öffnete, musste den Drehtag selbst suchen. | ja: Knopf schaltete die Anzeige auf hell, gespeichert blieb dunkel | behoben: Knopf über `toggleDarkMode` der App (gespeichert) mit Namen. Ist kein gültiger Tag gewählt, wird der heutige Drehtag gewählt. Danach gemessen: Projekt gewählt, Drehtag-Feld "● Heute - So., 1. Nov.". Umschalten ergibt Anzeige hell und gespeichert hell |
 
 ### Verknüpfungen
 
@@ -856,7 +857,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [ ] `client/src/pages/Reise.tsx` (772)
 - [x] `client/src/pages/ResetPassword.tsx` (88) - gelesen (ohne Befund)
 - [ ] `client/src/pages/ScreenplayEditor.tsx` (1428)
-- [ ] `client/src/pages/SetApp.tsx` (452)
+- [x] `client/src/pages/SetApp.tsx` (452) - gelesen (Fund 217)
 - [x] `client/src/pages/Setplan.tsx` (420) - gelesen (Fund 213)
 - [ ] `client/src/pages/Settings.tsx` (648)
 - [x] `client/src/pages/Shotlist.tsx` (372) - gelesen (Fund 207)
