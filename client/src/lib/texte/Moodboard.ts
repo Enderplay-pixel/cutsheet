@@ -35,4 +35,9 @@ export const moodboardT = {
   rollenUnten:      { de: 'Nach unten rollen', en: 'Scroll down', fr: 'Défiler vers le bas' },
   rollenLinks:      { de: 'Nach links rollen', en: 'Scroll left', fr: 'Défiler vers la gauche' },
   rollenRechts:     { de: 'Nach rechts rollen', en: 'Scroll right', fr: 'Défiler vers la droite' },
+  loeschenN:        { de: '{name} löschen', en: 'Delete {name}', fr: 'Supprimer {name}' },
+  loeschenFrage:    { de: '„{name}“ vom Board löschen? Das lässt sich nicht rückgängig machen.', en: 'Delete "{name}" from the board? This cannot be undone.', fr: 'Supprimer « {name} » de la planche ? Cette action est irréversible.' },
+  eintrag:          { de: 'Eintrag', en: 'Item', fr: 'Élément' },
+  bildUrlFeld:      { de: 'Adresse des Bildes', en: 'Image address', fr: "Adresse de l'image" },
+  farbwert:         { de: 'Farbwert', en: 'Colour value', fr: 'Valeur de couleur' },
 } satisfies Record<string, Text>

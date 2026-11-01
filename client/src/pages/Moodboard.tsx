@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { Image, StickyNote, Palette, X, Upload, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useT } from '@/lib/useT'
 import { moodboardT } from '@/lib/texte/Moodboard'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -54,17 +55,26 @@ function authHeaders() {
 
 // ─── Card components ──────────────────────────────────────────────────────────
 
-function ImageCard({ item, onDelete }: { item: MoodItem; onDelete: () => void }) {
+function LoeschKnopf({ item, onDelete }: { item: MoodItem; onDelete?: () => void }) {
+  const tt = useT()
+  if (!onDelete) return null
+  return (
+    <button
+      onPointerDown={e => e.stopPropagation()}
+      onClick={e => { e.stopPropagation(); onDelete() }}
+      aria-label={tt(moodboardT.loeschenN).replace('{name}', item.title || tt(moodboardT.eintrag))}
+      className="absolute -top-2.5 -right-2.5 z-20 w-6 h-6 rounded-full bg-destructive text-foreground flex items-center justify-center opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shadow-lg active:scale-90"
+    >
+      <X className="w-3 h-3" />
+    </button>
+  )
+}
+
+function ImageCard({ item, onDelete }: { item: MoodItem; onDelete?: () => void }) {
   const [imgError, setImgError] = useState(false)
   return (
     <div className="relative group">
-      <button
-        onPointerDown={e => e.stopPropagation()}
-        onClick={e => { e.stopPropagation(); onDelete() }}
-        className="absolute -top-2.5 -right-2.5 z-20 w-6 h-6 rounded-full bg-destructive text-foreground flex items-center justify-center opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shadow-lg active:scale-90"
-      >
-        <X className="w-3 h-3" />
-      </button>
+      <LoeschKnopf item={item} onDelete={onDelete} />
 
       <div className="rounded-xl overflow-hidden border border-foreground/[0.08] bg-card shadow-xl" style={{ width: item.width }}>
         {imgError ? (
@@ -92,19 +102,13 @@ function ImageCard({ item, onDelete }: { item: MoodItem; onDelete: () => void })
   )
 }
 
-function NoteCard({ item, onDelete }: { item: MoodItem; onDelete: () => void }) {
+function NoteCard({ item, onDelete }: { item: MoodItem; onDelete?: () => void }) {
   const tt = useT()
   const colorIdx = Math.abs((item.id || 0) * 7) % NOTE_COLORS.length
   const c = NOTE_COLORS[colorIdx]
   return (
     <div className="relative group">
-      <button
-        onPointerDown={e => e.stopPropagation()}
-        onClick={e => { e.stopPropagation(); onDelete() }}
-        className="absolute -top-2.5 -right-2.5 z-20 w-6 h-6 rounded-full bg-destructive text-foreground flex items-center justify-center opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shadow-lg active:scale-90"
-      >
-        <X className="w-3 h-3" />
-      </button>
+      <LoeschKnopf item={item} onDelete={onDelete} />
       <div
         className="rounded-xl border shadow-xl p-4"
         style={{ width: item.width, backgroundColor: c.bg, borderColor: c.border }}
@@ -123,16 +127,10 @@ function NoteCard({ item, onDelete }: { item: MoodItem; onDelete: () => void }) 
   )
 }
 
-function ColorCard({ item, onDelete }: { item: MoodItem; onDelete: () => void }) {
+function ColorCard({ item, onDelete }: { item: MoodItem; onDelete?: () => void }) {
   return (
     <div className="relative group">
-      <button
-        onPointerDown={e => e.stopPropagation()}
-        onClick={e => { e.stopPropagation(); onDelete() }}
-        className="absolute -top-2.5 -right-2.5 z-20 w-6 h-6 rounded-full bg-destructive text-foreground flex items-center justify-center opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shadow-lg active:scale-90"
-      >
-        <X className="w-3 h-3" />
-      </button>
+      <LoeschKnopf item={item} onDelete={onDelete} />
       <div className="rounded-xl border border-foreground/[0.1] shadow-xl overflow-hidden" style={{ width: item.width }}>
         <div className="flex items-center justify-center" style={{ backgroundColor: item.image_url, height: 100 }} />
         <div className="px-3 py-2 bg-card">
@@ -148,10 +146,12 @@ function ColorCard({ item, onDelete }: { item: MoodItem; onDelete: () => void })
 
 function CanvasCard({
   item,
+  darf,
   onDelete,
   onMoveEnd,
 }: {
   item: MoodItem
+  darf: boolean
   onDelete: () => void
   onMoveEnd: (id: number, x: number, y: number) => void
 }) {
@@ -171,6 +171,7 @@ function CanvasCard({
   }, [item.position_x, item.position_y])
 
   function handlePointerDown(e: React.PointerEvent) {
+    if (!darf) return
     if ((e.target as HTMLElement).closest('button')) return
     e.preventDefault()
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -207,15 +208,15 @@ function CanvasCard({
   return (
     <div
       ref={elRef}
-      className="absolute cursor-grab active:cursor-grabbing select-none touch-none"
+      className={cn('absolute select-none', darf && 'cursor-grab active:cursor-grabbing touch-none')}
       style={{ left: item.position_x, top: item.position_y, zIndex: 10 }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
     >
-      {type === 'image' && <ImageCard item={item} onDelete={onDelete} />}
-      {type === 'note'  && <NoteCard  item={item} onDelete={onDelete} />}
-      {type === 'color' && <ColorCard item={item} onDelete={onDelete} />}
+      {type === 'image' && <ImageCard item={item} onDelete={darf ? onDelete : undefined} />}
+      {type === 'note'  && <NoteCard  item={item} onDelete={darf ? onDelete : undefined} />}
+      {type === 'color' && <ColorCard item={item} onDelete={darf ? onDelete : undefined} />}
     </div>
   )
 }
@@ -328,7 +329,7 @@ function AddPanel({
         <p className="text-[13px] font-medium text-foreground/80">
           {tt(mode === 'image-url' ? moodboardT.bildViaUrl : mode === 'image-file' ? moodboardT.bildHochladen : mode === 'note' ? moodboardT.notiz : moodboardT.farbe)}
         </p>
-        <button onClick={reset} aria-label={tt(moodboardT.ansichtZurueck)} title={tt(moodboardT.ansichtZurueck)} className="text-muted-foreground hover:text-foreground/60 transition-colors">
+        <button onClick={reset} aria-label={tt(moodboardT.abbrechen)} title={tt(moodboardT.abbrechen)} className="text-muted-foreground hover:text-foreground/60 transition-colors">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -340,6 +341,7 @@ function AddPanel({
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder={tt(moodboardT.titelPh)}
+            aria-label={tt(moodboardT.titelPh).replace('…', '')}
             className="w-full rounded-lg px-3 py-2 text-[13px] outline-none"
             style={{ background: 'hsl(var(--foreground) / 0.07)', border: '1px solid hsl(var(--foreground) / 0.12)', color: 'hsl(var(--foreground) / 0.85)' }}
           />
@@ -350,6 +352,7 @@ function AddPanel({
             value={imageUrl}
             onChange={e => setImageUrl(e.target.value)}
             placeholder="https://…"
+            aria-label={tt(moodboardT.bildUrlFeld)}
             className="w-full rounded-lg px-3 py-2 text-[11px] font-mono outline-none"
             style={{ background: 'hsl(var(--foreground) / 0.07)', border: '1px solid hsl(var(--foreground) / 0.12)', color: 'hsl(var(--foreground) / 0.85)' }}
           />
@@ -374,6 +377,7 @@ function AddPanel({
             value={notes}
             onChange={e => setNotes(e.target.value)}
             placeholder={tt(moodboardT.notizinhaltPh)}
+            aria-label={tt(moodboardT.notizinhaltPh).replace('…', '')}
             rows={3}
             className="w-full rounded-lg px-3 py-2 text-[13px] outline-none resize-none"
             style={{ background: 'hsl(var(--foreground) / 0.07)', border: '1px solid hsl(var(--foreground) / 0.12)', color: 'hsl(var(--foreground) / 0.85)' }}
@@ -386,12 +390,14 @@ function AddPanel({
               type="color"
               value={color}
               onChange={e => setColor(e.target.value)}
+              aria-label={tt(moodboardT.farbe)}
               className="w-12 h-10 rounded-lg cursor-pointer"
               style={{ border: '1px solid hsl(var(--foreground) / 0.12)', background: 'transparent' }}
             />
             <input
               value={color}
               onChange={e => setColor(e.target.value)}
+              aria-label={tt(moodboardT.farbwert)}
               placeholder="#3b82f6"
               className="flex-1 rounded-lg px-3 py-2 text-[13px] font-mono outline-none"
               style={{ background: 'hsl(var(--foreground) / 0.07)', border: '1px solid hsl(var(--foreground) / 0.12)', color: 'hsl(var(--foreground) / 0.85)' }}
@@ -428,6 +434,7 @@ export function Component() {
   const { toast } = useToast()
   const tt = useT()
   const scrollRef = useRef<HTMLDivElement>(null)
+  const { darfSchreiben } = useSchreibrecht()
 
   const { data: items = [], isLoading } = useQuery<MoodItem[]>({
     queryKey: ['moodboard', pid],
@@ -454,6 +461,11 @@ export function Component() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['moodboard', pid] }),
     onError: () => toast({ variant: 'destructive', title: tt(moodboardT.fehlerLoeschen) }),
   })
+  // Moodboard-Einträge gehen nicht über den Papierkorb - ein hochgeladenes
+  // Bild wäre mit einem Klick weg (gemessen am 01.11.2026: kein Nachfragen)
+  const eintragLoeschen = (item: MoodItem) => {
+    if (window.confirm(tt(moodboardT.loeschenFrage).replace('{name}', item.title || tt(moodboardT.eintrag)))) deleteMutation.mutate(item.id)
+  }
 
   const moveMutation = useMutation({
     mutationFn: async ({ id: itemId, x, y }: { id: number; x: number; y: number }) => {
@@ -493,7 +505,7 @@ export function Component() {
           {colorCount > 0 && <span className="flex items-center gap-1"><Palette className="w-3 h-3" />{colorCount}</span>}
         </div>
         <div className="flex-1" />
-        <span className="text-[11px] text-muted-foreground/70">{tt(moodboardT.dragHinweis)}</span>
+        {darfSchreiben && <span className="text-[11px] text-muted-foreground/70">{tt(moodboardT.dragHinweis)}</span>}
       </div>
 
       {/* Canvas */}
@@ -533,7 +545,8 @@ export function Component() {
             <CanvasCard
               key={item.id}
               item={item}
-              onDelete={() => deleteMutation.mutate(item.id)}
+              darf={darfSchreiben}
+              onDelete={() => eintragLoeschen(item)}
               onMoveEnd={handleMoveEnd}
             />
           ))}
@@ -567,9 +580,11 @@ export function Component() {
       ))}
 
       {/* Floating add panel */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100%-1rem)] overflow-x-auto">
-        <AddPanel pid={pid} scrollRef={scrollRef} onAdded={() => queryClient.invalidateQueries({ queryKey: ['moodboard', pid] })} />
-      </div>
+      {darfSchreiben && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100%-1rem)] overflow-x-auto">
+          <AddPanel pid={pid} scrollRef={scrollRef} onAdded={() => queryClient.invalidateQueries({ queryKey: ['moodboard', pid] })} />
+        </div>
+      )}
     </div>
   )
 }
