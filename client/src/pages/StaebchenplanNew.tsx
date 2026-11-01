@@ -305,7 +305,10 @@ export function Component() {
   const tt = useT()
 
   const { data: days, isLoading: daysLoading } = useQuery<ShootDay[]>({
-    queryKey: ['drehplan', pid],
+    // Derselbe Schlüssel wie Drehplan, Tagesbericht & Co. - vorher ['drehplan']:
+    // Änderungen im Drehplan erneuerten den Stäbchenplan nicht (gemessen am
+    // 01.11.2026: entfernte Szene stand weiter am Tag)
+    queryKey: ['shoot-days', pid],
     queryFn: () => api.drehplan.listDays(pid),
     enabled: !!pid,
   })
