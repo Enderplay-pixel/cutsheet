@@ -15,6 +15,7 @@ describe('Was in den Papierkorb gehört', () => {
     expect(erkenneZiel('/cast/3')).toEqual({ tabelle: 'cast', id: 3 })
     expect(erkenneZiel('/shoot-days/1')).toEqual({ tabelle: 'shoot_days', id: 1 })
     expect(erkenneZiel('/budget-lines/99')).toEqual({ tabelle: 'budget_lines', id: 99 })
+    expect(erkenneZiel('/equipment-items/5')).toEqual({ tabelle: 'equipment_items', id: 5 })
   })
 
   it('lässt Verknüpfungen in Ruhe', () => {

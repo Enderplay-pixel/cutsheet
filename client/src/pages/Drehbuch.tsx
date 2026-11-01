@@ -37,14 +37,26 @@ function getColor(int_ext: string, day_night: string) {
   return SCENE_COLORS[`${int_ext}/${day_night}`] || { dot: 'bg-muted-foreground', row: 'hover:bg-muted/30', border: 'border-l-border' }
 }
 
+// Ein geleertes Zahlenfeld ist ein Zwischenstand beim Tippen. Vorher sprang es
+// sofort auf 8 bzw. 60 zurück (gemessen am 01.11.2026).
+const zahl = (wert: string) => (wert === '' ? '' : Number(wert))
+
+/**
+ * Szenen stehen auch im Drehplan (über die Drehtage) und im Drehbuch-Editor.
+ * Vorher wurde nur die Szenenliste erneuert - gemessen am 01.11.2026: Szene
+ * in "BAD" umbenannt, der Drehplan zeigte danach weiter den alten Titel.
+ */
+function szenenErneuern(queryClient: ReturnType<typeof useQueryClient>, projectId: number) {
+  queryClient.invalidateQueries({ queryKey: ['scenes', projectId] })
+  queryClient.invalidateQueries({ queryKey: ['shoot-days', projectId] })
+  queryClient.invalidateQueries({ queryKey: ['screenplay', projectId] })
+}
+
 function SceneRow({ scene, locations, characters, projectId }: { scene: any; locations: any[]; characters: any[]; projectId: number }) {
   const { canEdit } = useProjectPerms()
   const tt = useT()
   const [expanded, setExpanded] = useState(false)
   const [form, setForm] = useState(scene)
-  // Sync form when scene data refreshes from server (e.g. after creation)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setForm((prev: any) => ({ ...scene, ...prev, id: scene.id })) }, [scene.id])
   const [newItem, setNewItem] = useState('')
   const [newItemCat, setNewItemCat] = useState('Requisite')
   const queryClient = useQueryClient()
@@ -72,12 +84,28 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
   const stand = useRef<string | undefined>(scene.updated_at)
   const laeuftGerade = useRef(false)
   const wartet = useRef<any>(null)
+  const offen = useRef(false)
+
+  /**
+   * Fremde Änderungen übernehmen. Vorher übernahm das Formular neue Daten nur
+   * bei einer neuen Szenen-id, Zeitstempel inklusive - gemessen am 01.11.2026:
+   * Szene von außen geändert, danach jedes Speichern 409, im Feld der alte
+   * Titel, bis die Seite neu geladen wurde. Jetzt gilt der neue Stand, sobald
+   * hier nichts auf das Speichern wartet. Der eigene Abruf nach dem Speichern
+   * trägt den Zeitstempel, den `onSuccess` schon gesetzt hat, und ändert nichts.
+   */
+  useEffect(() => {
+    if (offen.current || laeuftGerade.current || wartet.current) return
+    if (scene.updated_at === stand.current) return
+    stand.current = scene.updated_at
+    setForm(scene)
+  }, [scene])
 
   const updateMutation = useMutation({
     mutationFn: (data: any) => api.scenes.update(scene.id, { ...data, updated_at: stand.current }),
     onSuccess: (gespeichert: any) => {
       if (gespeichert?.updated_at) stand.current = gespeichert.updated_at
-      queryClient.invalidateQueries({ queryKey: ['scenes', projectId] })
+      szenenErneuern(queryClient, projectId)
     },
     // Ohne diesen Zweig waere ein Konflikt stumm: die Aenderung ginge
     // verloren und niemand erfuehre davon. Deshalb Meldung plus Neuladen -
@@ -89,8 +117,8 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
       queryClient.invalidateQueries({ queryKey: ['scenes', projectId] })
       toast({
         variant: 'destructive',
-        title: 'Nicht gespeichert',
-        description: e?.message || 'Die Szene konnte nicht gespeichert werden.',
+        title: tt(scenesT.nichtGespeichert),
+        description: e?.message || tt(scenesT.nichtGespeichertText),
       })
     },
     onSettled: () => {
@@ -105,10 +133,11 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
     laeuftGerade.current = true
     updateMutation.mutate(daten)
   }
+  // Gelöschte Szenen landen im Papierkorb (papierkorbWaechter), deshalb ohne Rückfrage
   const deleteMutation = useMutation({
     mutationFn: () => api.scenes.delete(scene.id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenes', projectId] }),
-    onError: () => toast({ title: 'Fehler beim Löschen', variant: 'destructive' }),
+    onSuccess: () => szenenErneuern(queryClient, projectId),
+    onError: () => toast({ title: tt(scenesT.loeschFehler), variant: 'destructive' }),
   })
   const addCharMutation = useMutation({
     mutationFn: (charId: number) => api.scenes.addCharacter(scene.id, { character_id: charId }),
@@ -127,26 +156,36 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenes', projectId] }),
   })
 
-  const debouncedUpdate = useRef(debounce((data: any) => speichere(data), 500)).current
+  const debouncedUpdate = useRef(debounce((data: any) => {
+    offen.current = false
+    speichere(data)
+  }, 500)).current
   const updateField = (key: string, value: any) => {
     const next = { ...form, [key]: value }
     setForm(next)
-    debouncedUpdate(next)
+    offen.current = true
+    debouncedUpdate({ ...next, eighths: Number(next.eighths) || 8, estimated_minutes: Number(next.estimated_minutes) || 60 })
   }
+  const tageszeit = (d: string) => scenesT.tageszeit[d] ? tt(scenesT.tageszeit[d]) : d
+  const umschalten = () => setExpanded(e => !e)
 
   const color = getColor(scene.int_ext, scene.day_night)
   const assignedCharIds = new Set((scene.characters || []).map((c: any) => c.character_id))
   const unassignedChars = characters.filter(c => !assignedCharIds.has(c.id))
 
   return (
-    <div className={cn('border-b border-border/40 last:border-0')}>
-      {/* Compact header row */}
+    <div className={cn('group border-b border-border/40 last:border-0')}>
+      {/* Compact header row - per Tastatur aufklappbar wie in der Besetzung */}
       <div
         className={cn(
           'flex items-center gap-4 px-4 py-2.5 cursor-pointer transition-colors border-l-2',
           color.row, color.border
         )}
-        onClick={() => setExpanded(!expanded)}
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        onClick={umschalten}
+        onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); umschalten() } }}
       >
         {/* Color dot + number */}
         <div className="flex items-center gap-2.5 shrink-0 w-14">
@@ -160,12 +199,12 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
             {scene.int_ext}
           </span>
           <span className="text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
-            {scene.day_night}
+            {tageszeit(scene.day_night)}
           </span>
         </div>
 
         {/* Title */}
-        <span className="text-sm font-medium flex-1 truncate">{scene.title || '(Ohne Titel)'}</span>
+        <span className="text-sm font-medium flex-1 truncate">{scene.title || tt(scenesT.ohneTitel)}</span>
 
         {/* Location */}
         {scene.location_name && (
@@ -191,12 +230,15 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
           <button
             onClick={e => {
               e.stopPropagation()
-              if (!canEdit) return
               const next = scene.shot_status === 'abgedreht' ? 'offen' : 'abgedreht'
               speichere({ ...form, shot_status: next })
               setForm((f: any) => ({ ...f, shot_status: next }))
             }}
-            title={scene.shot_status === 'abgedreht' ? 'Abgedreht ✓' : 'Noch nicht gedreht'}
+            onKeyDown={e => e.stopPropagation()}
+            disabled={!canEdit}
+            aria-pressed={scene.shot_status === 'abgedreht'}
+            aria-label={`${tt(scenesT.shotStatus)}: ${scene.scene_number}`}
+            title={scene.shot_status === 'abgedreht' ? tt(scenesT.shotStatus) : tt(scenesT.nochNicht)}
             className={cn(
               'w-8 h-8 md:w-5 md:h-5 flex items-center justify-center rounded-full text-xs font-bold transition-colors shrink-0',
               scene.shot_status === 'abgedreht'
@@ -209,7 +251,9 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
           {canEdit && (
             <button
               onClick={e => { e.stopPropagation(); deleteMutation.mutate() }}
+              onKeyDown={e => e.stopPropagation()}
               title={tt(uiT.delete)}
+              aria-label={tt(scenesT.szeneLoeschen).replace('{n}', scene.scene_number)}
               className="w-6 h-6 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
             >
               <Trash2 className="w-3 h-3" />
@@ -221,61 +265,61 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
 
       {/* Expanded edit panel */}
       {expanded && (
-        <div className="px-5 py-5 border-t border-border/40 bg-muted/20 space-y-4 animate-fade-up">
+        <fieldset disabled={!canEdit} className="px-5 py-5 border-0 border-t border-border/40 m-0 min-w-0 bg-muted/20 space-y-4 animate-fade-up">
           <div className="grid grid-cols-12 gap-3">
             <div className="col-span-1">
-              <Label className="text-xs text-muted-foreground">Nr.</Label>
+              <Label className="text-xs text-muted-foreground">{tt(scenesT.colNumber)}</Label>
               <Input value={form.scene_number || ''} onChange={e => updateField('scene_number', e.target.value)}
-                className="mt-1 h-8 text-sm font-mono" />
+                aria-label={tt(scenesT.colNumber)} className="mt-1 h-8 text-sm font-mono" />
             </div>
             <div className="col-span-5">
               <Label className="text-xs text-muted-foreground">{tt(scenesT.detailTitle)}</Label>
               <Input value={form.title || ''} onChange={e => updateField('title', e.target.value)}
-                className="mt-1 h-8 text-sm" />
+                aria-label={tt(scenesT.detailTitle)} className="mt-1 h-8 text-sm" />
             </div>
             <div className="col-span-2">
               <Label className="text-xs text-muted-foreground">{tt(scenesT.detailIntExt)}</Label>
-              <Select value={form.int_ext || 'INT'} onValueChange={v => updateField('int_ext', v)}>
-                <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <Select value={form.int_ext || 'INT'} onValueChange={v => updateField('int_ext', v)} disabled={!canEdit}>
+                <SelectTrigger className="mt-1 h-8 text-xs" aria-label={tt(scenesT.detailIntExt)}><SelectValue /></SelectTrigger>
                 <SelectContent>{INT_EXT_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="col-span-2">
               <Label className="text-xs text-muted-foreground">{tt(scenesT.detailDayNight)}</Label>
-              <Select value={form.day_night || 'TAG'} onValueChange={v => updateField('day_night', v)}>
-                <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>{DAY_NIGHT_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+              <Select value={form.day_night || 'TAG'} onValueChange={v => updateField('day_night', v)} disabled={!canEdit}>
+                <SelectTrigger className="mt-1 h-8 text-xs" aria-label={tt(scenesT.detailDayNight)}><SelectValue /></SelectTrigger>
+                <SelectContent>{DAY_NIGHT_OPTIONS.map(o => <SelectItem key={o} value={o}>{tageszeit(o)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="col-span-2">
               <Label className="text-xs text-muted-foreground">{tt(scenesT.detailPages)}</Label>
-              <Input type="number" min="1" max="80" value={form.eighths || 8}
-                onChange={e => updateField('eighths', Number(e.target.value))} className="mt-1 h-8 text-sm" />
+              <Input type="number" min="1" max="80" value={form.eighths ?? ''}
+                onChange={e => updateField('eighths', zahl(e.target.value))} aria-label={tt(scenesT.detailPages)} className="mt-1 h-8 text-sm" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs text-muted-foreground">{tt(scenesT.detailLocation)}</Label>
-              <Select value={String(form.location_id || '__none__')} onValueChange={v => updateField('location_id', v === '__none__' ? null : Number(v))}>
-                <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder="Kein Motiv" /></SelectTrigger>
+              <Select value={String(form.location_id || '__none__')} onValueChange={v => updateField('location_id', v === '__none__' ? null : Number(v))} disabled={!canEdit}>
+                <SelectTrigger className="mt-1 h-8 text-xs" aria-label={tt(scenesT.detailLocation)}><SelectValue placeholder={tt(scenesT.keinMotiv)} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Kein Motiv</SelectItem>
+                  <SelectItem value="__none__">{tt(scenesT.keinMotiv)}</SelectItem>
                   {locations.map(l => <SelectItem key={l.id} value={String(l.id)}>{l.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Geschätzte Drehzeit (Min.)</Label>
-              <Input type="number" min="0" value={form.estimated_minutes || 60}
-                onChange={e => updateField('estimated_minutes', Number(e.target.value))} className="mt-1 h-8 text-sm" />
+              <Label className="text-xs text-muted-foreground">{tt(scenesT.drehzeit)}</Label>
+              <Input type="number" min="0" value={form.estimated_minutes ?? ''}
+                onChange={e => updateField('estimated_minutes', zahl(e.target.value))} aria-label={tt(scenesT.drehzeit)} className="mt-1 h-8 text-sm" />
             </div>
           </div>
 
           <div>
             <Label className="text-xs text-muted-foreground">{tt(scenesT.detailDescr)}</Label>
             <Textarea value={form.description || ''} onChange={e => updateField('description', e.target.value)}
-              rows={2} className="mt-1 text-sm resize-none" />
+              aria-label={tt(scenesT.detailDescr)} rows={2} className="mt-1 text-sm resize-none" />
           </div>
 
           {/* Characters */}
@@ -287,6 +331,7 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
               {(scene.characters || []).map((c: any) => (
                 <button key={c.character_id}
                   onClick={() => removeCharMutation.mutate(c.character_id)}
+                  aria-label={tt(scenesT.figurRaus).replace('{name}', c.character_name)}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-primary/12 text-primary text-xs font-medium hover:bg-red-500/15 hover:text-red-400 transition-colors"
                 >
                   {c.character_name} <span className="opacity-60">×</span>
@@ -295,6 +340,7 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
               {unassignedChars.map(c => (
                 <button key={c.id}
                   onClick={() => addCharMutation.mutate(c.id)}
+                  aria-label={tt(scenesT.figurRein).replace('{name}', c.name)}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-md border border-border/60 text-muted-foreground text-xs hover:border-primary/40 hover:text-primary transition-colors"
                 >
                   <Plus className="w-3 h-3" />{c.name}
@@ -312,21 +358,22 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
               {(scene.inventory || []).map((item: any) => (
                 <button key={item.id}
                   onClick={() => removeInventoryMutation.mutate(item.id)}
+                  aria-label={tt(scenesT.eintragRaus).replace('{name}', item.item)}
                   className="flex items-center gap-1.5 px-2 py-0.5 rounded text-xs border border-border/60 text-muted-foreground hover:border-red-500/40 hover:text-red-400 transition-colors"
                 >
-                  <span className="text-muted-foreground/50">{item.category}:</span>
+                  <span className="text-muted-foreground/50">{scenesT.inventar[item.category] ? tt(scenesT.inventar[item.category]) : item.category}:</span>
                   {item.item} <span className="opacity-50">×</span>
                 </button>
               ))}
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Select value={newItemCat} onValueChange={setNewItemCat}>
-                <SelectTrigger className="w-32 h-7 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>{INVENTORY_CATS.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
+              <Select value={newItemCat} onValueChange={setNewItemCat} disabled={!canEdit}>
+                <SelectTrigger className="w-32 h-7 text-xs" aria-label={tt(scenesT.kategorie)}><SelectValue /></SelectTrigger>
+                <SelectContent>{INVENTORY_CATS.map(c => <SelectItem key={c} value={c} className="text-xs">{scenesT.inventar[c] ? tt(scenesT.inventar[c]) : c}</SelectItem>)}</SelectContent>
               </Select>
               <Input value={newItem} onChange={e => setNewItem(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && newItem && addInventoryMutation.mutate()}
-                placeholder="Eintrag hinzufügen…" className="h-7 text-xs flex-1" />
+                aria-label={tt(scenesT.eintragPh)} placeholder={tt(scenesT.eintragPh)} className="h-7 text-xs flex-1" />
               <Button size="sm" variant="outline" className="h-7 px-2.5" title={tt(scenesT.addInventory)} onClick={() => newItem && addInventoryMutation.mutate()} disabled={!newItem}>
                 <Plus className="w-3 h-3" />
               </Button>
@@ -334,11 +381,11 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
           </div>
 
           <div>
-            <Label className="text-xs text-muted-foreground">Anmerkungen</Label>
+            <Label className="text-xs text-muted-foreground">{tt(scenesT.anmerkungen)}</Label>
             <Textarea value={form.notes || ''} onChange={e => updateField('notes', e.target.value)}
-              rows={1} className="mt-1 text-sm resize-none" placeholder="Interne Notizen…" />
+              aria-label={tt(scenesT.anmerkungen)} rows={1} className="mt-1 text-sm resize-none" placeholder={tt(scenesT.notizenPh)} />
           </div>
-        </div>
+        </fieldset>
       )}
     </div>
   )
@@ -352,11 +399,11 @@ function ImportDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
   const importMutation = useMutation({
     mutationFn: () => api.scenes.import(projectId, text),
     onSuccess: (scenes: any[]) => {
-      queryClient.invalidateQueries({ queryKey: ['scenes', projectId] })
-      toast({ title: `${scenes.length} Szenen importiert` })
+      szenenErneuern(queryClient, projectId)
+      toast({ title: tt(scenesT.importiert).replace('{n}', String(scenes.length)) })
       onClose(); setText('')
     },
-    onError: () => toast({ title: 'Import fehlgeschlagen', variant: 'destructive' }),
+    onError: () => toast({ title: tt(scenesT.importFehler), variant: 'destructive' }),
   })
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -412,7 +459,7 @@ export function Component() {
       queryClient.invalidateQueries({ queryKey: ['scenes', pid] })
       queryClient.invalidateQueries({ queryKey: ['screenplay', pid] })
     },
-    onError: () => toast({ title: 'Fehler', variant: 'destructive' }),
+    onError: () => toast({ title: tt(scenesT.fehler), variant: 'destructive' }),
   })
 
   const totalEighths = (scenes || []).reduce((s: number, sc: any) => s + (sc.eighths || 0), 0)
@@ -453,18 +500,18 @@ export function Component() {
             <Button
               variant="outline"
               size="sm"
-              title="Drehbuch im Fountain-Format exportieren (kompatibel mit Highland, Slugline, Final Draft)"
+              title={tt(scenesT.exportTitel)}
               onClick={async () => {
                 const token = localStorage.getItem('token')
                 const res = await fetch(api.screenplayIO.fountainExportUrl(pid), { headers: { Authorization: `Bearer ${token}` } })
-                if (!res.ok) return
+                if (!res.ok) { toast({ title: tt(scenesT.fehler), variant: 'destructive' }); return }
                 const blob = await res.blob()
                 const url = URL.createObjectURL(blob)
                 const a = document.createElement('a'); a.href = url; a.download = 'drehbuch.fountain'; a.click()
                 URL.revokeObjectURL(url)
               }}
             >
-              <Download className="w-3.5 h-3.5 mr-1.5" />Export
+              <Download className="w-3.5 h-3.5 mr-1.5" />{tt(scenesT.export)}
             </Button>
             <Button size="sm" onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !darfSchreiben}>
               <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(scenesT.newScene)}
@@ -485,6 +532,7 @@ export function Component() {
           ].map(f => (
             <button key={f.value}
               onClick={() => setFilterType(f.value)}
+              aria-pressed={filterType === f.value}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors border',
                 filterType === f.value
@@ -538,7 +586,7 @@ export function Component() {
             )}
           </div>
         ) : (
-          <div className="group">
+          <div>
             {filtered.map((scene: any) => (
               <SceneRow key={scene.id} scene={scene} locations={locations || []} characters={characters || []} projectId={pid} />
             ))}

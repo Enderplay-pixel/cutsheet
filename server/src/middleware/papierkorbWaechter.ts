@@ -29,7 +29,9 @@ const PFAD_ZU_TABELLE: Record<string, string> = {
   locations: 'locations',
   'shoot-days': 'shoot_days',
   shots: 'shots',
-  equipment: 'equipment_items',
+  // Gelöscht wird über /equipment-items/:id. Vorher stand hier `equipment` -
+  // kein Pfad heißt so, Equipment-Posten waren nie im Papierkorb.
+  'equipment-items': 'equipment_items',
   tasks: 'project_tasks',
   vehicles: 'vehicles',
   extras: 'extras',

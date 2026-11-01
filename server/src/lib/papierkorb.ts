@@ -28,11 +28,22 @@ export const BEOBACHTET: Record<string, { bezeichnung: string; titelfeld: string
   locations:      { bezeichnung: 'Motiv',        titelfeld: 'name' },
   shoot_days:     { bezeichnung: 'Drehtag',      titelfeld: 'date' },
   shots:          { bezeichnung: 'Einstellung',  titelfeld: 'shot_number' },
-  equipment_items:{ bezeichnung: 'Equipment',    titelfeld: 'name' },
+  equipment_items:{ bezeichnung: 'Equipment',    titelfeld: 'item' },
   project_tasks:  { bezeichnung: 'Aufgabe',      titelfeld: 'title' },
   vehicles:       { bezeichnung: 'Fahrzeug',     titelfeld: 'name' },
   extras:         { bezeichnung: 'Komparserie',  titelfeld: 'name' },
   budget_lines:   { bezeichnung: 'Budgetposten', titelfeld: 'description' },
+}
+
+/**
+ * Tabellen ohne eigene project_id: das Projekt hängt an der Elternzeile.
+ * Gemessen am 01.11.2026: eine gelöschte Budgetposition lag mit project_id
+ * NULL im Papierkorb, die Liste des Projekts zeigte sie nie - zurückholen
+ * ging nicht.
+ */
+const PROJEKT_UEBER: Record<string, { spalte: string; sql: string }> = {
+  budget_lines:    { spalte: 'budget_version_id', sql: 'SELECT project_id FROM budget_versions WHERE id = ?' },
+  equipment_items: { spalte: 'equipment_list_id', sql: 'SELECT project_id FROM equipment_lists WHERE id = ?' },
 }
 
 /** Name, wie er in der Tabelle steht - `cast` ist in Postgres reserviert. */
@@ -121,7 +132,11 @@ export async function inDenPapierkorb(
   const zeile = (await db.get(`SELECT * FROM ${tabellenname(tabelle)} WHERE id = ?`, [id])) as any
   if (!zeile) return false
 
-  const projektId = angaben.projectId ?? zeile.project_id ?? null
+  let projektId = angaben.projectId ?? zeile.project_id ?? null
+  const ueber = PROJEKT_UEBER[tabelle]
+  if (projektId == null && ueber && zeile[ueber.spalte] != null) {
+    projektId = ((await db.get(ueber.sql, [zeile[ueber.spalte]])) as any)?.project_id ?? null
+  }
   const titel = String(zeile[muster.titelfeld] ?? '').slice(0, 200)
   const abhaengig = await sammleAbhaengiges(tabelle, Number(id), { zeilen: [], verweise: [] })
 
@@ -192,6 +207,16 @@ export async function ausDemPapierkorb(
         [v.wert, v.ids]
       )
       mit += r.changes
+    }
+    // Die Summe der Fassung steht in der Fassung selbst - ohne das fehlte
+    // die zurückgeholte Position in "Gesamtbudget", bis die nächste sich änderte.
+    if (eintrag.table_name === 'budget_lines' && daten.budget_version_id) {
+      await tx.run(
+        `UPDATE budget_versions SET total_cents =
+           (SELECT COALESCE(SUM(total_cents), 0) FROM budget_lines WHERE budget_version_id = ?)
+         WHERE id = ?`,
+        [daten.budget_version_id, daten.budget_version_id]
+      )
     }
     await tx.run('UPDATE deleted_items SET restored_at = NOW() WHERE id = ?', [eintragId])
   })

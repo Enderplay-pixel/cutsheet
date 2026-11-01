@@ -1301,6 +1301,13 @@ export async function initDatabase() {
   await db.exec(`CREATE INDEX IF NOT EXISTS deleted_items_projekt_idx ON deleted_items (project_id, restored_at, deleted_at DESC)`)
   // Was beim Löschen per CASCADE mitging oder per SET NULL gelöst wurde (lib/papierkorb.ts)
   await db.exec(`ALTER TABLE deleted_items ADD COLUMN IF NOT EXISTS dependents TEXT`)
+  // Budgetpositionen lagen bis zum 01.11.2026 ohne Projekt im Papierkorb
+  // (lib/papierkorb.ts, PROJEKT_UEBER) und waren deshalb nicht zurückzuholen.
+  // Wiederholbar: betrifft nur Einträge ohne Projekt, deren Fassung noch da ist.
+  await db.exec(`UPDATE deleted_items d SET project_id = bv.project_id
+    FROM budget_versions bv
+    WHERE d.project_id IS NULL AND d.table_name = 'budget_lines'
+      AND bv.id = (d.payload::json->>'budget_version_id')::int`)
 
   // Der Checklistenpunkt stand bis zum 26.10.2026 mit "geprueft" in jeder neuen
   // Upload-Checkliste (lib/creatorInsights.ts). Wiederholbar.

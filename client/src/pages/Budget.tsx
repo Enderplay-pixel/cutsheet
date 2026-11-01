@@ -302,11 +302,9 @@ export function Component() {
 
   const finTotal = (finEntries || []).reduce((sum: number, e: any) => sum + (e.amount_cents || 0), 0)
 
-  // Positionen und Finanzierungsposten werden auf dem Server endgültig
-  // gelöscht, einen Papierkorb gibt es dafür nicht.
-  const positionLoeschen = (line: any) => {
-    if (loeschenBestaetigt(tt(T.loeschenFrage), line.description || line.account_code || tt(T.position))) deleteLine.mutate(line.id)
-  }
+  // Positionen landen im Papierkorb (papierkorbWaechter, `budget-lines`) und
+  // gehen ohne Rückfrage. Finanzierungsposten löscht der Server endgültig.
+  const positionLoeschen = (line: any) => deleteLine.mutate(line.id)
   const postenLoeschen = (e: any) => {
     if (loeschenBestaetigt(tt(T.loeschenFrage), e.source || tt(T.geldgeber))) deleteFinEntry.mutate(e.id)
   }

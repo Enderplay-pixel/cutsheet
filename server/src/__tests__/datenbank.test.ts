@@ -1116,6 +1116,33 @@ describe('Papierkorb', () => {
     expect(liste.some(e => e.row_id === (globalThis as any).__szene)).toBe(false)
   })
 
+  it('findet Budget- und Equipment-Posten ueber die Elternzeile im Projekt', async () => {
+    // Beide Tabellen haben keine eigene project_id. Vorher lagen sie mit
+    // project_id NULL im Papierkorb und tauchten in keinem Projekt auf.
+    const fassung = await db.run('INSERT INTO budget_versions (project_id, name) VALUES (?, ?)', [projektId, 'Papierkorb'])
+    const posten = await db.run(
+      'INSERT INTO budget_lines (budget_version_id, category, description, quantity, unit_price_cents, total_cents) VALUES (?, ?, ?, ?, ?, ?)',
+      [fassung.id, '1000 - Stab', 'Kameraassistenz', 1, 25000, 25000])
+    await db.run('UPDATE budget_versions SET total_cents = 25000 WHERE id = ?', [fassung.id])
+    const liste = await db.run('INSERT INTO equipment_lists (project_id, name) VALUES (?, ?)', [projektId, 'Kamera'])
+    const geraet = await db.run('INSERT INTO equipment_items (equipment_list_id, item) VALUES (?, ?)', [liste.id, 'Stativ'])
+
+    await loesche('budget_lines', posten.id)
+    await db.run('UPDATE budget_versions SET total_cents = 0 WHERE id = ?', [fassung.id])
+    await loesche('equipment_items', geraet.id)
+
+    const inhalt = await papierkorb.inhalt(projektId)
+    const budget = inhalt.find(e => e.table_name === 'budget_lines' && e.row_id === posten.id)
+    const equipment = inhalt.find(e => e.table_name === 'equipment_items' && e.row_id === geraet.id)
+    expect(budget?.label).toBe('Kameraassistenz')
+    expect(equipment?.label).toBe('Stativ')
+
+    // Zurueckgeholt zaehlt die Position wieder zur Summe der Fassung
+    expect((await papierkorb.ausDemPapierkorb(budget.id, projektId)).wiederhergestellt).toBe(true)
+    const summe = await db.get('SELECT total_cents FROM budget_versions WHERE id = ?', [fassung.id]) as any
+    expect(Number(summe.total_cents)).toBe(25000)
+  })
+
   it('holt nichts zweimal zurueck', async () => {
     const szene = await db.run(
       'INSERT INTO scenes (project_id, scene_number, title) VALUES (?, ?, ?)',
