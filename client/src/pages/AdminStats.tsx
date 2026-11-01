@@ -6,14 +6,13 @@ import {
   FolderOpen,
   Activity,
   Film,
-  Server,
   TrendingUp,
   ShieldCheck,
   MessageSquare,
   Check,
   Undo2,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, heuteISO } from '@/lib/utils'
 
 const API_BASE = '/api'
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
@@ -64,9 +63,13 @@ function StatCard({
 }
 
 export function Component() {
+  // Gleicher Schlüssel und gleiche Quelle wie im AdminPanel. Vorher lud diese
+  // Seite unter ['admin-projects'] die eigene Projektliste ohne archivierte
+  // Projekte - gemessen am 01.11.2026: danach zeigte das AdminPanel 78 statt
+  // 79 Projekte, Inhaber "-" und leere Spalten für Szenen und Drehtage.
   const { data: projects, isLoading: projectsLoading } = useQuery({
     queryKey: ['admin-projects'],
-    queryFn: () => req<any[]>('/projects'),
+    queryFn: () => req<any[]>('/admin/projects'),
   })
 
   const { data: users, isLoading: usersLoading } = useQuery({
@@ -74,23 +77,25 @@ export function Component() {
     queryFn: () => req<any[]>('/auth/users'),
   })
 
-  const now = new Date()
-  const thirtyDaysAgo = new Date(now)
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const heute = heuteISO()
+  const vor30Tagen = new Date()
+  vor30Tagen.setDate(vor30Tagen.getDate() - 30)
+  const grenze = heuteISO(vor30Tagen)
 
   const totalProjects = (projects || []).length
   const totalUsers = (users || []).length
+  // Aktiv: im Status Produktion oder in den letzten 30 Tagen gedreht. Vorher
+  // zählte jeder Drehbeginn nach dieser Grenze, auch einer im nächsten Jahr -
+  // gemessen: ein Projekt mit Dreh im März 2027 hob die Zahl von 68 auf 69.
   const activeProductions = (projects || []).filter((p: any) => {
+    if (p.archived) return false
     if (p.status === 'Produktion') return true
-    if (p.shoot_start && new Date(p.shoot_start) >= thirtyDaysAgo) return true
-    if (
-      p.shoot_end &&
-      new Date(p.shoot_end) >= thirtyDaysAgo &&
-      new Date(p.shoot_start) <= now
-    )
-      return true
-    return false
+    const start = p.shoot_start ? String(p.shoot_start).slice(0, 10) : null
+    const ende = p.shoot_end ? String(p.shoot_end).slice(0, 10) : start
+    return !!start && start <= heute && !!ende && ende >= grenze
   }).length
+  // Vorher stand hier die Länge der Tabelle unten - immer höchstens 10
+  const registrierungen30 = (users || []).filter((u: any) => u.created_at && new Date(u.created_at) >= vor30Tagen).length
 
   const recentUsers = [...(users || [])]
     .sort(
@@ -153,9 +158,9 @@ export function Component() {
             />
             <StatCard
               label="Registrierungen"
-              value={recentUsers.length}
+              value={registrierungen30}
               icon={TrendingUp}
-              sub="neueste Einträge"
+              sub="letzte 30 Tage"
             />
           </>
         )}
@@ -282,31 +287,9 @@ export function Component() {
       {/* User feedback */}
       <FeedbackPanel />
 
-      {/* Server information */}
-      <div className="rounded-xl border border-border/60 bg-card p-5">
-        <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-5">
-          Server-Informationen
-        </p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-          {[
-            { label: 'Umgebung',    value: 'Production' },
-            { label: 'Node.js',     value: '20.x' },
-            { label: 'Datenbank',   value: 'PostgreSQL' },
-            { label: 'API-Version', value: 'v1' },
-          ].map(item => (
-            <div key={item.label}>
-              <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-1.5">
-                {item.label}
-              </div>
-              <div className="font-mono text-sm font-medium">{item.value}</div>
-            </div>
-          ))}
-        </div>
-        <p className="text-[11px] text-muted-foreground/40 mt-5">
-          * Detaillierte Server-Metriken werden über{' '}
-          <code className="font-mono">/api/admin/stats</code> bereitgestellt (demnächst verfügbar).
-        </p>
-      </div>
+      {/* Hier stand ein Kasten "Server-Informationen" mit festen Werten -
+          "Production" und "Node.js 20.x" auch lokal unter Node 25. Die echten
+          Werte stehen oben unter "Betrieb". */}
     </div>
   )
 }
@@ -369,6 +352,7 @@ function FeedbackPanel() {
                 <button
                   onClick={() => resolveMutation.mutate({ id: f.id, resolved: !f.resolved })}
                   title={f.resolved ? 'Wieder öffnen' : 'Als erledigt markieren'}
+                  aria-label={f.resolved ? 'Wieder öffnen' : 'Als erledigt markieren'}
                   className="shrink-0 p-1.5 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-foreground/5 transition-[color,background-color] duration-150 active:scale-[0.88]"
                 >
                   {f.resolved ? <Undo2 className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}

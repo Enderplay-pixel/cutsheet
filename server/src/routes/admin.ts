@@ -291,7 +291,7 @@ router.get('/users/:id/projects', async (req: Request, res: Response) => {
 // ─── GET /api/admin/projects ──────────────────────────────────────────────────
 router.get('/projects', async (_req: Request, res: Response) => {
   const projects = await db.all(`
-    SELECT p.id, p.title, p.status, p.archived, p.created_at, p.updated_at,
+    SELECT p.id, p.title, p.status, p.archived, p.created_at, p.updated_at, p.shoot_start, p.shoot_end,
            u.id as owner_id, u.name as owner_name, u.email as owner_email,
            (SELECT COUNT(*) FROM scenes WHERE project_id = p.id) as scene_count,
            (SELECT COUNT(*) FROM shoot_days WHERE project_id = p.id) as day_count,
