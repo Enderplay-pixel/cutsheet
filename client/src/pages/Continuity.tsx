@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
 import { Plus, Pencil, Trash2, Camera, X, ZoomIn, Film } from 'lucide-react'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -21,8 +22,20 @@ interface Scene {
 
 interface CastMember {
   id: number
-  name: string
+  // Die Besetzung liefert `actor_name` - vorher standen die Darsteller ohne
+  // Namen in beiden Auswahlen (gemessen am 01.11.2026)
+  actor_name?: string
+  name?: string
 }
+
+const castName = (c: CastMember) => c.actor_name ?? c.name ?? ''
+
+/**
+ * Radix lehnt einen leeren Wert in `SelectItem` ab und wirft - gemessen am
+ * 01.11.2026: "Neuer Eintrag" brachte die ganze Seite zum Absturz ("Etwas ist
+ * schiefgelaufen"), angelegt werden konnte über die Oberfläche nie etwas.
+ */
+const KEINE = '__keine__'
 
 interface ContinuityEntry {
   id: number
@@ -59,6 +72,7 @@ function PhotoThumb({ src, onClick }: { src: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
+      aria-label="Foto vergrößern"
       className="relative group/thumb rounded-lg overflow-hidden border border-border/60 w-16 h-16 shrink-0 active:scale-[0.97] transition-transform"
     >
       <img src={src} alt="" className="w-full h-full object-cover" />
@@ -73,11 +87,13 @@ function PhotoThumb({ src, onClick }: { src: string; onClick: () => void }) {
 
 function ContinuityCard({
   entry,
+  darf,
   onEdit,
   onDelete,
   onPhotoClick,
 }: {
   entry: ContinuityEntry
+  darf: boolean
   onEdit: () => void
   onDelete: () => void
   onPhotoClick: (src: string) => void
@@ -117,7 +133,7 @@ function ContinuityCard({
       )}
 
       {/* Actions (hover) */}
-      <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pt-0.5 border-t border-border/30">
+      {darf && <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pt-0.5 border-t border-border/30">
         <Button
           variant="ghost"
           size="sm"
@@ -136,7 +152,7 @@ function ContinuityCard({
           <Trash2 className="h-3 w-3 mr-1.5" />
           Löschen
         </Button>
-      </div>
+      </div>}
     </div>
   )
 }
@@ -238,12 +254,12 @@ function EntryDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-sm font-medium">Szene</label>
-              <Select value={form.scene_id} onValueChange={v => setForm(p => ({ ...p, scene_id: v }))}>
-                <SelectTrigger>
+              <Select value={form.scene_id || KEINE} onValueChange={v => setForm(p => ({ ...p, scene_id: v === KEINE ? '' : v }))}>
+                <SelectTrigger aria-label="Szene">
                   <SelectValue placeholder="Szene wählen…" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Keine</SelectItem>
+                  <SelectItem value={KEINE}>Keine</SelectItem>
                   {scenes.map(s => (
                     <SelectItem key={s.id} value={String(s.id)}>
                       {s.scene_number}{s.title ? ` - ${s.title}` : ''}
@@ -254,14 +270,14 @@ function EntryDialog({
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Darsteller</label>
-              <Select value={form.cast_id} onValueChange={v => setForm(p => ({ ...p, cast_id: v }))}>
-                <SelectTrigger>
+              <Select value={form.cast_id || KEINE} onValueChange={v => setForm(p => ({ ...p, cast_id: v === KEINE ? '' : v }))}>
+                <SelectTrigger aria-label="Darsteller">
                   <SelectValue placeholder="Optional…" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Keine</SelectItem>
+                  <SelectItem value={KEINE}>Keine</SelectItem>
                   {cast.map(c => (
-                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                    <SelectItem key={c.id} value={String(c.id)}>{castName(c)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -271,7 +287,7 @@ function EntryDialog({
           <div className="space-y-1">
             <label className="text-sm font-medium">Kategorie</label>
             <Select value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v }))}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Kategorie">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -288,6 +304,7 @@ function EntryDialog({
               value={form.description}
               onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
               placeholder="Beschreibung…"
+              aria-label="Beschreibung"
               rows={3}
               className="w-full rounded-md border border-input bg-input px-3 py-2 text-sm focus:outline-none focus:border-ring/70 focus:ring-2 focus:ring-ring/20 resize-none"
             />
@@ -299,9 +316,10 @@ function EntryDialog({
             <div className="flex flex-wrap gap-2">
               {form.photos.map((src, i) => (
                 <div key={i} className="relative group/photo">
-                  <img src={src} alt="" className="w-16 h-16 object-cover rounded-lg border border-border/60" />
+                  <img src={src} alt={`Foto ${i + 1}`} className="w-16 h-16 object-cover rounded-lg border border-border/60" />
                   <button
                     onClick={() => removePhoto(i)}
+                    aria-label={`Foto ${i + 1} entfernen`}
                     className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover/photo:opacity-100 transition-opacity"
                   >
                     <X className="h-2.5 w-2.5" />
@@ -310,6 +328,7 @@ function EntryDialog({
               ))}
               <button
                 onClick={() => fileInputRef.current?.click()}
+                aria-label="Foto hinzufügen"
                 className="w-16 h-16 rounded-lg border-2 border-dashed border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-colors"
               >
                 <Camera className="h-5 w-5" />
@@ -344,6 +363,7 @@ export function Component() {
   const pid = Number(id)
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const { darfSchreiben } = useSchreibrecht()
 
   const [filterScene, setFilterScene] = useState('all')
   const [filterCast, setFilterCast] = useState('all')
@@ -424,13 +444,15 @@ export function Component() {
                 : `${allEntries.length} ${allEntries.length === 1 ? 'Eintrag' : 'Einträge'}`}
             </p>
           </div>
-          <Button
-            onClick={() => { setEditEntry(undefined); setShowDialog(true) }}
-            className="active:scale-[0.97] shrink-0"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Neuer Eintrag
-          </Button>
+          {darfSchreiben && (
+            <Button
+              onClick={() => { setEditEntry(undefined); setShowDialog(true) }}
+              className="active:scale-[0.97] shrink-0"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Neuer Eintrag
+            </Button>
+          )}
         </div>
 
         {/* Category stats chips */}
@@ -467,7 +489,7 @@ export function Component() {
           Filter
         </span>
         <Select value={filterScene} onValueChange={setFilterScene}>
-          <SelectTrigger className="h-8 w-40 text-xs">
+          <SelectTrigger className="h-8 w-40 text-xs" aria-label="Szene filtern">
             <SelectValue placeholder="Alle Szenen" />
           </SelectTrigger>
           <SelectContent>
@@ -479,19 +501,19 @@ export function Component() {
         </Select>
 
         <Select value={filterCast} onValueChange={setFilterCast}>
-          <SelectTrigger className="h-8 w-40 text-xs">
+          <SelectTrigger className="h-8 w-40 text-xs" aria-label="Darsteller filtern">
             <SelectValue placeholder="Alle Darsteller" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle Darsteller</SelectItem>
             {(cast ?? []).map(c => (
-              <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+              <SelectItem key={c.id} value={String(c.id)}>{castName(c)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
 
         <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="h-8 w-44 text-xs">
+          <SelectTrigger className="h-8 w-44 text-xs" aria-label="Kategorie filtern">
             <SelectValue placeholder="Alle Kategorien" />
           </SelectTrigger>
           <SelectContent>
@@ -536,8 +558,10 @@ export function Component() {
             <ContinuityCard
               key={e.id}
               entry={e}
+              darf={darfSchreiben}
               onEdit={() => { setEditEntry(e); setShowDialog(true) }}
-              onDelete={() => deleteMutation.mutate(e.id)}
+              // Continuity geht nicht über den Papierkorb - Fotos wären mit weg
+              onDelete={() => window.confirm(`Eintrag „${(e.description || categoryLabel(e.category)).slice(0, 60)}“ samt Fotos löschen? Das lässt sich nicht rückgängig machen.`) && deleteMutation.mutate(e.id)}
               onPhotoClick={src => setLightboxSrc(src)}
             />
           ))}
@@ -562,11 +586,12 @@ export function Component() {
           <DialogContent className="max-w-4xl p-2 bg-black border-0">
             <button
               onClick={() => setLightboxSrc(null)}
+              aria-label="Schließen"
               className="absolute top-3 right-3 z-10 text-white bg-black/50 rounded-full p-1"
             >
               <X className="h-5 w-5" />
             </button>
-            <img src={lightboxSrc} alt="" className="max-h-[85vh] w-full object-contain rounded" />
+            <img src={lightboxSrc} alt="Continuity-Foto" className="max-h-[85vh] w-full object-contain rounded" />
           </DialogContent>
         </Dialog>
       )}
