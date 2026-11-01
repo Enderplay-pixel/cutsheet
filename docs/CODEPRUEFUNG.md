@@ -125,8 +125,8 @@ Stand am 24.10.2026, 23 Uhr:
   Seiten mit fest deutschen Resten (`scripts/texte-pruefen.py`, 26.10.2026):
   beim Lesen jeder Seite mitübersetzen, die gemischten zuerst - eine halb
   übersetzte Seite sieht nach Fehler aus (Tagesdispo 56, Stammdaten 51,
-  Settings 46, Drehbuch 18, Motive 17; Login, ProjectList, Dashboard übersetzt, Funde
-  186, 203, 216). Ganz deutsch und als "teilweise" ausgewiesen: Firma, Verträge, Reise,
+  Settings 46, Drehbuch 18; Login, ProjectList, Dashboard, Motive übersetzt,
+  Funde 186, 203, 216, 221). Ganz deutsch und als "teilweise" ausgewiesen: Firma, Verträge, Reise,
   Agenturen, Abnahme, CreatorVideo, AdminPanel, AdminStats, Auswertungen,
   OffenePosten, Timesheets, Continuity, SperrtageKalender.
   `Budget.tsx` (Finanzierung): Der Server legt neue Zeilen mit Art
@@ -446,6 +446,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 218 | `client/src/pages/Auswertungen.tsx` | Fehler | Jede Änderung des Zeitraums (und des KSK-Jahres) ergab einen neuen Abfrageschlüssel. `isLoading` wurde wahr, und "Lade…" ersetzte die ganze Karte samt Datumsfeldern. Das Feld unter dem Cursor verschwand, der Fokus fiel auf den Seitenkörper. Die drei KSK-Knöpfe zeigten ihre Wahl nur über die Farbe. | ja: Datum per Ereignis geändert, Feld weg, neues Element, Fokus BODY. Echte Tastenanschläge erreichten das Datumsfeld im Vorschaufenster nicht, der Messaufbau dafür taugte nicht | behoben: `placeholderData: keepPreviousData` für beide Abfragen, `aria-pressed` an den KSK-Knöpfen. Die Seite bleibt bis zu Florians Entscheidung deutsch. Danach gemessen: kein "Lade…", dasselbe Feld-Element, Fokus bleibt im Feld |
 | 219 | `client/src/pages/CateringListe.tsx` | Klein | Neben der Tagesliste stand ein dauerhaft gesperrter Knopf "PDF exportieren". Einen PDF-Weg für Catering gibt es nicht, der Knopf versprach etwas, das nie ging. Auswahl und Felder der Präferenzen hatten nur Platzhalter, keinen Namen mit Person. Bei Lesezugriff waren sie bearbeitbar. | ja: Knopf `disabled` fest im Code, kein Server-Weg | behoben: Ausfuhr der Tagesliste als CSV (Name, Typ, Diät, Allergien, Notizen) über `csvHerunterladen`, nur bei Personen am Tag aktiv. Felder benannt ("Diät von Felix Wagner"), bei Lesezugriff gesperrt. Danach gemessen: Tag 1 ergibt "Name;Typ;Diät;Allergien;Notizen", "Felix Wagner;Darsteller;;;". Tag 3 ohne Personen, Knopf gesperrt |
 | 220 | `client/src/pages/StaebchenplanNew.tsx` | Fehler | Der Stäbchenplan lud die Drehtage unter dem Schlüssel `['drehplan', pid]`. Alle anderen Seiten nutzen `['shoot-days', pid]`. Änderungen im Drehplan, Tagesbericht oder in der KI-Optimierung erneuerten ihn nicht, bis zu 30 Sekunden zeigte er den alten Plan. Geprüft: Die Strip-Farben folgen einem eigenen Schema, das steht als Frage an Florian im Merkzettel. | ja: Prüfprojekt, Szene im Drehplan aus Tag 1 entfernt, Stäbchenplan zeigte sie weiter an Tag 1 | behoben: gemeinsamer Schlüssel. Danach gemessen: gleicher Ablauf, Szene steht sofort unter "Ohne Tag", Tag 1 "Keine Szenen". Schlüssel für Drehtage, Szenen, Besetzung, Stab, Figuren und Motive in allen Seiten gezählt: einheitlich |
+| 221 | `client/src/pages/Motive.tsx`, `client/src/lib/i18n.ts` | **Fehler, Vertrag** | Unterschrift des Motivvertrags: Eine leere Fläche ging als "Unterschrieben" durch. Der Unterzeichner blieb leer, obwohl der Eigentümer daneben stand. Ohne vorher gespeicherten Eigentümer scheiterte das Unterschreiben mit "Kein Motivvertrag gefunden". Die Linie war fast weiß (`#e2e8f0`), auf Papier im PDF kaum zu sehen. Die Fläche wurde auf 360 px gestaucht (intern 480 px), ohne die Zeigerposition umzurechnen: Der Strich lag neben dem Finger. Dazu: Die Plakette zählte Drehtage, beschriftet mit "Szenen". Rund 17 feste deutsche Texte (Merkzettel). Bei Lesezugriff waren alle Felder bearbeitbar, die Kopfzeile nur mit der Maus aufklappbar. | ja: Prüfprojekt; leere Fläche ergab "Unterschrieben am 1.11.2026", `signed_by` leer; Strich bei CSS x=300 landete intern bei 320 statt 400 | behoben: "Speichern" erst nach einem Strich. Vertrag wird bei Bedarf angelegt, Unterzeichner ist der Eigentümer, "Unterschrift erfassen" erst mit Eigentümer. Dunkle Tinte auf weißer Fläche, Zeigerposition umgerechnet. Plakette "Drehtage", alle Texte in `locT`, Felder bei Lesezugriff gesperrt, Kopfzeile per Tastatur. Danach gemessen: Erfassen ohne Eigentümer gesperrt, Speichern vor dem Strich gesperrt, danach frei. Dunkles Pixel unter dem Zeiger. Server: Vertrag "Unterschrieben", Eigentümer und Unterzeichner "Hans Hallenbesitzer" |
 
 ### Verknüpfungen
 
@@ -846,7 +847,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/pages/Listen.tsx` (225) - gelesen (Fund 176)
 - [x] `client/src/pages/Login.tsx` (280) - gelesen (Funde 185 und 186)
 - [ ] `client/src/pages/Moodboard.tsx` (575)
-- [ ] `client/src/pages/Motive.tsx` (476)
+- [x] `client/src/pages/Motive.tsx` (476) - gelesen (Fund 221)
 - [x] `client/src/pages/Musikliste.tsx` (311) - gelesen (Fund 197)
 - [x] `client/src/pages/NichtGefunden.tsx` (24) - neu (Fund 147)
 - [ ] `client/src/pages/OffenePosten.tsx` (673)
