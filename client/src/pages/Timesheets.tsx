@@ -12,7 +12,8 @@ import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
 import { api } from '@/lib/api'
 import { Plus, Download, AlertTriangle, Clock, Users, FileText, CalendarDays } from 'lucide-react'
-import { parseISO } from 'date-fns'
+import { parseISO, addDays, format } from 'date-fns'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -36,7 +37,10 @@ interface Timesheet {
 
 interface Person {
   id: number
-  name: string
+  // Stab hat `name`, Besetzung `actor_name` - vorher stand jede Darstellerin
+  // als leerer Eintrag in der Auswahl (gemessen am 01.11.2026)
+  name?: string
+  actor_name?: string
   person_type: 'cast' | 'crew'
 }
 
@@ -49,12 +53,26 @@ function minutesToHHMM(minutes: number | null | undefined): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-function parseHHMM(val: string): number | null {
+/**
+ * "8", "830", "8:30", "08:30" → Minuten. Leer → null (Zeit bewusst gelöscht).
+ * Unlesbar → undefined. Vorher wurde Unlesbares zu null und gespeichert -
+ * gemessen am 01.11.2026: "8" getippt, der Call 14:00 auf dem Server gelöscht,
+ * im Feld stand weiter "8".
+ */
+function parseHHMM(val: string): number | null | undefined {
   const trimmed = val.trim()
   if (!trimmed) return null
-  const match = trimmed.match(/^(\d{1,2}):?(\d{2})$/)
-  if (!match) return null
-  return parseInt(match[1]) * 60 + parseInt(match[2])
+  const match = trimmed.match(/^(\d{1,2})(?::?(\d{2}))?$/)
+  if (!match) return undefined
+  const h = parseInt(match[1]), m = match[2] ? parseInt(match[2]) : 0
+  if (h > 23 || m > 59) return undefined
+  return h * 60 + m
+}
+
+/** Ruhezeit wie `ruhezeit()` im Server (lib/drehzeit.ts): Wrap vor dem Call heißt nach Mitternacht. */
+function ruhezeit(wrap: number, callHeute: number | null, callMorgen: number): number {
+  if (callHeute != null && wrap < callHeute) return Math.max(0, callMorgen - wrap)
+  return 1440 - wrap + callMorgen
 }
 
 function calcOvertime(callMin: number | null, wrapMin: number | null): number {
@@ -75,7 +93,7 @@ function totalMinutesToH(mins: number) {
 
 // ─── Timesheet row ────────────────────────────────────────────────────────────
 
-function TimesheetRow({ ts, dayId }: { ts: Timesheet; dayId: number }) {
+function TimesheetRow({ ts, dayId, darf }: { ts: Timesheet; dayId: number; darf: boolean }) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
@@ -115,10 +133,20 @@ function TimesheetRow({ ts, dayId }: { ts: Timesheet; dayId: number }) {
 
   const callMin = parseHHMM(callVal)
   const wrapMin = parseHHMM(wrapVal)
-  const overtime = calcOvertime(callMin, wrapMin)
+  const overtime = calcOvertime(callMin ?? null, wrapMin ?? null)
 
-  const saveCall = () => updateMutation.mutate({ call_time: callMin })
-  const saveWrap = () => updateMutation.mutate({ wrap_time: wrapMin })
+  // Unlesbare Zeit: nicht speichern, gespeicherten Wert zurück ins Feld
+  const zeitSpeichern = (feld: 'call_time' | 'wrap_time', wert: number | null | undefined, setze: (v: string) => void) => {
+    if (wert === undefined) {
+      toast({ variant: 'destructive', title: 'Uhrzeit nicht erkannt', description: 'Bitte als HH:MM eingeben, z. B. 08:30.' })
+      setze(minutesToHHMM(ts[feld]))
+      return
+    }
+    setze(minutesToHHMM(wert))
+    if (wert !== ts[feld]) updateMutation.mutate({ [feld]: wert })
+  }
+  const saveCall = () => zeitSpeichern('call_time', callMin, setCallVal)
+  const saveWrap = () => zeitSpeichern('wrap_time', wrapMin, setWrapVal)
   const saveNotes = () => updateMutation.mutate({ notes })
   const saveMeal = (val: boolean) => {
     setMealPenalty(val)
@@ -138,6 +166,8 @@ function TimesheetRow({ ts, dayId }: { ts: Timesheet; dayId: number }) {
           value={callVal}
           onChange={e => setCallVal(e.target.value)}
           onBlur={saveCall}
+          disabled={!darf}
+          aria-label={`Call ${ts.person_name}`}
           placeholder="08:00"
           className="h-8 text-xs font-mono w-full bg-muted/30 border-border/40 focus:bg-background"
         />
@@ -147,6 +177,8 @@ function TimesheetRow({ ts, dayId }: { ts: Timesheet; dayId: number }) {
           value={wrapVal}
           onChange={e => setWrapVal(e.target.value)}
           onBlur={saveWrap}
+          disabled={!darf}
+          aria-label={`Wrap ${ts.person_name}`}
           placeholder="18:00"
           className="h-8 text-xs font-mono w-full bg-muted/30 border-border/40 focus:bg-background"
         />
@@ -163,8 +195,10 @@ function TimesheetRow({ ts, dayId }: { ts: Timesheet; dayId: number }) {
       </td>
       <td className="px-4 py-3 text-center">
         <Checkbox
-          checked={mealPenalty}
+          checked={!!mealPenalty}
           onCheckedChange={v => saveMeal(Boolean(v))}
+          disabled={!darf}
+          aria-label={`Mahlzeit-Penalty ${ts.person_name}`}
           className="data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
         />
       </td>
@@ -173,20 +207,26 @@ function TimesheetRow({ ts, dayId }: { ts: Timesheet; dayId: number }) {
           value={notes}
           onChange={e => setNotes(e.target.value)}
           onBlur={saveNotes}
+          disabled={!darf}
+          aria-label={`Notizen ${ts.person_name}`}
           placeholder="Notizen…"
           className="h-8 text-xs w-full bg-muted/30 border-border/40 focus:bg-background"
         />
       </td>
       <td className="px-4 py-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-destructive/60 hover:text-destructive hover:bg-destructive/10 text-xs active:scale-[0.97]"
-          onClick={() => deleteMutation.mutate()}
-          disabled={deleteMutation.isPending}
-        >
-          Löschen
-        </Button>
+        {/* Timesheets gehen nicht über den Papierkorb - endgültig, deshalb die Rückfrage */}
+        {darf && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive/60 hover:text-destructive hover:bg-destructive/10 text-xs active:scale-[0.97]"
+            onClick={() => window.confirm(`Eintrag von ${ts.person_name} löschen? Das lässt sich nicht rückgängig machen.`) && deleteMutation.mutate()}
+            disabled={deleteMutation.isPending}
+            aria-label={`Eintrag von ${ts.person_name} löschen`}
+          >
+            Löschen
+          </Button>
+        )}
       </td>
     </tr>
   )
@@ -233,6 +273,10 @@ function AddTimesheetDialog({
     },
   })
 
+  const callMin = parseHHMM(callVal)
+  const wrapMin = parseHHMM(wrapVal)
+  const zeitFalsch = callMin === undefined || wrapMin === undefined
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/shoot-days/${dayId}/timesheets`, {
@@ -241,8 +285,8 @@ function AddTimesheetDialog({
         body: JSON.stringify({
           person_id: Number(personId),
           person_type: personType,
-          call_time: parseHHMM(callVal),
-          wrap_time: parseHHMM(wrapVal),
+          call_time: callMin,
+          wrap_time: wrapMin,
         }),
       })
       if (!res.ok) throw new Error('Fehler')
@@ -268,7 +312,7 @@ function AddTimesheetDialog({
           <div className="space-y-1">
             <label className="text-sm font-medium">Typ</label>
             <Select value={personType} onValueChange={v => { setPersonType(v as 'cast' | 'crew'); setPersonId('') }}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Typ">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -280,12 +324,12 @@ function AddTimesheetDialog({
           <div className="space-y-1">
             <label className="text-sm font-medium">Person</label>
             <Select value={personId} onValueChange={setPersonId}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Person">
                 <SelectValue placeholder="Person auswählen…" />
               </SelectTrigger>
               <SelectContent>
                 {persons.map(p => (
-                  <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                  <SelectItem key={p.id} value={String(p.id)}>{p.name ?? p.actor_name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -293,17 +337,18 @@ function AddTimesheetDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-sm font-medium">Call (HH:MM)</label>
-              <Input value={callVal} onChange={e => setCallVal(e.target.value)} placeholder="08:00" className="font-mono" />
+              <Input value={callVal} onChange={e => setCallVal(e.target.value)} placeholder="08:00" aria-label="Call" aria-invalid={callMin === undefined} className="font-mono" />
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Wrap (HH:MM)</label>
-              <Input value={wrapVal} onChange={e => setWrapVal(e.target.value)} placeholder="18:00" className="font-mono" />
+              <Input value={wrapVal} onChange={e => setWrapVal(e.target.value)} placeholder="18:00" aria-label="Wrap" aria-invalid={wrapMin === undefined} className="font-mono" />
             </div>
           </div>
+          {zeitFalsch && <p className="text-xs text-destructive">Uhrzeit bitte als HH:MM eingeben, z. B. 08:30.</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="active:scale-[0.97]">Abbrechen</Button>
-          <Button onClick={() => createMutation.mutate()} disabled={!personId || createMutation.isPending} className="active:scale-[0.97]">
+          <Button onClick={() => createMutation.mutate()} disabled={!personId || zeitFalsch || createMutation.isPending} className="active:scale-[0.97]">
             Erstellen
           </Button>
         </DialogFooter>
@@ -318,6 +363,7 @@ export function Component() {
   const { projectId: id } = useParams<{ projectId: string }>()
   const pid = Number(id)
   const download = useDownload()
+  const { darfSchreiben } = useSchreibrecht()
   const [selectedDayId, setSelectedDayId] = useState<number | null>(null)
   const [showAdd, setShowAdd] = useState(false)
 
@@ -345,6 +391,24 @@ export function Component() {
   })
 
   const sheets = timesheets ?? []
+  const selectedDay = (shootDays ?? []).find(d => d.id === selectedDayId)
+
+  // Ruhezeit aus den Stammdaten (Turnaround-Mindestzeit), wie im Konfliktradar
+  const { data: projekt } = useQuery({ queryKey: ['project', pid], queryFn: () => api.projects.get(pid) })
+  const mindestRuhe = ((projekt as any)?.settings?.turnaround_hours ?? 11) * 60
+  // Der Drehtag am folgenden Kalendertag, falls es einen gibt
+  const folgetag = selectedDay?.date
+    ? (shootDays ?? []).find(d => d.date === format(addDays(parseISO(selectedDay.date), 1), 'yyyy-MM-dd'))
+    : undefined
+  const { data: folgeSheets } = useQuery<Timesheet[]>({
+    queryKey: ['timesheets', folgetag?.id ?? null],
+    queryFn: async () => {
+      const res = await fetch(`/api/shoot-days/${folgetag!.id}/timesheets`, { headers })
+      if (!res.ok) throw new Error('Fehler')
+      return (await res.json()).data
+    },
+    enabled: !!folgetag,
+  })
 
   // Summary stats
   const totalOvertimeMins = sheets.reduce((sum, ts) => {
@@ -352,14 +416,28 @@ export function Component() {
   }, 0)
   const countWithOT = sheets.filter(ts => calcOvertime(ts.call_time, ts.wrap_time) > 0).length
 
-  // Turnaround warnings: wrap + 11h > next day's call
-  // We detect within the same day's sheet if any wrap is very late (>= 21:00 = 1260min) as a heuristic
-  const turnaroundWarnings = sheets.filter(ts => {
-    if (ts.wrap_time == null) return false
-    return ts.wrap_time >= 22 * 60 // wrap after 22:00 → potential turnaround issue
+  /**
+   * Ruhezeit je Person. Vorher: "Wrap ab 22:00" als Faustregel - ein Wrap nach
+   * Mitternacht (01:00 steht als 60) fiel nie darunter, gemessen am 01.11.2026:
+   * Wrap 22:30 wurde gemeldet, Wrap 01:00 nicht. Jetzt mit dem echten Call am
+   * Folgetag, sonst der früheste erlaubte Call.
+   */
+  const ruheWarnungen = sheets.flatMap(ts => {
+    if (ts.wrap_time == null) return []
+    const morgen = (folgeSheets ?? []).find(f => f.person_type === ts.person_type && f.person_id === ts.person_id && f.call_time != null)
+    if (morgen) {
+      const ruhe = ruhezeit(ts.wrap_time, ts.call_time, morgen.call_time!)
+      return ruhe < mindestRuhe
+        ? [`${ts.person_name}: ${(ruhe / 60).toFixed(1).replace('.', ',')} h zwischen Wrap ${minutesToHHMM(ts.wrap_time)} und Call ${minutesToHHMM(morgen.call_time)} am Folgetag`]
+        : []
+    }
+    // Ohne Call am Folgetag: spät heißt, die Ruhezeit reicht in den Vormittag
+    const nachMitternacht = ts.call_time != null && ts.wrap_time < ts.call_time
+    const fruehesterCall = (ts.wrap_time + mindestRuhe) % 1440
+    return nachMitternacht || ts.wrap_time >= 22 * 60
+      ? [`${ts.person_name}: Wrap ${minutesToHHMM(ts.wrap_time)}, frühester Call am Folgetag ${minutesToHHMM(fruehesterCall)}`]
+      : []
   })
-
-  const selectedDay = (shootDays ?? []).find(d => d.id === selectedDayId)
 
   return (
     <div className="px-5 py-6 sm:p-7 max-w-6xl mx-auto animate-fade-up">
@@ -406,7 +484,7 @@ export function Component() {
               value={selectedDayId ? String(selectedDayId) : ''}
               onValueChange={v => setSelectedDayId(Number(v))}
             >
-              <SelectTrigger className="w-full sm:w-72 bg-muted/30 border-border/40">
+              <SelectTrigger className="w-full sm:w-72 bg-muted/30 border-border/40" aria-label="Drehtag">
                 <SelectValue placeholder="Drehtag auswählen…" />
               </SelectTrigger>
               <SelectContent>
@@ -418,7 +496,7 @@ export function Component() {
               </SelectContent>
             </Select>
           </div>
-          {selectedDayId && (
+          {selectedDayId && darfSchreiben && (
             <Button size="sm" onClick={() => setShowAdd(true)} className="active:scale-[0.97]">
               <Plus className="mr-2 h-4 w-4" />
               Eintrag hinzufügen
@@ -493,16 +571,16 @@ export function Component() {
           )}
 
           {/* Turnaround warnings */}
-          {turnaroundWarnings.length > 0 && (
+          {ruheWarnungen.length > 0 && (
             <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 flex items-start gap-3">
               <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0 mt-0.5">
                 <AlertTriangle className="h-4 w-4 text-red-500" />
               </div>
               <div className="text-sm pt-0.5">
-                <span className="font-semibold text-red-600 dark:text-red-400">Turnaround-Warnung:</span>{' '}
-                <span className="text-muted-foreground">
-                  {turnaroundWarnings.map(w => w.person_name).join(', ')} - spätes Wrap, bitte 11h Ruhezeit prüfen.
-                </span>
+                <span className="font-semibold text-red-600 dark:text-red-400">Turnaround-Warnung (Minimum {mindestRuhe / 60} h):</span>
+                <ul className="text-muted-foreground mt-1 space-y-0.5">
+                  {ruheWarnungen.map(w => <li key={w}>{w}</li>)}
+                </ul>
               </div>
             </div>
           )}
@@ -512,10 +590,12 @@ export function Component() {
             <div className="text-center py-16 text-muted-foreground/40">
               <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm">Keine Timesheets für diesen Drehtag</p>
-              <Button size="sm" className="mt-4 active:scale-[0.97]" onClick={() => setShowAdd(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Ersten Eintrag hinzufügen
-              </Button>
+              {darfSchreiben && (
+                <Button size="sm" className="mt-4 active:scale-[0.97]" onClick={() => setShowAdd(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Ersten Eintrag hinzufügen
+                </Button>
+              )}
             </div>
           ) : (
             <div>
@@ -539,7 +619,7 @@ export function Component() {
                     </thead>
                     <tbody>
                       {sheets.map(ts => (
-                        <TimesheetRow key={ts.id} ts={ts} dayId={selectedDayId} />
+                        <TimesheetRow key={ts.id} ts={ts} dayId={selectedDayId} darf={darfSchreiben} />
                       ))}
                     </tbody>
                   </table>
