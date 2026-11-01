@@ -12,19 +12,24 @@ import {
 import { isCreatorProject } from '@/lib/projectKind'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { useT } from '@/lib/useT'
-import { dashT } from '@/lib/i18n'
+import { dashT, projectsT } from '@/lib/i18n'
+import { onboardingFormatT } from '@/lib/texte/komponenten/OnboardingWizard'
+import { aktuellesGebietsschema } from '@/lib/useT'
 import { useAuth } from '@/contexts/AuthContext'
 import { useEffect } from 'react'
 import { track } from '@/lib/analytics'
 import { useCountUp, useEntered } from '@/lib/motion'
 
-function greeting(): string {
+function greeting(): (typeof dashT)['gruss5'] {
   const h = new Date().getHours()
-  if (h < 5) return 'Gute Nacht'
-  if (h < 11) return 'Guten Morgen'
-  if (h < 18) return 'Guten Tag'
-  return 'Guten Abend'
+  if (h < 5) return dashT.gruss5
+  if (h < 11) return dashT.gruss11
+  if (h < 18) return dashT.gruss18
+  return dashT.grussAbend
 }
+
+/** Zahl im Gebietsschema der gewählten Sprache - vorher fest "de-DE" */
+const zahl = (n: number) => n.toLocaleString(aktuellesGebietsschema())
 
 function Figure({ label, value, sub, onClick, format }: {
   label: string; value: number | string; sub?: string; onClick?: () => void
@@ -39,7 +44,7 @@ function Figure({ label, value, sub, onClick, format }: {
       className="group text-left bg-card px-5 py-5 sm:px-6 transition-colors duration-200 hover:bg-foreground/[0.025] focus-visible:bg-foreground/[0.04]"
     >
       <div className="eyebrow">{label}</div>
-      <div className="font-display text-[40px] leading-none mt-2.5 tabular-nums">{format ? format(Math.round(shown)) : Math.round(shown).toLocaleString('de-DE')}</div>
+      <div className="font-display text-[40px] leading-none mt-2.5 tabular-nums">{format ? format(Math.round(shown)) : zahl(Math.round(shown))}</div>
       {sub && (
         <div className="text-[12px] text-muted-foreground mt-2 flex items-center gap-1">
           {sub}
@@ -55,11 +60,12 @@ function ProgressRow({ label, done, total, pct, tone, delay = 0 }: {
 }) {
   const entered = useEntered(120 + delay)
   const shownPct = useCountUp(pct, 1000)
+  const tt = useT()
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-2">
       <span className="text-[13px] font-medium">{label}</span>
       <span className="text-[13px] tabular-nums text-muted-foreground">
-        {done} von {total}
+        {tt(dashT.vonGesamt).replace('{a}', String(done)).replace('{b}', String(total))}
         <span className="ml-3 font-semibold text-foreground">{Math.round(shownPct)}%</span>
       </span>
       <div className="col-span-2 h-2 rounded-full bg-foreground/[0.07] overflow-hidden">
@@ -148,7 +154,11 @@ export function Component() {
     ? Math.min(100, Math.round(((stats?.financing_total_cents || 0) / stats.budget_total_cents) * 100))
     : 0
 
-  const meta = [project?.format, project?.genre, project?.length_minutes ? `${project.length_minutes} Min.` : '']
+  const meta = [
+    project?.format ? (onboardingFormatT[project.format] ? tt(onboardingFormatT[project.format]) : project.format) : '',
+    project?.genre,
+    project?.length_minutes ? tt(dashT.minuten).replace('{n}', String(project.length_minutes)) : '',
+  ]
     .filter(Boolean)
   const go = (path: string) => navigate(`/projects/${projectId}/${path}`)
 
@@ -159,21 +169,21 @@ export function Component() {
   const veroeffentlichtPct = kanal?.video_count ? Math.round((kanal.published_count / kanal.video_count) * 100) : 0
   const geplantPct = kanal?.video_count ? Math.round((kanal.planned_count / kanal.video_count) * 100) : 0
   const filmJumps = [
-    { label: 'Drehplan',   icon: Clapperboard, path: 'drehplan',   key: 'D', tint: 'bg-blue-500' },
-    { label: 'Tagesdispo', icon: Calendar,     path: 'tagesdispo', key: 'T', tint: 'bg-red-500' },
-    { label: 'Szenen',     icon: Film,         path: 'drehbuch',   key: 'S', tint: 'bg-orange-500' },
-    { label: 'Besetzung',  icon: Users,        path: 'besetzung',  key: 'B', tint: 'bg-violet-500' },
-    { label: 'Motive',     icon: MapPin,       path: 'motive',     key: 'M', tint: 'bg-green-500' },
-    { label: 'Budget',     icon: DollarSign,   path: 'budget',     key: 'G', tint: 'bg-teal-500' },
+    { label: tt(dashT.sprungDrehplan),  icon: Clapperboard, path: 'drehplan',   key: 'D', tint: 'bg-blue-500' },
+    { label: tt(dashT.sprungDispo),     icon: Calendar,     path: 'tagesdispo', key: 'T', tint: 'bg-red-500' },
+    { label: tt(dashT.sprungSzenen),    icon: Film,         path: 'drehbuch',   key: 'S', tint: 'bg-orange-500' },
+    { label: tt(dashT.sprungBesetzung), icon: Users,        path: 'besetzung',  key: 'B', tint: 'bg-violet-500' },
+    { label: tt(dashT.sprungMotive),    icon: MapPin,       path: 'motive',     key: 'M', tint: 'bg-green-500' },
+    { label: tt(dashT.sprungBudget),    icon: DollarSign,   path: 'budget',     key: 'G', tint: 'bg-teal-500' },
   ]
   // Creator-Projekte haben eigene Bereiche; Drehplan und Szenen gibt es dort nicht
   const creatorJumps = [
-    { label: 'Videos',          icon: Video,        path: 'creator',                key: '', tint: 'bg-red-500' },
-    { label: 'Ideen',           icon: Lightbulb,    path: 'creator/ideen',          key: '', tint: 'bg-yellow-500' },
-    { label: 'Redaktionsplan',  icon: Calendar,     path: 'creator/redaktionsplan', key: '', tint: 'bg-blue-500' },
-    { label: 'Kanal',           icon: Activity,     path: 'creator/kanal',          key: '', tint: 'bg-violet-500' },
-    { label: 'Sponsoren',       icon: Megaphone,    path: 'creator/sponsoren',      key: '', tint: 'bg-green-500' },
-    { label: 'Budget',          icon: DollarSign,   path: 'budget',                 key: 'G', tint: 'bg-teal-500' },
+    { label: tt(dashT.videos),          icon: Video,        path: 'creator',                key: '', tint: 'bg-red-500' },
+    { label: tt(dashT.sprungIdeen),     icon: Lightbulb,    path: 'creator/ideen',          key: '', tint: 'bg-yellow-500' },
+    { label: tt(dashT.sprungRedaktion), icon: Calendar,     path: 'creator/redaktionsplan', key: '', tint: 'bg-blue-500' },
+    { label: tt(dashT.sprungKanal),     icon: Activity,     path: 'creator/kanal',          key: '', tint: 'bg-violet-500' },
+    { label: tt(dashT.sprungSponsoren), icon: Megaphone,    path: 'creator/sponsoren',      key: '', tint: 'bg-green-500' },
+    { label: tt(dashT.sprungBudget),    icon: DollarSign,   path: 'budget',                 key: 'G', tint: 'bg-teal-500' },
   ]
   const jumps = isCreator ? creatorJumps : filmJumps
 
@@ -186,10 +196,10 @@ export function Component() {
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
             {firstName && (
               <span className="text-[13px] text-muted-foreground mr-2">
-                {greeting()}, <span className="text-foreground">{firstName}</span>
+                {tt(greeting())}, <span className="text-foreground">{firstName}</span>
               </span>
             )}
-            {project?.status && <span className="chip-primary">{project.status}</span>}
+            {project?.status && <span className="chip-primary">{projectsT.status[project.status] ? tt(projectsT.status[project.status]) : project.status}</span>}
           </div>
           <h1 className="font-display text-[40px] sm:text-[56px] mt-3 break-words">
             {project?.title || 'Dashboard'}
@@ -248,7 +258,7 @@ export function Component() {
         ) : isCreator && naechstesVideo ? (
           <aside className="self-end rounded-2xl border border-border/60 bg-card p-5 shadow-md lift">
             <div className="flex items-center justify-between">
-              <span className="eyebrow">Nächste Veröffentlichung</span>
+              <span className="eyebrow">{tt(dashT.naechsteVeroeff)}</span>
               <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-signal" aria-hidden />
             </div>
             <div className="flex items-end justify-between gap-4 mt-4">
@@ -268,15 +278,15 @@ export function Component() {
               )}
             </div>
             <Button className="w-full mt-5 justify-between" onClick={() => go(`creator/${naechstesVideo.id}`)}>
-              Video öffnen <ArrowRight className="w-3.5 h-3.5" />
+              {tt(dashT.videoOeffnen)} <ArrowRight className="w-3.5 h-3.5" />
             </Button>
           </aside>
         ) : (
           <aside className="self-end rounded-2xl border border-dashed border-border p-5">
             <span className="eyebrow">{tt(dashT.nextShootDay)}</span>
-            <p className="text-[17px] font-semibold text-muted-foreground mt-2">Noch kein Drehtag geplant</p>
+            <p className="text-[17px] font-semibold text-muted-foreground mt-2">{tt(dashT.keinDrehtag)}</p>
             <Button variant="outline" size="sm" className="mt-4" onClick={() => go(isCreator ? 'kalender' : 'drehplan')}>
-              {isCreator ? 'Drehtermin planen' : 'Drehplan anlegen'} <ArrowRight className="w-3.5 h-3.5" />
+              {tt(isCreator ? dashT.drehterminPlanen : dashT.drehplanAnlegen)} <ArrowRight className="w-3.5 h-3.5" />
             </Button>
           </aside>
         )}
@@ -284,19 +294,19 @@ export function Component() {
 
       {/* ── Kennzahlen als durchlaufende Zeile ───────────── */}
       <section
-        aria-label="Kennzahlen"
+        aria-label={tt(dashT.kennzahlen)}
         className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl border border-border/60 bg-border/70 overflow-hidden shadow-sm"
       >
         {isCreator ? (<>
-        <Figure label="Videos" value={kanal?.video_count ?? 0}
-          sub={`${kanal?.published_count ?? 0} veröffentlicht`} onClick={() => go('creator')} />
-        <Figure label="Aufrufe" value={kanal?.totals?.views ?? 0}
-          sub="über alle Videos" onClick={() => go('creator/performance')} />
-        <Figure label="Abos gewonnen" value={kanal?.totals?.subs ?? 0}
-          sub={`${(kanal?.totals?.likes ?? 0).toLocaleString('de-DE')} Likes`} onClick={() => go('creator/kanal')} />
-        <Figure label="Sponsoring" value={Math.round((kanal?.sponsor_fee_cents ?? 0) / 100)}
-          format={n => `${n.toLocaleString('de-DE')} €`}
-          sub="Honorare gesamt" onClick={() => go('creator/sponsoren')} />
+        <Figure label={tt(dashT.videos)} value={kanal?.video_count ?? 0}
+          sub={tt(dashT.veroeffentlicht).replace('{n}', String(kanal?.published_count ?? 0))} onClick={() => go('creator')} />
+        <Figure label={tt(dashT.aufrufe)} value={kanal?.totals?.views ?? 0}
+          sub={tt(dashT.ueberAlle)} onClick={() => go('creator/performance')} />
+        <Figure label={tt(dashT.abosGewonnen)} value={kanal?.totals?.subs ?? 0}
+          sub={tt(dashT.likes).replace('{n}', zahl(kanal?.totals?.likes ?? 0))} onClick={() => go('creator/kanal')} />
+        <Figure label={tt(dashT.sponsoring)} value={Math.round((kanal?.sponsor_fee_cents ?? 0) / 100)}
+          format={n => formatCurrency(n * 100)}
+          sub={tt(dashT.honorare)} onClick={() => go('creator/sponsoren')} />
         </>) : (<>
         <Figure label={tt(dashT.scenes)} value={stats?.total_scenes ?? 0}
           sub={`${stats?.scheduled_scenes ?? 0} ${tt(dashT.inPlan)}`} onClick={() => go('drehbuch')} />
@@ -315,14 +325,14 @@ export function Component() {
         <section className="rounded-2xl border border-border/60 bg-card p-6 sm:p-7 shadow-sm">
           <div className="flex items-baseline justify-between gap-4">
             <h2 className="text-[19px] font-semibold tracking-[-0.02em]">{tt(dashT.progress)}</h2>
-            <span className="eyebrow">Stand heute</span>
+            <span className="eyebrow">{tt(dashT.standHeute)}</span>
           </div>
 
           {isCreator ? (
           <div className="space-y-6 mt-7">
-            <ProgressRow label="Videos veröffentlicht" tone="success"
+            <ProgressRow label={tt(dashT.videosVeroeff)} tone="success"
               done={kanal?.published_count ?? 0} total={kanal?.video_count ?? 0} pct={veroeffentlichtPct} />
-            <ProgressRow label="Mit Termin im Redaktionsplan" tone="info" delay={120}
+            <ProgressRow label={tt(dashT.mitTermin)} tone="info" delay={120}
               done={kanal?.planned_count ?? 0} total={kanal?.video_count ?? 0} pct={geplantPct} />
           </div>
           ) : (
@@ -403,23 +413,23 @@ export function Component() {
 
             <button
               onClick={() => go('konfliktradar')}
-              aria-label="Konfliktradar Details anzeigen"
+              aria-label={tt(dashT.detailsAria)}
               className="mt-3 w-full flex items-center justify-between border-t border-border/70 px-5 py-3 text-[14px] text-primary hover:bg-foreground/[0.025] transition-colors duration-150 rounded-b-2xl"
             >
-              Details anzeigen
+              {tt(dashT.details)}
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </section>
 
           {/* Schnellzugriff mit den vorhandenen Tastenkürzeln */}
           <section>
-            <h2 className="eyebrow px-4 pb-2">Schnellzugriff</h2>
+            <h2 className="eyebrow px-4 pb-2">{tt(dashT.quickNav)}</h2>
             <ul className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden divide-y divide-border/70">
               {jumps.map(item => (
                 <li key={item.path}>
                   <button
                     onClick={() => go(item.path)}
-                    aria-label={`Zu ${item.label} navigieren`}
+                    aria-label={tt(dashT.zuNavigieren).replace('{name}', item.label)}
                     className="group w-full flex items-center gap-3 pl-3.5 pr-4 h-11 text-[14px] text-foreground hover:bg-foreground/[0.03] transition-colors duration-150"
                   >
                     <span className={cn('w-7 h-7 rounded-[7px] flex items-center justify-center text-white shrink-0', item.tint)}>
