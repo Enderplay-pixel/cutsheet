@@ -14,6 +14,8 @@ import { useT, useGebietsschema } from '@/lib/useT'
 import type { Lang } from '@/lib/i18n'
 import { cateringListeT } from '@/lib/texte/CateringListe'
 import { parseISO } from 'date-fns'
+import { csvHerunterladen } from '@/lib/csv'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -98,6 +100,8 @@ function PrefRow({ person, pref, pid, isEven }: { person: Person; pref: Catering
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const tt = useT()
+  const { darfSchreiben } = useSchreibrecht()
+  const von = (feld: Record<Lang, string>) => tt(cateringListeT.feldVon).replace('{feld}', tt(feld)).replace('{name}', person.name)
 
   const [dietary, setDietary] = useState(pref?.dietary ?? 'keine')
   const [allergies, setAllergies] = useState(pref?.allergies ?? '')
@@ -144,8 +148,8 @@ function PrefRow({ person, pref, pid, isEven }: { person: Person; pref: Catering
         </Badge>
       </td>
       <td className="px-4 py-2.5 min-w-[160px]">
-        <Select value={dietary} onValueChange={handleDietary}>
-          <SelectTrigger className="h-8 text-xs">
+        <Select value={dietary} onValueChange={handleDietary} disabled={!darfSchreiben}>
+          <SelectTrigger className="h-8 text-xs" aria-label={von(cateringListeT.diaet)}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -159,6 +163,8 @@ function PrefRow({ person, pref, pid, isEven }: { person: Person; pref: Catering
         <Input
           value={allergies}
           onChange={e => handleAllergies(e.target.value)}
+          disabled={!darfSchreiben}
+          aria-label={von(cateringListeT.allergien)}
           placeholder={tt(cateringListeT.allergienPh)}
           className="h-8 text-xs"
         />
@@ -167,6 +173,8 @@ function PrefRow({ person, pref, pid, isEven }: { person: Person; pref: Catering
         <Input
           value={notes}
           onChange={e => handleNotes(e.target.value)}
+          disabled={!darfSchreiben}
+          aria-label={von(cateringListeT.notizen)}
           placeholder={tt(cateringListeT.notizenPh)}
           className="h-8 text-xs"
         />
@@ -272,6 +280,22 @@ export function Component() {
 
   const totalPersons = allPersons.length
 
+  // Vorher stand hier ein dauerhaft gesperrter Knopf "PDF exportieren" - einen
+  // PDF-Weg gibt es nicht. Die Tagesliste geht als CSV an das Catering.
+  const typName = (t: string) => tt(t === 'cast' ? cateringListeT.darsteller : t === 'extra' ? cateringListeT.komparse : cateringListeT.crew)
+  const csvAusfuhr = () => {
+    const tag = (shootDays ?? []).find(d => d.id === selectedDayId)
+    csvHerunterladen(
+      tt(cateringListeT.dateiname).replace('{n}', String(tag?.day_number ?? selectedDayId)),
+      [cateringListeT.name, cateringListeT.typ, cateringListeT.diaet, cateringListeT.allergien, cateringListeT.notizen].map(tt),
+      (cateringList ?? []).map(e => [
+        e.name, typName(e.person_type),
+        e.dietary && e.dietary !== 'keine' ? (DIAET_KLEIN[e.dietary] ? tt(DIAET_KLEIN[e.dietary]) : e.dietary) : '',
+        e.allergies, e.notes,
+      ]),
+    )
+  }
+
   return (
     <div className="px-5 py-6 sm:p-7 max-w-6xl mx-auto animate-fade-up">
       {/* Page hero */}
@@ -370,9 +394,10 @@ export function Component() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="sm" disabled className="active:scale-[0.97]">
+              <Button variant="outline" size="sm" className="active:scale-[0.97]"
+                disabled={!selectedDayId || !(cateringList ?? []).length} onClick={csvAusfuhr}>
                 <Download className="mr-2 h-4 w-4" />
-                {tt(cateringListeT.pdfExportieren)}
+                {tt(cateringListeT.csvExportieren)}
               </Button>
             </div>
           </div>
