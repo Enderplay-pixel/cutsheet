@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useDownload } from '@/lib/useDownload'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -84,6 +84,10 @@ function Zahlen({ firmaId }: { firmaId: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ['auswertungen', firmaId, von, bis],
     queryFn: () => api.auswertungen.lesen(firmaId, von, bis),
+    // Beim Ändern des Zeitraums die bisherigen Zahlen stehen lassen. Vorher
+    // ersetzte "Lade…" die ganze Karte samt Datumsfeldern - das Feld unter dem
+    // Cursor verschwand, der Fokus war weg (gemessen am 01.11.2026).
+    placeholderData: keepPreviousData,
   })
 
   const monate: any[] = data?.je_monat ?? []
@@ -272,6 +276,7 @@ function Ksk({ firmaId }: { firmaId: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ['ksk', firmaId, jahr],
     queryFn: () => api.ksk.meldung(firmaId, jahr),
+    placeholderData: keepPreviousData,
   })
 
   const kennzeichnen = useMutation({
@@ -425,7 +430,7 @@ function Ksk({ firmaId }: { firmaId: number }) {
                             variant={p.ksk_relevant === true ? 'default' : 'ghost'}
                             size="sm"
                             onClick={() => kennzeichnen.mutate({ art: p.art, id: p.id, wert: true })}
-                            aria-label={`${p.name} ist künstlerisch tätig`}
+                            aria-label={`${p.name} ist künstlerisch tätig`} aria-pressed={p.ksk_relevant === true}
                           >
                             <Check className="w-3.5 h-3.5" />
                           </Button>
@@ -433,7 +438,7 @@ function Ksk({ firmaId }: { firmaId: number }) {
                             variant={p.ksk_relevant === false ? 'default' : 'ghost'}
                             size="sm"
                             onClick={() => kennzeichnen.mutate({ art: p.art, id: p.id, wert: false })}
-                            aria-label={`${p.name} ist nicht künstlerisch tätig`}
+                            aria-label={`${p.name} ist nicht künstlerisch tätig`} aria-pressed={p.ksk_relevant === false}
                           >
                             <X className="w-3.5 h-3.5" />
                           </Button>
@@ -441,7 +446,7 @@ function Ksk({ firmaId }: { firmaId: number }) {
                             variant={p.ksk_relevant === null ? 'default' : 'ghost'}
                             size="sm"
                             onClick={() => kennzeichnen.mutate({ art: p.art, id: p.id, wert: null })}
-                            aria-label={`${p.name}: noch nicht entschieden`}
+                            aria-label={`${p.name}: noch nicht entschieden`} aria-pressed={p.ksk_relevant === null}
                           >
                             <HelpCircle className="w-3.5 h-3.5" />
                           </Button>
