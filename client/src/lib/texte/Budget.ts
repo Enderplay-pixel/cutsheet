@@ -80,6 +80,8 @@ export const budgetT = {
   anteil:           { de: 'Anteil', en: 'Share', fr: 'Part' },
   status:           { de: 'Status', en: 'Status', fr: 'Statut' },
   keineEintraege:   { de: 'Noch keine Einträge.', en: 'No entries yet.', fr: 'Aucune entrée pour le moment.' },
+  loeschenFrage:    { de: '„{name}“ löschen? Das lässt sich nicht rückgängig machen.', en: 'Delete "{name}"? This cannot be undone.', fr: 'Supprimer « {name} » ? Cette action est irréversible.' },
+  nurProduktion:    { de: 'Kalkulation und Finanzierung bearbeiten Produktion und Admins.', en: 'Only producers and admins can edit the budget and financing.', fr: 'Seuls les producteurs et les administrateurs peuvent modifier le budget et le financement.' },
 } satisfies Record<string, Text>
 
 /** Beschriftung der Einheiten; gespeichert wird der deutsche Wert. */

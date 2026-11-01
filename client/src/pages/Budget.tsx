@@ -19,6 +19,7 @@ import { formatCurrency, debounce } from '@/lib/utils'
 import { Plus, Trash2, TrendingUp, PieChart, List, CheckCircle, Circle, Download, Wand2 } from 'lucide-react'
 import { useT } from '@/lib/useT'
 import { budgetT as T, EINHEIT_TEXT, FINANZIERUNGSART_TEXT } from '@/lib/texte/Budget'
+import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 
 const UNITS = ['Pauschal', 'Tage', 'Stunden', 'Wochen', 'Monate', 'Stück']
 const CATEGORIES = [
@@ -26,56 +27,75 @@ const CATEGORIES = [
   '5000 - Darst.', '6000 - Motiv', '7000 - Verwaltung', '8000 - Sonst.',
   '9000 - Post-Produktion', '10000 - Musik'
 ]
+const FINANZIERUNGSARTEN = Object.keys(FINANZIERUNGSART_TEXT)
 
-function BudgetLineRow({ line, onDelete }: { line: any; onDelete: () => void }) {
+// Ein geleertes Zahlenfeld ist ein Zwischenstand beim Tippen. Vorher sprang die
+// Menge sofort auf 1, aus "3" tippen wurde "13" (gemessen am 01.11.2026).
+const zahl = (wert: string) => (wert === '' ? '' : Number(wert))
+const cent = (wert: string) => (wert === '' ? '' : Math.round(Number(wert) * 100))
+const euro = (c: any) => (c === '' || c == null ? '' : c / 100)
+const loeschenBestaetigt = (frage: string, name: string) => window.confirm(frage.replace('{name}', name))
+
+function BudgetLineRow({ line, onDelete, darf }: { line: any; onDelete: () => void; darf: boolean }) {
   const [form, setForm] = useState(line)
   const queryClient = useQueryClient()
   const tt = useT()
+  const offen = useRef(false)
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.budget.updateLine(line.id, data),
-    onSuccess: (updated: any) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budget-lines'] })
       queryClient.invalidateQueries({ queryKey: ['budget-versions'] })
     },
   })
 
-  const debouncedUpdate = useRef(debounce((data: any) => mutation.mutate(data), 500)).current
+  // "Kosten übernehmen" ändert Zeilen auf dem Server. Vorher blieb das Formular
+  // beim ersten Stand stehen und schickte ihn beim nächsten Tippen zurück -
+  // gemessen am 01.11.2026: übernommene 2.500 € wurden wieder 1.200 €.
+  // Übernommen wird nur, solange hier nichts auf das Speichern wartet.
+  useEffect(() => {
+    if (!offen.current && !mutation.isPending) setForm(line)
+  }, [line])
+
+  const debouncedUpdate = useRef(debounce((data: any) => {
+    offen.current = false
+    mutation.mutate(data)
+  }, 500)).current
+  const summe = (f: any) => Math.round((Number(f.quantity) || 0) * (Number(f.unit_price_cents) || 0))
   const update = (key: string, value: any) => {
-    const next = { ...form, [key]: value, total_cents: key === 'quantity' || key === 'unit_price_cents'
-      ? Math.round((key === 'quantity' ? value : form.quantity) * (key === 'unit_price_cents' ? value : form.unit_price_cents))
-      : form.total_cents
-    }
+    const next = { ...form, [key]: value }
     setForm(next)
-    debouncedUpdate(next)
+    offen.current = true
+    debouncedUpdate({ ...next, quantity: Number(next.quantity) || 0, unit_price_cents: Number(next.unit_price_cents) || 0, total_cents: summe(next) })
   }
 
-  const total = Math.round(form.quantity * form.unit_price_cents)
+  const total = summe(form)
 
   return (
     <tr className="border-b border-border/20 hover:bg-muted/10 group">
       <td className="py-1.5 pl-4 pr-2 w-8 text-xs text-muted-foreground font-mono">{line.account_code}</td>
       <td className="py-1.5 px-2 flex-1">
         <Input value={form.description || ''} onChange={e => update('description', e.target.value)}
-          aria-label={tt(T.beschreibungPos)}
+          disabled={!darf} aria-label={tt(T.beschreibungPos)}
           className="h-7 text-sm border-0 bg-transparent focus-visible:ring-1" />
       </td>
       <td className="py-1.5 px-2 w-24">
-        <Select value={form.unit || 'Pauschal'} onValueChange={v => update('unit', v)}>
+        <Select value={form.unit || 'Pauschal'} onValueChange={v => update('unit', v)} disabled={!darf}>
           <SelectTrigger aria-label={tt(T.einheit)} className="h-7 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>{UNITS.map(u => <SelectItem key={u} value={u} className="text-xs">{EINHEIT_TEXT[u] ? tt(EINHEIT_TEXT[u]) : u}</SelectItem>)}</SelectContent>
         </Select>
       </td>
       <td className="py-1.5 px-2 w-16">
-        <Input type="number" value={form.quantity || 1} onChange={e => update('quantity', Number(e.target.value))}
-          aria-label={form.description ? tt(T.mengeFuer).replace('{name}', form.description) : tt(T.menge)}
+        <Input type="number" value={form.quantity ?? ''} onChange={e => update('quantity', zahl(e.target.value))}
+          disabled={!darf} aria-label={form.description ? tt(T.mengeFuer).replace('{name}', form.description) : tt(T.menge)}
           className="h-7 text-xs text-right" step="0.5" min="0" />
       </td>
       <td className="py-1.5 px-2 w-28">
         <div className="relative">
-          <Input type="number" value={(form.unit_price_cents || 0) / 100}
+          <Input type="number" value={euro(form.unit_price_cents)} disabled={!darf}
             aria-label={form.description ? tt(T.einzelpreisFuer).replace('{name}', form.description) : tt(T.einzelpreisEuro)}
-            onChange={e => update('unit_price_cents', Math.round(Number(e.target.value) * 100))}
+            onChange={e => update('unit_price_cents', cent(e.target.value))}
             className="h-7 text-xs text-right pr-5" step="0.01" />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
         </div>
@@ -84,15 +104,15 @@ function BudgetLineRow({ line, onDelete }: { line: any; onDelete: () => void }) 
         {formatCurrency(total)}
       </td>
       <td className="py-1.5 pr-3 w-8">
-        <button onClick={onDelete} aria-label={tt(T.positionLoeschenN).replace('{name}', line.description || line.account_code || '')} title={tt(T.positionLoeschen)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all">
+        {darf && <button onClick={onDelete} aria-label={tt(T.positionLoeschenN).replace('{name}', line.description || line.account_code || '')} title={tt(T.positionLoeschen)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all">
           <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        </button>}
       </td>
     </tr>
   )
 }
 
-function FinancingRow({ entry, total, onDelete }: { entry: any; total: number; onDelete: () => void }) {
+function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: number; onDelete: () => void; darf: boolean }) {
   const [form, setForm] = useState(entry)
   const queryClient = useQueryClient()
   const tt = useT()
@@ -106,23 +126,26 @@ function FinancingRow({ entry, total, onDelete }: { entry: any; total: number; o
   const update = (key: string, value: any) => {
     const next = { ...form, [key]: value }
     setForm(next)
-    debouncedUpdate(next)
+    debouncedUpdate({ ...next, amount_cents: Number(next.amount_cents) || 0 })
   }
 
-  const pct = total > 0 ? ((form.amount_cents || 0) / total * 100).toFixed(1) : '0'
+  const pct = total > 0 ? ((Number(form.amount_cents) || 0) / total * 100).toFixed(1) : '0'
+  // Demo-Daten und der Server legen "Förderung" an, die Auswahl kannte nur
+  // "Förderung regional" und "national" - das Feld stand leer da.
+  const arten = FINANZIERUNGSARTEN.includes(form.type) || !form.type ? FINANZIERUNGSARTEN : [...FINANZIERUNGSARTEN, form.type]
 
   return (
     <tr className="border-b border-border/20 hover:bg-muted/10 group">
       <td className="py-2 pl-4 pr-2">
         <Input value={form.source || ''} onChange={e => update('source', e.target.value)}
-          aria-label={tt(T.geldgeberQuelle)}
+          disabled={!darf} aria-label={tt(T.geldgeberQuelle)}
           className="h-7 text-sm border-0 bg-transparent focus-visible:ring-1" />
       </td>
       <td className="py-2 px-2 w-32">
-        <Select value={form.type || 'Förderung'} onValueChange={v => update('type', v)}>
-          <SelectTrigger aria-label={tt(T.einheit)} className="h-7 text-xs"><SelectValue /></SelectTrigger>
+        <Select value={form.type || 'Förderung'} onValueChange={v => update('type', v)} disabled={!darf}>
+          <SelectTrigger aria-label={tt(T.typ)} className="h-7 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {['Förderung regional', 'Förderung national', 'Sender', 'Eigenmittel', 'Co-Produktion', 'Vertrieb', 'Sonstiges'].map(t => (
+            {arten.map(t => (
               <SelectItem key={t} value={t} className="text-xs">{FINANZIERUNGSART_TEXT[t] ? tt(FINANZIERUNGSART_TEXT[t]) : t}</SelectItem>
             ))}
           </SelectContent>
@@ -130,24 +153,25 @@ function FinancingRow({ entry, total, onDelete }: { entry: any; total: number; o
       </td>
       <td className="py-2 px-2 w-36">
         <div className="relative">
-          <Input type="number" value={(form.amount_cents || 0) / 100}
+          <Input type="number" value={euro(form.amount_cents)} disabled={!darf}
             aria-label={form.source ? tt(T.betragVon).replace('{name}', form.source) : tt(T.betragEuro)}
-            onChange={e => update('amount_cents', Math.round(Number(e.target.value) * 100))}
+            onChange={e => update('amount_cents', cent(e.target.value))}
             className="h-7 text-sm text-right font-mono pr-5" />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
         </div>
       </td>
       <td className="py-2 px-2 w-16 text-right text-sm text-muted-foreground font-mono">{pct}%</td>
       <td className="py-2 px-2 w-20">
-        <button onClick={() => update('confirmed', !form.confirmed)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+        <button onClick={() => update('confirmed', !form.confirmed)} disabled={!darf} aria-pressed={!!form.confirmed}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary disabled:hover:text-muted-foreground">
           {form.confirmed ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Circle className="w-4 h-4" />}
           {form.confirmed ? tt(T.bestaetigt) : tt(T.offen)}
         </button>
       </td>
       <td className="py-2 pr-3 w-8">
-        <button onClick={onDelete} aria-label={tt(T.finPostenLoeschen)} title={tt(T.postenLoeschen)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
+        {darf && <button onClick={onDelete} aria-label={tt(T.finPostenLoeschen)} title={tt(T.postenLoeschen)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
           <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        </button>}
       </td>
     </tr>
   )
@@ -160,6 +184,10 @@ export function Component() {
   const { toast } = useToast()
   const download = useDownload()
   const tt = useT()
+  // Budget und Finanzierung schreibt der Server erst ab Produktion
+  // (ROUTE_OVERRIDES). Gemessen am 01.11.2026 mit einer Abteilungsleitung:
+  // alle Felder und Knöpfe offen, jede Änderung 403.
+  const { canEditBudget: darf } = useProjectPerms()
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
   const [selectedFinVersionId, setSelectedFinVersionId] = useState<number | null>(null)
   const [newCategory, setNewCategory] = useState(CATEGORIES[0])
@@ -191,12 +219,33 @@ export function Component() {
     enabled: !!selectedFinVersionId,
   })
 
+  /**
+   * Fassung bei Bedarf anlegen. Ein neues Projekt hat weder Kalkulation noch
+   * Finanzierungsplan, und angelegt wurde beides nirgends - gemessen am
+   * 01.11.2026 an einem frisch angelegten Projekt: "Position" gesperrt,
+   * "Kosten übernehmen" fehlte, die Seite war nur für Demo-Projekte nutzbar.
+   */
+  const kalkulationsFassung = async (): Promise<number> => {
+    if (selectedVersionId) return selectedVersionId
+    const v = await api.budget.createVersion(pid, { name: tt(T.kalkulation) })
+    setSelectedVersionId(v.id)
+    queryClient.invalidateQueries({ queryKey: ['budget-versions', pid] })
+    return v.id
+  }
+  const finanzierungsFassung = async (): Promise<number> => {
+    if (selectedFinVersionId) return selectedFinVersionId
+    const v = await api.financing.createVersion(pid, { name: tt(T.finanzierungsplan) })
+    setSelectedFinVersionId(v.id)
+    queryClient.invalidateQueries({ queryKey: ['financing-versions', pid] })
+    return v.id
+  }
+
   const createLine = useMutation({
-    mutationFn: (category: string) => api.budget.createLine(selectedVersionId!, {
+    mutationFn: async (category: string) => api.budget.createLine(await kalkulationsFassung(), {
       category, description: 'Neue Position', unit: 'Pauschal', quantity: 1, unit_price_cents: 0 // texte-ok
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['budget-lines', selectedVersionId] })
+      queryClient.invalidateQueries({ queryKey: ['budget-lines'] })
       queryClient.invalidateQueries({ queryKey: ['budget-versions', pid] })
     },
   })
@@ -210,8 +259,8 @@ export function Component() {
   })
 
   const createFinEntry = useMutation({
-    mutationFn: () => api.financing.createEntry(selectedFinVersionId!, { source: 'Neuer Geldgeber', type: 'Förderung', amount_cents: 0 }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financing-entries', selectedFinVersionId] }),
+    mutationFn: async () => api.financing.createEntry(await finanzierungsFassung(), { source: 'Neuer Geldgeber', type: 'Förderung', amount_cents: 0 }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financing-entries'] }),
   })
 
   const deleteFinEntry = useMutation({
@@ -253,12 +302,21 @@ export function Component() {
 
   const finTotal = (finEntries || []).reduce((sum: number, e: any) => sum + (e.amount_cents || 0), 0)
 
+  // Positionen und Finanzierungsposten werden auf dem Server endgültig
+  // gelöscht, einen Papierkorb gibt es dafür nicht.
+  const positionLoeschen = (line: any) => {
+    if (loeschenBestaetigt(tt(T.loeschenFrage), line.description || line.account_code || tt(T.position))) deleteLine.mutate(line.id)
+  }
+  const postenLoeschen = (e: any) => {
+    if (loeschenBestaetigt(tt(T.loeschenFrage), e.source || tt(T.geldgeber))) deleteFinEntry.mutate(e.id)
+  }
+
   // Kosten aus Besetzung, Stab, Equipment und Versicherungen holen.
   // Erst zeigen, was passieren wuerde - eine Kalkulation, die sich unter der
   // Hand aendert, ist schlimmer als eine, die man selbst fuellt.
   const [vorschau, setVorschau] = useState<any>(null)
   const kostenVorschau = useMutation({
-    mutationFn: () => api.budget.kostenUebernehmen(selectedVersionId!, true),
+    mutationFn: async () => api.budget.kostenUebernehmen(await kalkulationsFassung(), true),
     onSuccess: setVorschau,
     onError: (e: any) => toast({ variant: 'destructive', title: tt(T.fehler), description: e.message }),
   })
@@ -266,7 +324,7 @@ export function Component() {
     mutationFn: () => api.budget.kostenUebernehmen(selectedVersionId!, false),
     onSuccess: (r: any) => {
       setVorschau(null)
-      queryClient.invalidateQueries({ queryKey: ['budget-lines', selectedVersionId] })
+      queryClient.invalidateQueries({ queryKey: ['budget-lines'] })
       queryClient.invalidateQueries({ queryKey: ['budget-versions', pid] })
       toast({ title: tt(T.kostenUebernommen),
         description: tt(T.kostenErgebnis).replace('{neu}', String(r.neu)).replace('{geaendert}', String(r.geaendert)).replace('{entfallen}', String(r.entfallen)) })
@@ -277,6 +335,7 @@ export function Component() {
   return (
     <div className="px-5 py-6 sm:p-6 max-w-6xl mx-auto space-y-4">
       <PageHeader title={tt(T.titel)} subtitle={tt(T.untertitel)} />
+      {!darf && <p className="text-xs text-muted-foreground">{tt(T.nurProduktion)}</p>}
 
       {vorschau && (
         <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4">
@@ -328,18 +387,20 @@ export function Component() {
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-lg font-bold">{formatCurrency(totalBudget)}</span>
               <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                <Select value={newCategory} onValueChange={setNewCategory}>
-                  <SelectTrigger aria-label={tt(T.kategorieWaehlen)} className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
-                </Select>
-                <Button size="sm" onClick={() => createLine.mutate(newCategory)} disabled={!selectedVersionId || createLine.isPending}>
-                  <Plus className="w-4 h-4 mr-1" />{tt(T.position)}
-                </Button>
-                {selectedVersionId && (
-                  <Button variant="outline" size="sm" onClick={() => kostenVorschau.mutate()}
-                    disabled={kostenVorschau.isPending || kostenUebernehmen.isPending}>
-                    <Wand2 className="w-4 h-4 mr-1" />{tt(T.kostenUebernehmen)}
-                  </Button>
+                {darf && (
+                  <>
+                    <Select value={newCategory} onValueChange={setNewCategory}>
+                      <SelectTrigger aria-label={tt(T.kategorieWaehlen)} className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Button size="sm" onClick={() => createLine.mutate(newCategory)} disabled={createLine.isPending}>
+                      <Plus className="w-4 h-4 mr-1" />{tt(T.position)}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => kostenVorschau.mutate()}
+                      disabled={kostenVorschau.isPending || kostenUebernehmen.isPending}>
+                      <Wand2 className="w-4 h-4 mr-1" />{tt(T.kostenUebernehmen)}
+                    </Button>
+                  </>
                 )}
                 {selectedVersionId && (
                   <Button variant="outline" size="sm" onClick={() => download(api.pdf.kalkulation(pid, selectedVersionId), 'kalkulation.pdf')}>
@@ -359,10 +420,11 @@ export function Component() {
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Category totals sidebar */}
             <div className="w-full lg:w-52 lg:shrink-0 space-y-1">
-              {Object.entries(catTotals).sort().map(([cat, total]) => (
+              {/* Reihenfolge wie die Tabelle - nach Text sortiert stand "10000 - Musik" an zweiter Stelle */}
+              {sichtbareGruppen.map(cat => (
                 <div key={cat} className="flex items-center justify-between text-xs p-2 rounded bg-muted/30">
                   <span className="truncate text-muted-foreground">{cat.split(' - ')[1] || cat}</span>
-                  <span className="font-mono font-medium shrink-0 ml-1">{formatCurrency(total as number)}</span>
+                  <span className="font-mono font-medium shrink-0 ml-1">{formatCurrency(catTotals[cat] || 0)}</span>
                 </div>
               ))}
               {totalBudget > 0 && (
@@ -399,7 +461,7 @@ export function Component() {
                           <td />
                         </tr>
                         {(grouped[cat] || []).map((line: any) => (
-                          <BudgetLineRow key={line.id} line={line} onDelete={() => deleteLine.mutate(line.id)} />
+                          <BudgetLineRow key={line.id} line={line} darf={darf} onDelete={() => positionLoeschen(line)} />
                         ))}
                       </Fragment>
                     ))}
@@ -433,9 +495,11 @@ export function Component() {
             )}
             <div className="flex items-center gap-3">
               <span className="text-lg font-bold">{formatCurrency(finTotal)}</span>
-              <Button size="sm" onClick={() => createFinEntry.mutate()} disabled={!selectedFinVersionId || createFinEntry.isPending}>
-                <Plus className="w-4 h-4 mr-1" />{tt(T.geldgeber)}
-              </Button>
+              {darf && (
+                <Button size="sm" onClick={() => createFinEntry.mutate()} disabled={createFinEntry.isPending}>
+                  <Plus className="w-4 h-4 mr-1" />{tt(T.geldgeber)}
+                </Button>
+              )}
             </div>
           </div>
 
@@ -475,7 +539,7 @@ export function Component() {
                 </thead>
                 <tbody>
                   {(finEntries || []).map((e: any) => (
-                    <FinancingRow key={e.id} entry={e} total={finTotal} onDelete={() => deleteFinEntry.mutate(e.id)} />
+                    <FinancingRow key={e.id} entry={e} total={finTotal} darf={darf} onDelete={() => postenLoeschen(e)} />
                   ))}
                   {(!finEntries || finEntries.length === 0) && (
                     <tr><td colSpan={6} className="py-8 text-center text-muted-foreground text-sm">{tt(T.keineEintraege)}</td></tr>
