@@ -19,6 +19,7 @@ import {
   Film, Send, Plus, Trash2, Check, X, Clock, FileText, ExternalLink, AlertTriangle, Info,
 } from 'lucide-react'
 import { parseISO } from 'date-fns'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 const datum = (wert: string | null | undefined) =>
   wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
@@ -39,16 +40,20 @@ function alsZeitstelle(sekunden: number): string {
   return h > 0 ? `${h}:${zwei(m)}:${zwei(rest)}` : `${m}:${zwei(rest)}`
 }
 
-/** "12:14" wird zu 734. Null, wenn sich nichts lesen lässt. */
-function ausZeitstelle(text: string): number {
+/**
+ * "12:14" wird zu 734, leer zu 0. Null, wenn sich nichts lesen lässt - vorher
+ * wurde auch das zu 0 und still gespeichert (gemessen am 02.11.2026: "12.14"
+ * ergab eine Fassung ohne Länge).
+ */
+function ausZeitstelle(text: string): number | null {
   const roh = String(text || '').trim()
   if (!roh) return 0
   if (/^\d+$/.test(roh)) return Number(roh)
-  const teile = roh.split(':').map((t) => Number(t.trim()))
-  if (teile.some((t) => !Number.isFinite(t) || t < 0)) return 0
-  if (teile.length === 2) return teile[0] * 60 + teile[1]
-  if (teile.length === 3) return teile[0] * 3600 + teile[1] * 60 + teile[2]
-  return 0
+  const teile = roh.split(':').map((t) => (/^\d+$/.test(t.trim()) ? Number(t.trim()) : NaN))
+  if (teile.some((t) => !Number.isFinite(t))) return null
+  if (teile.length === 2 && teile[1] < 60) return teile[0] * 60 + teile[1]
+  if (teile.length === 3 && teile[1] < 60 && teile[2] < 60) return teile[0] * 3600 + teile[1] * 60 + teile[2]
+  return null
 }
 
 const STATUS: Record<string, { label: string; klasse: string }> = {
@@ -104,6 +109,7 @@ export function Component() {
 function Runden({ pid }: { pid: number }) {
   const qc = useQueryClient()
   const { toast } = useToast()
+  const { darfSchreiben } = useSchreibrecht()
   const [neu, setNeu] = useState(false)
   const [offen, setOffen] = useState<number | null>(null)
 
@@ -125,12 +131,14 @@ function Runden({ pid }: { pid: number }) {
         </span>
       </div>
 
-      <div className="flex justify-end">
-        <Button size="sm" onClick={() => setNeu(true)}>
-          <Plus className="w-4 h-4 mr-1.5" />
-          Zur Abnahme geben
-        </Button>
-      </div>
+      {darfSchreiben && (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => setNeu(true)}>
+            <Plus className="w-4 h-4 mr-1.5" />
+            Zur Abnahme geben
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Lade…</CardContent></Card>
@@ -298,6 +306,7 @@ function RundeDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
   const qc = useQueryClient()
   const { toast } = useToast()
   const download = useDownload()
+  const { darfSchreiben } = useSchreibrecht()
 
   const { data: runde } = useQuery({
     queryKey: ['abnahme', pid, id],
@@ -393,7 +402,7 @@ function RundeDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
                   {a.resolved_note && (
                     <div className="text-xs text-muted-foreground pl-16 mt-0.5">→ {a.resolved_note}</div>
                   )}
-                  <div className="flex gap-1 pl-16 mt-1">
+                  {darfSchreiben && <div className="flex gap-1 pl-16 mt-1">
                     {a.status !== 'erledigt' && (
                       <Button
                         variant="ghost"
@@ -427,7 +436,7 @@ function RundeDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
                         wieder offen
                       </Button>
                     )}
-                  </div>
+                  </div>}
                 </div>
               ))}
             </div>
@@ -453,7 +462,7 @@ function RundeDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
             Protokoll
           </Button>
           <Button variant="ghost" onClick={schliessen}>Schließen</Button>
-          {(runde.status === 'versendet' || runde.status === 'nachbesserung') && (
+          {darfSchreiben && (runde.status === 'versendet' || runde.status === 'nachbesserung') && (
             <Button
               variant="outline"
               disabled={zurueckziehen.isPending}
@@ -464,7 +473,7 @@ function RundeDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
               Zurückziehen
             </Button>
           )}
-          {runde.status !== 'abgenommen' && runde.status !== 'zurueckgezogen' && (
+          {darfSchreiben && runde.status !== 'abgenommen' && runde.status !== 'zurueckgezogen' && (
             <Button onClick={() => senden.mutate()} disabled={senden.isPending}>
               <Send className="w-4 h-4 mr-1.5" />
               {runde.status === 'entwurf' ? 'Verschicken' : 'Erneut schicken'}
@@ -481,6 +490,7 @@ function RundeDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
 function Fassungen({ pid }: { pid: number }) {
   const qc = useQueryClient()
   const { toast } = useToast()
+  const { darfSchreiben } = useSchreibrecht()
   const [neu, setNeu] = useState(false)
 
   const { data, isLoading } = useQuery({
@@ -502,12 +512,14 @@ function Fassungen({ pid }: { pid: number }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button size="sm" onClick={() => setNeu(true)}>
-          <Plus className="w-4 h-4 mr-1.5" />
-          Fassung
-        </Button>
-      </div>
+      {darfSchreiben && (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => setNeu(true)}>
+            <Plus className="w-4 h-4 mr-1.5" />
+            Fassung
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Lade…</CardContent></Card>
@@ -558,14 +570,19 @@ function Fassungen({ pid }: { pid: number }) {
                           <ExternalLink className="w-3.5 h-3.5" />
                         </Button>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => loeschen.mutate(f.id)}
-                        aria-label="Fassung löschen"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                      {/* Fassungen mit Abnahmerunden lehnt der Server ab; die übrigen sind endgültig weg */}
+                      {darfSchreiben && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm(`${f.label || `Fassung ${f.version}`} löschen? Das lässt sich nicht rückgängig machen.`)) loeschen.mutate(f.id)
+                          }}
+                          aria-label={`${f.label || `Fassung ${f.version}`} löschen`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -598,10 +615,12 @@ function FassungDialog({ pid, stufen, schliessen, angelegt }: {
     label: '', stage: 'rohschnitt', dauer: '', watch_url: '', format: '', notes: '',
   })
 
+  const sekunden = ausZeitstelle(werte.dauer)
+
   const anlegen = useMutation({
     mutationFn: () => api.fassungen.anlegen(pid, {
       ...werte,
-      duration_seconds: ausZeitstelle(werte.dauer),
+      duration_seconds: sekunden ?? 0,
     }),
     onSuccess: () => { angelegt(); schliessen() },
     onError: (f: any) => toast({ title: 'Nicht angelegt', description: f.message, variant: 'destructive' }),
@@ -644,7 +663,11 @@ function FassungDialog({ pid, stufen, schliessen, angelegt }: {
               value={werte.dauer}
               onChange={(e) => setWerte({ ...werte, dauer: e.target.value })}
               placeholder="12:14"
+              aria-invalid={sekunden === null}
             />
+            {sekunden === null && (
+              <p className="text-xs text-destructive mt-1">Als Minuten:Sekunden eingeben, z. B. 12:14</p>
+            )}
           </div>
           <div>
             <Label htmlFor="fass-format">Format</Label>
@@ -670,7 +693,7 @@ function FassungDialog({ pid, stufen, schliessen, angelegt }: {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={schliessen}>Abbrechen</Button>
-          <Button onClick={() => anlegen.mutate()} disabled={anlegen.isPending}>Anlegen</Button>
+          <Button onClick={() => anlegen.mutate()} disabled={anlegen.isPending || sekunden === null}>Anlegen</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
