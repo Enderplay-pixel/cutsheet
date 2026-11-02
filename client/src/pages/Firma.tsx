@@ -278,6 +278,10 @@ function Adressbuch({ firmaId, projekte }: { firmaId: number; projekte: any[] })
     mutationFn: () => api.firmen.insProjekt(firmaId, Number(zielProjekt), Array.from(gewaehlt)),
     onSuccess: (ergebnis: any) => {
       setGewaehlt(new Set())
+      // Stab und Besetzung des Projekts neu laden - vorher zeigte die
+      // Stabliste bis zu 30 s ohne die Übernommenen (gemessen am 02.11.2026)
+      qc.invalidateQueries({ queryKey: ['crew', Number(zielProjekt)] })
+      qc.invalidateQueries({ queryKey: ['cast', Number(zielProjekt)] })
       toast({
         title: `${ergebnis.stab + ergebnis.besetzung} übernommen`,
         description: ergebnis.uebersprungen > 0
@@ -330,7 +334,8 @@ function Adressbuch({ firmaId, projekte }: { firmaId: number; projekte: any[] })
             <div className="space-y-0.5">
               {(kontakte || []).map((kontakt: any) => (
                 <div key={kontakt.id} className="flex items-center gap-2.5 py-1.5 border-b border-border/60 last:border-0">
-                  <Checkbox checked={gewaehlt.has(kontakt.id)} onCheckedChange={() => umschalten(kontakt.id)} className="h-3.5 w-3.5" />
+                  <Checkbox checked={gewaehlt.has(kontakt.id)} onCheckedChange={() => umschalten(kontakt.id)} className="h-3.5 w-3.5"
+                    aria-label={`${kontakt.name} auswählen`} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">
                       {kontakt.name}
@@ -345,10 +350,14 @@ function Adressbuch({ firmaId, projekte }: { firmaId: number; projekte: any[] })
                     onClick={() => setVerfuegbarkeitVon(kontakt.id)} title="Wann ist diese Person gebucht?">
                     <CalendarDays className="w-3.5 h-3.5" />
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setEntwurf({ ...kontakt })}>
+                  <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setEntwurf({ ...kontakt })}
+                    aria-label={`${kontakt.name} bearbeiten`}>
                     <PenLine className="w-3.5 h-3.5" />
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive" onClick={() => archivieren.mutate(kontakt.id)}>
+                  {/* Archivierte Einträge lassen sich hier nicht zurückholen - deshalb fragen */}
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive"
+                    aria-label={`${kontakt.name} archivieren`}
+                    onClick={() => { if (confirm(`${kontakt.name} aus dem Adressbuch nehmen? Wer schon in einem Projekt steht, bleibt dort.`)) archivieren.mutate(kontakt.id) }}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -507,7 +516,9 @@ function Gagensaetze({ firmaId, saetze, darfVerwalten }: { firmaId: number; saet
               </div>
               <span className="text-sm tabular-nums">{euro(satz.day_rate_cents)}</span>
               {darfVerwalten && (
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive" onClick={() => loeschen.mutate(satz.id)}>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive"
+                  aria-label={`Satz ${satz.role} löschen`}
+                  onClick={() => { if (confirm(`Satz „${satz.role}“ löschen?`)) loeschen.mutate(satz.id) }}>
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               )}
@@ -584,7 +595,9 @@ function Mitglieder({ firmaId, mitglieder, istInhaber }: { firmaId: number; mitg
               </div>
               <Badge variant="secondary" className="text-xs font-normal">{FIRMENROLLEN[person.role] || person.role}</Badge>
               {istInhaber && (
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive" onClick={() => entfernen.mutate(person.id)}>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive"
+                  aria-label={`${person.name || person.email} entfernen`}
+                  onClick={() => { if (confirm(`${person.name || person.email} aus der Firma entfernen? Adressbuch und Sätze sind danach nicht mehr sichtbar.`)) entfernen.mutate(person.id) }}>
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               )}
@@ -759,10 +772,13 @@ function Firmenvorlagen({ firmaId, darfVerwalten }: { firmaId: number; darfVerwa
               </div>
               {darfVerwalten && (
                 <>
-                  <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setEntwurf({ ...vorlage })}>
+                  <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setEntwurf({ ...vorlage })}
+                    aria-label={`Vorlage ${vorlage.name} bearbeiten`}>
                     <PenLine className="w-3.5 h-3.5" />
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive" onClick={() => loeschen.mutate(vorlage.id)}>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive"
+                    aria-label={`Vorlage ${vorlage.name} löschen`}
+                    onClick={() => { if (confirm(`Vorlage „${vorlage.name}“ löschen? Projekte, die sie schon kopiert haben, behalten ihre Fassung.`)) loeschen.mutate(vorlage.id) }}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </>
