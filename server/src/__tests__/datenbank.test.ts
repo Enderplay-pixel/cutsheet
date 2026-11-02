@@ -1838,6 +1838,27 @@ describe('Konten, die es so nicht mehr gibt', () => {
     expect(danach.status).toBe(401)
     expect(danach.fehler).toBe('Dieses Konto gibt es nicht mehr')
   })
+
+  it('verlieren ihre Anmeldung, wenn ein Admin das Passwort zurücksetzt', async () => {
+    const { signToken } = await import('../middleware/auth')
+    const admin = await db.run(
+      "INSERT INTO users (email, password_hash, name, role) VALUES (?, 'x', ?, 'admin')", ['reset-chef@example.com', 'Chef']
+    )
+    const chefToken = signToken({ id: admin.id, email: 'reset-chef@example.com', name: 'Chef', role: 'admin' })
+    const konto = await hole('/api/auth/register', '', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Übernommen', email: 'uebernommen@example.com', password: 'Alt-Passwort-123' }),
+    })
+    expect(konto.status).toBe(201)
+    const altesToken = konto.daten.token
+    expect((await hole('/api/auth/me', altesToken)).status).toBe(200)
+
+    const reset = await hole(`/api/admin/users/${konto.daten.user.id}/reset-password`, chefToken, {
+      method: 'POST', body: JSON.stringify({ new_password: 'Neu-Passwort-456' }),
+    })
+    expect(reset.status).toBe(200)
+    expect((await hole('/api/auth/me', altesToken)).status).toBe(401)
+  })
 })
 
 describe('Projekt-Guard: Pfad vor Body', () => {

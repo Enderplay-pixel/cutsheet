@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express'
 import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import { db, seedDemoData } from '../db'
 import { seedGrossproduktion } from '../db/grossproduktion'
-import { requireAuth, requireRole, vergissKonto } from '../middleware/auth'
+import { requireAuth, requireRole, vergissKonto, beendeAlleSitzungen } from '../middleware/auth'
 import { appBasisUrl } from '../lib/mailversand'
 
 const router = Router()
@@ -350,7 +350,11 @@ router.post('/users/:id/reset-password', async (req: Request, res: Response) => 
   }
   const hash = await hashPasswort(new_password, 12)
   await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [hash, id])
-  res.json({ data: { success: true }, error: null })
+  // Wie beim eigenen Wechsel und beim Reset per Mail: Wer das Passwort
+  // zurücksetzt, will meist ein übernommenes Konto zurückholen. Gemessen am
+  // 02.11.2026: das alte Token galt nach dem Admin-Reset weiter (200).
+  const beendet = await beendeAlleSitzungen(id)
+  res.json({ data: { success: true, sitzungen_beendet: beendet }, error: null })
 })
 
 // ─── POST /api/admin/users ────────────────────────────────────────────────────

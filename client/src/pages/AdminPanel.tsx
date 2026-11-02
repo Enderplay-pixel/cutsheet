@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/components/ui/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Users, FolderOpen, Settings2, Trash2, KeyRound,
@@ -268,7 +269,7 @@ function UsersTab({ me }: { me: { id: number } }) {
         <div className="bg-card border border-primary/30 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between mb-1">
             <p className="text-sm font-medium">Neuen Nutzer anlegen</p>
-            <button onClick={() => setNewUserOpen(false)}><X className="w-4 h-4 text-muted-foreground" /></button>
+            <button onClick={() => setNewUserOpen(false)} aria-label="Schließen"><X className="w-4 h-4 text-muted-foreground" /></button>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -336,6 +337,7 @@ function UsersTab({ me }: { me: { id: number } }) {
                   value={u.role}
                   onChange={e => roleMut.mutate({ id: u.id, role: e.target.value })}
                   disabled={u.id === me.id}
+                  aria-label={`Rolle von ${u.name || u.email}`}
                   className="h-7 text-xs bg-background border border-border rounded-md px-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
@@ -411,64 +413,69 @@ function UsersTab({ me }: { me: { id: number } }) {
       </div>
 
       {/* Password reset dialog */}
+      {/* Echte Dialoge statt eigener Overlays: Escape, Fokus und Bildschirmleser */}
       {resetTarget && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border/60 rounded-xl p-5 w-full max-w-sm shadow-xl space-y-4">
-            <div className="flex items-center gap-2">
-              <KeyRound className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-semibold">Passwort zurücksetzen</h3>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Neues Passwort für <strong>{resetTarget.email}</strong>
-            </p>
+        <Dialog open onOpenChange={o => { if (!o) setResetTarget(null) }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-sm">
+                <KeyRound className="w-4 h-4 text-primary" /> Passwort zurücksetzen
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Neues Passwort für <strong>{resetTarget.email}</strong>. Alle Anmeldungen dieses Kontos werden beendet.
+              </DialogDescription>
+            </DialogHeader>
             <div className="relative">
               <Input
                 type={showPw ? 'text' : 'password'}
                 value={resetPw}
                 onChange={e => setResetPw(e.target.value)}
                 placeholder="Neues Passwort (min. 6)"
+                aria-label="Neues Passwort"
                 className="h-9 text-sm pr-9"
                 autoFocus
               />
               <button
                 type="button"
                 onClick={() => setShowPw(p => !p)}
+                aria-label={showPw ? 'Passwort verbergen' : 'Passwort zeigen'}
                 className="absolute right-2.5 top-2 text-muted-foreground hover:text-foreground"
               >
                 {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            <div className="flex gap-2 justify-end">
+            <DialogFooter className="gap-2">
               <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setResetTarget(null)}>Abbrechen</Button>
               <Button size="sm" className="h-8 text-xs" disabled={resetPw.length < 6 || resetMut.isPending}
                 onClick={() => resetMut.mutate({ id: resetTarget.id, pw: resetPw })}>
                 {resetMut.isPending ? 'Speichere…' : 'Zurücksetzen'}
               </Button>
-            </div>
-          </div>
-        </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Delete confirm dialog */}
       {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border/60 rounded-xl p-5 w-full max-w-sm shadow-xl space-y-4">
-            <div className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="w-4 h-4" />
-              <h3 className="text-sm font-semibold">Nutzer löschen</h3>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              <strong>{deleteConfirm.name || deleteConfirm.email}</strong> wird unwiderruflich gelöscht. Alle Daten dieses Nutzers bleiben erhalten.
-            </p>
-            <div className="flex gap-2 justify-end">
+        <Dialog open onOpenChange={o => { if (!o) setDeleteConfirm(null) }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-sm text-destructive">
+                <AlertTriangle className="w-4 h-4" /> Nutzer löschen
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                <strong>{deleteConfirm.name || deleteConfirm.email}</strong> wird unwiderruflich gelöscht. Alle Daten dieses Nutzers bleiben erhalten.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
               <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setDeleteConfirm(null)}>Abbrechen</Button>
               <Button variant="destructive" size="sm" className="h-8 text-xs" disabled={deleteMut.isPending}
                 onClick={() => deleteMut.mutate(deleteConfirm.id)}>
                 <Trash2 className="w-3.5 h-3.5 mr-1.5" />{deleteMut.isPending ? 'Löschen…' : 'Ja, löschen'}
               </Button>
-            </div>
-          </div>
-        </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )
@@ -511,6 +518,7 @@ function ProjectsTab() {
             <button
               key={f}
               onClick={() => setFilter(f)}
+              aria-pressed={filter === f}
               className={cn(
                 'px-3 py-1 rounded-md text-xs font-medium transition-colors',
                 filter === f ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
@@ -589,24 +597,25 @@ function ProjectsTab() {
       </div>
 
       {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border/60 rounded-xl p-5 w-full max-w-sm shadow-xl space-y-4">
-            <div className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="w-4 h-4" />
-              <h3 className="text-sm font-semibold">Projekt löschen</h3>
-            </div>
-            <p className="text-xs text-muted-foreground">
+        <Dialog open onOpenChange={o => { if (!o) setDeleteConfirm(null) }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-sm text-destructive">
+                <AlertTriangle className="w-4 h-4" /> Projekt löschen
+              </DialogTitle>
+            </DialogHeader>
+            <DialogDescription className="text-xs">
               <strong>„{deleteConfirm.title}"</strong> mit {deleteConfirm.scene_count} Szenen und {deleteConfirm.member_count} Mitgliedern wird unwiderruflich gelöscht.
-            </p>
-            <div className="flex gap-2 justify-end">
+            </DialogDescription>
+            <DialogFooter className="gap-2">
               <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setDeleteConfirm(null)}>Abbrechen</Button>
               <Button variant="destructive" size="sm" className="h-8 text-xs" disabled={deleteMut.isPending}
                 onClick={() => deleteMut.mutate(deleteConfirm.id)}>
                 <Trash2 className="w-3.5 h-3.5 mr-1.5" />{deleteMut.isPending ? 'Löschen…' : 'Ja, löschen'}
               </Button>
-            </div>
-          </div>
-        </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )
@@ -806,13 +815,16 @@ export function Component() {
   const { user: me } = useAuth()
   const [tab, setTab] = useState<TabId>('overview')
 
-  if (me && me.role !== 'admin') return <Navigate to="/" replace />
-
+  // Erst alle Hooks, dann die Umleitung - sonst ändert sich die Zahl der
+  // Hooks, sobald das Konto nachgeladen wird
   const { data: stats } = useQuery<Stats>({
     queryKey: ['admin-stats'],
     queryFn: () => adminFetch('/stats'),
     refetchInterval: 30_000,
+    enabled: me?.role === 'admin',
   })
+
+  if (me && me.role !== 'admin') return <Navigate to="/" replace />
 
   return (
     <div className="min-h-full bg-background">
@@ -838,6 +850,7 @@ export function Component() {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
+                aria-pressed={tab === t.id}
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
                   tab === t.id
