@@ -278,7 +278,9 @@ function PostenListe({ firmaId }: { firmaId: number }) {
       {zahlungFuer && (
         <ZahlungenDialog
           firmaId={firmaId}
-          posten={zahlungFuer}
+          // Der Posten aus der neu geladenen Liste, nicht der beim Öffnen -
+          // vorher stand nach einer Teilzahlung weiter der alte Rest im Kopf
+          posten={posten.find((p) => p.id === zahlungFuer.id) ?? zahlungFuer}
           schliessen={() => setZahlungFuer(null)}
         />
       )}
@@ -315,6 +317,9 @@ function ZahlungenDialog({ firmaId, posten, schliessen }: { firmaId: number; pos
     qc.invalidateQueries({ queryKey: ['opos', firmaId] })
     qc.invalidateQueries({ queryKey: ['mahnlauf', firmaId] })
     qc.invalidateQueries({ queryKey: ['rechnungen', firmaId] })
+    // Die geöffnete Rechnung zeigte nach der Zahlung weiter "Versendet" und
+    // bot "Als bezahlt" an (gemessen am 02.11.2026, Server: bezahlt)
+    qc.invalidateQueries({ queryKey: ['rechnung', firmaId, posten.id] })
   }
 
   const erfassen = useMutation({
@@ -330,6 +335,10 @@ function ZahlungenDialog({ firmaId, posten, schliessen }: { firmaId: number; pos
     onSuccess: (ergebnis: any) => {
       neuLaden()
       setVermerk('')
+      // Voreinstellung ist der Rest - auch nach einer Teilzahlung. Vorher
+      // blieb der eben gebuchte Betrag stehen, ein zweiter Klick buchte ihn noch einmal.
+      const rest = Number(posten.gross_cents ?? 0) - Number(ergebnis?.bezahlt_cents ?? 0)
+      setBetrag((Math.max(0, rest) / 100).toFixed(2).replace('.', ','))
       toast({
         title: ergebnis?.stand === 'bezahlt' ? 'Rechnung ist bezahlt' : 'Zahlung erfasst',
         description: `Bezahlt: ${euro(ergebnis?.bezahlt_cents ?? 0)} von ${euro(posten.gross_cents)}`,
@@ -461,9 +470,10 @@ function Mahnlauf({ firmaId }: { firmaId: number }) {
 
   const mahnen = useMutation({
     mutationFn: ({ id, mail }: { id: number; mail: boolean }) => api.mahnwesen.mahnen(firmaId, id, mail),
-    onSuccess: (ergebnis: any) => {
+    onSuccess: (ergebnis: any, { id }) => {
       qc.invalidateQueries({ queryKey: ['mahnlauf', firmaId] })
       qc.invalidateQueries({ queryKey: ['opos', firmaId] })
+      qc.invalidateQueries({ queryKey: ['rechnung', firmaId, id] })
       setFrage(null)
       toast({
         title: `Stufe ${ergebnis.stufe} festgeschrieben`,
