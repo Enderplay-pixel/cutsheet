@@ -20,6 +20,7 @@ import {
   Plus, Trash2, Info, ShieldAlert,
 } from 'lucide-react'
 import { parseISO } from 'date-fns'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 const datum = (wert: string | null | undefined) =>
   wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
@@ -81,6 +82,7 @@ function Personen({ pid }: { pid: number }) {
   const qc = useQueryClient()
   const { toast } = useToast()
   const download = useDownload()
+  const { darfSchreiben } = useSchreibrecht()
   const [neuFuer, setNeuFuer] = useState<any>(null)
   const [nurOffene, setNurOffene] = useState(false)
 
@@ -139,6 +141,7 @@ function Personen({ pid }: { pid: number }) {
         <Button
           variant={nurOffene ? 'default' : 'outline'}
           size="sm"
+          aria-pressed={nurOffene}
           onClick={() => setNurOffene((v) => !v)}
         >
           Nur offene zeigen
@@ -182,10 +185,12 @@ function Personen({ pid }: { pid: number }) {
                       <div className="text-xs text-muted-foreground mt-1">Noch kein Vertrag</div>
                     )}
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setNeuFuer(p)}>
-                    <Plus className="w-3.5 h-3.5 mr-1" />
-                    Vertrag
-                  </Button>
+                  {darfSchreiben && (
+                    <Button variant="outline" size="sm" onClick={() => setNeuFuer(p)}>
+                      <Plus className="w-3.5 h-3.5 mr-1" />
+                      Vertrag
+                    </Button>
+                  )}
                 </div>
 
                 {p.vertraege.length > 0 && (
@@ -211,11 +216,12 @@ function Personen({ pid }: { pid: number }) {
                         <Button
                           variant="ghost"
                           size="sm"
+                          aria-label={`„${v.title}“ als PDF`}
                           onClick={() => download(api.vertraege.pdfUrl(pid, v.id), `vertrag-${v.id}.pdf`)}
                         >
                           <FileText className="w-3.5 h-3.5" />
                         </Button>
-                        {(v.status === 'versendet' || v.status === 'abgelehnt') && (
+                        {darfSchreiben && (v.status === 'versendet' || v.status === 'abgelehnt') && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -227,7 +233,7 @@ function Personen({ pid }: { pid: number }) {
                             Zurückziehen
                           </Button>
                         )}
-                        {v.status === 'entwurf' && (
+                        {darfSchreiben && v.status === 'entwurf' && (
                           <Button size="sm" onClick={() => senden.mutate(v.id)} disabled={senden.isPending}>
                             <Send className="w-3.5 h-3.5 mr-1" />
                             Senden
@@ -382,6 +388,7 @@ function VertragAnlegen({ pid, person, schliessen }: { pid: number; person: any;
 function Jugendschutz({ pid }: { pid: number }) {
   const qc = useQueryClient()
   const { toast } = useToast()
+  const { darfSchreiben } = useSchreibrecht()
   const [bearbeite, setBearbeite] = useState<any>(null)
 
   const { data, isLoading } = useQuery({
@@ -462,9 +469,11 @@ function Jugendschutz({ pid }: { pid: number }) {
                     </div>
                   )}
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setBearbeite(p)}>
-                  Angaben
-                </Button>
+                {darfSchreiben && (
+                  <Button variant="outline" size="sm" onClick={() => setBearbeite(p)}>
+                    Angaben
+                  </Button>
+                )}
               </div>
 
               {p.tage.length === 0 ? (
@@ -639,6 +648,7 @@ function AngabenDialog({ pid, person, schliessen, gespeichert }: {
 function Vorlagen({ pid }: { pid: number }) {
   const qc = useQueryClient()
   const { toast } = useToast()
+  const { darfSchreiben } = useSchreibrecht()
   const [bearbeite, setBearbeite] = useState<any>(null)
 
   const { data } = useQuery({
@@ -666,12 +676,14 @@ function Vorlagen({ pid }: { pid: number }) {
         </span>
       </div>
 
-      <div className="flex justify-end">
-        <Button size="sm" onClick={() => setBearbeite({ neu: true, kind: 'darsteller', name: '', body: '' })}>
-          <Plus className="w-4 h-4 mr-1.5" />
-          Eigene Vorlage
-        </Button>
-      </div>
+      {darfSchreiben && (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => setBearbeite({ neu: true, kind: 'darsteller', name: '', body: '' })}>
+            <Plus className="w-4 h-4 mr-1.5" />
+            Eigene Vorlage
+          </Button>
+        </div>
+      )}
 
       {(data?.eigene ?? []).length > 0 && (
         <Card>
@@ -686,10 +698,16 @@ function Vorlagen({ pid }: { pid: number }) {
                 {v.company_id && (
                   <span className="text-xs text-muted-foreground">firmenweit</span>
                 )}
-                <Button variant="ghost" size="sm" onClick={() => setBearbeite(v)}>Ändern</Button>
-                <Button variant="ghost" size="sm" onClick={() => loeschen.mutate(v.id)} aria-label="Vorlage entfernen">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
+                {darfSchreiben && (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => setBearbeite(v)}>Ändern</Button>
+                    {/* Eine eigene Vorlage ist oft die anwaltlich geprüfte Fassung - nicht mit einem Klick weg */}
+                    <Button variant="ghost" size="sm" aria-label={`Vorlage „${v.name}“ entfernen`}
+                      onClick={() => { if (confirm(`Vorlage „${v.name}“ entfernen? Bereits angelegte Verträge bleiben, die Vorlage ist weg.`)) loeschen.mutate(v.id) }}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </>
+                )}
               </div>
             ))}
           </CardContent>
@@ -703,14 +721,16 @@ function Vorlagen({ pid }: { pid: number }) {
             <div key={v.kind} className="border-b border-border/40 last:border-0 pb-2 last:pb-0">
               <div className="flex items-center gap-2">
                 <span className="text-sm">{v.name}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-auto"
-                  onClick={() => setBearbeite({ neu: true, kind: v.kind, name: v.name.replace(' (Entwurf)', ''), body: v.body })}
-                >
-                  Als eigene übernehmen
-                </Button>
+                {darfSchreiben && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => setBearbeite({ neu: true, kind: v.kind, name: v.name.replace(' (Entwurf)', ''), body: v.body })}
+                  >
+                    Als eigene übernehmen
+                  </Button>
+                )}
               </div>
               <div className="text-xs text-muted-foreground">
                 {v.platzhalter.map((p: string) => `{{${p}}}`).join(' ')}
