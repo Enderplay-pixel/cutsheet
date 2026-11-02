@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { BedDouble, Car, Plus, Trash2, Download, Info, Coffee } from 'lucide-react'
 import { parseISO } from 'date-fns'
 import { heuteISO, betragInCent } from '@/lib/utils'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
@@ -31,6 +32,14 @@ function alsCents(text: string): number {
 }
 
 const alsText = (cents: number) => (Number(cents || 0) / 100).toFixed(2).replace('.', ',')
+
+/**
+ * Kilometer aus einem Textfeld, ganzzahlig. Mit dem Betragsleser, weil der
+ * Tausenderpunkte kennt - vorher ergab "1.200" mit `Number()` 1,2, gespeichert
+ * 1 km, Fahrtkosten 0,30 € statt 360 € (gemessen am 02.11.2026). NaN, wenn
+ * sich nichts lesen lässt; leer ist 0.
+ */
+const alsKilometer = (text: string) => Math.round(betragInCent(text) / 100)
 
 const TAGESART: Record<string, string> = {
   einzeln: 'Eintägig',
@@ -74,6 +83,7 @@ function Reisen({ pid }: { pid: number }) {
   const qc = useQueryClient()
   const { toast } = useToast()
   const download = useDownload()
+  const { darfSchreiben } = useSchreibrecht()
   const [neu, setNeu] = useState(false)
   const [offen, setOffen] = useState<number | null>(null)
 
@@ -118,10 +128,12 @@ function Reisen({ pid }: { pid: number }) {
             <Download className="w-4 h-4 mr-1.5" />
             Als CSV
           </Button>
-          <Button size="sm" onClick={() => setNeu(true)}>
-            <Plus className="w-4 h-4 mr-1.5" />
-            Reise
-          </Button>
+          {darfSchreiben && (
+            <Button size="sm" onClick={() => setNeu(true)}>
+              <Plus className="w-4 h-4 mr-1.5" />
+              Reise
+            </Button>
+          )}
         </div>
       </div>
 
@@ -234,6 +246,8 @@ function ReiseAnlegen({ pid, schliessen, angelegt }: {
     ...(besetzung ?? []).map((p: any) => ({ art: 'cast', id: p.id, name: p.actor_name })),
   ].filter((p) => p.name)
 
+  const km = alsKilometer(werte.kilometers)
+
   const anlegen = useMutation({
     mutationFn: () => api.reisen.anlegen(pid, {
       person_type: werte.person_type,
@@ -242,7 +256,7 @@ function ReiseAnlegen({ pid, schliessen, angelegt }: {
       purpose: werte.purpose,
       from_date: werte.from_date,
       to_date: werte.to_date,
-      kilometers: Math.round(Number(werte.kilometers) || 0),
+      kilometers: km,
       lodging_cents: alsCents(werte.lodging),
       accommodation_id: werte.accommodation_id ? Number(werte.accommodation_id) : null,
     }),
@@ -316,7 +330,9 @@ function ReiseAnlegen({ pid, schliessen, angelegt }: {
               onChange={(e) => setWerte({ ...werte, kilometers: e.target.value })}
               inputMode="numeric"
               placeholder="hin und zurück"
+              aria-invalid={Number.isNaN(km)}
             />
+            {Number.isNaN(km) && <p className="text-xs text-destructive mt-1">Bitte eine Zahl, z. B. 1.200</p>}
           </div>
           <div>
             <Label htmlFor="reise-hotel">Übernachtung gesamt</Label>
@@ -349,7 +365,7 @@ function ReiseAnlegen({ pid, schliessen, angelegt }: {
           <Button variant="ghost" onClick={schliessen}>Abbrechen</Button>
           <Button
             onClick={() => anlegen.mutate()}
-            disabled={!werte.person_name.trim() || !werte.from_date || anlegen.isPending}
+            disabled={!werte.person_name.trim() || !werte.from_date || Number.isNaN(km) || anlegen.isPending}
           >
             Anlegen
           </Button>
@@ -362,6 +378,11 @@ function ReiseAnlegen({ pid, schliessen, angelegt }: {
 function ReiseDialog({ pid, id, schliessen }: { pid: number; id: number; schliessen: () => void }) {
   const qc = useQueryClient()
   const { toast } = useToast()
+  const { darfSchreiben } = useSchreibrecht()
+  const unlesbar = (feld: HTMLInputElement, vorher: string) => {
+    toast({ title: 'Zahl nicht erkannt', variant: 'destructive' })
+    feld.value = vorher
+  }
 
   const { data: reise } = useQuery({
     queryKey: ['reise', pid, id],
@@ -431,12 +452,12 @@ function ReiseDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
                     aria-label="Stunden abwesend"
                     className="w-16 h-7 text-xs"
                     defaultValue={Math.round((t.minutes_away / 60) * 10) / 10}
-                    onBlur={(e) =>
-                      tag.mutate({
-                        tagId: t.id,
-                        daten: { minutes_away: Math.round(Number(e.target.value.replace(',', '.')) * 60) || 0 },
-                      })
-                    }
+                    disabled={!darfSchreiben}
+                    onBlur={(e) => {
+                      const stunden = Number(e.target.value.trim().replace(',', '.') || 0)
+                      if (!Number.isFinite(stunden)) return unlesbar(e.target, String(Math.round((t.minutes_away / 60) * 10) / 10))
+                      tag.mutate({ tagId: t.id, daten: { minutes_away: Math.round(stunden * 60) } })
+                    }}
                     inputMode="decimal"
                   />
                 )}
@@ -452,6 +473,8 @@ function ReiseDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
                       size="sm"
                       className="h-7 w-7 p-0 text-xs"
                       onClick={() => tag.mutate({ tagId: t.id, daten: { [feld]: !an } })}
+                      disabled={!darfSchreiben}
+                      aria-pressed={!!an}
                       aria-label={`${kuerzel === 'F' ? 'Frühstück' : kuerzel === 'M' ? 'Mittagessen' : 'Abendessen'} gestellt`}
                     >
                       {kuerzel}
@@ -480,7 +503,12 @@ function ReiseDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
             <Input
               id="reise-km-d"
               defaultValue={reise.kilometers || ''}
-              onBlur={(e) => speichern.mutate({ kilometers: Math.round(Number(e.target.value) || 0) })}
+              disabled={!darfSchreiben}
+              onBlur={(e) => {
+                const km = alsKilometer(e.target.value)
+                if (Number.isNaN(km)) return unlesbar(e.target, String(reise.kilometers || ''))
+                if (km !== Number(reise.kilometers || 0)) speichern.mutate({ kilometers: km })
+              }}
               inputMode="numeric"
             />
           </div>
@@ -489,7 +517,12 @@ function ReiseDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
             <Input
               id="reise-hotel-d"
               defaultValue={reise.lodging_cents ? alsText(reise.lodging_cents) : ''}
-              onBlur={(e) => speichern.mutate({ lodging_cents: alsCents(e.target.value) })}
+              disabled={!darfSchreiben}
+              onBlur={(e) => {
+                const cent = alsCents(e.target.value)
+                if (Number.isNaN(cent)) return unlesbar(e.target, reise.lodging_cents ? alsText(reise.lodging_cents) : '')
+                if (cent !== Number(reise.lodging_cents || 0)) speichern.mutate({ lodging_cents: cent })
+              }}
               inputMode="decimal"
             />
           </div>
@@ -516,14 +549,16 @@ function ReiseDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
         </div>
 
         <DialogFooter>
-          <Button
-            variant="ghost"
-            onClick={() => loeschen.mutate()}
-            className="text-destructive hover:text-destructive mr-auto"
-          >
-            <Trash2 className="w-4 h-4 mr-1.5" />
-            Löschen
-          </Button>
+          {darfSchreiben && (
+            <Button
+              variant="ghost"
+              onClick={() => { if (confirm(`Reise von ${reise.person_name} löschen? Das lässt sich nicht rückgängig machen.`)) loeschen.mutate() }}
+              className="text-destructive hover:text-destructive mr-auto"
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              Löschen
+            </Button>
+          )}
           <Button variant="ghost" onClick={schliessen}>Schließen</Button>
         </DialogFooter>
       </DialogContent>
@@ -536,6 +571,7 @@ function ReiseDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
 function Unterkuenfte({ pid }: { pid: number }) {
   const qc = useQueryClient()
   const { toast } = useToast()
+  const { darfSchreiben } = useSchreibrecht()
   const [bearbeite, setBearbeite] = useState<any>(null)
 
   const { data: haeuser, isLoading } = useQuery({
@@ -556,12 +592,14 @@ function Unterkuenfte({ pid }: { pid: number }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button size="sm" onClick={() => setBearbeite({ neu: true })}>
-          <Plus className="w-4 h-4 mr-1.5" />
-          Unterkunft
-        </Button>
-      </div>
+      {darfSchreiben && (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => setBearbeite({ neu: true })}>
+            <Plus className="w-4 h-4 mr-1.5" />
+            Unterkunft
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Lade…</CardContent></Card>
@@ -582,17 +620,19 @@ function Unterkuenfte({ pid }: { pid: number }) {
                   {h.phone && ` · ${h.phone}`}
                 </div>
               </div>
-              <div className="flex gap-1">
-                <Button variant="ghost" size="sm" onClick={() => setBearbeite(h)}>Ändern</Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => loeschen.mutate(h.id)}
-                  aria-label="Unterkunft entfernen"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
-              </div>
+              {darfSchreiben && (
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => setBearbeite(h)}>Ändern</Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { if (confirm(`Unterkunft „${h.name}“ entfernen? Das lässt sich nicht rückgängig machen.`)) loeschen.mutate(h.id) }}
+                    aria-label={`Unterkunft „${h.name}“ entfernen`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-4 text-sm">
