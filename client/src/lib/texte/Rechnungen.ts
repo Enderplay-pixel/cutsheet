@@ -104,5 +104,10 @@ export const rechnungenT = {
   ust:                  { de: 'USt.', en: 'VAT', fr: 'TVA' },
   keinePosition:        { de: 'Noch keine Position. Ohne Position lässt sich die Rechnung nicht festschreiben.', en: 'No line item yet. Without a line item the invoice cannot be finalised.', fr: 'Pas encore de ligne. Sans ligne, la facture ne peut pas être validée.' },
   gesamt:               { de: 'Gesamt', en: 'Total', fr: 'Total' },
+  zeileFeld:            { de: '{feld} in Zeile {n}', en: '{feld} in line {n}', fr: '{feld} à la ligne {n}' },
+  zeileEntfernen:       { de: 'Zeile {n} entfernen', en: 'Remove line {n}', fr: 'Supprimer la ligne {n}' },
+  kundeBearbeiten:      { de: '{name} bearbeiten', en: 'Edit {name}', fr: 'Modifier {name}' },
+  kundeArchivieren:     { de: '{name} archivieren', en: 'Archive {name}', fr: 'Archiver {name}' },
+  archivierenFrage:     { de: '{name} archivieren? Der Auftraggeber verschwindet aus der Auswahl, bestehende Rechnungen bleiben.', en: 'Archive {name}? The client disappears from the selection, existing invoices remain.', fr: 'Archiver {name} ? Le client disparaît de la sélection, les factures existantes restent.' },
   serverRechnet:        { de: 'Steuer und Gesamtbetrag rechnet der Server beim Speichern.', en: 'Tax and total are calculated by the server when saving.', fr: "La taxe et le total sont calculés par le serveur lors de l'enregistrement." },
 } satisfies Record<string, Text>

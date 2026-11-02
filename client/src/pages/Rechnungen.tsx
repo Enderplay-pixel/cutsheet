@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -49,6 +49,7 @@ export function Component() {
 function Uebersicht({ firmaId }: { firmaId: number }) {
   const qc = useQueryClient()
   const { toast } = useToast()
+  const navigate = useNavigate()
   const [filter, setFilter] = useState('')
   const tt = useT()
   const gs = useGebietsschema()
@@ -59,14 +60,14 @@ function Uebersicht({ firmaId }: { firmaId: number }) {
     queryFn: () => api.rechnungen.liste(firmaId, filter || undefined),
   })
   const { data: kunden } = useQuery({ queryKey: ['kunden', firmaId], queryFn: () => api.rechnungen.kunden(firmaId) })
-  const { data: projekte } = useQuery({ queryKey: ['projects'], queryFn: () => api.projects.list() })
 
   const anlegen = useMutation({
     mutationFn: () => api.rechnungen.anlegen(firmaId, { issue_date: heute() }),
     onSuccess: (ergebnis: any) => {
       qc.invalidateQueries({ queryKey: ['rechnungen', firmaId] })
       toast({ title: tt(T.entwurfAngelegt) })
-      window.location.href = `/firma/${firmaId}/rechnungen/${ergebnis.id}`
+      // Vorher window.location.href - die ganze App lud neu
+      navigate(`/firma/${firmaId}/rechnungen/${ergebnis.id}`)
     },
     onError: (fehler: any) => toast({ title: tt(T.nichtAngelegt), description: fehler.message, variant: 'destructive' }),
   })
@@ -193,7 +194,6 @@ function Uebersicht({ firmaId }: { firmaId: number }) {
         </TabsContent>
       </Tabs>
 
-      {(projekte || []).length === 0 && null}
     </div>
   )
 }
@@ -244,10 +244,13 @@ function Auftraggeber({ firmaId, kunden }: { firmaId: number; kunden: any[] }) {
                   {[kunde.contact_name, [kunde.zip, kunde.city].filter(Boolean).join(' '), kunde.vat_id].filter(Boolean).join(' · ')}
                 </p>
               </div>
-              <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setEntwurf({ ...kunde })}>
+              <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setEntwurf({ ...kunde })}
+                aria-label={tt(T.kundeBearbeiten).replace('{name}', kunde.name)}>
                 <PenLine className="w-3.5 h-3.5" />
               </Button>
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive" onClick={() => archivieren.mutate(kunde.id)}>
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive"
+                aria-label={tt(T.kundeArchivieren).replace('{name}', kunde.name)}
+                onClick={() => { if (confirm(tt(T.archivierenFrage).replace('{name}', kunde.name))) archivieren.mutate(kunde.id) }}>
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>
             </div>
@@ -445,6 +448,10 @@ function RechnungBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
     onError: (fehler: any) => toast({ title: tt(T.nichtStorniert), description: fehler.message, variant: 'destructive' }),
   })
 
+  // Beschriftet ist nur die erste Zeile sichtbar - jedes Feld bekommt seinen Namen
+  const feldName = (feld: Record<Lang, string>, i: number) =>
+    tt(T.zeileFeld).replace('{feld}', tt(feld)).replace('{n}', String(i + 1))
+
   const setzeZeile = (index: number, feld: string, wert: any) => {
     const naechste = [...zeilen]
     naechste[index] = { ...naechste[index], [feld]: wert }
@@ -597,34 +604,40 @@ function RechnungBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
               <div className="col-span-12 sm:col-span-5">
                 {i === 0 && <Label className="text-xs">{tt(T.leistung)}</Label>}
                 <Input className="mt-1 h-8 text-sm" disabled={!istEntwurf} value={zeile.description || ''}
+                  aria-label={feldName(T.leistung, i)}
                   onChange={e => setzeZeile(i, 'description', e.target.value)} />
               </div>
               <div className="col-span-3 sm:col-span-2">
                 {i === 0 && <Label className="text-xs">{tt(T.menge)}</Label>}
                 <Input className="mt-1 h-8 text-sm tabular-nums" type="number" step="0.5" min="0" disabled={!istEntwurf}
                   value={Number(zeile.quantity_milli || 0) / 1000}
+                  aria-label={feldName(T.menge, i)}
                   onChange={e => setzeZeile(i, 'quantity_milli', Math.round(Number(e.target.value || 0) * 1000))} />
               </div>
               <div className="col-span-3 sm:col-span-1">
                 {i === 0 && <Label className="text-xs">{tt(T.einheit)}</Label>}
                 <Input className="mt-1 h-8 text-sm" disabled={!istEntwurf} value={zeile.unit || ''}
+                  aria-label={feldName(T.einheit, i)}
                   onChange={e => setzeZeile(i, 'unit', e.target.value)} />
               </div>
               <div className="col-span-3 sm:col-span-2">
                 {i === 0 && <Label className="text-xs">{tt(T.einzelpreis)}</Label>}
                 <Input className="mt-1 h-8 text-sm tabular-nums" type="number" step="0.01" min="0" disabled={!istEntwurf}
                   value={Number(zeile.unit_price_cents || 0) / 100}
+                  aria-label={feldName(T.einzelpreis, i)}
                   onChange={e => setzeZeile(i, 'unit_price_cents', Math.round(Number(e.target.value || 0) * 100))} />
               </div>
               <div className="col-span-2 sm:col-span-1">
                 {i === 0 && <Label className="text-xs">{tt(T.ust)}</Label>}
                 <Input className="mt-1 h-8 text-sm tabular-nums" type="number" min="0" max="25" disabled={!istEntwurf}
                   value={zeile.tax_percent ?? 19}
+                  aria-label={feldName(T.ust, i)}
                   onChange={e => setzeZeile(i, 'tax_percent', Number(e.target.value || 0))} />
               </div>
               <div className="col-span-1 flex justify-end">
                 {istEntwurf && (
                   <Button variant="ghost" size="sm" className="h-8 px-2 text-destructive"
+                    aria-label={tt(T.zeileEntfernen).replace('{n}', String(i + 1))}
                     onClick={() => setPositionen(zeilen.filter((_: any, j: number) => j !== i))}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
