@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -198,6 +198,10 @@ function AngebotBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
   const gs = useGebietsschema()
   const [frage, setFrage] = useState<'annehmen' | 'ablehnen' | null>(null)
   const [grund, setGrund] = useState('')
+  // Wie viele Positionsänderungen noch unterwegs sind - siehe `positionenSetzen`
+  const unterwegs = useRef(0)
+  // Neue Zeilen erzwingen, wenn Positionen dazukommen oder wegfallen
+  const [fassung, setFassung] = useState(0)
 
   const { data: angebot, isLoading } = useQuery({
     queryKey: ['angebot', firmaId, id],
@@ -207,7 +211,9 @@ function AngebotBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
   const { data: projekte } = useQuery({ queryKey: ['projects'], queryFn: () => api.projects.list() })
 
   const neuLaden = () => {
-    qc.invalidateQueries({ queryKey: ['angebot', firmaId, id] })
+    // Solange Positionen unterwegs sind, würde ein Abruf den vorläufigen Stand
+    // durch einen älteren ersetzen. Die letzte Änderung lädt dann neu.
+    if (unterwegs.current === 0) qc.invalidateQueries({ queryKey: ['angebot', firmaId, id] })
     qc.invalidateQueries({ queryKey: ['angebote', firmaId] })
   }
 
@@ -220,7 +226,7 @@ function AngebotBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
 
   const positionen = useMutation({
     mutationFn: (items: any[]) => api.angebote.positionen(firmaId, id, items),
-    onSuccess: neuLaden,
+    onSettled: () => { unterwegs.current -= 1; neuLaden() },
     onError: (fehler: any) =>
       toast({ title: tt(angeboteT.nichtGespeichert), description: fehler.message, variant: 'destructive' }),
   })
@@ -278,9 +284,31 @@ function AngebotBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
   const bearbeitbar = angebot.status !== 'angenommen'
   const items: any[] = angebot.items ?? []
 
-  const posten = (index: number, feld: string, wert: any) => {
-    const neu = items.map((p, i) => (i === index ? { ...p, [feld]: wert } : p))
+  /**
+   * Positionen gehen immer als ganze Liste an den Server. Vorher wurde sie aus
+   * dem letzten Serverstand gebaut, bei jedem Verlassen eines Feldes, auch
+   * ohne Änderung - gemessen am 01.11.2026 mit 800 ms Antwortzeit: Leistung
+   * getippt, über das Mengenfeld weiter, auf dem Server stand wieder der alte
+   * Text. Jetzt steht die Liste sofort im Zwischenspeicher, das nächste Feld
+   * baut darauf auf, und Unverändertes wird nicht geschickt.
+   */
+  const positionenSetzen = (neu: any[]) => {
+    qc.setQueryData(['angebot', firmaId, id], (alt: any) => (alt ? { ...alt, items: neu } : alt))
+    unterwegs.current += 1
     positionen.mutate(neu)
+  }
+  const posten = (index: number, feld: string, wert: any) => {
+    if (items[index]?.[feld] === wert) return
+    positionenSetzen(items.map((p, i) => (i === index ? { ...p, [feld]: wert } : p)))
+  }
+  // Die Felder sind ungesteuert und nach Stelle verschlüsselt. Ohne neue
+  // Zeilen behielt nach dem Entfernen einer Position jede Zeile ihren alten
+  // Text - gemessen: "Kamera A" entfernt, angezeigt "Kamera A, Licht B",
+  // gespeichert "Licht B, Ton C". Ein Verlassen des ersten Feldes schrieb
+  // danach "Kamera A" über "Licht B".
+  const listeAendern = (neu: any[]) => {
+    setFassung(f => f + 1)
+    positionenSetzen(neu)
   }
 
   return (
@@ -425,7 +453,7 @@ function AngebotBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
               variant="outline"
               size="sm"
               onClick={() =>
-                positionen.mutate([
+                listeAendern([
                   ...items,
                   { description: '', quantity_milli: 1000, unit: 'Tag', unit_price_cents: 0, tax_percent: 19 },
                 ])
@@ -443,7 +471,7 @@ function AngebotBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
             </p>
           ) : (
             items.map((p, i) => (
-              <div key={i} className="grid gap-2 sm:grid-cols-12 items-end">
+              <div key={`${fassung}-${i}`} className="grid gap-2 sm:grid-cols-12 items-end">
                 <div className="sm:col-span-5">
                   {i === 0 && <Label htmlFor={`pos-text-${i}`}>{tt(angeboteT.leistung)}</Label>}
                   <Input
@@ -460,9 +488,16 @@ function AngebotBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
                     id={`pos-menge-${i}`}
                     aria-label={tt(angeboteT.menge)}
                     defaultValue={(Number(p.quantity_milli) / 1000).toString().replace('.', ',')}
-                    onBlur={(e) =>
-                      posten(i, 'quantity_milli', Math.round(Number(e.target.value.replace(',', '.')) * 1000))
-                    }
+                    onBlur={(e) => {
+                      // "abc" ergab NaN, gesendet als null
+                      const menge = Number(e.target.value.trim().replace(',', '.'))
+                      if (!Number.isFinite(menge)) {
+                        toast({ title: tt(angeboteT.mengeUnlesbar), variant: 'destructive' })
+                        e.target.value = (Number(p.quantity_milli) / 1000).toString().replace('.', ',')
+                        return
+                      }
+                      posten(i, 'quantity_milli', Math.round(menge * 1000))
+                    }}
                     disabled={!bearbeitbar}
                     inputMode="decimal"
                   />
@@ -504,7 +539,7 @@ function AngebotBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => positionen.mutate(items.filter((_, j) => j !== i))}
+                      onClick={() => listeAendern(items.filter((_, j) => j !== i))}
                       aria-label={tt(angeboteT.positionEntfernen)}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -536,7 +571,7 @@ function AngebotBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => loeschen.mutate()}
+          onClick={() => { if (confirm(tt(angeboteT.entwurfLoeschenFrage))) loeschen.mutate() }}
           className="text-destructive hover:text-destructive"
         >
           <Trash2 className="w-4 h-4 mr-1.5" />

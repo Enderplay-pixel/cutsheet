@@ -114,4 +114,10 @@ export const angeboteT = {
     fr: 'trop cher, date inadaptée, autre prestataire …',
   },
   vermerken: { de: 'Vermerken', en: 'Record', fr: 'Enregistrer' },
+  entwurfLoeschenFrage: {
+    de: 'Diesen Angebotsentwurf mit allen Positionen löschen? Das lässt sich nicht rückgängig machen.',
+    en: 'Delete this draft quote with all its items? This cannot be undone.',
+    fr: 'Supprimer ce brouillon de devis avec toutes ses lignes ? Cette action est irréversible.',
+  },
+  mengeUnlesbar: { de: 'Menge nicht erkannt', en: 'Quantity not recognised', fr: 'Quantité non reconnue' },
 } satisfies Record<string, Text>
