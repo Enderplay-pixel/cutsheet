@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -201,6 +201,9 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
 }) {
   const qc = useQueryClient()
   const { toast } = useToast()
+  // Wie viele Rollenänderungen unterwegs sind, und ein Zähler für frische Zeilen - siehe `rollenSetzen`
+  const unterwegs = useRef(0)
+  const [fassung, setFassung] = useState(0)
 
   const { data: anfrage } = useQuery({
     queryKey: ['casting-anfrage', pid, id],
@@ -216,7 +219,7 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
   })
 
   const neuLaden = () => {
-    qc.invalidateQueries({ queryKey: ['casting-anfrage', pid, id] })
+    if (unterwegs.current === 0) qc.invalidateQueries({ queryKey: ['casting-anfrage', pid, id] })
     qc.invalidateQueries({ queryKey: ['casting-anfragen', pid] })
   }
 
@@ -228,7 +231,7 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
 
   const rollen = useMutation({
     mutationFn: (liste: any[]) => api.casting.rollen(pid, id, liste),
-    onSuccess: neuLaden,
+    onSettled: () => { unterwegs.current -= 1; neuLaden() },
     onError: (f: any) => toast({ title: 'Nicht gespeichert', description: f.message, variant: 'destructive' }),
   })
 
@@ -283,8 +286,27 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
   const bearbeitbar = anfrage.status === 'entwurf'
   const liste: any[] = anfrage.rollen ?? []
 
-  const aendere = (index: number, feld: string, wert: any) =>
-    rollen.mutate(liste.map((r, i) => (i === index ? { ...r, [feld]: wert } : r)))
+  /**
+   * Gleiches Muster wie in den Angeboten (Fund 231): ungesteuerte Felder, nach
+   * Stelle verschlüsselt, ganze Liste aus dem letzten Serverstand. Gemessen am
+   * 02.11.2026: "Mutter" entfernt, angezeigt "Mutter, Vater", nach bloßem
+   * Verlassen gespeichert "Mutter, Kind". Jetzt steht die Liste sofort im
+   * Zwischenspeicher, Unverändertes wird nicht geschickt, Hinzufügen und
+   * Entfernen erzeugen frische Zeilen.
+   */
+  const rollenSetzen = (neu: any[]) => {
+    qc.setQueryData(['casting-anfrage', pid, id], (alt: any) => (alt ? { ...alt, rollen: neu } : alt))
+    unterwegs.current += 1
+    rollen.mutate(neu)
+  }
+  const aendere = (index: number, feld: string, wert: any) => {
+    if (liste[index]?.[feld] === wert) return
+    rollenSetzen(liste.map((r, i) => (i === index ? { ...r, [feld]: wert } : r)))
+  }
+  const listeAendern = (neu: any[]) => {
+    setFassung((f) => f + 1)
+    rollenSetzen(neu)
+  }
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) schliessen() }}>
@@ -362,7 +384,7 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => rollen.mutate([...liste, {
+                onClick={() => listeAendern([...liste, {
                   role_name: '', description: '', shoot_days: 0, fee_per_day_cents: 0,
                 }])}
               >
@@ -379,7 +401,7 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
           ) : (
             <div className="space-y-2">
               {liste.map((r, i) => (
-                <div key={i} className="grid gap-2 sm:grid-cols-12 items-end">
+                <div key={`${fassung}-${i}`} className="grid gap-2 sm:grid-cols-12 items-end">
                   <div className="sm:col-span-3">
                     {i === 0 && <Label htmlFor={`rolle-name-${i}`}>Rolle</Label>}
                     <Input
@@ -443,7 +465,7 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => rollen.mutate(liste.filter((_, j) => j !== i))}
+                        onClick={() => listeAendern(liste.filter((_, j) => j !== i))}
                         aria-label="Rolle entfernen"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -510,7 +532,7 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
           {bearbeitbar && (
             <Button
               variant="ghost"
-              onClick={() => loeschen.mutate()}
+              onClick={() => { if (confirm('Diesen Anfrageentwurf mit allen Rollen löschen? Das lässt sich nicht rückgängig machen.')) loeschen.mutate() }}
               className="text-destructive hover:text-destructive mr-auto"
             >
               <Trash2 className="w-4 h-4 mr-1.5" />
