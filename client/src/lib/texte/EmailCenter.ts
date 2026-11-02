@@ -115,4 +115,10 @@ export const emailCenterT = {
   signaturPlatzhalter: { de: 'Produktion Sprachlos\nTelefon 0123 456789', en: 'Sprachlos Production\nPhone 0123 456789', fr: 'Production Sprachlos\nTéléphone 0123 456789' },
   hinweisFuss:         { de: 'Hinweis im Fuß', en: 'Footer note', fr: 'Mention en pied de page' },
   fussPlatzhalter:     { de: 'Diese Mail enthält Drehunterlagen und ist nicht für Dritte bestimmt.', en: 'This email contains production documents and is not intended for third parties.', fr: "Cet e-mail contient des documents de tournage et n'est pas destiné à des tiers." },
+  vorschauVon:         { de: 'Vorschau von {name}', en: 'Preview {name}', fr: 'Aperçu de {name}' },
+  bearbeitenVon:       { de: '{name} bearbeiten', en: 'Edit {name}', fr: 'Modifier {name}' },
+  loeschenVon:         { de: '{name} löschen', en: 'Delete {name}', fr: 'Supprimer {name}' },
+  loeschenFrage:       { de: '„{name}“ löschen? Das lässt sich nicht rückgängig machen.', en: 'Delete "{name}"? This cannot be undone.', fr: 'Supprimer « {name} » ? Cette action est irréversible.' },
+  zurueckziehenAn:     { de: 'Mail an {name} zurückziehen', en: 'Withdraw email to {name}', fr: "Retirer l'e-mail à {name}" },
+  gruppeAuswaehlen:    { de: 'Alle aus {gruppe} auswählen', en: 'Select everyone in {gruppe}', fr: 'Sélectionner tout {gruppe}' },
 } satisfies Record<string, Text>

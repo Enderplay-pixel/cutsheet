@@ -242,6 +242,7 @@ export function Component() {
                           <button
                             className="text-xs font-semibold text-muted-foreground hover:text-primary w-full text-left mb-1 py-1.5"
                             onClick={() => gruppeUmschalten((personen as any[]).map(p => p.email))}
+                            aria-label={tt(ec.gruppeAuswaehlen).replace('{gruppe}', gruppe)}
                           >
                             {gruppe} ({(personen as any[]).length})
                           </button>
@@ -397,7 +398,8 @@ export function Component() {
                           </Button>
                         )}
                         {mail.status === 'wartet' && darfSchreiben && (
-                          <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive" onClick={() => zurueckziehen.mutate(mail.id)}>
+                          <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive" onClick={() => zurueckziehen.mutate(mail.id)}
+                            aria-label={tt(ec.zurueckziehenAn).replace('{name}', mail.recipient_name || mail.recipient_email)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         )}
@@ -470,16 +472,20 @@ function VorlagenBereich({ pid, vorlagen, darfSchreiben }: { pid: number; vorlag
                 <p className="text-sm font-medium truncate">{v.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{v.subject}</p>
               </div>
-              <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => zeigeVorschau.mutate(v.id)}>
+              <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => zeigeVorschau.mutate(v.id)}
+                aria-label={tt(ec.vorschauVon).replace('{name}', v.name)}>
                 <Eye className="w-3.5 h-3.5" />
               </Button>
               {darfSchreiben && (
                 <>
                   <Button variant="ghost" size="sm" className="h-7 px-2"
+                    aria-label={tt(ec.bearbeitenVon).replace('{name}', v.name)}
                     onClick={() => { setOffen(v.id); setEntwurf({ name: v.name, subject: v.subject, body: v.body }) }}>
                     <PenLine className="w-3.5 h-3.5" />
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive" onClick={() => loeschen.mutate(v.id)}>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive"
+                    aria-label={tt(ec.loeschenVon).replace('{name}', v.name)}
+                    onClick={() => { if (confirm(tt(ec.loeschenFrage).replace('{name}', v.name))) loeschen.mutate(v.id) }}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </>
@@ -584,7 +590,9 @@ function VerteilerBereich({ pid, verteiler, crew, darfSchreiben }: { pid: number
                 </p>
               </div>
               {darfSchreiben && (
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive" onClick={() => loeschen.mutate(v.id)}>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive"
+                  aria-label={tt(ec.loeschenVon).replace('{name}', v.name)}
+                  onClick={() => { if (confirm(tt(ec.loeschenFrage).replace('{name}', v.name))) loeschen.mutate(v.id) }}>
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               )}
