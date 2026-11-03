@@ -422,6 +422,29 @@ describe('Aufbewahrung', () => {
     expect(await db.get("SELECT id FROM email_attachments WHERE filename = 'uralt.pdf'")).toBeUndefined()
     expect(await db.get("SELECT id FROM email_attachments WHERE filename = 'dispo.pdf'")).toBeTruthy()
   })
+
+  it('behält Mahnungen samt Anhang sechs Jahre, Dispos nicht', async () => {
+    // § 257 HGB: abgesandte Handelsbriefe sechs Jahre - vorher nach 365 Tagen
+    // gelöscht, das PDF nach 60
+    const alt = async (anlass: string, tage: number) => {
+      const anhang = (await db.run(
+        `INSERT INTO email_attachments (project_id, filename, content, created_at) VALUES (?, ?, ?, NOW() - (? * INTERVAL '1 day'))`,
+        [projektId, `${anlass}-${tage}.pdf`, Buffer.from('x'), tage])).id
+      return (await db.run(
+        `INSERT INTO email_outbox (project_id, subject, html, recipient_email, purpose, attachment_id, created_at)
+         VALUES (?, ?, '<p>x</p>', 'k@example.com', ?, ?, NOW() - (? * INTERVAL '1 day'))`,
+        [projektId, `${anlass} ${tage}`, anlass, anhang, tage])).id
+    }
+    const mahnung = await alt('mahnung', 400)
+    const dispo = await alt('dispo', 400)
+    const uralt = await alt('mahnung', 365 * 8)
+    await aufbewahrung.raeumeMailanhaengeAuf()
+    expect(await db.get('SELECT id FROM email_outbox WHERE id = ?', [mahnung])).toBeTruthy()
+    expect(await db.get("SELECT id FROM email_attachments WHERE filename = 'mahnung-400.pdf'")).toBeTruthy()
+    expect(await db.get('SELECT id FROM email_outbox WHERE id = ?', [dispo])).toBeUndefined()
+    expect(await db.get("SELECT id FROM email_attachments WHERE filename = 'dispo-400.pdf'")).toBeUndefined()
+    expect(await db.get('SELECT id FROM email_outbox WHERE id = ?', [uralt])).toBeUndefined()
+  })
 })
 
 describe('Die Firma über den Projekten', () => {
