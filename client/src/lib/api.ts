@@ -1178,6 +1178,13 @@ export const api = {
     resolve: (id: number, resolved: boolean) => req<any>(`/feedback/${id}`, { method: 'PUT', body: JSON.stringify({ resolved }) }),
   },
 
+  // ─── Persönliche Einstellungen (je Konto, für alle Projekte gleich) ────────
+  einstellungen: {
+    alle: () => req<Record<string, unknown>>('/einstellungen'),
+    setzen: (schluessel: string, wert: unknown) =>
+      req<{ schluessel: string; wert: unknown }>(`/einstellungen/${encodeURIComponent(schluessel)}`, { method: 'PUT', body: JSON.stringify({ wert }) }),
+  },
+
   // ─── Kontakt-Export ────────────────────────────────────────────────────────
   contactsExport: {
     vcfUrl: (projectId: number) => `/api/projects/${projectId}/kontakte/export.vcf`,

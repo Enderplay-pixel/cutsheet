@@ -7,8 +7,12 @@ import { Button } from '@/components/ui/button'
 import {
   Film, Users, Clapperboard, AlertTriangle, Calendar,
   DollarSign, MapPin, ArrowRight, CheckCircle, AlertCircle,
-  ChevronRight, Video, Lightbulb, Activity, Megaphone
+  ChevronRight, Video, Lightbulb, Activity, Megaphone, Check, Move
 } from 'lucide-react'
+import { ArbeitsplatzEditor, ArbeitsplatzRaster } from '@/components/arbeitsplatz/Arbeitsplatz'
+import { useArbeitsplatz } from '@/lib/einstellungen'
+import { istStandard, standardAnordnung } from '@/lib/bereiche'
+import { arbeitsplatzT } from '@/lib/texte/Arbeitsplatz'
 import { isCreatorProject } from '@/lib/projectKind'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { useT } from '@/lib/useT'
@@ -16,7 +20,7 @@ import { dashT, projectsT } from '@/lib/i18n'
 import { onboardingFormatT } from '@/lib/texte/komponenten/OnboardingWizard'
 import { aktuellesGebietsschema } from '@/lib/useT'
 import { useAuth } from '@/contexts/AuthContext'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { track } from '@/lib/analytics'
 import { useCountUp, useEntered } from '@/lib/motion'
 
@@ -112,6 +116,18 @@ export function Component() {
     queryFn: () => api.creator.overview(Number(projectId)),
     enabled: !!projectId && creatorProjekt,
   })
+
+  // Der Arbeitsplatz des Kontos. Hat es für diese Projektart noch keinen,
+  // bietet die Seite einmal die Einrichtung an (Florian, 03.11.2026). Der
+  // Zustand bleibt, bis "Fertig" gedrückt ist - das erste Ablegen speichert
+  // schon und darf die Einrichtung nicht wegklappen.
+  const art = creatorProjekt ? 'creator' : 'film'
+  const platz = useArbeitsplatz(art)
+  const [einrichtung, setEinrichtung] = useState(false)
+  const [anordnen, setAnordnen] = useState(false)
+  useEffect(() => {
+    if (project && platz.neu) setEinrichtung(true)
+  }, [project, platz.neu])
 
   // Hooks vor dem frühen Return: Balken gleiten ein, Beträge zählen hoch
   const entered = useEntered(360)
@@ -292,6 +308,37 @@ export function Component() {
         )}
       </header>
 
+      {/* ── Einrichtung des Arbeitsplatzes beim ersten Besuch ── */}
+      {einrichtung && (
+        <section
+          aria-labelledby="einrichtung-titel"
+          className="mt-10 rounded-3xl border border-primary/25 bg-primary/[0.035] p-5 sm:p-7 animate-fade-up"
+        >
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5">
+            <div className="max-w-[64ch]">
+              <span className="eyebrow">{tt(arbeitsplatzT.einrichtung)}</span>
+              <h2 id="einrichtung-titel" className="font-display text-[28px] sm:text-[34px] mt-2">
+                {tt(arbeitsplatzT.einrichtungTitel)}
+              </h2>
+              <p className="text-[15px] text-foreground/85 mt-2.5 leading-relaxed">{tt(arbeitsplatzT.einrichtungText)}</p>
+              <p className="text-[13px] text-muted-foreground mt-1.5 leading-relaxed">{tt(arbeitsplatzT.einrichtungWirkung)}</p>
+            </div>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              {!istStandard(art, platz.anordnung) && (
+                <Button variant="ghost" onClick={() => platz.setzen(standardAnordnung(art))}>
+                  {tt(arbeitsplatzT.standard)}
+                </Button>
+              )}
+              <Button onClick={() => { platz.setzen(platz.anordnung); setEinrichtung(false) }}>
+                <Check className="w-3.5 h-3.5" />
+                {tt(istStandard(art, platz.anordnung) ? arbeitsplatzT.standardBehalten : arbeitsplatzT.fertig)}
+              </Button>
+            </div>
+          </div>
+          <ArbeitsplatzEditor art={art} anordnung={platz.anordnung} onChange={platz.setzen} className="mt-6" />
+        </section>
+      )}
+
       {/* ── Kennzahlen als durchlaufende Zeile ───────────── */}
       <section
         aria-label={tt(dashT.kennzahlen)}
@@ -445,6 +492,45 @@ export function Component() {
           </section>
         </div>
       </div>
+
+      {/* ── Dein Arbeitsplatz: alle Bereiche in der Reihenfolge des Kontos ── */}
+      {!einrichtung && platz.bereit && (
+        <section aria-labelledby="arbeitsplatz-titel" className="mt-10">
+          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 mb-4">
+            <div className="min-w-0">
+              <h2 id="arbeitsplatz-titel" className="text-[19px] font-semibold tracking-[-0.02em]">{tt(arbeitsplatzT.titel)}</h2>
+              <p className="text-[13px] text-muted-foreground mt-1">
+                {tt(anordnen ? arbeitsplatzT.einrichtungText : arbeitsplatzT.untertitel)}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              {anordnen && !istStandard(art, platz.anordnung) && (
+                <Button variant="ghost" size="sm" onClick={() => platz.setzen(standardAnordnung(art))}>
+                  {tt(arbeitsplatzT.standard)}
+                </Button>
+              )}
+              <Button
+                variant={anordnen ? 'default' : 'outline'}
+                size="sm"
+                aria-pressed={anordnen}
+                onClick={() => setAnordnen(a => !a)}
+              >
+                {anordnen ? <Check className="w-3.5 h-3.5" /> : <Move className="w-3.5 h-3.5" />}
+                {tt(anordnen ? arbeitsplatzT.fertig : arbeitsplatzT.anordnen)}
+              </Button>
+            </div>
+          </div>
+          {anordnen ? (
+            <ArbeitsplatzEditor art={art} anordnung={platz.anordnung} onChange={platz.setzen} />
+          ) : (
+            <ArbeitsplatzRaster
+              kategorien={platz.kategorien}
+              projektId={projectId!}
+              badges={{ konfliktradar: errors.length + warnings.length || undefined }}
+            />
+          )}
+        </section>
+      )}
     </div>
   )
 }

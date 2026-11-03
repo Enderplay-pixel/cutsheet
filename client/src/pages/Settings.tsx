@@ -13,7 +13,11 @@ import { usePushSubscription } from '@/hooks/usePushSubscription'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { settingsT, LANGS, type Lang } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
-import { Moon, Sun, Check, KeyRound, User, Globe, Palette, Bell, ShieldCheck, Download, Trash2 } from 'lucide-react'
+import { Moon, Sun, Check, KeyRound, User, Globe, Palette, Bell, ShieldCheck, Download, Trash2, LayoutGrid, RotateCcw } from 'lucide-react'
+import { ArbeitsplatzEditor } from '@/components/arbeitsplatz/Arbeitsplatz'
+import { useArbeitsplatz } from '@/lib/einstellungen'
+import { istStandard, standardAnordnung, type ArbeitsplatzArt } from '@/lib/bereiche'
+import { arbeitsplatzT } from '@/lib/texte/Arbeitsplatz'
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
 
@@ -274,12 +278,66 @@ export function Component() {
         </div>
       </Section>
 
+      {/* ── Arbeitsplatz ── */}
+      <ArbeitsplatzSection />
+
       {/* ── Benachrichtigungen ── */}
       <PushSection />
 
       {/* ── Datenschutz & Konto ── */}
       <PrivacySection />
     </div>
+  )
+}
+
+// ─── Arbeitsplatz ─────────────────────────────────────────────────────────────
+
+/** Dieselbe Anordnung wie auf der Projektseite, je Projektart. */
+function ArbeitsplatzSection() {
+  const tt = useT()
+  const [art, setArt] = useState<ArbeitsplatzArt>('film')
+  const platz = useArbeitsplatz(art)
+  return (
+    <Section icon={LayoutGrid} title={tt(arbeitsplatzT.einstellungen)} description={tt(arbeitsplatzT.einstellungenText)}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-2">
+          {(['film', 'creator'] as const).map(a => (
+            <button
+              key={a}
+              type="button"
+              onClick={() => setArt(a)}
+              aria-pressed={art === a}
+              className={cn(
+                'flex items-center gap-2 px-3 py-2 rounded-lg border text-xs transition-all',
+                art === a ? 'border-primary bg-primary/8 text-foreground font-medium' : 'border-border/60 text-muted-foreground hover:border-border hover:bg-muted/40'
+              )}
+            >
+              {tt(a === 'film' ? arbeitsplatzT.artFilm : arbeitsplatzT.artCreator)}
+            </button>
+          ))}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 text-xs"
+          disabled={istStandard(art, platz.anordnung)}
+          onClick={() => platz.setzen(standardAnordnung(art))}
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          {tt(arbeitsplatzT.standard)}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">{tt(arbeitsplatzT.einrichtungText)}</p>
+      {platz.bereit && (
+        <ArbeitsplatzEditor
+          key={art}
+          art={art}
+          anordnung={platz.anordnung}
+          onChange={platz.setzen}
+          className="sm:grid-cols-2 lg:grid-cols-2 2xl:grid-cols-2"
+        />
+      )}
+    </Section>
   )
 }
 

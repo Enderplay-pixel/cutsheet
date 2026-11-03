@@ -5,7 +5,7 @@ import { useProjectStore } from '@/store/useProjectStore'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
-import { Activity, AlertTriangle, Archive, BedDouble, BookUser, Briefcase, Building2, Calendar, CalendarClock, CalendarOff, Camera, Car, CheckCircle2, CheckSquare, ChevronRight, Clapperboard, ClipboardList, Clock, DollarSign, FileCheck, FileEdit, FileSignature, FileSpreadsheet, FileText, Film, FolderOpen, History, Image, Layers, LayoutDashboard, LayoutGrid, ListChecks, LogOut, Mail, MapPin, Megaphone, MessageSquare, Music, Package, PanelLeftClose, PanelLeftOpen, Scissors, Search, Settings, Shield, ShieldCheck, StickyNote, TableProperties, Trash2, TrendingUp, Type, Users, UtensilsCrossed, Video, Wallet } from 'lucide-react'
+import { Activity, ChevronRight, LogOut, PanelLeftClose, PanelLeftOpen, Settings, ShieldCheck } from 'lucide-react'
 import { FeedbackWidget } from '@/components/shared/FeedbackWidget'
 import { AppIcon } from '@/components/shared/BrandMark'
 import { VERSION } from '@/lib/version'
@@ -14,6 +14,8 @@ import { useT } from '@/lib/useT'
 import { navT } from '@/lib/i18n'
 import { isCreatorProject } from '@/lib/projectKind'
 import { sidebarT } from '@/lib/texte/komponenten/Layout'
+import { useArbeitsplatz } from '@/lib/einstellungen'
+import { DASHBOARD, bereichFuer, bereichLink } from '@/lib/bereiche'
 
 type NavItemDef = {
   label: string
@@ -23,6 +25,7 @@ type NavItemDef = {
 }
 
 type NavGroupDef = {
+  id: string
   label: string
   items: NavItemDef[]
 }
@@ -66,193 +69,22 @@ export function Sidebar() {
 
   const isCreator = isCreatorProject(project)
 
-  // Creator hat eigene Bereiche, nicht umbenannte Filmseiten. Die Daten dafür
-  // lagen längst in creator_videos - Serie, Zielbegriff, Titelvarianten,
-  // Sponsorenfelder, Haltequote - nur sichtbar war das alles ausschließlich
-  // innerhalb eines einzelnen Videos. Ein Kanal wird aber quer über alle
-  // Videos geführt.
-  const creatorGroups: NavGroupDef[] = [
-    {
-      label: tt(navT.overview),
-      items: [
-        { label: tt(navT.dashboard), icon: LayoutDashboard, path: '' },
-        { label: tt(navT.masterData), icon: Film, path: 'stammdaten' },
-        { label: tt(navT.tasks), icon: CheckSquare, path: 'aufgaben' },
-      ]
-    },
-    {
-      label: tt(navT.channelPlanning),
-      items: [
-        { label: tt(navT.channel), icon: Activity, path: 'creator/kanal' },
-        { label: tt(navT.ideas), icon: StickyNote, path: 'creator/ideen' },
-        { label: tt(navT.editorialPlan), icon: CalendarClock, path: 'creator/redaktionsplan' },
-        { label: tt(navT.seriesFormats), icon: Layers, path: 'creator/serien' },
-        { label: tt(navT.calendar), icon: Calendar, path: 'kalender' },
-      ]
-    },
-    {
-      label: tt(navT.videos),
-      items: [
-        { label: tt(navT.videos), icon: Video, path: 'creator' },
-        { label: tt(navT.titlesThumbs), icon: Type, path: 'creator/titel' },
-        { label: tt(navT.moodboard), icon: Image, path: 'moodboard' },
-        { label: tt(navT.comments), icon: MessageSquare, path: 'kommentare' },
-      ]
-    },
-    {
-      label: tt(navT.production),
-      items: [
-        { label: tt(navT.shotlist), icon: Camera, path: 'shotlist' },
-        { label: tt(navT.filmingLocations), icon: MapPin, path: 'motive' },
-        { label: tt(navT.guestsCast), icon: Users, path: 'besetzung' },
-        { label: tt(navT.team), icon: Briefcase, path: 'stabliste' },
-        { label: tt(navT.equipment), icon: Package, path: 'equipment' },
-        { label: tt(navT.equipmentCal), icon: CalendarClock, path: 'equipment-kalender' },
-        { label: tt(navT.setView), icon: Clapperboard, path: '/set' },
-      ]
-    },
-    {
-      label: tt(navT.editRights),
-      items: [
-        { label: tt(navT.postProd), icon: Layers, path: 'postplan' },
-        { label: tt(navT.clips), icon: Scissors, path: 'creator/clips' },
-        { label: tt(navT.timeAnalysis), icon: TableProperties, path: 'zeitanalyse' },
-        { label: tt(navT.rightsLicenses), icon: ShieldCheck, path: 'creator/rechte' },
-        { label: tt(navT.musicCues), icon: Music, path: 'musikliste' },
-      ]
-    },
-    {
-      label: tt(navT.publishing),
-      items: [
-        { label: tt(navT.uploadChecklists), icon: ListChecks, path: 'creator/checklisten' },
-        { label: tt(navT.seoMetadata), icon: Search, path: 'creator/seo' },
-        { label: tt(navT.videoPerformance), icon: TrendingUp, path: 'creator/performance' },
-      ]
-    },
-    {
-      label: tt(navT.money),
-      items: [
-        { label: tt(navT.sponsors), icon: Megaphone, path: 'creator/sponsoren' },
-        { label: tt(navT.budget), icon: DollarSign, path: 'budget' },
-        { label: tt(navT.costStatus), icon: Wallet, path: 'kostenstand' },
-      ]
-    },
-    {
-      label: tt(navT.toolsComms),
-      items: [
-        { label: tt(navT.email), icon: Mail, path: 'email' },
-        { label: tt(navT.contacts), icon: BookUser, path: 'kontakte' },
-        { label: tt(navT.pinboard), icon: StickyNote, path: 'pinboard' },
-        { label: tt(navT.activityFeed), icon: Activity, path: 'aktivitaet' },
-        { label: tt(navT.search), icon: Search, path: 'suche' },
-        { label: tt(navT.auditLog), icon: History, path: 'audit' },
-        { label: tt(sidebarT.datenschutz), icon: ShieldCheck, path: 'datenschutz' },
-        { label: tt(sidebarT.listen), icon: FileSpreadsheet, path: 'listen' },
-        { label: tt(sidebarT.papierkorb), icon: Trash2, path: 'papierkorb' },
-      ]
-    },
-  ]
-
-  const filmGroups: NavGroupDef[] = [
-    {
-      // First thing you do: create the project and break down the script
-      label: tt(navT.overview),
-      items: [
-        { label: tt(navT.dashboard), icon: LayoutDashboard, path: '' },
-        { label: tt(navT.masterData), icon: Film, path: 'stammdaten' },
-        { label: tt(navT.tasks), icon: CheckSquare, path: 'aufgaben' },
-      ]
-    },
-    {
-      // Concept & creative development phase
-      label: tt(navT.development),
-      items: [
-        { label: tt(navT.scenes), icon: FileText, path: 'drehbuch' },
-        { label: tt(navT.scriptEditor), icon: FileEdit, path: 'screenplay-editor' },
-        { label: tt(navT.moodboard), icon: Image, path: 'moodboard' },
-        { label: tt(navT.sceneComments), icon: MessageSquare, path: 'kommentare' },
-      ]
-    },
-    {
-      // Build your team
-      label: tt(navT.castingTeam),
-      items: [
-        { label: tt(navT.casting), icon: Users, path: 'besetzung' },
-        { label: tt(navT.blackoutDays), icon: CalendarOff, path: 'sperrtage' },
-        { label: tt(navT.extras), icon: Users, path: 'komparsen' },
-        { label: tt(navT.crew), icon: Briefcase, path: 'stabliste' },
-        { label: tt(navT.contacts), icon: BookUser, path: 'kontakte' },
-        { label: tt(sidebarT.agenturen), icon: Building2, path: 'agenturen' },
-        { label: tt(sidebarT.vertraege), icon: FileSignature, path: 'vertraege' },
-      ]
-    },
-    {
-      // Pre-production planning: schedule, locations, resources, budget
-      label: tt(navT.planningPrep),
-      items: [
-        { label: tt(navT.locations), icon: MapPin, path: 'motive' },
-        { label: tt(navT.shootingPlan), icon: Clapperboard, path: 'drehplan' },
-        { label: tt(navT.stripboard), icon: LayoutDashboard, path: 'staebchenplan' },
-        { label: tt(navT.calendar), icon: Calendar, path: 'kalender' },
-        { label: tt(navT.conflicts), icon: AlertTriangle, path: 'konfliktradar', badge: conflictCount > 0 ? conflictCount : undefined },
-        { label: tt(navT.equipment), icon: Package, path: 'equipment' },
-        { label: tt(navT.equipmentCal), icon: CalendarClock, path: 'equipment-kalender' },
-        { label: tt(navT.vehicles), icon: Car, path: 'fahrzeuge' },
-        { label: tt(sidebarT.reise), icon: BedDouble, path: 'reise' },
-        { label: tt(sidebarT.ablage), icon: FolderOpen, path: 'ablage' },
-        { label: tt(sidebarT.abnahme), icon: CheckCircle2, path: 'abnahme' },
-        { label: tt(sidebarT.abschluss), icon: Archive, path: 'abschluss' },
-        { label: tt(navT.catering), icon: UtensilsCrossed, path: 'catering' },
-        { label: tt(navT.budget), icon: DollarSign, path: 'budget' },
-        { label: tt(navT.costStatus), icon: Wallet, path: 'kostenstand' },
-        { label: tt(navT.insurances), icon: Shield, path: 'versicherungen' },
-      ]
-    },
-    {
-      // Day-to-day on set
-      label: tt(navT.shootDays),
-      items: [
-        { label: tt(navT.callSheet), icon: ClipboardList, path: 'tagesdispo' },
-        { label: tt(navT.checkinBoard), icon: CheckSquare, path: 'checkin' },
-        { label: tt(navT.shotlist), icon: Camera, path: 'shotlist' },
-        { label: tt(navT.setPlan), icon: LayoutGrid, path: 'setplan' },
-        { label: tt(navT.vfxTracking), icon: Layers, path: 'vfx' },
-        { label: tt(navT.continuity), icon: Image, path: 'continuity' },
-        { label: tt(navT.cameraReports), icon: Video, path: 'kameraberichte' },
-        { label: tt(navT.dailyReport), icon: FileCheck, path: 'tagesbericht' },
-        { label: tt(navT.timeAnalysis), icon: TableProperties, path: 'zeitanalyse' },
-        { label: tt(navT.timesheets), icon: Clock, path: 'timesheets' },
-        // Eigene Ansicht fürs Telefon am Set, außerhalb des Projektlayouts.
-        // Absoluter Pfad, deshalb der Sonderfall beim Linkbau weiter unten.
-        { label: tt(navT.setView), icon: Clapperboard, path: '/set' },
-      ]
-    },
-    {
-      // After wrap
-      label: tt(navT.postProduction),
-      items: [
-        { label: tt(navT.doodReport), icon: TableProperties, path: 'dood' },
-        { label: tt(navT.postPlan), icon: CalendarClock, path: 'postplan' },
-        { label: tt(navT.musicCues), icon: Music, path: 'musikliste' },
-      ]
-    },
-    {
-      // Communication & tools used throughout
-      label: tt(navT.toolsComms),
-      items: [
-        { label: tt(navT.email), icon: Mail, path: 'email' },
-        { label: tt(navT.pinboard), icon: StickyNote, path: 'pinboard' },
-        { label: tt(navT.activityFeed), icon: Activity, path: 'aktivitaet' },
-        { label: tt(navT.search), icon: Search, path: 'suche' },
-        { label: tt(navT.auditLog), icon: History, path: 'audit' },
-        { label: tt(sidebarT.datenschutz), icon: ShieldCheck, path: 'datenschutz' },
-        { label: tt(sidebarT.listen), icon: FileSpreadsheet, path: 'listen' },
-        { label: tt(sidebarT.papierkorb), icon: Trash2, path: 'papierkorb' },
-      ]
-    },
-  ]
-
-  const navGroups = isCreator ? creatorGroups : filmGroups
+  // Kategorien und Bereiche in der Reihenfolge des Kontos (lib/bereiche.ts) -
+  // dieselbe wie auf der Hauptseite. Leere Kategorien zeigt die Leiste nicht.
+  const art = isCreator ? 'creator' : 'film'
+  const { kategorien, bereit } = useArbeitsplatz(art)
+  const navGroups: NavGroupDef[] = kategorien
+    .filter(k => k.bereiche.length > 0)
+    .map(k => ({
+      id: k.id,
+      label: tt(k.text),
+      items: k.bereiche.map(x => ({
+        label: tt(x.text),
+        icon: x.icon,
+        path: x.pfad,
+        badge: x.pfad === 'konfliktradar' && conflictCount > 0 ? conflictCount : undefined,
+      })),
+    }))
 
   // Welcher Eintrag gehört zur aktuellen Seite? Zwei Abschnitte vor einem:
   // Vorher zählte nur der erste, und jede Seite unter creator/ (Kanal, Serien,
@@ -264,25 +96,20 @@ export function Sidebar() {
     const rest = location.pathname.split(`/projects/${projectId}`)[1] || ''
     const abschnitte = rest.split('/').filter(Boolean)
     const zwei = abschnitte.slice(0, 2).join('/')
-    if (abschnitte.length >= 2 && navGroups.some(g => g.items.some(i => i.path === zwei))) return zwei
+    if (abschnitte.length >= 2 && bereichFuer(art, zwei)) return zwei
     return abschnitte[0] ?? ''
-    // navGroups is rebuilt each render but its structure is static
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname, projectId, isCreator])
+  }, [location.pathname, projectId, art])
 
-  const activeGroupLabel = useMemo(() => {
-    if (aktiverPfad === null) return null
-    const group = navGroups.find(g => g.items.some(i => i.path === aktiverPfad))
-    return group?.label ?? null
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aktiverPfad, conflictCount, isCreator])
+  // Nach Kennung, nicht nach Beschriftung: die wechselt mit der Sprache
+  const aktiveGruppe = aktiverPfad === null ? null
+    : kategorien.find(k => k.bereiche.some(x => x.pfad === aktiverPfad))?.id ?? null
 
   // Open/closed state per group - persisted, default: open
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(loadOpenGroups)
 
-  const setGroupOpen = (label: string, open: boolean) => {
+  const setGroupOpen = (id: string, open: boolean) => {
     setOpenGroups(prev => {
-      const next = { ...prev, [label]: open }
+      const next = { ...prev, [id]: open }
       try { localStorage.setItem(OPEN_GROUPS_KEY, JSON.stringify(next)) } catch { /* quota */ }
       return next
     })
@@ -291,11 +118,11 @@ export function Sidebar() {
   // The group of the active page never stays collapsed - you should
   // always see where you are.
   useEffect(() => {
-    if (activeGroupLabel && openGroups[activeGroupLabel] === false) {
-      setGroupOpen(activeGroupLabel, true)
+    if (aktiveGruppe && openGroups[aktiveGruppe] === false) {
+      setGroupOpen(aktiveGruppe, true)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroupLabel])
+  }, [aktiveGruppe])
 
   // Nach der Auswahl schließen, sonst verdeckt die Schublade genau die Seite,
   // die man gerade angetippt hat
@@ -355,19 +182,28 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3 px-2" aria-label={tt(sidebarT.hauptnavigation)} role="navigation">
         {pid ? (
-          navGroups.map((group, index) => (
-            <NavGroup
-              key={group.label}
-              group={group}
-              pid={pid}
-              erste={index === 0}
-              aktiverPfad={aktiverPfad}
+          <>
+            {/* Das Dashboard steht fest oben: Dort wird angeordnet */}
+            <NavItem
+              item={{ label: tt(DASHBOARD.text), icon: DASHBOARD.icon, path: '' }}
+              to={bereichLink(pid, '')}
+              aktiv={aktiverPfad === ''}
               collapsed={sidebarCollapsed}
-              open={openGroups[group.label] !== false}
-              isActiveGroup={group.label === activeGroupLabel}
-              onToggle={() => setGroupOpen(group.label, openGroups[group.label] === false)}
             />
-          ))
+            {/* Bis die Anordnung geladen ist, nichts zeigen statt kurz den Standard */}
+            {bereit && navGroups.map(group => (
+              <NavGroup
+                key={group.id}
+                group={group}
+                pid={pid}
+                aktiverPfad={aktiverPfad}
+                collapsed={sidebarCollapsed}
+                open={openGroups[group.id] !== false}
+                isActiveGroup={group.id === aktiveGruppe}
+                onToggle={() => setGroupOpen(group.id, openGroups[group.id] === false)}
+              />
+            ))}
+          </>
         ) : (
           <div className="px-3 py-6 text-center">
             {!sidebarCollapsed && (
@@ -424,10 +260,9 @@ export function Sidebar() {
   )
 }
 
-function NavGroup({ group, pid, erste, aktiverPfad, collapsed, open, isActiveGroup, onToggle }: {
+function NavGroup({ group, pid, aktiverPfad, collapsed, open, isActiveGroup, onToggle }: {
   group: NavGroupDef
   pid: string
-  erste: boolean
   aktiverPfad: string | null
   collapsed: boolean
   open: boolean
@@ -435,18 +270,15 @@ function NavGroup({ group, pid, erste, aktiverPfad, collapsed, open, isActiveGro
   onToggle: () => void
 }) {
   // Collapsed rail: no group headers, just a thin separator
-  // (vorher per Vergleich mit 'Übersicht' - englisch heißt die Gruppe anders)
   if (collapsed) {
     return (
       <div className="mb-1">
-        {!erste && <div className="my-2 mx-2 h-px bg-border" />}
+        <div className="my-2 mx-2 h-px bg-border" />
         {group.items.map(item => (
           <NavItem
             key={item.path}
             item={item}
-            to={item.path === '' ? `/projects/${pid}`
-              : item.path.startsWith('/') ? item.path
-              : `/projects/${pid}/${item.path}`}
+            to={bereichLink(pid, item.path)}
             aktiv={item.path === aktiverPfad}
             collapsed
           />
@@ -493,9 +325,7 @@ function NavGroup({ group, pid, erste, aktiverPfad, collapsed, open, isActiveGro
             <NavItem
               key={item.path}
               item={item}
-              to={item.path === '' ? `/projects/${pid}`
-              : item.path.startsWith('/') ? item.path
-              : `/projects/${pid}/${item.path}`}
+              to={bereichLink(pid, item.path)}
               aktiv={item.path === aktiverPfad}
               collapsed={false}
             />
