@@ -2501,6 +2501,32 @@ describe('Dispo aus dem Projekt', () => {
   })
 })
 
+describe('Drehtage je Person - eine Zählung für Kalkulation, DOOD und Besetzung', () => {
+  it('zählt Szenen der Rolle und Dispo-Einträge, beim Stab auch Tage ohne Dispo', async () => {
+    const { drehtageBesetzung, drehtageStab } = await import('../lib/drehtage')
+    const projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Zählprobe', nutzerId])).id
+    const tag = async (n: number) => (await db.run(
+      "INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, ?, ?)", [projekt, n, `2026-12-0${n}`])).id
+    const [t1, t2, t3] = [await tag(1), await tag(2), await tag(3)]
+    const rolle = (await db.run("INSERT INTO characters (project_id, name) VALUES (?, 'Kapitänin')", [projekt])).id
+    const darstellerin = (await db.run('INSERT INTO "cast" (project_id, character_id, actor_name) VALUES (?, ?, ?)', [projekt, rolle, 'Rike'])).id
+    const szene = (await db.run("INSERT INTO scenes (project_id, scene_number) VALUES (?, '1')", [projekt])).id
+    await db.run('INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?)', [szene, rolle])
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, 0)', [t1, szene])
+    const stab = (await db.run("INSERT INTO crew (project_id, name, role) VALUES (?, 'Ton', 'Ton')", [projekt])).id
+
+    // Tag 2 hat eine Dispo: Rike von Hand dazugesetzt, der Stab gestrichen
+    const dispo = (await db.run('INSERT INTO call_sheets (shoot_day_id) VALUES (?)', [t2])).id
+    await db.run("INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id) VALUES (?, 'cast', ?)", [dispo, darstellerin])
+
+    // Rike: Tag 1 über die Szene (ohne Dispo), Tag 2 über die Dispo
+    expect([...(await drehtageBesetzung(db, projekt)).get(darstellerin)!].sort()).toEqual([t1, t2].sort())
+    // Stab: Tag 1 und 3 haben keine Dispo - eine neue riefe den ganzen Stab;
+    // auf der Dispo von Tag 2 steht er nicht
+    expect([...(await drehtageStab(db, projekt)).get(stab)!].sort()).toEqual([t1, t3].sort())
+  })
+})
+
 describe('Anonymisierung nach DSGVO', () => {
   it('entfernt auch Geburtsdatum und Erziehungsberechtigte und nennt die Funktion', async () => {
     const { anonymisiere } = await import('../lib/datenschutz')

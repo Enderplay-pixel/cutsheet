@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { drehtageBesetzung } from '../lib/drehtage'
 
 const router = Router()
 
@@ -33,27 +34,19 @@ router.get('/projects/:pid/dood-report', async (req: Request, res: Response) => 
     })
   }
 
-  // 3. For each cast member, determine which shoot days they are needed
-  //    Cast is needed on a day if their character_id appears in scene_characters for a scene that is on that day
-  const castRows = await Promise.all(castList.map(async (castMember: any) => {
-    // Build a set of shoot_day_ids where this cast member is scheduled
-    const scheduledDays = await db.all(
-      `SELECT DISTINCT sds.shoot_day_id
-       FROM scene_characters sc
-       JOIN shoot_day_scenes sds ON sc.scene_id = sds.scene_id
-       JOIN "cast" c ON sc.character_id = c.character_id
-       WHERE c.id = ?`,
-      [castMember.id]
-    ) as any[]
-
-    const scheduledDayIds = new Set(scheduledDays.map((r: any) => r.shoot_day_id))
+  // 3. Drehtage je Darsteller - dieselbe Zählung wie Kalkulation und
+  //    Besetzung (lib/drehtage.ts): Szenen der Rolle und Dispo-Einträge.
+  //    Vorher nur die Szenen, und eine Abfrage je Darsteller.
+  const tageJeDarsteller = await drehtageBesetzung(db, Number(req.params.pid))
+  const castRows = castList.map((castMember: any) => {
+    const scheduledDayIds = tageJeDarsteller.get(Number(castMember.id)) ?? new Set<number>()
 
     // 4 & 5. Build days array with raw work flags first
     const days = shootDays.map((sd: any) => ({
       date: sd.date,
       day_number: sd.day_number,
       shoot_day_id: sd.id,
-      isWork: scheduledDayIds.has(sd.id),
+      isWork: scheduledDayIds.has(Number(sd.id)),
       code: '',
     }))
 
@@ -114,7 +107,7 @@ router.get('/projects/:pid/dood-report', async (req: Request, res: Response) => 
       total_hold_days: totalHoldDays,
       total_cost_cents: totalCostCents,
     }
-  }))
+  })
 
   return res.json({
     data: {

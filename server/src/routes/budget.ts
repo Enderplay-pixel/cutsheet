@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import * as kosten from '../lib/kostenquellen'
+import { drehtageBesetzung, drehtageStab, anzahl } from '../lib/drehtage'
 import { db } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 
@@ -163,21 +164,9 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
   const pid = version.project_id
   const nurZeigen = Boolean(req.body?.nurZeigen)
 
-  // Arbeitstage je Person - aus den Tagesdispos, wie im Gagen-Export.
-  // Wer auf keiner Dispo steht, hat null Tage und bekommt keine Zeile.
-  async function tageJePerson(art: 'cast' | 'crew'): Promise<Map<number, number>> {
-    const zeilen = await db.all(
-      `SELECT cse.person_id AS pid, COUNT(DISTINCT sd.id) AS tage
-       FROM call_sheet_entries cse
-       JOIN call_sheets cs ON cse.call_sheet_id = cs.id
-       JOIN shoot_days sd ON cs.shoot_day_id = sd.id
-       WHERE cse.person_type = ? AND sd.project_id = ?
-       GROUP BY cse.person_id`,
-      [art, pid]
-    ) as any[]
-    return new Map(zeilen.map(z => [Number(z.pid), Number(z.tage)]))
-  }
-
+  // Drehtage je Person - dieselbe Zählung wie DOOD und Besetzung
+  // (lib/drehtage.ts). Bis zum 03.11.2026 zählten hier nur die Dispos: Ein
+  // Drehtag ohne angelegte Dispo kostete niemanden etwas.
   const besetzung = await db.all(
     `SELECT c.id, c.actor_name AS name, ch.name AS rolle, c.fee_per_day
      FROM "cast" c LEFT JOIN characters ch ON c.character_id = ch.id
@@ -193,8 +182,8 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
   const policen = await db.all(
     'SELECT id, ins_type AS type, provider, premium_cents FROM insurances WHERE project_id = ?', [pid]) as any[]
 
-  const castTage = await tageJePerson('cast')
-  const stabTage = await tageJePerson('crew')
+  const castTage = anzahl(await drehtageBesetzung(db, pid))
+  const stabTage = anzahl(await drehtageStab(db, pid))
 
   const soll = [
     ...kosten.gagenPosten(besetzung, castTage, 'cast'),
@@ -203,7 +192,7 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
     ...kosten.versicherungsPosten(policen),
   ]
 
-  // Wer eine Gage hat, aber auf keiner Dispo steht, faellt still heraus.
+  // Wer eine Gage hat, aber an keinem Drehtag gebraucht wird, faellt still heraus.
   // Das muss man sehen, sonst sucht man den fehlenden Posten vergeblich.
   const ohneDrehtag = [...besetzung.map(x => ({ ...x, art: 'cast' as const })),
                        ...stab.map(x => ({ ...x, art: 'crew' as const }))]

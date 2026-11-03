@@ -140,7 +140,7 @@ function CharacterCard({ char, scenes, onDelete }: { char: any; scenes: any[]; o
   )
 }
 
-function CastCard({ castMember, characters, shootDays, onDelete }: { castMember: any; characters: any[]; shootDays: any[]; onDelete: () => void }) {
+function CastCard({ castMember, characters, daysCount, onDelete }: { castMember: any; characters: any[]; daysCount: number; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false)
   const [form, setForm] = useState(castMember)
   const queryClient = useQueryClient()
@@ -153,7 +153,11 @@ function CastCard({ castMember, characters, shootDays, onDelete }: { castMember:
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.cast.update(castMember.id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cast', pid] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cast', pid] })
+      // Eine andere Rolle heißt andere Drehtage
+      queryClient.invalidateQueries({ queryKey: ['drehtage', pid] })
+    },
   })
   const debouncedUpdate = useRef(debounce((data: any) => mutation.mutate(data), 500)).current
   const update = (key: string, value: any) => {
@@ -163,11 +167,6 @@ function CastCard({ castMember, characters, shootDays, onDelete }: { castMember:
   }
 
   const character = characters.find(c => c.id === castMember.character_id)
-  const daysCount = shootDays.filter(day =>
-    day.scenes?.some((s: any) =>
-      s.characters?.some((c: any) => c.character_id === castMember.character_id)
-    )
-  ).length
   const totalFee = (form.fee_per_day || 0) * daysCount
 
   return (
@@ -264,9 +263,15 @@ export function Component() {
     queryKey: ['scenes', pid],
     queryFn: () => api.scenes.list(pid),
   })
-  const { data: shootDays } = useQuery({
-    queryKey: ['shoot-days', pid],
-    queryFn: () => api.drehplan.listDays(pid),
+  // Drehtage je Darsteller aus dem DOOD-Bericht - dieselbe Zählung wie
+  // Kalkulation und DOOD (server/src/lib/drehtage.ts). Vorher suchte die
+  // Seite Rollen in der Drehtag-Liste, die dort nie stehen: Gemessen am
+  // 03.11.2026 hatte jede Darstellerin 0 Drehtage und die Gagensumme war 0.
+  const { data: drehtage } = useQuery({
+    queryKey: ['drehtage', pid],
+    queryFn: async () => new Map<number, number>(
+      (((await api.dood.report(pid)) as any)?.cast ?? []).map((c: any) => [Number(c.id), Number(c.total_work_days) || 0])
+    ),
   })
 
   const createChar = useMutation({
@@ -286,12 +291,8 @@ export function Component() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cast', pid] }),
   })
 
-  const totalCastFee = (castList || []).reduce((sum: number, c: any) => {
-    const days = (shootDays || []).filter(d =>
-      d.scenes?.some((s: any) => s.characters?.some((ch: any) => ch.character_id === c.character_id))
-    ).length
-    return sum + (c.fee_per_day || 0) * days
-  }, 0)
+  const totalCastFee = (castList || []).reduce((sum: number, c: any) =>
+    sum + (c.fee_per_day || 0) * (drehtage?.get(Number(c.id)) ?? 0), 0)
 
   const exportCsv = () => {
     csvHerunterladen('besetzung.csv', [castT.darsteller, castT.figur, uiT.email, uiT.phone, castT.agentur, uiT.feePerDay].map(tt),
@@ -379,7 +380,7 @@ export function Component() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(castList || []).map((c: any) => (
-                <CastCard key={c.id} castMember={c} characters={characters || []} shootDays={shootDays || []} onDelete={() => deleteCast.mutate(c.id)} />
+                <CastCard key={c.id} castMember={c} characters={characters || []} daysCount={drehtage?.get(Number(c.id)) ?? 0} onDelete={() => deleteCast.mutate(c.id)} />
               ))}
               {(!castList || castList.length === 0) && (
                 <div className="col-span-2 text-center py-16 text-muted-foreground">

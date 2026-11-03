@@ -120,12 +120,6 @@ Stand am 24.10.2026, 23 Uhr:
   automatische Protokollierung (`aenderungenProtokollieren`) im Log - gemessen:
   Wiederöffnen als "projects" und als "zuruecknehmen". Beim Lesen der
   Server-Tests klären, ob die Middleware solche Pfade auslassen soll.
-  **Drei Tageszählungen je Darsteller:** Die Kalkulation (`routes/budget.ts`,
-  `tageJePerson`) zählt Dispo-Einträge, DOOD und Besetzung zählen Drehtage mit
-  Szenen der Figur. Seit Fund 121 trägt die Dispo die Darsteller selbst ein,
-  meist stimmen die Zahlen deshalb überein. Weicht die Dispo von Hand ab, zeigt
-  die Kalkulation andere Gagen als DOOD und Besetzung. Florian: welche Zählung
-  gilt?
   **Frage an Florian (Angebote):** Beim Festschreiben steht "Es bekommt seine
   Nummer und lässt sich danach nicht mehr ändern". Seite und Server erlauben
   Änderungen aber bis zur Annahme (`routes/angebote.ts`: nur "angenommen"
@@ -507,6 +501,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 248 | `server/vitest.config.ts`, `__tests__/zeitzone.test.ts`, `__tests__/youtubeInsights.test.ts` | Lücke im Wächter (Datum) | Der Server läuft beim Hoster in UTC, die Tests liefen in der Zone des Rechners (Berlin). `zeitzone.test.ts` prüfte `fmtDate` in einer Schleife über vier Zonen, indem es `process.env.TZ` umstellte - das wirkt im Test-Worker nicht, alle vier Durchläufe rechneten in Berliner Zeit. `youtubeInsights.test.ts` sagte das selbst im Kommentar: Der Wochentag-Test fange den Fehler aus Fund 138 nur, wenn die Suite in UTC startet. | ja: Messtest im Worker - Versatz -120 Minuten vor und nach `process.env.TZ = 'America/Los_Angeles'` bzw. `'Pacific/Auckland'`; mit `TZ=UTC` beim Start Versatz 0 | behoben: `vitest.config.ts` setzt die Zone vor dem Start der Worker auf UTC (gemessen: Versatz 0). Zeitzonen-Test prüft zuerst, dass er wirklich in UTC läuft, die wirkungslose Schleife ist weg. Gegenprobe: Wochentag in `youtubeInsights.ts` ohne `timeZone: 'Europe/Berlin'` - Test jetzt rot ("expected 'Montag' to be 'Dienstag'"), vorher wäre er in Berliner Zeit grün geblieben. Ganze Suite in UTC: 1112 grün, kein versteckter Zonenfehler |
 | 249 | `server/src/lib/creatorInsights.ts`, `server/src/lib/creatorAreas.ts`, Tests dazu | Klein (Text, Fakt) | Die Clip-Prüfung behandelte TikTok wie YouTube Shorts und meldete jeden TikTok-Clip über drei Minuten als "überschreitet das Limit von 180s" - TikTok nimmt in der App seit 2022 bis zehn Minuten an; der Test schrieb das fest. Die SEO-Prüfung schrieb "nur 1 Schlagworte". | ja: Tests lasen beides als Soll (`checkClip` 300 s TikTok → ungültig; `'nur 1 Schlagworte'`) | behoben: Grenze von 180 s nur noch für Shorts und Reels, eigener Test für einen 5-Minuten-TikTok-Clip; Einzahl "Schlagwort". Tests grün |
 | 250 | `server/src/__tests__/datenbank.test.ts`, `server/src/routes/audit.ts` | Lücke im Wächter | Der Test "Protokollsuche" prüfte eine nachgebaute Kopie der Filterfunktion, nicht die der Route - die echte `einschraenkung` maskiert `%` und `_` und kennt das Suchfeld, die Kopie nicht. Eine Änderung an der Route wäre ihm entgangen. Dazu ein Titel "legt alle fünf Tabellen an", der sieben prüft. | ja: Kopie und Route nebeneinander gelesen | behoben: `einschraenkung` exportiert, der Test benutzt sie. Gegenprobe: `AT TIME ZONE` in der Route entfernt - Test rot ("expected [ 'call_sheets', 'scenes' ] to deeply equal [ 'scenes' ]"), nur weil die Suite seit Fund 248 in UTC läuft; zurückgenommen. Titel berichtigt. Suite 1112 grün |
+| 251 | neu `server/src/lib/drehtage.ts`; `routes/budget.ts`, `routes/dood.ts`, `client/src/pages/Besetzung.tsx`, `lib/texte/Budget.ts`, Test in `datenbank.test.ts` | **Fehler (Geld, Verknüpfung)** | Drei Zählungen der Drehtage je Person: Die Kalkulation zählte nur Dispo-Einträge (ein Drehtag ohne angelegte Dispo kostete niemanden etwas), DOOD die Szenen der Rolle, die Besetzungsseite suchte Rollen in der Drehtag-Liste, die dort nie stehen. Florian (03.11.2026): Dispo und Drehplan werden live zueinander geschickt, die Zahl muss überall gleich sein. | ja: Demo-Projekt, Felix Wagner - Kalkulation 2 Tage (Drehtag 3 ohne Dispo), DOOD 3, Besetzung 0; Gagensumme der Besetzung 0 € | behoben: eine Zählung für alle drei. Besetzung: Szenen der Rolle plus Dispo-Einträge. Stab: Dispo-Einträge plus jeder Tag ohne Dispo (eine neue Dispo ruft den ganzen Stab). DOOD ohne Abfrage je Darsteller, die Besetzung übernimmt die Zahl aus DOOD. Danach gemessen: Kalkulation, DOOD und Besetzung 3 Tage je Darstellerin, Gagensumme 3.000 €. Neuer Datenbanktest mit Tag ohne Dispo, Hand-Eintrag und gestrichenem Stab |
 
 ### Verknüpfungen
 
@@ -550,6 +545,7 @@ Kandidaten stehen hier, bis sie gebaut oder verworfen sind.
 | Firmen-Adressbuch | Stab und Besetzung des Projekts | Erneuern nach "ins Projekt" gebaut (Fund 241) |
 | Tageszeit einer Szene (Drehbuch, Szenenliste) | Farben und T/N-Spalte der Tagesdispo | gleiche Einteilung wie Drehplan (`getStripClass`) gebaut, Fund 242 |
 | Erste Überschrift einer Szene im Drehbuch | Szenendatensatz (INT/EXT, Titel, Tageszeit), Motiv | nur noch die erste, nicht jede Überschriftenzeile - Fund 243 |
+| Szenen der Rolle, Dispo-Einträge | Kalkulation, DOOD, Besetzung | eine Zählung (`lib/drehtage.ts`), Fund 251 |
 
 ## Abhakliste
 

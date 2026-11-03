@@ -44,9 +44,9 @@ export const budgetT = {
     fr: "Les postes saisis à la main restent intacts. Les postes importés sont mis à jour au prochain passage au lieu d'être créés en double.",
   },
   ohneDrehtag:      {
-    de: 'Ohne Position, weil auf keiner Tagesdispo: {namen}. Erst eintragen, dann erneut übernehmen.',
-    en: 'No item, because not on any call sheet: {namen}. Add them first, then import again.',
-    fr: "Sans poste, car sur aucune feuille de service : {namen}. D'abord les inscrire, puis importer à nouveau.",
+    de: 'Ohne Position, weil an keinem Drehtag: {namen}. Erst einer Szene oder Dispo zuordnen, dann erneut übernehmen.',
+    en: 'No item, because not on any shoot day: {namen}. Assign them to a scene or call sheet first, then import again.',
+    fr: "Sans poste, car sur aucun jour de tournage : {namen}. D'abord les affecter à une scène ou une feuille de service, puis importer à nouveau.",
   },
   uebernehmen:      { de: 'Übernehmen', en: 'Import', fr: 'Importer' },
   abbrechen:        { de: 'Abbrechen', en: 'Cancel', fr: 'Annuler' },
