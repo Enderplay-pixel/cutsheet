@@ -9,6 +9,7 @@ import { initDatabase, pool } from './db'
 import { starteVersandSchleife } from './lib/mailversand'
 import { raeumeMailanhaengeAuf } from './lib/mailaufbewahrung'
 import { raeumeVerwaisteProjekteAuf } from './lib/kontoloeschung'
+import einstellungenRouter from './routes/einstellungen'
 import { raeumeAuf as raeumePapierkorbAuf } from './lib/papierkorb'
 import { ueberlastKontext } from './lib/ueberlast'
 import { passwortPoolBeenden } from './lib/passwort'
@@ -281,6 +282,7 @@ app.use('/api', (req, res, next) => {
 // Mount routes
 app.use('/api/projects', projectsRouter)
 app.use('/api', scenesRouter)
+app.use('/api', einstellungenRouter)
 app.use('/api', charactersRouter)
 app.use('/api', crewRouter)
 app.use('/api', locationsRouter)

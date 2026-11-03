@@ -1009,6 +1009,18 @@ export async function initDatabase() {
   // Projekte gelöschter Konten: 30 Tage vorgemerkt (lib/kontoloeschung.ts)
   await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS verwaist_seit TIMESTAMPTZ`)
   await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS verwaist_email TEXT`)
+  // Persönliche Einstellungen je Konto (routes/einstellungen.ts): Arbeitsplatz,
+  // Anordnung einzelner Seiten, gesehene Einführungen
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS user_einstellungen (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      schluessel TEXT NOT NULL,
+      wert JSONB NOT NULL,
+      aktualisiert TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (user_id, schluessel)
+    )
+  `)
   // Projektart: 'film' = klassische Produktion, 'creator' = Content-/YouTube-Kanal.
   // Steuert Navigation und Feature-Set im Client.
   await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_kind TEXT NOT NULL DEFAULT 'film'`)

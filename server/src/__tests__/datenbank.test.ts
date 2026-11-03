@@ -126,6 +126,8 @@ beforeAll(async () => {
   app.use('/api', mahnwesenRouter)
   const { default: angeboteRouter } = await import('../routes/angebote')
   app.use('/api', angeboteRouter)
+  const { default: einstellungenRouter } = await import('../routes/einstellungen')
+  app.use('/api', einstellungenRouter)
   app.use('/api', dateienRouter)
   const { default: anliegenRouter } = await import('../routes/anliegen')
   app.use('/api', anliegenRouter)
@@ -895,6 +897,40 @@ describe('Rechnungen', () => {
   })
 })
 
+
+describe('Persönliche Einstellungen', () => {
+  // Florian (03.11.2026): je Nutzer gespeichert und sicher voneinander getrennt
+  it('trennt die Einstellungen zweier Konten', async () => {
+    const anordnung = { kategorien: [{ id: 'planung', bereiche: ['drehplan', 'motive'] }], ausgeblendet: [] }
+    expect((await hole('/api/einstellungen/arbeitsplatz:film', tokenInhaber, { method: 'PUT', body: JSON.stringify({ wert: anordnung }) })).status).toBe(200)
+    expect((await hole('/api/einstellungen', tokenInhaber)).daten['arbeitsplatz:film']).toEqual(anordnung)
+    // Die andere Person sieht nichts davon und überschreibt nur ihre eigene
+    expect((await hole('/api/einstellungen', tokenFremd)).daten['arbeitsplatz:film']).toBeUndefined()
+    await hole('/api/einstellungen/arbeitsplatz:film', tokenFremd, { method: 'PUT', body: JSON.stringify({ wert: { kategorien: [] } }) })
+    expect((await hole('/api/einstellungen', tokenInhaber)).daten['arbeitsplatz:film']).toEqual(anordnung)
+    expect((await hole('/api/einstellungen', tokenFremd)).daten['arbeitsplatz:film']).toEqual({ kategorien: [] })
+    // Ohne Anmeldung nichts
+    expect((await hole('/api/einstellungen', '')).status).toBe(401)
+  })
+
+  it('weist unbrauchbare Namen und zu große Werte ab und löscht auf Wunsch', async () => {
+    expect((await hole('/api/einstellungen/Mit%20Leerzeichen', tokenInhaber, { method: 'PUT', body: JSON.stringify({ wert: 1 }) })).status).toBe(400)
+    expect((await hole('/api/einstellungen/leer', tokenInhaber, { method: 'PUT', body: '{}' })).status).toBe(400)
+    expect((await hole('/api/einstellungen/gross', tokenInhaber, { method: 'PUT', body: JSON.stringify({ wert: 'x'.repeat(40_000) }) })).status).toBe(413)
+    await hole('/api/einstellungen/einfuehrungen', tokenInhaber, { method: 'PUT', body: JSON.stringify({ wert: { drehplan: true } }) })
+    expect((await hole('/api/einstellungen/einfuehrungen', tokenInhaber, { method: 'DELETE' })).status).toBe(200)
+    expect((await hole('/api/einstellungen', tokenInhaber)).daten.einfuehrungen).toBeUndefined()
+  })
+
+  it('verschwindet mit dem Konto', async () => {
+    const konto = await hole('/api/auth/register', '', {
+      method: 'POST', body: JSON.stringify({ name: 'Geht', email: 'einstellung-weg@example.com', password: 'Einstellung-123' }),
+    })
+    await hole('/api/einstellungen/arbeitsplatz:film', konto.daten.token, { method: 'PUT', body: JSON.stringify({ wert: { kategorien: [] } }) })
+    await hole('/api/auth/me', konto.daten.token, { method: 'DELETE', body: JSON.stringify({ password: 'Einstellung-123' }) })
+    expect(await db.get('SELECT id FROM user_einstellungen WHERE user_id = ?', [konto.daten.user.id])).toBeUndefined()
+  })
+})
 
 describe('Angebote nach dem Festschreiben', () => {
   // Bis zum 03.11.2026 bis zur Annahme änderbar, obwohl der Dialog beim

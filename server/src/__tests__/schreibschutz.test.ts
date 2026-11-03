@@ -101,6 +101,8 @@ beforeAll(async () => {
     import('../routes/reise'), import('../routes/vertraege'),
     // Nur lesend - für den Leseschutz unten
     import('../routes/anliegen'), import('../routes/conflicts'), import('../routes/sun'),
+    // Konto, nicht Projekt: die eigenen Einstellungen des angemeldeten Kontos
+    import('../routes/einstellungen'),
   ])
   const { projectWriteGuard } = await import('../middleware/projectAuth')
 
@@ -150,6 +152,7 @@ function beispiel(pfad: string): string {
 const FREIGESTELLT = [
   /^\/api\/cse\/t\//,           // öffentlicher Dispo-Link, 160-Bit-Token
   /^\/api\/projects$/,          // Projekt anlegen
+  /^\/api\/einstellungen\//,    // eigene Einstellungen des Kontos, je Konto getrennt
   // Öffentliche Links mit Token (OEFFENTLICHE_PFADE). Die Attrappe findet zu
   // jedem Token einen Datensatz - beurteilen lässt sich hier nur die Rolle,
   // nicht der Token.
@@ -244,6 +247,7 @@ const OEFFENTLICH_LESBAR = [
   /^\/api\/email\/receipt\/abc$/,        // Empfangsbestätigung aus der Mail, mit Token
   /^\/api\/push\/vapid-public-key$/,     // öffentlicher Schlüssel für Web-Push
   /^\/api\/creator\/youtube\/callback$/, // Rückkehr von Google, über state gesichert
+  /^\/api\/einstellungen$/,             // nur die eigenen Einstellungen des Kontos
 ]
 
 describe('Leseschutz gegen fremde Konten', () => {
