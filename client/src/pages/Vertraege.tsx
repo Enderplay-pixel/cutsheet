@@ -559,6 +559,7 @@ function AngabenDialog({ pid, person, schliessen, gespeichert }: {
     permit_granted: person.permit_granted === true,
     permit_reference: person.permit_reference || '',
     permit_valid_until: person.permit_valid_until ? String(person.permit_valid_until).slice(0, 10) : '',
+    school_bound: person.school_bound ?? null as boolean | null,
   })
 
   const speichern = useMutation({
@@ -600,6 +601,30 @@ function AngabenDialog({ pid, person, schliessen, gespeichert }: {
               An diese Adresse gehen die Verträge - nicht an das Kind.
             </p>
           </div>
+          {person.alter >= 15 && (
+            <div className="border-t border-border/60 pt-3">
+              <p className="text-sm font-medium" id="js-schule">Vollzeitschulpflichtig?</p>
+              <div className="mt-1.5 inline-flex rounded-md border border-border p-0.5" role="group" aria-labelledby="js-schule">
+                {([[null, 'Nicht erfasst'], [true, 'Ja'], [false, 'Nein']] as const).map(([wert, text]) => (
+                  <button
+                    key={text}
+                    type="button"
+                    aria-pressed={werte.school_bound === wert}
+                    onClick={() => setWerte({ ...werte, school_bound: wert })}
+                    className={`px-3 py-1 text-xs rounded transition-colors ${
+                      werte.school_bound === wert ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {text}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Wer noch zur Schule muss, gilt auch mit {person.alter} als Kind (§ 2 Abs. 3 JArbSchG):
+                höchstens 3 Stunden zwischen 8 und 22 Uhr, mit Bewilligung.
+              </p>
+            </div>
+          )}
           <div className="flex items-center gap-2 border-t border-border/60 pt-3">
             <input
               id="js-bewilligung"

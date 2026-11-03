@@ -168,6 +168,20 @@ describe('Prüfung eines Einsatzes', () => {
     expect(p.befunde[0].text).toContain('§ 2 Abs. 3 JArbSchG')
   })
 
+  it('rechnet eine vollzeitschulpflichtige 15-Jährige wie ein Kind', () => {
+    const p = pruefeEinsatz({ ...basis, geburtstag: '2011-01-10', bewilligung: false, von: '15:00', bis: '22:30', schulpflichtig: true })
+    expect(p.istKind).toBe(true)
+    const verstoesse = p.befunde.filter((b) => b.art === 'verstoss').map((b) => b.text)
+    expect(verstoesse.some((t) => t.startsWith('7,5 Stunden geplant, erlaubt sind 3'))).toBe(true)
+    expect(verstoesse.some((t) => t.includes('nach 22 Uhr'))).toBe(true)
+    expect(verstoesse.some((t) => t.includes('Bewilligung'))).toBe(true)
+  })
+
+  it('erinnert nicht mehr, wenn der Schulstatus "nein" eingetragen ist', () => {
+    const p = pruefeEinsatz({ ...basis, geburtstag: '2011-01-10', bewilligung: false, von: '15:00', bis: '22:30', schulpflichtig: false })
+    expect(p.befunde).toEqual([])
+  })
+
   it('prüft Volljährige nicht', () => {
     const p = pruefeEinsatz({ ...basis, geburtstag: '1998-05-20', von: '06:00', bis: '22:00' })
     expect(p.alter).toBe(28)

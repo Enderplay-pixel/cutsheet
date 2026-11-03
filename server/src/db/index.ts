@@ -971,6 +971,10 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE extras ADD COLUMN IF NOT EXISTS guardian_email TEXT NOT NULL DEFAULT ''`)
   await db.exec(`ALTER TABLE extras ADD COLUMN IF NOT EXISTS permit_granted BOOLEAN NOT NULL DEFAULT false`)
   await db.exec(`ALTER TABLE crew ADD COLUMN IF NOT EXISTS birthdate DATE`)
+  // Vollzeitschulpflichtig: Dann gelten auch ab 15 die Regeln für Kinder
+  // (§ 2 Abs. 3 JArbSchG). NULL heißt "nicht erfasst" - die Prüfung erinnert.
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS school_bound BOOLEAN`)
+  await db.exec(`ALTER TABLE extras ADD COLUMN IF NOT EXISTS school_bound BOOLEAN`)
   await db.exec(`ALTER TABLE screenplay_blocks ADD COLUMN IF NOT EXISTS annotation_color TEXT NOT NULL DEFAULT '#f59e0b'`)
   // Tatsaechlicher Drehaufwand je Szene und Drehtag. NULL heisst "nicht
   // gemessen" - nicht 0. Die Zeitanalyse faellt dann auf die Aufteilung der

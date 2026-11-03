@@ -54,7 +54,7 @@ export const KIND_BIS_ALTER = 15
  * drei Jahre" und "über sechs Jahre": Ein Kind, das am Drehtag genau sechs
  * ist, fällt in die untere Stufe, erst ab dem siebten Geburtstag in die obere.
  */
-export function grenzeFuer(alter: number, art: Einsatzart = 'film'): Grenze {
+export function grenzeFuer(alter: number, art: Einsatzart = 'film', schulpflichtig: boolean | null = null): Grenze {
   if (!Number.isFinite(alter) || alter < 0) {
     return {
       erlaubt: false, maxMinuten: 0, vonStunde: 0, bisStunde: 0, bewilligungNoetig: true,
@@ -73,15 +73,17 @@ export function grenzeFuer(alter: number, art: Einsatzart = 'film'): Grenze {
       grund: 'Über 3 bis 6 Jahre: höchstens 2 Stunden zwischen 8 und 17 Uhr (§ 6 Abs. 1 Nr. 2 JArbSchG)',
     }
   }
-  if (alter < KIND_BIS_ALTER) {
+  // Vollzeitschulpflichtige Jugendliche zählen als Kinder (§ 2 Abs. 3 JArbSchG)
+  if (alter < KIND_BIS_ALTER || (alter < 18 && schulpflichtig === true)) {
+    const wer = alter < KIND_BIS_ALTER ? 'Über 6 Jahre' : 'Vollzeitschulpflichtig, darum wie ein Kind (§ 2 Abs. 3 JArbSchG)'
     return art === 'theater'
       ? {
           erlaubt: true, maxMinuten: 240, vonStunde: 10, bisStunde: 23, bewilligungNoetig: true,
-          grund: 'Über 6 Jahre, Theatervorstellung: höchstens 4 Stunden zwischen 10 und 23 Uhr (§ 6 Abs. 1 Nr. 1 JArbSchG)',
+          grund: `${wer}, Theatervorstellung: höchstens 4 Stunden zwischen 10 und 23 Uhr (§ 6 Abs. 1 Nr. 1 JArbSchG)`,
         }
       : {
           erlaubt: true, maxMinuten: 180, vonStunde: 8, bisStunde: 22, bewilligungNoetig: true,
-          grund: 'Über 6 Jahre: höchstens 3 Stunden zwischen 8 und 22 Uhr (§ 6 Abs. 1 Nr. 2 JArbSchG)',
+          grund: `${wer}: höchstens 3 Stunden zwischen 8 und 22 Uhr (§ 6 Abs. 1 Nr. 2 JArbSchG)`,
         }
   }
   // Ab 15 Jahren ist jemand Jugendlicher, nicht mehr Kind. Dann gelten die
@@ -135,6 +137,8 @@ export type Einsatz = {
   bewilligung?: boolean
   /** Ob das Einverständnis der Erziehungsberechtigten vorliegt. */
   einverstaendnis?: boolean
+  /** Vollzeitschulpflichtig? `null` heißt: nicht erfasst. */
+  schulpflichtig?: boolean | null
 }
 
 export type Befund = {
@@ -174,8 +178,9 @@ export function pruefeEinsatz(e: Einsatz): Pruefung {
   }
 
   const alter = alterAm(e.geburtstag, e.datum)
-  const istKind = alter < KIND_BIS_ALTER
-  const grenze = grenzeFuer(alter, e.art ?? 'film')
+  const schulpflichtig = e.schulpflichtig ?? null
+  const istKind = alter < KIND_BIS_ALTER || (alter < 18 && schulpflichtig === true)
+  const grenze = grenzeFuer(alter, e.art ?? 'film', schulpflichtig)
 
   // Volljährige kommen gar nicht erst in die Prüfung.
   if (alter >= 18) {
@@ -230,13 +235,14 @@ export function pruefeEinsatz(e: Einsatz): Pruefung {
       text: 'Das Einverständnis der Erziehungsberechtigten ist nicht vermerkt. Es gehört zum Antrag.',
     })
   }
-  // Ob jemand noch zur Schule geht, weiß die App nicht. Bis zum 03.11.2026
-  // stand hier für eine 15-jährige Schülerin nichts - also acht Stunden bis
-  // 23 Uhr ohne Bewilligung, obwohl für sie die Grenzen für Kinder gelten.
-  if (!istKind) {
+  // Ist der Schulstatus nicht erfasst, erinnert die Prüfung daran. Bis zum
+  // 03.11.2026 stand hier für eine 15-jährige Schülerin nichts - also acht
+  // Stunden bis 23 Uhr ohne Bewilligung, obwohl für sie die Grenzen für
+  // Kinder gelten. Seitdem lässt sich der Status je Person eintragen.
+  if (!istKind && schulpflichtig === null) {
     befunde.push({
       art: 'hinweis',
-      text: 'Wer noch vollzeitschulpflichtig ist, gilt als Kind (§ 2 Abs. 3 JArbSchG): '
+      text: 'Schulstatus nicht eingetragen. Wer noch vollzeitschulpflichtig ist, gilt als Kind (§ 2 Abs. 3 JArbSchG): '
         + 'dann höchstens 3 Stunden zwischen 8 und 22 Uhr, und die Bewilligung der Aufsichtsbehörde ist nötig.',
     })
   }

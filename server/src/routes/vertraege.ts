@@ -673,16 +673,16 @@ router.get('/projects/:projectId/jugendschutz', requireAuth, requireMember, asyn
   const heute = heuteISO()
 
   const personen = (await db.all(
-    `SELECT 'cast' AS art, id, actor_name AS name, birthdate, guardian_name, permit_granted,
-            permit_reference, permit_valid_until
+    `SELECT 'cast' AS art, id, actor_name AS name, birthdate, guardian_name, guardian_email, permit_granted,
+            permit_reference, permit_valid_until, school_bound
        FROM "cast" WHERE project_id = ? AND birthdate IS NOT NULL
      UNION ALL
-     SELECT 'extra' AS art, id, name, birthdate, guardian_name, permit_granted,
-            '' AS permit_reference, NULL AS permit_valid_until
+     SELECT 'extra' AS art, id, name, birthdate, guardian_name, guardian_email, permit_granted,
+            '' AS permit_reference, NULL AS permit_valid_until, school_bound
        FROM extras WHERE project_id = ? AND birthdate IS NOT NULL
      UNION ALL
-     SELECT 'crew' AS art, id, name, birthdate, '' AS guardian_name, false AS permit_granted,
-            '' AS permit_reference, NULL AS permit_valid_until
+     SELECT 'crew' AS art, id, name, birthdate, '' AS guardian_name, '' AS guardian_email, false AS permit_granted,
+            '' AS permit_reference, NULL AS permit_valid_until, NULL AS school_bound
        FROM crew WHERE project_id = ? AND birthdate IS NOT NULL`,
     [projectId, projectId, projectId]
   )) as any[]
@@ -736,6 +736,7 @@ router.get('/projects/:projectId/jugendschutz', requireAuth, requireMember, asyn
         bis: alsUhrzeit(ende),
         bewilligung: p.permit_granted === true && !abgelaufen,
         einverstaendnis: !!String(p.guardian_name || '').trim(),
+        schulpflichtig: p.school_bound ?? null,
       })
       if (abgelaufen) {
         pruefung.befunde = pruefung.befunde.map((b) => b.text.startsWith('Die Bewilligung der Aufsichtsbehörde fehlt')
@@ -757,11 +758,16 @@ router.get('/projects/:projectId/jugendschutz', requireAuth, requireMember, asyn
       person_id: p.id,
       name: p.name,
       alter,
-      grenze: grenzeFuer(alter),
+      grenze: grenzeFuer(alter, 'film', p.school_bound ?? null),
+      school_bound: p.school_bound ?? null,
       permit_granted: p.permit_granted === true,
       permit_reference: p.permit_reference || '',
       permit_valid_until: p.permit_valid_until,
       guardian_name: p.guardian_name || '',
+      // Der Angaben-Dialog füllt sein Feld damit. Fehlte bis zum 03.11.2026 -
+      // jedes Speichern im Dialog überschrieb die Adresse, an die die
+      // Verträge des Kindes gehen, mit leer.
+      guardian_email: p.guardian_email || '',
       tage,
       verstoesse: tage.reduce((s, t) => s + t.befunde.filter((b: any) => b.art === 'verstoss').length, 0),
     }
@@ -798,6 +804,10 @@ router.put('/projects/:projectId/jugendschutz/:art/:personId', requireAuth, requ
   if ('guardian_name' in req.body) { felder.push('guardian_name = ?'); werte.push(String(req.body.guardian_name || '')) }
   if ('guardian_email' in req.body) { felder.push('guardian_email = ?'); werte.push(String(req.body.guardian_email || '')) }
   if ('permit_granted' in req.body) { felder.push('permit_granted = ?'); werte.push(req.body.permit_granted === true) }
+  if ('school_bound' in req.body) {
+    felder.push('school_bound = ?')
+    werte.push(req.body.school_bound === true ? true : req.body.school_bound === false ? false : null)
+  }
   if (art === 'cast') {
     if ('guardian_phone' in req.body) { felder.push('guardian_phone = ?'); werte.push(String(req.body.guardian_phone || '')) }
     if ('permit_reference' in req.body) { felder.push('permit_reference = ?'); werte.push(String(req.body.permit_reference || '')) }
