@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn, eighthsToString, debounce } from '@/lib/utils'
+import { cn, eighthsToString, debounce, szenenArt } from '@/lib/utils'
 import { Plus, Trash2, Upload, Download, FileText, MapPin, Users, ChevronDown, ChevronUp, Tag, Search, Film } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { useT } from '@/lib/useT'
@@ -22,19 +22,10 @@ const INT_EXT_OPTIONS = ['INT', 'EXT', 'INT/EXT']
 const DAY_NIGHT_OPTIONS = ['TAG', 'NACHT', 'DÄMMERUNG', 'MORGEN']
 const INVENTORY_CATS = ['Requisite', 'Kostüm', 'Maske', 'SFX', 'VFX', 'Fahrzeuge', 'Tiere', 'Waffen', 'Stunts', 'Sonstiges']
 
-const SCENE_COLORS: Record<string, { dot: string; row: string; border: string }> = {
-  'INT/TAG':     { dot: 'bg-amber-400',   row: 'hover:bg-amber-500/5',   border: 'border-l-amber-400/60' },
-  'EXT/TAG':     { dot: 'bg-blue-400',    row: 'hover:bg-blue-500/5',    border: 'border-l-blue-400/60' },
-  'INT/NACHT':   { dot: 'bg-indigo-400',  row: 'hover:bg-indigo-500/5',  border: 'border-l-indigo-400/60' },
-  'EXT/NACHT':   { dot: 'bg-teal-400',    row: 'hover:bg-teal-500/5',    border: 'border-l-teal-400/60' },
-  'INT/DÄMMERUNG':{ dot: 'bg-orange-400', row: 'hover:bg-orange-500/5',  border: 'border-l-orange-400/60' },
-  'EXT/DÄMMERUNG':{ dot: 'bg-pink-400',   row: 'hover:bg-pink-500/5',    border: 'border-l-pink-400/60' },
-  'INT/MORGEN':  { dot: 'bg-yellow-400',  row: 'hover:bg-yellow-500/5',  border: 'border-l-yellow-400/60' },
-  'EXT/MORGEN':  { dot: 'bg-cyan-400',    row: 'hover:bg-cyan-500/5',    border: 'border-l-cyan-400/60' },
-}
-
+/** Farben wie im Drehplan und in der Tagesdispo (index.css, `.szene-*`). */
 function getColor(int_ext: string, day_night: string) {
-  return SCENE_COLORS[`${int_ext}/${day_night}`] || { dot: 'bg-muted-foreground', row: 'hover:bg-muted/30', border: 'border-l-border' }
+  const art = `szene-${szenenArt(int_ext, day_night)}`
+  return { dot: cn(art, 'szene-punkt'), row: 'hover:bg-muted/30', border: cn(art, 'szene-kante') }
 }
 
 // Ein geleertes Zahlenfeld ist ein Zwischenstand beim Tippen. Vorher sprang es

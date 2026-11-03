@@ -81,9 +81,23 @@ export function eighthsToString(eighths: number): string {
  * Nacht, INT/EXT als Außen (Wetter und Licht hängen am Außenteil).
  */
 export function getStripClass(intExt: string, dayNight: string): string {
-  const innen = intExt === 'INT'
-  const nacht = dayNight === 'NACHT' || dayNight === 'DÄMMERUNG'
-  return `strip-${innen ? 'int' : 'ext'}-${nacht ? 'nacht' : 'tag'}`
+  return `strip-${szenenArt(intExt, dayNight)}`
+}
+
+export type SzenenArt = 'int-tag' | 'ext-tag' | 'int-nacht' | 'ext-nacht'
+export const SZENEN_ARTEN: SzenenArt[] = ['int-tag', 'ext-tag', 'int-nacht', 'ext-nacht']
+
+/**
+ * Eine der vier Arten - Grundlage aller Szenenfarben (index.css, `.szene-*`).
+ * Bis zum 03.11.2026 färbten Szenenübersicht, Drehplan und Tagesdispo mit
+ * drei verschiedenen Schemata: Orange hieß im Drehplan Innen-Tag, in der
+ * Dispo Innen-Nacht.
+ */
+export function szenenArt(intExt: string, dayNight: string): SzenenArt {
+  const innen = String(intExt || '').toUpperCase() === 'INT'
+  const dn = String(dayNight || '').toUpperCase()
+  const nacht = dn === 'NACHT' || dn === 'DÄMMERUNG'
+  return `${innen ? 'int' : 'ext'}-${nacht ? 'nacht' : 'tag'}`
 }
 
 export function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {

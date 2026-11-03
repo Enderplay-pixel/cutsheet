@@ -102,16 +102,6 @@ Stand am 24.10.2026, 23 Uhr:
   Fälle behoben, zuletzt `/shots/:id` (Fund 103). Messweg
   `scratchpad/fehlende_zeilen.cjs`.
 - **Merkzettel für spätere Dateien** (gesehen, noch nicht gemessen):
-  Szenenübersicht, Drehplan und Tagesdispo färben INT/EXT × Tageszeit
-  dreifach verschieden - für Florian, welches Schema gilt. Szenenübersicht
-  (`Drehbuch.tsx`): INT/Tag bernstein, EXT/Tag blau, INT/Nacht indigo,
-  EXT/Nacht türkis, dazu eigene Farben für Dämmerung und Morgen. Drehplan
-  (`index.css`, `strip-*`): INT/Tag orange, EXT/Tag grün, INT/Nacht blau,
-  EXT/Nacht türkis. Tagesdispo: INT/Tag gelb, EXT/Tag hellblau, INT/Nacht
-  orange, EXT/Nacht indigo. Orange heißt also im Drehplan Innen-Tag, in der
-  Dispo Innen-Nacht; indigo in der Übersicht Innen-Nacht, in der Dispo
-  Außen-Nacht. Die Einteilung (welche Tageszeit als Tag zählt) ist seit Fund
-  242 in Drehplan und Dispo gleich, die Farben nicht.
   **Lesezugriff:** Gemessen am 31.10.2026 mit einem Lese-Konto. Equipment ist
   gesperrt (Fund 187). Aufgaben zeigte keinen offenen Knopf, das Testprojekt
   hatte aber keine Aufgaben. Budget gesperrt (Fund 223).
@@ -502,6 +492,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 249 | `server/src/lib/creatorInsights.ts`, `server/src/lib/creatorAreas.ts`, Tests dazu | Klein (Text, Fakt) | Die Clip-Prüfung behandelte TikTok wie YouTube Shorts und meldete jeden TikTok-Clip über drei Minuten als "überschreitet das Limit von 180s" - TikTok nimmt in der App seit 2022 bis zehn Minuten an; der Test schrieb das fest. Die SEO-Prüfung schrieb "nur 1 Schlagworte". | ja: Tests lasen beides als Soll (`checkClip` 300 s TikTok → ungültig; `'nur 1 Schlagworte'`) | behoben: Grenze von 180 s nur noch für Shorts und Reels, eigener Test für einen 5-Minuten-TikTok-Clip; Einzahl "Schlagwort". Tests grün |
 | 250 | `server/src/__tests__/datenbank.test.ts`, `server/src/routes/audit.ts` | Lücke im Wächter | Der Test "Protokollsuche" prüfte eine nachgebaute Kopie der Filterfunktion, nicht die der Route - die echte `einschraenkung` maskiert `%` und `_` und kennt das Suchfeld, die Kopie nicht. Eine Änderung an der Route wäre ihm entgangen. Dazu ein Titel "legt alle fünf Tabellen an", der sieben prüft. | ja: Kopie und Route nebeneinander gelesen | behoben: `einschraenkung` exportiert, der Test benutzt sie. Gegenprobe: `AT TIME ZONE` in der Route entfernt - Test rot ("expected [ 'call_sheets', 'scenes' ] to deeply equal [ 'scenes' ]"), nur weil die Suite seit Fund 248 in UTC läuft; zurückgenommen. Titel berichtigt. Suite 1112 grün |
 | 251 | neu `server/src/lib/drehtage.ts`; `routes/budget.ts`, `routes/dood.ts`, `client/src/pages/Besetzung.tsx`, `lib/texte/Budget.ts`, Test in `datenbank.test.ts` | **Fehler (Geld, Verknüpfung)** | Drei Zählungen der Drehtage je Person: Die Kalkulation zählte nur Dispo-Einträge (ein Drehtag ohne angelegte Dispo kostete niemanden etwas), DOOD die Szenen der Rolle, die Besetzungsseite suchte Rollen in der Drehtag-Liste, die dort nie stehen. Florian (03.11.2026): Dispo und Drehplan werden live zueinander geschickt, die Zahl muss überall gleich sein. | ja: Demo-Projekt, Felix Wagner - Kalkulation 2 Tage (Drehtag 3 ohne Dispo), DOOD 3, Besetzung 0; Gagensumme der Besetzung 0 € | behoben: eine Zählung für alle drei. Besetzung: Szenen der Rolle plus Dispo-Einträge. Stab: Dispo-Einträge plus jeder Tag ohne Dispo (eine neue Dispo ruft den ganzen Stab). DOOD ohne Abfrage je Darsteller, die Besetzung übernimmt die Zahl aus DOOD. Danach gemessen: Kalkulation, DOOD und Besetzung 3 Tage je Darstellerin, Gagensumme 3.000 €. Neuer Datenbanktest mit Tag ohne Dispo, Hand-Eintrag und gestrichenem Stab |
+| 252 | `client/src/lib/utils.ts` (`szenenArt`), `index.css` (`.szene-*`, `strip-*`), `pages/Drehbuch.tsx`, `pages/Tagesdispo.tsx`, `server/src/lib/callSheetLayout.ts`, Test dazu | **Fehler (Darstellung), Entscheidung Florian** | Szenenübersicht, Drehplan und Tagesdispo färbten INT/EXT × Tageszeit mit drei Schemata - Orange hieß im Drehplan Innen-Tag, in der Dispo Innen-Nacht. Das Dispo-PDF kannte nur INT und EXT. Florian (03.11.2026): "was auch immer du am besten hältst". | ja: drei Farbtabellen im Code (Merkzettel) | behoben: ein Schema an einer Stelle, wie auf dem Stripboard: Innen/Tag weiß (im Hellmodus hellgrau), Außen/Tag gelb, Innen/Nacht blau, Außen/Nacht grün. Einteilung überall `szenenArt` (MORGEN Tag, DÄMMERUNG Nacht, INT/EXT außen), auch im PDF. Danach gemessen im Demo-Projekt: Szenen 1-4 und 7 auf allen drei Seiten rgb(233, 231, 226), 5-6 rgb(250, 205, 25), 8 rgb(70, 138, 246); Legende der Dispo gleich; Hellmodus Innen/Tag rgb(183, 179, 174). PDF-Test prüft die Klassen |
 
 ### Verknüpfungen
 

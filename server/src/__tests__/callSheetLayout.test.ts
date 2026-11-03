@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   fmtCallTime, fmtEighths, sumEighths, dayNightCode, fmtSheetDate,
   groupByDepartment, balanceColumns, parseDeptNotes, renderCallSheetHtml,
-  DEPARTMENT_ORDER,
+  DEPARTMENT_ORDER, szenenArt,
 } from '../lib/callSheetLayout'
 
 describe('fmtCallTime', () => {
@@ -275,6 +275,15 @@ describe('renderCallSheetHtml', () => {
     expect(html).toContain('page2')
     expect(html).toContain('Rosita Freitag')
     expect(html).toContain('KAMERA')
+  })
+
+  it('färbt die Szenen wie das Stripboard der App', () => {
+    // INT/TAG weiß, EXT/NACHT grün - vorher nur INT blau und EXT grün
+    expect(html).toContain('class="set int-tag"')
+    expect(html).toContain('class="set ext-nacht"')
+    expect(szenenArt('INT', 'MORGEN')).toBe('int-tag')
+    expect(szenenArt('INT', 'DÄMMERUNG')).toBe('int-nacht')
+    expect(szenenArt('INT/EXT', 'TAG')).toBe('ext-tag')
   })
 
   it('enthaelt die Funkkanaele', () => {

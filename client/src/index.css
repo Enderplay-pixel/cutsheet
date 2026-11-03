@@ -302,12 +302,37 @@ kbd {
   }
 }
 
-/* ─── Drehplan strip colors ─────────────────────────── */
-/* Branchenübliche Streifenfarben (INT/EXT × Tag/Nacht) */
-.strip-int-tag   { background: hsl(32 90% 55% / 0.10); border-left: 3px solid hsl(32 90% 52%); }
-.strip-ext-tag   { background: hsl(140 50% 45% / 0.10); border-left: 3px solid hsl(140 50% 42%); }
-.strip-int-nacht { background: hsl(222 70% 58% / 0.11); border-left: 3px solid hsl(222 70% 56%); }
-.strip-ext-nacht { background: hsl(180 50% 40% / 0.11); border-left: 3px solid hsl(180 50% 40%); }
+/* ─── Szenenfarben: INT/EXT × Tag/Nacht ─────────────── */
+/* Ein Schema für Drehplan, Szenenübersicht und Tagesdispo (lib/utils.ts,
+   `szenenArt`), wie auf dem Stripboard: Innen/Tag weiß, Außen/Tag gelb,
+   Innen/Nacht blau, Außen/Nacht grün. Weiß ist im Hellmodus ein helles
+   Grau - auf weißem Grund wäre es unsichtbar. Das Dispo-PDF nimmt dieselben
+   Farben (server/src/lib/callSheetLayout.ts). */
+:root {
+  --szene-int-tag: hsl(40 12% 90%);
+  --szene-ext-tag: hsl(48 96% 54%);
+  --szene-int-nacht: hsl(217 91% 62%);
+  --szene-ext-nacht: hsl(142 62% 45%);
+}
+.light { --szene-int-tag: hsl(30 6% 70%); }
+.szene-int-tag   { --szene: var(--szene-int-tag); }
+.szene-ext-tag   { --szene: var(--szene-ext-tag); }
+.szene-int-nacht { --szene: var(--szene-int-nacht); }
+.szene-ext-nacht { --szene: var(--szene-ext-nacht); }
+.szene-punkt   { background: var(--szene); }
+.szene-kante   { border-left-color: var(--szene) !important; }
+.szene-flaeche { background: color-mix(in srgb, var(--szene) 7%, transparent); }
+.szene-marke   { background: color-mix(in srgb, var(--szene) 22%, transparent); color: hsl(var(--foreground)); }
+
+/* Streifen im Drehplan */
+.strip-int-tag, .strip-ext-tag, .strip-int-nacht, .strip-ext-nacht {
+  background: color-mix(in srgb, var(--szene) 11%, transparent);
+  border-left: 3px solid var(--szene);
+}
+.strip-int-tag   { --szene: var(--szene-int-tag); }
+.strip-ext-tag   { --szene: var(--szene-ext-tag); }
+.strip-int-nacht { --szene: var(--szene-int-nacht); }
+.strip-ext-nacht { --szene: var(--szene-ext-nacht); }
 
 /* ─── Global Radix animation timing ─────────────────── */
 /* open: fast start (ease-out feel), close: snap away */

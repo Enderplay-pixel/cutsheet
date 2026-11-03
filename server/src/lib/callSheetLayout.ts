@@ -65,6 +65,18 @@ export function dayNightCode(dayNight: string | null | undefined): string {
   return 'T'
 }
 
+/**
+ * Eine der vier Stripboard-Arten - dieselbe Einteilung wie in der App
+ * (client/src/lib/utils.ts, `szenenArt`): MORGEN zählt als Tag, DÄMMERUNG als
+ * Nacht, alles außer INT als Außen. Vorher kannte das Blatt nur INT und EXT.
+ */
+export function szenenArt(intExt: string | null | undefined, dayNight: string | null | undefined): string {
+  const innen = String(intExt ?? '').toUpperCase() === 'INT'
+  const dn = String(dayNight ?? '').toUpperCase()
+  const nacht = dn === 'NACHT' || dn === 'DÄMMERUNG'
+  return `${innen ? 'int' : 'ext'}-${nacht ? 'nacht' : 'tag'}`
+}
+
 /** Deutsches Datum mit Wochentag, wie es oben rechts auf dem Blatt steht. */
 export function fmtSheetDate(date: string | null | undefined): string {
   const d = new Date(String(date ?? ''))
@@ -199,7 +211,7 @@ export function renderCallSheetHtml(data: CallSheetData): string {
   const sceneRows = scenes.map((sc) => `<tr>
     <td class="c b">${esc(sc.scene_number)}</td>
     <td class="c">${esc(fmtEighths(sc.eighths))}</td>
-    <td class="set ${sc.int_ext === 'EXT' ? 'ext' : 'int'}">
+    <td class="set ${szenenArt(sc.int_ext, sc.day_night)}">
       <b>${esc(String(sc.int_ext || 'INT').toUpperCase())}. ${esc(String(sc.title || '').toUpperCase())}</b>
       ${sc.description ? `<div class="desc">${esc(sc.description)}</div>` : ''}
     </td>
@@ -241,7 +253,7 @@ export function renderCallSheetHtml(data: CallSheetData): string {
     ${a.scenes.map((sc) => `<tr>
       <td class="c b">${esc(sc.scene_number)}</td>
       <td class="c">${esc(fmtEighths(sc.eighths))}</td>
-      <td class="set ${sc.int_ext === 'EXT' ? 'ext' : 'int'}">
+      <td class="set ${szenenArt(sc.int_ext, sc.day_night)}">
         <b>${esc(String(sc.int_ext || 'INT').toUpperCase())}. ${esc(String(sc.title || '').toUpperCase())}</b>
         ${sc.description ? `<div class="desc">${esc(sc.description)}</div>` : ''}
       </td>
@@ -310,8 +322,11 @@ export function renderCallSheetHtml(data: CallSheetData): string {
   thead th { background: var(--fill); color: var(--gray); font-size: 6.6pt; font-weight: 600;
              text-transform: uppercase; letter-spacing: 0.03em; }
   .set { font-size: 7.2pt; font-weight: 600; }
-  .set.int { border-left: 3pt solid #0a84ff; }
-  .set.ext { border-left: 3pt solid #30a14e; }
+  /* Stripboard-Farben wie in der App (client/src/index.css, .szene-*) */
+  .set.int-tag   { border-left: 3pt solid #c7c4bf; }
+  .set.ext-tag   { border-left: 3pt solid #f2c200; }
+  .set.int-nacht { border-left: 3pt solid #3b82f6; }
+  .set.ext-nacht { border-left: 3pt solid #22a04b; }
   .desc { font-weight: normal; color: #48484a; font-size: 6.9pt; }
   .sum td { background: var(--fill); font-weight: 600; }
   .advhead td { background: var(--hair); font-weight: 600; font-size: 7.2pt; }

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
-import { formatDate, formatDateLong, debounce, cn, eighthsToString } from '@/lib/utils'
+import { formatDate, formatDateLong, debounce, cn, eighthsToString, szenenArt, SZENEN_ARTEN, type SzenenArt } from '@/lib/utils'
 import {
   ChevronLeft, ChevronRight, MapPin, Clock, Users,
   Plus, Minus, ClipboardList, Save, Download, Trash2, Clapperboard,
@@ -139,23 +139,19 @@ function SendDispoButton({ dayId, entries, onSent }: {
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 /**
- * Die vier Farben der Legende. Eingeteilt wie `getStripClass` (lib/utils.ts):
- * MORGEN zählt als Tag, DÄMMERUNG als Nacht, INT/EXT als Außen. Vorher fiel
- * alles außer TAG und NACHT auf Außen-Nacht - gemessen am 03.11.2026: eine
- * Szene INT/MORGEN bekam den Streifen von "EXT/Nacht".
+ * Farben wie im Drehplan und in der Szenenübersicht (index.css, `.szene-*`,
+ * Einteilung `szenenArt` in lib/utils.ts). Bis zum 03.11.2026 hatte die Dispo
+ * ein eigenes Schema: Orange hieß hier Innen-Nacht, im Drehplan Innen-Tag.
  */
-function sceneArt(int_ext: string, day_night: string): 'intTag' | 'extTag' | 'intNacht' | 'extNacht' {
-  const innen = (int_ext || '').toUpperCase() === 'INT'
-  const dn = (day_night || '').toUpperCase()
-  const nacht = dn === 'NACHT' || dn === 'DÄMMERUNG'
-  return innen ? (nacht ? 'intNacht' : 'intTag') : (nacht ? 'extNacht' : 'extTag')
+function szenenFarbe(art: SzenenArt) {
+  return {
+    strip: cn(`szene-${art}`, 'szene-punkt'),
+    row: cn(`szene-${art}`, 'szene-flaeche'),
+    badge: cn(`szene-${art}`, 'szene-marke'),
+  }
 }
-
-const SZENENFARBE = {
-  intTag:   { strip: 'bg-yellow-400', row: 'bg-yellow-500/5', badge: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' },
-  extTag:   { strip: 'bg-sky-400', row: 'bg-sky-500/5', badge: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300' },
-  intNacht: { strip: 'bg-orange-500', row: 'bg-orange-500/5', badge: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300' },
-  extNacht: { strip: 'bg-indigo-500', row: 'bg-indigo-500/5', badge: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300' },
+const LEGENDE: Record<SzenenArt, keyof typeof D> = {
+  'int-tag': 'intTag', 'ext-tag': 'extTag', 'int-nacht': 'intNacht', 'ext-nacht': 'extNacht',
 }
 
 // ─── Add-person inline panel ─────────────────────────────────────────────────
@@ -586,7 +582,7 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
           </thead>
           <tbody>
             {scenes.map((s: any) => {
-              const farbe = SZENENFARBE[sceneArt(s.int_ext, s.day_night)]
+              const farbe = szenenFarbe(szenenArt(s.int_ext, s.day_night))
               const stripColor = farbe.strip
               const rowBg = farbe.row
               const badgeColor = farbe.badge
@@ -636,7 +632,7 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
 
       {/* Legend */}
       <div className="flex items-center gap-4 flex-wrap px-5 py-2.5 border-t border-border/30 bg-muted/10">
-        {(['intTag', 'extTag', 'intNacht', 'extNacht'] as const).map(art => ({ label: tt(D[art]), color: SZENENFARBE[art].strip })).map(({ label, color }) => (
+        {SZENEN_ARTEN.map(art => ({ label: tt(D[LEGENDE[art]] as any), color: szenenFarbe(art).strip })).map(({ label, color }) => (
           <div key={label} className="flex items-center gap-1.5">
             <div className={cn('w-2.5 h-2.5 rounded-sm', color)} />
             <span className="text-[11px] text-muted-foreground">{label}</span>
