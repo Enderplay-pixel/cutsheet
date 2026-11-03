@@ -9,7 +9,7 @@ Im Dashboard von Render oder Railway setzen:
 | Variable | Wert | Zweck |
 |---|---|---|
 | `CUTSHEET_TESTVERSION` | `1` | Zeigt in der App (Seitenleiste und Anmeldung) das Kennzeichen „Test“. Nach dem Launch entfernen. |
-| `ADMIN_EMAIL` | deine E-Mail | Dieses Konto ist immer Admin. |
+| `ADMIN_EMAIL` | deine E-Mail | Dieses Konto ist dauerhaft Admin: sofort bei der Registrierung, bei jedem Start, und im Admin-Panel lässt es sich weder herabstufen noch löschen. |
 | `TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD` | optional, Passwort mindestens 12 Zeichen | Legt einen zusätzlichen Test-Admin an. Ohne beide Werte gibt es in Produktion **kein** Standardkonto. |
 | `APP_BASE_URL` | öffentliche URL | Pflicht für Links in E-Mails. |
 | `PDF_MAX_PARALLEL` | `1` bei 512 MB RAM, sonst `2` | Anzahl PDFs, die gleichzeitig gerendert werden. |

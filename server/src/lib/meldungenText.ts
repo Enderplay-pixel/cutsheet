@@ -190,6 +190,7 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Link ungültig': { en: 'Invalid link', fr: 'Lien invalide' },
   'Link ungültig oder abgelaufen. Bitte fordere einen neuen an.': { en: 'Link invalid or expired. Please request a new one.', fr: 'Lien invalide ou expiré. Demandes-en un nouveau.' },
   'Löschen darf die Produktion': { en: 'Only production may delete', fr: 'Seule la production peut supprimer' },
+  'Dieses Konto ist über ADMIN_EMAIL dauerhaft Admin': { en: 'This account is a permanent admin via ADMIN_EMAIL', fr: 'Ce compte est administrateur permanent via ADMIN_EMAIL' },
   'Mindestens 8 Zeichen': { en: 'At least 8 characters', fr: 'Au moins 8 caractères' },
   'Mitglied nicht gefunden': { en: 'Member not found', fr: 'Membre introuvable' },
   'Motiv nicht gefunden': { en: 'Location not found', fr: 'Décor introuvable' },

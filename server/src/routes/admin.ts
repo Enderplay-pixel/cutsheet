@@ -5,6 +5,7 @@ import { seedGrossproduktion } from '../db/grossproduktion'
 import { requireAuth, requireRole, vergissKonto, beendeAlleSitzungen } from '../middleware/auth'
 import { appBasisUrl } from '../lib/mailversand'
 import { projekteRegeln, projekteZurueckgeben } from '../lib/kontoloeschung'
+import { istDauerAdmin, DAUERADMIN_FEHLER } from '../lib/dauerAdmin'
 
 const router = Router()
 
@@ -313,6 +314,7 @@ router.delete('/users/:id', async (req: Request, res: Response) => {
   }
   const user = await db.get('SELECT id, email FROM users WHERE id = ?', [id]) as any
   if (!user) return res.status(404).json({ data: null, error: 'Benutzer nicht gefunden' })
+  if (istDauerAdmin(user.email)) return res.status(400).json({ data: null, error: DAUERADMIN_FEHLER })
 
   // Die Projekte: Übergabe an das Team, sonst 30 Tage vorgemerkt - eine
   // erneute Anmeldung mit derselben Adresse bekommt sie zurück
@@ -343,6 +345,10 @@ router.put('/users/:id/role', async (req: Request, res: Response) => {
   const valid = ['admin', 'user']
   if (!role || !valid.includes(role)) {
     return res.status(400).json({ data: null, error: 'Ungültige Rolle' })
+  }
+  if (role !== 'admin') {
+    const ziel = await db.get('SELECT email FROM users WHERE id = ?', [id]) as any
+    if (istDauerAdmin(ziel?.email)) return res.status(400).json({ data: null, error: DAUERADMIN_FEHLER })
   }
   await db.run('UPDATE users SET role = ? WHERE id = ?', [role, id])
   vergissKonto(id)
@@ -379,7 +385,7 @@ router.post('/users', async (req: Request, res: Response) => {
   if (exists) return res.status(409).json({ data: null, error: 'E-Mail bereits vergeben' })
 
   const hash = await hashPasswort(password, 12)
-  const finalRole = role === 'admin' ? 'admin' : 'user'
+  const finalRole = role === 'admin' || istDauerAdmin(email) ? 'admin' : 'user'
   const result = await db.run(
     'INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)',
     [email, hash, name || '', finalRole]

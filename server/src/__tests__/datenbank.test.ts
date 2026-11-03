@@ -1950,6 +1950,27 @@ describe('Projekte gelöschter Konten', () => {
     expect((await versuch('12345678', 'acht@example.com')).status).toBe(201)
   })
 
+  it('macht das Konto aus ADMIN_EMAIL sofort und dauerhaft zum Admin', async () => {
+    const vorher = process.env.ADMIN_EMAIL
+    process.env.ADMIN_EMAIL = 'Dauer-Admin@example.com'
+    try {
+      const { signToken } = await import('../middleware/auth')
+      const chef = await db.run("INSERT INTO users (email, password_hash, name, role) VALUES ('dauer-chef@example.com', 'x', 'Chef', 'admin')")
+      const chefToken = signToken({ id: chef.id, email: 'dauer-chef@example.com', name: 'Chef', role: 'admin' })
+      const konto = await hole('/api/auth/register', '', {
+        method: 'POST', body: JSON.stringify({ name: 'Dauer', email: 'dauer-admin@example.com', password: 'Dauer-Admin-123' }),
+      })
+      expect(konto.daten.user.role).toBe('admin')
+      const id = konto.daten.user.id
+      expect((await hole(`/api/admin/users/${id}/role`, chefToken, { method: 'PUT', body: JSON.stringify({ role: 'user' }) })).status).toBe(400)
+      expect((await hole(`/api/admin/users/${id}`, chefToken, { method: 'DELETE' })).status).toBe(400)
+      expect((await db.get('SELECT role FROM users WHERE id = ?', [id])).role).toBe('admin')
+    } finally {
+      if (vorher === undefined) delete process.env.ADMIN_EMAIL
+      else process.env.ADMIN_EMAIL = vorher
+    }
+  })
+
   it('kennt global nur Admin und Nutzer', async () => {
     const { signToken } = await import('../middleware/auth')
     const chef = await db.run("INSERT INTO users (email, password_hash, name, role) VALUES ('rollen-chef@example.com', 'x', 'Chef', 'admin')")

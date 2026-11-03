@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import { projekteRegeln, projekteZurueckgeben } from '../lib/kontoloeschung'
+import { istDauerAdmin } from '../lib/dauerAdmin'
 import crypto from 'crypto'
 import { z } from 'zod'
 import { db, seedDemoData } from '../db'
@@ -76,7 +77,8 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
   // First registered user becomes site admin; everyone else is a regular user.
   // Per-project roles are managed separately via project_members.
   const userCount = Number(((await db.get('SELECT COUNT(*) as c FROM users', [])) as any)?.c ?? 0)
-  const role = userCount === 0 ? 'admin' : 'user'
+  // Das Konto aus ADMIN_EMAIL ist sofort Admin, nicht erst nach dem nächsten Start
+  const role = userCount === 0 || istDauerAdmin(email) ? 'admin' : 'user'
 
   const password_hash = await hashPasswort(password, 12)
   const result = await db.run(
