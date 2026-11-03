@@ -31,7 +31,9 @@ const LESER = { id: 98, email: 'leser@test.local', role: 'user' }
 let angemeldet: typeof FREMDER = FREMDER
 
 vi.mock('../db', () => {
-  const projektZeile = { id: 1, project_id: 1, owner_id: 1, title: 'Fremdes Projekt' }
+  // subject: die Quittungsseite setzt den Betreff ein (Spalte NOT NULL) -
+  // ohne ihn brach die Leseprüfung dort mit einer unbehandelten Ablehnung ab
+  const projektZeile = { id: 1, project_id: 1, owner_id: 1, title: 'Fremdes Projekt', subject: 'Betreff' }
   return {
     pool: { query: vi.fn(async () => ({ rows: [] })) },
     toPg: (sql: string) => sql,
@@ -56,6 +58,7 @@ vi.mock('../db', () => {
 let server: http.Server
 let base = ''
 const routen: Array<{ methode: string; pfad: string }> = []
+const leseRouten: string[] = []
 
 beforeAll(async () => {
   const module = await Promise.all([
@@ -89,6 +92,15 @@ beforeAll(async () => {
     import('../routes/companies'), import('../routes/invoices'),
     import('../routes/datenschutz'), import('../routes/papierkorb'),
     import('../routes/tabellen'),
+    // Fehlten bis zum 03.11.2026, obwohl oben "der Rest" steht: 59 schreibende
+    // Routen, die später dazukamen, liefen an diesem Test vorbei
+    import('../routes/abnahme'), import('../routes/abschluss'),
+    import('../routes/agenturen'), import('../routes/angebote'),
+    import('../routes/auswertungen'), import('../routes/buchhaltung'),
+    import('../routes/dateien'), import('../routes/mahnwesen'),
+    import('../routes/reise'), import('../routes/vertraege'),
+    // Nur lesend - für den Leseschutz unten
+    import('../routes/anliegen'), import('../routes/conflicts'), import('../routes/sun'),
   ])
   const { projectWriteGuard } = await import('../middleware/projectAuth')
 
@@ -105,6 +117,8 @@ beforeAll(async () => {
       for (const m of Object.keys(schicht.route.methods)) {
         if (['post', 'put', 'patch', 'delete'].includes(m)) {
           routen.push({ methode: m.toUpperCase(), pfad: praefix + schicht.route.path })
+        } else if (m === 'get') {
+          leseRouten.push(praefix + schicht.route.path)
         }
       }
     } else if (schicht.handle?.stack) {
@@ -136,6 +150,10 @@ function beispiel(pfad: string): string {
 const FREIGESTELLT = [
   /^\/api\/cse\/t\//,           // öffentlicher Dispo-Link, 160-Bit-Token
   /^\/api\/projects$/,          // Projekt anlegen
+  // Öffentliche Links mit Token (OEFFENTLICHE_PFADE). Die Attrappe findet zu
+  // jedem Token einen Datensatz - beurteilen lässt sich hier nur die Rolle,
+  // nicht der Token.
+  /^\/api\/(abnahme|casting|vertrag)\/abc\//,
 ]
 
 describe('Schreibschutz gegen fremde Konten', () => {
@@ -183,7 +201,6 @@ const OHNE_PROJEKT = [
   /^\/api\/companies\//,         // Firmenrechte, eigene Prüfung
   /^\/api\/(feedback|push)\b/,   // Konto, nicht Projekt
   /^\/api\/invites\/abc\/accept$/, // Einladung annehmen
-  /^\/api\/(abnahme|casting|vertrag)\/abc\//, // öffentliche Links mit Token
 ]
 
 describe('Schreibschutz gegen Leser', () => {
@@ -212,5 +229,45 @@ describe('Schreibschutz gegen Leser', () => {
     }
     expect(durchgelassen, 'Diese Routen lassen einen Leser schreiben').toEqual([])
   }, 60_000)
+})
+
+/**
+ * Dasselbe für das Lesen.
+ *
+ * `routeAuth.test.ts` prüft eine feste Liste von Leserouten. Am 03.11.2026
+ * einmal über alle 183 GET-Routen gemessen: Einem fremden Konto antworten nur
+ * die öffentlichen Links mit Erfolg. Damit das so bleibt, auch für Routen, die
+ * später dazukommen.
+ */
+const OEFFENTLICH_LESBAR = [
+  /^\/api\/(guest|invites|abnahme|casting|vertrag)\/abc$/, // Links mit Token
+  /^\/api\/email\/receipt\/abc$/,        // Empfangsbestätigung aus der Mail, mit Token
+  /^\/api\/push\/vapid-public-key$/,     // öffentlicher Schlüssel für Web-Push
+  /^\/api\/creator\/youtube\/callback$/, // Rückkehr von Google, über state gesichert
+]
+
+describe('Leseschutz gegen fremde Konten', () => {
+  it('kennt genug Leserouten, um aussagekräftig zu sein', () => {
+    expect(leseRouten.length).toBeGreaterThan(150)
+  })
+
+  it('zeigt einem fremden Konto nichts außer den öffentlichen Links', async () => {
+    angemeldet = FREMDER
+    const durchgelassen: string[] = []
+    for (const r of leseRouten) {
+      const pfad = beispiel(r)
+      if (OEFFENTLICH_LESBAR.some(m => m.test(pfad))) continue
+      let status = 0
+      try {
+        // Ein paar Routen antworten mit der Attrappe nie (PDF, Quittungsbild) -
+        // keine Antwort ist kein Durchlass
+        status = (await fetch(base + pfad, { signal: AbortSignal.timeout(2000) })).status
+      } catch {
+        continue
+      }
+      if (status >= 200 && status < 300) durchgelassen.push(`GET ${pfad} -> ${status}`)
+    }
+    expect(durchgelassen, 'Diese Routen zeigen einem Fremden Daten').toEqual([])
+  }, 120_000)
 })
 
