@@ -28,4 +28,18 @@ export const arbeitsplatzT = {
   einstellungenText: { de: 'Reihenfolge der Bereiche auf der Projektseite und in der Seitenleiste, gleich für alle deine Projekte.', en: 'Order of the areas on the project page and in the sidebar, the same for all your projects.', fr: "Ordre des espaces sur la page du projet et dans la barre latérale, le même pour tous tes projets." },
   artFilm:           { de: 'Filmprojekte', en: 'Film projects', fr: 'Projets de film' },
   artCreator:        { de: 'Creator-Projekte', en: 'Creator projects', fr: 'Projets créateur' },
+  seiteSchalter:     { de: 'Abschnitte dieser Seite anordnen', en: 'Arrange the sections of this page', fr: 'Organiser les sections de cette page' },
+  seiteTitel:        { de: 'Seite anordnen', en: 'Arrange page', fr: 'Organiser la page' },
+  seiteText:         { de: 'Zieh die Abschnitte in die Reihenfolge, in der du sie brauchst. Sie gilt für diese Seite in allen deinen Projekten.', en: 'Drag the sections into the order you need them. It applies to this page in all your projects.', fr: "Fais glisser les sections dans l'ordre dont tu as besoin. Il vaut pour cette page dans tous tes projets." },
+  seiteTelefon:      { de: 'Auf dem Telefon: gedrückt halten, dann ziehen.', en: 'On a phone: press and hold, then drag.', fr: 'Sur téléphone : maintiens appuyé, puis fais glisser.' },
+} satisfies Record<string, Text>
+
+/** Namen der anordenbaren Abschnitte, je Seite. */
+export const bloeckeT = {
+  kennzahlen:        { de: 'Kennzahlen', en: 'Key figures', fr: 'Chiffres clés' },
+  lage:              { de: 'Fortschritt, Konflikte und Schnellzugriff', en: 'Progress, conflicts and quick access', fr: 'Avancement, conflits et accès rapide' },
+  arbeitsplatz:      { de: 'Dein Arbeitsplatz', en: 'Your workspace', fr: 'Ton espace de travail' },
+  szenen:            { de: 'Szenen des Tages', en: "The day's scenes", fr: 'Scènes du jour' },
+  dispo:             { de: 'Besetzung und Stab', en: 'Cast and crew', fr: 'Acteurs et équipe' },
+  zeitenHinweise:    { de: 'Zeiten verschieben, Hinweise und Catering', en: 'Shift times, notes and catering', fr: 'Décaler les horaires, consignes et restauration' },
 } satisfies Record<string, Text>

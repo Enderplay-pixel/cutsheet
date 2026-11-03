@@ -1,6 +1,6 @@
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Moon, Sun, Menu, ChevronRight } from 'lucide-react'
+import { Search, Moon, Sun, Menu, ChevronRight, Rows3 } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -9,6 +9,8 @@ import { topBarT } from '@/lib/i18n'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { toggleThemeWithReveal } from '@/lib/motion'
 import { topBarTexteT, topBarDrehtagT, topBarExtraTitelT } from '@/lib/texte/komponenten/Layout'
+import { useSeitenAnordnung } from '@/lib/seitenAnordnung'
+import { arbeitsplatzT } from '@/lib/texte/Arbeitsplatz'
 
 // Strg+K und ⌘K öffnen beide die Suche; angezeigt wird, was auf der Tastatur steht
 const IST_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
@@ -23,6 +25,8 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const tt = useT()
+  // Seiten mit anordenbaren Abschnitten melden sich an (SeitenBloecke)
+  const { seite: anordenbar, anordnen, setAnordnen } = useSeitenAnordnung()
 
   const pageTitle = resolvePageTitle(location.pathname, tt)
 
@@ -116,6 +120,21 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
       >
         <Search className="w-4 h-4" />
       </button>
+
+      {anordenbar && (
+        <button
+          onClick={() => setAnordnen(!anordnen)}
+          aria-pressed={anordnen}
+          aria-label={tt(arbeitsplatzT.seiteSchalter)}
+          title={tt(arbeitsplatzT.seiteSchalter)}
+          className={cn(
+            'w-8 h-8 flex items-center justify-center rounded-full transition-[background-color,color] duration-150 active:scale-[0.97]',
+            anordnen ? 'bg-primary/15 text-primary' : 'hover:bg-foreground/[0.06] text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <Rows3 className="w-3.5 h-3.5" />
+        </button>
+      )}
 
       {/* Dark mode */}
       <button

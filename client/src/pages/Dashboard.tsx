@@ -12,7 +12,8 @@ import {
 import { ArbeitsplatzEditor, ArbeitsplatzRaster } from '@/components/arbeitsplatz/Arbeitsplatz'
 import { useArbeitsplatz } from '@/lib/einstellungen'
 import { istStandard, standardAnordnung } from '@/lib/bereiche'
-import { arbeitsplatzT } from '@/lib/texte/Arbeitsplatz'
+import { arbeitsplatzT, bloeckeT } from '@/lib/texte/Arbeitsplatz'
+import { SeitenBloecke } from '@/components/arbeitsplatz/SeitenBloecke'
 import { isCreatorProject } from '@/lib/projectKind'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { useT } from '@/lib/useT'
@@ -339,198 +340,214 @@ export function Component() {
         </section>
       )}
 
-      {/* ── Kennzahlen als durchlaufende Zeile ───────────── */}
-      <section
-        aria-label={tt(dashT.kennzahlen)}
-        className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl border border-border/60 bg-border/70 overflow-hidden shadow-sm"
-      >
-        {isCreator ? (<>
-        <Figure label={tt(dashT.videos)} value={kanal?.video_count ?? 0}
-          sub={tt(dashT.veroeffentlicht).replace('{n}', String(kanal?.published_count ?? 0))} onClick={() => go('creator')} />
-        <Figure label={tt(dashT.aufrufe)} value={kanal?.totals?.views ?? 0}
-          sub={tt(dashT.ueberAlle)} onClick={() => go('creator/performance')} />
-        <Figure label={tt(dashT.abosGewonnen)} value={kanal?.totals?.subs ?? 0}
-          sub={tt(dashT.likes).replace('{n}', zahl(kanal?.totals?.likes ?? 0))} onClick={() => go('creator/kanal')} />
-        <Figure label={tt(dashT.sponsoring)} value={Math.round((kanal?.sponsor_fee_cents ?? 0) / 100)}
-          format={n => formatCurrency(n * 100)}
-          sub={tt(dashT.honorare)} onClick={() => go('creator/sponsoren')} />
-        </>) : (<>
-        <Figure label={tt(dashT.scenes)} value={stats?.total_scenes ?? 0}
-          sub={`${stats?.scheduled_scenes ?? 0} ${tt(dashT.inPlan)}`} onClick={() => go('drehbuch')} />
-        <Figure label={tt(dashT.shootDays)} value={stats?.total_shoot_days ?? 0}
-          sub={`${stats?.completed_shoot_days ?? 0} ${tt(dashT.shot)}`} onClick={() => go('drehplan')} />
-        <Figure label={tt(dashT.cast)} value={stats?.total_cast ?? 0}
-          sub={tt(dashT.mainCast)} onClick={() => go('besetzung')} />
-        <Figure label={tt(dashT.team)} value={stats?.total_crew ?? 0}
-          sub={tt(dashT.crewMembers)} onClick={() => go('stabliste')} />
-        </>)}
-      </section>
+      {/* ── Anordenbare Abschnitte (Kopfleiste: Seite anordnen) ── */}
+      <SeitenBloecke
+        seite="dashboard"
+        className="mt-10 flex flex-col gap-6"
+        bloecke={[
+          {
+            // Kennzahlen als durchlaufende Zeile
+            id: 'kennzahlen', titel: bloeckeT.kennzahlen, inhalt: (
+            <section
+              aria-label={tt(dashT.kennzahlen)}
+              className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl border border-border/60 bg-border/70 overflow-hidden shadow-sm"
+            >
+              {isCreator ? (<>
+              <Figure label={tt(dashT.videos)} value={kanal?.video_count ?? 0}
+                sub={tt(dashT.veroeffentlicht).replace('{n}', String(kanal?.published_count ?? 0))} onClick={() => go('creator')} />
+              <Figure label={tt(dashT.aufrufe)} value={kanal?.totals?.views ?? 0}
+                sub={tt(dashT.ueberAlle)} onClick={() => go('creator/performance')} />
+              <Figure label={tt(dashT.abosGewonnen)} value={kanal?.totals?.subs ?? 0}
+                sub={tt(dashT.likes).replace('{n}', zahl(kanal?.totals?.likes ?? 0))} onClick={() => go('creator/kanal')} />
+              <Figure label={tt(dashT.sponsoring)} value={Math.round((kanal?.sponsor_fee_cents ?? 0) / 100)}
+                format={n => formatCurrency(n * 100)}
+                sub={tt(dashT.honorare)} onClick={() => go('creator/sponsoren')} />
+              </>) : (<>
+              <Figure label={tt(dashT.scenes)} value={stats?.total_scenes ?? 0}
+                sub={`${stats?.scheduled_scenes ?? 0} ${tt(dashT.inPlan)}`} onClick={() => go('drehbuch')} />
+              <Figure label={tt(dashT.shootDays)} value={stats?.total_shoot_days ?? 0}
+                sub={`${stats?.completed_shoot_days ?? 0} ${tt(dashT.shot)}`} onClick={() => go('drehplan')} />
+              <Figure label={tt(dashT.cast)} value={stats?.total_cast ?? 0}
+                sub={tt(dashT.mainCast)} onClick={() => go('besetzung')} />
+              <Figure label={tt(dashT.team)} value={stats?.total_crew ?? 0}
+                sub={tt(dashT.crewMembers)} onClick={() => go('stabliste')} />
+              </>)}
+            </section>
+            ),
+          },
+          {
+            // Stand & Lage
+            id: 'lage', titel: bloeckeT.lage, inhalt: (
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-5">
 
-      {/* ── Stand & Lage ─────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-5 mt-5">
+              <section className="rounded-2xl border border-border/60 bg-card p-6 sm:p-7 shadow-sm">
+                <div className="flex items-baseline justify-between gap-4">
+                  <h2 className="text-[19px] font-semibold tracking-[-0.02em]">{tt(dashT.progress)}</h2>
+                  <span className="eyebrow">{tt(dashT.standHeute)}</span>
+                </div>
 
-        <section className="rounded-2xl border border-border/60 bg-card p-6 sm:p-7 shadow-sm">
-          <div className="flex items-baseline justify-between gap-4">
-            <h2 className="text-[19px] font-semibold tracking-[-0.02em]">{tt(dashT.progress)}</h2>
-            <span className="eyebrow">{tt(dashT.standHeute)}</span>
-          </div>
+                {isCreator ? (
+                <div className="space-y-6 mt-7">
+                  <ProgressRow label={tt(dashT.videosVeroeff)} tone="success"
+                    done={kanal?.published_count ?? 0} total={kanal?.video_count ?? 0} pct={veroeffentlichtPct} />
+                  <ProgressRow label={tt(dashT.mitTermin)} tone="info" delay={120}
+                    done={kanal?.planned_count ?? 0} total={kanal?.video_count ?? 0} pct={geplantPct} />
+                </div>
+                ) : (
+                <div className="space-y-6 mt-7">
+                  <ProgressRow label={tt(dashT.scheduleDone)} tone="ink"
+                    done={stats?.scheduled_scenes ?? 0} total={stats?.total_scenes ?? 0} pct={scheduleProgress} />
+                  <ProgressRow label={tt(dashT.shootDaysDone)} tone="info" delay={120}
+                    done={stats?.completed_shoot_days ?? 0} total={stats?.total_shoot_days ?? 0} pct={shootProgress} />
+                  <ProgressRow label={tt(dashT.scenesShot)} tone="success" delay={240}
+                    done={stats?.shot_scenes ?? 0} total={stats?.total_scenes ?? 0} pct={shotScenesProgress} />
+                </div>
+                )}
 
-          {isCreator ? (
-          <div className="space-y-6 mt-7">
-            <ProgressRow label={tt(dashT.videosVeroeff)} tone="success"
-              done={kanal?.published_count ?? 0} total={kanal?.video_count ?? 0} pct={veroeffentlichtPct} />
-            <ProgressRow label={tt(dashT.mitTermin)} tone="info" delay={120}
-              done={kanal?.planned_count ?? 0} total={kanal?.video_count ?? 0} pct={geplantPct} />
-          </div>
-          ) : (
-          <div className="space-y-6 mt-7">
-            <ProgressRow label={tt(dashT.scheduleDone)} tone="ink"
-              done={stats?.scheduled_scenes ?? 0} total={stats?.total_scenes ?? 0} pct={scheduleProgress} />
-            <ProgressRow label={tt(dashT.shootDaysDone)} tone="info" delay={120}
-              done={stats?.completed_shoot_days ?? 0} total={stats?.total_shoot_days ?? 0} pct={shootProgress} />
-            <ProgressRow label={tt(dashT.scenesShot)} tone="success" delay={240}
-              done={stats?.shot_scenes ?? 0} total={stats?.total_scenes ?? 0} pct={shotScenesProgress} />
-          </div>
-          )}
-
-          {stats?.budget_total_cents > 0 && (
-            <div className="mt-8 pt-6 border-t border-border/70 grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div>
-                <div className="eyebrow">{tt(dashT.budget)}</div>
-                <div className="font-display text-[28px] leading-none mt-2 tabular-nums">
-                  {formatCurrency(Math.round(budgetShown))}
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <div className="eyebrow">{tt(dashT.financing)}</div>
-                  <span className={cn('text-[12px] font-semibold tabular-nums', financingOk ? 'text-success' : 'text-danger')}>
-                    {financingPct}%
-                  </span>
-                </div>
-                <div className="font-display text-[28px] leading-none mt-2 tabular-nums">
-                  {formatCurrency(Math.round(financingShown))}
-                </div>
-                <div className="h-2 bg-foreground/[0.07] rounded-full overflow-hidden mt-3">
-                  <div
-                    className={cn('h-full rounded-full origin-left transition-transform duration-1000 ease-smooth', financingOk ? 'bg-success' : 'bg-danger')}
-                    style={{ transform: `scaleX(${entered ? financingPct / 100 : 0})` }}
-                  />
-                </div>
-                {!financingOk && (
-                  <div className="text-[12px] text-danger mt-2 tabular-nums">
-                    {tt(dashT.gap).replace('{n}', formatCurrency(budgetGap))}
+                {stats?.budget_total_cents > 0 && (
+                  <div className="mt-8 pt-6 border-t border-border/70 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                      <div className="eyebrow">{tt(dashT.budget)}</div>
+                      <div className="font-display text-[28px] leading-none mt-2 tabular-nums">
+                        {formatCurrency(Math.round(budgetShown))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <div className="eyebrow">{tt(dashT.financing)}</div>
+                        <span className={cn('text-[12px] font-semibold tabular-nums', financingOk ? 'text-success' : 'text-danger')}>
+                          {financingPct}%
+                        </span>
+                      </div>
+                      <div className="font-display text-[28px] leading-none mt-2 tabular-nums">
+                        {formatCurrency(Math.round(financingShown))}
+                      </div>
+                      <div className="h-2 bg-foreground/[0.07] rounded-full overflow-hidden mt-3">
+                        <div
+                          className={cn('h-full rounded-full origin-left transition-transform duration-1000 ease-smooth', financingOk ? 'bg-success' : 'bg-danger')}
+                          style={{ transform: `scaleX(${entered ? financingPct / 100 : 0})` }}
+                        />
+                      </div>
+                      {!financingOk && (
+                        <div className="text-[12px] text-danger mt-2 tabular-nums">
+                          {tt(dashT.gap).replace('{n}', formatCurrency(budgetGap))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
+              </section>
+
+              <div className="flex flex-col gap-5">
+                {/* Konfliktradar */}
+                <section className="rounded-2xl border border-border/60 bg-card shadow-sm">
+                  <div className="flex items-center gap-2 px-5 pt-5">
+                    {errors.length > 0
+                      ? <AlertCircle className="w-3.5 h-3.5 text-danger" />
+                      : warnings.length > 0
+                        ? <AlertTriangle className="w-3.5 h-3.5 text-warning" />
+                        : <CheckCircle className="w-3.5 h-3.5 text-success" />}
+                    <h2 className="text-[17px] font-semibold tracking-[-0.02em]">{tt(dashT.conflictRadar)}</h2>
+                  </div>
+
+                  {!conflicts?.length ? (
+                    <p className="px-5 pt-3 text-[13px] text-success">{tt(dashT.noConflicts)}</p>
+                  ) : (
+                    <dl className="px-5 pt-3 divide-y divide-border">
+                      {[
+                        { n: errors.length, label: tt(dashT.errors), cls: 'bg-danger', text: 'text-danger' },
+                        { n: warnings.length, label: tt(dashT.warnings), cls: 'bg-warning', text: 'text-warning' },
+                        { n: infos.length, label: tt(dashT.hints), cls: 'bg-info', text: 'text-info' },
+                      ].filter(r => r.n > 0).map(r => (
+                        <div key={r.label} className="flex items-center justify-between py-2.5">
+                          <dt className="flex items-center gap-2.5 text-[13px] text-muted-foreground">
+                            <span className={cn('w-1.5 h-1.5 rounded-full', r.cls)} />{r.label}
+                          </dt>
+                          <dd className={cn('text-[15px] font-semibold tabular-nums', r.text)}>{r.n}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+
+                  <button
+                    onClick={() => go('konfliktradar')}
+                    aria-label={tt(dashT.detailsAria)}
+                    className="mt-3 w-full flex items-center justify-between border-t border-border/70 px-5 py-3 text-[14px] text-primary hover:bg-foreground/[0.025] transition-colors duration-150 rounded-b-2xl"
+                  >
+                    {tt(dashT.details)}
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </section>
+
+                {/* Schnellzugriff mit den vorhandenen Tastenkürzeln */}
+                <section>
+                  <h2 className="eyebrow px-4 pb-2">{tt(dashT.quickNav)}</h2>
+                  <ul className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden divide-y divide-border/70">
+                    {jumps.map(item => (
+                      <li key={item.path}>
+                        <button
+                          onClick={() => go(item.path)}
+                          aria-label={tt(dashT.zuNavigieren).replace('{name}', item.label)}
+                          className="group w-full flex items-center gap-3 pl-3.5 pr-4 h-11 text-[14px] text-foreground hover:bg-foreground/[0.03] transition-colors duration-150"
+                        >
+                          <span className={cn('w-7 h-7 rounded-[7px] flex items-center justify-center text-white shrink-0', item.tint)}>
+                            <item.icon className="w-4 h-4" />
+                          </span>
+                          <span className="flex-1 text-left">{item.label}</span>
+                          {item.key && <kbd className="opacity-0 group-hover:opacity-100 transition-opacity">{item.key}</kbd>}
+                          <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               </div>
             </div>
-          )}
-        </section>
-
-        <div className="flex flex-col gap-5">
-          {/* Konfliktradar */}
-          <section className="rounded-2xl border border-border/60 bg-card shadow-sm">
-            <div className="flex items-center gap-2 px-5 pt-5">
-              {errors.length > 0
-                ? <AlertCircle className="w-3.5 h-3.5 text-danger" />
-                : warnings.length > 0
-                  ? <AlertTriangle className="w-3.5 h-3.5 text-warning" />
-                  : <CheckCircle className="w-3.5 h-3.5 text-success" />}
-              <h2 className="text-[17px] font-semibold tracking-[-0.02em]">{tt(dashT.conflictRadar)}</h2>
-            </div>
-
-            {!conflicts?.length ? (
-              <p className="px-5 pt-3 text-[13px] text-success">{tt(dashT.noConflicts)}</p>
-            ) : (
-              <dl className="px-5 pt-3 divide-y divide-border">
-                {[
-                  { n: errors.length, label: tt(dashT.errors), cls: 'bg-danger', text: 'text-danger' },
-                  { n: warnings.length, label: tt(dashT.warnings), cls: 'bg-warning', text: 'text-warning' },
-                  { n: infos.length, label: tt(dashT.hints), cls: 'bg-info', text: 'text-info' },
-                ].filter(r => r.n > 0).map(r => (
-                  <div key={r.label} className="flex items-center justify-between py-2.5">
-                    <dt className="flex items-center gap-2.5 text-[13px] text-muted-foreground">
-                      <span className={cn('w-1.5 h-1.5 rounded-full', r.cls)} />{r.label}
-                    </dt>
-                    <dd className={cn('text-[15px] font-semibold tabular-nums', r.text)}>{r.n}</dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-
-            <button
-              onClick={() => go('konfliktradar')}
-              aria-label={tt(dashT.detailsAria)}
-              className="mt-3 w-full flex items-center justify-between border-t border-border/70 px-5 py-3 text-[14px] text-primary hover:bg-foreground/[0.025] transition-colors duration-150 rounded-b-2xl"
-            >
-              {tt(dashT.details)}
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </section>
-
-          {/* Schnellzugriff mit den vorhandenen Tastenkürzeln */}
-          <section>
-            <h2 className="eyebrow px-4 pb-2">{tt(dashT.quickNav)}</h2>
-            <ul className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden divide-y divide-border/70">
-              {jumps.map(item => (
-                <li key={item.path}>
-                  <button
-                    onClick={() => go(item.path)}
-                    aria-label={tt(dashT.zuNavigieren).replace('{name}', item.label)}
-                    className="group w-full flex items-center gap-3 pl-3.5 pr-4 h-11 text-[14px] text-foreground hover:bg-foreground/[0.03] transition-colors duration-150"
+            ),
+          },
+          {
+            // Dein Arbeitsplatz: alle Bereiche in der Reihenfolge des Kontos
+            id: 'arbeitsplatz', titel: bloeckeT.arbeitsplatz, inhalt: !einrichtung && platz.bereit && (
+            <section aria-labelledby="arbeitsplatz-titel">
+              <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 mb-4">
+                <div className="min-w-0">
+                  <h2 id="arbeitsplatz-titel" className="text-[19px] font-semibold tracking-[-0.02em]">{tt(arbeitsplatzT.titel)}</h2>
+                  <p className="text-[13px] text-muted-foreground mt-1">
+                    {tt(anordnen ? arbeitsplatzT.einrichtungText : arbeitsplatzT.untertitel)}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 shrink-0">
+                  {anordnen && !istStandard(art, platz.anordnung) && (
+                    <Button variant="ghost" size="sm" onClick={() => platz.setzen(standardAnordnung(art))}>
+                      {tt(arbeitsplatzT.standard)}
+                    </Button>
+                  )}
+                  <Button
+                    variant={anordnen ? 'default' : 'outline'}
+                    size="sm"
+                    aria-pressed={anordnen}
+                    onClick={() => setAnordnen(a => !a)}
                   >
-                    <span className={cn('w-7 h-7 rounded-[7px] flex items-center justify-center text-white shrink-0', item.tint)}>
-                      <item.icon className="w-4 h-4" />
-                    </span>
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {item.key && <kbd className="opacity-0 group-hover:opacity-100 transition-opacity">{item.key}</kbd>}
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
-      </div>
-
-      {/* ── Dein Arbeitsplatz: alle Bereiche in der Reihenfolge des Kontos ── */}
-      {!einrichtung && platz.bereit && (
-        <section aria-labelledby="arbeitsplatz-titel" className="mt-10">
-          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 mb-4">
-            <div className="min-w-0">
-              <h2 id="arbeitsplatz-titel" className="text-[19px] font-semibold tracking-[-0.02em]">{tt(arbeitsplatzT.titel)}</h2>
-              <p className="text-[13px] text-muted-foreground mt-1">
-                {tt(anordnen ? arbeitsplatzT.einrichtungText : arbeitsplatzT.untertitel)}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2 shrink-0">
-              {anordnen && !istStandard(art, platz.anordnung) && (
-                <Button variant="ghost" size="sm" onClick={() => platz.setzen(standardAnordnung(art))}>
-                  {tt(arbeitsplatzT.standard)}
-                </Button>
+                    {anordnen ? <Check className="w-3.5 h-3.5" /> : <Move className="w-3.5 h-3.5" />}
+                    {tt(anordnen ? arbeitsplatzT.fertig : arbeitsplatzT.anordnen)}
+                  </Button>
+                </div>
+              </div>
+              {anordnen ? (
+                <ArbeitsplatzEditor art={art} anordnung={platz.anordnung} onChange={platz.setzen} />
+              ) : (
+                <ArbeitsplatzRaster
+                  kategorien={platz.kategorien}
+                  projektId={projectId!}
+                  badges={{ konfliktradar: errors.length + warnings.length || undefined }}
+                />
               )}
-              <Button
-                variant={anordnen ? 'default' : 'outline'}
-                size="sm"
-                aria-pressed={anordnen}
-                onClick={() => setAnordnen(a => !a)}
-              >
-                {anordnen ? <Check className="w-3.5 h-3.5" /> : <Move className="w-3.5 h-3.5" />}
-                {tt(anordnen ? arbeitsplatzT.fertig : arbeitsplatzT.anordnen)}
-              </Button>
-            </div>
-          </div>
-          {anordnen ? (
-            <ArbeitsplatzEditor art={art} anordnung={platz.anordnung} onChange={platz.setzen} />
-          ) : (
-            <ArbeitsplatzRaster
-              kategorien={platz.kategorien}
-              projektId={projectId!}
-              badges={{ konfliktradar: errors.length + warnings.length || undefined }}
-            />
-          )}
-        </section>
-      )}
+            </section>
+      
+            ),
+          },
+        ]}
+      />
     </div>
   )
 }

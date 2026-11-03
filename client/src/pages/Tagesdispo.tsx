@@ -24,6 +24,8 @@ import { dispoT, uiT, scenesT } from '@/lib/i18n'
 import { tagesdispoT as D, WETTERLAGE } from '@/lib/texte/Tagesdispo'
 import { track } from '@/lib/analytics'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
+import { SeitenBloecke } from '@/components/arbeitsplatz/SeitenBloecke'
+import { bloeckeT } from '@/lib/texte/Arbeitsplatz'
 
 // ─── Dispo versenden ─────────────────────────────────────────────────────────
 
@@ -1045,125 +1047,137 @@ export function Component() {
         )}
       </div>
 
-      {/* ── Scenes table ──────────────────────────────────────────────────────── */}
-      {currentDay?.scenes?.length > 0 && (
-        <ScenesTable scenes={currentDay.scenes} />
-      )}
-
-      {/* ── Cast & Crew disposition ───────────────────────────────────────────── */}
-      {!isLoading && headerForm && (
-        <>
-          {!callSheet?.id ? (
-            <div className="bg-card border border-border/60 rounded-xl p-8 text-center">
-              <ClipboardList className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
-              <p className="text-sm text-muted-foreground mb-1">{tt(dispoT.callSheetNotCreated)}</p>
-              <p className="text-xs text-muted-foreground/60 mb-4">
-                {tt(dispoT.callSheetHint)}
-              </p>
-              <Button size="sm" onClick={() => saveMutation.mutate(headerForm)}>
-                <Save className="w-3.5 h-3.5 mr-1.5" />{tt(dispoT.createDispo)}
-              </Button>
-            </div>
-          ) : (
-            <CallSheetBlock
-              callSheet={callSheet}
-              projectId={pid}
-              onSaveEntries={(entries) => saveEntriesMutation.mutateAsync(entries)}
-              onRefresh={() => queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })}
-            />
-          )}
-        </>
-      )}
-
-      {/* ── Time shift + Notes ────────────────────────────────────────────────── */}
-      {!isLoading && headerForm && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {/* Time shift card */}
-          <div className="lg:col-span-2 bg-card border border-border/60 rounded-xl p-4 h-fit">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
-              {tt(dispoT.shiftTimes)}
-            </p>
-            <div className="flex items-center gap-2 mb-3">
-              <Button variant="outline" size="icon" className="w-7 h-7"
-                aria-label={tt(D.weniger5)}
-                onClick={() => setShiftAmount(Math.max(5, shiftAmount - 5))}>
-                <Minus className="w-3 h-3" />
-              </Button>
-              <span className="text-sm font-mono font-bold w-14 text-center tabular-nums">
-                {shiftAmount} {tt(D.min)}
-              </span>
-              <Button variant="outline" size="icon" className="w-7 h-7"
-                aria-label={tt(D.mehr5)}
-                onClick={() => setShiftAmount(shiftAmount + 5)}>
-                <Plus className="w-3 h-3" />
-              </Button>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="flex-1 h-8 text-xs font-bold"
-                onClick={() => shiftMutation.mutate(-shiftAmount)} disabled={!callSheet?.id}>
-                −{shiftAmount} {tt(D.min)}
-              </Button>
-              <Button variant="outline" size="sm" className="flex-1 h-8 text-xs font-bold"
-                onClick={() => shiftMutation.mutate(shiftAmount)} disabled={!callSheet?.id}>
-                +{shiftAmount} {tt(D.min)}
-              </Button>
-            </div>
-          </div>
-
-          {/* Notes + Catering card */}
-          <div className="lg:col-span-3 space-y-3">
-            <div className="bg-card border border-border/60 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {tt(dispoT.generalNotes)}
-                </p>
-              </div>
-              <Textarea disabled={!darfSchreiben}
-                value={headerForm?.notes || ''}
-                aria-label={tt(D.hinweiseAlle)}
-                onChange={e => updateHeader('notes', e.target.value)}
-                rows={3}
-                className="text-sm resize-none"
-                placeholder={tt(dispoT.notesPlaceholder)}
-              />
-            </div>
-            <div className="bg-card border border-border/60 rounded-xl p-4">
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
-                🍽 {tt(dispoT.catering)}
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <Button variant="outline" size="icon" className="w-8 h-8"
-                  aria-label={tt(D.verpflegungWeniger)}
-                  onClick={() => {
-                    const n = Math.max(0, (currentDay?.catering_count || 0) - 1)
-                    api.drehplan.updateDay(selectedDayId!, { catering_count: n }).then(() =>
-                      queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] })
-                    )
-                  }}>
-                  <Minus className="w-3.5 h-3.5" />
-                </Button>
-                <div className="text-center">
-                  <div className="text-2xl font-black tabular-nums">{currentDay?.catering_count || 0}</div>
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{tt(dispoT.cateringPersons)}</div>
+      {/* ── Anordenbare Abschnitte (Kopfleiste: Seite anordnen) ── */}
+      <SeitenBloecke
+        seite="tagesdispo"
+        className="space-y-5"
+        bloecke={[
+          {
+            id: 'szenen', titel: bloeckeT.szenen, inhalt: currentDay?.scenes?.length > 0 && (
+              <ScenesTable scenes={currentDay.scenes} />
+            ),
+          },
+          {
+            // Besetzung und Stab des Tages
+            id: 'dispo', titel: bloeckeT.dispo, inhalt: !isLoading && headerForm && (
+            <>
+              {!callSheet?.id ? (
+                <div className="bg-card border border-border/60 rounded-xl p-8 text-center">
+                  <ClipboardList className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
+                  <p className="text-sm text-muted-foreground mb-1">{tt(dispoT.callSheetNotCreated)}</p>
+                  <p className="text-xs text-muted-foreground/60 mb-4">
+                    {tt(dispoT.callSheetHint)}
+                  </p>
+                  <Button size="sm" onClick={() => saveMutation.mutate(headerForm)}>
+                    <Save className="w-3.5 h-3.5 mr-1.5" />{tt(dispoT.createDispo)}
+                  </Button>
                 </div>
-                <Button variant="outline" size="icon" className="w-8 h-8"
-                  aria-label={tt(D.verpflegungMehr)}
-                  onClick={() => {
-                    const n = (currentDay?.catering_count || 0) + 1
-                    api.drehplan.updateDay(selectedDayId!, { catering_count: n }).then(() =>
-                      queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] })
-                    )
-                  }}>
-                  <Plus className="w-3.5 h-3.5" />
-                </Button>
-                <span className="text-xs text-muted-foreground ml-2">
-                  {(currentDay?.catering_count || 0) === 0 ? tt(dispoT.cateringEmpty) : tt(dispoT.cateringPlan)}
-                </span>
+              ) : (
+                <CallSheetBlock
+                  callSheet={callSheet}
+                  projectId={pid}
+                  onSaveEntries={(entries) => saveEntriesMutation.mutateAsync(entries)}
+                  onRefresh={() => queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })}
+                />
+              )}
+            </>
+      
+            ),
+          },
+          {
+            // Zeiten verschieben, Hinweise, Catering
+            id: 'zeiten', titel: bloeckeT.zeitenHinweise, inhalt: !isLoading && headerForm && (
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              {/* Time shift card */}
+              <div className="lg:col-span-2 bg-card border border-border/60 rounded-xl p-4 h-fit">
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                  {tt(dispoT.shiftTimes)}
+                </p>
+                <div className="flex items-center gap-2 mb-3">
+                  <Button variant="outline" size="icon" className="w-7 h-7"
+                    aria-label={tt(D.weniger5)}
+                    onClick={() => setShiftAmount(Math.max(5, shiftAmount - 5))}>
+                    <Minus className="w-3 h-3" />
+                  </Button>
+                  <span className="text-sm font-mono font-bold w-14 text-center tabular-nums">
+                    {shiftAmount} {tt(D.min)}
+                  </span>
+                  <Button variant="outline" size="icon" className="w-7 h-7"
+                    aria-label={tt(D.mehr5)}
+                    onClick={() => setShiftAmount(shiftAmount + 5)}>
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1 h-8 text-xs font-bold"
+                    onClick={() => shiftMutation.mutate(-shiftAmount)} disabled={!callSheet?.id}>
+                    −{shiftAmount} {tt(D.min)}
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1 h-8 text-xs font-bold"
+                    onClick={() => shiftMutation.mutate(shiftAmount)} disabled={!callSheet?.id}>
+                    +{shiftAmount} {tt(D.min)}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Notes + Catering card */}
+              <div className="lg:col-span-3 space-y-3">
+                <div className="bg-card border border-border/60 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                      {tt(dispoT.generalNotes)}
+                    </p>
+                  </div>
+                  <Textarea disabled={!darfSchreiben}
+                    value={headerForm?.notes || ''}
+                    aria-label={tt(D.hinweiseAlle)}
+                    onChange={e => updateHeader('notes', e.target.value)}
+                    rows={3}
+                    className="text-sm resize-none"
+                    placeholder={tt(dispoT.notesPlaceholder)}
+                  />
+                </div>
+                <div className="bg-card border border-border/60 rounded-xl p-4">
+                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                    🍽 {tt(dispoT.catering)}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button variant="outline" size="icon" className="w-8 h-8"
+                      aria-label={tt(D.verpflegungWeniger)}
+                      onClick={() => {
+                        const n = Math.max(0, (currentDay?.catering_count || 0) - 1)
+                        api.drehplan.updateDay(selectedDayId!, { catering_count: n }).then(() =>
+                          queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] })
+                        )
+                      }}>
+                      <Minus className="w-3.5 h-3.5" />
+                    </Button>
+                    <div className="text-center">
+                      <div className="text-2xl font-black tabular-nums">{currentDay?.catering_count || 0}</div>
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{tt(dispoT.cateringPersons)}</div>
+                    </div>
+                    <Button variant="outline" size="icon" className="w-8 h-8"
+                      aria-label={tt(D.verpflegungMehr)}
+                      onClick={() => {
+                        const n = (currentDay?.catering_count || 0) + 1
+                        api.drehplan.updateDay(selectedDayId!, { catering_count: n }).then(() =>
+                          queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] })
+                        )
+                      }}>
+                      <Plus className="w-3.5 h-3.5" />
+                    </Button>
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {(currentDay?.catering_count || 0) === 0 ? tt(dispoT.cateringEmpty) : tt(dispoT.cateringPlan)}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      
+            ),
+          },
+        ]}
+      />
     </div>
   )
 }
