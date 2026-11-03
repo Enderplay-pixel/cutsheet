@@ -757,4 +757,8 @@ main tbody tr:active { background: hsl(var(--primary) / 0.06); }
   li[role='status'][data-state='open'], ol > li[data-state='open'] { animation: none !important; }
   [role='progressbar'] > div::after { display: none; }
   .bg-primary:is(button, a):hover, .stat-card:hover, .card-lift:hover { transform: none !important; }
+  /* Fehlten bis zum 03.11.2026: Reiterinhalte stiegen beim Wechsel auf, die
+     Karten mit .lift (Dashboard) hoben sich unter dem Zeiger */
+  [role='tabpanel'][data-state='active'] { animation: none !important; }
+  .lift:hover, .lift:active { transform: none !important; }
 }
