@@ -929,7 +929,7 @@ export const settingsT = {
   exportKnopf:     { en: 'Export', de: 'Export', fr: 'Exporter' },
   exportFehler:    { en: 'Export failed', de: 'Export fehlgeschlagen', fr: "Échec de l'export" },
   kontoLoeschen:   { en: 'Delete account', de: 'Konto löschen', fr: 'Supprimer le compte' },
-  kontoLoeschenText:{ en: 'Irreversible - your solo projects are deleted too', de: 'Unwiderruflich - eigene Solo-Projekte werden mitgelöscht', fr: 'Irréversible - tes projets solo sont aussi supprimés' },
+  kontoLoeschenText:{ en: 'Your solo projects are kept for 30 days - sign up again with the same address to get them back, after that they are deleted', de: 'Eigene Solo-Projekte bleiben 30 Tage erhalten - wer sich mit derselben Adresse wieder anmeldet, bekommt sie zurück, danach werden sie gelöscht', fr: "Tes projets solo sont conservés 30 jours - réinscris-toi avec la même adresse pour les récupérer, ensuite ils sont supprimés" },
   loeschen:        { en: 'Delete', de: 'Löschen', fr: 'Supprimer' },
   loeschenTitel:   { en: 'Delete account permanently?', de: 'Konto unwiderruflich löschen?', fr: 'Supprimer définitivement le compte ?' },
   loeschenText:    { en: 'Your solo projects will be deleted. If you own projects with other members, you have to hand them over or delete them first.', de: 'Deine Solo-Projekte werden gelöscht. Besitzt du Projekte mit weiteren Mitgliedern, musst du diese zuerst übergeben oder löschen.', fr: "Tes projets solo seront supprimés. Si tu possèdes des projets avec d'autres membres, tu dois d'abord les transférer ou les supprimer." },

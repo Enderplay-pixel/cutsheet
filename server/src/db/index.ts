@@ -1006,6 +1006,9 @@ export async function initDatabase() {
                       OR (person_type = 'extra' AND NOT EXISTS (SELECT 1 FROM extras ex WHERE ex.id = person_id))`)
   }
   await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false`)
+  // Projekte gelöschter Konten: 30 Tage vorgemerkt (lib/kontoloeschung.ts)
+  await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS verwaist_seit TIMESTAMPTZ`)
+  await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS verwaist_email TEXT`)
   // Projektart: 'film' = klassische Produktion, 'creator' = Content-/YouTube-Kanal.
   // Steuert Navigation und Feature-Set im Client.
   await db.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_kind TEXT NOT NULL DEFAULT 'film'`)
@@ -2150,6 +2153,22 @@ export async function initDatabase() {
   // nie wieder und legte bei jedem Aufruf ein weiteres an. Zuweisen ist nicht
   // noetig: Globale Admins sehen alle Projekte, und jedes neue Konto bekommt
   // sein eigenes Demo-Projekt.
+  //
+  // Projekte gelöschter Konten von vor dem 03.11.2026 - ohne Inhaber, nicht
+  // vorgemerkt - einmal regeln wie bei einer Löschung: Übergabe an das Team,
+  // sonst 30 Tage vorgemerkt (lib/kontoloeschung.ts). Die Adresse ist für sie
+  // nicht mehr bekannt.
+  const altVerwaist = await db.all(
+    'SELECT id FROM projects WHERE owner_id IS NULL AND is_demo = false AND verwaist_seit IS NULL'
+  ) as any[]
+  if (altVerwaist.length > 0) {
+    const { projekteRegeln } = await import('../lib/kontoloeschung')
+    await projekteRegeln(db, altVerwaist.map(p => Number(p.id)), null)
+  }
+
+  // Global gibt es nur admin und user (Florian, 03.11.2026); Produktion,
+  // Regie usw. gelten je Projekt. Ältere Konten trugen sie auch global.
+  await db.run("UPDATE users SET role = 'user' WHERE role NOT IN ('admin', 'user')")
 
   // Fix roles: only first user keeps 'admin' - ausser dem Konto aus
   // ADMIN_EMAIL, das der Betreiber ausdruecklich als Admin festlegt

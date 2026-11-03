@@ -8,6 +8,7 @@ import fs from 'fs'
 import { initDatabase, pool } from './db'
 import { starteVersandSchleife } from './lib/mailversand'
 import { raeumeMailanhaengeAuf } from './lib/mailaufbewahrung'
+import { raeumeVerwaisteProjekteAuf } from './lib/kontoloeschung'
 import { raeumeAuf as raeumePapierkorbAuf } from './lib/papierkorb'
 import { ueberlastKontext } from './lib/ueberlast'
 import { passwortPoolBeenden } from './lib/passwort'
@@ -432,6 +433,8 @@ async function main() {
           console.warn('[Mail] Anhänge konnten nicht aufgeräumt werden:', fehler?.message || fehler))
         raeumePapierkorbAuf().catch(fehler =>
           console.warn('[Papierkorb] konnte nicht aufgeräumt werden:', fehler?.message || fehler))
+        raeumeVerwaisteProjekteAuf().catch(fehler =>
+          console.warn('[Konten] Projekte gelöschter Konten konnten nicht aufgeräumt werden:', fehler?.message || fehler))
       }
       aufraeumen()
       setInterval(aufraeumen, 24 * 60 * 60 * 1000).unref()

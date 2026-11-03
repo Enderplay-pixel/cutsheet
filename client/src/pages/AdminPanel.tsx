@@ -78,11 +78,9 @@ interface Stats {
 const ROLES = [
   { value: 'admin',     label: 'Admin',       bg: 'bg-red-500/15',    text: 'text-red-400'    },
   { value: 'user',      label: 'Nutzer',       bg: 'bg-zinc-500/15',   text: 'text-zinc-400'   },
-  { value: 'producer',  label: 'Produzent',    bg: 'bg-amber-500/15',  text: 'text-amber-400'  },
-  { value: 'director',  label: 'Regie',        bg: 'bg-blue-500/15',   text: 'text-blue-400'   },
-  { value: 'dept_head', label: 'Abt.-Leitung', bg: 'bg-purple-500/15', text: 'text-purple-400' },
-  { value: 'read_only', label: 'Lesezugriff',  bg: 'bg-zinc-500/10',   text: 'text-zinc-500'   },
 ]
+// Produktion, Regie, Abteilungsleitung und Lesezugriff sind Rollen je
+// Projekt (Mitglieder), nicht des Kontos - global wirkte nur "admin".
 const roleConf = (r: string) => ROLES.find(x => x.value === r) ?? ROLES[1]
 
 function RoleBadge({ role }: { role: string }) {
@@ -213,10 +211,17 @@ function UsersTab({ me }: { me: { id: number } }) {
 
   const deleteMut = useMutation({
     mutationFn: (id: number) => adminFetch(`/users/${id}`, { method: 'DELETE' }),
-    onSuccess: (_, id) => {
+    onSuccess: (antwort: any, id) => {
       qc.invalidateQueries({ queryKey: ['admin-users'] })
       qc.invalidateQueries({ queryKey: ['admin-stats'] })
-      toast({ title: 'Nutzer gelöscht' })
+      const v = antwort?.data ?? antwort
+      toast({
+        title: 'Nutzer gelöscht',
+        description: [
+          v?.uebergeben > 0 && `${v.uebergeben} Projekt(e) an das Team übergeben`,
+          v?.vorgemerkt > 0 && `${v.vorgemerkt} Projekt(e) 30 Tage vorgemerkt`,
+        ].filter(Boolean).join(' · ') || undefined,
+      })
       setDeleteConfirm(null)
     },
     onError: (e: any) => toast({ variant: 'destructive', title: e.message }),
@@ -464,7 +469,7 @@ function UsersTab({ me }: { me: { id: number } }) {
                 <AlertTriangle className="w-4 h-4" /> Nutzer löschen
               </DialogTitle>
               <DialogDescription className="text-xs">
-                <strong>{deleteConfirm.name || deleteConfirm.email}</strong> wird unwiderruflich gelöscht. Alle Daten dieses Nutzers bleiben erhalten.
+                <strong>{deleteConfirm.name || deleteConfirm.email}</strong> wird gelöscht. Eigene Projekte mit Team gehen an das Mitglied mit der höchsten Rolle. Projekte ohne Team bleiben 30 Tage vorgemerkt - meldet sich jemand mit derselben Adresse wieder an, bekommt er sie zurück; danach werden sie gelöscht.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-2">

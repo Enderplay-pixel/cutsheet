@@ -1859,6 +1859,75 @@ describe('Konten, die es so nicht mehr gibt', () => {
   })
 })
 
+describe('Projekte gelöschter Konten', () => {
+  /**
+   * Florian, 03.11.2026: nur 30 Tage behalten, bei erneuter Anmeldung mit
+   * derselben Adresse zurückgeben. Vorher blieben sie nach einer
+   * Admin-Löschung ohne Inhaber für immer stehen.
+   */
+  it('übergibt Teamprojekte, merkt Soloprojekte vor und gibt sie bei erneuter Anmeldung zurück', async () => {
+    const { signToken } = await import('../middleware/auth')
+    const chef = await db.run("INSERT INTO users (email, password_hash, name, role) VALUES ('konto-chef@example.com', 'x', 'Chef', 'admin')")
+    const chefToken = signToken({ id: chef.id, email: 'konto-chef@example.com', name: 'Chef', role: 'admin' })
+    const geht = await db.run("INSERT INTO users (email, password_hash, name, role) VALUES ('Geht@Example.com', 'x', 'Geht', 'user')")
+    const bleibt = await db.run("INSERT INTO users (email, password_hash, name, role) VALUES ('bleibt@example.com', 'x', 'Bleibt', 'user')")
+    const leser = await db.run("INSERT INTO users (email, password_hash, name, role) VALUES ('liest@example.com', 'x', 'Liest', 'user')")
+    const solo = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Solo', geht.id])).id
+    const team = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Team', geht.id])).id
+    const nurLeser = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Nur Leser', geht.id])).id
+    await db.run("INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, 'read_only')", [team, leser.id])
+    await db.run("INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, 'producer')", [team, bleibt.id])
+    await db.run("INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, 'read_only')", [nurLeser, leser.id])
+
+    const weg = await hole(`/api/admin/users/${geht.id}`, chefToken, { method: 'DELETE' })
+    expect(weg.status).toBe(200)
+    expect(weg.daten).toMatchObject({ uebergeben: 1, vorgemerkt: 2 })
+    const stand = async (id: number) => db.get('SELECT owner_id, verwaist_seit, verwaist_email FROM projects WHERE id = ?', [id])
+    expect((await stand(team)).owner_id).toBe(bleibt.id)
+    expect(await stand(solo)).toMatchObject({ owner_id: null, verwaist_email: 'geht@example.com' })
+    expect((await stand(nurLeser)).verwaist_seit).not.toBeNull()
+
+    // Neu angemeldet mit derselben Adresse, anders geschrieben
+    const neu = await hole('/api/auth/register', '', {
+      method: 'POST', body: JSON.stringify({ name: 'Wieder da', email: 'geht@example.com', password: 'Wieder-da-12345' }),
+    })
+    expect(neu.status).toBe(201)
+    expect(await stand(solo)).toMatchObject({ owner_id: neu.daten.user.id, verwaist_seit: null, verwaist_email: null })
+    expect((await stand(nurLeser)).owner_id).toBe(neu.daten.user.id)
+  })
+
+  it('löscht vorgemerkte Projekte nach 30 Tagen, vorher nicht', async () => {
+    const { raeumeVerwaisteProjekteAuf } = await import('../lib/kontoloeschung')
+    const alt = (await db.run(
+      "INSERT INTO projects (title, verwaist_seit, verwaist_email) VALUES ('Alt', NOW() - INTERVAL '31 days', 'alt@example.com')")).id
+    const frisch = (await db.run(
+      "INSERT INTO projects (title, verwaist_seit, verwaist_email) VALUES ('Frisch', NOW() - INTERVAL '29 days', 'frisch@example.com')")).id
+    await raeumeVerwaisteProjekteAuf()
+    expect(await db.get('SELECT id FROM projects WHERE id = ?', [alt])).toBeUndefined()
+    expect(await db.get('SELECT id FROM projects WHERE id = ?', [frisch])).toBeTruthy()
+  })
+
+  it('löscht bei der Selbstlöschung Soloprojekte nicht sofort', async () => {
+    const konto = await hole('/api/auth/register', '', {
+      method: 'POST', body: JSON.stringify({ name: 'Selbst', email: 'selbst@example.com', password: 'Selbst-geht-123' }),
+    })
+    const projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Eigenes', konto.daten.user.id])).id
+    const weg = await hole('/api/auth/me', konto.daten.token, { method: 'DELETE', body: JSON.stringify({ password: 'Selbst-geht-123' }) })
+    expect(weg.status).toBe(200)
+    expect(await db.get('SELECT owner_id, verwaist_email FROM projects WHERE id = ?', [projekt]))
+      .toEqual({ owner_id: null, verwaist_email: 'selbst@example.com' })
+  })
+
+  it('kennt global nur Admin und Nutzer', async () => {
+    const { signToken } = await import('../middleware/auth')
+    const chef = await db.run("INSERT INTO users (email, password_hash, name, role) VALUES ('rollen-chef@example.com', 'x', 'Chef', 'admin')")
+    const chefToken = signToken({ id: chef.id, email: 'rollen-chef@example.com', name: 'Chef', role: 'admin' })
+    const jemand = await db.run("INSERT INTO users (email, password_hash, name, role) VALUES ('rolle@example.com', 'x', 'Rolle', 'user')")
+    expect((await hole(`/api/admin/users/${jemand.id}/role`, chefToken, { method: 'PUT', body: JSON.stringify({ role: 'producer' }) })).status).toBe(400)
+    expect((await hole(`/api/admin/users/${jemand.id}/role`, chefToken, { method: 'PUT', body: JSON.stringify({ role: 'admin' }) })).status).toBe(200)
+  })
+})
+
 describe('Projekt-Guard: Pfad vor Body', () => {
   /**
    * Gemessen am 24.10.2026: Ein Konto ohne Zugang schickte

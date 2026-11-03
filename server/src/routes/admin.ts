@@ -4,6 +4,7 @@ import { db, seedDemoData } from '../db'
 import { seedGrossproduktion } from '../db/grossproduktion'
 import { requireAuth, requireRole, vergissKonto, beendeAlleSitzungen } from '../middleware/auth'
 import { appBasisUrl } from '../lib/mailversand'
+import { projekteRegeln, projekteZurueckgeben } from '../lib/kontoloeschung'
 
 const router = Router()
 
@@ -313,9 +314,14 @@ router.delete('/users/:id', async (req: Request, res: Response) => {
   const user = await db.get('SELECT id, email FROM users WHERE id = ?', [id]) as any
   if (!user) return res.status(404).json({ data: null, error: 'Benutzer nicht gefunden' })
 
+  // Die Projekte: Übergabe an das Team, sonst 30 Tage vorgemerkt - eine
+  // erneute Anmeldung mit derselben Adresse bekommt sie zurück
+  // (lib/kontoloeschung.ts). Vorher blieben sie ohne Inhaber für immer stehen.
+  const projekte = (await db.all('SELECT id FROM projects WHERE owner_id = ?', [id]) as any[]).map(p => Number(p.id))
   await db.run('DELETE FROM users WHERE id = ?', [id])
   vergissKonto(id)
-  res.json({ data: { id, email: user.email }, error: null })
+  const verbleib = await projekteRegeln(db, projekte, user.email)
+  res.json({ data: { id, email: user.email, ...verbleib }, error: null })
 })
 
 // ─── DELETE /api/admin/projects/:id ──────────────────────────────────────────
@@ -332,7 +338,9 @@ router.delete('/projects/:id', async (req: Request, res: Response) => {
 router.put('/users/:id/role', async (req: Request, res: Response) => {
   const id = Number(req.params.id)
   const { role } = req.body as { role: string }
-  const valid = ['admin', 'user', 'producer', 'director', 'dept_head', 'read_only']
+  // Global wirkt nur admin; Produktion, Regie usw. sind Rollen je Projekt
+  // (project_members). Florian, 03.11.2026: die übrigen hier weglassen.
+  const valid = ['admin', 'user']
   if (!role || !valid.includes(role)) {
     return res.status(400).json({ data: null, error: 'Ungültige Rolle' })
   }
@@ -371,12 +379,12 @@ router.post('/users', async (req: Request, res: Response) => {
   if (exists) return res.status(409).json({ data: null, error: 'E-Mail bereits vergeben' })
 
   const hash = await hashPasswort(password, 12)
-  const valid = ['admin', 'user', 'producer', 'director', 'dept_head', 'read_only']
-  const finalRole = valid.includes(role) ? role : 'user'
+  const finalRole = role === 'admin' ? 'admin' : 'user'
   const result = await db.run(
     'INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)',
     [email, hash, name || '', finalRole]
   )
+  await projekteZurueckgeben(db, result.id, email)
 
   const created = await db.get('SELECT id, email, name, role, created_at FROM users WHERE id = ?', [result.id])
   res.status(201).json({ data: created, error: null })

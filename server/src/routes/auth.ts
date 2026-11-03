@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { hashPasswort, pruefePasswort } from '../lib/passwort'
+import { projekteRegeln, projekteZurueckgeben } from '../lib/kontoloeschung'
 import crypto from 'crypto'
 import { z } from 'zod'
 import { db, seedDemoData } from '../db'
@@ -82,6 +83,10 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
     'INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)',
     [email, password_hash, name || '', role]
   )
+
+  // Wer sich innerhalb von 30 Tagen nach der Löschung mit derselben Adresse
+  // wieder anmeldet, bekommt seine vorgemerkten Projekte zurück.
+  await projekteZurueckgeben(db, result.id, email)
 
   // Persönliches Demo-Projekt, damit der erste Eindruck nie eine leere App ist.
   // Fire-and-forget: ~100 INSERTs würden die Registrierung um Sekunden verzögern.
@@ -450,12 +455,15 @@ router.delete('/me', requireAuth, async (req: Request, res: Response) => {
     })
   }
 
-  // Solo-Projekte des Users löschen, dann den Account (project_members etc. kaskadieren)
-  await db.run('DELETE FROM projects WHERE owner_id = ?', [user.id])
+  // Solo-Projekte: 30 Tage vorgemerkt statt sofort gelöscht - wer sich mit
+  // derselben Adresse wieder anmeldet, bekommt sie zurück (Florian,
+  // 03.11.2026; lib/kontoloeschung.ts). Danach räumt der tägliche Lauf ab.
+  const projekte = (await db.all('SELECT id FROM projects WHERE owner_id = ?', [user.id]) as any[]).map(p => Number(p.id))
   await db.run('DELETE FROM push_subscriptions WHERE user_id = ?', [user.id]).catch(() => null)
   await db.run('DELETE FROM password_reset_tokens WHERE user_id = ?', [user.id])
   await db.run('DELETE FROM users WHERE id = ?', [user.id])
   vergissKonto(user.id)
+  await projekteRegeln(db, projekte, user.email)
   return res.json({ data: { success: true }, error: null })
 })
 
