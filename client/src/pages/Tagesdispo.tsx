@@ -19,17 +19,18 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
 } from '@/components/ui/dialog'
 import { TimeInput } from '@/components/ui/time-input'
-import { useT } from '@/lib/useT'
-import { dispoT, uiT } from '@/lib/i18n'
+import { useT, useGebietsschema } from '@/lib/useT'
+import { dispoT, uiT, scenesT } from '@/lib/i18n'
+import { tagesdispoT as D, WETTERLAGE } from '@/lib/texte/Tagesdispo'
 import { track } from '@/lib/analytics'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 // ─── Dispo versenden ─────────────────────────────────────────────────────────
 
-function entryStatus(e: any): { label: string; cls: string; icon: any } | null {
-  if (e.confirmed_at) return { label: 'Bestätigt', cls: 'text-success', icon: CheckCircle2 }
-  if (e.viewed_at) return { label: 'Gesehen', cls: 'text-info', icon: Eye }
-  if (e.sent_at) return { label: 'Versendet', cls: 'text-muted-foreground', icon: Send }
+function entryStatus(e: any): { label: typeof D.statusBestaetigt; cls: string; icon: any } | null {
+  if (e.confirmed_at) return { label: D.statusBestaetigt, cls: 'text-success', icon: CheckCircle2 }
+  if (e.viewed_at) return { label: D.statusGesehen, cls: 'text-info', icon: Eye }
+  if (e.sent_at) return { label: D.statusVersendet, cls: 'text-muted-foreground', icon: Send }
   return null
 }
 
@@ -40,6 +41,8 @@ function SendDispoButton({ dayId, entries, onSent }: {
 }) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
+  const tt = useT()
+  const gs = useGebietsschema()
 
   // Leer heisst sofort. Mit Zeitpunkt wandert die Dispo in den Postausgang und
   // geht am Vorabend raus, ohne dass jemand um 20 Uhr am Rechner sitzen muss.
@@ -53,24 +56,24 @@ function SendDispoButton({ dayId, entries, onSent }: {
       onSent()
       if (result.scheduled_for) {
         toast({
-          title: `Dispo für ${result.queued} ${result.queued === 1 ? 'Person' : 'Personen'} eingeplant`,
-          description: `Versand am ${new Date(result.scheduled_for).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} Uhr. Im E-Mail-Bereich lässt sie sich zurückziehen.`,
+          title: tt(result.queued === 1 ? D.eingeplantEine : D.eingeplantMehr).replace('{n}', String(result.queued)),
+          description: tt(D.versandAm).replace('{zeit}', new Date(result.scheduled_for).toLocaleString(gs, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })),
         })
         return
       }
       toast({
-        title: `Dispo an ${result.sent} ${result.sent === 1 ? 'Person' : 'Personen'} versendet`,
+        title: tt(result.sent === 1 ? D.versendetEine : D.versendetMehr).replace('{n}', String(result.sent)),
         description: [
-          result.queued > 0 && `${result.queued} in der Warteschlange - der Versand läuft weiter`,
-          (result.nicht_zustellbar ?? 0) > 0 && `${result.nicht_zustellbar} mit Testadresse, nicht verschickt`,
-          result.skipped_no_email.length > 0 && `Ohne E-Mail übersprungen: ${result.skipped_no_email.join(', ')}`,
-          result.failed.length > 0 && `Fehlgeschlagen: ${result.failed.join(', ')}`,
-        ].filter(Boolean).join(' · ') || 'Alle Empfänger erreicht.',
+          result.queued > 0 && tt(D.warteschlange).replace('{n}', String(result.queued)),
+          (result.nicht_zustellbar ?? 0) > 0 && tt(D.testadresse).replace('{n}', String(result.nicht_zustellbar)),
+          result.skipped_no_email.length > 0 && tt(D.ohneMail).replace('{namen}', result.skipped_no_email.join(', ')),
+          result.failed.length > 0 && tt(D.fehlgeschlagen).replace('{namen}', result.failed.join(', ')),
+        ].filter(Boolean).join(' · ') || tt(D.alleErreicht),
       })
     },
     onError: (e: any) => {
       setOpen(false)
-      toast({ variant: 'destructive', title: 'Versand fehlgeschlagen', description: e.message })
+      toast({ variant: 'destructive', title: tt(D.versandFehler), description: e.message })
     },
   })
 
@@ -84,17 +87,14 @@ function SendDispoButton({ dayId, entries, onSent }: {
     <>
       <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)} disabled={entries.length === 0}>
         <Send className="w-3.5 h-3.5" />
-        Dispo versenden
+        {tt(D.versenden)}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Dispo versenden</DialogTitle>
-            <DialogDescription>
-              Jede Person erhält eine personalisierte E-Mail mit ihrer Call Time, einem
-              Bestätigungs-Link und der Dispo als PDF-Anhang.
-            </DialogDescription>
+            <DialogTitle>{tt(D.versenden)}</DialogTitle>
+            <DialogDescription>{tt(D.versendenText)}</DialogDescription>
           </DialogHeader>
 
           <div className="max-h-56 overflow-y-auto rounded-lg border border-border/60 divide-y divide-border/40">
@@ -110,24 +110,24 @@ function SendDispoButton({ dayId, entries, onSent }: {
 
           <div className="flex items-start gap-2 text-[12px] text-muted-foreground">
             <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-warning" />
-            <span>Personen ohne hinterlegte E-Mail-Adresse werden übersprungen und im Ergebnis aufgelistet.</span>
+            <span>{tt(D.ohneMailHinweis)}</span>
           </div>
 
           <div className="space-y-1">
             <label className="text-[12px] text-muted-foreground" htmlFor="dispo-zeitpunkt">
-              Später senden (leer lassen für sofort)
+              {tt(D.spaeter)}
             </label>
             <Input id="dispo-zeitpunkt" type="datetime-local" value={zeitpunkt}
               onChange={e => setZeitpunkt(e.target.value)} className="h-8 text-sm" />
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Abbrechen</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{tt(D.abbrechen)}</Button>
             <Button onClick={() => sendMutation.mutate()} disabled={sendMutation.isPending} className="gap-1.5">
               <Send className="w-3.5 h-3.5" />
               {sendMutation.isPending
-                ? (zeitpunkt ? 'Wird eingeplant…' : 'Wird versendet…')
-                : (zeitpunkt ? 'Einplanen' : 'Jetzt versenden')}
+                ? tt(zeitpunkt ? D.wirdEingeplant : D.wirdVersendet)
+                : tt(zeitpunkt ? D.einplanen : D.jetztVersenden)}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -138,31 +138,24 @@ function SendDispoButton({ dayId, entries, onSent }: {
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-function sceneStripColor(int_ext: string, day_night: string) {
-  const ie = (int_ext || '').toUpperCase()
+/**
+ * Die vier Farben der Legende. Eingeteilt wie `getStripClass` (lib/utils.ts):
+ * MORGEN zählt als Tag, DÄMMERUNG als Nacht, INT/EXT als Außen. Vorher fiel
+ * alles außer TAG und NACHT auf Außen-Nacht - gemessen am 03.11.2026: eine
+ * Szene INT/MORGEN bekam den Streifen von "EXT/Nacht".
+ */
+function sceneArt(int_ext: string, day_night: string): 'intTag' | 'extTag' | 'intNacht' | 'extNacht' {
+  const innen = (int_ext || '').toUpperCase() === 'INT'
   const dn = (day_night || '').toUpperCase()
-  if (ie === 'INT' && dn === 'TAG')   return 'bg-yellow-400'
-  if (ie === 'EXT' && dn === 'TAG')   return 'bg-sky-400'
-  if (ie === 'INT' && dn === 'NACHT') return 'bg-orange-500'
-  return 'bg-indigo-500'  // EXT/NACHT
+  const nacht = dn === 'NACHT' || dn === 'DÄMMERUNG'
+  return innen ? (nacht ? 'intNacht' : 'intTag') : (nacht ? 'extNacht' : 'extTag')
 }
 
-function sceneRowBg(int_ext: string, day_night: string) {
-  const ie = (int_ext || '').toUpperCase()
-  const dn = (day_night || '').toUpperCase()
-  if (ie === 'INT' && dn === 'TAG')   return 'bg-yellow-500/5'
-  if (ie === 'EXT' && dn === 'TAG')   return 'bg-sky-500/5'
-  if (ie === 'INT' && dn === 'NACHT') return 'bg-orange-500/5'
-  return 'bg-indigo-500/5'
-}
-
-function sceneBadgeColor(int_ext: string, day_night: string) {
-  const ie = (int_ext || '').toUpperCase()
-  const dn = (day_night || '').toUpperCase()
-  if (ie === 'INT' && dn === 'TAG')   return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300'
-  if (ie === 'EXT' && dn === 'TAG')   return 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300'
-  if (ie === 'INT' && dn === 'NACHT') return 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300'
-  return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300'
+const SZENENFARBE = {
+  intTag:   { strip: 'bg-yellow-400', row: 'bg-yellow-500/5', badge: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' },
+  extTag:   { strip: 'bg-sky-400', row: 'bg-sky-500/5', badge: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300' },
+  intNacht: { strip: 'bg-orange-500', row: 'bg-orange-500/5', badge: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300' },
+  extNacht: { strip: 'bg-indigo-500', row: 'bg-indigo-500/5', badge: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300' },
 }
 
 // ─── Add-person inline panel ─────────────────────────────────────────────────
@@ -209,7 +202,7 @@ function AddPersonPanel({
         <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           {tt(dispoT.addPerson)}
         </span>
-        <button onClick={onClose} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
+        <button onClick={onClose} aria-label={tt(D.schliessen)} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
       </div>
 
       {availableCast.length > 0 && (
@@ -222,7 +215,7 @@ function AddPersonPanel({
               onClick={() => availableCast.forEach(c => addEntryMutation.mutate({ person_type: 'cast', person_id: c.id, call_time: defaultCall }))}
               className="text-[11px] text-primary hover:underline"
             >
-              Alle hinzufügen
+              {tt(D.alleHinzufuegen)}
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -250,7 +243,7 @@ function AddPersonPanel({
               onClick={() => availableCrew.forEach(c => addEntryMutation.mutate({ person_type: 'crew', person_id: c.id, call_time: defaultCall }))}
               className="text-[11px] text-primary hover:underline"
             >
-              Alle hinzufügen
+              {tt(D.alleHinzufuegen)}
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -278,7 +271,7 @@ function AddPersonPanel({
               onClick={() => availableExtras.forEach((c: any) => addEntryMutation.mutate({ person_type: 'extra', person_id: c.id, call_time: defaultCall }))}
               className="text-[11px] text-primary hover:underline"
             >
-              Alle hinzufügen
+              {tt(D.alleHinzufuegen)}
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -316,7 +309,11 @@ function PersonSection({
 }) {
   const { darfSchreiben } = useSchreibrecht()
   const tt = useT()
+  const gs = useGebietsschema()
   if (entries.length === 0) return null
+  // Der Name steht in person_name - vorher lasen die Feldnamen `name` und
+  // hießen für alle "von dieser Person" (gemessen am 02.11.2026)
+  const wer = (e: any) => e.person_name || tt(D.dieserPerson)
 
   return (
     <div>
@@ -351,7 +348,7 @@ function PersonSection({
                 {tt(dispoT.colNotes)}
               </th>
               <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-24">
-                Status
+                {tt(D.status)}
               </th>
               <th className="py-2 pr-4 w-8" />
             </tr>
@@ -370,14 +367,14 @@ function PersonSection({
                     value={entry.call_time || 480}
                     onChange={v => onUpdate(entry._idx, 'call_time', v)}
                     className="w-20 h-7 text-xs font-mono font-bold"
-                    label={`Call-Zeit von ${entry.name || 'dieser Person'}`}
+                    label={tt(D.callVon).replace('{name}', wer(entry))}
                   />
                 </td>
                 <td className="py-2.5 px-2">
                   <Input disabled={!darfSchreiben}
                     value={entry.pickup_location || ''}
                     onChange={e => onUpdate(entry._idx, 'pickup_location', e.target.value)}
-                    aria-label={`Abholort von ${entry.name || 'dieser Person'}`}
+                    aria-label={tt(D.abholortVon).replace('{name}', wer(entry))}
                     className="h-7 text-xs w-36"
                     placeholder="-"
                   />
@@ -385,7 +382,7 @@ function PersonSection({
                 <td className="py-2.5 px-2">
                   <Input disabled={!darfSchreiben}
                     value={entry.notes || ''}
-                    aria-label={`Hinweis zu ${entry.name || 'dieser Person'}`}
+                    aria-label={tt(D.hinweisZu).replace('{name}', wer(entry))}
                     onChange={e => onUpdate(entry._idx, 'notes', e.target.value)}
                     className="h-7 text-xs w-44"
                     placeholder="-"
@@ -400,13 +397,13 @@ function PersonSection({
                       <span
                         className={cn('inline-flex items-center gap-1 text-[11px] font-semibold', st.cls)}
                         title={[
-                          entry.sent_at && `Versendet: ${new Date(entry.sent_at).toLocaleString('de-DE')}`,
-                          entry.viewed_at && `Gesehen: ${new Date(entry.viewed_at).toLocaleString('de-DE')}`,
-                          entry.confirmed_at && `Bestätigt: ${new Date(entry.confirmed_at).toLocaleString('de-DE')}`,
+                          entry.sent_at && tt(D.versendetAm).replace('{zeit}', new Date(entry.sent_at).toLocaleString(gs)),
+                          entry.viewed_at && tt(D.gesehenAm).replace('{zeit}', new Date(entry.viewed_at).toLocaleString(gs)),
+                          entry.confirmed_at && tt(D.bestaetigtAm).replace('{zeit}', new Date(entry.confirmed_at).toLocaleString(gs)),
                         ].filter(Boolean).join('\n')}
                       >
                         <StIcon className="w-3 h-3" />
-                        {st.label}
+                        {tt(st.label)}
                       </span>
                     )
                   })()}
@@ -414,8 +411,8 @@ function PersonSection({
                 <td className="py-2.5 pr-4">
                   <button
                     onClick={() => onDelete(entry.id)}
-                    aria-label={`${entry.name || 'Person'} aus der Dispo nehmen`}
-                    title="Aus der Dispo nehmen"
+                    aria-label={tt(D.ausDispo).replace('{name}', wer(entry))}
+                    title={tt(D.ausDispoKurz)}
                     className="w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -433,18 +430,30 @@ function PersonSection({
 // ─── Main call sheet entries block ───────────────────────────────────────────
 
 function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
-  callSheet: any; projectId: number; onSaveEntries: (entries: any[]) => void; onRefresh: () => void
+  callSheet: any; projectId: number; onSaveEntries: (entries: any[]) => Promise<unknown>; onRefresh: () => void
 }) {
   const tt = useT()
   const [entries, setEntries] = useState<any[]>([])
   const [showAdd, setShowAdd] = useState(false)
   const queryClient = useQueryClient()
 
+  /**
+   * Noch nicht gespeicherte Eingaben je Eintrag. Vorher setzte jedes Neuladen
+   * der Dispo die Liste auf den Serverstand zurück - gemessen am 02.11.2026:
+   * Abholort getippt, dann eine Person hinzugefügt, der Abholort war weg und
+   * "Speichern" verschwand. Dasselbe passiert beim Abfragen der Bestätigungen
+   * alle 30 s. Jetzt legt sich das Eingetippte über den neuen Serverstand,
+   * bis gespeichert ist.
+   */
+  const offen = useRef<Record<number, Record<string, any>>>({})
+
   useEffect(() => {
-    setEntries((callSheet?.entries || []).map((e: any, i: number) => ({ ...e, _idx: i })))
+    setEntries((callSheet?.entries || []).map((e: any, i: number) => ({ ...e, ...(offen.current[e.id] || {}), _idx: i })))
   }, [callSheet?.entries])
 
   const updateEntry = (idx: number, key: string, value: any) => {
+    const id = entries[idx]?.id
+    if (id != null) offen.current[id] = { ...offen.current[id], [key]: value }
     setEntries(prev => {
       const next = [...prev]
       next[idx] = { ...next[idx], [key]: value }
@@ -481,7 +490,7 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
         </div>
         <div className="flex items-center gap-2">
           {hasChanges && (
-            <Button size="sm" onClick={() => onSaveEntries(entries.map(({ _idx, ...rest }) => rest))}>
+            <Button size="sm" onClick={() => onSaveEntries(entries.map(({ _idx, ...rest }) => rest)).then(() => { offen.current = {} }, () => {})}>
               <Save className="w-3.5 h-3.5 mr-1.5" />{tt(uiT.save)}
             </Button>
           )}
@@ -568,18 +577,19 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
           <thead>
             <tr className="border-b border-border/30 bg-muted/20">
               <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 pl-4 pr-2 w-14">#</th>
-              <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-3">Set & Beschreibung</th>
+              <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-3">{tt(D.setBeschreibung)}</th>
               <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-20">INT/EXT</th>
-              <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-16">T/N</th>
-              <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-16">Seiten</th>
-              <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2">Motiv</th>
+              <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-16">{tt(D.tagNacht)}</th>
+              <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-16">{tt(D.seiten)}</th>
+              <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2">{tt(D.motiv)}</th>
             </tr>
           </thead>
           <tbody>
             {scenes.map((s: any) => {
-              const stripColor = sceneStripColor(s.int_ext, s.day_night)
-              const rowBg = sceneRowBg(s.int_ext, s.day_night)
-              const badgeColor = sceneBadgeColor(s.int_ext, s.day_night)
+              const farbe = SZENENFARBE[sceneArt(s.int_ext, s.day_night)]
+              const stripColor = farbe.strip
+              const rowBg = farbe.row
+              const badgeColor = farbe.badge
               return (
                 <tr key={s.scene_id} className={cn('border-b border-border/20 last:border-0 group', rowBg)}>
                   {/* Colored left strip + scene number */}
@@ -599,7 +609,7 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
                   </td>
                   <td className="py-3 px-2 text-center">
                     <span className="text-xs font-semibold text-muted-foreground uppercase">
-                      {s.day_night === 'TAG' ? 'Tag' : s.day_night === 'NACHT' ? 'Nacht' : (s.day_night || '-')}
+                      {scenesT.tageszeit[s.day_night] ? tt(scenesT.tageszeit[s.day_night]) : (s.day_night || '-')}
                     </span>
                   </td>
                   <td className="py-3 px-2 text-center">
@@ -626,12 +636,7 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
 
       {/* Legend */}
       <div className="flex items-center gap-4 flex-wrap px-5 py-2.5 border-t border-border/30 bg-muted/10">
-        {[
-          { label: 'INT/Tag', color: 'bg-yellow-400' },
-          { label: 'EXT/Tag', color: 'bg-sky-400' },
-          { label: 'INT/Nacht', color: 'bg-orange-500' },
-          { label: 'EXT/Nacht', color: 'bg-indigo-500' },
-        ].map(({ label, color }) => (
+        {(['intTag', 'extTag', 'intNacht', 'extNacht'] as const).map(art => ({ label: tt(D[art]), color: SZENENFARBE[art].strip })).map(({ label, color }) => (
           <div key={label} className="flex items-center gap-1.5">
             <div className={cn('w-2.5 h-2.5 rounded-sm', color)} />
             <span className="text-[11px] text-muted-foreground">{label}</span>
@@ -698,7 +703,7 @@ export function Component() {
   // Fehler sichtbar machen: Ohne onError schlug das Speichern still fehl, und
   // die Aenderung war beim naechsten Laden einfach wieder weg.
   const saveFailed = (err: any) =>
-    toast({ title: 'Nicht gespeichert', description: err?.message, variant: 'destructive' })
+    toast({ title: tt(D.nichtGespeichert), description: err?.message, variant: 'destructive' })
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => api.callSheets.createOrUpdate(selectedDayId!, data),
@@ -768,29 +773,31 @@ export function Component() {
   const holeSonnenzeiten = async () => {
     const motivId = firstScene?.location_id
     if (!motivId || !currentDay?.date) {
-      toast({ title: 'Kein Motiv oder Datum am Drehtag', variant: 'destructive' }); return
+      toast({ title: tt(D.keinMotivDatum), variant: 'destructive' }); return
     }
     setSonneLaedt(true)
     try {
       const d = await api.sun.get(Number(motivId), String(currentDay.date).slice(0, 10))
+      // Fest de-DE: das Ergebnis landet als "05:30" im Feld und auf dem PDF,
+      // en-US gäbe "05:30 AM"
       const uhr = (iso: string | null) => iso
         ? new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
         : ''
       const auf = uhr(d.sunrise)
       const unter = uhr(d.sunset)
-      if (!auf && !unter) { toast({ title: 'Keine Sonnenzeiten berechenbar', variant: 'destructive' }); return }
+      if (!auf && !unter) { toast({ title: tt(D.keineSonne), variant: 'destructive' }); return }
       if (auf) updateHeader('sunrise', auf)
       if (unter) updateHeader('sunset', unter)
       const golden = uhr(d.golden_hour_evening_start)
       toast({
-        title: `Sonne: ${auf} - ${unter}`,
+        title: tt(D.sonne).replace('{auf}', auf).replace('{unter}', unter),
         description: d.koordinaten === 'standard'
           // Nicht verschweigen: ohne Koordinaten am Motiv ist das geraten.
-          ? 'Ohne Koordinaten am Motiv gerechnet (Standardort München) - im Motiv Lat/Lng eintragen für genaue Zeiten.'
-          : golden ? `Golden Hour abends ab ${golden}` : undefined,
+          ? tt(D.ohneKoordinaten)
+          : golden ? tt(D.goldenHour).replace('{zeit}', golden) : undefined,
       })
     } catch {
-      toast({ title: 'Sonnenzeiten nicht abrufbar', variant: 'destructive' })
+      toast({ title: tt(D.sonneFehler), variant: 'destructive' })
     } finally {
       setSonneLaedt(false)
     }
@@ -799,14 +806,14 @@ export function Component() {
   const fetchWeather = async () => {
     const city = locationName || (project as any)?.location || ''
     if (!city || !currentDay?.date) {
-      toast({ title: 'Kein Drehort oder Datum', variant: 'destructive' }); return
+      toast({ title: tt(D.keinOrt), variant: 'destructive' }); return
     }
     setWeatherLoading(true)
     try {
       const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=de&format=json`)
       const geoData = await geoRes.json()
       const loc = geoData.results?.[0]
-      if (!loc) { toast({ title: 'Ort nicht gefunden', variant: 'destructive' }); return }
+      if (!loc) { toast({ title: tt(D.ortNicht), variant: 'destructive' }); return }
 
       const dateStr = currentDay.date.slice(0, 10)
       const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min&start_date=${dateStr}&end_date=${dateStr}&timezone=Europe%2FBerlin`)
@@ -815,18 +822,12 @@ export function Component() {
       const max = wData.daily?.temperature_2m_max?.[0]
       const min = wData.daily?.temperature_2m_min?.[0]
 
-      const WMO: Record<number, string> = {
-        0:'Klar', 1:'Leicht bewölkt', 2:'Bewölkt', 3:'Bedeckt',
-        45:'Nebel', 48:'Raureif', 51:'Leichter Niesel', 53:'Niesel', 55:'Starker Niesel',
-        61:'Leichter Regen', 63:'Regen', 65:'Starker Regen', 71:'Leichter Schnee', 73:'Schnee',
-        75:'Starker Schnee', 80:'Regenschauer', 81:'Schauer', 82:'Starke Schauer', 95:'Gewitter', 99:'Starkes Gewitter'
-      }
-      const condition = WMO[code] ?? `Code ${code}`
+      const condition = WETTERLAGE[code] ? tt(WETTERLAGE[code]) : `Code ${code}`
       const forecast = `${condition}, ${Math.round(min)}-${Math.round(max)}°C`
       updateHeader('weather_forecast', forecast)
-      toast({ title: `Wetter: ${forecast}` })
+      toast({ title: tt(D.wetter).replace('{f}', forecast) })
     } catch {
-      toast({ title: 'Wetterdaten nicht abrufbar', variant: 'destructive' })
+      toast({ title: tt(D.wetterFehler), variant: 'destructive' })
     } finally {
       setWeatherLoading(false)
     }
@@ -850,12 +851,12 @@ export function Component() {
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" className="w-8 h-8"
             disabled={currentIndex <= 0}
-            aria-label="Vorheriger Drehtag" title="Vorheriger Drehtag"
+            aria-label={tt(D.vorheriger)} title={tt(D.vorheriger)}
             onClick={() => navigate(`/projects/${pid}/tagesdispo/${allDays[currentIndex - 1].id}`)}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <Select value={String(selectedDayId)} onValueChange={v => navigate(`/projects/${pid}/tagesdispo/${v}`)}>
-            <SelectTrigger aria-label="Drehtag wählen" className="w-52 h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label={tt(D.tagWaehlen)} className="w-52 h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               {allDays.map((d: any) => (
                 <SelectItem key={d.id} value={String(d.id)} className="text-xs">
@@ -866,7 +867,7 @@ export function Component() {
           </Select>
           <Button variant="outline" size="icon" className="w-8 h-8"
             disabled={currentIndex >= allDays.length - 1}
-            aria-label="Nächster Drehtag" title="Nächster Drehtag"
+            aria-label={tt(D.naechster)} title={tt(D.naechster)}
             onClick={() => navigate(`/projects/${pid}/tagesdispo/${allDays[currentIndex + 1].id}`)}>
             <ChevronRight className="w-4 h-4" />
           </Button>
@@ -890,7 +891,7 @@ export function Component() {
 
         {/* Script Sides: die Drehbuchseiten nur der Szenen dieses Tages */}
         {selectedDayId && (
-          <Button variant="outline" size="sm" className="gap-1.5" title="Drehbuchauszug mit allen Szenen des Tages"
+          <Button variant="outline" size="sm" className="gap-1.5" title={tt(D.sidesTitel)}
             onClick={() => download(api.scriptSides.pdf(selectedDayId), 'script-sides.pdf')}>
             <FileText className="w-3.5 h-3.5" />Script Sides
           </Button>
@@ -915,11 +916,11 @@ export function Component() {
           <div className="flex items-center gap-2.5 min-w-0">
             <Clapperboard className="w-4 h-4 text-muted-foreground shrink-0" />
             <h1 className="font-bold text-sm uppercase tracking-widest truncate">
-              {project?.title || 'Produktion'}
+              {project?.title || tt(D.produktion)}
             </h1>
             {currentDay && (
               <span className="text-xs text-muted-foreground font-medium ml-1 whitespace-nowrap">
-                · {tt(dispoT.dayLabel)} {currentDay.day_number} von {allDays.length}
+                · {tt(dispoT.dayLabel)} {tt(D.vonGesamt).replace('{n}', String(currentDay.day_number)).replace('{gesamt}', String(allDays.length))}
               </span>
             )}
           </div>
@@ -952,7 +953,7 @@ export function Component() {
                 <TimeInput disabled={!darfSchreiben}
                   value={headerForm.general_call || 480}
                   onChange={v => updateHeader('general_call', v)}
-                  label="General Call - wann die Crew am Set ist"
+                  label={tt(D.generalCallName)}
                   className="h-16 text-5xl font-black text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none"
                 />
               </div>
@@ -964,7 +965,7 @@ export function Component() {
                 <TimeInput disabled={!darfSchreiben}
                   value={headerForm.shooting_call || 510}
                   onChange={v => updateHeader('shooting_call', v)}
-                  label="Shooting Call - wann gedreht wird"
+                  label={tt(D.shootingCallName)}
                   className="h-16 text-5xl font-black text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none text-primary"
                 />
               </div>
@@ -999,7 +1000,7 @@ export function Component() {
                 </div>
                 <Input disabled={!darfSchreiben}
                   value={headerForm.weather_forecast || ''}
-                  aria-label="Wetterlage am Drehtag"
+                  aria-label={tt(D.wetterlage)}
                   onChange={e => updateHeader('weather_forecast', e.target.value)}
                   className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-semibold shadow-none"
                   placeholder={tt(dispoT.weatherPlaceholder)}
@@ -1015,14 +1016,14 @@ export function Component() {
                     onClick={holeSonnenzeiten}
                     disabled={sonneLaedt}
                     className="ml-auto shrink-0 -my-2 -mr-2 px-2 py-2 text-[10px] text-primary hover:underline disabled:opacity-50"
-                    title="Sonnenauf- und -untergang aus dem Motiv des Tages"
+                    title={tt(D.sonnenTitel)}
                   >
                     {sonneLaedt ? tt(dispoT.weatherFetching) : tt(dispoT.weatherFetch)}
                   </button>
                 </div>
                 <Input disabled={!darfSchreiben}
                   value={headerForm.sunrise || ''}
-                  aria-label="Sonnenaufgang"
+                  aria-label={tt(D.sonnenaufgang)}
                   onChange={e => updateHeader('sunrise', e.target.value)}
                   className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono font-semibold shadow-none"
                   placeholder="05:30"
@@ -1037,7 +1038,7 @@ export function Component() {
                 </div>
                 <Input disabled={!darfSchreiben}
                   value={headerForm.sunset || ''}
-                  aria-label="Sonnenuntergang"
+                  aria-label={tt(D.sonnenuntergang)}
                   onChange={e => updateHeader('sunset', e.target.value)}
                   className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono font-semibold shadow-none"
                   placeholder="20:45"
@@ -1071,7 +1072,7 @@ export function Component() {
             <CallSheetBlock
               callSheet={callSheet}
               projectId={pid}
-              onSaveEntries={(entries) => saveEntriesMutation.mutate(entries)}
+              onSaveEntries={(entries) => saveEntriesMutation.mutateAsync(entries)}
               onRefresh={() => queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })}
             />
           )}
@@ -1088,15 +1089,15 @@ export function Component() {
             </p>
             <div className="flex items-center gap-2 mb-3">
               <Button variant="outline" size="icon" className="w-7 h-7"
-                aria-label="Verschiebung um 5 Minuten verringern"
+                aria-label={tt(D.weniger5)}
                 onClick={() => setShiftAmount(Math.max(5, shiftAmount - 5))}>
                 <Minus className="w-3 h-3" />
               </Button>
               <span className="text-sm font-mono font-bold w-14 text-center tabular-nums">
-                {shiftAmount} Min
+                {shiftAmount} {tt(D.min)}
               </span>
               <Button variant="outline" size="icon" className="w-7 h-7"
-                aria-label="Verschiebung um 5 Minuten erhöhen"
+                aria-label={tt(D.mehr5)}
                 onClick={() => setShiftAmount(shiftAmount + 5)}>
                 <Plus className="w-3 h-3" />
               </Button>
@@ -1104,11 +1105,11 @@ export function Component() {
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1 h-8 text-xs font-bold"
                 onClick={() => shiftMutation.mutate(-shiftAmount)} disabled={!callSheet?.id}>
-                −{shiftAmount} Min
+                −{shiftAmount} {tt(D.min)}
               </Button>
               <Button variant="outline" size="sm" className="flex-1 h-8 text-xs font-bold"
                 onClick={() => shiftMutation.mutate(shiftAmount)} disabled={!callSheet?.id}>
-                +{shiftAmount} Min
+                +{shiftAmount} {tt(D.min)}
               </Button>
             </div>
           </div>
@@ -1123,7 +1124,7 @@ export function Component() {
               </div>
               <Textarea disabled={!darfSchreiben}
                 value={headerForm?.notes || ''}
-                aria-label="Hinweise für alle auf der Dispo"
+                aria-label={tt(D.hinweiseAlle)}
                 onChange={e => updateHeader('notes', e.target.value)}
                 rows={3}
                 className="text-sm resize-none"
@@ -1136,7 +1137,7 @@ export function Component() {
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <Button variant="outline" size="icon" className="w-8 h-8"
-                  aria-label="Eine Verpflegung weniger"
+                  aria-label={tt(D.verpflegungWeniger)}
                   onClick={() => {
                     const n = Math.max(0, (currentDay?.catering_count || 0) - 1)
                     api.drehplan.updateDay(selectedDayId!, { catering_count: n }).then(() =>
@@ -1150,7 +1151,7 @@ export function Component() {
                   <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{tt(dispoT.cateringPersons)}</div>
                 </div>
                 <Button variant="outline" size="icon" className="w-8 h-8"
-                  aria-label="Eine Verpflegung mehr"
+                  aria-label={tt(D.verpflegungMehr)}
                   onClick={() => {
                     const n = (currentDay?.catering_count || 0) + 1
                     api.drehplan.updateDay(selectedDayId!, { catering_count: n }).then(() =>

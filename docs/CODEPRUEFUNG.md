@@ -102,9 +102,6 @@ Stand am 24.10.2026, 23 Uhr:
   automatische Protokollierung (`aenderungenProtokollieren`) im Log - gemessen:
   Wiederöffnen als "projects" und als "zuruecknehmen". Beim Lesen der
   Server-Tests klären, ob die Middleware solche Pfade auslassen soll.
-  **`Tagesdispo.tsx:725`** speichert verzögert auf Seitenebene mit wechselndem
-  Drehtag - beim Lesen wie Fund 201 messen (tippen, innerhalb der Wartezeit
-  blättern).
   **Drei Tageszählungen je Darsteller:** Die Kalkulation (`routes/budget.ts`,
   `tageJePerson`) zählt Dispo-Einträge, DOOD und Besetzung zählen Drehtage mit
   Szenen der Figur. Seit Fund 121 trägt die Dispo die Darsteller selbst ein,
@@ -137,9 +134,9 @@ Stand am 24.10.2026, 23 Uhr:
   - "1.234,56" würde 1,23 € (`parseFloat("1.234.56")` ist 1.234).
   Seiten mit fest deutschen Resten (`scripts/texte-pruefen.py`, 26.10.2026):
   beim Lesen jeder Seite mitübersetzen, die gemischten zuerst - eine halb
-  übersetzte Seite sieht nach Fehler aus (Tagesdispo 56; Login, ProjectList,
-  Dashboard, Motive, Stammdaten, Drehbuch, Settings übersetzt,
-  Funde 186, 203, 216, 221, 222, 226, 239). Ganz deutsch und als "teilweise" ausgewiesen: Firma, Verträge, Reise,
+  übersetzte Seite sieht nach Fehler aus (alle gemischten übersetzt: Login,
+  ProjectList, Dashboard, Motive, Stammdaten, Drehbuch, Settings, Tagesdispo,
+  Funde 186, 203, 216, 221, 222, 226, 239, 242). Ganz deutsch und als "teilweise" ausgewiesen: Firma, Verträge, Reise,
   Agenturen, Abnahme, CreatorVideo, AdminPanel, AdminStats, Auswertungen,
   OffenePosten, Timesheets, Continuity, SperrtageKalender.
   **Rechtsfrage für Florian** (`lib/mahnwesen.ts`): Verzugszinsen laufen ab
@@ -477,6 +474,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 239 | `client/src/pages/Settings.tsx`, `client/src/lib/i18n.ts` | Klein (Sprache) | Die Einstellungen waren halb übersetzt: Konto, Passwort, Sprache und Darstellung über `settingsT`, Benachrichtigungen, Datenschutz & Konto und der ganze Abschnitt "Zweiter Faktor und Geräte" fest deutsch (rund 55 Texte, Merkzettel), Gerätenamen und Anmeldeergebnisse ebenso, Zeiten fest `de-DE`. "Light" und "Dark" standen fest englisch, auch in der deutschen Ansicht. Sprach- und Hell/Dunkel-Knöpfe meldeten ihren Zustand nicht. Gegenprobe ohne Fehler: Die Felder haben Namen (vergibt `starteBeschriftungen` zur Laufzeit aus den Beschriftungen). Die Mindestlänge 6 beim Passwort steht weiter als Frage an Florian im Merkzettel. | ja: englische Ansicht: 12 deutsche Reste (u. a. "Datenschutz", "Zweiter Faktor", "Angemeldete Geräte", "Windows-Rechner", "zuletzt"), "Light"/"Dark" | behoben: alle Texte in `settingsT` (auch `ergebnis` und `geraet`), Zeiten im gewählten Gebietsschema, "Hell"/"Dunkel" übersetzt, `aria-pressed` für Sprache und Hell/Dunkel. Danach gemessen: Englisch ohne deutschen Rest ("Privacy & account", "Signed-in devices", "Windows computer", "last seen 02/11, 21:35"), Deutsch "Hell", "Dunkel", "Angemeldete Geräte", "zuletzt 02.11., 21:35". Schaltzustände: Deutsch true, Dunkel true. Sprache zurück auf Deutsch |
 | 240 | `server/src/routes/admin.ts`, `client/src/pages/AdminPanel.tsx` | **Sicherheit** | Setzte ein Admin das Passwort eines Kontos zurück, blieben dessen Anmeldungen gültig - beim eigenen Wechsel und beim Reset per Mail werden sie beendet (`beendeAlleSitzungen`), hier fehlte der Aufruf. Wer ein übernommenes Konto per Admin-Reset zurückholen wollte, ließ den Angreifer angemeldet. Im Panel: 46 Rollenauswahlen ohne Namen, drei selbstgebaute Overlays statt Dialogen (kein Escape, keine Dialog-Rolle), Reiter und Filter ohne Schaltzustand, `useQuery` nach einem bedingten `return` (Hook-Reihenfolge; als Absturz nicht gemessen - ein normales Konto wurde ohne Fehler umgeleitet). Die Seite bleibt deutsch (Merkzettel). | ja: Prüfkonto angemeldet, Admin-Reset 200, altes Token danach weiter 200 auf `/api/auth/me` | behoben: Admin-Reset beendet alle Sitzungen des Kontos, Antwort nennt `sitzungen_beendet`, der Dialog sagt es dazu. Rollenauswahl benannt ("Rolle von …"), echte Dialoge, `aria-pressed`, Hooks vor der Umleitung. Danach gemessen: neuer Test grün, ohne Korrektur rot ("expected 200 to be 401"); im laufenden Server altes Token 401, eine Sitzung beendet, neue Anmeldung 200 (eine erste Nachmessung lief gegen einen noch nicht neu geladenen Server und zeigte 200 - Messaufbau, nach erzwungenem Neustart wiederholt). 0 von 46 Auswahlen ohne Namen, Escape schließt den Dialog. Prüfkonten gelöscht |
 | 241 | `client/src/pages/Firma.tsx` | **Fehler (Verknüpfung)** | "ins Projekt" übernahm Personen aus dem Adressbuch in Stab oder Besetzung eines Projekts und meldete "Stab und Besetzung des Projekts sind aktualisiert" - die Stabliste zeigte sie bis zu 30 s nicht, weil `['crew', id]` und `['cast', id]` nicht erneuert wurden. Bearbeiten und Archivieren je Kontakt, Löschen je Satz, Entfernen je Mitglied und Bearbeiten/Löschen je Vorlage waren Symbole ohne Namen, das Häkchen je Kontakt ebenso. Archivieren (ohne Weg zurück in der Oberfläche), Satz löschen, Mitglied entfernen und Vorlage löschen gingen ohne Rückfrage. Gegenprobe ohne Fehler: `Firma.tsx:867` (Merkzettel zu Fund 236) ist eine reine Linkliste. Die Seite bleibt deutsch (Merkzettel). | ja: Firma 1 mit Messkontakt, -satz und -vorlage: Adressbuch 3, Gagensätze 1, Mailvorlagen 2 Knöpfe ohne Namen, 1 Häkchen ohne Namen; Archivieren schickte sofort DELETE. Stabliste des Prüfprojekts geladen, Kontakt per "ins Projekt" übernommen, zurück zur Stabliste: Server hat ihn, kein Feld zeigt ihn (Messaufbau zuerst falsch - die Stabliste zeigt Namen in Eingabefeldern, `innerText` fand sie nicht; mit Feldwerten bei zurückgenommener Korrektur wiederholt) | behoben: "ins Projekt" erneuert Stab und Besetzung des Zielprojekts. Namen für alle Symbolknöpfe und Häkchen, Rückfragen vor Archivieren, Löschen und Entfernen. Danach gemessen: übernommener Kontakt sofort in der Stabliste, 0 Knöpfe ohne Namen in allen drei Reitern, abgelehnte Rückfrage beim Archivieren. Messkontakte, -satz, -vorlage und Prüfprojekt entfernt |
+| 242 | `client/src/pages/Tagesdispo.tsx`, neu `client/src/lib/texte/Tagesdispo.ts` | **Datenverlust** | Jedes Neuladen der Dispo - Person hinzufügen oder entfernen, Zeiten verschieben, alle 30 s beim Warten auf Bestätigungen - setzte die Personenliste auf den Serverstand zurück: ungespeicherte Call-Zeiten, Abholorte und Hinweise waren weg, "Speichern" verschwand. Die Feldnamen lasen `entry.name` statt `person_name` und hießen für alle "… von dieser Person". Szenen mit MORGEN oder DÄMMERUNG bekamen Streifen und Farbe von "EXT/Nacht" (alles außer TAG und NACHT fiel dorthin), anders als im Drehplan (`getStripClass`). Die Seite war halb deutsch (56 Stellen im Prüfskript: Versand-Dialog, Meldungen, Spaltenköpfe, Legende, Wetterlagen, Feldnamen). Gegenprobe ohne Fehler: das verzögerte Speichern der Kopfangaben beim Blättern (Merkzettel) - der Wechsel des Drehtags baut die Seite neu auf, das Ausstehende landet im alten Tag. | ja: Prüfprojekt mit zwei Drehtagen, Abholort "Bahnhof Bochum" getippt, Person hinzugefügt: Feld leer, "Speichern" weg; Feldname "Abholort von dieser Person"; Szene INT/MORGEN mit `bg-indigo-500` | behoben: Eingetipptes legt sich je Eintrag über den neuen Serverstand, bis gespeichert ist; scheitert das Speichern, bleibt es stehen. Feldnamen mit Personennamen, Farben eingeteilt wie `getStripClass`, alle Texte über `tagesdispoT` und `WETTERLAGE`, T/N wie in der Szenenliste (`scenesT.tageszeit`), Zeitpunkte in der gewählten Sprache (abgerufene Sonnenzeiten bleiben fürs Feld in 24-Stunden-Form). Danach gemessen: Abholort übersteht das Hinzufügen einer dritten Person, "Speichern" bleibt, nach dem Speichern steht er auf dem Server; danach gilt wieder der Serverstand (serverseitig geändert, nach Entfernen einer Person sichtbar); bei gescheitertem Speichern (Antwort 500 untergeschoben) bleibt die Eingabe, Verschieben um 15 Min kommt trotzdem an; "Abholort von Paul Probe"; INT/MORGEN gelb; englisch ohne deutsche Reste in Seite, Versand-Dialog, Legende und Spaltenköpfen; Prüfskript 56 → 7 (Importe, Parameterlisten, "INT/EXT", ein Kommentar). Offen, nicht geändert: eine ungespeicherte Call-Zeit wird beim Verschieben nicht mitverschoben, sie bleibt wie getippt. Prüfprojekt entfernt |
 
 ### Verknüpfungen
 
@@ -518,6 +516,7 @@ Kandidaten stehen hier, bis sie gebaut oder verworfen sind.
 | Continuity-Einträge einer Szene (Kostüm, Maske, Requisite, Fotos) | Szenenübersicht (aufgeklappte Szene), Tagesdispo der Drehtage mit dieser Szene | Kandidat: Wer die Szene dreht, sieht die Anschlussnotizen dort, wo er plant, statt auf einer eigenen Seite zu suchen |
 | Moodboard-Einträge (Bild, Farbe, Notiz) | Szenen und Motive | Kandidat: Ein Eintrag lässt sich keiner Szene oder keinem Motiv zuordnen - das Board steht für sich. Zuordnung, und in der aufgeklappten Szene bzw. beim Motiv anzeigen |
 | Firmen-Adressbuch | Stab und Besetzung des Projekts | Erneuern nach "ins Projekt" gebaut (Fund 241) |
+| Tageszeit einer Szene (Drehbuch, Szenenliste) | Farben und T/N-Spalte der Tagesdispo | gleiche Einteilung wie Drehplan (`getStripClass`) gebaut, Fund 242 |
 
 ## Abhakliste
 
@@ -909,7 +908,7 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `client/src/pages/Suche.tsx` (209) - gelesen (Fund 175)
 - [x] `client/src/pages/SzenenKommentare.tsx` (359) - gelesen (Fund 204)
 - [x] `client/src/pages/Tagesbericht.tsx` (349) - gelesen (Funde 201 und 202)
-- [ ] `client/src/pages/Tagesdispo.tsx` (1116)
+- [x] `client/src/pages/Tagesdispo.tsx` (1116) - gelesen (Fund 242)
 - [x] `client/src/pages/Terminkalender.tsx` (335) - gelesen (Fund 200)
 - [x] `client/src/pages/Timesheets.tsx` (562) - gelesen (Fund 228)
 - [x] `client/src/pages/VFX.tsx` (304) - gelesen (Fund 196)
@@ -1012,3 +1011,4 @@ neu entstanden sind (diese mit Fundnummer abgehakt).
 - [x] `server/src/__tests__/figuren.test.ts` (19) - neu während der Prüfung (Fund 115)
 - [x] `server/src/__tests__/motive.test.ts` (33) - neu während der Prüfung (Fund 120)
 - [x] `server/src/__tests__/pdfFonts.test.ts` (17) - neu während der Prüfung (Fund 131)
+- [x] `client/src/lib/texte/Tagesdispo.ts` (103) - neu während der Prüfung (Fund 242)
