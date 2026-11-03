@@ -215,22 +215,14 @@ describe('findChannelPatterns', () => {
 
 describe('Kanalmuster in deutscher Zeit und Schreibweise', () => {
   it('ordnet den Wochentag nach deutscher Zeit zu, auch wenn der Server in UTC läuft', () => {
-    // Fängt den alten Fehler nur, wenn die Tests selbst in UTC laufen (TZ=UTC
-    // beim Start) - das Umstellen hier wirkt im Test-Worker nicht. Gemessen
-    // wurde der Fehler direkt mit TZ=UTC node (Fund 138).
-    const vorher = process.env.TZ
-    process.env.TZ = 'UTC'
-    try {
-      // Dienstag, 00:30 Uhr in Berlin - in UTC noch Montag
-      const r = findChannelPatterns([
-        { views: 900, published_at: '2026-10-26T23:30:00Z' },
-        { views: 100, published_at: '2026-10-28T12:00:00Z' },
-      ])
-      expect(r.bestWeekday).toBe('Dienstag')
-    } finally {
-      if (vorher === undefined) delete process.env.TZ
-      else process.env.TZ = vorher
-    }
+    // Die Suite läuft seit dem 03.11.2026 in UTC (vitest.config.ts) - vorher
+    // in der Zone des Rechners, und dieser Test fing den Fehler aus Fund 138
+    // nicht. Dienstag, 00:30 Uhr in Berlin - in UTC noch Montag.
+    const r = findChannelPatterns([
+      { views: 900, published_at: '2026-10-26T23:30:00Z' },
+      { views: 100, published_at: '2026-10-28T12:00:00Z' },
+    ])
+    expect(r.bestWeekday).toBe('Dienstag')
   })
 
   it('schreibt Prozente mit Dezimalkomma', () => {

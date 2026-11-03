@@ -82,11 +82,15 @@ describe('checkClip', () => {
     expect(c.valid).toBe(true)
   })
 
-  it('erkennt TikTok und Reels ebenfalls als Kurzformat', () => {
-    for (const p of ['TikTok', 'Instagram Reel']) {
-      const c = checkClip({ start_seconds: 0, end_seconds: 300, platform: p })
-      expect(c.valid).toBe(false)
-    }
+  it('erkennt Reels ebenfalls als Kurzformat', () => {
+    const c = checkClip({ start_seconds: 0, end_seconds: 300, platform: 'Instagram Reel' })
+    expect(c.valid).toBe(false)
+  })
+
+  it('lässt längere TikTok-Clips zu', () => {
+    // TikTok nimmt in der App bis zehn Minuten an, nicht drei
+    const c = checkClip({ start_seconds: 0, end_seconds: 300, platform: 'TikTok' })
+    expect(c.valid).toBe(true)
   })
 
   it('beanstandet einen Clip hinter dem Videoende', () => {

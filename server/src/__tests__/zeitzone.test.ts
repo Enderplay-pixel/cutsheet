@@ -6,27 +6,26 @@
  * 06:02 statt 08:02 für Bochum am 19.10.2026. Ebenso "Erstellt am" im
  * Abnahmeprotokoll.
  */
-import { describe, it, expect, afterAll } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import fs from 'fs'
 import path from 'path'
 
-const vorher = process.env.TZ
-afterAll(() => { process.env.TZ = vorher })
-
 describe('Berliner Zeit unabhängig von der Serverzone', () => {
-  it('zeigt einen Zeitpunkt unter TZ=UTC in Berliner Zeit', async () => {
-    process.env.TZ = 'UTC'
+  it('läuft in UTC wie der Server beim Hoster', () => {
+    // vitest.config.ts setzt die Zone. Bis zum 03.11.2026 stellte dieser Test
+    // sie selbst um - das wirkt im Worker nicht, alles lief in Berliner Zeit.
+    expect(new Date('2026-07-01T12:00:00Z').getTimezoneOffset()).toBe(0)
+  })
+
+  it('zeigt einen Zeitpunkt unter UTC in Berliner Zeit', async () => {
     const sonnenaufgang = new Date('2026-10-19T06:02:00Z')
     expect(sonnenaufgang.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' })).toBe('08:02')
   })
 
   it('verschiebt ein reines Datum aus der Datenbank um keinen Tag', async () => {
     const { fmtDate } = await import('../lib/documentLayout')
-    for (const zone of ['UTC', 'Europe/Berlin', 'America/Los_Angeles', 'Pacific/Auckland']) {
-      process.env.TZ = zone
-      expect(fmtDate('2026-10-19'), zone).toBe('19.10.2026')
-      expect(fmtDate('2026-03-29'), `${zone}, Sommerzeitbeginn`).toBe('29.03.2026')
-    }
+    expect(fmtDate('2026-10-19')).toBe('19.10.2026')
+    expect(fmtDate('2026-03-29'), 'Sommerzeitbeginn').toBe('29.03.2026')
   })
 
   it('kein Datumsformat auf dem Server ohne Zeitzone', () => {

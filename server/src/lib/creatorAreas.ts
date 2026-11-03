@@ -174,7 +174,7 @@ export function seo(videos: Video[]) {
     const maengel: string[] = []
 
     if (!String(v.keyword || '').trim()) maengel.push('kein Zielbegriff')
-    if (tags.length < TAGS_MIN) maengel.push(`nur ${tags.length} Schlagworte`)
+    if (tags.length < TAGS_MIN) maengel.push(`nur ${tags.length} ${tags.length === 1 ? 'Schlagwort' : 'Schlagworte'}`)
     if (beschreibung.length < BESCHREIBUNG_MIN) {
       maengel.push(beschreibung ? `Beschreibung nur ${beschreibung.length} Zeichen` : 'keine Beschreibung')
     }

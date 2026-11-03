@@ -130,7 +130,7 @@ describe('SEO', () => {
   it('benennt jeden Mangel einzeln', () => {
     const r = seo([video({ title: 'Kurz', keyword: '', tags: 'a', description: '' })])
     expect(r.liste[0].maengel).toEqual([
-      'kein Zielbegriff', 'nur 1 Schlagworte', 'keine Beschreibung',
+      'kein Zielbegriff', 'nur 1 Schlagwort', 'keine Beschreibung',
     ])
   })
 

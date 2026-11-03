@@ -85,7 +85,10 @@ export function checkClip(clip: Clip, videoSeconds?: number): ClipCheck {
     problems.push('Ende muss nach dem Anfang liegen.')
   } else {
     if (duration < 5) problems.push(`Mit ${duration}s zu kurz - unter 5s trägt kein Clip.`)
-    const isShortFormat = /short|reel|tiktok/i.test(String(clip.platform ?? ''))
+    // YouTube Shorts und Instagram Reels enden bei drei Minuten. TikTok nimmt
+    // längere Videos an (in der App seit 2022 bis zehn Minuten) - ein Clip
+    // von fünf Minuten galt dort bis zum 03.11.2026 als zu lang.
+    const isShortFormat = /short|reel/i.test(String(clip.platform ?? ''))
     if (isShortFormat && duration > SHORTS_MAX_SECONDS) {
       problems.push(`${duration}s überschreitet das Limit von ${SHORTS_MAX_SECONDS}s für dieses Format.`)
     }

@@ -494,6 +494,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 245 | `scripts/texte-pruefen.py`, `client/src/pages/Budget.tsx`, `client/src/lib/texte/Budget.ts` | Klein (Werkzeug, Sprache) | Das Prüfskript, auf dem die Übersetzungszahlen der Übergabe beruhen, hatte zwei blinde Flecken: Textzeilen, die auf "…" enden, und Texte als Zweig einer Verzweigung (`a ? 'Notiz…' : …`, `titel || 'Untitled'`, `{ source: 'Neuer Geldgeber' }`). Gemessen an der alten Fassung des Drehbuch-Editors: 5 Treffer, es fehlten vier Platzhalter, "Untitled" und "Klicken um Inhalt hinzuzufügen…". Nach der Erweiterung neu in übersetzten Seiten: nur `Budget.tsx` - ein neuer Finanzierungseintrag hieß auch im Englischen "Neuer Geldgeber". Gegenprobe ohne Fehler: `routen-pruefen.py` meldet alle Client-Aufrufe mit Route, `importe-pruefen.py` 1944 Importe exakt (und erkennt eine absichtlich falsch geschriebene Datei). | ja: alte Fassung des Editors durch das Skript geschickt, Treffer gegen die gelesenen Stellen verglichen | behoben: Skript erkennt beides, Tailwind-Klassen und CSS-Werte in Verzweigungen nimmt es aus (erste Fassung meldete sie, nachgeschärft). Zählung Seiten und Komponenten 979 → 1026, Zuwachs fast nur in den bewusst deutschen Seiten (AdminPanel, OffenePosten, Verträge, Agenturen, Firma …). Seiten jetzt: 86, davon 47 ohne Treffer, 26 mit bis zu zehn, 13 mit mehr. Budget: neuer Geldgeber heißt in der gewählten Sprache - gemessen im Englischen: "New funder" in Feld und Datenbank. Prüfprojekt entfernt |
 | 246 | `server/src/__tests__/schreibschutz.test.ts` | Lücke im Wächter (Sicherheit) | Der Test sagt, er lade "den Rest der Router mit schreibenden Routen" und prüfe jede Route mit einem fremden Konto und einem Leser. Zehn später dazugekommene Router fehlten: Abnahme, Abschluss, Agenturen, Angebote, Auswertungen, Buchhaltung, Dateien, Mahnwesen, Reise, Verträge - 59 schreibende Routen ohne Prüfung. Die Leserouten prüfte nur `routeAuth.test.ts` mit einer festen Liste von 21 Pfaden. Kein offenes Loch gefunden. | ja: Router im Ordner gegen die Importliste abgeglichen; danach jede Route aufgerufen: 285 schreibende, 183 lesende | behoben: die zehn Router im Test, dazu ein Leseschutz-Block, der jede GET-Route mit einem fremden Konto aufruft. Ergebnis: Kein Router lässt Fremde oder Leser schreiben. Nur öffentliche Links antworten einem Fremden beim Lesen mit Erfolg: Gastlink, Einladung, Abnahme, Casting, Vertrag, Empfangsbestätigung, VAPID-Schlüssel und YouTube-Rückruf. Erster Lauf meldete `POST /vertrag/abc/ablehnen` - ein öffentlicher Token-Link, den die Attrappe zu jedem Token findet, jetzt wie im Leser-Block ausgenommen. Gegenprobe: eine absichtlich offene Testroute macht den Test rot. Zwei weitere Gegenproben (Mitgliedsprüfung im Drehbuch-Router entfernt) blieben grün, weil eine zweite Schicht greift - Projekt-Router bzw. die Prüfung im Handler. Die Attrappe bekam einen Betreff, sonst brach die Quittungsseite mit einer unbehandelten Ablehnung ab (Spalte `subject` ist NOT NULL, im Betrieb kein Fehler) |
 | 247 | `server/src/lib/jugendschutz.ts`, Test in `jugendschutz.test.ts` | **Fehler (Recht)** | Ab 15 rechnet die Prüfung mit den Regeln für Jugendliche: acht Stunden, 6 bis 23 Uhr, keine Bewilligung. Nach § 2 Abs. 3 JArbSchG gelten für Jugendliche, die noch der Vollzeitschulpflicht unterliegen, die Vorschriften für Kinder - also 3 Stunden zwischen 8 und 22 Uhr und Bewilligungspflicht. Die App kennt den Schulstatus nicht und meldete für eine 15-jährige Schülerin "nichts zu beanstanden" (Verträge, Abschnitt Jugendschutz). | ja: neuer Test mit 15 Jahren, 15:00 bis 22:30, ohne Bewilligung - ohne Änderung leere Befundliste ("expected [] to have a length of 1") | behoben: Für 15- bis 17-Jährige steht ein Hinweis (kein Verstoß) mit § 2 Abs. 3 und den Grenzen für Kinder. Test grün, ohne Änderung rot. Im Browser nicht gemessen; die Seite zeigt Hinweise allgemein mit Info-Symbol statt "nichts zu beanstanden" (`Vertraege.tsx`, gelesen). Ob die App den Schulstatus erfassen soll: Frage an Florian (Merkzettel) |
+| 248 | `server/vitest.config.ts`, `__tests__/zeitzone.test.ts`, `__tests__/youtubeInsights.test.ts` | Lücke im Wächter (Datum) | Der Server läuft beim Hoster in UTC, die Tests liefen in der Zone des Rechners (Berlin). `zeitzone.test.ts` prüfte `fmtDate` in einer Schleife über vier Zonen, indem es `process.env.TZ` umstellte - das wirkt im Test-Worker nicht, alle vier Durchläufe rechneten in Berliner Zeit. `youtubeInsights.test.ts` sagte das selbst im Kommentar: Der Wochentag-Test fange den Fehler aus Fund 138 nur, wenn die Suite in UTC startet. | ja: Messtest im Worker - Versatz -120 Minuten vor und nach `process.env.TZ = 'America/Los_Angeles'` bzw. `'Pacific/Auckland'`; mit `TZ=UTC` beim Start Versatz 0 | behoben: `vitest.config.ts` setzt die Zone vor dem Start der Worker auf UTC (gemessen: Versatz 0). Zeitzonen-Test prüft zuerst, dass er wirklich in UTC läuft, die wirkungslose Schleife ist weg. Gegenprobe: Wochentag in `youtubeInsights.ts` ohne `timeZone: 'Europe/Berlin'` - Test jetzt rot ("expected 'Montag' to be 'Dienstag'"), vorher wäre er in Berliner Zeit grün geblieben. Ganze Suite in UTC: 1112 grün, kein versteckter Zonenfehler |
+| 249 | `server/src/lib/creatorInsights.ts`, `server/src/lib/creatorAreas.ts`, Tests dazu | Klein (Text, Fakt) | Die Clip-Prüfung behandelte TikTok wie YouTube Shorts und meldete jeden TikTok-Clip über drei Minuten als "überschreitet das Limit von 180s" - TikTok nimmt in der App seit 2022 bis zehn Minuten an; der Test schrieb das fest. Die SEO-Prüfung schrieb "nur 1 Schlagworte". | ja: Tests lasen beides als Soll (`checkClip` 300 s TikTok → ungültig; `'nur 1 Schlagworte'`) | behoben: Grenze von 180 s nur noch für Shorts und Reels, eigener Test für einen 5-Minuten-TikTok-Clip; Einzahl "Schlagwort". Tests grün |
 
 ### Verknüpfungen
 
@@ -964,9 +966,9 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/__tests__/budget.test.ts` (87) - entfernt (Fund 154)
 - [x] `server/src/__tests__/callSheetLayout.test.ts` (283) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/chromiumLookup.test.ts` (67) - gelesen (ohne Befund)
-- [ ] `server/src/__tests__/creatorAreas.test.ts` (252)
-- [ ] `server/src/__tests__/creatorInsights.test.ts` (205)
-- [ ] `server/src/__tests__/creatorScript.test.ts` (236)
+- [x] `server/src/__tests__/creatorAreas.test.ts` (252) - gelesen (Fund 249)
+- [x] `server/src/__tests__/creatorInsights.test.ts` (205) - gelesen (Fund 249)
+- [x] `server/src/__tests__/creatorScript.test.ts` (236) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/dateien.test.ts` (156) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/dateiname.test.ts` (16) - gelesen (ohne Befund)
 - [ ] `server/src/__tests__/datenbank.test.ts` (1697)
@@ -1002,12 +1004,12 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/__tests__/toPg.test.ts` (53) - gelesen (ohne Befund, Kommentar-Umlaute)
 - [x] `server/src/__tests__/version.test.ts` (66) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/vertraege.test.ts` (131) - gelesen (ohne Befund)
-- [ ] `server/src/__tests__/videoMatching.test.ts` (154)
-- [ ] `server/src/__tests__/wiederherstellung.test.ts` (166)
-- [ ] `server/src/__tests__/youtubeInsights.test.ts` (214)
-- [ ] `server/src/__tests__/youtubeOAuth.test.ts` (350)
-- [x] `server/src/__tests__/zeitzone.test.ts` (49) - gelesen (ohne Befund; durchsucht nur `routes` und `lib`, außerhalb gibt es kein Datumsformat ohne Zeitzone (nachgesehen))
-- [ ] `server/src/__tests__/zweiterFaktor.test.ts` (144)
+- [x] `server/src/__tests__/videoMatching.test.ts` (154) - gelesen (ohne Befund)
+- [x] `server/src/__tests__/wiederherstellung.test.ts` (166) - gelesen (ohne Befund)
+- [x] `server/src/__tests__/youtubeInsights.test.ts` (214) - gelesen (Fund 248)
+- [x] `server/src/__tests__/youtubeOAuth.test.ts` (350) - gelesen (ohne Befund)
+- [x] `server/src/__tests__/zeitzone.test.ts` (49) - gelesen (Fund 248; zuerst als ohne Befund abgehakt - die Schleife über vier Zonen war wirkungslos)
+- [x] `server/src/__tests__/zweiterFaktor.test.ts` (144) - gelesen (ohne Befund)
 
 ### Nachgetragen am 27.10.2026
 
@@ -1024,7 +1026,7 @@ neu entstanden sind (diese mit Fundnummer abgehakt).
 - [x] `server/src/schemas/index.ts` (41) - gelesen (ohne Befund; `RegisterSchema` (8 Zeichen) ungenutzt, siehe Merkzettel Passwortlänge)
 - [x] `server/src/services/holidays.ts` (58) - gelesen (Kandidat unter Verknüpfungen)
 - [x] `server/src/utils/calculations.ts` (51) - entfernt (Fund 154)
-- [x] `server/vitest.config.ts` (13) - gelesen (ohne Befund)
+- [x] `server/vitest.config.ts` (13) - gelesen (Fund 248)
 - [x] `server/src/lib/suchmuster.ts` (10) - neu während der Prüfung (Fund 102)
 - [x] `server/src/__tests__/suchmuster.test.ts` (12) - neu während der Prüfung (Fund 102)
 - [x] `server/src/lib/webadresse.ts` (32) - neu während der Prüfung (Fund 24)
