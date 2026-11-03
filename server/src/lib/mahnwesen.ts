@@ -188,6 +188,8 @@ export type Forderung = {
   letzteMahnung: string | null | undefined
   /** Frist aus der letzten Mahnung - solange sie läuft, wird nicht erneut gemahnt. */
   letzteFrist?: string | null | undefined
+  /** Datum der ersten Mahnung - mit ihr beginnt spätestens der Verzug. */
+  ersteMahnung?: string | null | undefined
 }
 
 export type Vorschlag = {
@@ -196,7 +198,11 @@ export type Vorschlag = {
   regel: StufenRegel
   /** Offener Betrag, auf den gemahnt wird. */
   offenCents: number
-  /** Tage in Verzug, gerechnet ab Fälligkeit. */
+  /** Tage seit der Fälligkeit. */
+  tageUeberfaellig: number
+  /** Ab wann der Verzug läuft (siehe `verzugsbeginn`), null wenn noch nicht. */
+  verzugSeit: string | null
+  /** Tage in Verzug - für sie werden Zinsen gerechnet. */
   tageVerzug: number
   /** Zinsen auf den offenen Betrag für die Verzugstage. */
   zinsenCents: number
@@ -208,6 +214,30 @@ export type Vorschlag = {
   gesamtCents: number
   /** Die neue Zahlungsfrist. */
   neueFrist: string
+}
+
+/**
+ * Ab wann der Schuldner in Verzug ist (§ 286 BGB) - und damit Zinsen schuldet.
+ *
+ * Mit der ersten Mahnung (Abs. 1), gegenüber Unternehmen spätestens 30 Tage
+ * nach Fälligkeit und Zugang der Rechnung (Abs. 3). Ein Zahlungsziel, das nur
+ * auf der Rechnung steht, genügt für Abs. 2 Nr. 1 nicht - es müsste vereinbart
+ * sein. Gegenüber Verbrauchern gilt Abs. 3 nur mit einem Hinweis auf der
+ * Rechnung, den die App nicht kennt: dort nur die Mahnung.
+ *
+ * Bis zum 03.11.2026 liefen die Zinsen ab dem Fälligkeitsdatum. Das konnte zu
+ * viel verlangen, und eine Mahnung mit zu hohen Zinsen ist angreifbar. Der
+ * Zugang der Rechnung ist nicht erfasst; gerechnet wird ab der Fälligkeit,
+ * die nie vor dem Rechnungsdatum liegt.
+ */
+export function verzugsbeginn(
+  faellig: string | null | undefined, ersteMahnung: string | null | undefined, gegenUnternehmer: boolean
+): string | null {
+  const kandidaten = [
+    ersteMahnung ? String(ersteMahnung).slice(0, 10) : null,
+    gegenUnternehmer && faellig ? plusTage(String(faellig), 30) : null,
+  ].filter((d): d is string => !!d).sort()
+  return kandidaten[0] ?? null
 }
 
 /**
@@ -230,8 +260,8 @@ export function naechsterSchritt(
   if (offen <= 0) return null
   if (!f.faellig) return null
 
-  const tageVerzug = tageZwischen(String(f.faellig), heute)
-  if (tageVerzug <= 0) return null
+  const tageUeberfaellig = tageZwischen(String(f.faellig), heute)
+  if (tageUeberfaellig <= 0) return null
 
   const letzte = Number(f.letzteStufe || 0)
   if (letzte >= STUFEN.length) return null
@@ -244,8 +274,13 @@ export function naechsterSchritt(
   const bezug = letzte === 0 ? String(f.faellig) : String(f.letzteMahnung || f.faellig)
   if (tageZwischen(bezug, heute) < regel.nachTagen) return null
 
+  const unternehmer = einstellungen.gegenUnternehmer !== false
+  // Ohne eigenes Feld: Bei Stufe 1 ist die letzte Mahnung die erste
+  const erste = f.ersteMahnung ?? (letzte >= 1 ? f.letzteMahnung : null)
+  const verzugSeit = verzugsbeginn(f.faellig, erste, unternehmer)
+  const tageVerzug = verzugSeit ? Math.max(0, tageZwischen(verzugSeit, heute)) : 0
   const basis = einstellungen.basiszinsBp ?? BASISZINS_RUECKFALL_BP
-  const satz = verzugssatzBp(basis, einstellungen.gegenUnternehmer !== false)
+  const satz = verzugssatzBp(basis, unternehmer)
   const zinsen = regel.mitZinsen ? verzugszinsen(offen, tageVerzug, satz) : 0
   // Die Pauschale wird einmal fällig, nicht je Mahnung.
   const pauschale = regel.mitZinsen && einstellungen.mitPauschale && letzte === 1 ? PAUSCHALE_CENTS : 0
@@ -254,6 +289,8 @@ export function naechsterSchritt(
     stufe: regel.stufe,
     regel,
     offenCents: offen,
+    tageUeberfaellig,
+    verzugSeit,
     tageVerzug,
     zinsenCents: zinsen,
     gebuehrCents: regel.gebuehrCents,

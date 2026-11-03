@@ -558,7 +558,7 @@ function Mahnlauf({ firmaId }: { firmaId: number }) {
                     <div className="text-sm mt-1">{v.client_name}</div>
                     <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
                       <Clock className="w-3 h-3" />
-                      {v.tage_verzug} Tage über der Frist vom {datum(v.due_date)}
+                      {v.tage_ueberfaellig} Tage über der Frist vom {datum(v.due_date)}
                       {!v.client_email && (
                         <span className="text-destructive flex items-center gap-1 ml-1">
                           <AlertTriangle className="w-3 h-3" />
@@ -586,7 +586,7 @@ function Mahnlauf({ firmaId }: { firmaId: number }) {
                       <span className="text-muted-foreground">
                         Verzugszinsen ({prozent(v.is_business
                           ? (data?.verzugssatz_unternehmer_bp ?? 0)
-                          : (data?.verzugssatz_verbraucher_bp ?? 0))} für {v.tage_verzug} Tage)
+                          : (data?.verzugssatz_verbraucher_bp ?? 0))} für {v.tage_verzug} Tage ab {datum(v.verzug_seit)})
                       </span>
                       <span className="tabular-nums">{euro(v.zinsen_cents)}</span>
                     </div>

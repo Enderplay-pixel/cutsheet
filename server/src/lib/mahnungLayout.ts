@@ -42,6 +42,8 @@ export type Mahnungsdaten = {
   rechnung: { number: string; issue_date?: string | null; due_date?: string | null }
   mahnung: {
     stufe: number; name: string; datum: string; frist: string; tage_verzug: number
+    /** Ab wann der Verzug läuft (§ 286 BGB) - steht auf dem Blatt, damit es nachrechenbar ist. */
+    verzug_seit?: string | null
     offen_cents: number; zinsen_cents: number; gebuehr_cents: number
     pauschale_cents: number; gesamt_cents: number
     satz_bp: number; basiszins_bp: number
@@ -184,7 +186,7 @@ ${pdfFontFaces()}
     Der Verzugszinssatz von ${prozent(mahnung.satz_bp)} % ergibt sich aus § 288 BGB:
     Basiszinssatz nach § 247 BGB (${prozent(mahnung.basiszins_bp)} %) zuzüglich
     ${prozent(mahnung.satz_bp - mahnung.basiszins_bp)} Prozentpunkte.
-    Berechnet für ${mahnung.tage_verzug} Tage auf ${euro(mahnung.offen_cents)}.
+    Berechnet für ${mahnung.tage_verzug} Tage${mahnung.verzug_seit ? ` ab dem ${datum(mahnung.verzug_seit)}` : ''} auf ${euro(mahnung.offen_cents)}.
   </p>` : ''}
 
   ${firma.iban ? `<div class="bank">

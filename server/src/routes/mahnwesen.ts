@@ -62,6 +62,7 @@ export const OFFENE_RECHNUNGEN = `
          c.address, c.zip, c.city,
          c.is_business, c.payment_days AS client_payment_days,
          COALESCE(z.summe, 0) AS zahlungen_cents,
+         (SELECT MIN(r.sent_on) FROM invoice_reminders r WHERE r.invoice_id = i.id) AS erste_mahnung,
          p.title AS project_title
     FROM invoices i
     LEFT JOIN company_clients c ON i.client_id = c.id
@@ -281,6 +282,7 @@ async function vorschlaegeSammeln(companyId: number, heute: string, nurRechnung?
         letzteStufe: Number(z.reminder_level || 0),
         letzteMahnung: z.reminded_on ? String(z.reminded_on).slice(0, 10) : null,
         letzteFrist: z.reminder_due_on ? String(z.reminder_due_on).slice(0, 10) : null,
+        ersteMahnung: z.erste_mahnung ? String(z.erste_mahnung).slice(0, 10) : null,
       },
       heute,
       {
@@ -330,6 +332,8 @@ router.get('/companies/:companyId/mahnlauf', requireAuth, erfordereAbrechnung('m
         stufe_name: vorschlag.regel.name,
         offen_cents: vorschlag.offenCents,
         tage_verzug: vorschlag.tageVerzug,
+        tage_ueberfaellig: vorschlag.tageUeberfaellig,
+        verzug_seit: vorschlag.verzugSeit,
         zinsen_cents: vorschlag.zinsenCents,
         gebuehr_cents: vorschlag.gebuehrCents,
         pauschale_cents: vorschlag.pauschaleCents,
@@ -365,7 +369,7 @@ router.get('/companies/:companyId/invoices/:invoiceId/mahnung.pdf', requireAuth,
     },
     mahnung: {
       stufe: vorschlag.stufe, name: vorschlag.regel.name, datum: heute,
-      frist: vorschlag.neueFrist, tage_verzug: vorschlag.tageVerzug,
+      frist: vorschlag.neueFrist, tage_verzug: vorschlag.tageVerzug, verzug_seit: vorschlag.verzugSeit,
       offen_cents: vorschlag.offenCents, zinsen_cents: vorschlag.zinsenCents,
       gebuehr_cents: vorschlag.gebuehrCents, pauschale_cents: vorschlag.pauschaleCents,
       gesamt_cents: vorschlag.gesamtCents,
@@ -447,7 +451,7 @@ router.post('/companies/:companyId/invoices/:invoiceId/mahnung', requireAuth, er
       },
       mahnung: {
         stufe: vorschlag.stufe, name: vorschlag.regel.name, datum: heute,
-        frist: vorschlag.neueFrist, tage_verzug: vorschlag.tageVerzug,
+        frist: vorschlag.neueFrist, tage_verzug: vorschlag.tageVerzug, verzug_seit: vorschlag.verzugSeit,
         offen_cents: vorschlag.offenCents, zinsen_cents: vorschlag.zinsenCents,
         gebuehr_cents: vorschlag.gebuehrCents, pauschale_cents: vorschlag.pauschaleCents,
         gesamt_cents: vorschlag.gesamtCents, satz_bp: satzBp, basiszins_bp: e.basiszinsBp,

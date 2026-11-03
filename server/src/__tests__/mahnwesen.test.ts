@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   STUFEN, PAUSCHALE_CENTS, BASISZINS_RUECKFALL_BP, BASISZINS_STAND,
-  verzugssatzBp, verzugszinsen, naechsterSchritt, zinsSatzVeraltet,
+  verzugssatzBp, verzugszinsen, naechsterSchritt, zinsSatzVeraltet, verzugsbeginn,
   altersklasse, tageZwischen, plusTage,
 } from '../lib/mahnwesen'
 
@@ -137,12 +137,16 @@ describe('Nächster Mahnschritt', () => {
       { basiszinsBp: 152, gegenUnternehmer: true, mitPauschale: true }
     )!
     expect(v.stufe).toBe(2)
-    expect(v.tageVerzug).toBe(30)
-    // 238000 × 1052 × 30 / 3.650.000 = 2057,89 → 2058 Cent
-    expect(v.zinsenCents).toBe(2058)
+    // Verzug ab der ersten Mahnung am 15.09. (früher als Fälligkeit + 30 Tage
+    // am 01.10.), nicht ab der Fälligkeit am 01.09. - § 286 BGB
+    expect(v.tageUeberfaellig).toBe(30)
+    expect(v.verzugSeit).toBe('2026-09-15')
+    expect(v.tageVerzug).toBe(16)
+    // 238000 × 1052 × 16 / 3.650.000 = 1097,54 → 1098 Cent
+    expect(v.zinsenCents).toBe(1098)
     expect(v.gebuehrCents).toBe(500)
     expect(v.pauschaleCents).toBe(PAUSCHALE_CENTS)
-    expect(v.gesamtCents).toBe(238_000 + 2058 + 500 + PAUSCHALE_CENTS)
+    expect(v.gesamtCents).toBe(238_000 + 1098 + 500 + PAUSCHALE_CENTS)
   })
 
   it('berechnet die 40-Euro-Pauschale nur einmal', () => {
@@ -162,8 +166,8 @@ describe('Nächster Mahnschritt', () => {
       { basiszinsBp: 152, gegenUnternehmer: false, mitPauschale: false }
     )!
     expect(v.pauschaleCents).toBe(0)
-    // Fünf statt neun Prozentpunkte: 238000 × 652 × 30 / 3.650.000 = 1275,42
-    expect(v.zinsenCents).toBe(1275)
+    // Fünf statt neun Prozentpunkte, ab der Mahnung: 238000 × 652 × 16 / 3.650.000 = 680,20
+    expect(v.zinsenCents).toBe(680)
   })
 
   it('hört nach der letzten Stufe auf', () => {
@@ -183,12 +187,36 @@ describe('Nächster Mahnschritt', () => {
       { basiszinsBp: 152, gegenUnternehmer: true, mitPauschale: false }
     )!
     expect(v.offenCents).toBe(100_000)
-    expect(v.zinsenCents).toBe(verzugszinsen(100_000, 30, 1052))
+    expect(v.zinsenCents).toBe(verzugszinsen(100_000, 16, 1052))
   })
 
   it('setzt die neue Frist aus der Regel der Stufe', () => {
     const v = naechsterSchritt(offen, '2026-09-15')!
     expect(v.neueFrist).toBe(plusTage('2026-09-15', STUFEN[0].fristTage))
+  })
+})
+
+describe('Verzugsbeginn nach § 286 BGB', () => {
+  it('beginnt mit der ersten Mahnung', () => {
+    expect(verzugsbeginn('2026-09-01', '2026-09-10', true)).toBe('2026-09-10')
+    expect(verzugsbeginn('2026-09-01', '2026-09-10', false)).toBe('2026-09-10')
+  })
+
+  it('gegenüber Unternehmen spätestens 30 Tage nach Fälligkeit', () => {
+    // Ohne Mahnung, oder die Mahnung kam später
+    expect(verzugsbeginn('2026-09-01', null, true)).toBe('2026-10-01')
+    expect(verzugsbeginn('2026-09-01', '2026-11-15', true)).toBe('2026-10-01')
+  })
+
+  it('gegenüber Verbrauchern nur mit Mahnung', () => {
+    // Abs. 3 verlangt dort einen Hinweis auf der Rechnung, den die App nicht kennt
+    expect(verzugsbeginn('2026-09-01', null, false)).toBeNull()
+  })
+
+  it('nicht ab dem Zahlungsziel auf der Rechnung', () => {
+    // Einseitig gesetzt genügt es nicht für Abs. 2 Nr. 1 - vorher liefen die
+    // Zinsen ab genau diesem Tag
+    expect(verzugsbeginn('2026-09-01', null, true)).not.toBe('2026-09-01')
   })
 })
 
