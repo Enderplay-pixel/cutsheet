@@ -74,6 +74,7 @@ export const budgetT = {
   gesamtbudget:     { de: 'Gesamtbudget', en: 'Total budget', fr: 'Budget total' },
   finFassungWaehlen:{ de: 'Finanzierungsfassung wählen', en: 'Choose financing version', fr: 'Choisir la version du financement' },
   geldgeber:        { de: 'Geldgeber', en: 'Funder', fr: 'Financeur' },
+  neuerGeldgeber:   { de: 'Neuer Geldgeber', en: 'New funder', fr: 'Nouveau financeur' },
   geldgeberSpalte:  { de: 'Geldgeber / Quelle', en: 'Funder / source', fr: 'Financeur / source' },
   typ:              { de: 'Typ', en: 'Type', fr: 'Type' },
   betrag:           { de: 'Betrag', en: 'Amount', fr: 'Montant' },

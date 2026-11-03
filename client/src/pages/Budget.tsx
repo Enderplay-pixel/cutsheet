@@ -259,7 +259,7 @@ export function Component() {
   })
 
   const createFinEntry = useMutation({
-    mutationFn: async () => api.financing.createEntry(await finanzierungsFassung(), { source: 'Neuer Geldgeber', type: 'Förderung', amount_cents: 0 }),
+    mutationFn: async () => api.financing.createEntry(await finanzierungsFassung(), { source: tt(T.neuerGeldgeber), type: 'Förderung', amount_cents: 0 }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financing-entries'] }),
   })
 
