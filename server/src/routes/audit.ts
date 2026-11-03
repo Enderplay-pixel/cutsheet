@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express'
+import { AsyncLocalStorage } from 'async_hooks'
 import { db } from '../db'
 import { enthaeltMuster } from '../lib/suchmuster'
 import { requireAuth, AuthUser } from '../middleware/auth'
@@ -6,6 +7,15 @@ import { requireMember } from '../middleware/projectAuth'
 import { schreibeCsv } from '../lib/tabelle'
 
 const router = Router()
+
+/**
+ * Ob die Route einer Anfrage selbst protokolliert hat. Dann schweigt die
+ * automatische Protokollierung - bis zum 03.11.2026 stand jede solche Aktion
+ * zweimal im Protokoll, einmal lesbar ("abschluss zurückgenommen") und einmal
+ * aus dem Pfad geraten ("angelegt / zuruecknehmen"). Gemessen an einem
+ * Projektabschluss mit Zurücknehmen: vier Einträge statt zwei.
+ */
+const eigenesProtokoll = new AsyncLocalStorage<{ geschrieben: boolean }>()
 
 export function logAudit(
   projectId: number | null,
@@ -16,6 +26,8 @@ export function logAudit(
   oldValue?: unknown,
   newValue?: unknown
 ): void {
+  const anfrage = eigenesProtokoll.getStore()
+  if (anfrage) anfrage.geschrieben = true
   db.run(`
       INSERT INTO audit_log (project_id, user_id, user_name, action, entity_type, entity_id, old_value, new_value)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -76,6 +88,7 @@ export function aenderungenProtokollieren(req: Request, res: Response, next: Nex
   if (/^\/(auth|cse\/t|push|feedback|admin)\b/.test(req.path)) return next()
   const pfad = req.path
   const koerper = saeubern(req.body)
+  const zustand = { geschrieben: false }
   // ID eines neu angelegten Eintrags aus der Antwort mitnehmen
   let neueId: number | undefined
   const json = res.json.bind(res)
@@ -88,6 +101,7 @@ export function aenderungenProtokollieren(req: Request, res: Response, next: Nex
     const projektId = (req as any).auditProjektId
     const user = (req as any).user as AuthUser | undefined
     if (!projektId || !user || res.statusCode >= 300) return
+    if (zustand.geschrieben) return
     const teile = pfad.split('/').filter(Boolean)
     const ids = teile.filter(t => /^\d+$/.test(t))
     const namen = teile.filter(t => !/^\d+$/.test(t))
@@ -105,7 +119,7 @@ export function aenderungenProtokollieren(req: Request, res: Response, next: Nex
     const eigeneId = neueId ?? (endetMitId || unterpfad ? Number(ids[ids.length - 1]) : undefined)
     logAudit(projektId, user, aktion, entitaet, eigeneId, undefined, koerper)
   })
-  next()
+  eigenesProtokoll.run(zustand, () => next())
 }
 
 // Fehler gehen an uebersetzeDatenbankfehler (index.ts) - ein ungültiges Datum

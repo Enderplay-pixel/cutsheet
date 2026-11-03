@@ -11,7 +11,7 @@ vi.mock('../db', () => ({
   },
 }))
 
-import { aenderungenProtokollieren } from '../routes/audit'
+import { aenderungenProtokollieren, logAudit } from '../routes/audit'
 
 /** Kleiner Server: setzt Nutzer und Projekt wie optionalAuth/projectWriteGuard. */
 async function mitServer(fn: (base: string) => Promise<void>) {
@@ -28,6 +28,12 @@ async function mitServer(fn: (base: string) => Promise<void>) {
   app.patch('/api/shots/12/done', (_req, res) => res.json({ data: {}, error: null }))
   app.delete('/api/tasks/6', (_req, res) => res.status(403).json({ data: null, error: 'nein' }))
   app.post('/api/auth/login', (_req, res) => res.json({ data: {}, error: null }))
+  // Eine Route, die selbst protokolliert - wie Abschluss, Verträge, Mahnwesen
+  app.post('/api/projects/42/abschluss', async (req, res) => {
+    await new Promise(r => setTimeout(r, 5))
+    logAudit(42, (req as any).user, 'projekt abgeschlossen', 'projects', 42)
+    res.json({ data: { id: 42 }, error: null })
+  })
   const server = app.listen(0)
   try {
     await fn(`http://127.0.0.1:${(server.address() as AddressInfo).port}`)
@@ -61,6 +67,12 @@ describe('Aenderungsprotokoll', () => {
       ['geändert', 'Aufgabe', 5],
       ['geändert (done)', 'Einstellung', 12],
     ])
+  })
+
+  it('schreibt nichts dazu, wenn die Route selbst protokolliert', async () => {
+    // Vorher stand jede solche Aktion zweimal im Protokoll
+    await mitServer(async base => { await senden(base, 'POST', '/api/projects/42/abschluss', {}) })
+    expect(geschrieben.map(p => p[3])).toEqual(['projekt abgeschlossen'])
   })
 
   it('protokolliert keine abgewiesenen Aenderungen und keine Anmeldungen', async () => {
