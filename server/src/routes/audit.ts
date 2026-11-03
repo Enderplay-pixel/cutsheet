@@ -147,7 +147,7 @@ const TAGESGRENZE = 'Europe/Berlin'
  * dann je nach Serverstandort ein anderes Ergebnis, und bei einer Pruefung
  * waere nicht entscheidbar, welches das richtige ist.
  */
-function einschraenkung(projectId: number, q: any): { sql: string; werte: any[] } {
+export function einschraenkung(projectId: number, q: any): { sql: string; werte: any[] } {
   const teile = ['project_id = ?']
   const werte: any[] = [projectId]
 

@@ -198,7 +198,7 @@ async function hole(pfad: string, token: string, optionen: RequestInit = {}) {
 }
 
 describe('Schema für den Mailbetrieb', () => {
-  it('legt alle fünf Tabellen an', async () => {
+  it('legt alle sieben Tabellen an', async () => {
     const zeilen = await db.all(
       `SELECT table_name FROM information_schema.tables
         WHERE table_schema = 'public' AND table_name LIKE 'email%'
@@ -1369,17 +1369,15 @@ describe('Protokollsuche', () => {
     }
   })
 
-  /** Dieselbe Einschraenkung wie die Route - als Abfrage nachgebaut. */
+  /**
+   * Die Einschraenkung der Route selbst. Bis zum 03.11.2026 stand hier eine
+   * nachgebaute Kopie - eine Aenderung an der Route waere dem Test entgangen.
+   */
   const finde = async (q: Record<string, string>) => {
-    const teile = ['project_id = ?']
-    const werte: any[] = [projekt.id]
-    if (q.nutzer) { teile.push('(user_name ILIKE ? OR user_id = ?)'); werte.push(`%${q.nutzer}%`, Number(q.nutzer) || -1) }
-    if (q.aktion) { teile.push('action ILIKE ?'); werte.push(`%${q.aktion}%`) }
-    if (q.bereich) { teile.push('entity_type ILIKE ?'); werte.push(`%${q.bereich}%`) }
-    if (q.von) { teile.push("created_at >= (?::timestamp AT TIME ZONE 'Europe/Berlin')"); werte.push(`${q.von} 00:00:00`) }
-    if (q.bis) { teile.push("created_at <= (?::timestamp AT TIME ZONE 'Europe/Berlin')"); werte.push(`${q.bis} 23:59:59.999`) }
+    const { einschraenkung } = await import('../routes/audit')
+    const { sql, werte } = einschraenkung(projekt.id, q)
     return (await db.all(
-      `SELECT * FROM audit_log WHERE ${teile.join(' AND ')} ORDER BY created_at DESC`,
+      `SELECT * FROM audit_log WHERE ${sql} ORDER BY created_at DESC`,
       werte
     )) as any[]
   }
