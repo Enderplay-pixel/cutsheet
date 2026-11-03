@@ -52,7 +52,7 @@ export function Component() {
               placeholder={tt(r.mindestens)}
               value={password}
               onChange={e => setPassword(e.target.value)}
-              required minLength={6}
+              required minLength={8}
               autoComplete="new-password" autoFocus
             />
           </div>

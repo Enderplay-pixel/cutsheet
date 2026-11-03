@@ -63,6 +63,18 @@ export const angeboteT = {
     fr: 'Valider le devis ? Il reçoit son numéro et ne pourra plus être modifié ensuite.',
   },
   festschreiben: { de: 'Festschreiben', en: 'Finalise', fr: 'Valider' },
+  alsEntwurfKopieren: { de: 'Als Entwurf kopieren', en: 'Copy as draft', fr: 'Copier en brouillon' },
+  kopiert: { de: 'Neuer Entwurf angelegt', en: 'New draft created', fr: 'Nouveau brouillon créé' },
+  kopiertText: {
+    de: 'Ein festgeschriebenes Angebot bleibt, wie es verschickt wurde. Änderungen gehen in diesen Entwurf.',
+    en: 'A finalised quote stays as it was sent. Changes go into this draft.',
+    fr: "Un devis validé reste tel qu'il a été envoyé. Les modifications vont dans ce brouillon.",
+  },
+  festgeschriebenHinweis: {
+    de: 'Festgeschrieben - so wurde es verschickt. Für Änderungen als Entwurf kopieren.',
+    en: 'Finalised - this is how it was sent. Copy it as a draft to make changes.',
+    fr: "Validé - c'est ainsi qu'il a été envoyé. Copie-le en brouillon pour le modifier.",
+  },
   abgelehnt: { de: 'Abgelehnt', en: 'Declined', fr: 'Refusé' },
   angenommen: { de: 'Angenommen', en: 'Accepted', fr: 'Accepté' },
   angenommenAm: { de: 'angenommen am {datum}', en: 'accepted on {datum}', fr: 'accepté le {datum}' },

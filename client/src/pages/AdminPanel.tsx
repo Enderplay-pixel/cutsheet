@@ -287,7 +287,7 @@ function UsersTab({ me }: { me: { id: number } }) {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Passwort *</label>
-              <Input value={newUser.password} onChange={e => setNewUser(p => ({ ...p, password: e.target.value }))} placeholder="Min. 6 Zeichen" className="h-8 text-sm" type="password" />
+              <Input value={newUser.password} onChange={e => setNewUser(p => ({ ...p, password: e.target.value }))} placeholder="Min. 8 Zeichen" className="h-8 text-sm" type="password" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Rolle</label>
@@ -435,7 +435,7 @@ function UsersTab({ me }: { me: { id: number } }) {
                 type={showPw ? 'text' : 'password'}
                 value={resetPw}
                 onChange={e => setResetPw(e.target.value)}
-                placeholder="Neues Passwort (min. 6)"
+                placeholder="Neues Passwort (min. 8)"
                 aria-label="Neues Passwort"
                 className="h-9 text-sm pr-9"
                 autoFocus
@@ -451,7 +451,7 @@ function UsersTab({ me }: { me: { id: number } }) {
             </div>
             <DialogFooter className="gap-2">
               <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setResetTarget(null)}>Abbrechen</Button>
-              <Button size="sm" className="h-8 text-xs" disabled={resetPw.length < 6 || resetMut.isPending}
+              <Button size="sm" className="h-8 text-xs" disabled={resetPw.length < 8 || resetMut.isPending}
                 onClick={() => resetMut.mutate({ id: resetTarget.id, pw: resetPw })}>
                 {resetMut.isPending ? 'Speichere…' : 'Zurücksetzen'}
               </Button>

@@ -124,6 +124,8 @@ beforeAll(async () => {
   app.use('/api', invoicesRouter)
   const { default: mahnwesenRouter } = await import('../routes/mahnwesen')
   app.use('/api', mahnwesenRouter)
+  const { default: angeboteRouter } = await import('../routes/angebote')
+  app.use('/api', angeboteRouter)
   app.use('/api', dateienRouter)
   const { default: anliegenRouter } = await import('../routes/anliegen')
   app.use('/api', anliegenRouter)
@@ -870,6 +872,29 @@ describe('Rechnungen', () => {
   })
 })
 
+
+describe('Angebote nach dem Festschreiben', () => {
+  // Bis zum 03.11.2026 bis zur Annahme änderbar, obwohl der Dialog beim
+  // Festschreiben "lässt sich danach nicht mehr ändern" sagt.
+  it('sperrt das Festgeschriebene und kopiert es als neuen Entwurf', async () => {
+    const firma = (await hole('/api/companies', tokenInhaber, { method: 'POST', body: JSON.stringify({ name: 'Angebotsfirma' }) })).daten.id
+    const kunde = (await hole(`/api/companies/${firma}/clients`, tokenInhaber, { method: 'POST', body: JSON.stringify({ name: 'Sender' }) })).daten.id
+    const angebot = (await hole(`/api/companies/${firma}/quotes`, tokenInhaber, { method: 'POST', body: JSON.stringify({ client_id: kunde }) })).daten.id
+    const posten = { items: [{ description: 'Drehtag', quantity_milli: 2000, unit: 'Tag', unit_price_cents: 90000, tax_percent: 19 }] }
+    expect((await hole(`/api/companies/${firma}/quotes/${angebot}/items`, tokenInhaber, { method: 'PUT', body: JSON.stringify(posten) })).status).toBe(200)
+    expect((await hole(`/api/companies/${firma}/quotes/${angebot}/issue`, tokenInhaber, { method: 'POST' })).status).toBe(200)
+
+    expect((await hole(`/api/companies/${firma}/quotes/${angebot}/items`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ items: [] }) })).status).toBe(400)
+    expect((await hole(`/api/companies/${firma}/quotes/${angebot}`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ intro: 'nachträglich' }) })).status).toBe(400)
+
+    const kopie = await hole(`/api/companies/${firma}/quotes/${angebot}/kopie`, tokenInhaber, { method: 'POST' })
+    expect(kopie.status).toBe(200)
+    expect(kopie.daten).toMatchObject({ status: 'entwurf', number: '', client_id: kunde })
+    expect(kopie.daten.items.map((p: any) => [p.description, p.quantity_milli, p.unit_price_cents])).toEqual([['Drehtag', 2000, 90000]])
+    expect(Number(kopie.daten.net_cents)).toBe(180000)
+    expect((await hole(`/api/companies/${firma}/quotes/${kopie.daten.id}/items`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ items: [] }) })).status).toBe(200)
+  })
+})
 
 describe('Zweiter Faktor und Sitzungen', () => {
   let totpModul: typeof import('../lib/zweiterFaktor')
@@ -1916,6 +1941,13 @@ describe('Projekte gelöschter Konten', () => {
     expect(weg.status).toBe(200)
     expect(await db.get('SELECT owner_id, verwaist_email FROM projects WHERE id = ?', [projekt]))
       .toEqual({ owner_id: null, verwaist_email: 'selbst@example.com' })
+  })
+
+  it('verlangt beim Registrieren mindestens 8 Zeichen', async () => {
+    const versuch = (password: string, email: string) =>
+      hole('/api/auth/register', '', { method: 'POST', body: JSON.stringify({ name: 'Kurz', email, password }) })
+    expect((await versuch('1234567', 'sieben@example.com')).status).toBe(400)
+    expect((await versuch('12345678', 'acht@example.com')).status).toBe(201)
   })
 
   it('kennt global nur Admin und Nutzer', async () => {

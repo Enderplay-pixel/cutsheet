@@ -124,6 +124,8 @@ router.get('/companies/:companyId/quotes/:quoteId', requireAuth, erfordereAbrech
 
 // ─── Anlegen und ändern ──────────────────────────────────────────────────────
 
+const FESTGESCHRIEBEN = 'Ein festgeschriebenes Angebot wird nicht mehr geändert - für eine neue Fassung als Entwurf kopieren'
+
 router.post('/companies/:companyId/quotes', requireAuth, erfordereAbrechnung(), async (req: Request, res: Response) => {
   const companyId = Number(req.params.companyId)
   const ausstellung = String(req.body?.issue_date || heuteISO()).slice(0, 10)
@@ -170,8 +172,11 @@ router.put('/companies/:companyId/quotes/:quoteId', requireAuth, erfordereAbrech
     [quoteId, companyId]
   )) as any
   if (!vorher) return res.status(404).json({ data: null, error: 'Angebot nicht gefunden' })
-  if (vorher.status === 'angenommen') {
-    return res.status(400).json({ data: null, error: 'Ein angenommenes Angebot wird nicht mehr geändert' })
+  // Festgeschrieben heißt: so verschickt. Bis zum 03.11.2026 ließ es sich bis
+  // zur Annahme ändern, obwohl der Festschreiben-Dialog das Gegenteil sagt -
+  // und aus dem geänderten Stand wurde bei Annahme die Rechnung.
+  if (vorher.status !== 'entwurf') {
+    return res.status(400).json({ data: null, error: FESTGESCHRIEBEN })
   }
 
   const felder: string[] = []
@@ -212,8 +217,8 @@ router.put('/companies/:companyId/quotes/:quoteId/items', requireAuth, erfordere
     [quoteId, companyId]
   )) as any
   if (!angebot) return res.status(404).json({ data: null, error: 'Angebot nicht gefunden' })
-  if (angebot.status === 'angenommen') {
-    return res.status(400).json({ data: null, error: 'Ein angenommenes Angebot wird nicht mehr geändert' })
+  if (angebot.status !== 'entwurf') {
+    return res.status(400).json({ data: null, error: FESTGESCHRIEBEN })
   }
 
   const posten = Array.isArray(req.body?.items) ? req.body.items : []
@@ -239,6 +244,40 @@ router.put('/companies/:companyId/quotes/:quoteId/items', requireAuth, erfordere
   })
   await summenNeuRechnen(quoteId)
   return res.json({ data: await ladeAngebot(companyId, quoteId), error: null })
+})
+
+/**
+ * Ein festgeschriebenes Angebot als neuen Entwurf kopieren - der Weg zu einer
+ * geänderten Fassung, seit Festgeschriebenes gesperrt ist. Kopf und
+ * Positionen wie im Original, Datum und Gültigkeit von heute.
+ */
+router.post('/companies/:companyId/quotes/:quoteId/kopie', requireAuth, erfordereAbrechnung(), async (req: Request, res: Response) => {
+  const companyId = Number(req.params.companyId)
+  const original = (await db.get(
+    "SELECT * FROM invoices WHERE id = ? AND company_id = ? AND kind = 'angebot'",
+    [Number(req.params.quoteId), companyId]
+  )) as any
+  if (!original) return res.status(404).json({ data: null, error: 'Angebot nicht gefunden' })
+  const heute = heuteISO()
+  const neu = await db.transaction(async (tx) => {
+    const zeile = await tx.run(
+      `INSERT INTO invoices
+         (company_id, client_id, project_id, kind, status, issue_date, valid_until,
+          intro, outro, tax_mode, created_by)
+       VALUES (?, ?, ?, 'angebot', 'entwurf', ?, ?, ?, ?, ?, ?)`,
+      [companyId, original.client_id, original.project_id, heute, plusTage(heute, GUELTIG_TAGE),
+        original.intro || '', original.outro || '', original.tax_mode, (req as any).user?.id ?? null]
+    )
+    await tx.run(
+      `INSERT INTO invoice_items (invoice_id, description, quantity_milli, unit, unit_price_cents, tax_percent, sort_order)
+       SELECT ?, description, quantity_milli, unit, unit_price_cents, tax_percent, sort_order
+         FROM invoice_items WHERE invoice_id = ?`,
+      [zeile.id, original.id]
+    )
+    return zeile.id
+  })
+  await summenNeuRechnen(neu)
+  return res.json({ data: await ladeAngebot(companyId, neu), error: null })
 })
 
 // ─── Festschreiben, annehmen, ablehnen ───────────────────────────────────────

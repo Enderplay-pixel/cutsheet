@@ -138,8 +138,8 @@ router.post('/cse/t/:token/claim', async (req: Request, res: Response) => {
   if (!entry) return res.status(404).json({ data: null, error: 'Link ungültig' })
 
   const { password, name } = req.body as { password?: string; name?: string }
-  if (!password || password.length < 6) {
-    return res.status(400).json({ data: null, error: 'Passwort muss mindestens 6 Zeichen haben' })
+  if (!password || password.length < 8) {
+    return res.status(400).json({ data: null, error: 'Passwort muss mindestens 8 Zeichen haben' })
   }
 
   const person = await getPersonForEntry(entry)

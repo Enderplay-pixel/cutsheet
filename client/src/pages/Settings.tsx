@@ -91,7 +91,7 @@ export function Component() {
       toast({ title: tt(settingsT.passwordMismatch), variant: 'destructive' })
       return
     }
-    if (newPw.length < 6) {
+    if (newPw.length < 8) {
       toast({ title: tt(settingsT.passwordShort), variant: 'destructive' })
       return
     }

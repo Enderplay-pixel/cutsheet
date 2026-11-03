@@ -110,11 +110,6 @@ Stand am 24.10.2026, 23 Uhr:
   automatische Protokollierung (`aenderungenProtokollieren`) im Log - gemessen:
   Wiederöffnen als "projects" und als "zuruecknehmen". Beim Lesen der
   Server-Tests klären, ob die Middleware solche Pfade auslassen soll.
-  **Frage an Florian (Angebote):** Beim Festschreiben steht "Es bekommt seine
-  Nummer und lässt sich danach nicht mehr ändern". Seite und Server erlauben
-  Änderungen aber bis zur Annahme (`routes/angebote.ts`: nur "angenommen"
-  gesperrt). Ein versendetes Angebot kann so vom verschickten Blatt abweichen.
-  Sperren nach dem Festschreiben oder den Satz ändern? Nicht geändert.
   Muster aus Fund 231/236 (ungesteuerte Felder, `key={i}`, ganze Liste aus dem
   Serverstand): in allen Seiten gesucht und geprüft, übrig keine Stelle
   (`Vertraege.tsx:494` und `Firma.tsx:867` sind Anzeigelisten, Funde 237, 241).
@@ -126,8 +121,6 @@ Stand am 24.10.2026, 23 Uhr:
   (Fund 41). Das Muster "Fehler selbst abfangen, 500 Interner Serverfehler"
   (Fund 34) ist mit Fund 106 in allen gelesenen Routen entfernt; offen nur noch
   `aiBreakdown.ts` (eigene Form).
-  `Kostenstand.tsx:70` liest den Betrag mit `parseFloat(x.replace(',', '.'))`
-  - "1.234,56" würde 1,23 € (`parseFloat("1.234.56")` ist 1.234).
   Seiten mit fest deutschen Resten (`scripts/texte-pruefen.py`, 26.10.2026;
   seit Fund 245 zählt es auch Verzweigungen - am 03.11.2026 86 Seiten, 47
   ohne Treffer):
@@ -157,9 +150,6 @@ Stand am 24.10.2026, 23 Uhr:
   Einwilligung, solange es nicht unbedingt nötig ist - also einen
   Einwilligungsdialog, bevor `VITE_POSTHOG_KEY` gesetzt wird. Live ist kein
   Schlüssel gesetzt (Bundle am 26.10.2026 geprüft).
-  **Entscheidung für Florian:** Passwörter brauchen mindestens 6 Zeichen
-  (Oberfläche und Server einig); ein ungenutztes Schema in
-  `server/src/schemas/index.ts` verlangt 8. Üblich sind heute mindestens 8.
   **Zweite Rechtsfrage** (`lib/mailaufbewahrung.ts`): Postausgangszeilen
   werden nach 365 Tagen gelöscht, auch die von Rechnungs- und Mahnmails.
   Abgesandte Handelsbriefe sind nach § 257 HGB sechs Jahre aufzubewahren -
@@ -485,6 +475,8 @@ sind ein Render-Dienst aus demselben Bau.
 | 252 | `client/src/lib/utils.ts` (`szenenArt`), `index.css` (`.szene-*`, `strip-*`), `pages/Drehbuch.tsx`, `pages/Tagesdispo.tsx`, `server/src/lib/callSheetLayout.ts`, Test dazu | **Fehler (Darstellung), Entscheidung Florian** | Szenenübersicht, Drehplan und Tagesdispo färbten INT/EXT × Tageszeit mit drei Schemata - Orange hieß im Drehplan Innen-Tag, in der Dispo Innen-Nacht. Das Dispo-PDF kannte nur INT und EXT. Florian (03.11.2026): "was auch immer du am besten hältst". | ja: drei Farbtabellen im Code (Merkzettel) | behoben: ein Schema an einer Stelle, wie auf dem Stripboard: Innen/Tag weiß (im Hellmodus hellgrau), Außen/Tag gelb, Innen/Nacht blau, Außen/Nacht grün. Einteilung überall `szenenArt` (MORGEN Tag, DÄMMERUNG Nacht, INT/EXT außen), auch im PDF. Danach gemessen im Demo-Projekt: Szenen 1-4 und 7 auf allen drei Seiten rgb(233, 231, 226), 5-6 rgb(250, 205, 25), 8 rgb(70, 138, 246); Legende der Dispo gleich; Hellmodus Innen/Tag rgb(183, 179, 174). PDF-Test prüft die Klassen |
 | 253 | `server/src/db/index.ts`, `lib/jugendschutz.ts`, `routes/vertraege.ts`, `client/src/pages/Vertraege.tsx`, Tests | **Datenverlust; Entscheidung Florian** | Florian (03.11.2026): Schulstatus je Darsteller erfassen und hart rechnen (Folge von Fund 247). Beim Einbau gemessen: Der Angaben-Dialog im Jugendschutz füllte die Mailadresse der Erziehungsberechtigten aus der Prüfungsantwort, die Route lieferte sie nicht mit. Jedes Speichern im Dialog - etwa nur die Bewilligung anhaken - überschrieb die Adresse mit leer. An diese Adresse gehen die Verträge des Kindes. | ja: Prüfprojekt, Darstellerin 15 Jahre mit "mara@example.test", Dialog geöffnet (Feld leer), Bewilligung angehakt, gespeichert: Adresse leer | behoben: Spalte `school_bound` (ja, nein, nicht erfasst) für Besetzung und Komparserie; ab 15 eine Auswahl im Dialog. "Ja" rechnet nach den Grenzen für Kinder (3 Stunden, 8 bis 22 Uhr, Bewilligung), "Nein" ohne Hinweis, "nicht erfasst" mit dem Hinweis aus Fund 247. Die Route liefert die Mailadresse mit. Danach gemessen: Dialog zeigt "mara@example.test", "Ja" und Bewilligung gespeichert, Adresse unverändert, Karte nennt "Vollzeitschulpflichtig, darum wie ein Kind (§ 2 Abs. 3 JArbSchG)". Zwei neue Tests (ja, nein). Prüfprojekt entfernt |
 | 254 | neu `server/src/lib/kontoloeschung.ts`; `routes/admin.ts`, `routes/auth.ts`, `db/index.ts`, `index.ts`, `client/src/pages/AdminPanel.tsx`, `lib/i18n.ts`, Tests in `datenbank.test.ts` | **Entscheidung Florian (Konten, DSGVO)** | Florian (03.11.2026): globale Rollen außer Admin weglassen; Projekte gelöschter Konten nur 30 Tage behalten, bei erneuter Anmeldung mit derselben Adresse zurückgeben. Bis dahin: Admin-Löschung ließ alle Projekte für immer ohne Inhaber stehen (`owner_id ON DELETE SET NULL`), Selbstlöschung löschte Solo-Projekte sofort; das AdminPanel bot Produzent, Regie, Abt.-Leitung und Lesezugriff als Kontorolle an, die global nichts bewirken. Der Löschdialog behauptete "Alle Daten dieses Nutzers bleiben erhalten". | ja: Code gelesen (Merkzettel), Rollenliste im Panel | gebaut: Projekte mit Team gehen an das Mitglied mit der höchsten Rolle (Lesezugriff übernimmt nichts), sonst 30 Tage vorgemerkt (`verwaist_seit`, `verwaist_email`). Registrierung und Konto-Anlage durch einen Admin geben sie zurück (Adresse ohne Groß- und Kleinschreibung). Der tägliche Lauf löscht nach 30 Tagen. Beim Start werden alte Projekte ohne Inhaber einmal so geregelt (ohne Adresse, also nach 30 Tagen weg); Konten mit alten globalen Rollen werden "Nutzer". Texte im Panel und in den Einstellungen sagen, was passiert. Danach gemessen: vier neue Tests (Übergabe, Vormerken, Rückgabe, Frist 31 gegen 29 Tage, Selbstlöschung, Rollen); Panel bietet 2 Rollen, alle 46 lokalen Konten Admin oder Nutzer, ein altes verwaistes Projekt vorgemerkt, 11 Demo-Projekte unberührt |
+| 255 | `server/src/routes/angebote.ts`, `lib/meldungenText.ts`, `client/src/pages/Angebote.tsx`, `lib/texte/Angebote.ts`, `lib/api.ts`, Test in `datenbank.test.ts` | **Fehler (Geschäftsvorgang)** | Der Festschreiben-Dialog sagt "lässt sich danach nicht mehr ändern", Seite und Server erlaubten Änderungen aber bis zur Annahme. Ein verschicktes Angebot konnte so vom verschickten Blatt abweichen - und aus dem geänderten Stand wurde bei Annahme die Rechnung. Entscheidung (Florian: "so, wie du am besten denkst"): sperren, wie der Dialog es sagt. | ja: Code gelesen (Merkzettel), im Test: Positionen nach dem Festschreiben änderbar | behoben: Kopf und Positionen nur im Entwurf änderbar. Neu "Als Entwurf kopieren" (Kopf und Positionen, Datum und Gültigkeit von heute), damit eine Korrektur nicht alles neu tippen heißt. Hinweis über dem festgeschriebenen Angebot. Danach gemessen: Test (400 nach Festschreiben, Kopie mit Position und Summe, Kopie änderbar); im Browser 8 von 8 Feldern gesperrt, Kopieren führt zum neuen Entwurf mit der Position, Felder frei. Messdaten entfernt |
+| 256 | `server/src/routes/auth.ts`, `admin.ts`, `confirmation.ts`, `lib/meldungenText.ts`; Client `Login`, `Settings`, `ResetPassword`, `PublicDispo`, `AdminPanel`, Texte; Test | Klein (Sicherheit) | Passwörter brauchten mindestens 6 Zeichen; üblich sind heute mindestens 8 (Merkzettel). Entscheidung: 8, überall gleich - Registrierung, Passwortwechsel, Zurücksetzen, Dispo-Link-Konto, Konto-Anlage und Zurücksetzen durch einen Admin. Bestehende Passwörter gelten weiter. | ja: alle Prüfstellen gesucht (8 im Server, 7 im Client) | geändert: überall 8, Texte in drei Sprachen, Registrierungsfeld mit `minLength`. Test: 7 Zeichen 400, 8 Zeichen 201. Im Browser nicht gemessen |
 
 ### Verknüpfungen
 

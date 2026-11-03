@@ -25,7 +25,7 @@ export const publicDispoT = {
   teilDerCrew:       { de: 'Du bist Teil der Crew von „{titel}“', en: 'You are part of the crew of "{titel}"', fr: "Tu fais partie de l'équipe de « {titel} »" },
   kontoText:         { de: 'Erstelle dein kostenloses Konto, um Drehplan, Shotlist und Check-in des Projekts zu sehen.', en: "Create your free account to see the project's shooting schedule, shot list and check-in.", fr: 'Crée ton compte gratuit pour voir le plan de tournage, la liste des plans et le check-in du projet.' },
   deinName:          { de: 'Dein Name', en: 'Your name', fr: 'Ton nom' },
-  passwortWaehlen:   { de: 'Passwort wählen (min. 6 Zeichen)', en: 'Choose a password (min. 6 characters)', fr: 'Choisis un mot de passe (6 caractères min.)' },
+  passwortWaehlen:   { de: 'Passwort wählen (min. 8 Zeichen)', en: 'Choose a password (min. 8 characters)', fr: 'Choisis un mot de passe (8 caractères min.)' },
   kontoWirdErstellt: { de: 'Konto wird erstellt…', en: 'Creating account…', fr: 'Création du compte…' },
   kontoErstellen:    { de: 'Konto erstellen & Projekt öffnen', en: 'Create account & open project', fr: 'Créer un compte et ouvrir le projet' },
 } satisfies Record<string, Text>

@@ -195,6 +195,8 @@ export function Component() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
+                // Beim Registrieren mindestens 8 Zeichen, wie der Server verlangt
+                minLength={mode === 'login' ? undefined : 8}
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               />
               {mode === 'login' && (

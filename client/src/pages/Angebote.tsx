@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/use-toast'
 import {
-  Plus, Trash2, FileText, ArrowLeft, Check, X, Lock, Clock, Receipt,
+  Plus, Trash2, FileText, ArrowLeft, Check, X, Lock, Clock, Receipt, Copy,
 } from 'lucide-react'
 import type { Lang } from '@/lib/i18n'
 import { useT, useGebietsschema } from '@/lib/useT'
@@ -241,6 +241,17 @@ function AngebotBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
       toast({ title: tt(angeboteT.nichtFestgeschrieben), description: fehler.message, variant: 'destructive' }),
   })
 
+  const kopieren = useMutation({
+    mutationFn: () => api.angebote.kopieren(firmaId, id),
+    onSuccess: (neu: any) => {
+      qc.invalidateQueries({ queryKey: ['angebote', firmaId] })
+      toast({ title: tt(angeboteT.kopiert), description: tt(angeboteT.kopiertText) })
+      navigate(`/firma/${firmaId}/angebote/${neu.id}`)
+    },
+    onError: (fehler: any) =>
+      toast({ title: tt(angeboteT.nichtGespeichert), description: fehler.message, variant: 'destructive' }),
+  })
+
   const annehmen = useMutation({
     mutationFn: () => api.angebote.annehmen(firmaId, id, { accepted_on: heute(), issue_date: heute() }),
     onSuccess: (ergebnis: any) => {
@@ -281,7 +292,9 @@ function AngebotBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
   }
 
   const istEntwurf = angebot.status === 'entwurf'
-  const bearbeitbar = angebot.status !== 'angenommen'
+  // Nur der Entwurf - festgeschrieben heißt verschickt (Server sperrt ebenso).
+  // Bis zum 03.11.2026 bis zur Annahme änderbar, gegen den eigenen Hinweis.
+  const bearbeitbar = istEntwurf
   const items: any[] = angebot.items ?? []
 
   /**
@@ -344,6 +357,12 @@ function AngebotBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
                 {tt(angeboteT.festschreiben)}
               </Button>
             )}
+            {!istEntwurf && (
+              <Button variant="outline" size="sm" disabled={kopieren.isPending} onClick={() => kopieren.mutate()}>
+                <Copy className="w-4 h-4 mr-1.5" />
+                {tt(angeboteT.alsEntwurfKopieren)}
+              </Button>
+            )}
             {angebot.status === 'versendet' && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setFrage('ablehnen')}>
@@ -359,6 +378,13 @@ function AngebotBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
           </div>
         }
       />
+
+      {!istEntwurf && (
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+          <Lock className="w-3 h-3 shrink-0" />
+          {tt(angeboteT.festgeschriebenHinweis)}
+        </p>
+      )}
 
       <div className="flex items-center gap-2 text-sm">
         <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS[angebot.status]?.klasse ?? ''}`}>

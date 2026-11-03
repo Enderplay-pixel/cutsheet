@@ -353,8 +353,8 @@ router.put('/users/:id/role', async (req: Request, res: Response) => {
 router.post('/users/:id/reset-password', async (req: Request, res: Response) => {
   const id = Number(req.params.id)
   const { new_password } = req.body as { new_password: string }
-  if (!new_password || new_password.length < 6) {
-    return res.status(400).json({ data: null, error: 'Mindestens 6 Zeichen' })
+  if (!new_password || new_password.length < 8) {
+    return res.status(400).json({ data: null, error: 'Mindestens 8 Zeichen' })
   }
   const hash = await hashPasswort(new_password, 12)
   await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [hash, id])
@@ -372,8 +372,8 @@ router.post('/users', async (req: Request, res: Response) => {
   }
   // Wie bei der Registrierung: ein Postfach, ein Konto.
   const email = String(req.body?.email ?? '').trim().toLowerCase()
-  if (!email || !password || password.length < 6) {
-    return res.status(400).json({ data: null, error: 'E-Mail und Passwort (min. 6 Zeichen) erforderlich' })
+  if (!email || !password || password.length < 8) {
+    return res.status(400).json({ data: null, error: 'E-Mail und Passwort (min. 8 Zeichen) erforderlich' })
   }
   const exists = await db.get('SELECT id FROM users WHERE LOWER(email) = ?', [email])
   if (exists) return res.status(409).json({ data: null, error: 'E-Mail bereits vergeben' })

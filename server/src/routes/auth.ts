@@ -25,7 +25,7 @@ const router = Router()
 // registrieren.
 const RegisterSchema = z.object({
   email: z.string().trim().toLowerCase().email('Ungültige E-Mail-Adresse'),
-  password: z.string().min(6, 'Passwort muss mindestens 6 Zeichen haben'),
+  password: z.string().min(8, 'Passwort muss mindestens 8 Zeichen haben'),
   name: z.string().optional(),
 })
 
@@ -362,7 +362,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 router.post('/reset-password', async (req: Request, res: Response) => {
   const { token, password } = req.body as { token?: string; password?: string }
   if (!token || !password) return res.status(400).json({ data: null, error: 'Felder fehlen' })
-  if (password.length < 6) return res.status(400).json({ data: null, error: 'Passwort muss mindestens 6 Zeichen haben' })
+  if (password.length < 8) return res.status(400).json({ data: null, error: 'Passwort muss mindestens 8 Zeichen haben' })
 
   const row = await db.get(
     `SELECT * FROM password_reset_tokens
@@ -482,8 +482,8 @@ router.put('/me/password', requireAuth, async (req: Request, res: Response) => {
   if (!current_password || !new_password) {
     return res.status(400).json({ data: null, error: 'Felder fehlen' })
   }
-  if (new_password.length < 6) {
-    return res.status(400).json({ data: null, error: 'Passwort muss mindestens 6 Zeichen haben' })
+  if (new_password.length < 8) {
+    return res.status(400).json({ data: null, error: 'Passwort muss mindestens 8 Zeichen haben' })
   }
   if (!req.user) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
   const user = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]) as UserRow | undefined

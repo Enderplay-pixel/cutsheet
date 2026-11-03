@@ -245,7 +245,7 @@ function ClaimCard({ token, project, myName, email }: { token: string; project: 
           value={password}
           onChange={e => setPassword(e.target.value)}
           placeholder={tt(T.passwortWaehlen)}
-          minLength={6}
+          minLength={8}
           required
           autoComplete="new-password"
         />
@@ -254,7 +254,7 @@ function ClaimCard({ token, project, myName, email }: { token: string; project: 
             {error}
           </div>
         )}
-        <Button type="submit" className="w-full h-10 text-sm font-semibold" disabled={claimMutation.isPending || password.length < 6}>
+        <Button type="submit" className="w-full h-10 text-sm font-semibold" disabled={claimMutation.isPending || password.length < 8}>
           {claimMutation.isPending ? tt(T.kontoWirdErstellt) : tt(T.kontoErstellen)}
         </Button>
       </form>

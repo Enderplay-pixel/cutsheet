@@ -904,7 +904,7 @@ export const settingsT = {
   changePassword:  { en: 'Change password',        de: 'Passwort ändern',          fr: 'Changer le mot de passe'  },
   passwordChanged: { en: 'Password changed successfully', de: 'Passwort erfolgreich geändert', fr: 'Mot de passe modifié avec succès' },
   passwordMismatch:{ en: 'Passwords do not match', de: 'Passwörter stimmen nicht überein', fr: 'Les mots de passe ne correspondent pas' },
-  passwordShort:   { en: 'At least 6 characters',  de: 'Mindestens 6 Zeichen',     fr: 'Au moins 6 caractères'    },
+  passwordShort:   { en: 'At least 8 characters',  de: 'Mindestens 8 Zeichen',     fr: 'Au moins 8 caractères'    },
   appearance:      { en: 'Appearance',             de: 'Darstellung',              fr: 'Apparence'                },
   appearanceDesc:  { en: 'Customise how CutSheet looks for you.', de: 'Passe das Aussehen von CutSheet an.', fr: 'Personnalise l\'apparence de CutSheet.' },
   darkMode:        { en: 'Dark mode',              de: 'Dunkles Design',           fr: 'Mode sombre'              },

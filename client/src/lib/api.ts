@@ -1094,6 +1094,8 @@ export const api = {
       req<any>(`/companies/${firmaId}/quotes/${id}/items`, { method: 'PUT', body: JSON.stringify({ items }) }),
     festschreiben: (firmaId: number, id: number) =>
       req<{ number: string; status: string }>(`/companies/${firmaId}/quotes/${id}/issue`, { method: 'POST' }),
+    kopieren: (firmaId: number, id: number) =>
+      req<any>(`/companies/${firmaId}/quotes/${id}/kopie`, { method: 'POST' }),
     annehmen: (firmaId: number, id: number, daten: any = {}) =>
       req<any>(`/companies/${firmaId}/quotes/${id}/accept`, { method: 'POST', body: JSON.stringify(daten) }),
     ablehnen: (firmaId: number, id: number, grund = '') =>
