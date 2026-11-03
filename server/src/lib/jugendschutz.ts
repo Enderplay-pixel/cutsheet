@@ -230,6 +230,16 @@ export function pruefeEinsatz(e: Einsatz): Pruefung {
       text: 'Das Einverständnis der Erziehungsberechtigten ist nicht vermerkt. Es gehört zum Antrag.',
     })
   }
+  // Ob jemand noch zur Schule geht, weiß die App nicht. Bis zum 03.11.2026
+  // stand hier für eine 15-jährige Schülerin nichts - also acht Stunden bis
+  // 23 Uhr ohne Bewilligung, obwohl für sie die Grenzen für Kinder gelten.
+  if (!istKind) {
+    befunde.push({
+      art: 'hinweis',
+      text: 'Wer noch vollzeitschulpflichtig ist, gilt als Kind (§ 2 Abs. 3 JArbSchG): '
+        + 'dann höchstens 3 Stunden zwischen 8 und 22 Uhr, und die Bewilligung der Aufsichtsbehörde ist nötig.',
+    })
+  }
 
   return { name: e.name, alter, istKind, grenze, dauerMinuten: dauer, befunde }
 }

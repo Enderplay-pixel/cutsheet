@@ -157,6 +157,17 @@ describe('Prüfung eines Einsatzes', () => {
     expect(p.befunde.some((b) => b.art === 'verstoss' && b.text.includes('Unter drei Jahren'))).toBe(true)
   })
 
+  it('erinnert bei Jugendlichen an die Schulpflicht', () => {
+    // § 2 Abs. 3 JArbSchG: Für vollzeitschulpflichtige Jugendliche gelten die
+    // Vorschriften für Kinder. Die App kennt den Schulstatus nicht - deshalb
+    // ein Hinweis, kein Verstoß. Vorher kam hier eine leere Liste heraus.
+    const p = pruefeEinsatz({ ...basis, geburtstag: '2011-01-10', bewilligung: false, von: '15:00', bis: '22:30' })
+    expect(p.alter).toBe(15)
+    expect(p.befunde).toHaveLength(1)
+    expect(p.befunde[0].art).toBe('hinweis')
+    expect(p.befunde[0].text).toContain('§ 2 Abs. 3 JArbSchG')
+  })
+
   it('prüft Volljährige nicht', () => {
     const p = pruefeEinsatz({ ...basis, geburtstag: '1998-05-20', von: '06:00', bis: '22:00' })
     expect(p.alter).toBe(28)

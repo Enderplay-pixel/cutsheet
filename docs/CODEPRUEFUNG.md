@@ -133,6 +133,10 @@ Stand am 24.10.2026, 23 Uhr:
   Admin ein Konto, bleiben dessen Projekte ohne Inhaber stehen
   (`projects.owner_id` ohne Fremdschlüssel), bei der Selbstlöschung werden
   Solo-Projekte mitgelöscht. So gewollt (auch wegen DSGVO)? Nicht geändert.
+  **Frage an Florian (Jugendschutz):** Für vollzeitschulpflichtige
+  Jugendliche gelten die Regeln für Kinder (§ 2 Abs. 3 JArbSchG, Fund 247).
+  Die App zeigt dazu jetzt einen Hinweis. Soll sie den Schulstatus je
+  Darsteller erfassen und dann hart rechnen? Nicht gebaut.
   Meldungen, die über eine Konstante
   statt als `error: '...'` im Code stehen, sieht der Meldungstest nicht
   (Fund 41). Das Muster "Fehler selbst abfangen, 500 Interner Serverfehler"
@@ -489,6 +493,7 @@ sind ein Render-Dienst aus demselben Bau.
 | 244 | `client/src/index.css` | Klein (Barrierefreiheit) | Der Abschnitt "Bewegung" verspricht, dass `prefers-reduced-motion` alles abschaltet. Zwei Bewegungen fehlten im Block: das Aufsteigen jedes Reiterinhalts beim Wechsel (`[role='tabpanel'][data-state='active']`, auf allen Seiten mit Reitern) und das Anheben der `.lift`-Karten auf dem Dashboard. `.count-in` hat dieselbe Lücke, wird aber nirgends benutzt. Die Streifenfarben (`strip-*`) widersprechen denen von Szenenübersicht und Tagesdispo - im Merkzettel für Florian ergänzt. Gegenprobe ohne Fehler: `.dark` für den Datumsknopf setzt `App.tsx` tatsächlich. Kommentare mit ae/oe/ue (gedaempfter, fuer, laenger). | nicht im Browser: Die Medienabfrage lässt sich im Vorschaufenster nicht umschalten. Am Regelwerk geprüft - kein Eintrag für beide Selektoren im Block | behoben: beide Regeln im letzten Block für reduzierte Bewegung. Im geladenen Stylesheet nachgesehen: beide Regeln stehen innerhalb von `@media (prefers-reduced-motion: reduce)` |
 | 245 | `scripts/texte-pruefen.py`, `client/src/pages/Budget.tsx`, `client/src/lib/texte/Budget.ts` | Klein (Werkzeug, Sprache) | Das Prüfskript, auf dem die Übersetzungszahlen der Übergabe beruhen, hatte zwei blinde Flecken: Textzeilen, die auf "…" enden, und Texte als Zweig einer Verzweigung (`a ? 'Notiz…' : …`, `titel || 'Untitled'`, `{ source: 'Neuer Geldgeber' }`). Gemessen an der alten Fassung des Drehbuch-Editors: 5 Treffer, es fehlten vier Platzhalter, "Untitled" und "Klicken um Inhalt hinzuzufügen…". Nach der Erweiterung neu in übersetzten Seiten: nur `Budget.tsx` - ein neuer Finanzierungseintrag hieß auch im Englischen "Neuer Geldgeber". Gegenprobe ohne Fehler: `routen-pruefen.py` meldet alle Client-Aufrufe mit Route, `importe-pruefen.py` 1944 Importe exakt (und erkennt eine absichtlich falsch geschriebene Datei). | ja: alte Fassung des Editors durch das Skript geschickt, Treffer gegen die gelesenen Stellen verglichen | behoben: Skript erkennt beides, Tailwind-Klassen und CSS-Werte in Verzweigungen nimmt es aus (erste Fassung meldete sie, nachgeschärft). Zählung Seiten und Komponenten 979 → 1026, Zuwachs fast nur in den bewusst deutschen Seiten (AdminPanel, OffenePosten, Verträge, Agenturen, Firma …). Seiten jetzt: 86, davon 47 ohne Treffer, 26 mit bis zu zehn, 13 mit mehr. Budget: neuer Geldgeber heißt in der gewählten Sprache - gemessen im Englischen: "New funder" in Feld und Datenbank. Prüfprojekt entfernt |
 | 246 | `server/src/__tests__/schreibschutz.test.ts` | Lücke im Wächter (Sicherheit) | Der Test sagt, er lade "den Rest der Router mit schreibenden Routen" und prüfe jede Route mit einem fremden Konto und einem Leser. Zehn später dazugekommene Router fehlten: Abnahme, Abschluss, Agenturen, Angebote, Auswertungen, Buchhaltung, Dateien, Mahnwesen, Reise, Verträge - 59 schreibende Routen ohne Prüfung. Die Leserouten prüfte nur `routeAuth.test.ts` mit einer festen Liste von 21 Pfaden. Kein offenes Loch gefunden. | ja: Router im Ordner gegen die Importliste abgeglichen; danach jede Route aufgerufen: 285 schreibende, 183 lesende | behoben: die zehn Router im Test, dazu ein Leseschutz-Block, der jede GET-Route mit einem fremden Konto aufruft. Ergebnis: Kein Router lässt Fremde oder Leser schreiben. Nur öffentliche Links antworten einem Fremden beim Lesen mit Erfolg: Gastlink, Einladung, Abnahme, Casting, Vertrag, Empfangsbestätigung, VAPID-Schlüssel und YouTube-Rückruf. Erster Lauf meldete `POST /vertrag/abc/ablehnen` - ein öffentlicher Token-Link, den die Attrappe zu jedem Token findet, jetzt wie im Leser-Block ausgenommen. Gegenprobe: eine absichtlich offene Testroute macht den Test rot. Zwei weitere Gegenproben (Mitgliedsprüfung im Drehbuch-Router entfernt) blieben grün, weil eine zweite Schicht greift - Projekt-Router bzw. die Prüfung im Handler. Die Attrappe bekam einen Betreff, sonst brach die Quittungsseite mit einer unbehandelten Ablehnung ab (Spalte `subject` ist NOT NULL, im Betrieb kein Fehler) |
+| 247 | `server/src/lib/jugendschutz.ts`, Test in `jugendschutz.test.ts` | **Fehler (Recht)** | Ab 15 rechnet die Prüfung mit den Regeln für Jugendliche: acht Stunden, 6 bis 23 Uhr, keine Bewilligung. Nach § 2 Abs. 3 JArbSchG gelten für Jugendliche, die noch der Vollzeitschulpflicht unterliegen, die Vorschriften für Kinder - also 3 Stunden zwischen 8 und 22 Uhr und Bewilligungspflicht. Die App kennt den Schulstatus nicht und meldete für eine 15-jährige Schülerin "nichts zu beanstanden" (Verträge, Abschnitt Jugendschutz). | ja: neuer Test mit 15 Jahren, 15:00 bis 22:30, ohne Bewilligung - ohne Änderung leere Befundliste ("expected [] to have a length of 1") | behoben: Für 15- bis 17-Jährige steht ein Hinweis (kein Verstoß) mit § 2 Abs. 3 und den Grenzen für Kinder. Test grün, ohne Änderung rot. Im Browser nicht gemessen; die Seite zeigt Hinweise allgemein mit Info-Symbol statt "nichts zu beanstanden" (`Vertraege.tsx`, gelesen). Ob die App den Schulstatus erfassen soll: Frage an Florian (Merkzettel) |
 
 ### Verknüpfungen
 
@@ -953,11 +958,11 @@ Gesamt: 421 Dateien, 87774 Zeilen
 ### Server: Tests
 
 - [x] `server/src/__tests__/abnahme.test.ts` (82) - gelesen (ohne Befund)
-- [ ] `server/src/__tests__/angebote.test.ts` (189)
+- [x] `server/src/__tests__/angebote.test.ts` (189) - gelesen (ohne Befund; `beforeAll` importiert, aber ungenutzt)
 - [x] `server/src/__tests__/audit.test.ts` (73) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/beschriftungen.test.ts` (149) - gelesen (ohne Befund; der Dialog-Wächter sieht drei Ordner, in allen übrigen gibt es keinen Dialog ohne Titel (nachgesehen))
 - [x] `server/src/__tests__/budget.test.ts` (87) - entfernt (Fund 154)
-- [ ] `server/src/__tests__/callSheetLayout.test.ts` (283)
+- [x] `server/src/__tests__/callSheetLayout.test.ts` (283) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/chromiumLookup.test.ts` (67) - gelesen (ohne Befund)
 - [ ] `server/src/__tests__/creatorAreas.test.ts` (252)
 - [ ] `server/src/__tests__/creatorInsights.test.ts` (205)
@@ -966,37 +971,37 @@ Gesamt: 421 Dateien, 87774 Zeilen
 - [x] `server/src/__tests__/dateiname.test.ts` (16) - gelesen (ohne Befund)
 - [ ] `server/src/__tests__/datenbank.test.ts` (1697)
 - [x] `server/src/__tests__/datum.test.ts` (30) - gelesen (ohne Befund; `isoWoche` liefert "2027-W1" statt "2027-W01", dient aber nur als Zählschlüssel)
-- [ ] `server/src/__tests__/documentLayout.test.ts` (230)
-- [ ] `server/src/__tests__/documentRoutes.test.ts` (361)
+- [x] `server/src/__tests__/documentLayout.test.ts` (230) - gelesen (ohne Befund; Akzentfarbe wird in `resolveAccent` auf #rrggbb geprüft (nachgesehen))
+- [x] `server/src/__tests__/documentRoutes.test.ts` (361) - gelesen (ohne Befund; Testdaten mit Gedankenstrich (`ALTBAUWOHNUNG – TAG`) als Nutzereingabe, nicht geprüft)
 - [x] `server/src/__tests__/drehbuchImport.test.ts` (68) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/drehzeit.test.ts` (87) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/eingabe.test.ts` (140) - gelesen (ohne Befund)
-- [ ] `server/src/__tests__/floorplan.test.ts` (199)
+- [x] `server/src/__tests__/floorplan.test.ts` (199) - gelesen (ohne Befund; Symbolbeschriftungen werden maskiert (nachgesehen))
 - [x] `server/src/__tests__/fountainExport.test.ts` (57) - gelesen (ohne Befund)
-- [ ] `server/src/__tests__/fremdschluessel.test.ts` (207)
+- [x] `server/src/__tests__/fremdschluessel.test.ts` (207) - gelesen (ohne Befund; Liste von Hand. Die Übernahme ins Projekt aus dem Firmen-Adressbuch (nicht in der Liste) prüft Firma und Schreibrolle selbst (nachgesehen))
 - [x] `server/src/__tests__/haertung.test.ts` (113) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/holidays.test.ts` (33) - gelesen (ohne Befund)
-- [ ] `server/src/__tests__/jugendschutz.test.ts` (187)
-- [ ] `server/src/__tests__/kostenquellen.test.ts` (135)
-- [ ] `server/src/__tests__/ksk.test.ts` (163)
-- [ ] `server/src/__tests__/mahnwesen.test.ts` (231)
+- [x] `server/src/__tests__/jugendschutz.test.ts` (187) - gelesen (Fund 247)
+- [x] `server/src/__tests__/kostenquellen.test.ts` (135) - gelesen (ohne Befund, Kommentar-Umlaute)
+- [x] `server/src/__tests__/ksk.test.ts` (163) - gelesen (ohne Befund)
+- [x] `server/src/__tests__/mahnwesen.test.ts` (231) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/mail.test.ts` (112) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/meldungen.test.ts` (123) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/oeffentliche-pfade.test.ts` (107) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/papierkorb.test.ts` (57) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/pdfTextebene.test.ts` (37) - gelesen (ohne Befund)
-- [ ] `server/src/__tests__/rechnung.test.ts` (159)
+- [x] `server/src/__tests__/rechnung.test.ts` (159) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/routeAuth.test.ts` (162) - gelesen (ohne Befund; feste Liste, ergänzt durch den Leseschutz-Block aus Fund 246)
 - [x] `server/src/__tests__/schreibschutz.test.ts` (165) - gelesen (Fund 246)
-- [ ] `server/src/__tests__/screenplayFormat.test.ts` (322)
+- [x] `server/src/__tests__/screenplayFormat.test.ts` (322) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/secrets.test.ts` (103) - gelesen (ohne Befund)
-- [ ] `server/src/__tests__/shotlist.test.ts` (221)
-- [ ] `server/src/__tests__/spesen.test.ts` (187)
-- [ ] `server/src/__tests__/szenenUeberschrift.test.ts` (115)
-- [ ] `server/src/__tests__/tabelle.test.ts` (180)
+- [x] `server/src/__tests__/shotlist.test.ts` (221) - gelesen (ohne Befund; Storyboard steht unmaskiert im `src`, ist aber immer eine vom Server gebaute `data:`-Adresse mit geprüftem Typ (nachgesehen))
+- [x] `server/src/__tests__/spesen.test.ts` (187) - gelesen (ohne Befund)
+- [x] `server/src/__tests__/szenenUeberschrift.test.ts` (115) - gelesen (ohne Befund)
+- [x] `server/src/__tests__/tabelle.test.ts` (180) - gelesen (ohne Befund)
 - [x] `server/src/__tests__/toPg.test.ts` (53) - gelesen (ohne Befund, Kommentar-Umlaute)
 - [x] `server/src/__tests__/version.test.ts` (66) - gelesen (ohne Befund)
-- [ ] `server/src/__tests__/vertraege.test.ts` (131)
+- [x] `server/src/__tests__/vertraege.test.ts` (131) - gelesen (ohne Befund)
 - [ ] `server/src/__tests__/videoMatching.test.ts` (154)
 - [ ] `server/src/__tests__/wiederherstellung.test.ts` (166)
 - [ ] `server/src/__tests__/youtubeInsights.test.ts` (214)
