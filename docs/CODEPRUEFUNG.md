@@ -76,6 +76,16 @@ Aus Florians `CLAUDE.md` und der Erfahrung dieser Sitzung:
 > Zweite Notiz, **nur Idee, nicht bauen**: Zuhörer einer Vorstellung regten an,
 > dass man alles anpassen kann - Florian liefert dazu später mehr.
 
+**Stand am 03.11.2026: Die Prüfung ist durch.** Alle 438 Dateien der
+Abhakliste gelesen (88.411 Zeilen; ausgenommen nur das unversionierte
+`server/src/lib/benachrichtigungen.ts`). Funde bis 250, jeder gemessen und
+behoben oder als Frage im Merkzettel. Server-Suite 1112 Tests grün, seit
+Fund 248 in UTC wie beim Hoster. Letzter Commit `36f989b`, lokal 154 Commits
+vor `origin/master` - **nicht gepusht**, ein Deploy braucht Florians
+`/freigabe`. Offen sind nur noch die Fragen an Florian im Merkzettel unten
+(Rechtliches, Farbschemata, Rollen, Schulstatus und die übrigen). Was danach
+kommt, steht unter "Verknüpfungen" als Kandidaten.
+
 Stand am 24.10.2026, 23 Uhr:
 
 - **Fertig:** Gruppe Middleware (7 Dateien). Funde 1-9 eingetragen, 1, 4, 5, 6, 9
