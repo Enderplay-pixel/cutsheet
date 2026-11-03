@@ -161,6 +161,8 @@ beforeAll(async () => {
   app.use('/api', optionalAuth, kommentarRouter)
   const { default: drehplanRouter } = await import('../routes/drehplan')
   app.use('/api', optionalAuth, drehplanRouter)
+  const { default: konfliktRouter } = await import('../routes/conflicts')
+  app.use('/api', optionalAuth, konfliktRouter)
   const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
   app.use(uebersetzeDatenbankfehler)
   await new Promise<void>((aufloesen) => {
@@ -1579,6 +1581,55 @@ describe('Sperrzeiten nur für die eigene Besetzung', () => {
       body: JSON.stringify({ start_date: '2026-11-01', end_date: '2026-11-02' }),
     })
     expect(antwort.status).toBe(201)
+  })
+})
+
+describe('Sperrtage im Konfliktradar', () => {
+  // Bis 03.11.2026 prüfte nur die Sperrtage-Seite, und nur über die Szenen
+  // der Rolle. Der Radar - Seitenleiste, Hauptseite - schwieg.
+  let projekt = 0
+  beforeAll(async () => {
+    projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Mit Sperrtagen', nutzerId])).id
+    const figur = await db.run('INSERT INTO characters (project_id, name) VALUES (?, ?)', [projekt, 'Kommissarin'])
+    const szene = await db.run('INSERT INTO scenes (project_id, scene_number) VALUES (?, ?)', [projekt, '1'])
+    await db.run('INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?)', [szene.id, figur.id])
+    const ueberRolle = await db.run('INSERT INTO "cast" (project_id, actor_name, character_id) VALUES (?, ?, ?)', [projekt, 'Jana Petersen', figur.id])
+    const vonHand = await db.run('INSERT INTO "cast" (project_id, actor_name) VALUES (?, ?)', [projekt, 'Tom Berger'])
+    const frei = await db.run('INSERT INTO "cast" (project_id, actor_name) VALUES (?, ?)', [projekt, 'Ohne Drehtag'])
+
+    const tag = await db.run("INSERT INTO shoot_days (project_id, day_number, date, status) VALUES (?, 1, '2026-12-01', 'Geplant')", [projekt])
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id) VALUES (?, ?)', [tag.id, szene.id])
+    const dispo = await db.run('INSERT INTO call_sheets (shoot_day_id) VALUES (?)', [tag.id])
+    await db.run("INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id) VALUES (?, 'cast', ?)", [dispo.id, vonHand.id])
+    // Ausgefallen: niemand wird gebraucht
+    const ausgefallen = await db.run("INSERT INTO shoot_days (project_id, day_number, date, status) VALUES (?, 2, '2026-12-02', 'Ausgefallen')", [projekt])
+    const szene2 = await db.run('INSERT INTO scenes (project_id, scene_number) VALUES (?, ?)', [projekt, '2'])
+    await db.run('INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?)', [szene2.id, figur.id])
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id) VALUES (?, ?)', [ausgefallen.id, szene2.id])
+
+    const sperre = 'INSERT INTO cast_blackout_dates (project_id, cast_id, start_date, end_date, reason) VALUES (?, ?, ?, ?, ?)'
+    await db.run(sperre, [projekt, ueberRolle.id, '2026-11-30', '2026-12-02', 'Theaterpremiere'])
+    await db.run(sperre, [projekt, vonHand.id, '2026-12-01', '', ''])
+    await db.run(sperre, [projekt, frei.id, '2026-12-01', '2026-12-01', ''])
+  })
+
+  it('meldet Sperrtage über die Rolle und über die Dispo, sonst keine', async () => {
+    const antwort = await hole(`/api/projects/${projekt}/conflicts`, tokenInhaber)
+    expect(antwort.status).toBe(200)
+    const sperrtage = antwort.daten.filter((k: any) => k.link === 'sperrtage')
+    expect(sperrtage.map((k: any) => k.message).sort()).toEqual([
+      'Jana Petersen ist am 01.12.2026 gesperrt',
+      'Tom Berger ist am 01.12.2026 gesperrt',
+    ])
+    expect(sperrtage.every((k: any) => k.severity === 'error')).toBe(true)
+    expect(sperrtage.find((k: any) => k.message.startsWith('Jana')).detail).toBe('Drehtag 1 - Theaterpremiere')
+    expect(antwort.daten.some((k: any) => k.category === 'Prüfung')).toBe(false)
+  })
+
+  it('zeigt der Sperrtage-Seite dieselben Konflikte', async () => {
+    const antwort = await hole(`/api/projects/${projekt}/blackout-dates/conflicts`, tokenInhaber)
+    expect(antwort.status).toBe(200)
+    expect(antwort.daten.map((k: any) => k.cast_name).sort()).toEqual(['Jana Petersen', 'Tom Berger'])
   })
 })
 

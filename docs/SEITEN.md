@@ -119,9 +119,9 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
 | **Drehplan** | `/projects/:id/drehplan` | Drehtage anlegen, Szenen zuordnen, Reihenfolge ändern, Versionen, Vorschläge zur Optimierung. | Das Herzstück der Vorbereitung. |
-| **StaebchenplanNew** | `/projects/:id/staebchenplan` | Stripboard: Szenen als Streifen zum Umsortieren. | Wenn man den Plan umwirft und sehen will, was das kostet. |
+| **StaebchenplanNew** | `/projects/:id/staebchenplan` | Stripboard: der Drehplan als Streifen, farbig nach Innen/Außen und Tag/Nacht. Nur Ansicht - umsortiert wird im Drehplan. | Wenn man den Plan umwirft und sehen will, was das kostet. |
 | **Terminkalender** | `/projects/:id/kalender` | Alle Termine des Projekts, Export als iCal fürs eigene Kalenderprogramm. | Für alles neben dem Dreh: Besprechungen, Abgaben. |
-| **Konfliktradar** | `/projects/:id/konfliktradar` | Findet Doppelbuchungen, zu kurze Ruhezeiten, Sperrtage und Motivkonflikte. | Nach jeder Änderung am Drehplan. |
+| **Konfliktradar** | `/projects/:id/konfliktradar` | Prüft den Plan: Szenen doppelt oder gar nicht eingeplant, leere Drehtage, mehrere Drehtage an einem Datum, zu kurze Ruhezeiten, Besetzung an ihren Sperrtagen (seit Fund 262), Szenen ohne Motiv oder Figuren, Motive ohne Adresse, Budget gegen Finanzierung. | Nach jeder Änderung am Drehplan. |
 | **DOOD** | `/projects/:id/dood` | Day-out-of-Days: wer an welchem Tag gebraucht wird, als Raster. | Für Verträge und Verfügbarkeitsanfragen. |
 | **ZeitAnalyse** | `/projects/:id/zeitanalyse` | Geplante gegen tatsächliche Drehzeit je Szene und Tag. | Nach ein paar Drehtagen: Sind wir im Plan? |
 | **Motive** | `/projects/:id/motive` | Drehorte mit Fotos, Karte, Strom, Parken - und der **Drehgenehmigung** je Motiv, unterschreibbar. | In der Motivsuche und vor jeder Genehmigung. |

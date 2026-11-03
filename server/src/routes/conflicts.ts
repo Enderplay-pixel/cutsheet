@@ -3,6 +3,7 @@ import { db } from '../db'
 import { requireMember } from '../middleware/projectAuth'
 import { ruhezeit } from '../lib/drehzeit'
 import { istIsoDatum } from '../lib/datum'
+import { sperrtagKonflikte } from '../lib/sperrtage'
 
 const router = Router()
 
@@ -294,6 +295,19 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
         link: 'drehplan'
       })
     })
+  })
+
+  // 12. Besetzung an einem Drehtag, an dem sie gesperrt ist. Vorher sah das
+  // nur die Sperrtage-Seite; Seitenleiste und Hauptseite zählten es nicht.
+  await pruefung('Sperrtage', conflicts, async () => {
+    for (const k of await sperrtagKonflikte(db, Number(pid))) {
+      conflicts.push({
+        severity: 'error', category: 'Besetzung',
+        message: `${k.cast_name} ist am ${datumText(k.shoot_day.date)} gesperrt`,
+        detail: `Drehtag ${k.shoot_day.day_number}${k.blackout.reason ? ` - ${k.blackout.reason}` : ''}`,
+        link: 'sperrtage',
+      })
+    }
   })
 
   res.json({ data: conflicts, error: null })
