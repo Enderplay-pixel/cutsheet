@@ -8,7 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/useT'
 import { useDownload } from '@/lib/useDownload'
-import { screenplayT } from '@/lib/i18n'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
+import { screenplayT, scenesT } from '@/lib/i18n'
 import {
   ArrowLeft, Plus, Upload, FileText, ChevronRight, ChevronDown, Film,
   AlignLeft, User, MessageSquare, Parentheses, CornerUpRight, StickyNote,
@@ -126,7 +127,12 @@ const ENTER_NEXT_TYPE: Record<BlockType, BlockType> = {
   character: 'dialogue',
   dialogue: 'action',
   parenthetical: 'dialogue',
-  transition: 'scene_heading',
+  // Nicht 'scene_heading': Eine Überschrift mitten in der Szene ist keine neue
+  // Szene. Gemessen am 03.11.2026: Enter nach "CUT TO:" gab eine zweite
+  // Überschrift in derselben Szene; ihr Text schrieb den Datensatz der Szene
+  // um, und die Zeile ließ sich weder per Menü noch per Tab umstellen.
+  // Neue Szenen entstehen über "Neue Szene".
+  transition: 'action',
   note: 'action',
   super: 'action',
   intercut: 'action',
@@ -227,6 +233,8 @@ interface BlockEditorProps {
   onPasteLines: (id: number, vorn: string, zeilen: string[], hinten: string) => void
   textareaRef: (el: HTMLTextAreaElement | null) => void
   blockTypeLabel: string
+  /** Lesezugriff: lesen und mit den Pfeilen wandern, sonst nichts */
+  nurLesen: boolean
 }
 
 function BlockEditor({
@@ -244,7 +252,9 @@ function BlockEditor({
   onPasteLines,
   textareaRef,
   blockTypeLabel,
+  nurLesen,
 }: BlockEditorProps) {
+  const tt = useT()
   const [localContent, setLocalContent] = useState(block.content)
 
   useEffect(() => {
@@ -267,6 +277,9 @@ function BlockEditor({
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     const el = e.currentTarget
+    // Ein schreibgeschütztes Feld nimmt keine Zeichen an, Enter und Rücktaste
+    // legten aber Zeilen an und löschten sie - jedes mit Fehlermeldung
+    if (nurLesen && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
     if (e.key === 'Enter') {
       e.preventDefault()
       onEnterKey(block.id, el.selectionStart, el.selectionEnd)
@@ -314,6 +327,7 @@ function BlockEditor({
    * als wäre zwischen ihnen Enter gedrückt worden.
    */
   function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    if (nurLesen) return
     const text = e.clipboardData.getData('text/plain')
     // Eine Zeile fügt der Browser selbst richtig ein.
     if (!/[\r\n]/.test(text)) return
@@ -335,16 +349,16 @@ function BlockEditor({
   }
 
   const placeholder =
-    block.block_type === 'scene_heading' ? 'INT. LOCATION - DAY'
-    : block.block_type === 'character' ? 'CHARACTER'
-    : block.block_type === 'parenthetical' ? '(action)'
+    block.block_type === 'scene_heading' ? tt(screenplayT.phHeading)
+    : block.block_type === 'character' ? tt(screenplayT.phCharacter)
+    : block.block_type === 'parenthetical' ? tt(screenplayT.phParenthetical)
     : block.block_type === 'transition' ? 'CUT TO:'
-    : block.block_type === 'note' ? 'Note…'
-    : block.block_type === 'dialogue' ? 'Dialogue…'
+    : block.block_type === 'note' ? tt(screenplayT.phNote)
+    : block.block_type === 'dialogue' ? tt(screenplayT.phDialogue)
     : block.block_type === 'super' ? 'SUPER: "TEXT"'
     : block.block_type === 'intercut' ? 'INTERCUT WITH:'
-    : block.block_type === 'annotation' ? 'Anmerkung…'
-    : 'Action…'
+    : block.block_type === 'annotation' ? tt(screenplayT.phAnnotation)
+    : tt(screenplayT.phAction)
 
   const annotationStyle = block.block_type === 'annotation' ? {
     borderLeftColor: block.annotation_color || '#f59e0b',
@@ -384,12 +398,13 @@ function BlockEditor({
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
         onFocus={onFocus}
+        readOnly={nurLesen}
         rows={1}
         className={cn(
           getBlockStyle(block.block_type),
           'min-h-[1.5rem] overflow-hidden focus:ring-0 focus:outline-none'
         )}
-        placeholder={localContent ? '' : placeholder}
+        placeholder={localContent || nurLesen ? '' : placeholder}
         spellCheck
       />
 
@@ -417,6 +432,7 @@ interface SceneSectionProps {
   onBlockMounted: (blockId: number, el: HTMLTextAreaElement) => void
   sectionRef: (el: HTMLDivElement | null) => void
   blockTypeLabels: Record<BlockType, string>
+  nurLesen: boolean
 }
 
 function SceneSection({
@@ -437,7 +453,9 @@ function SceneSection({
   onBlockMounted,
   sectionRef,
   blockTypeLabels,
+  nurLesen,
 }: SceneSectionProps) {
+  const tt = useT()
   const { scene, blocks } = sceneData
 
   const headingBlock = blocks.find(b => b.block_type === 'scene_heading')
@@ -448,8 +466,8 @@ function SceneSection({
     <div ref={sectionRef} className="mb-12" data-scene-id={scene.id}>
       {!headingBlock && (
         <div
-          className="mt-8 mb-1 pt-3 border-t border-border/30 relative cursor-text group"
-          onClick={(e) => { e.stopPropagation(); onCreateFirstBlock(scene.id) }}
+          className={cn('mt-8 mb-1 pt-3 border-t border-border/30 relative group', !nurLesen && 'cursor-text')}
+          onClick={(e) => { e.stopPropagation(); if (!nurLesen) onCreateFirstBlock(scene.id) }}
         >
           <span className="absolute -left-8 top-3.5 text-[10px] font-mono text-muted-foreground/40 select-none">
             {scene.scene_number}.
@@ -457,9 +475,9 @@ function SceneSection({
           <p className="font-mono text-sm font-bold uppercase text-foreground">
             {ueberschriftAusSzene(scene)}
           </p>
-          {allBlocks.length === 0 && (
+          {allBlocks.length === 0 && !nurLesen && (
             <p className="font-mono text-xs text-muted-foreground/30 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              Klicken um Inhalt hinzuzufügen…
+              {tt(screenplayT.klickInhalt)}
             </p>
           )}
         </div>
@@ -487,6 +505,7 @@ function SceneSection({
             } else textareaRefs.current.delete(block.id)
           }}
           blockTypeLabel={blockTypeLabels[block.block_type]}
+          nurLesen={nurLesen}
         />
       ))}
     </div>
@@ -503,6 +522,9 @@ export function Component() {
   const { toast } = useToast()
   const tt = useT()
   const download = useDownload()
+  // Ohne Sperre tippte ein Lese-Konto drauflos: Das Feld zeigte den neuen
+  // Text, jede Speicherung scheiterte mit zwei Meldungen (gemessen 03.11.2026)
+  const { darfSchreiben } = useSchreibrecht()
 
   const [activeBlockId, setActiveBlockId] = useState<number | null>(null)
   /** Szenenleiste am Telefon - dort liegt sie ueber dem Text statt daneben */
@@ -644,39 +666,7 @@ export function Component() {
     const id = echteId(blockId)
     if (id === null) return
     offen.current.delete(blockId)
-    updateBlockMutation.mutate({ blockId: id, data: daten }, {
-      onSuccess: (antwort: any) => {
-        // Eine neu verknüpfte Figur steht jetzt auch in Rollen, Besetzung
-        // und Szenenliste - die sollen nicht den alten Stand zeigen.
-        if (antwort?.figur) {
-          queryClient.invalidateQueries({ queryKey: ['characters', pid] })
-          queryClient.invalidateQueries({ queryKey: ['scenes', pid] })
-        }
-        // Ebenso ein Motiv aus der Überschrift: Motivliste und Szenen
-        if (antwort?.motiv) {
-          queryClient.invalidateQueries({ queryKey: ['locations', pid] })
-          queryClient.invalidateQueries({ queryKey: ['scenes', pid] })
-        }
-        // Eine geänderte Überschrift führt auf dem Server die Szene nach;
-        // die Leiste links soll dasselbe zeigen, nicht den Gründungsstand.
-        const szene = antwort?.szene
-        if (!szene) return
-        setzeSzenen(vorher => vorher.map(sd => (sd.scene.id === szene.id
-          ? { ...sd, scene: { ...sd.scene, ...szene } }
-          : sd)))
-      },
-      onError: (fehler: any) => {
-        // Nicht stillschweigend verlieren: zurück in die Warteschlange, und
-        // der Mensch erfährt, dass sein Satz noch nicht gesichert ist.
-        offen.current.set(blockId, { ...daten, ...(offen.current.get(blockId) ?? {}) })
-        toast({
-          title: tt(screenplayT.errSave),
-          description: fehler?.message || String(fehler),
-          variant: 'destructive',
-        })
-      },
-      onSettled: () => setSaving(offen.current.size > 0),
-    })
+    updateBlockMutation.mutate({ blockId: id, data: daten, schluessel: blockId })
   }
 
   // ─── Mutations ─────────────────────────────────────────────────────────────
@@ -815,9 +805,47 @@ export function Component() {
     waehle(blockId)
   }, [])
 
+  /**
+   * Die Rückrufe stehen hier, nicht im Aufruf von `mutate`: Ohne `onError` an
+   * dieser Stelle meldete der allgemeine Fehlerfänger (main.tsx) jeden Fehler
+   * ein zweites Mal - "Zeile nicht gespeichert" und "Nicht gespeichert"
+   * nebeneinander. `schluessel` ist die Kennung, unter der die Änderung
+   * vorgemerkt war (bei neuen Zeilen die vorläufige).
+   */
   const updateBlockMutation = useMutation({
-    mutationFn: ({ blockId, data }: { blockId: number; data: any }) =>
+    mutationFn: ({ blockId, data }: { blockId: number; data: any; schluessel: number }) =>
       api.screenplay.updateBlock(blockId, data),
+    onSuccess: (antwort: any) => {
+      // Eine neu verknüpfte Figur steht jetzt auch in Rollen, Besetzung
+      // und Szenenliste - die sollen nicht den alten Stand zeigen.
+      if (antwort?.figur) {
+        queryClient.invalidateQueries({ queryKey: ['characters', pid] })
+        queryClient.invalidateQueries({ queryKey: ['scenes', pid] })
+      }
+      // Ebenso ein Motiv aus der Überschrift: Motivliste und Szenen
+      if (antwort?.motiv) {
+        queryClient.invalidateQueries({ queryKey: ['locations', pid] })
+        queryClient.invalidateQueries({ queryKey: ['scenes', pid] })
+      }
+      // Eine geänderte Überschrift führt auf dem Server die Szene nach;
+      // die Leiste links soll dasselbe zeigen, nicht den Gründungsstand.
+      const szene = antwort?.szene
+      if (!szene) return
+      setzeSzenen(vorher => vorher.map(sd => (sd.scene.id === szene.id
+        ? { ...sd, scene: { ...sd.scene, ...szene } }
+        : sd)))
+    },
+    onError: (fehler: any, { data: daten, schluessel }) => {
+      // Nicht stillschweigend verlieren: zurück in die Warteschlange, und
+      // der Mensch erfährt, dass sein Satz noch nicht gesichert ist.
+      offen.current.set(schluessel, { ...daten, ...(offen.current.get(schluessel) ?? {}) })
+      toast({
+        title: tt(screenplayT.errSave),
+        description: fehler?.message || String(fehler),
+        variant: 'destructive',
+      })
+    },
+    onSettled: () => setSaving(offen.current.size > 0),
   })
 
   // Die Zeile verschwindet schon beim Tastendruck aus dem Dokument; hier
@@ -844,7 +872,7 @@ export function Component() {
     mutationFn: () =>
       // Die Nummer vergibt der Server - er kennt die höchste vergebene.
       api.scenes.create(pid, {
-        title: 'Neue Szene',
+        title: tt(screenplayT.newScene),
         int_ext: 'INT',
         // TAG und NACHT sind die Werte, nach denen Drehplan und Statistik
         // filtern. Hier stand DAY - diese Szenen zählten nirgends mit.
@@ -1141,10 +1169,10 @@ export function Component() {
                 </span>
                 <div className="min-w-0">
                   <p className="text-xs font-medium truncate leading-tight">
-                    {sd.scene.title || 'Untitled'}
+                    {sd.scene.title || tt(screenplayT.ohneTitel)}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {sd.scene.int_ext} · {sd.scene.day_night} · {sd.blocks.length} {tt(screenplayT.blocks)}
+                    {sd.scene.int_ext} · {scenesT.tageszeit[sd.scene.day_night] ? tt(scenesT.tageszeit[sd.scene.day_night]) : sd.scene.day_night} · {sd.blocks.length} {tt(screenplayT.blocks)}
                   </p>
                 </div>
                 <ChevronRight className="w-3 h-3 text-muted-foreground/30 shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1153,18 +1181,20 @@ export function Component() {
           )}
         </div>
 
-        <div className="p-2 border-t border-border/40">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full h-7 text-xs"
-            onClick={() => createSceneMutation.mutate()}
-            disabled={createSceneMutation.isPending}
-          >
-            <Plus className="w-3 h-3 mr-1.5" />
-            {tt(screenplayT.newScene)}
-          </Button>
-        </div>
+        {darfSchreiben && (
+          <div className="p-2 border-t border-border/40">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-7 text-xs"
+              onClick={() => createSceneMutation.mutate()}
+              disabled={createSceneMutation.isPending}
+            >
+              <Plus className="w-3 h-3 mr-1.5" />
+              {tt(screenplayT.newScene)}
+            </Button>
+          </div>
+        )}
       </aside>
 
       {/* Right: Editor area */}
@@ -1176,7 +1206,7 @@ export function Component() {
             size="sm"
             className="md:hidden h-7 text-xs gap-1.5"
             onClick={() => setScenesOpen(true)}
-            aria-label="Szenenliste öffnen"
+            aria-label={tt(screenplayT.szenenOeffnen)}
           >
             <ListTree className="w-3.5 h-3.5" />
             {tt(screenplayT.scenes)}
@@ -1206,7 +1236,7 @@ export function Component() {
                     className="h-7 w-44 text-xs justify-start gap-2 font-normal"
                     // Eine Überschrift wechselt den Typ nicht - neue Szenen
                     // entstehen über "Neue Szene".
-                    disabled={activeBlock?.block_type === 'scene_heading'}
+                    disabled={!darfSchreiben || activeBlock?.block_type === 'scene_heading'}
                   >
                     <ActiveIcon className="w-3 h-3 text-muted-foreground shrink-0" />
                     <span className="truncate flex-1 text-left">{activeLabel}</span>
@@ -1242,7 +1272,7 @@ export function Component() {
           })()}
 
           {/* Character suffix picker (only when character block is active) */}
-          {activeBlock?.block_type === 'character' && (
+          {darfSchreiben && activeBlock?.block_type === 'character' && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
@@ -1267,7 +1297,7 @@ export function Component() {
           )}
 
           {/* Transition picker (only when transition block is active) */}
-          {activeBlock?.block_type === 'transition' && (
+          {darfSchreiben && activeBlock?.block_type === 'transition' && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
@@ -1287,13 +1317,15 @@ export function Component() {
           )}
 
           {/* Annotation color picker (only when annotation block is active) */}
-          {activeBlock?.block_type === 'annotation' && (
+          {darfSchreiben && activeBlock?.block_type === 'annotation' && (
             <div className="flex items-center gap-1.5 pl-1">
               <PenLine className="w-3 h-3 text-muted-foreground/50" />
               {ANNOTATION_COLORS.map(color => (
                 <button
                   key={color}
-                  title={color}
+                  title={tt(screenplayT.anmerkungFarbe).replace('{name}', tt(screenplayT.farben[color]))}
+                  aria-label={tt(screenplayT.anmerkungFarbe).replace('{name}', tt(screenplayT.farben[color]))}
+                  aria-pressed={activeBlock.annotation_color === color}
                   className={cn(
                     'w-4 h-4 rounded-full border-2 transition-all active:scale-90',
                     activeBlock.annotation_color === color
@@ -1309,28 +1341,32 @@ export function Component() {
 
           <div className="flex-1" />
 
-          <SaveStatus saving={saving} tt={tt} />
+          {darfSchreiben && (
+            <>
+              <SaveStatus saving={saving} tt={tt} />
 
-          <div className="h-4 w-px bg-border/60" />
+              <div className="h-4 w-px bg-border/60" />
 
-          {/* FDX Import */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".fdx,.celtx,.fountain,.txt,.xml"
-            className="hidden"
-            onChange={handleFileSelect}
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs gap-1.5"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importFdxMutation.isPending}
-          >
-            {importFdxMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-            {tt(screenplayT.importFdx)}
-          </Button>
+              {/* FDX Import */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".fdx,.celtx,.fountain,.txt,.xml"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1.5"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importFdxMutation.isPending}
+              >
+                {importFdxMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                {tt(screenplayT.importFdx)}
+              </Button>
+            </>
+          )}
 
           {/* Export dropdown */}
           <DropdownMenu>
@@ -1378,14 +1414,14 @@ export function Component() {
               <Film className="w-12 h-12 mb-4 opacity-20" />
               <p className="text-sm font-medium mb-1">{tt(screenplayT.noScenes)}</p>
               <p className="text-xs mb-4">{tt(screenplayT.noScenesDesc)}</p>
-              <div className="flex gap-2">
+              {darfSchreiben && <div className="flex gap-2">
                 <Button size="sm" onClick={() => createSceneMutation.mutate()}>
                   <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(screenplayT.newScene)}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
                   <Upload className="w-3.5 h-3.5 mr-1.5" />{tt(screenplayT.importFdx)}
                 </Button>
-              </div>
+              </div>}
             </div>
           ) : (
             <div
@@ -1420,6 +1456,7 @@ export function Component() {
                   onTabKey={handleTabKey}
                   onPasteLines={handlePasteLines}
                   onCreateFirstBlock={handleCreateFirstBlock}
+                  nurLesen={!darfSchreiben}
                   textareaRefs={textareaRefs}
                   onBlockMounted={handleBlockMounted}
                   sectionRef={el => {
@@ -1436,7 +1473,7 @@ export function Component() {
         </div>
 
         {/* Keyboard hints */}
-        <div className="px-4 py-1.5 border-t border-border/30 bg-muted/30 flex flex-wrap items-center gap-x-4 gap-y-1 shrink-0">
+        {darfSchreiben && <div className="px-4 py-1.5 border-t border-border/30 bg-muted/30 flex flex-wrap items-center gap-x-4 gap-y-1 shrink-0">
           <span className="text-[10px] text-muted-foreground/50">
             <kbd className="bg-muted px-1 rounded text-[9px] mr-1">Enter</kbd>{tt(screenplayT.hintEnter)}
           </span>
@@ -1446,7 +1483,7 @@ export function Component() {
           <span className="text-[10px] text-muted-foreground/50">
             <kbd className="bg-muted px-1 rounded text-[9px] mr-1">⌫</kbd>{tt(screenplayT.hintBackspace)}
           </span>
-        </div>
+        </div>}
       </div>
     </div>
   )

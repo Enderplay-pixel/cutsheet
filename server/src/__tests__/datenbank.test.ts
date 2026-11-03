@@ -2447,6 +2447,34 @@ describe('Motive aus der Szenenüberschrift', () => {
   })
 })
 
+describe('Zweite Überschrift in einer Szene', () => {
+  it('lässt den Datensatz der Szene stehen - nur die erste Überschrift führt ihn nach', async () => {
+    const szene = (await db.run(
+      "INSERT INTO scenes (project_id, scene_number, title, int_ext, day_night) VALUES (?, '1', 'KÜCHE', 'INT', 'TAG')", [projektId]
+    )).id
+    const zeile = async (platz: number, inhalt: string) => (await db.run(
+      "INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content) VALUES (?, ?, ?, 'scene_heading', ?)",
+      [szene, projektId, platz, inhalt]
+    )).id
+    const erste = await zeile(0, 'INT. KÜCHE - TAG')
+    const zweite = await zeile(2, '')
+
+    const antwort = await hole(`/api/blocks/${zweite}`, tokenInhaber, {
+      method: 'PUT', body: JSON.stringify({ content: 'EXT. HAFEN - NACHT', motiv_fertig: true }),
+    })
+    expect(antwort.status).toBe(200)
+    expect(antwort.daten.szene).toBeUndefined()
+    expect(antwort.daten.motiv).toBeUndefined()
+    expect(await db.get('SELECT int_ext, title, day_night, location_id FROM scenes WHERE id = ?', [szene]))
+      .toEqual({ int_ext: 'INT', title: 'KÜCHE', day_night: 'TAG', location_id: null })
+
+    const kopf = await hole(`/api/blocks/${erste}`, tokenInhaber, {
+      method: 'PUT', body: JSON.stringify({ content: 'INT. KÜCHE - NACHT' }),
+    })
+    expect(kopf.daten.szene).toMatchObject({ title: 'KÜCHE', day_night: 'NACHT' })
+  })
+})
+
 describe('Dispo aus dem Projekt', () => {
   it('ruft die Besetzung der Szenen des Tages, nicht alle Darsteller, und zieht sie nach', async () => {
     const { dispoFuerDrehtag, besetzungNachziehen, drehortDesTages } = await import('../lib/dispo')

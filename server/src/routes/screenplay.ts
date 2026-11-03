@@ -202,9 +202,19 @@ router.put('/blocks/:blockId', async (req, res) => {
   // Szene dabei auf dem Gründungsstand stehen: Im Drehbuch stand "EXT. HAFEN -
   // NACHT", in Drehplan und Statistik weiter "INT / DAY". Deshalb folgt der
   // Datensatz jetzt der Zeile.
+  //
+  // Nur die erste Überschrift der Szene - sie ist die, die der Editor oben
+  // zeigt. Eine weitere Überschriftenzeile in derselben Szene schrieb bis zum
+  // 03.11.2026 ihre Angaben in den Datensatz: Szene 1 "INT. KÜCHE - TAG" stand
+  // danach in Drehplan und Dispo als "EXT / HAFEN / NACHT" mit Motiv Hafen.
   let szene: any = null
   let motiv: any = null
-  if (block?.block_type === 'scene_heading') {
+  const ersteUeberschrift = block?.block_type === 'scene_heading'
+    ? await db.get(
+      `SELECT id FROM screenplay_blocks WHERE scene_id = ? AND block_type = 'scene_heading'
+       ORDER BY sort_order, id LIMIT 1`, [block.scene_id]) as any
+    : null
+  if (ersteUeberschrift && Number(ersteUeberschrift.id) === Number(block.id)) {
     const kopf = leseUeberschrift(block.content || '')
     if (kopf && kopf.title) {
       await db.run(
