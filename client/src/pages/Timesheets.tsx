@@ -447,7 +447,7 @@ export function Component() {
           <h1 className="font-display text-[28px] sm:text-[34px]">Timesheets</h1>
           <p className="text-sm text-muted-foreground/60 mt-1.5">Call- & Wrap-Zeiten, Überstunden und Mahlzeit-Penalties</p>
         </div>
-        <div className="flex flex-wrap gap-2 shrink-0 justify-end">
+        <div data-einfuehrung="aktionen" className="flex flex-wrap gap-2 shrink-0 justify-end">
           {/* Über useDownload mit Token: der frühere direkte Link lief ohne
               Anmeldung und endete immer mit 401 */}
           <Button
@@ -473,7 +473,7 @@ export function Component() {
       </div>
 
       {/* Day selector card */}
-      <div className="mb-6">
+      <div data-einfuehrung="tag" className="mb-6">
         <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">Drehtag auswählen</p>
         <div className="rounded-xl border border-border/60 bg-card p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
           <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center shrink-0">

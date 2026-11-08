@@ -63,7 +63,7 @@ erklären, wie man sich anmeldet.
 |---|---|---|---|
 | **ProjectList** | `/` | Alle Projekte, anlegen, duplizieren, archivieren, löschen; Firmenzuordnung. | Beim Start. Der Einstieg in alles. |
 | **Dashboard** | `/projects/:id` | Kennzahlen des Projekts: Drehtage, Szenen, Konflikte, Fortschritt. | Nach dem Öffnen eines Projekts - der Überblick vor dem Detail. |
-| **Suche** | `/projects/:id/suche` | Volltextsuche über Szenen, Personen, Motive, Equipment, Aufgaben. | Wenn man weiß, wie etwas heißt, aber nicht, wo es steht. |
+| **Suche** | `/projects/:id/suche` | Volltextsuche über Szenen, Rollen, Besetzung, Stab und Motive; eine Figur bringt Darsteller, Szenen und Drehtage mit. | Wenn man weiß, wie etwas heißt, aber nicht, wo es steht. |
 | **Aufgaben** | `/projects/:id/aufgaben` | To-do-Liste des Projekts mit Zuständigem und Frist. Vier Stände: offen, in Arbeit, Abnahme, erledigt. | Für alles, was jemand tun muss und was sonst in einer Nachricht untergeht. |
 | **ActivityFeed** | `/projects/:id/aktivitaet` | Was im Projekt zuletzt passiert ist, chronologisch. | Montags: Was haben die anderen am Wochenende gemacht? |
 | **Settings** | `/settings` | Eigenes Konto: Name, Passwort, zweiter Faktor, aktive Sitzungen, Anmeldeverlauf, Datenexport, Konto löschen. | Beim Einrichten und wenn ein Gerät verlorengeht. |
@@ -93,10 +93,10 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 | **Stammdaten** | `/projects/:id/stammdaten` | Projektangaben, Mitglieder, Einladungen, Grundeinstellungen (Drehschluss, Ruhezeit, Währung). | Einmal am Anfang, danach selten. |
 | **Drehbuch** | `/projects/:id/drehbuch` | Szenenliste mit Achteln, Innen/Außen, Tag/Nacht, Motiv, Figuren und Requisiten. Import aus Datei. | Nach dem ersten Buch - die Grundlage für alles Weitere. |
 | **ScreenplayEditor** | `/projects/:id/screenplay-editor` | Drehbuch schreiben im Format, mit Blöcken, Notizen und PDF-Export (auch mit Anmerkungen). | Wenn das Buch im Haus entsteht. |
-| **Shotlist** | `/projects/:id/shotlist` | Einstellungen je Szene: Größe, Bewegung, Objektiv, Storyboard-Bild, Circle Take. Abhaken am Drehtag. | In der Auflösung mit der Regie, dann täglich am Set. |
+| **Shotlist** | `/projects/:id/shotlist` | Einstellungen je Szene: Größe, Bewegung, Brennweite, Dauer, bester Take. Abhaken am Drehtag, PDF nach Szenen oder nach Drehtagen. | In der Auflösung mit der Regie, dann täglich am Set. |
 | **SzenenKommentare** | `/projects/:id/kommentare` | Anmerkungen an einzelnen Szenen, auflösbar. | Wenn Regie und Produktion über eine Szene reden. |
 | **Moodboard** | `/projects/:id/moodboard` | Bilder und Referenzen sammeln. | In der Entwicklung, für Look und Ausstattung. |
-| **Pinboard** | `/projects/:id/pinboard` | Zettel an eine Wand kleben, frei verschiebbar. | Für alles, was in keine Liste passt. |
+| **Pinboard** | `/projects/:id/pinboard` | Farbige Zettel im Raster, für alle im Projekt sichtbar. | Für alles, was in keine Liste passt. |
 
 ---
 
@@ -124,7 +124,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 | **Konfliktradar** | `/projects/:id/konfliktradar` | Prüft den Plan: Szenen doppelt oder gar nicht eingeplant, leere Drehtage, mehrere Drehtage an einem Datum, zu kurze Ruhezeiten, Besetzung an ihren Sperrtagen (seit Fund 262), Szenen ohne Motiv oder Figuren, Motive ohne Adresse, Budget gegen Finanzierung. | Nach jeder Änderung am Drehplan. |
 | **DOOD** | `/projects/:id/dood` | Day-out-of-Days: wer an welchem Tag gebraucht wird, als Raster. | Für Verträge und Verfügbarkeitsanfragen. |
 | **ZeitAnalyse** | `/projects/:id/zeitanalyse` | Geplante gegen tatsächliche Drehzeit je Szene und Tag. | Nach ein paar Drehtagen: Sind wir im Plan? |
-| **Motive** | `/projects/:id/motive` | Drehorte mit Fotos, Karte, Strom, Parken - und der **Drehgenehmigung** je Motiv, unterschreibbar. | In der Motivsuche und vor jeder Genehmigung. |
+| **Motive** | `/projects/:id/motive` | Drehorte mit Adresse, Ansprechpartner, Eigentümer, Miete, Strom und Karte - und dem **Motivvertrag** je Motiv, auf dem Bildschirm unterschreibbar. | In der Motivsuche und vor jeder Genehmigung. |
 | **Setplan** | `/projects/:id/setplan` | Grundrisse zeichnen: Kamera, Licht, Technik platzieren, als PDF. | Vor einem komplizierten Drehtag. |
 | **Reise** | `/projects/:id/reise` | Reisen je Person mit **Verpflegungspauschalen** nach § 9 Abs. 4a EStG; zweiter Reiter Unterkünfte mit Zimmerbelegung. | Bei jedem auswärtigen Dreh. |
 
@@ -147,7 +147,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
 | **Tagesdispo** | `/projects/:id/tagesdispo`, `/tagesdispo/:dayId` | Die Disposition: General Call, persönliche Zeiten, Szenen, Motiv, Wetter. Versand per Mail mit persönlichem Bestätigungslink; Zeiten geschlossen verschieben. | Am Vortag, meist abends. |
-| **CheckinBoard** | `/projects/:id/checkin` | Wer ist da. Am Set abhaken oder die Person checkt sich über ihren Link selbst ein. | Morgens am Set. |
+| **CheckinBoard** | `/projects/:id/checkin` | Wer ist da: alle von der Dispo des Tages, am Set abzuhaken. (Selbst einchecken über einen Link gibt es nicht, siehe Fund 79.) | Morgens am Set. |
 | **Tagesbericht** | `/projects/:id/tagesbericht` | Was wirklich gedreht wurde: Szenen, Seiten, Zeiten, Pausen, Vorkommnisse. Als PDF. | Abends nach Drehschluss. |
 | **Kameraberichte** | `/projects/:id/kameraberichte` | Takes je Einstellung mit Bewertung, Karten und Speicherplatz. | Am Set durch die Kamera-Assistenz. |
 | **Continuity** | `/projects/:id/continuity` | Anschlüsse: Kostüm, Maske, Requisite je Szene, mit Foto. | Am Set durch die Script/Continuity. |
@@ -180,7 +180,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
 | **Dateien** (Ablage) | `/projects/:id/ablage` | Genehmigungen, Versicherungsnachweise, Vertragsscans, Eingangsrechnungen. Nachweise mit Ablaufdatum melden sich 30 Tage vorher. | Immer, wenn Papier hereinkommt. |
-| **Listen** | `/projects/:id/listen` | Import und Export als CSV: Besetzung, Stab, Szenen, Motive - mit Vorschau vor dem Übernehmen. | Wenn Daten aus einer Tabelle kommen oder dorthin sollen. |
+| **Listen** | `/projects/:id/listen` | Einlesen als CSV: Stab, Besetzung, Komparserie - mit Vorschau vor dem Übernehmen. Ausgeben dazu Szenen und Drehplan. | Wenn Daten aus einer Tabelle kommen oder dorthin sollen. |
 | **EmailCenter** | `/projects/:id/email` | Postausgang, Vorlagen, Empfängergruppen, Absenderidentität, Quittungen. | Wenn eine Mail nicht ankam - und zum Pflegen der Vorlagen. |
 | **AuditLog** | `/projects/:id/audit` | Jede Änderung mit Zeitpunkt, Person und Inhalt. Sechs Filter, seitenweise, CSV-Ausleitung. | Wenn jemand fragt „wer hat das geändert". |
 | **DatenschutzWerkzeuge** | `/projects/:id/datenschutz` | Auskunft nach Art. 15 DSGVO je Person, Zugriffsübersicht, Anonymisieren. | Auf Verlangen einer betroffenen Person. |

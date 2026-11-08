@@ -581,7 +581,7 @@ export function Component() {
 
       {/* Floating add panel */}
       {darfSchreiben && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100%-1rem)] overflow-x-auto">
+        <div data-einfuehrung="neu" className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100%-1rem)] overflow-x-auto">
           <AddPanel pid={pid} scrollRef={scrollRef} onAdded={() => queryClient.invalidateQueries({ queryKey: ['moodboard', pid] })} />
         </div>
       )}

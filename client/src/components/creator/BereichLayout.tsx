@@ -35,7 +35,7 @@ export function BereichKopf({ symbol: Symbol, titel, untertitel, aktionen }: {
           <p className="text-[12px] text-muted-foreground mt-1 leading-snug">{untertitel}</p>
         )}
       </div>
-      {aktionen && <div className="flex items-center gap-2 flex-wrap shrink-0">{aktionen}</div>}
+      {aktionen && <div data-einfuehrung="aktionen" className="flex items-center gap-2 flex-wrap shrink-0">{aktionen}</div>}
     </div>
   )
 }

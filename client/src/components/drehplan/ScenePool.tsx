@@ -58,7 +58,7 @@ export function ScenePool({ scenes }: ScenePoolProps) {
   const sceneIds = scenes.map(s => `scene-${s.id}`)
 
   return (
-    <div className="w-[200px] shrink-0 border border-border rounded-lg overflow-hidden bg-card flex flex-col">
+    <div data-einfuehrung="pool" className="w-[200px] shrink-0 border border-border rounded-lg overflow-hidden bg-card flex flex-col">
       <div className="px-3 py-2 border-b border-border">
         <h3 className="text-sm font-semibold">{tt(scenePoolT.ablage)}</h3>
         <p className="text-xs text-muted-foreground">{tt(scenePoolT.ungeplant).replace('{n}', String(scenes.length))}</p>

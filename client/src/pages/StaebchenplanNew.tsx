@@ -391,7 +391,7 @@ export function Component() {
           </div>
         ) : (
           <div className="overflow-x-auto px-6 py-5">
-            <div className="flex gap-3 items-start" style={{ minWidth: 'max-content' }}>
+            <div data-einfuehrung="tafel" className="flex gap-3 items-start" style={{ minWidth: 'max-content' }}>
               {/* Loading skeleton */}
               {isLoading && (
                 <>

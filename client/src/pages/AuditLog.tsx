@@ -148,7 +148,7 @@ export function Component() {
       </div>
 
       {/* Suche */}
-      <div className="bg-card border border-border/60 rounded-xl p-4 mb-4">
+      <div data-einfuehrung="filter" className="bg-card border border-border/60 rounded-xl p-4 mb-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <Label htmlFor="protokoll-suche">{tt(T.volltext)}</Label>

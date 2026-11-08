@@ -288,7 +288,7 @@ export function Component() {
 
       {/* Quick-add standard phases */}
       {canEdit && (
-        <div className="mb-4 flex flex-wrap gap-1.5">
+        <div data-einfuehrung="phasen" className="mb-4 flex flex-wrap gap-1.5">
           <span className="text-xs text-muted-foreground self-center mr-1">{tt(T.schnellHinzu)}</span>
           {QUICK_PHASES.map(p => (
             <button

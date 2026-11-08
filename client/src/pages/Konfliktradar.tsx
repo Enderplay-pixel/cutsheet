@@ -102,7 +102,7 @@ export function Component() {
                     {tt(items.length !== 1 ? cfg.mehr : cfg.label)} ({items.length})
                   </h2>
                 </div>
-                <div className="space-y-2">
+                <div data-einfuehrung="liste" className="space-y-2">
                   {items.map((conflict: any, i: number) => (
                     <div key={i} className={cn(
                       'flex items-start gap-3 p-4 rounded-xl border',
@@ -122,6 +122,7 @@ export function Component() {
                       </div>
                       {conflict.link && (
                         <Button variant="ghost" size="sm"
+                          data-einfuehrung="sprung"
                           className={cn('shrink-0 h-7 text-xs gap-1', cfg.color)}
                           onClick={() => navigate(`/projects/${pid}/${conflict.link}`)}>
                           {tt(T.oeffnen)} <ArrowRight className="w-3 h-3" />

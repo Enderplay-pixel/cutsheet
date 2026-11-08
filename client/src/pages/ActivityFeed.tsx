@@ -177,7 +177,7 @@ export function Component() {
 
         {/* Filter */}
         <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="w-40 h-8 text-sm shrink-0">
+          <SelectTrigger data-einfuehrung="filter" className="w-40 h-8 text-sm shrink-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

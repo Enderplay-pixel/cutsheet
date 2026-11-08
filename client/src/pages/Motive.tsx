@@ -288,6 +288,7 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
     )}>
       {/* Header */}
       <div className="flex items-center gap-3 p-4 cursor-pointer hover:bg-muted/20 transition-colors"
+        data-einfuehrung="motiv"
         role="button" tabIndex={0} aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
         onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setExpanded(!expanded) } }}>

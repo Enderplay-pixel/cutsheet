@@ -355,7 +355,7 @@ export function Component() {
           </div>
         </div>
         {canEdit && (
-          <Button onClick={() => setAdding(a => !a)}>
+          <Button data-einfuehrung="neu" onClick={() => setAdding(a => !a)}>
             <Plus className="w-4 h-4 mr-2" /> {tt(versicherungenT.neue)}
           </Button>
         )}

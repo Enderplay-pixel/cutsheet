@@ -5,6 +5,7 @@ import { TopBar } from '@/components/layout/TopBar'
 import { GlobalSearch } from '@/components/shared/GlobalSearch'
 import { ShortcutsModal } from '@/components/shared/ShortcutsModal'
 import { TutorialModal } from '@/components/shared/TutorialModal'
+import { Einfuehrung } from '@/components/einfuehrung/Einfuehrung'
 import { useAuth } from '@/contexts/AuthContext'
 import { useProjectStore } from '@/store/useProjectStore'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -125,6 +126,7 @@ function AppShell() {
         <GlobalSearch open={searchVisible} onClose={() => setSearchVisible(false)} />
         <ShortcutsModal />
         <TutorialModal open={tutorialOpen} onClose={handleTutorialClose} />
+        <Einfuehrung />
         {/* Der Toaster hängt in main.tsx - auch öffentliche Seiten brauchen ihn */}
       </TooltipProvider>
     </ProjectRoleProvider>

@@ -115,7 +115,7 @@ export function Component() {
         const an = !!warnung?.enabled
         const erreicht = an && totals.soll_cents > 0 && usedPct >= schwelle
         return (
-          <div className="mb-5 space-y-3">
+          <div data-einfuehrung="warnung" className="mb-5 space-y-3">
             {erreicht && (
               <div className={cn(
                 'flex items-start gap-3 rounded-xl border p-3.5',
@@ -177,7 +177,7 @@ export function Component() {
       })()}
 
       {/* Summen */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-7 stagger-sm">
+      <div data-einfuehrung="summen" className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-7 stagger-sm">
         <div className="stat-card">
           <p className="section-label mb-2">{tt(T.kalkuliert)}</p>
           <p className="text-2xl font-bold tabular-nums tracking-tight">{formatCurrency(totals.soll_cents)}</p>
@@ -230,6 +230,7 @@ export function Component() {
       {/* Beleg erfassen */}
       <p className="section-label mb-3">{tt(T.belegErfassen)}</p>
       <form
+        data-einfuehrung="beleg"
         onSubmit={e => {
           e.preventDefault()
           if (!desc.trim() || !amount) return

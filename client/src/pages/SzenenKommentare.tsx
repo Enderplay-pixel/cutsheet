@@ -165,7 +165,7 @@ export function Component() {
       {/* Two-panel layout */}
       <div className="flex flex-col md:flex-row gap-5 md:min-h-[620px]">
         {/* Scene list sidebar */}
-        <div className="w-full md:w-64 md:shrink-0 max-h-72 md:max-h-none rounded-xl border border-border/60 bg-card overflow-hidden flex flex-col">
+        <div data-einfuehrung="szenen" className="w-full md:w-64 md:shrink-0 max-h-72 md:max-h-none rounded-xl border border-border/60 bg-card overflow-hidden flex flex-col">
           <div className="px-4 py-3.5 border-b border-border/40 bg-muted/20">
             <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-0.5">{tt(sk.szenen)}</p>
             <span className="text-sm font-semibold tabular-nums">{tt(sk.gesamt).replace('{n}', String(scenes?.length || 0))}</span>
@@ -225,7 +225,7 @@ export function Component() {
         </div>
 
         {/* Comments panel */}
-        <div className="flex-1 min-w-0 flex flex-col gap-4">
+        <div data-einfuehrung="gespraech" className="flex-1 min-w-0 flex flex-col gap-4">
           {!selectedSceneId ? (
             <div className="flex-1 rounded-xl border border-border/60 bg-card flex items-center justify-center">
               <div className="text-center">

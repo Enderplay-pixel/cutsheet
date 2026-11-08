@@ -364,7 +364,7 @@ export function Component() {
       )}
 
       <Tabs defaultValue="kalkulation">
-        <TabsList>
+        <TabsList data-einfuehrung="reiter">
           <TabsTrigger value="kalkulation" className="gap-2"><List className="w-4 h-4" />{tt(T.kalkulation)}</TabsTrigger>
           <TabsTrigger value="finanzierung" className="gap-2"><PieChart className="w-4 h-4" />{tt(T.finanzierungsplan)}</TabsTrigger>
         </TabsList>
@@ -394,7 +394,7 @@ export function Component() {
                     <Button size="sm" onClick={() => createLine.mutate(newCategory)} disabled={createLine.isPending}>
                       <Plus className="w-4 h-4 mr-1" />{tt(T.position)}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => kostenVorschau.mutate()}
+                    <Button variant="outline" size="sm" data-einfuehrung="kosten" onClick={() => kostenVorschau.mutate()}
                       disabled={kostenVorschau.isPending || kostenUebernehmen.isPending}>
                       <Wand2 className="w-4 h-4 mr-1" />{tt(T.kostenUebernehmen)}
                     </Button>

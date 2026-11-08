@@ -473,7 +473,7 @@ export function Component() {
       )}
 
       {/* Day selector */}
-      <div className="mb-6">
+      <div data-einfuehrung="tag" className="mb-6">
         <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">{tt(T.drehtag)}</p>
         <div className="rounded-xl border border-border/60 bg-card p-5">
           {daysLoading ? (
@@ -499,7 +499,7 @@ export function Component() {
 
       {/* Camera letter selector + new report button */}
       {darfSchreiben && selectedDayId && availableLetters.length > 0 && (
-        <div className="mb-8">
+        <div data-einfuehrung="kamera" className="mb-8">
           <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">{tt(T.neuerBericht)}</p>
           <div className="rounded-xl border border-border/60 bg-card p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="flex flex-wrap items-center gap-3">

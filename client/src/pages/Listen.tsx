@@ -85,7 +85,7 @@ export function Component() {
       />
 
       <Tabs defaultValue="einlesen">
-        <TabsList>
+        <TabsList data-einfuehrung="reiter">
           <TabsTrigger value="einlesen"><Upload className="w-3.5 h-3.5 mr-1.5" />{tt(listenT.einlesen)}</TabsTrigger>
           <TabsTrigger value="ausgeben"><Download className="w-3.5 h-3.5 mr-1.5" />{tt(listenT.ausgeben)}</TabsTrigger>
         </TabsList>

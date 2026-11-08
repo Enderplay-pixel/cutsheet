@@ -243,7 +243,7 @@ export function Component() {
             {totalGage > 0 && ` · ${formatCurrency(totalGage)} ${tt(crewT.totalFee)}`}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div data-einfuehrung="aktionen" className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={exportCsv}>
             <Download className="w-3.5 h-3.5 mr-1.5" />CSV
           </Button>

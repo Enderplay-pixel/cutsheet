@@ -81,7 +81,7 @@ export function Component() {
 
       {/* Hochladen - wie Ändern und Löschen nur mit Schreibrecht; vorher
           standen alle drei auch Lesern offen und scheiterten erst am Server */}
-      {darfSchreiben && <Card>
+      {darfSchreiben && <Card data-einfuehrung="hochladen">
         <CardContent className="pt-5">
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-[200px]">
@@ -106,7 +106,7 @@ export function Component() {
       </Card>}
 
       {/* Filter */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div data-einfuehrung="filter" className="flex flex-wrap items-center gap-2">
         <Button variant={art === '' ? 'default' : 'outline'} size="sm" onClick={() => setArt('')}>
           {tt(T.alle)}
         </Button>

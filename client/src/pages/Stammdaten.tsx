@@ -24,9 +24,9 @@ const FORMATS = ALL_FORMATS
 const STATUSES = ['Entwicklung', 'Vorproduktion', 'Produktion', 'Postproduktion', 'Abgeschlossen', 'Archiviert']
 const WAEHRUNGEN = ['EUR', 'USD', 'GBP', 'CHF']
 
-function FormSection({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
+function FormSection({ icon: Icon, title, anker, children }: { icon: any; title: string; anker?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-card border border-border/60 rounded-xl p-6">
+    <div data-einfuehrung={anker} className="bg-card border border-border/60 rounded-xl p-6">
       <div className="flex items-center gap-2 mb-5">
         <Icon className="w-4 h-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold">{title}</h2>
@@ -135,7 +135,7 @@ function InviteSection({ pid }: { pid: number }) {
   const roleLabel = (r: string) => (navT.roles as Record<string, any>)[r] ? tt((navT.roles as Record<string, any>)[r]) : r
 
   return (
-    <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+    <div data-einfuehrung="team" className="bg-card border border-border/60 rounded-xl overflow-hidden">
       {canAdmin && (
         <>
           <div className="flex items-center gap-2 px-5 py-4 border-b border-border/60">
@@ -375,7 +375,7 @@ export function Component() {
         </div>
       </div>
 
-      <FormSection icon={Film} title={tt(masterT.basisdaten)}>
+      <FormSection icon={Film} title={tt(masterT.basisdaten)} anker="basisdaten">
         <Field label={tt(masterT.labelTitle)} full>
           <Input disabled={!darfSchreiben} value={formData.title || ''} onChange={e => update('title', e.target.value)}
             aria-label={tt(masterT.labelTitle)} placeholder={tt(masterT.phTitel)} className="h-9 text-base font-medium" />
@@ -448,7 +448,7 @@ export function Component() {
       </FormSection>
 
       {settingsData && (
-        <FormSection icon={Settings2} title={tt(masterT.einstellungen)}>
+        <FormSection icon={Settings2} title={tt(masterT.einstellungen)} anker="grundeinstellungen">
           {/* Der Server nimmt Einstellungen nur von Projekt-Admins an. Vorher
               waren die Felder für alle mit Schreibrecht offen, gespeichert
               wurde nichts (403) - gemessen am 01.11.2026 mit einem Produktionskonto. */}

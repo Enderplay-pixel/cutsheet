@@ -212,7 +212,7 @@ export function Component() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Calendar */}
-        <div className="lg:col-span-2">
+        <div data-einfuehrung="monat" className="lg:col-span-2">
           <Card>
             <CardHeader className="pb-3 flex-row items-center justify-between">
               <Button variant="ghost" size="sm" aria-label={tt(T.vorherigerMonat)} title={tt(T.vorherigerMonat)} onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>

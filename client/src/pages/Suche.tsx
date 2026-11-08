@@ -140,7 +140,7 @@ export function Component() {
       {/* Header */}
       <div className="px-7 pt-7 pb-4 border-b border-border/40 shrink-0">
         <h1 className="font-display text-[28px] sm:text-[34px] mb-4">{tt(sucheT.titel)}</h1>
-        <div className="relative max-w-xl">
+        <div data-einfuehrung="suche" className="relative max-w-xl">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             ref={inputRef}

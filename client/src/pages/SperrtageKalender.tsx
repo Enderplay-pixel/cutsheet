@@ -162,6 +162,7 @@ export function Component() {
             {darfSchreiben && (
               <Button
                 size="sm"
+                data-einfuehrung="neu"
                 onClick={() => setDialogOpen(true)}
                 className="active:scale-[0.97] ml-4"
               >
@@ -175,7 +176,7 @@ export function Component() {
 
       {/* Conflicts panel */}
       {conflicts && conflicts.length > 0 && (
-        <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-5 space-y-2">
+        <div data-einfuehrung="konflikte" className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-5 space-y-2">
           <div className="flex items-center gap-2.5 text-destructive font-semibold text-sm">
             <div className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
               <AlertTriangle className="w-4 h-4" />
@@ -198,7 +199,7 @@ export function Component() {
           {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-xl" />)}
         </div>
       ) : (
-        <div className="rounded-xl border border-border/60 bg-card overflow-x-auto mb-6">
+        <div data-einfuehrung="kalender" className="rounded-xl border border-border/60 bg-card overflow-x-auto mb-6">
           <table className="w-full text-xs border-collapse min-w-[600px]">
             <thead>
               <tr className="border-b border-border/40">

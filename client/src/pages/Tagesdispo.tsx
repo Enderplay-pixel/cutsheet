@@ -87,7 +87,7 @@ function SendDispoButton({ dayId, entries, onSent }: {
 
   return (
     <>
-      <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)} disabled={entries.length === 0}>
+      <Button size="sm" className="gap-1.5" data-einfuehrung="versenden" onClick={() => setOpen(true)} disabled={entries.length === 0}>
         <Send className="w-3.5 h-3.5" />
         {tt(D.versenden)}
       </Button>
@@ -845,7 +845,7 @@ export function Component() {
     <div className="px-5 py-6 sm:p-6 max-w-5xl mx-auto animate-fade-up space-y-5">
 
       {/* ── Top navigation bar ──────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div data-einfuehrung="tage" className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" className="w-8 h-8"
             disabled={currentIndex <= 0}
@@ -906,7 +906,7 @@ export function Component() {
       </div>
 
       {/* ── Call Sheet header card ───────────────────────────────────────────── */}
-      <div className="bg-card border border-border/60 rounded-2xl overflow-hidden shadow-sm">
+      <div data-einfuehrung="kopf" className="bg-card border border-border/60 rounded-2xl overflow-hidden shadow-sm">
         {/* Kopfzeile. Am Telefon untereinander statt nebeneinander: drei Angaben
             in einer 375px-Zeile quetschen "Tag 1 von 8" sonst in eine
             dreizeilige Spalte. Gemessen am 27.09.2026 am Telefon. */}

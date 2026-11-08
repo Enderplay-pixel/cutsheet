@@ -319,7 +319,7 @@ export function Component() {
       </div>
 
       <Tabs defaultValue="praeferenzen">
-        <TabsList className="mb-6">
+        <TabsList data-einfuehrung="reiter" className="mb-6">
           <TabsTrigger value="praeferenzen" className="active:scale-[0.97]">{tt(cateringListeT.praeferenzen)}</TabsTrigger>
           <TabsTrigger value="tagesliste" className="active:scale-[0.97]">{tt(cateringListeT.tagesliste)}</TabsTrigger>
         </TabsList>

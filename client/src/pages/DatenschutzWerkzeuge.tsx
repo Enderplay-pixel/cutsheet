@@ -38,7 +38,7 @@ export function Component() {
       />
 
       <Tabs defaultValue="auskunft">
-        <TabsList>
+        <TabsList data-einfuehrung="reiter">
           <TabsTrigger value="auskunft"><FileSearch className="w-3.5 h-3.5 mr-1.5" />{tt(dw.tabAuskunft)}</TabsTrigger>
           <TabsTrigger value="loeschen"><UserX className="w-3.5 h-3.5 mr-1.5" />{tt(dw.tabEntfernen)}</TabsTrigger>
           <TabsTrigger value="zugriff"><Users className="w-3.5 h-3.5 mr-1.5" />{tt(dw.tabZugriff)}</TabsTrigger>

@@ -171,7 +171,7 @@ export function Component() {
             {tt(contactsT.subtitle).replace('{n}', String(crewContacts.length + castContacts.length + extraContacts.length + locationContacts.length))}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div data-einfuehrung="aktionen" className="flex flex-wrap items-center gap-2">
           <button onClick={copyAllEmails} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
             <Mail className="w-3.5 h-3.5" /> {tt(contactsT.copyAllEmails)}
           </button>
@@ -192,7 +192,7 @@ export function Component() {
       </div>
 
       {/* Filter + Search */}
-      <div className="flex flex-wrap items-center gap-3 mb-5">
+      <div data-einfuehrung="filter" className="flex flex-wrap items-center gap-3 mb-5">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input value={search} onChange={e => setSearch(e.target.value)}

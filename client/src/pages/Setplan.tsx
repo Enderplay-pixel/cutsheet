@@ -246,7 +246,7 @@ export function Component() {
           )}
         </div>
       ) : (
-        <div className="grid lg:grid-cols-[210px_1fr_230px] gap-4">
+        <div data-einfuehrung="arbeitsflaeche" className="grid lg:grid-cols-[210px_1fr_230px] gap-4">
           {/* Pläne */}
           <div className="space-y-1">
             {list.map(p => (

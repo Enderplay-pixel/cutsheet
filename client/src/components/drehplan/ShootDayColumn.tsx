@@ -36,6 +36,7 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
 
   return (
     <div
+      data-einfuehrung="drehtag"
       className={cn(
         'flex flex-col shrink-0 w-[200px] border rounded-lg overflow-hidden',
         isSperrtag ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-border bg-card'

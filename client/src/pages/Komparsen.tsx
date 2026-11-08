@@ -281,7 +281,7 @@ export function Component() {
       <p className="text-xs text-muted-foreground mb-3">{tt(k.drehtageHinweis)}</p>
 
       {/* Table */}
-      <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+      <div data-einfuehrung="liste" className="bg-card border border-border/60 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px]">
             <thead>

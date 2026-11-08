@@ -183,6 +183,7 @@ export function Component() {
             {darfSchreiben && (
               <Button
                 size="sm"
+                data-einfuehrung="neu"
                 onClick={() => setDialogOpen(true)}
                 className="active:scale-[0.97] ml-4"
               >
@@ -217,7 +218,7 @@ export function Component() {
           {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-xl" />)}
         </div>
       ) : (
-        <div className="rounded-xl border border-border/60 bg-card overflow-x-auto mb-6">
+        <div data-einfuehrung="kalender" className="rounded-xl border border-border/60 bg-card overflow-x-auto mb-6">
           <table className="w-full text-xs border-collapse min-w-[600px]">
             <thead>
               <tr className="border-b border-border/40">

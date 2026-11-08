@@ -190,7 +190,7 @@ export function Component() {
       </div>
 
       {/* Day selector card */}
-      <div className="rounded-xl border border-border/60 bg-card p-5 mb-6">
+      <div data-einfuehrung="tag" className="rounded-xl border border-border/60 bg-card p-5 mb-6">
         <div className="mb-3">
           <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">{tt(ct.drehtag)}</span>
         </div>

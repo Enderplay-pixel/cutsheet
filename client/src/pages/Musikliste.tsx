@@ -253,7 +253,7 @@ export function Component() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div data-einfuehrung="aktionen" className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={() => exportCSV(allCues, tt)} disabled={allCues.length === 0}>
             <Download className="w-4 h-4 mr-2" /> {tt(musiklisteT.csvExport)}
           </Button>

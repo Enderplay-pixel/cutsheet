@@ -92,6 +92,7 @@ export function Component() {
       <form
         onSubmit={e => { e.preventDefault(); if (newTitle.trim()) createMutation.mutate() }}
         className="flex flex-col sm:flex-row gap-2 mb-7"
+        data-einfuehrung="neu"
       >
         <Input disabled={!darfSchreiben}
           value={newTitle}
@@ -183,6 +184,7 @@ function TaskList({ tasks, gesperrt, onCycle, onDelete, muted }: {
           >
             <button
               disabled={gesperrt}
+              data-einfuehrung="status"
               onClick={(e) => { if (nextStatus(t.status) === 'erledigt' && !muted) feiern(e.currentTarget); onCycle(t) }}
               title={tt(at.statusTitel).replace('{status}', tt(meta.label))}
               className={cn('shrink-0 transition-transform duration-150 active:scale-[0.85]', meta.cls)}

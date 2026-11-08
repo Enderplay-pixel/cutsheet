@@ -197,7 +197,7 @@ export function Component() {
       )}
 
       <Tabs defaultValue="verfassen">
-        <TabsList>
+        <TabsList data-einfuehrung="reiter">
           <TabsTrigger value="verfassen"><PenLine className="w-3.5 h-3.5 mr-1.5" />{tt(ec.tabVerfassen)}</TabsTrigger>
           <TabsTrigger value="vorlagen"><FileText className="w-3.5 h-3.5 mr-1.5" />{tt(ec.tabVorlagen)}</TabsTrigger>
           <TabsTrigger value="verteiler"><Users className="w-3.5 h-3.5 mr-1.5" />{tt(ec.tabVerteiler)}</TabsTrigger>

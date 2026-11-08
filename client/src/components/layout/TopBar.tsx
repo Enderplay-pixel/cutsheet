@@ -1,6 +1,6 @@
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Moon, Sun, Menu, ChevronRight, Rows3 } from 'lucide-react'
+import { Search, Moon, Sun, Menu, ChevronRight, Rows3, HelpCircle } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -11,6 +11,8 @@ import { toggleThemeWithReveal } from '@/lib/motion'
 import { topBarTexteT, topBarDrehtagT, topBarExtraTitelT } from '@/lib/texte/komponenten/Layout'
 import { useSeitenAnordnung } from '@/lib/seitenAnordnung'
 import { arbeitsplatzT } from '@/lib/texte/Arbeitsplatz'
+import { useEinfuehrungHier, useEinfuehrungStore } from '@/lib/einfuehrung'
+import { einfuehrungT } from '@/lib/texte/Einfuehrung'
 
 // Strg+K und ⌘K öffnen beide die Suche; angezeigt wird, was auf der Tastatur steht
 const IST_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
@@ -27,6 +29,8 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
   const tt = useT()
   // Seiten mit anordenbaren Abschnitten melden sich an (SeitenBloecke)
   const { seite: anordenbar, anordnen, setAnordnen } = useSeitenAnordnung()
+  const einfuehrung = useEinfuehrungHier()
+  const starteEinfuehrung = useEinfuehrungStore(s => s.starten)
 
   const pageTitle = resolvePageTitle(location.pathname, tt)
 
@@ -66,14 +70,14 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
             <>
               <button
                 onClick={() => navigate(`/projects/${projectId}`)}
-                className="text-[13px] text-muted-foreground hover:text-foreground transition-colors duration-150 truncate max-w-[180px] shrink-0"
+                className="text-[13px] text-muted-foreground hover:text-foreground transition-colors duration-150 truncate max-w-[180px] min-w-[2.5rem]"
               >
                 {project.title}
               </button>
               <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" aria-hidden />
             </>
           )}
-          <span className="text-[13.5px] font-semibold text-foreground truncate">
+          <span className="text-[13.5px] font-semibold text-foreground truncate shrink-0 max-w-[65%]">
             {pageTitle || project?.title || ''}
           </span>
         </div>
@@ -121,11 +125,24 @@ export function TopBar({ onSearchOpen }: TopBarProps) {
         <Search className="w-4 h-4" />
       </button>
 
+      {einfuehrung && (
+        <button
+          onClick={() => starteEinfuehrung(einfuehrung.schluessel)}
+          aria-label={tt(einfuehrungT.starten)}
+          title={tt(einfuehrungT.starten)}
+          data-einfuehrung="hilfe"
+          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-foreground/[0.06] text-muted-foreground hover:text-foreground transition-[background-color,color] duration-150 active:scale-[0.97]"
+        >
+          <HelpCircle className="w-3.5 h-3.5" />
+        </button>
+      )}
+
       {anordenbar && (
         <button
           onClick={() => setAnordnen(!anordnen)}
           aria-pressed={anordnen}
           aria-label={tt(arbeitsplatzT.seiteSchalter)}
+          data-einfuehrung="anordnen"
           title={tt(arbeitsplatzT.seiteSchalter)}
           className={cn(
             'w-8 h-8 flex items-center justify-center rounded-full transition-[background-color,color] duration-150 active:scale-[0.97]',

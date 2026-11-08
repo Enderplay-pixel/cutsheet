@@ -87,7 +87,7 @@ export function Component() {
       />
 
       <Tabs defaultValue="runden">
-        <TabsList>
+        <TabsList data-einfuehrung="reiter">
           <TabsTrigger value="runden">
             <Send className="w-3.5 h-3.5 mr-1.5" />
             Abnahmerunden

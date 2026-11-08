@@ -227,7 +227,7 @@ export function Component() {
           </div>
         </div>
         {canEdit && (
-          <Button onClick={() => { setAdding(true); setEditingId(null) }} disabled={adding}>
+          <Button data-einfuehrung="neu" onClick={() => { setAdding(true); setEditingId(null) }} disabled={adding}>
             <Plus className="w-4 h-4 mr-2" /> {tt(v.neu)}
           </Button>
         )}

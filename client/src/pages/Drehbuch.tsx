@@ -174,6 +174,7 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
         )}
         role="button"
         tabIndex={0}
+        data-einfuehrung="szene"
         aria-expanded={expanded}
         onClick={umschalten}
         onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); umschalten() } }}
@@ -484,7 +485,7 @@ export function Component() {
                 .replace('{m}', String(totalMinutes))}
             </p>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div data-einfuehrung="aktionen" className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} disabled={!darfSchreiben}>
               <Upload className="w-3.5 h-3.5 mr-1.5" />{tt(scenesT.importBtn)}
             </Button>
@@ -511,7 +512,7 @@ export function Component() {
         </div>
 
         {/* Stats pills */}
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div data-einfuehrung="filter" className="flex items-center gap-2 mb-4 flex-wrap">
           {[
             { label: tt(scenesT.filterAll), value: 'all', count: scenes?.length || 0 },
             { label: 'INT', value: 'INT', count: intCount },

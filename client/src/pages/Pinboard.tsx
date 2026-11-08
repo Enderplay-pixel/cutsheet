@@ -133,7 +133,7 @@ export function Component() {
             <p className="text-sm text-muted-foreground">{tt(notes.length !== 1 ? pinboardT.anzahlMehr : pinboardT.anzahlEins).replace('{n}', String(notes.length))}</p>
           </div>
         </div>
-        <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+        <Button data-einfuehrung="neu" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
           <Plus className="w-4 h-4 mr-2" />
           {tt(pinboardT.neueNotiz)}
         </Button>

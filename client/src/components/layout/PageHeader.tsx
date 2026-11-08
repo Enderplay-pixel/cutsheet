@@ -26,7 +26,7 @@ export function PageHeader({ title, subtitle, actions, className, border = true 
       </div>
       {actions && (
         // flex-wrap, damit mehrere Knöpfe umbrechen statt hinauszuragen
-        <div className="flex items-center gap-2 flex-wrap lg:shrink-0 lg:pb-1">{actions}</div>
+        <div data-einfuehrung="aktionen" className="flex items-center gap-2 flex-wrap lg:shrink-0 lg:pb-1">{actions}</div>
       )}
     </div>
   )

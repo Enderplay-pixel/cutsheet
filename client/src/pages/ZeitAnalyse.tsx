@@ -81,7 +81,7 @@ export function Component() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+      <div data-einfuehrung="summen" className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
         <div className="bg-card border border-border/60 rounded-xl p-4">
           <div className="text-xs text-muted-foreground mb-1">{tt(T.gesamtGeplant)}</div>
           <div className="text-xl font-bold tabular-nums">{formatMinutes(totalEstimated, tt)}</div>

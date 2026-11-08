@@ -64,7 +64,7 @@ export function Component() {
         </Card>
       ) : (
         <Tabs defaultValue="anfragen">
-          <TabsList>
+          <TabsList data-einfuehrung="reiter">
             <TabsTrigger value="anfragen">
               <Send className="w-3.5 h-3.5 mr-1.5" />
               Anfragen

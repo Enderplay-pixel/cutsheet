@@ -110,7 +110,7 @@ export function Component() {
               </CardContent>
             </Card>
           ) : (
-            <Card>
+            <Card data-einfuehrung="pruefliste">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">
                   {tt(T.offen)}
@@ -168,7 +168,7 @@ export function Component() {
       )}
 
       {/* Aufbewahrung */}
-      <Card>
+      <Card data-einfuehrung="aufbewahrung">
         <CardHeader className="pb-2"><CardTitle className="text-base">{tt(T.aufheben)}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-start gap-2 text-xs p-3 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400">

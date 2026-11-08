@@ -13,7 +13,9 @@ import { usePushSubscription } from '@/hooks/usePushSubscription'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { settingsT, LANGS, type Lang } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
-import { Moon, Sun, Check, KeyRound, User, Globe, Palette, Bell, ShieldCheck, Download, Trash2, LayoutGrid, RotateCcw } from 'lucide-react'
+import { Moon, Sun, Check, KeyRound, User, Globe, Palette, Bell, ShieldCheck, Download, Trash2, LayoutGrid, RotateCcw, HelpCircle } from 'lucide-react'
+import { useGeseheneEinfuehrungen } from '@/lib/einfuehrung'
+import { einfuehrungT } from '@/lib/texte/Einfuehrung'
 import { ArbeitsplatzEditor } from '@/components/arbeitsplatz/Arbeitsplatz'
 import { useArbeitsplatz } from '@/lib/einstellungen'
 import { istStandard, standardAnordnung, type ArbeitsplatzArt } from '@/lib/bereiche'
@@ -281,6 +283,9 @@ export function Component() {
       {/* ── Arbeitsplatz ── */}
       <ArbeitsplatzSection />
 
+      {/* ── Einführungen ── */}
+      <EinfuehrungenSection />
+
       {/* ── Benachrichtigungen ── */}
       <PushSection />
 
@@ -337,6 +342,34 @@ function ArbeitsplatzSection() {
           className="sm:grid-cols-2 lg:grid-cols-2 2xl:grid-cols-2"
         />
       )}
+    </Section>
+  )
+}
+
+// ─── Einführungen ─────────────────────────────────────────────────────────────
+
+function EinfuehrungenSection() {
+  const tt = useT()
+  const { toast } = useToast()
+  const { wert, setzen } = useGeseheneEinfuehrungen()
+  const gesehen = (wert ?? []).length
+  return (
+    <Section icon={HelpCircle} title={tt(einfuehrungT.einstellungen)} description={tt(einfuehrungT.einstellungenText)}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {tt(einfuehrungT.gesehen).replace('{n}', String(gesehen))}
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs"
+          disabled={gesehen === 0}
+          onClick={async () => { await setzen([]); toast({ title: tt(einfuehrungT.erneutFertig) }) }}
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          {tt(einfuehrungT.erneut)}
+        </Button>
+      </div>
     </Section>
   )
 }

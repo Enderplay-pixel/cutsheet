@@ -210,7 +210,7 @@ export function Component() {
       </div>
 
       {/* Legend */}
-      <div className="mb-6">
+      <div data-einfuehrung="legende" className="mb-6">
         <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">{tt(T.legende)}</p>
         <div className="flex flex-wrap gap-2">
           {Object.entries(STATUS_CONFIG).map(([k, cfg]) => (
@@ -232,7 +232,7 @@ export function Component() {
           <p className="text-sm text-muted-foreground/60">{tt(T.keineDarsteller)}</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border/60 bg-card overflow-x-auto mb-6">
+        <div data-einfuehrung="raster" className="rounded-xl border border-border/60 bg-card overflow-x-auto mb-6">
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">
               <thead>

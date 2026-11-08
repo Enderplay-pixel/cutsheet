@@ -235,7 +235,7 @@ export function Component() {
 
         {/* Nächster Drehtag - die Zahl, in der eine Produktion denkt */}
         {stats?.next_shoot_day ? (
-          <aside className="self-end rounded-2xl border border-border/60 bg-card p-5 shadow-md lift">
+          <aside data-einfuehrung="naechstes" className="self-end rounded-2xl border border-border/60 bg-card p-5 shadow-md lift">
             <div className="flex items-center justify-between">
               <span className="eyebrow">{tt(dashT.nextShootDay)}</span>
               <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-signal" aria-hidden />
@@ -273,7 +273,7 @@ export function Component() {
             </Button>
           </aside>
         ) : isCreator && naechstesVideo ? (
-          <aside className="self-end rounded-2xl border border-border/60 bg-card p-5 shadow-md lift">
+          <aside data-einfuehrung="naechstes" className="self-end rounded-2xl border border-border/60 bg-card p-5 shadow-md lift">
             <div className="flex items-center justify-between">
               <span className="eyebrow">{tt(dashT.naechsteVeroeff)}</span>
               <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-signal" aria-hidden />
@@ -299,7 +299,7 @@ export function Component() {
             </Button>
           </aside>
         ) : (
-          <aside className="self-end rounded-2xl border border-dashed border-border p-5">
+          <aside data-einfuehrung="naechstes" className="self-end rounded-2xl border border-dashed border-border p-5">
             <span className="eyebrow">{tt(dashT.nextShootDay)}</span>
             <p className="text-[17px] font-semibold text-muted-foreground mt-2">{tt(dashT.keinDrehtag)}</p>
             <Button variant="outline" size="sm" className="mt-4" onClick={() => go(isCreator ? 'kalender' : 'drehplan')}>
@@ -313,6 +313,8 @@ export function Component() {
       {einrichtung && (
         <section
           aria-labelledby="einrichtung-titel"
+          // Solange eingerichtet wird, wartet die Einführung der Seite
+          data-einfuehrung-sperre
           className="mt-10 rounded-3xl border border-primary/25 bg-primary/[0.035] p-5 sm:p-7 animate-fade-up"
         >
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5">
@@ -440,7 +442,7 @@ export function Component() {
 
               <div className="flex flex-col gap-5">
                 {/* Konfliktradar */}
-                <section className="rounded-2xl border border-border/60 bg-card shadow-sm">
+                <section data-einfuehrung="konflikte" className="rounded-2xl border border-border/60 bg-card shadow-sm">
                   <div className="flex items-center gap-2 px-5 pt-5">
                     {errors.length > 0
                       ? <AlertCircle className="w-3.5 h-3.5 text-danger" />
@@ -509,7 +511,8 @@ export function Component() {
             // Dein Arbeitsplatz: alle Bereiche in der Reihenfolge des Kontos
             id: 'arbeitsplatz', titel: bloeckeT.arbeitsplatz, inhalt: !einrichtung && platz.bereit && (
             <section aria-labelledby="arbeitsplatz-titel">
-              <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 mb-4">
+              {/* Kopf als Ziel der Einführung - die ganze Fläche ist höher als der Bildschirm */}
+              <div data-einfuehrung="arbeitsplatz" className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 mb-4">
                 <div className="min-w-0">
                   <h2 id="arbeitsplatz-titel" className="text-[19px] font-semibold tracking-[-0.02em]">{tt(arbeitsplatzT.titel)}</h2>
                   <p className="text-[13px] text-muted-foreground mt-1">

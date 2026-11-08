@@ -1135,7 +1135,7 @@ export function Component() {
 
       {/* Left: Scene Navigator. Ab md eine Spalte, darunter eine Schublade -
           220 px fest daneben liessen dem Text am Telefon 123 px. */}
-      <aside className={cn(
+      <aside data-einfuehrung="szenen" className={cn(
         'flex-col border-r border-border/40 bg-card overflow-hidden',
         'md:flex md:static md:w-[220px] md:shrink-0 md:shadow-none md:z-auto',
         scenesOpen ? 'flex fixed inset-y-0 left-0 z-50 w-[260px] shadow-2xl' : 'hidden',
@@ -1200,7 +1200,7 @@ export function Component() {
       {/* Right: Editor area */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Toolbar */}
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40 shrink-0 bg-card flex-wrap">
+        <div data-einfuehrung="werkzeuge" className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40 shrink-0 bg-card flex-wrap">
           <Button
             variant="ghost"
             size="sm"
@@ -1425,6 +1425,7 @@ export function Component() {
             </div>
           ) : (
             <div
+              data-einfuehrung="blatt"
               className="max-w-2xl mx-auto px-16 py-12 xl:px-24"
               onClick={() => waehle(null)}
             >

@@ -446,6 +446,7 @@ export function Component() {
           </div>
           {darfSchreiben && (
             <Button
+              data-einfuehrung="neu"
               onClick={() => { setEditEntry(undefined); setShowDialog(true) }}
               className="active:scale-[0.97] shrink-0"
             >

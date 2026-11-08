@@ -329,7 +329,7 @@ export function Component() {
             const doneCount = sceneShots.filter((sh: any) => sh.done).length
 
             return (
-              <AccordionItem key={scene.id} value={String(scene.id)} className="border rounded-lg overflow-hidden">
+              <AccordionItem key={scene.id} value={String(scene.id)} data-einfuehrung="szene" className="border rounded-lg overflow-hidden">
                 <AccordionTrigger className={`px-4 py-3 hover:no-underline ${
                   scene.int_ext === 'INT' && scene.day_night === 'TAG' ? 'bg-amber-500/5 hover:bg-amber-500/10' :
                   scene.int_ext === 'EXT' && scene.day_night === 'TAG' ? 'bg-blue-500/5 hover:bg-blue-500/10' :

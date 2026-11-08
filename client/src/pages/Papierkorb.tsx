@@ -57,7 +57,7 @@ export function Component() {
         subtitle={tt(p.untertitel).replace('{n}', String(data?.aufbewahrung_tage ?? 30))}
       />
 
-      <Card>
+      <Card data-einfuehrung="liste">
         <CardHeader className="pb-2 pt-3">
           <CardTitle className="text-sm flex items-center gap-2">
             {tt(p.geloescht)}
