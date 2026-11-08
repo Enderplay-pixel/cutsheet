@@ -132,7 +132,7 @@ export function Component() {
         )}
       </div>
 
-      <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+      <div data-einfuehrung="liste" className="bg-card border border-border/60 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

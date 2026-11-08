@@ -88,11 +88,11 @@ export function Component() {
 
       <Tabs defaultValue="runden">
         <TabsList data-einfuehrung="reiter">
-          <TabsTrigger value="runden">
+          <TabsTrigger value="runden" data-einfuehrung="reiter-runden">
             <Send className="w-3.5 h-3.5 mr-1.5" />
             Abnahmerunden
           </TabsTrigger>
-          <TabsTrigger value="fassungen">
+          <TabsTrigger value="fassungen" data-einfuehrung="reiter-fassungen">
             <Film className="w-3.5 h-3.5 mr-1.5" />
             Fassungen
           </TabsTrigger>
@@ -133,7 +133,7 @@ function Runden({ pid }: { pid: number }) {
 
       {darfSchreiben && (
         <div className="flex justify-end">
-          <Button size="sm" onClick={() => setNeu(true)}>
+          <Button size="sm" data-einfuehrung="neue-runde" onClick={() => setNeu(true)}>
             <Plus className="w-4 h-4 mr-1.5" />
             Zur Abnahme geben
           </Button>
@@ -514,7 +514,7 @@ function Fassungen({ pid }: { pid: number }) {
     <div className="space-y-3">
       {darfSchreiben && (
         <div className="flex justify-end">
-          <Button size="sm" onClick={() => setNeu(true)}>
+          <Button size="sm" data-einfuehrung="neue-fassung" onClick={() => setNeu(true)}>
             <Plus className="w-4 h-4 mr-1.5" />
             Fassung
           </Button>

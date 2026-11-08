@@ -47,7 +47,7 @@ export function Component() {
           <h1 className="font-display text-[28px] sm:text-[34px]">{tt(T.titel)}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{tt(T.untertitel)}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+        <Button variant="outline" size="sm" data-einfuehrung="aktualisieren" onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw className={cn('w-3.5 h-3.5 mr-1.5', isFetching && 'animate-spin')} />
           {tt(T.neuPruefen)}
         </Button>

@@ -61,11 +61,11 @@ export function Component() {
 
       <Tabs defaultValue="reisen">
         <TabsList data-einfuehrung="reiter">
-          <TabsTrigger value="reisen">
+          <TabsTrigger value="reisen" data-einfuehrung="reiter-reisen">
             <Car className="w-3.5 h-3.5 mr-1.5" />
             Reisekosten
           </TabsTrigger>
-          <TabsTrigger value="unterkunft">
+          <TabsTrigger value="unterkunft" data-einfuehrung="reiter-unterkunft">
             <BedDouble className="w-3.5 h-3.5 mr-1.5" />
             Unterkünfte
           </TabsTrigger>
@@ -97,7 +97,7 @@ function Reisen({ pid }: { pid: number }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-2 text-xs p-3 rounded-lg bg-muted">
+      <div data-einfuehrung="pauschalen" className="flex items-start gap-2 text-xs p-3 rounded-lg bg-muted">
         <Info className="w-4 h-4 shrink-0 mt-0.5" />
         <span>
           Verpflegungsmehraufwand nach § 9 Abs. 4a EStG: {euro(saetze?.pauschale_8h_cents ?? 1400)} bei
@@ -129,7 +129,7 @@ function Reisen({ pid }: { pid: number }) {
             Als CSV
           </Button>
           {darfSchreiben && (
-            <Button size="sm" onClick={() => setNeu(true)}>
+            <Button size="sm" data-einfuehrung="neue-reise" onClick={() => setNeu(true)}>
               <Plus className="w-4 h-4 mr-1.5" />
               Reise
             </Button>
@@ -594,7 +594,7 @@ function Unterkuenfte({ pid }: { pid: number }) {
     <div className="space-y-3">
       {darfSchreiben && (
         <div className="flex justify-end">
-          <Button size="sm" onClick={() => setBearbeite({ neu: true })}>
+          <Button size="sm" data-einfuehrung="neue-unterkunft" onClick={() => setBearbeite({ neu: true })}>
             <Plus className="w-4 h-4 mr-1.5" />
             Unterkunft
           </Button>

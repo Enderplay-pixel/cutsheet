@@ -365,15 +365,15 @@ export function Component() {
 
       <Tabs defaultValue="kalkulation">
         <TabsList data-einfuehrung="reiter">
-          <TabsTrigger value="kalkulation" className="gap-2"><List className="w-4 h-4" />{tt(T.kalkulation)}</TabsTrigger>
-          <TabsTrigger value="finanzierung" className="gap-2"><PieChart className="w-4 h-4" />{tt(T.finanzierungsplan)}</TabsTrigger>
+          <TabsTrigger value="kalkulation" data-einfuehrung="reiter-kalkulation" className="gap-2"><List className="w-4 h-4" />{tt(T.kalkulation)}</TabsTrigger>
+          <TabsTrigger value="finanzierung" data-einfuehrung="reiter-finanzierung" className="gap-2"><PieChart className="w-4 h-4" />{tt(T.finanzierungsplan)}</TabsTrigger>
         </TabsList>
 
         {/* ── KALKULATION ── */}
         <TabsContent value="kalkulation" className="space-y-4 mt-4">
           {/* Fassungswahl links, Summe und Werkzeuge rechts - am Telefon
               untereinander, sonst beginnt die Werkzeugleiste bei x=232 */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div data-einfuehrung="kalkulation" className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               {versions && versions.length > 0 && (
                 <Select value={String(selectedVersionId)} onValueChange={v => setSelectedVersionId(Number(v))}>
@@ -405,7 +405,7 @@ export function Component() {
                       <Download className="w-4 h-4 mr-1" />PDF
                     </Button>
                 )}
-                <Button variant="outline" size="sm" title={tt(T.foerderTitel)}
+                <Button variant="outline" size="sm" data-einfuehrung="foerderantrag" title={tt(T.foerderTitel)}
                   onClick={() => download(api.foerderantrag.pdf(pid), 'foerderantrag.pdf')}>
                   <Download className="w-4 h-4 mr-1" />{tt(T.foerderantrag)}
                 </Button>
@@ -484,7 +484,7 @@ export function Component() {
 
         {/* ── FINANZIERUNGSPLAN ── */}
         <TabsContent value="finanzierung" className="space-y-4 mt-4">
-          <div className="flex items-center justify-between">
+          <div data-einfuehrung="finanzierung" className="flex items-center justify-between">
             {finVersions && finVersions.length > 0 && (
               <Select value={String(selectedFinVersionId)} onValueChange={v => setSelectedFinVersionId(Number(v))}>
                 <SelectTrigger aria-label={tt(T.finFassungWaehlen)} className="w-52 h-8"><SelectValue /></SelectTrigger>

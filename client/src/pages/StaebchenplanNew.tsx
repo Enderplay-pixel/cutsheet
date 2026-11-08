@@ -369,7 +369,7 @@ export function Component() {
 
         {/* Stats bar */}
         {!isLoading && !isEmpty && (
-          <div className="flex flex-wrap gap-2 mt-4">
+          <div data-einfuehrung="statistik" className="flex flex-wrap gap-2 mt-4">
             <StatBadge label={tt(staebchenT.totalSzenen)} value={totalScenes} />
             <StatBadge label={tt(staebchenT.verplanteSzenen)} value={scheduledCount} />
             <StatBadge label={tt(staebchenT.seitenGesamt)} value={eighthsToFraction(totalEighthsAll)} />

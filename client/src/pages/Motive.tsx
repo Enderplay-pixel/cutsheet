@@ -484,7 +484,7 @@ export function Component() {
               <Download className="w-3.5 h-3.5 mr-1.5" />PDF
             </Button>
           {canEdit && (
-            <Button size="sm" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+            <Button size="sm" data-einfuehrung="neu" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
               <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(locT.newLocation)}
             </Button>
           )}

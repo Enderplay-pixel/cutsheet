@@ -133,7 +133,7 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
   const checkPct = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0
 
   return (
-    <AccordionItem value={String(list.id)} className="border rounded-lg overflow-hidden">
+    <AccordionItem value={String(list.id)} data-einfuehrung="liste" className="border rounded-lg overflow-hidden">
       <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/20">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 min-w-0 w-full mr-2 md:mr-4">
           <Package className="w-4 h-4 text-muted-foreground" />

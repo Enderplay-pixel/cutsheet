@@ -68,6 +68,7 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
           value={day.status}
           disabled={!darfAendern}
           onChange={(e) => onStatusChange(day.id, e.target.value)}
+          data-einfuehrung="status"
           aria-label={tt(shootDayColumnT.statusFuer).replace('{n}', String(day.day_number))}
           className={cn(
             'w-full text-xs rounded px-1 py-0.5 border border-input bg-input',
