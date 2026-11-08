@@ -602,7 +602,7 @@ export function Component() {
               <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">
                 Einträge{selectedDay ? ` - DT ${selectedDay.day_number} · ${formatDate(selectedDay.date)}` : ''}
               </p>
-              <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+              <div data-einfuehrung="eintraege" className="rounded-xl border border-border/60 bg-card overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>

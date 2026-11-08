@@ -247,7 +247,7 @@ export function Component() {
       )}
 
       {selectedDayId && !loadingSheet && callSheet && (
-        <div className="space-y-3">
+        <div data-einfuehrung="liste" className="space-y-3">
           {entries.length === 0 && (
             <div className="rounded-xl border border-border/60 bg-card p-16 flex flex-col items-center justify-center gap-3">
               <Circle className="h-10 w-10 opacity-20" />

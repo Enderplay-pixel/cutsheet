@@ -218,7 +218,7 @@ export function Component() {
               einen Speicherversuch aus, der am Server scheiterte */}
           <fieldset disabled={!darfSchreiben} className="space-y-5 min-w-0 border-0 p-0 m-0">
           {/* Times */}
-          <div className="bg-card border border-border/60 rounded-xl p-5">
+          <div data-einfuehrung="zeiten" className="bg-card border border-border/60 rounded-xl p-5">
             <div className="flex items-center gap-2 mb-4">
               <Clock className="w-4 h-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">{tt(tagesberichtT.zeiten)}</h2>
@@ -254,7 +254,7 @@ export function Component() {
           </div>
 
           {/* Production data */}
-          <div className="bg-card border border-border/60 rounded-xl p-5">
+          <div data-einfuehrung="produktion" className="bg-card border border-border/60 rounded-xl p-5">
             <div className="flex items-center gap-2 mb-4">
               <Camera className="w-4 h-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">{tt(tagesberichtT.produktionsdaten)}</h2>
@@ -356,7 +356,7 @@ export function Component() {
           )}
 
           {/* Notes */}
-          <div className="bg-card border border-border/60 rounded-xl p-5 space-y-4">
+          <div data-einfuehrung="notizen" className="bg-card border border-border/60 rounded-xl p-5 space-y-4">
             <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
               {tt(tagesberichtT.berichteNotizen)}
             </h2>

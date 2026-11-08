@@ -447,7 +447,7 @@ export function Component() {
 
       {/* Stats row - only when day is selected and reports loaded */}
       {selectedDayId && !reportsLoading && totalReports > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
+        <div data-einfuehrung="statistik" className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
           <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group">
             <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center mb-3">
               <Clapperboard className="w-4 h-4 text-muted-foreground/70" />

@@ -315,7 +315,7 @@ export function Component() {
       ) : (
         <>
         {vieleSzenen && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div data-einfuehrung="suche" className="flex flex-wrap items-center gap-2">
             <Input value={suche} onChange={e => setSuche(e.target.value)} placeholder={tt(st.suchen)} aria-label={tt(st.suchenAria)} className="h-9 w-full sm:w-72" />
             <Button variant="outline" size="sm" onClick={() => setOffen(sichtbareSzenen.map((s: any) => String(s.id)))}>{tt(st.aufklappen)}</Button>
             <Button variant="ghost" size="sm" onClick={() => setOffen([])}>{tt(st.zuklappen)}</Button>

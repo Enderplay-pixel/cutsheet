@@ -211,7 +211,7 @@ export function Component() {
           </div>
 
           {/* Table */}
-          <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+          <div data-einfuehrung="tabelle" className="bg-card border border-border/60 rounded-xl overflow-hidden">
             <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
               <table className="data-table min-w-[520px]">
                 <thead>

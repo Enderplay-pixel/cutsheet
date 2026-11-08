@@ -479,7 +479,7 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
   const extraEntries = entries.filter(e => e.person_type === 'extra')
 
   return (
-    <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+    <div data-einfuehrung="personen" className="bg-card border border-border/60 rounded-xl overflow-hidden">
       {/* Block header */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-border/40 bg-muted/30">
         <div className="flex items-center gap-2">
@@ -563,7 +563,7 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
   if (!scenes || scenes.length === 0) return null
 
   return (
-    <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+    <div data-einfuehrung="szenen" className="bg-card border border-border/60 rounded-xl overflow-hidden">
       {/* Table header */}
       <div className="flex items-center gap-2 px-5 py-3 border-b border-border/40 bg-muted/30">
         <Film className="w-4 h-4 text-muted-foreground" />
@@ -1087,7 +1087,7 @@ export function Component() {
           {
             // Zeiten verschieben, Hinweise, Catering
             id: 'zeiten', titel: bloeckeT.zeitenHinweise, inhalt: !isLoading && headerForm && (
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <div data-einfuehrung="zeiten" className="grid grid-cols-1 lg:grid-cols-5 gap-4">
               {/* Time shift card */}
               <div className="lg:col-span-2 bg-card border border-border/60 rounded-xl p-4 h-fit">
                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
