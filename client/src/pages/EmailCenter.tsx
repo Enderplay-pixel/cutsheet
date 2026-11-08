@@ -198,11 +198,11 @@ export function Component() {
 
       <Tabs defaultValue="verfassen">
         <TabsList data-einfuehrung="reiter">
-          <TabsTrigger value="verfassen"><PenLine className="w-3.5 h-3.5 mr-1.5" />{tt(ec.tabVerfassen)}</TabsTrigger>
-          <TabsTrigger value="vorlagen"><FileText className="w-3.5 h-3.5 mr-1.5" />{tt(ec.tabVorlagen)}</TabsTrigger>
-          <TabsTrigger value="verteiler"><Users className="w-3.5 h-3.5 mr-1.5" />{tt(ec.tabVerteiler)}</TabsTrigger>
-          <TabsTrigger value="postausgang"><Inbox className="w-3.5 h-3.5 mr-1.5" />{tt(ec.tabPostausgang)}</TabsTrigger>
-          <TabsTrigger value="absender"><Mail className="w-3.5 h-3.5 mr-1.5" />{tt(ec.tabAbsender)}</TabsTrigger>
+          <TabsTrigger value="verfassen" data-einfuehrung="reiter-verfassen"><PenLine className="w-3.5 h-3.5 mr-1.5" />{tt(ec.tabVerfassen)}</TabsTrigger>
+          <TabsTrigger value="vorlagen" data-einfuehrung="reiter-vorlagen"><FileText className="w-3.5 h-3.5 mr-1.5" />{tt(ec.tabVorlagen)}</TabsTrigger>
+          <TabsTrigger value="verteiler" data-einfuehrung="reiter-verteiler"><Users className="w-3.5 h-3.5 mr-1.5" />{tt(ec.tabVerteiler)}</TabsTrigger>
+          <TabsTrigger value="postausgang" data-einfuehrung="reiter-postausgang"><Inbox className="w-3.5 h-3.5 mr-1.5" />{tt(ec.tabPostausgang)}</TabsTrigger>
+          <TabsTrigger value="absender" data-einfuehrung="reiter-absender"><Mail className="w-3.5 h-3.5 mr-1.5" />{tt(ec.tabAbsender)}</TabsTrigger>
         </TabsList>
 
         {/* ── Verfassen ───────────────────────────────────────────────────── */}
