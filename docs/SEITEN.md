@@ -118,7 +118,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
-| **Drehplan** | `/projects/:id/drehplan` | Drehtage anlegen, Szenen per Ziehen zuordnen und zwischen Tagen verschieben (innerhalb eines Tages nicht), Versionen, KI-Optimierung der Reihenfolge. | Das Herzstück der Vorbereitung. |
+| **Drehplan** | `/projects/:id/drehplan` | Drehtage anlegen, Szenen per Ziehen zuordnen, zwischen Tagen verschieben und innerhalb eines Tages umsortieren (Fund 265), Versionen, KI-Optimierung der Reihenfolge. | Das Herzstück der Vorbereitung. |
 | **StaebchenplanNew** | `/projects/:id/staebchenplan` | Stripboard: der Drehplan als Streifen, farbig nach Innen/Außen und Tag/Nacht. Nur Ansicht - umsortiert wird im Drehplan. | Wenn man den Plan umwirft und sehen will, was das kostet. |
 | **Terminkalender** | `/projects/:id/kalender` | Alle Termine des Projekts, Export als iCal fürs eigene Kalenderprogramm. | Für alles neben dem Dreh: Besprechungen, Abgaben. |
 | **Konfliktradar** | `/projects/:id/konfliktradar` | Prüft den Plan: Szenen doppelt oder gar nicht eingeplant, leere Drehtage, mehrere Drehtage an einem Datum, zu kurze Ruhezeiten, Besetzung an ihren Sperrtagen (seit Fund 262), Szenen ohne Motiv oder Figuren, Motive ohne Adresse, Budget gegen Finanzierung. | Nach jeder Änderung am Drehplan. |

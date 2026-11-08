@@ -5,6 +5,7 @@ import {
   DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors,
   type DragStartEvent, type DragEndEvent, type DragOverEvent, closestCenter
 } from '@dnd-kit/core'
+import { arrayMove } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ShootDayColumn } from '@/components/drehplan/ShootDayColumn'
@@ -171,6 +172,24 @@ export function Component() {
     onError: (e: any) => toast({ title: tt(T.fehler), description: e.message, variant: 'destructive' }),
   })
 
+  // Reihenfolge innerhalb eines Drehtags. Server und Schnittstelle konnten
+  // das schon, die Seite verwarf das Ablegen im selben Tag (Fund 265). Die
+  // neue Reihenfolge steht sofort da; scheitert das Speichern, kommt die
+  // alte vom Server zurück.
+  const reorderMutation = useMutation({
+    mutationFn: ({ dayId, sceneIds }: { dayId: number; sceneIds: number[] }) =>
+      api.drehplan.reorderScenes(dayId, sceneIds.map((sceneId, sortOrder) => ({ sceneId, sortOrder }))),
+    onMutate: ({ dayId, sceneIds }) => {
+      queryClient.setQueryData<any[]>(['shoot-days', pid], tage => (tage || []).map((tag: any) => {
+        if (tag.id !== dayId) return tag
+        const nachId = new Map((tag.scenes || []).map((sz: any) => [sz.scene_id ?? sz.id, sz]))
+        return { ...tag, scenes: sceneIds.map(id => nachId.get(id)).filter(Boolean) }
+      }))
+    },
+    onError: (e: any) => toast({ title: tt(T.fehler), description: e.message, variant: 'destructive' }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] }),
+  })
+
   const { data: versions } = useQuery({
     queryKey: ['drehplan-versions', pid],
     queryFn: () => api.drehplan.listVersions(pid),
@@ -239,8 +258,18 @@ export function Component() {
       }
     }
 
-    // Same location, no-op
-    if (fromDayId === toDayId) return
+    // Im selben Tag: umsortieren
+    if (fromDayId === toDayId) {
+      const ziel = overData?.type === 'scene' ? overData.scene : null
+      const tag = (shootDays || []).find((d: any) => d.id === fromDayId)
+      if (!fromDayId || !ziel || !tag) return
+      const ids: number[] = (tag.scenes || []).map((sz: any) => sz.scene_id ?? sz.id)
+      const von = ids.indexOf(scene.scene_id ?? scene.id)
+      const nach = ids.indexOf(ziel.scene_id ?? ziel.id)
+      if (von < 0 || nach < 0 || von === nach) return
+      reorderMutation.mutate({ dayId: fromDayId, sceneIds: arrayMove(ids, von, nach) })
+      return
+    }
 
     if (toDayId && (shootDays || []).find((d: any) => d.id === toDayId)?.status === 'Sperrtag') {
       toast({ title: tt(T.sperrtagZiel), variant: 'destructive' })
