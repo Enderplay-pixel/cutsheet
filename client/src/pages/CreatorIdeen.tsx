@@ -103,7 +103,7 @@ export function Component() {
       />
 
       {/* Schnellerfassung: Ideen kommen selten dann, wenn man Zeit für Formulare hat */}
-      <div className="p-4 rounded-lg border border-border/50 bg-card mb-6">
+      <div data-einfuehrung="neu" className="p-4 rounded-lg border border-border/50 bg-card mb-6">
         <div className="flex gap-3 items-end flex-wrap">
           <div className="flex-1 min-w-[240px]">
             <Label className="text-xs text-muted-foreground">{tt(T.idee)}</Label>
@@ -157,7 +157,7 @@ export function Component() {
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div data-einfuehrung="liste" className="space-y-2">
           {list.map(idea => (
             <div
               key={idea.id}

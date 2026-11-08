@@ -52,7 +52,7 @@ export function Component() {
                   ? <Marke text={tt(T.keinVergleich)} ton="warnung" />
                   : <Marke text={tt(T.anzahl).replace('{t}', String(e.titelvarianten.length)).replace('{n}', String(e.thumbnail_ideen.length))} ton="gut" />}
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div data-einfuehrung="liste" className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <p className="section-label mb-2">{tt(T.titelvarianten)}</p>
                   {e.titelvarianten.length === 0 ? (

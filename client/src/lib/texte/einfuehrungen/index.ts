@@ -5,6 +5,7 @@ import { casting } from './casting'
 import { planung } from './planung'
 import { dreh } from './dreh'
 import { werkzeuge } from './werkzeuge'
+import { creator } from './creator'
 
 /**
  * Alle Einführungen, je Seite (Pfad wie in lib/bereiche.ts, "" ist die
@@ -21,4 +22,5 @@ export const INHALTE: Record<string, Schritt[]> = {
   ...planung,
   ...dreh,
   ...werkzeuge,
+  ...creator,
 }

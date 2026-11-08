@@ -24,7 +24,8 @@ type Text = Record<Lang, string>
 export type Schritt = {
   /**
    * Worauf der Pfeil zeigt: die Kennung eines Elements mit
-   * `data-einfuehrung="…"`, oder "titel" für die Überschrift der Seite.
+   * `data-einfuehrung="…"`, oder "titel" für die Überschrift der Seite;
+   * "a|b" heißt a, sonst b.
    * Fehlt das Element gerade (leere Liste, schmaler Bildschirm), fällt der
    * Schritt weg. Ohne Ziel steht der Schritt mittig.
    */
@@ -117,8 +118,19 @@ export function reiterOeffnen(knopf: HTMLElement) {
   knopf.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }))
 }
 
-/** Das Element zu einem Ziel, sofern es gerade sichtbar ist. */
+/**
+ * Das Element zu einem Ziel, sofern es gerade sichtbar ist. "liste|tag"
+ * nimmt die Liste, sonst die Tagwahl: Manches erscheint erst, wenn ein Tag
+ * gewählt ist - die Erklärung soll trotzdem nicht wegfallen.
+ */
 export function zielElement(ziel: string): HTMLElement | null {
+  if (ziel.includes('|')) {
+    for (const teil of ziel.split('|')) {
+      const el = zielElement(teil)
+      if (el) return el
+    }
+    return null
+  }
   const kandidaten = ziel === 'titel'
     ? Array.from(document.querySelectorAll<HTMLElement>('main h1'))
     : Array.from(document.querySelectorAll<HTMLElement>(`[data-einfuehrung="${CSS.escape(ziel)}"]`))

@@ -87,7 +87,7 @@ export function YouTubeConnection({ projectId }: { projectId: number }) {
   // die Anleitung, kein toter Knopf
   if (!status?.configured) {
     return (
-      <div className="mb-6 p-4 rounded-lg border border-border/50 bg-muted/20">
+      <div data-einfuehrung="youtube" className="mb-6 p-4 rounded-lg border border-border/50 bg-muted/20">
         <div className="flex items-center gap-2 font-medium"><Youtube className="w-4 h-4 text-red-500" />{tt(youTubeT.anbindung)}</div>
         <p className="mt-2 text-sm text-muted-foreground">
           {tt(youTubeT.nichtEingerichtet)} <code className="text-xs" /* texte-ok: Variablenname */>YOUTUBE_CLIENT_ID</code> {tt(youTubeT.und)}{' '}
@@ -99,7 +99,7 @@ export function YouTubeConnection({ projectId }: { projectId: number }) {
 
   if (!status.connected) {
     return (
-      <div className="mb-6 p-4 rounded-lg border border-border/50 bg-card">
+      <div data-einfuehrung="youtube" className="mb-6 p-4 rounded-lg border border-border/50 bg-card">
         <div className="flex items-center gap-2 font-medium"><Youtube className="w-4 h-4 text-red-500" />{tt(youTubeT.anbindung)}</div>
         <p className="mt-2 mb-3 text-sm text-muted-foreground max-w-2xl">
           {tt(youTubeT.verbindeText)}
@@ -114,7 +114,7 @@ export function YouTubeConnection({ projectId }: { projectId: number }) {
   const hasError = Boolean(status.last_error)
 
   return (
-    <div className={cn('mb-6 p-4 rounded-lg border bg-card', hasError ? 'border-amber-500/40' : 'border-border/50')}>
+    <div data-einfuehrung="youtube" className={cn('mb-6 p-4 rounded-lg border bg-card', hasError ? 'border-amber-500/40' : 'border-border/50')}>
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 font-medium">
           <Youtube className="w-4 h-4 text-red-500" />

@@ -13,7 +13,7 @@ export const casting: Record<string, Schritt[]> = {
       },
     },
     {
-      ziel: 'rolle',
+      ziel: 'rolle|reiter-rollen',
       reiter: 'rollen',
       titel: { de: 'Figuren', en: 'Characters', fr: 'Personnages' },
       text: {
@@ -24,7 +24,7 @@ export const casting: Record<string, Schritt[]> = {
       wirktAuf: ['screenplay-editor', 'drehbuch'],
     },
     {
-      ziel: 'darsteller',
+      ziel: 'darsteller|reiter-darsteller',
       reiter: 'darsteller',
       titel: { de: 'Darsteller', en: 'Cast', fr: 'Acteurs' },
       text: {
@@ -34,7 +34,7 @@ export const casting: Record<string, Schritt[]> = {
       },
     },
     {
-      ziel: 'darsteller',
+      ziel: 'darsteller|reiter-darsteller',
       reiter: 'darsteller',
       titel: { de: 'Wohin ein Darsteller gehört', en: 'Where an actor belongs', fr: 'Où un acteur intervient' },
       text: {
@@ -45,7 +45,7 @@ export const casting: Record<string, Schritt[]> = {
       wirktAuf: ['tagesdispo', 'dood', 'budget'],
     },
     {
-      ziel: 'darsteller',
+      ziel: 'darsteller|reiter-darsteller',
       reiter: 'darsteller',
       titel: { de: 'Kinder im Projekt', en: 'Children in the project', fr: 'Des enfants dans le projet' },
       text: {
@@ -159,7 +159,7 @@ export const casting: Record<string, Schritt[]> = {
       },
     },
     {
-      ziel: 'abteilungen',
+      ziel: 'abteilungen|aktionen',
       titel: { de: 'Nach Abteilung', en: 'By department', fr: 'Par département' },
       text: {
         de: 'Ein Klick zeigt nur eine Abteilung. Jede Abteilung kann ihre Mailadressen auf einmal kopieren - für die Rundmail an Kamera oder Licht.',
@@ -267,7 +267,7 @@ export const casting: Record<string, Schritt[]> = {
       wirktAuf: ['besetzung', 'stabliste', 'komparsen'],
     },
     {
-      ziel: 'person',
+      ziel: 'person|stand',
       reiter: 'personen',
       titel: { de: 'Vertrag aus der Vorlage', en: 'Contract from a template', fr: "Contrat à partir d'un modèle" },
       text: {
@@ -278,7 +278,7 @@ export const casting: Record<string, Schritt[]> = {
       wirktAuf: ['drehplan', 'tagesdispo'],
     },
     {
-      ziel: 'person',
+      ziel: 'person|stand',
       reiter: 'personen',
       titel: { de: 'Versenden und bestätigen', en: 'Send and confirm', fr: 'Envoyer et confirmer' },
       text: {

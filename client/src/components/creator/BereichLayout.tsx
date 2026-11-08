@@ -43,7 +43,7 @@ export function BereichKopf({ symbol: Symbol, titel, untertitel, aktionen }: {
 export function Kennzahlen({ werte }: { werte: Kennzahl[] }) {
   if (!werte.length) return null
   return (
-    <div className={cn(
+    <div data-einfuehrung="kennzahlen" className={cn(
       'grid gap-3 mb-7 stagger-sm grid-cols-2',
       werte.length >= 4 ? 'lg:grid-cols-4' : 'sm:grid-cols-3'
     )}>
@@ -82,7 +82,7 @@ export function NichtsDa({ symbol: Symbol, titel, text, aktion }: {
   aktion?: React.ReactNode
 }) {
   return (
-    <div className="border border-dashed border-border rounded-xl py-14 px-6 text-center">
+    <div data-einfuehrung="leer" className="border border-dashed border-border rounded-xl py-14 px-6 text-center">
       <Symbol className="w-7 h-7 mx-auto text-muted-foreground/40" />
       <p className="mt-3 font-semibold text-sm">{titel}</p>
       <p className="mt-1 text-[13px] text-muted-foreground max-w-md mx-auto leading-relaxed">{text}</p>
@@ -135,7 +135,7 @@ export function BereichTabelle({ kopf, minBreite = 560, children }: {
   children: React.ReactNode
 }) {
   return (
-    <div className="overflow-x-auto">
+    <div data-einfuehrung="tabelle" className="overflow-x-auto">
       <table className="data-table" style={{ minWidth: `${minBreite}px` }}>
         <thead>{kopf}</thead>
         <tbody>{children}</tbody>

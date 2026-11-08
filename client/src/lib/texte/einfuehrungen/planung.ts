@@ -23,7 +23,7 @@ export const planung: Record<string, Schritt[]> = {
       },
     },
     {
-      ziel: 'motiv',
+      ziel: 'motiv|neu',
       titel: { de: 'Was zu einem Motiv gehört', en: 'What belongs to a location', fr: "Ce qui fait un décor" },
       text: {
         de: "Zugeklappt Name, Adresse und ob Strom da ist. Aufgeklappt: Adresse mit Postleitzahl und Stadt, Ansprechpartner mit Telefon, Eigentümer, Miete pro Tag, Strom und Notizen. Mit Breiten- und Längengrad zeigt das Motiv eine Karte, der Kartenknopf öffnet die Adresse bei OpenStreetMap.",
@@ -32,7 +32,7 @@ export const planung: Record<string, Schritt[]> = {
       },
     },
     {
-      ziel: 'motiv',
+      ziel: 'motiv|neu',
       titel: { de: 'Der Motivvertrag', en: 'The location release', fr: 'Le contrat de décor' },
       text: {
         de: "Unten im aufgeklappten Motiv: Eigentümer eintragen, dann unterschreibt er direkt auf dem Bildschirm - am Telefon oder Tablet mit dem Finger. Der Stand geht von Entwurf zu Unterschrieben, mit Datum.",
@@ -41,7 +41,7 @@ export const planung: Record<string, Schritt[]> = {
       },
     },
     {
-      ziel: 'motiv',
+      ziel: 'motiv|neu',
       titel: { de: 'Wohin ein Motiv wirkt', en: 'Where a location carries over', fr: "Où un décor se répercute" },
       text: {
         de: "Das Motiv einer Szene wird zum Drehort ihrer Tagesdispo, mit Adresse. Der Ansprechpartner steht in der Kontaktliste. Fehlt die Adresse, meldet es der Konfliktradar; die Tagesdispo holt das Wetter für den Ort.",
@@ -75,9 +75,9 @@ export const planung: Record<string, Schritt[]> = {
       ziel: 'drehtag',
       titel: { de: 'Ein Drehtag', en: 'A shoot day', fr: 'Un jour de tournage' },
       text: {
-        de: "Nummer, Datum und die Szenen des Tages. Eine Szene ziehst du von Tag zu Tag oder zurück nach links. Kommt eine Szene in den Tag, holt die Tagesdispo ihre Darsteller dazu; der Konfliktradar prüft den neuen Stand.",
-        en: "Number, date and the day’s scenes. Drag a scene from day to day or back to the left. When a scene joins the day, the call sheet adds its actors; the conflict radar checks the new state.",
-        fr: "Numéro, date et scènes du jour. Fais glisser une scène d'un jour à l'autre ou de nouveau à gauche. Quand une scène rejoint le jour, la feuille de service ajoute ses acteurs ; le radar des conflits vérifie le nouvel état.",
+        de: "Nummer, Datum und die Szenen in Drehreihenfolge. Innerhalb des Tages ändert Ziehen die Reihenfolge, zu einem anderen Tag verschiebt es die Szene, nach links nimmt es sie heraus. Kommt eine Szene in den Tag, holt die Tagesdispo ihre Darsteller dazu; der Konfliktradar prüft den neuen Stand.",
+        en: "Number, date and the scenes in shooting order. Within the day, dragging changes the order; onto another day it moves the scene; to the left it takes it out. When a scene joins the day, the call sheet adds its actors; the conflict radar checks the new state.",
+        fr: "Numéro, date et scènes dans l'ordre de tournage. Dans la journée, glisser change l'ordre ; vers un autre jour, cela déplace la scène ; vers la gauche, cela la retire. Quand une scène rejoint le jour, la feuille de service ajoute ses acteurs ; le radar des conflits vérifie le nouvel état.",
       },
       wirktAuf: ['tagesdispo', 'konfliktradar', 'dood', 'kalender'],
     },
@@ -216,7 +216,7 @@ export const planung: Record<string, Schritt[]> = {
       },
     },
     {
-      ziel: 'liste',
+      ziel: 'liste|aktionen',
       titel: { de: 'Positionen', en: 'Items', fr: 'Éléments' },
       text: {
         de: "Je Position Bezeichnung, Menge, Miettage, Preis pro Tag und Verleiher; die Summe rechnet sich selbst. Neue Positionen bekommen als Miettage die Zahl der Drehtage vorgeschlagen.",

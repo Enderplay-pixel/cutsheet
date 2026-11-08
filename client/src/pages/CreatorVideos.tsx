@@ -192,6 +192,7 @@ export function Component() {
           {list.map(v => (
             <div
               key={v.id}
+              data-einfuehrung="video"
               className="group flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-border transition-colors cursor-pointer"
               onClick={() => navigate(`/projects/${pid}/creator/${v.id}`)}
             >
@@ -227,7 +228,7 @@ export function Component() {
 
               <div onClick={e => e.stopPropagation()} className="shrink-0">
                 <Select value={v.status} onValueChange={s => setStatus.mutate({ id: v.id, status: s })}>
-                  <SelectTrigger className={cn('h-7 w-[136px] text-xs border', STATUS_STYLE[v.status as Status] ?? STATUS_STYLE['Idee'])}
+                  <SelectTrigger data-einfuehrung="status" className={cn('h-7 w-[136px] text-xs border', STATUS_STYLE[v.status as Status] ?? STATUS_STYLE['Idee'])}
                     aria-label={tt(vt.status)}>
                     <SelectValue />
                   </SelectTrigger>

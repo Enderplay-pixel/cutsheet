@@ -341,7 +341,7 @@ export function Component() {
         <Teleprompter sections={sections} wpm={video.wpm || 150} onClose={() => setPrompterOpen(false)} />
       )}
 
-      <div className="flex items-center gap-2 mb-4">
+      <div data-einfuehrung="werkzeuge" className="flex items-center gap-2 mb-4">
         <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => navigate(`/projects/${pid}/creator`)}>
           <ArrowLeft className="w-3.5 h-3.5 mr-1" />Videos
         </Button>
@@ -364,7 +364,7 @@ export function Component() {
         className="h-auto border-0 bg-transparent px-0 text-2xl font-bold tracking-tight focus-visible:ring-0"
       />
 
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-3 mb-6 pb-5 border-b border-border/50 text-sm">
+      <div data-einfuehrung="stand" className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-3 mb-6 pb-5 border-b border-border/50 text-sm">
         <span className="flex items-center gap-1.5" title="Aus dem Sprechtext geschätzt">
           <Clock className="w-4 h-4 text-muted-foreground" />
           <b>{timecode(totalSeconds)}</b>
@@ -398,12 +398,12 @@ export function Component() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="script" className="text-xs">Skript</TabsTrigger>
-          <TabsTrigger value="upload" className="text-xs">Upload</TabsTrigger>
-          <TabsTrigger value="rights" className="text-xs">Rechte</TabsTrigger>
-          <TabsTrigger value="clips" className="text-xs">Auskopplungen</TabsTrigger>
-          <TabsTrigger value="checklist" className="text-xs">Checkliste</TabsTrigger>
-          <TabsTrigger value="numbers" className="text-xs">Zahlen</TabsTrigger>
+          <TabsTrigger value="script" data-einfuehrung="reiter-script" className="text-xs">Skript</TabsTrigger>
+          <TabsTrigger value="upload" data-einfuehrung="reiter-upload" className="text-xs">Upload</TabsTrigger>
+          <TabsTrigger value="rights" data-einfuehrung="reiter-rights" className="text-xs">Rechte</TabsTrigger>
+          <TabsTrigger value="clips" data-einfuehrung="reiter-clips" className="text-xs">Auskopplungen</TabsTrigger>
+          <TabsTrigger value="checklist" data-einfuehrung="reiter-checklist" className="text-xs">Checkliste</TabsTrigger>
+          <TabsTrigger value="numbers" data-einfuehrung="reiter-numbers" className="text-xs">Zahlen</TabsTrigger>
         </TabsList>
 
         {/* ── Skript ── */}

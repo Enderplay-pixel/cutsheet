@@ -103,7 +103,7 @@ export const dreh: Record<string, Schritt[]> = {
       wirktAuf: ['tagesdispo'],
     },
     {
-      ziel: 'liste',
+      ziel: 'liste|tag',
       titel: { de: 'Abhaken', en: 'Checking in', fr: 'Pointer' },
       text: {
         de: "Je Person Name, Funktion und Call Time. Ein Tippen hakt sie ab und hält die Uhrzeit fest; ein zweites nimmt es zurück. Gut am Tablet am Eingang.",
@@ -183,7 +183,7 @@ export const dreh: Record<string, Schritt[]> = {
       },
     },
     {
-      ziel: 'arbeitsflaeche',
+      ziel: 'arbeitsflaeche|aktionen',
       titel: { de: 'Grundriss und Elemente', en: 'Floor plan and elements', fr: 'Plan au sol et éléments' },
       text: {
         de: "Links deine Pläne, jeder mit seiner Szene und der Zahl seiner Elemente. In der Mitte der Grundriss: hochladen, dann Kamera, Licht, Praktikable, Ton, Darsteller, Requisiten und Möbel aus der Leiste rechts daraufziehen. Kameras bekommen Buchstaben, alles andere Nummern.",
@@ -274,7 +274,7 @@ export const dreh: Record<string, Schritt[]> = {
       },
     },
     {
-      ziel: 'kamera',
+      ziel: 'kamera|tag',
       titel: { de: 'Ein Bericht je Kamera', en: 'One report per camera', fr: 'Un rapport par caméra' },
       text: {
         de: "Jede Kamera - A, B und so weiter - bekommt ihren eigenen Bericht. Angeboten werden nur Buchstaben, die es an diesem Tag noch nicht gibt.",
@@ -283,7 +283,7 @@ export const dreh: Record<string, Schritt[]> = {
       },
     },
     {
-      ziel: 'kamera',
+      ziel: 'kamera|tag',
       titel: { de: 'Takes mitschreiben', en: 'Log the takes', fr: 'Noter les prises' },
       text: {
         de: "Im Bericht je Take Szene, Timecode ein und aus, Notiz und ob es der Circle Take ist; die Takenummer zählt je Szene mit. Das Szenenfeld schlägt die Szenen dieses Drehtags aus dem Drehplan vor. Am Ende geht alles als CSV an den Schnitt.",
@@ -395,7 +395,7 @@ export const dreh: Record<string, Schritt[]> = {
       },
     },
     {
-      ziel: 'eintraege',
+      ziel: 'eintraege|tag',
       titel: { de: 'Ruhezeit im Blick', en: 'Rest periods in view', fr: 'Le repos en vue' },
       text: {
         de: "Je Person die Zeiten, Überstunden und ob ein Essen zu spät kam. Ist die Ruhezeit bis zum nächsten Call kürzer als die Mindestzeit aus den Stammdaten, steht hier eine Warnung - auch bei einem Wrap nach Mitternacht.",

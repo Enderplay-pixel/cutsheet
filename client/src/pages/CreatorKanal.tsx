@@ -106,7 +106,7 @@ export function Component() {
 
       <YouTubeConnection projectId={pid} />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div data-einfuehrung="kennzahlen" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <Stat icon={Eye} label={tt(T.aufrufe)} value={totals.views.toLocaleString(gs)} />
         <Stat icon={Heart} label={tt(T.likes)} value={totals.likes.toLocaleString(gs)} />
         <Stat icon={UserPlus} label={tt(T.abos)} value={totals.subs.toLocaleString(gs)} />
@@ -138,7 +138,7 @@ export function Component() {
       )}
 
       {/* Monatskalender */}
-      <div className="flex items-center gap-2 mb-3">
+      <div data-einfuehrung="kalender" className="flex items-center gap-2 mb-3">
         <CalendarDays className="w-4 h-4 text-muted-foreground" />
         <span className="font-medium">{monthLabel}</span>
         <div className="flex-1" />

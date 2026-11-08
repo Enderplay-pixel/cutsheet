@@ -7,7 +7,7 @@
  * die Einrichtung des Arbeitsplatzes). Schritte, deren Element gerade fehlt,
  * fallen weg - eine leere Liste hat keine Zeile, auf die man zeigen könnte.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowRight, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -71,12 +71,10 @@ function Fenster({ schritte: alle, art, onEnde }: {
   onEnde: () => void
 }) {
   const tt = useT()
-  // Was beim Start sichtbar ist, bleibt die Liste: Sie springt nicht, während
-  // man liest. Ein Schritt in einem anderen Reiter zählt, wenn es den Reiter gibt.
-  const schritte = useMemo(
-    () => alle.filter(s => !s.ziel || zielElement(s.ziel) || (s.reiter && reiterKnopf(s.reiter))),
-    [alle],
-  )
+  // Alle Schritte bleiben, auch ohne sichtbares Ziel - ein neues Projekt hat
+  // noch keine Zeilen, die Erklärung braucht man dort am meisten. Ohne Ziel
+  // steht die Karte mittig.
+  const schritte = alle
   const [index, setIndex] = useState(0)
   const schritt = schritte[index]
   const [ziel, setZiel] = useState<Rechteck | null>(null)
@@ -110,8 +108,16 @@ function Fenster({ schritte: alle, art, onEnde }: {
       const el = schritt?.ziel ? zielElement(schritt.ziel) : null
       if (!el) return
       const r = el.getBoundingClientRect()
-      const sichtbar = r.top >= 72 && r.bottom <= window.innerHeight - 24
-      if (!sichtbar) el.scrollIntoView({ block: r.height > window.innerHeight * 0.6 ? 'start' : 'center', behavior: ruhig ? 'auto' : 'smooth' })
+      const vh = window.innerHeight
+      const kartenHoehe = karteRef.current?.offsetHeight || 260
+      const sichtbar = r.top >= 72 && r.bottom <= vh - 24
+      const passt = vh - r.bottom >= kartenHoehe + 40 || r.top >= kartenHoehe + 40
+        || window.innerWidth - r.right >= 420 || r.left >= 420
+      if (sichtbar && passt) return
+      // Passt die Karte nirgends daneben - am Telefon die Regel -, kommt das
+      // Element nach oben, damit sie darunter Platz hat und nichts verdeckt.
+      const block = !passt || r.height > vh * 0.6 ? 'start' : 'center'
+      el.scrollIntoView({ block, behavior: ruhig ? 'auto' : 'smooth' })
     }
     // Nach dem Umschalten braucht der Reiter einen Takt, bis sein Inhalt steht
     const verzoegert = knopf ? window.setTimeout(hinblaettern, 120) : undefined
