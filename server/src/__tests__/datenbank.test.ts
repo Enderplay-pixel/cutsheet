@@ -163,6 +163,8 @@ beforeAll(async () => {
   app.use('/api', optionalAuth, drehplanRouter)
   const { default: konfliktRouter } = await import('../routes/conflicts')
   app.use('/api', optionalAuth, konfliktRouter)
+  const { default: tagesberichtRouter } = await import('../routes/dailyreports')
+  app.use('/api', optionalAuth, tagesberichtRouter)
   const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
   app.use(uebersetzeDatenbankfehler)
   await new Promise<void>((aufloesen) => {
@@ -1630,6 +1632,42 @@ describe('Sperrtage im Konfliktradar', () => {
     const antwort = await hole(`/api/projects/${projekt}/blackout-dates/conflicts`, tokenInhaber)
     expect(antwort.status).toBe(200)
     expect(antwort.daten.map((k: any) => k.cast_name).sort()).toEqual(['Jana Petersen', 'Tom Berger'])
+  })
+})
+
+describe('Abgedreht im Tagesbericht', () => {
+  // Fund 264: Der Bericht führte eine eigene Liste, Hauptseite und
+  // Szenenliste lasen den Haken an der Szene - abgehakt am Set, und der
+  // Fortschritt des Projekts blieb stehen.
+  it('setzt den Haken an der Szene und nimmt ihn nur weg, wenn kein Bericht sie mehr führt', async () => {
+    const projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Mit Bericht', nutzerId])).id
+    const szene = (await db.run('INSERT INTO scenes (project_id, scene_number) VALUES (?, ?)', [projekt, '1'])).id
+    const andere = (await db.run('INSERT INTO scenes (project_id, scene_number) VALUES (?, ?)', [projekt, '2'])).id
+    const tag1 = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, '2026-12-01')", [projekt])).id
+    const tag2 = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 2, '2026-12-02')", [projekt])).id
+    const status = async (id: number) => (await db.get('SELECT shot_status FROM scenes WHERE id = ?', [id])).shot_status
+    const bericht = (tag: number, fertig: number[]) => hole(`/api/shoot-days/${tag}/daily-report`, tokenInhaber, {
+      method: 'POST', body: JSON.stringify({ scenes_completed: fertig, scenes_partial: [] }),
+    })
+
+    expect((await bericht(tag1, [szene])).status).toBe(200)
+    expect(await status(szene)).toBe('abgedreht')
+    expect(await status(andere)).not.toBe('abgedreht')
+
+    // An Tag 2 ein zweites Mal abgedreht, an Tag 1 zurückgenommen: bleibt abgedreht
+    await bericht(tag2, [szene])
+    await bericht(tag1, [])
+    expect(await status(szene)).toBe('abgedreht')
+
+    // Kein Bericht führt sie mehr: wieder offen
+    await bericht(tag2, [])
+    expect(await status(szene)).toBe('offen')
+
+    // Eine Szene eines anderen Projekts bleibt unberührt
+    const fremd = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Fremd', fremdeId])).id
+    const fremdeSzene = (await db.run('INSERT INTO scenes (project_id, scene_number) VALUES (?, ?)', [fremd, '9'])).id
+    await bericht(tag1, [fremdeSzene])
+    expect(await status(fremdeSzene)).not.toBe('abgedreht')
   })
 })
 

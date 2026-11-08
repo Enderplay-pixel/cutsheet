@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { abgedrehtAbgleichen } from '../lib/szenenstand'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { nettoDrehzeit } from '../lib/drehzeit'
 
@@ -186,7 +187,7 @@ router.post('/shoot-days/:dayId/daily-report', async (req, res) => {
     production_notes = '',
   } = req.body
 
-  const existing = await db.get('SELECT id FROM daily_reports WHERE shoot_day_id = ?', [req.params.dayId]) as any
+  const existing = await db.get('SELECT id, scenes_completed FROM daily_reports WHERE shoot_day_id = ?', [req.params.dayId]) as any
 
   let reportId: number
   if (existing) {
@@ -210,17 +211,28 @@ router.post('/shoot-days/:dayId/daily-report', async (req, res) => {
     }
   }
 
+  // Abgedreht im Bericht heißt abgedreht an der Szene (Fund 264)
+  if (shootDay) {
+    await abgedrehtAbgleichen(db, Number(shootDay.project_id), reportId, existing?.scenes_completed ?? '[]', scenes_completed)
+  }
+
   res.json({ data: await getReport(reportId), error: null })
 })
 
 // PUT /api/daily-reports/:id
 router.put('/daily-reports/:id', async (req, res) => {
   // Gemessen am 25.10.2026: Ein Bericht, den es nicht gibt, ergab 200 ohne Daten.
-  if (!(await db.get('SELECT id FROM daily_reports WHERE id = ?', [req.params.id]))) {
+  const bisher = await db.get(
+    `SELECT dr.id, dr.scenes_completed, sd.project_id FROM daily_reports dr
+       JOIN shoot_days sd ON sd.id = dr.shoot_day_id WHERE dr.id = ?`,
+    [req.params.id]
+  ) as any
+  if (!bisher) {
     return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
   }
   const { date, call_time, first_shot, lunch_in, lunch_out, wrap, scenes_completed, scenes_partial, pages_shot, total_setups, camera_rolls, sound_rolls, notes, production_notes } = req.body
   await db.run(`UPDATE daily_reports SET date=?, call_time=?, first_shot=?, lunch_in=?, lunch_out=?, wrap=?, scenes_completed=?, scenes_partial=?, pages_shot=?, total_setups=?, camera_rolls=?, sound_rolls=?, notes=?, production_notes=?, updated_at=datetime('now') WHERE id=?`, [date, call_time, first_shot, lunch_in, lunch_out, wrap, JSON.stringify(scenes_completed || []), JSON.stringify(scenes_partial || []), pages_shot, total_setups, camera_rolls, sound_rolls, notes, production_notes, req.params.id])
+  await abgedrehtAbgleichen(db, Number(bisher.project_id), Number(bisher.id), bisher.scenes_completed, scenes_completed || [])
   res.json({ data: await getReport(parseInt(req.params.id)), error: null })
 })
 

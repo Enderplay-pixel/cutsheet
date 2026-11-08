@@ -93,6 +93,9 @@ export function Component() {
       // Szenenstand und Minuten gelten auch in Drehplan und Zeitanalyse
       queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] })
       queryClient.invalidateQueries({ queryKey: ['time-analysis', pid] })
+      // Abgedreht gilt auch an der Szene: Szenenliste und Hauptseite (Fund 264)
+      queryClient.invalidateQueries({ queryKey: ['scenes', pid] })
+      queryClient.invalidateQueries({ queryKey: ['stats', pid] })
       toast({ title: tt(tagesberichtT.gespeichert) })
     },
   })
@@ -176,7 +179,7 @@ export function Component() {
   return (
     <div className="px-5 py-6 sm:p-7 max-w-4xl mx-auto animate-fade-up space-y-5">
       {/* Navigation */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div data-einfuehrung="tage" className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" className="w-8 h-8"
             aria-label={tt(tagesberichtT.vorheriger)} title={tt(tagesberichtT.vorheriger)}
@@ -293,7 +296,7 @@ export function Component() {
 
           {/* Szenen heute - antippen schaltet offen → angefangen → abgedreht */}
           {selectedDay?.scenes?.length > 0 && (
-            <div className="bg-card border border-border/60 rounded-xl p-5">
+            <div data-einfuehrung="szenen" className="bg-card border border-border/60 rounded-xl p-5">
               <div className="flex items-baseline justify-between gap-3 mb-1">
                 <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
                   {tt(tagesberichtT.szenenHeute)}
