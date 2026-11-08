@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
+import { geburtsdatumT } from '@/lib/texte/Vertraege'
 import { useDownload } from '@/lib/useDownload'
 import { formatCurrency, debounce, cn } from '@/lib/utils'
 import { Plus, Trash2, User, Users, Phone, Mail, ChevronDown, ChevronUp, Download } from 'lucide-react'
@@ -169,6 +170,20 @@ function CastCard({ castMember, characters, daysCount, onDelete }: { castMember:
   const character = characters.find(c => c.id === castMember.character_id)
   const totalFee = (form.fee_per_day || 0) * daysCount
 
+  // Das Geburtsdatum geht über die Jugendschutz-Route, die es prüft. Beim
+  // Verlassen des Felds, nicht beim Tippen: Das Feld meldet sonst schon
+  // "0002-…", während die Jahreszahl entsteht (Fund 263).
+  const { toast } = useToast()
+  const geburtsdatum = useMutation({
+    mutationFn: (wert: string) => api.jugendschutz.speichern(pid, 'cast', castMember.id, { birthdate: wert || null }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cast', pid] })
+      queryClient.invalidateQueries({ queryKey: ['jugendschutz', pid] })
+    },
+    onError: (f: any) => toast({ title: tt(geburtsdatumT.nichtGespeichert), description: f.message, variant: 'destructive' }),
+  })
+  const bisher = castMember.birthdate ? String(castMember.birthdate).slice(0, 10) : ''
+
   return (
     <div className="border border-border/60 rounded-xl overflow-hidden bg-card hover:border-border transition-colors">
       <div className="flex items-center gap-3 p-4 cursor-pointer" {...aufklappbar(expanded, () => setExpanded(!expanded))}>
@@ -228,6 +243,19 @@ function CastCard({ castMember, characters, daysCount, onDelete }: { castMember:
                 onChange={e => update('fee_per_day', Math.round(Number(e.target.value) * 100))}
                 className="mt-1 h-8 text-xs" />
             </div>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">{tt(geburtsdatumT.label)}</Label>
+            <Input
+              type="date"
+              key={bisher}
+              defaultValue={bisher}
+              max={new Date().toISOString().slice(0, 10)}
+              onBlur={e => { if (e.target.value !== bisher) geburtsdatum.mutate(e.target.value) }}
+              aria-label={tt(geburtsdatumT.feld).replace('{name}', form.actor_name || '')}
+              className="mt-1 h-8 text-xs w-44"
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">{tt(geburtsdatumT.hinweis)}</p>
           </div>
           {form.fee_per_day > 0 && daysCount > 0 && (
             <div className="pt-2 border-t border-border/40 flex items-center justify-between">
@@ -324,7 +352,7 @@ export function Component() {
       </div>
 
       <Tabs defaultValue="characters">
-        <TabsList className="h-9 mb-6">
+        <TabsList data-einfuehrung="reiter" className="h-9 mb-6">
           <TabsTrigger value="characters" className="gap-2 text-xs">
             <Users className="w-3.5 h-3.5" />{tt(castT.tabChars)} ({characters?.length || 0})
           </TabsTrigger>

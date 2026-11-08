@@ -11,6 +11,7 @@
  * dafür beim Versand eingefroren.
  */
 import { Router, Request, Response } from 'express'
+import { jugendschutzFelder, type Personenart } from '../lib/jugendschutzFelder'
 import crypto from 'crypto'
 import { db } from '../db'
 import { requireAuth, AuthUser } from '../middleware/auth'
@@ -773,14 +774,20 @@ router.get('/projects/:projectId/jugendschutz', requireAuth, requireMember, asyn
     }
   })
 
+  // Wer kein Geburtsdatum hat, mit Namen: Die Seite fragt es dort ab. Vorher
+  // nur die Anzahl - und keine Seite hatte ein Feld dafür (Fund 263).
+  const ohneGeburtsdatum = await db.all(
+    `SELECT 'cast' AS person_type, id AS person_id, actor_name AS name FROM "cast" WHERE project_id = ? AND birthdate IS NULL
+     UNION ALL
+     SELECT 'extra', id, name FROM extras WHERE project_id = ? AND birthdate IS NULL
+     ORDER BY name`,
+    [projectId, projectId]
+  ) as Array<{ person_type: string; person_id: number; name: string }>
   return res.json({
     data: {
       personen: ergebnisse,
-      ohne_geburtsdatum: (await db.get(
-        `SELECT (SELECT COUNT(*) FROM "cast" WHERE project_id = ? AND birthdate IS NULL)
-              + (SELECT COUNT(*) FROM extras WHERE project_id = ? AND birthdate IS NULL) AS anzahl`,
-        [projectId, projectId]
-      ) as any)?.anzahl ?? 0,
+      ohne_geburtsdatum: ohneGeburtsdatum.length,
+      ohne_geburtsdatum_liste: ohneGeburtsdatum,
       verstoesse: ergebnisse.reduce((s, e) => s + e.verstoesse, 0),
       unterlagen: ANTRAGSUNTERLAGEN,
     },
@@ -795,27 +802,10 @@ router.put('/projects/:projectId/jugendschutz/:art/:personId', requireAuth, requ
   const tabelle = art === 'cast' ? '"cast"' : art === 'extra' ? 'extras' : null
   if (!tabelle) return res.status(400).json({ data: null, error: 'Unbekannte Personenart' })
 
-  const felder: string[] = []
-  const werte: any[] = []
-  if ('birthdate' in req.body) {
-    felder.push('birthdate = ?')
-    werte.push(req.body.birthdate ? String(req.body.birthdate).slice(0, 10) : null)
-  }
-  if ('guardian_name' in req.body) { felder.push('guardian_name = ?'); werte.push(String(req.body.guardian_name || '')) }
-  if ('guardian_email' in req.body) { felder.push('guardian_email = ?'); werte.push(String(req.body.guardian_email || '')) }
-  if ('permit_granted' in req.body) { felder.push('permit_granted = ?'); werte.push(req.body.permit_granted === true) }
-  if ('school_bound' in req.body) {
-    felder.push('school_bound = ?')
-    werte.push(req.body.school_bound === true ? true : req.body.school_bound === false ? false : null)
-  }
-  if (art === 'cast') {
-    if ('guardian_phone' in req.body) { felder.push('guardian_phone = ?'); werte.push(String(req.body.guardian_phone || '')) }
-    if ('permit_reference' in req.body) { felder.push('permit_reference = ?'); werte.push(String(req.body.permit_reference || '')) }
-    if ('permit_valid_until' in req.body) {
-      felder.push('permit_valid_until = ?')
-      werte.push(req.body.permit_valid_until ? String(req.body.permit_valid_until).slice(0, 10) : null)
-    }
-  }
+  const geprueft = jugendschutzFelder(req.body ?? {}, art as Personenart)
+  if ('fehler' in geprueft) return res.status(400).json({ data: null, error: geprueft.fehler })
+  const felder = geprueft.spalten.map(spalte => `${spalte} = ?`)
+  const werte = geprueft.werte
   if (felder.length === 0) return res.status(400).json({ data: null, error: 'Keine Angabe zum Ändern' })
 
   const zeile = await db.run(

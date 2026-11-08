@@ -202,3 +202,13 @@ export const vertraegeT = {
     fr: 'Pour tous les projets de la société',
   },
 } satisfies Record<string, Text>
+
+/** Geburtsdaten nachtragen im Jugendschutz-Reiter (Fund 263). */
+export const geburtsdatumT = {
+  nachtragen: { de: 'Hier nachtragen:', en: 'Add it here:', fr: 'À compléter ici :' },
+  feld: { de: 'Geburtsdatum von {name}', en: 'Date of birth of {name}', fr: 'Date de naissance de {name}' },
+  speichern: { de: 'Speichern', en: 'Save', fr: 'Enregistrer' },
+  nichtGespeichert: { de: 'Nicht gespeichert', en: 'Not saved', fr: 'Non enregistré' },
+  label: { de: 'Geburtsdatum', en: 'Date of birth', fr: 'Date de naissance' },
+  hinweis: { de: 'Für den Jugendschutz: Wer unter 18 ist, prüft der Reiter Jugendschutz in den Verträgen.', en: 'For youth protection: anyone under 18 is checked in the youth protection tab of the contracts.', fr: "Pour la protection des mineurs : toute personne de moins de 18 ans est vérifiée dans l'onglet protection des mineurs des contrats." },
+} satisfies Record<string, Text>

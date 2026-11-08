@@ -2563,6 +2563,35 @@ describe('Komparsen an Drehtagen', () => {
     expect(await db.get("SELECT id FROM call_sheet_entries WHERE person_type = 'extra' AND person_id = ?", [komparse])).toBeUndefined()
   })
 
+  it('fragt das fehlende Geburtsdatum mit Namen ab und prüft, was eingetragen wird (Fund 263)', async () => {
+    // Vorher lieferte die Prüfung nur eine Zahl, und keine Seite hatte ein
+    // Feld für das Datum - ein Kind im Projekt blieb unsichtbar.
+    const projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Mit Kind', nutzerId])).id
+    const kind = (await db.run('INSERT INTO "cast" (project_id, actor_name) VALUES (?, ?)', [projekt, 'Mila Brandt'])).id
+    const pfad = `/api/projects/${projekt}/jugendschutz/cast/${kind}`
+
+    const vorher = await hole(`/api/projects/${projekt}/jugendschutz`, tokenInhaber)
+    expect(vorher.daten.ohne_geburtsdatum).toBe(1)
+    expect(vorher.daten.ohne_geburtsdatum_liste).toEqual([{ person_type: 'cast', person_id: kind, name: 'Mila Brandt' }])
+
+    for (const falsch of [{ birthdate: 'abc' }, { birthdate: '2999-01-01' }, { birthdate: '2015-02-30' },
+      { guardian_email: 'keine adresse' }, { permit_granted: 'ja' }, { school_bound: 'vielleicht' }]) {
+      expect((await hole(pfad, tokenInhaber, { method: 'PUT', body: JSON.stringify(falsch) })).status).toBe(400)
+    }
+    expect((await db.get('SELECT birthdate FROM "cast" WHERE id = ?', [kind])).birthdate).toBeNull()
+
+    expect((await hole(pfad, tokenInhaber, { method: 'PUT', body: JSON.stringify({ birthdate: '2015-06-01' }) })).status).toBe(200)
+    const nachher = await hole(`/api/projects/${projekt}/jugendschutz`, tokenInhaber)
+    expect(nachher.daten.ohne_geburtsdatum_liste).toEqual([])
+    expect(nachher.daten.personen.map((p: any) => p.name)).toEqual(['Mila Brandt'])
+
+    // Ein Kind eines anderen Projekts lässt sich über diesen Pfad nicht ändern
+    const fremdes = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Fremd', fremdeId])).id
+    const fremdesKind = (await db.run('INSERT INTO "cast" (project_id, actor_name) VALUES (?, ?)', [fremdes, 'Fremdes Kind'])).id
+    const quer = await hole(`/api/projects/${projekt}/jugendschutz/cast/${fremdesKind}`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ birthdate: '2015-06-01' }) })
+    expect(quer.status).toBe(404)
+  })
+
   it('nimmt keinen Drehtag eines anderen Projekts und keine Liste ohne Kennungen', async () => {
     const anderes = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Anderes', fremdeId])).id
     const fremderTag = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, '')", [anderes])).id

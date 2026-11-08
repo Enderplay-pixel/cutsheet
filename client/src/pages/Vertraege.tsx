@@ -21,6 +21,8 @@ import {
 } from 'lucide-react'
 import { parseISO } from 'date-fns'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
+import { useT } from '@/lib/useT'
+import { vertraegeT, vertragPersonenartT, geburtsdatumT } from '@/lib/texte/Vertraege'
 
 const datum = (wert: string | null | undefined) =>
   wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
@@ -53,7 +55,7 @@ export function Component() {
       />
 
       <Tabs defaultValue="personen">
-        <TabsList>
+        <TabsList data-einfuehrung="reiter">
           <TabsTrigger value="personen">
             <FileSignature className="w-3.5 h-3.5 mr-1.5" />
             Wer hat was
@@ -162,7 +164,7 @@ function Personen({ pid }: { pid: number }) {
           </Card>
         ) : (
           gezeigt.map((p) => (
-            <Card key={`${p.person_type}:${p.person_id}`}>
+            <Card key={`${p.person_type}:${p.person_id}`} data-einfuehrung="person">
               <CardContent className="pt-4 pb-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -387,6 +389,7 @@ function VertragAnlegen({ pid, person, schliessen }: { pid: number; person: any;
 
 function Jugendschutz({ pid }: { pid: number }) {
   const qc = useQueryClient()
+  const tt = useT()
   const { toast } = useToast()
   const { darfSchreiben } = useSchreibrecht()
   const [bearbeite, setBearbeite] = useState<any>(null)
@@ -425,13 +428,24 @@ function Jugendschutz({ pid }: { pid: number }) {
       )}
 
       {(data?.ohne_geburtsdatum ?? 0) > 0 && (
-        <div className="flex items-start gap-2 text-xs p-3 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>
-            Bei {data.ohne_geburtsdatum} Personen aus Besetzung und Komparserie fehlt das
-            Geburtsdatum. Ohne Alter lässt sich nichts prüfen - solange könnte ein Kind dabei sein,
-            von dem niemand weiß.
-          </span>
+        <div data-einfuehrung="geburtsdaten" className="text-xs p-3 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 space-y-2.5">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{tt(vertraegeT.ohneGeburtsdatum).replace('{n}', String(data.ohne_geburtsdatum))}</span>
+          </div>
+          {/* Vorher stand hier nur die Zahl, und keine Seite hatte ein Feld fürs
+              Datum - die Prüfung sah nie ein Kind (Fund 263). */}
+          {darfSchreiben && (data?.ohne_geburtsdatum_liste ?? []).length > 0 && (
+            <div className="pl-6 space-y-1.5">
+              <div className="font-medium">{tt(geburtsdatumT.nachtragen)}</div>
+              {/* Eine Großproduktion hat Hunderte Komparsen: eigene Scrollfläche */}
+              <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
+                {data.ohne_geburtsdatum_liste.map((p: any) => (
+                  <GeburtsdatumZeile key={`${p.person_type}:${p.person_id}`} pid={pid} person={p} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -546,6 +560,43 @@ function Jugendschutz({ pid }: { pid: number }) {
         />
       )}
     </div>
+  )
+}
+
+function GeburtsdatumZeile({ pid, person }: { pid: number; person: { person_type: string; person_id: number; name: string } }) {
+  const qc = useQueryClient()
+  const { toast } = useToast()
+  const tt = useT()
+  const [datum, setDatum] = useState('')
+  // Gespeichert wird per Knopf: Ein Datumsfeld meldet beim Tippen der
+  // Jahreszahl schon "0002-06-01", das wäre ein Fehlversuch je Ziffer.
+  const speichern = useMutation({
+    mutationFn: () => api.jugendschutz.speichern(pid, person.person_type, person.person_id, { birthdate: datum }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jugendschutz', pid] })
+      qc.invalidateQueries({ queryKey: [person.person_type === 'cast' ? 'cast' : 'extras', pid] })
+    },
+    onError: (f: any) => toast({ title: tt(geburtsdatumT.nichtGespeichert), description: f.message, variant: 'destructive' }),
+  })
+  return (
+    <form
+      className="flex flex-wrap items-center gap-2"
+      onSubmit={(e) => { e.preventDefault(); if (datum) speichern.mutate() }}
+    >
+      <span className="min-w-[9rem] text-foreground">{person.name}</span>
+      <span className="text-muted-foreground">{tt(vertragPersonenartT[person.person_type as keyof typeof vertragPersonenartT] ?? vertragPersonenartT.cast)}</span>
+      <Input
+        type="date"
+        value={datum}
+        max={new Date().toISOString().slice(0, 10)}
+        onChange={(e) => setDatum(e.target.value)}
+        aria-label={tt(geburtsdatumT.feld).replace('{name}', person.name)}
+        className="h-7 w-40 text-xs bg-background"
+      />
+      <Button type="submit" size="sm" variant="outline" className="h-7 text-xs" disabled={!datum || speichern.isPending}>
+        {tt(geburtsdatumT.speichern)}
+      </Button>
+    </form>
   )
 }
 
