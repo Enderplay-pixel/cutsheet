@@ -16,7 +16,8 @@ import { useT } from '@/lib/useT'
 import { prefersReducedMotion } from '@/lib/motion'
 import { bereichFuer, type Bereich } from '@/lib/bereiche'
 import {
-  useEinfuehrungHier, useEinfuehrungStore, useGeseheneEinfuehrungen, zielElement, type Schritt,
+  reiterKnopf, reiterOeffnen, useEinfuehrungHier, useEinfuehrungStore, useGeseheneEinfuehrungen,
+  zielElement, type Schritt,
 } from '@/lib/einfuehrung'
 import { einfuehrungT } from '@/lib/texte/Einfuehrung'
 
@@ -70,8 +71,12 @@ function Fenster({ schritte: alle, art, onEnde }: {
   onEnde: () => void
 }) {
   const tt = useT()
-  // Was beim Start sichtbar ist, bleibt die Liste: Sie springt nicht, während man liest
-  const schritte = useMemo(() => alle.filter(s => !s.ziel || zielElement(s.ziel)), [alle])
+  // Was beim Start sichtbar ist, bleibt die Liste: Sie springt nicht, während
+  // man liest. Ein Schritt in einem anderen Reiter zählt, wenn es den Reiter gibt.
+  const schritte = useMemo(
+    () => alle.filter(s => !s.ziel || zielElement(s.ziel) || (s.reiter && reiterKnopf(s.reiter))),
+    [alle],
+  )
   const [index, setIndex] = useState(0)
   const schritt = schritte[index]
   const [ziel, setZiel] = useState<Rechteck | null>(null)
@@ -82,10 +87,15 @@ function Fenster({ schritte: alle, art, onEnde }: {
   const weiterRef = useRef<HTMLButtonElement>(null)
   const ruhig = prefersReducedMotion()
 
-  // Fokus in die Karte, beim Ende zurück dorthin, wo er war
+  // Fokus in die Karte, beim Ende zurück dorthin, wo er war - und die
+  // Reiter wieder so, wie man sie vorgefunden hat
   useEffect(() => {
     const vorher = document.activeElement as HTMLElement | null
-    return () => { if (vorher?.isConnected) vorher.focus({ preventScroll: true }) }
+    const offeneReiter = Array.from(document.querySelectorAll<HTMLElement>('[data-einfuehrung^="reiter-"][aria-selected="true"]'))
+    return () => {
+      offeneReiter.forEach(knopf => { if (knopf.isConnected) reiterOeffnen(knopf) })
+      if (vorher?.isConnected) vorher.focus({ preventScroll: true })
+    }
   }, [])
   // Erst wenn die Karte sichtbar ist: Unsichtbares lässt sich nicht fokussieren
   const bereit = karte.height > 0
@@ -94,12 +104,18 @@ function Fenster({ schritte: alle, art, onEnde }: {
   // Zum Element blättern, dann jeden Takt nachmessen: Blättern, Fenstergröße
   // und nachladende Inhalte verschieben es.
   useEffect(() => {
-    const el = schritt?.ziel ? zielElement(schritt.ziel) : null
-    if (el) {
+    const knopf = schritt?.reiter ? reiterKnopf(schritt.reiter) : null
+    if (knopf) reiterOeffnen(knopf)
+    const hinblaettern = () => {
+      const el = schritt?.ziel ? zielElement(schritt.ziel) : null
+      if (!el) return
       const r = el.getBoundingClientRect()
       const sichtbar = r.top >= 72 && r.bottom <= window.innerHeight - 24
       if (!sichtbar) el.scrollIntoView({ block: r.height > window.innerHeight * 0.6 ? 'start' : 'center', behavior: ruhig ? 'auto' : 'smooth' })
     }
+    // Nach dem Umschalten braucht der Reiter einen Takt, bis sein Inhalt steht
+    const verzoegert = knopf ? window.setTimeout(hinblaettern, 120) : undefined
+    if (!knopf) hinblaettern()
     let rahmen = 0
     let letztes = ''
     const messen = () => {
@@ -120,7 +136,7 @@ function Fenster({ schritte: alle, art, onEnde }: {
       rahmen = requestAnimationFrame(messen)
     }
     messen()
-    return () => cancelAnimationFrame(rahmen)
+    return () => { cancelAnimationFrame(rahmen); window.clearTimeout(verzoegert) }
   }, [schritt, ruhig])
 
   useLayoutEffect(() => {

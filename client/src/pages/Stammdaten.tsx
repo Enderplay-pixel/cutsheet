@@ -407,7 +407,7 @@ export function Component() {
         </Field>
       </FormSection>
 
-      <FormSection icon={Building2} title={tt(masterT.kreativteam)}>
+      <FormSection icon={Building2} title={tt(masterT.kreativteam)} anker="kreativteam">
         <Field label={tt(masterT.regie)}>
           <Input disabled={!darfSchreiben} value={formData.director || ''} onChange={e => update('director', e.target.value)}
             aria-label={tt(masterT.regie)} placeholder={tt(masterT.phRegie)} className="h-9" />
@@ -426,7 +426,7 @@ export function Component() {
         </Field>
       </FormSection>
 
-      <FormSection icon={Calendar} title={tt(masterT.zeitraum)}>
+      <FormSection icon={Calendar} title={tt(masterT.zeitraum)} anker="zeitraum">
         <Field label={tt(masterT.drehbeginn)}>
           <Input disabled={!darfSchreiben} type="date" value={formData.shoot_start || ''} onChange={e => update('shoot_start', e.target.value)} aria-label={tt(masterT.drehbeginn)} className="h-9" />
         </Field>

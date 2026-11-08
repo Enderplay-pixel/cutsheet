@@ -271,7 +271,7 @@ export function Component() {
             </SelectContent>
           </Select>
           {darfSchreiben && (
-            <Button onClick={() => { setAdding(true); setEditingId(null) }} disabled={adding}>
+            <Button data-einfuehrung="neu" onClick={() => { setAdding(true); setEditingId(null) }} disabled={adding}>
               <Plus className="w-4 h-4 mr-2" />
               {tt(k.hinzufuegen)}
             </Button>

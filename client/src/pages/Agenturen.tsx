@@ -65,11 +65,11 @@ export function Component() {
       ) : (
         <Tabs defaultValue="anfragen">
           <TabsList data-einfuehrung="reiter">
-            <TabsTrigger value="anfragen">
+            <TabsTrigger value="anfragen" data-einfuehrung="reiter-anfragen">
               <Send className="w-3.5 h-3.5 mr-1.5" />
               Anfragen
             </TabsTrigger>
-            <TabsTrigger value="adressen">
+            <TabsTrigger value="adressen" data-einfuehrung="reiter-adressen">
               <Building2 className="w-3.5 h-3.5 mr-1.5" />
               Adressen
             </TabsTrigger>
@@ -121,7 +121,7 @@ function Anfragen({ pid, firmaId }: { pid: number; firmaId: number }) {
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <Button size="sm" onClick={() => anlegen.mutate()} disabled={anlegen.isPending}>
+        <Button size="sm" data-einfuehrung="neu" onClick={() => anlegen.mutate()} disabled={anlegen.isPending}>
           <Plus className="w-4 h-4 mr-1.5" />
           Neue Anfrage
         </Button>

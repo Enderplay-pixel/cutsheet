@@ -229,6 +229,7 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
             onKeyDown={e => e.stopPropagation()}
             disabled={!canEdit}
             aria-pressed={scene.shot_status === 'abgedreht'}
+            data-einfuehrung="abgedreht"
             aria-label={`${tt(scenesT.shotStatus)}: ${scene.scene_number}`}
             title={scene.shot_status === 'abgedreht' ? tt(scenesT.shotStatus) : tt(scenesT.nochNicht)}
             className={cn(

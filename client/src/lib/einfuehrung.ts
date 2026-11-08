@@ -33,6 +33,13 @@ export type Schritt = {
   text: Text
   /** Bereiche, in die eine Eingabe hier weiterwirkt - als Pfade wie in lib/bereiche.ts. */
   wirktAuf?: string[]
+  /**
+   * Reiter, der für diesen Schritt offen sein muss: Kennung eines Reiters mit
+   * `data-einfuehrung="reiter-…"`. Die Einführung schaltet ihn um und stellt
+   * am Ende den alten Reiter wieder ein - so lassen sich auch Inhalte zeigen,
+   * die beim Öffnen der Seite noch nicht sichtbar sind.
+   */
+  reiter?: string
 }
 
 export type Einfuehrung = { schluessel: string; schritte: Schritt[]; art: ArbeitsplatzArt }
@@ -95,6 +102,20 @@ export const useEinfuehrungStore = create<Zustand>(set => ({
   starten: seite => set({ offen: seite }),
   schliessen: () => set({ offen: null }),
 }))
+
+/** Der Knopf eines Reiters, sofern es ihn auf der Seite gibt. */
+export function reiterKnopf(reiter: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`[data-einfuehrung="reiter-${CSS.escape(reiter)}"]`)
+}
+
+/**
+ * Einen Reiter öffnen. Die Reiter (Radix) schalten bei mousedown um, nicht
+ * bei click - und ein Fokus würde der Karte den Fokus nehmen.
+ */
+export function reiterOeffnen(knopf: HTMLElement) {
+  if (knopf.getAttribute('aria-selected') === 'true') return
+  knopf.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }))
+}
 
 /** Das Element zu einem Ziel, sofern es gerade sichtbar ist. */
 export function zielElement(ziel: string): HTMLElement | null {

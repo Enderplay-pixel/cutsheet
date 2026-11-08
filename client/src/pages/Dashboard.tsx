@@ -352,6 +352,7 @@ export function Component() {
             id: 'kennzahlen', titel: bloeckeT.kennzahlen, inhalt: (
             <section
               aria-label={tt(dashT.kennzahlen)}
+              data-einfuehrung="kennzahlen"
               className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl border border-border/60 bg-border/70 overflow-hidden shadow-sm"
             >
               {isCreator ? (<>
@@ -382,7 +383,7 @@ export function Component() {
             id: 'lage', titel: bloeckeT.lage, inhalt: (
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-5">
 
-              <section className="rounded-2xl border border-border/60 bg-card p-6 sm:p-7 shadow-sm">
+              <section data-einfuehrung="fortschritt" className="rounded-2xl border border-border/60 bg-card p-6 sm:p-7 shadow-sm">
                 <div className="flex items-baseline justify-between gap-4">
                   <h2 className="text-[19px] font-semibold tracking-[-0.02em]">{tt(dashT.progress)}</h2>
                   <span className="eyebrow">{tt(dashT.standHeute)}</span>
@@ -484,7 +485,7 @@ export function Component() {
                 {/* Schnellzugriff mit den vorhandenen Tastenkürzeln */}
                 <section>
                   <h2 className="eyebrow px-4 pb-2">{tt(dashT.quickNav)}</h2>
-                  <ul className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden divide-y divide-border/70">
+                  <ul data-einfuehrung="schnellzugriff" className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden divide-y divide-border/70">
                     {jumps.map(item => (
                       <li key={item.path}>
                         <button

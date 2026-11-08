@@ -129,7 +129,7 @@ export function Component() {
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div data-einfuehrung="liste" className="space-y-6">
           {open.length > 0 && (
             <TaskList
               tasks={open}

@@ -56,15 +56,15 @@ export function Component() {
 
       <Tabs defaultValue="personen">
         <TabsList data-einfuehrung="reiter">
-          <TabsTrigger value="personen">
+          <TabsTrigger value="personen" data-einfuehrung="reiter-personen">
             <FileSignature className="w-3.5 h-3.5 mr-1.5" />
             Wer hat was
           </TabsTrigger>
-          <TabsTrigger value="jugendschutz">
+          <TabsTrigger value="jugendschutz" data-einfuehrung="reiter-jugendschutz">
             <Baby className="w-3.5 h-3.5 mr-1.5" />
             Jugendschutz
           </TabsTrigger>
-          <TabsTrigger value="vorlagen">
+          <TabsTrigger value="vorlagen" data-einfuehrung="reiter-vorlagen">
             <FileText className="w-3.5 h-3.5 mr-1.5" />
             Vorlagen
           </TabsTrigger>
@@ -123,7 +123,7 @@ function Personen({ pid }: { pid: number }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div data-einfuehrung="stand" className="grid gap-3 sm:grid-cols-4">
         {[
           { label: 'Personen', wert: summe?.personen ?? 0, klasse: '' },
           { label: 'Ohne Vertrag', wert: summe?.ohne_vertrag ?? 0, klasse: (summe?.ohne_vertrag ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : '' },
@@ -407,7 +407,7 @@ function Jugendschutz({ pid }: { pid: number }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start gap-2 text-xs p-3 rounded-lg bg-muted">
+      <div data-einfuehrung="jugendschutz" className="flex items-start gap-2 text-xs p-3 rounded-lg bg-muted">
         <Info className="w-4 h-4 shrink-0 mt-0.5" />
         <span>
           Kinderarbeit ist nach § 5 JArbSchG verboten; § 6 ist die Ausnahme davon und verlangt eine
@@ -745,7 +745,7 @@ function Vorlagen({ pid }: { pid: number }) {
     <div className="space-y-4">
       <div className="flex items-start gap-2 text-xs p-3 rounded-lg bg-muted">
         <Info className="w-4 h-4 shrink-0 mt-0.5" />
-        <span>
+        <span data-einfuehrung="vorlagen">
           Die mitgelieferten Texte sind <strong>Entwürfe</strong>, keine geprüften Verträge. Wer
           eine Produktion mit Sendeplatz macht, legt sie einmal einer Kanzlei vor und speichert das
           Ergebnis als eigene Vorlage - danach werden sie nie wieder angefasst.

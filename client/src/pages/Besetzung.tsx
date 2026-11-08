@@ -68,7 +68,7 @@ function CharacterCard({ char, scenes, onDelete }: { char: any; scenes: any[]; o
   const sceneList = scenes.filter(s => s.characters?.some((c: any) => c.character_id === char.id))
 
   return (
-    <div className="border border-border/60 rounded-xl overflow-hidden bg-card hover:border-border transition-colors">
+    <div data-einfuehrung="rolle" className="border border-border/60 rounded-xl overflow-hidden bg-card hover:border-border transition-colors">
       <div
         className="flex items-center gap-3 p-4 cursor-pointer"
         {...aufklappbar(expanded, () => setExpanded(!expanded))}
@@ -185,7 +185,7 @@ function CastCard({ castMember, characters, daysCount, onDelete }: { castMember:
   const bisher = castMember.birthdate ? String(castMember.birthdate).slice(0, 10) : ''
 
   return (
-    <div className="border border-border/60 rounded-xl overflow-hidden bg-card hover:border-border transition-colors">
+    <div data-einfuehrung="darsteller" className="border border-border/60 rounded-xl overflow-hidden bg-card hover:border-border transition-colors">
       <div className="flex items-center gap-3 p-4 cursor-pointer" {...aufklappbar(expanded, () => setExpanded(!expanded))}>
         <Avatar name={form.actor_name} color="amber" />
         <div className="flex-1 min-w-0">
@@ -342,7 +342,7 @@ export function Component() {
         </div>
       </div>
 
-      <div className="flex justify-end mb-5 gap-2">
+      <div data-einfuehrung="export" className="flex justify-end mb-5 gap-2">
         <Button variant="outline" size="sm" onClick={exportCsv}>
           <Download className="w-3.5 h-3.5 mr-1.5" />CSV
         </Button>
@@ -353,10 +353,10 @@ export function Component() {
 
       <Tabs defaultValue="characters">
         <TabsList data-einfuehrung="reiter" className="h-9 mb-6">
-          <TabsTrigger value="characters" className="gap-2 text-xs">
+          <TabsTrigger value="characters" data-einfuehrung="reiter-rollen" className="gap-2 text-xs">
             <Users className="w-3.5 h-3.5" />{tt(castT.tabChars)} ({characters?.length || 0})
           </TabsTrigger>
-          <TabsTrigger value="cast" className="gap-2 text-xs">
+          <TabsTrigger value="cast" data-einfuehrung="reiter-darsteller" className="gap-2 text-xs">
             <User className="w-3.5 h-3.5" />{tt(castT.tabCast)} ({castList?.length || 0})
           </TabsTrigger>
         </TabsList>

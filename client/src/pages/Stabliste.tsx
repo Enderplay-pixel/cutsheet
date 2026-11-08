@@ -265,7 +265,7 @@ export function Component() {
       </div>
 
       {!isLoading && activeDepts.length > 1 && (
-        <div className="flex items-center gap-1.5 flex-wrap mb-4">
+        <div data-einfuehrung="abteilungen" className="flex items-center gap-1.5 flex-wrap mb-4">
           <button
             onClick={() => setDeptFilter('all')}
             className={cn(
