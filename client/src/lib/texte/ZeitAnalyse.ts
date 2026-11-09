@@ -4,6 +4,7 @@ type Text = Record<Lang, string>
 
 export const zeitAnalyseT = {
   minuten:         { de: '{n} Min.', en: '{n} min', fr: '{n} min' },
+  angefangen:      { de: 'angefangen', en: 'started', fr: 'commencée' },
   stunden:         { de: '{n} Std.', en: '{n} h', fr: '{n} h' },
   stundenMinuten:  { de: '{h} Std. {m} Min.', en: '{h} h {m} min', fr: '{h} h {m} min' },
   titel:           { de: 'Zeitanalyse', en: 'Time analysis', fr: 'Analyse du temps' },

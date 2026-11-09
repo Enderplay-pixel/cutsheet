@@ -27,6 +27,8 @@ interface SceneRow {
   difference_minutes: number
   /** true: nicht gemessen, sondern aus der Tagesdrehzeit abgeleitet */
   geschaetzt?: boolean
+  /** true: in einem Tagesbericht abgedreht; sonst höchstens angefangen */
+  abgedreht?: boolean
 }
 
 export function Component() {
@@ -58,7 +60,9 @@ export function Component() {
   // Max value for bar chart scaling
   const maxVal = Math.max(...data.map(r => Math.max(r.estimated_minutes || 0, r.actual_minutes || 0)), 1)
 
-  const shotScenes = data.filter(r => r.actual_minutes > 0)
+  // Verglichen wird nur, was fertig ist: Eine angefangene Szene hat Ist-Minuten,
+  // aber noch nicht ihre ganze Drehzeit - sie sähe sonst gespart aus.
+  const shotScenes = data.filter(r => r.actual_minutes > 0 && r.abgedreht)
   // Nur abgedrehte Szenen vergleichen. Vorher Ist der gedrehten minus Plan
   // ALLER Szenen: Ohne eine gedrehte Szene stand "-12 Std." in Grün da, als
   // wäre ein halber Drehtag gespart (gemessen am 31.10.2026).
@@ -137,7 +141,10 @@ export function Component() {
                       {tt(T.szKurz).replace('{n}', row.scene_number)}
                     </span>
                     <span className="text-xs text-muted-foreground/70 truncate max-w-[200px]">{row.title}</span>
-                    {row.actual_minutes > 0 && (
+                    {row.actual_minutes > 0 && !row.abgedreht && (
+                      <span className="ml-auto text-xs text-muted-foreground shrink-0">{tt(T.angefangen)}</span>
+                    )}
+                    {row.actual_minutes > 0 && row.abgedreht && (
                       <span className={cn(
                         'ml-auto text-xs tabular-nums font-medium shrink-0',
                         row.difference_minutes > 0 ? 'text-red-400' :

@@ -69,11 +69,16 @@ router.get('/projects/:projectId/time-analysis', async (req, res) => {
   const actualMinutesMap: Record<number, number> = {}
   // Welche Szenen tragen nur einen rechnerischen Anteil statt einer Messung
   const geschaetzt = new Set<number>()
+  // Welche Szenen in einem Tagesbericht als abgedreht stehen. Eine nur
+  // angefangene Szene hat Ist-Minuten, ist aber nicht fertig - im Vergleich
+  // Plan gegen Ist zählte sie vorher als gedreht (Testbericht SALZWIND).
+  const abgedreht = new Set<number>()
 
   for (const day of shootDays) {
     const completedIds = idListe(day.scenes_completed)
     const partialIds = idListe(day.scenes_partial)
     const allSceneIds = [...completedIds, ...partialIds]
+    for (const id of completedIds) abgedreht.add(Number(id))
 
     if (allSceneIds.length === 0) continue
 
@@ -138,6 +143,7 @@ router.get('/projects/:projectId/time-analysis', async (req, res) => {
       difference_minutes: actual - estimated,
       // true heisst: nicht gemessen, sondern aus der Tagesdrehzeit abgeleitet
       geschaetzt: geschaetzt.has(Number(s.scene_id)),
+      abgedreht: abgedreht.has(Number(s.scene_id)),
     }
   })
 
