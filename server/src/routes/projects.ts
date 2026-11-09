@@ -176,6 +176,29 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
   res.json({ data: { ...project as object, settings, my_role }, error: null })
 })
 
+/** Ein Datum im Format JJJJ-MM-TT zwischen 1900 und 2200, sonst false. */
+function gueltigesDatum(wert: unknown): boolean {
+  const text = String(wert)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false
+  const d = new Date(`${text}T12:00:00Z`)
+  const jahr = Number(text.slice(0, 4))
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === text && jahr >= 1900 && jahr <= 2200
+}
+
+/** Was an Laufzeit und Drehzeitraum nicht stimmt - oder null. */
+export function stammdatenFehler(laufzeit: unknown, beginn: unknown, ende: unknown): string | null {
+  if (laufzeit !== null && laufzeit !== undefined && laufzeit !== '') {
+    const minuten = Number(laufzeit)
+    if (!Number.isFinite(minuten) || minuten < 0 || minuten > 10000) return 'Die Laufzeit muss zwischen 0 und 10.000 Minuten liegen'
+  }
+  const von = beginn ? String(beginn).slice(0, 10) : ''
+  const bis = ende ? String(ende).slice(0, 10) : ''
+  if (von && !gueltigesDatum(von)) return 'Der Drehbeginn ist kein gültiges Datum'
+  if (bis && !gueltigesDatum(bis)) return 'Der Drehschluss ist kein gültiges Datum'
+  if (von && bis && bis < von) return 'Der Drehschluss liegt vor dem Drehbeginn'
+  return null
+}
+
 // PUT /api/projects/:id
 router.put('/:id', requireAuth, async (req, res) => {
   const bisher = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.id]) as any
@@ -183,6 +206,19 @@ router.put('/:id', requireAuth, async (req, res) => {
   // Was nicht mitkommt, bleibt (vorher: NULL bzw. leere Synopsis)
   const b = { ...bisher, ...Object.fromEntries(Object.entries(req.body ?? {}).filter(([, w]) => w !== undefined)) }
   const { title, genre, format, length_minutes, status, synopsis, director, producer, dop, production_company, shoot_start, shoot_end } = b
+
+  // Plausibel oder gar nicht: Gemessen im Testbericht SALZWIND (09.11.2026)
+  // speicherten die Stammdaten eine Laufzeit von -5 Minuten, einen Drehschluss
+  // vor dem Drehbeginn und das Jahr 42027 - ohne jede Warnung.
+  // Geprüft wird nur, was diese Anfrage ändert: Ein alter, schiefer Wert soll
+  // nicht jede andere Änderung (etwa den Status) blockieren.
+  const mit = (feld: string) => Object.prototype.hasOwnProperty.call(req.body ?? {}, feld)
+  const fehler = stammdatenFehler(
+    mit('length_minutes') ? length_minutes : null,
+    mit('shoot_start') || mit('shoot_end') ? shoot_start : null,
+    mit('shoot_start') || mit('shoot_end') ? shoot_end : null,
+  )
+  if (fehler) return res.status(400).json({ data: null, error: fehler })
 
   // Die Projektart wird beim Speichern immer aus dem Format abgeleitet - sie ist
   // abgeleiteter Zustand, nicht eigene Eingabe. Ein mitgeschicktes project_kind

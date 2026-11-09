@@ -310,13 +310,20 @@ export function Component() {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       gespeichert()
     },
-    onError: () => toast({ title: tt(masterT.speicherFehler), variant: 'destructive' }),
+    // Der Server sagt, was nicht stimmt (Laufzeit, Drehzeitraum) - das steht in der Meldung
+    onError: (e: any) => toast({ title: tt(masterT.speicherFehler), description: e?.message, variant: 'destructive' }),
   })
 
   const debouncedSave = useRef(debounce((data: any) => mutation.mutate(data), 600)).current
   const update = (key: string, value: any) => {
     const next = { ...formData, [key]: value }
     setFormData(next)
+    // Ein Datumsfeld meldet beim Tippen der Jahreszahl "0002-…", "0020-…" -
+    // erst ein vollständiges Jahr wird gespeichert (der Server prüft es auch)
+    if ((key === 'shoot_start' || key === 'shoot_end') && value) {
+      const jahr = Number(String(value).slice(0, 4))
+      if (!(jahr >= 1900 && jahr <= 2200)) return
+    }
     debouncedSave(next)
   }
 
@@ -397,7 +404,7 @@ export function Component() {
             aria-label={tt(masterT.labelGenre)} placeholder={tt(masterT.phGenre)} className="h-9" />
         </Field>
         <Field label={tt(masterT.labelMinutes)}>
-          <Input disabled={!darfSchreiben} type="number" value={formData.length_minutes || ''}
+          <Input disabled={!darfSchreiben} type="number" min={0} max={10000} value={formData.length_minutes || ''}
             onChange={e => update('length_minutes', Number(e.target.value))}
             aria-label={tt(masterT.labelMinutes)} placeholder={tt(masterT.phMinuten)} className="h-9" />
         </Field>
@@ -428,10 +435,10 @@ export function Component() {
 
       <FormSection icon={Calendar} title={tt(masterT.zeitraum)} anker="zeitraum">
         <Field label={tt(masterT.drehbeginn)}>
-          <Input disabled={!darfSchreiben} type="date" value={formData.shoot_start || ''} onChange={e => update('shoot_start', e.target.value)} aria-label={tt(masterT.drehbeginn)} className="h-9" />
+          <Input disabled={!darfSchreiben} type="date" min="1900-01-01" max="2200-12-31" value={formData.shoot_start || ''} onChange={e => update('shoot_start', e.target.value)} aria-label={tt(masterT.drehbeginn)} className="h-9" />
         </Field>
         <Field label={tt(masterT.drehschluss)}>
-          <Input disabled={!darfSchreiben} type="date" value={formData.shoot_end || ''} onChange={e => update('shoot_end', e.target.value)} aria-label={tt(masterT.drehschluss)} className="h-9" />
+          <Input disabled={!darfSchreiben} type="date" min={formData.shoot_start || '1900-01-01'} max="2200-12-31" value={formData.shoot_end || ''} onChange={e => update('shoot_end', e.target.value)} aria-label={tt(masterT.drehschluss)} className="h-9" />
         </Field>
         {shootDays !== null && (shootDays > 0 ? (
           <div className="col-span-2 flex items-center gap-3 p-3 bg-primary/8 rounded-lg border border-primary/20">
