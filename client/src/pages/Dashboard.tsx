@@ -11,7 +11,8 @@ import {
 } from 'lucide-react'
 import { ArbeitsplatzEditor, ArbeitsplatzRaster } from '@/components/arbeitsplatz/Arbeitsplatz'
 import { useArbeitsplatz } from '@/lib/einstellungen'
-import { istStandard, standardAnordnung } from '@/lib/bereiche'
+import { istStandard, standardAnordnung, sichtbareKategorien } from '@/lib/bereiche'
+import { siehtGagen } from '@/lib/useSchreibrecht'
 import { arbeitsplatzT, bloeckeT } from '@/lib/texte/Arbeitsplatz'
 import { SeitenBloecke } from '@/components/arbeitsplatz/SeitenBloecke'
 import { isCreatorProject } from '@/lib/projectKind'
@@ -541,7 +542,7 @@ export function Component() {
                 <ArbeitsplatzEditor art={art} anordnung={platz.anordnung} onChange={platz.setzen} />
               ) : (
                 <ArbeitsplatzRaster
-                  kategorien={platz.kategorien}
+                  kategorien={sichtbareKategorien(platz.kategorien, siehtGagen((project as any)?.my_role))}
                   projektId={projectId!}
                   badges={{ konfliktradar: errors.length + warnings.length || undefined }}
                 />

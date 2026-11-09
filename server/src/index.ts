@@ -16,6 +16,7 @@ import { passwortPoolBeenden } from './lib/passwort'
 import { pdfBrowserSchliessen, pdfBrowserVorwaermen, pdfBrowserZustand } from './routes/pdf'
 import { optionalAuth } from './middleware/auth'
 import { projectWriteGuard, requireMember } from './middleware/projectAuth'
+import { gagenschutz } from './lib/gagenschutz'
 import { papierkorbWaechter } from './middleware/papierkorbWaechter'
 import { pruefeIdParameter, saeubereKoerper, uebersetzeDatenbankfehler } from './middleware/eingabe'
 import { meldungenUebersetzen } from './middleware/sprache'
@@ -172,6 +173,10 @@ app.use('/api', aenderungenProtokollieren)
 // "abc" als NaN in der Abfrage und Postgres antwortet statt uns.
 app.use('/api/projects/:projectId', pruefeIdParameter)
 app.use('/api/projects/:projectId', requireMember)
+
+// Gagen und Kalkulation nur für die Produktion (lib/gagenschutz.ts). Nach den
+// Rechteprüfungen, damit die Rolle schon aufgelöst ist.
+app.use('/api', gagenschutz)
 
 // Vor dem Löschen sichern. Steht nach den Rechteprüfungen - wer nicht
 // löschen darf, legt auch nichts in den Papierkorb.

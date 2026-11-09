@@ -148,7 +148,7 @@ function CastCard({ castMember, characters, daysCount, onDelete }: { castMember:
   const { projectId } = useParams()
   const pid = Number(projectId)
   const { canEdit } = useProjectPerms()
-  const { darfSchreiben } = useSchreibrecht()
+  const { darfSchreiben, siehtGagen } = useSchreibrecht()
 
   const tt = useT()
 
@@ -237,12 +237,14 @@ function CastCard({ castMember, characters, daysCount, onDelete }: { castMember:
               <Label className="text-xs text-muted-foreground">{tt(castT.labelAgency)}</Label>
               <Input value={form.agency || ''} onChange={e => update('agency', e.target.value)} className="mt-1 h-8 text-xs" />
             </div>
+            {siehtGagen && (
             <div>
               <Label className="text-xs text-muted-foreground">{tt(castT.labelFee)}</Label>
               <Input type="number" value={(form.fee_per_day || 0) / 100}
                 onChange={e => update('fee_per_day', Math.round(Number(e.target.value) * 100))}
                 className="mt-1 h-8 text-xs" />
             </div>
+            )}
           </div>
           <div>
             <Label className="text-xs text-muted-foreground">{tt(geburtsdatumT.label)}</Label>
@@ -276,6 +278,7 @@ export function Component() {
   const { toast } = useToast()
   const download = useDownload()
   const { canEdit } = useProjectPerms()
+  const { siehtGagen } = useSchreibrecht()
 
   const tt = useT()
 
@@ -323,10 +326,10 @@ export function Component() {
     sum + (c.fee_per_day || 0) * (drehtage?.get(Number(c.id)) ?? 0), 0)
 
   const exportCsv = () => {
-    csvHerunterladen('besetzung.csv', [castT.darsteller, castT.figur, uiT.email, uiT.phone, castT.agentur, uiT.feePerDay].map(tt),
+    csvHerunterladen('besetzung.csv', [castT.darsteller, castT.figur, uiT.email, uiT.phone, castT.agentur, ...(siehtGagen ? [uiT.feePerDay] : [])].map(tt),
       (castList || []).map((c: any) => {
         const char = (characters || []).find((ch: any) => ch.id === c.character_id)
-        return [c.actor_name, char?.name, c.email, c.phone, c.agency, betragCsv(c.fee_per_day || 0)]
+        return [c.actor_name, char?.name, c.email, c.phone, c.agency, ...(siehtGagen ? [betragCsv(c.fee_per_day || 0)] : [])]
       }))
   }
 

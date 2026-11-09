@@ -26,7 +26,7 @@ type Tt = ReturnType<typeof useT>
 const abteilungName = (dept: string, tt: Tt) => (crewT.abteilungen[dept] ? tt(crewT.abteilungen[dept]) : dept)
 
 function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
-  const { darfSchreiben } = useSchreibrecht()
+  const { darfSchreiben, siehtGagen } = useSchreibrecht()
   const [form, setForm] = useState(member)
   const [copied, setCopied] = useState(false)
   const queryClient = useQueryClient()
@@ -83,7 +83,8 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
           className="h-7 text-xs w-24 lg:w-28 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="+49…" />
       </div>
 
-      {/* Fee */}
+      {/* Fee - nur für die Produktion (lib/useSchreibrecht.ts) */}
+      {siehtGagen && (
       <div className="flex items-center gap-1 shrink-0">
         <Input disabled={!darfSchreiben} type="number" value={(form.fee_per_day || 0) / 100}
           onChange={e => update('fee_per_day', Math.round(Number(e.target.value) * 100))}
@@ -91,6 +92,7 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
           className="h-7 text-xs w-20 bg-transparent border-transparent hover:border-border focus:border-border transition-colors text-right" />
         <span className="text-xs text-muted-foreground/50">€</span>
       </div>
+      )}
 
       {/* Actions */}
       <div className="flex items-center gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
@@ -114,6 +116,7 @@ function DepartmentSection({ dept, members, onAdd, onDelete, onCopyEmails }: {
   const [open, setOpen] = useState(true)
   const deptTotal = members.reduce((s, m) => s + (m.fee_per_day || 0), 0)
   const { canEdit } = useProjectPerms()
+  const { siehtGagen } = useSchreibrecht()
   const tt = useT()
 
   return (
@@ -154,7 +157,7 @@ function DepartmentSection({ dept, members, onAdd, onDelete, onCopyEmails }: {
             <div className="w-40">{tt(uiT.position)}</div>
             <div className="flex items-center gap-1 w-[188px]"><Mail className="w-3 h-3" />{tt(uiT.email)}</div>
             <div className="flex items-center gap-1 w-[118px]"><Phone className="w-3 h-3" />{tt(uiT.phone)}</div>
-            <div className="w-24 text-right">{tt(uiT.feePerDay)}</div>
+            {siehtGagen && <div className="w-24 text-right">{tt(uiT.feePerDay)}</div>}
             <div className="w-[52px]" />
           </div>
 
@@ -182,6 +185,7 @@ export function Component() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const download = useDownload()
+  const { siehtGagen } = useSchreibrecht()
   const { canEdit } = useProjectPerms()
   const [newDept, setNewDept] = useState('Kamera')
   const [deptFilter, setDeptFilter] = useState<string>('all')
@@ -229,8 +233,8 @@ export function Component() {
   ]
 
   const exportCsv = () => {
-    csvHerunterladen('stabliste.csv', [uiT.name, crewT.abteilung, uiT.position, uiT.email, uiT.phone, uiT.feePerDay].map(tt),
-      (crew || []).map((m: any) => [m.name, abteilungName(m.department || 'Sonstiges', tt), m.role, m.email, m.phone, betragCsv(m.fee_per_day || 0)]))
+    csvHerunterladen('stabliste.csv', [uiT.name, crewT.abteilung, uiT.position, uiT.email, uiT.phone, ...(siehtGagen ? [uiT.feePerDay] : [])].map(tt),
+      (crew || []).map((m: any) => [m.name, abteilungName(m.department || 'Sonstiges', tt), m.role, m.email, m.phone, ...(siehtGagen ? [betragCsv(m.fee_per_day || 0)] : [])]))
   }
 
   return (

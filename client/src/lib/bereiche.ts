@@ -235,6 +235,19 @@ export function istStandard(art: ArbeitsplatzArt, anordnung: Anordnung): boolean
   return JSON.stringify(anordnung) === JSON.stringify(standardAnordnung(art))
 }
 
+/** Bereiche, die nur die Produktion öffnet (server/src/lib/gagenschutz.ts). */
+export const NUR_PRODUKTION = new Set(['budget', 'kostenstand'])
+
+/**
+ * Was jemand in diesem Projekt sehen kann. Die Anordnung selbst bleibt
+ * vollständig - sie gilt für alle Projekte des Kontos, und im nächsten ist
+ * dieselbe Person vielleicht Produzentin.
+ */
+export function sichtbareKategorien(kategorien: Kategorie[], siehtGagen: boolean): Kategorie[] {
+  if (siehtGagen) return kategorien
+  return kategorien.map(k => ({ ...k, bereiche: k.bereiche.filter(x => !NUR_PRODUKTION.has(x.pfad)) }))
+}
+
 /** Link eines Bereichs innerhalb eines Projekts. */
 export function bereichLink(projektId: string | number, pfad: string): string {
   if (pfad === '') return `/projects/${projektId}`

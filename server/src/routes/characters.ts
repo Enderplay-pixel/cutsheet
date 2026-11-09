@@ -89,7 +89,7 @@ router.put('/cast/:id', async (req, res) => {
     if (!figur) return res.status(404).json({ data: null, error: 'Figur nicht gefunden' })
   }
   await db.run(`
-    UPDATE cast SET character_id=?, actor_name=?, email=?, phone=?, agent=?, agent_email=?, agency=?, fee_per_day=?, contract_type=?, availability_notes=?, notes=?
+    UPDATE cast SET character_id=?, actor_name=?, email=?, phone=?, agent=?, agent_email=?, agency=?, fee_per_day=COALESCE(?, fee_per_day), contract_type=?, availability_notes=?, notes=?
     WHERE id=?
   `, [character_id, actor_name, email, phone, agent, agent_email, agency, fee_per_day, contract_type, availability_notes, notes, req.params.id])
   if (character_id) await besetzungNachziehen(db, { rolle: Number(character_id) })

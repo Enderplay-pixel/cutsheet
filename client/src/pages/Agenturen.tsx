@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { parseISO } from 'date-fns'
 import { heuteISO, betragInCent } from '@/lib/utils'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
@@ -201,6 +202,7 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
 }) {
   const qc = useQueryClient()
   const { toast } = useToast()
+  const { siehtGagen } = useSchreibrecht()
   // Wie viele Rollenänderungen unterwegs sind, und ein Zähler für frische Zeilen - siehe `rollenSetzen`
   const unterwegs = useRef(0)
   const [fassung, setFassung] = useState(0)
@@ -449,6 +451,8 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
                       inputMode="numeric"
                     />
                   </div>
+                  {/* Die Gage setzt nur die Produktion; der Server behält sie sonst bei (lib/gagenschutz.ts) */}
+                  {siehtGagen && (
                   <div className="sm:col-span-2">
                     {i === 0 && <Label htmlFor={`rolle-gage-${i}`}>Gage / Tag</Label>}
                     <Input
@@ -460,6 +464,7 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
                       inputMode="decimal"
                     />
                   </div>
+                  )}
                   <div className="sm:col-span-1 flex justify-end">
                     {bearbeitbar && (
                       <Button

@@ -20,6 +20,8 @@ import { Plus, Trash2, TrendingUp, PieChart, List, CheckCircle, Circle, Download
 import { useT } from '@/lib/useT'
 import { budgetT as T, EINHEIT_TEXT, FINANZIERUNGSART_TEXT } from '@/lib/texte/Budget'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
+import { NurProduktion } from '@/components/shared/NurProduktion'
 
 const UNITS = ['Pauschal', 'Tage', 'Stunden', 'Wochen', 'Monate', 'Stück']
 const CATEGORIES = [
@@ -177,7 +179,7 @@ function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: num
   )
 }
 
-export function Component() {
+function BudgetSeite() {
   const { projectId } = useParams()
   const pid = Number(projectId)
   const queryClient = useQueryClient()
@@ -560,4 +562,11 @@ export function Component() {
       </Tabs>
     </div>
   )
+}
+
+/** Gagen und Kalkulation sieht nur die Produktion (server/src/lib/gagenschutz.ts). */
+export function Component() {
+  const { rolle, siehtGagen } = useSchreibrecht()
+  if (rolle && !siehtGagen) return <NurProduktion />
+  return <BudgetSeite />
 }

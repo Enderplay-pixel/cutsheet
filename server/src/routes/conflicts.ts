@@ -4,6 +4,7 @@ import { requireMember } from '../middleware/projectAuth'
 import { ruhezeit } from '../lib/drehzeit'
 import { istIsoDatum } from '../lib/datum'
 import { sperrtagKonflikte } from '../lib/sperrtage'
+import { ohneGagen } from '../lib/gagenschutz'
 
 const router = Router()
 
@@ -148,8 +149,8 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
     })
   })
 
-  // 7. Budget vs financing
-  await pruefung('Budget gegen Finanzierung', conflicts, async () => {
+  // 7. Budget vs financing - nur für wer die Kalkulation sieht (lib/gagenschutz.ts)
+  if (!ohneGagen(req)) await pruefung('Budget gegen Finanzierung', conflicts, async () => {
     const budget = await db.get(`SELECT COALESCE(total_cents, 0) as t FROM budget_versions WHERE project_id = ? ORDER BY (status = 'Aktiv') DESC, created_at DESC LIMIT 1`, [pid]) as any
     const financing = await db.get(`SELECT COALESCE(total_cents, 0) as t FROM financing_plan_versions WHERE project_id = ? ORDER BY created_at DESC LIMIT 1`, [pid]) as any
     const gap = (budget?.t || 0) - (financing?.t || 0)
@@ -165,7 +166,7 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
   })
 
   // 8. No budget versions at all
-  await pruefung('Fehlende Budgetfassung', conflicts, async () => {
+  if (!ohneGagen(req)) await pruefung('Fehlende Budgetfassung', conflicts, async () => {
     const budgetCount = await db.get(`SELECT COUNT(*) as c FROM budget_versions WHERE project_id = ?`, [pid]) as any
     if (!budgetCount || budgetCount.c === 0) {
       conflicts.push({

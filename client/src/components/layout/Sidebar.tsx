@@ -15,7 +15,8 @@ import { navT } from '@/lib/i18n'
 import { isCreatorProject } from '@/lib/projectKind'
 import { sidebarT } from '@/lib/texte/komponenten/Layout'
 import { useArbeitsplatz } from '@/lib/einstellungen'
-import { DASHBOARD, bereichFuer, bereichLink } from '@/lib/bereiche'
+import { DASHBOARD, bereichFuer, bereichLink, sichtbareKategorien } from '@/lib/bereiche'
+import { siehtGagen } from '@/lib/useSchreibrecht'
 
 type NavItemDef = {
   label: string
@@ -72,7 +73,8 @@ export function Sidebar() {
   // Kategorien und Bereiche in der Reihenfolge des Kontos (lib/bereiche.ts) -
   // dieselbe wie auf der Hauptseite. Leere Kategorien zeigt die Leiste nicht.
   const art = isCreator ? 'creator' : 'film'
-  const { kategorien, bereit } = useArbeitsplatz(art)
+  const { kategorien: alleKategorien, bereit } = useArbeitsplatz(art)
+  const kategorien = sichtbareKategorien(alleKategorien, siehtGagen((project as any)?.my_role))
   const navGroups: NavGroupDef[] = kategorien
     .filter(k => k.bereiche.length > 0)
     .map(k => ({

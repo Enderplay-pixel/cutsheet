@@ -34,7 +34,7 @@ router.put('/crew/:id', async (req, res) => {
   }
   const { name, department, role, email, phone, fee_per_day, contract_type, availability_notes, notes } = req.body
   await db.run(`
-    UPDATE crew SET name=?, department=?, role=?, email=?, phone=?, fee_per_day=?, contract_type=?, availability_notes=?, notes=?
+    UPDATE crew SET name=?, department=?, role=?, email=?, phone=?, fee_per_day=COALESCE(?, fee_per_day), contract_type=?, availability_notes=?, notes=?
     WHERE id=?
   `, [name, department, role, email, phone, fee_per_day, contract_type, availability_notes, notes, req.params.id])
   res.json({ data: await db.get('SELECT * FROM crew WHERE id = ?', [req.params.id]), error: null })

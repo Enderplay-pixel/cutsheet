@@ -9,6 +9,7 @@ import type { Lang } from '@/lib/i18n'
 import { doodT as T } from '@/lib/texte/DOOD'
 import { csvHerunterladen, betragCsv } from '@/lib/csv'
 import { parseISO } from 'date-fns'
+import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 type Tt = (map: Record<Lang, string>) => string
 
@@ -89,17 +90,18 @@ function formatCurrency(cents: number, gebietsschema: string) {
   return (cents / 100).toLocaleString(gebietsschema, { style: 'currency', currency: 'EUR' })
 }
 
-function downloadCSV(report: DoodReport, pid: number, tt: Tt, gebietsschema: string) {
+function downloadCSV(report: DoodReport, pid: number, tt: Tt, gebietsschema: string, mitKosten: boolean) {
   const days = report.shoot_days
-  const header = [tt(T.name), tt(T.figur), ...days.map(d => `${tt(T.dt).replace('{n}', String(d.day_number))} (${formatDate(d.date, gebietsschema)})`), tt(T.arbeitstage), tt(T.haltetage), tt(T.kosten)]
+  const header = [tt(T.name), tt(T.figur), ...days.map(d => `${tt(T.dt).replace('{n}', String(d.day_number))} (${formatDate(d.date, gebietsschema)})`), tt(T.arbeitstage), tt(T.haltetage), ...(mitKosten ? [tt(T.kosten)] : [])]
   const rows = report.cast.map(c => [
     c.name,
     c.character,
     ...days.map(d => c.days[d.shoot_day_id]?.status ?? ''),
     String(c.total_work),
     String(c.total_hold),
-    // Wie alle CSV-Ausfuhren (Fund 180): Zahl mit Komma, ohne Währungszeichen
-    betragCsv(c.estimated_cost_cents),
+    // Wie alle CSV-Ausfuhren (Fund 180): Zahl mit Komma, ohne Währungszeichen.
+    // Kosten sind Gagen mal Tage - nur für die Produktion (lib/useSchreibrecht.ts).
+    ...(mitKosten ? [betragCsv(c.estimated_cost_cents)] : []),
   ])
   csvHerunterladen(tt(T.dateiname).replace('{n}', String(pid)), header, rows)
 }
@@ -112,6 +114,7 @@ export function Component() {
   const { toast } = useToast()
   const tt = useT()
   const gebietsschema = useGebietsschema()
+  const { siehtGagen } = useSchreibrecht()
 
   const token = localStorage.getItem('token')
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
@@ -199,7 +202,7 @@ export function Component() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => downloadCSV(report, pid, tt, gebietsschema)}
+              onClick={() => downloadCSV(report, pid, tt, gebietsschema, siehtGagen)}
               className="active:scale-[0.97] ml-4"
             >
               <Download className="mr-1.5 h-3.5 w-3.5" />
@@ -302,9 +305,11 @@ export function Component() {
                   <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground bg-muted/30">
                     {tt(T.haltetage)}
                   </th>
+                  {siehtGagen && (
                   <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground bg-muted/30">
                     {tt(T.kosten)}
                   </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -336,9 +341,11 @@ export function Component() {
                         {c.total_hold}
                       </span>
                     </td>
+                    {siehtGagen && (
                     <td className="px-5 py-3 text-right font-mono text-sm tabular-nums">
                       {formatCurrency(c.estimated_cost_cents, gebietsschema)}
                     </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -358,9 +365,11 @@ export function Component() {
                       {totalHold}
                     </span>
                   </td>
+                  {siehtGagen && (
                   <td className="px-5 py-3 text-right font-mono text-sm font-bold tabular-nums">
                     {formatCurrency(totalCost, gebietsschema)}
                   </td>
+                  )}
                 </tr>
               </tfoot>
             </table>

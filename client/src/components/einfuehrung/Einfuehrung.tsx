@@ -75,8 +75,10 @@ function Fenster({ schritte: alle, art, onEnde }: {
   const tt = useT()
   // Alle Schritte bleiben, auch ohne sichtbares Ziel - ein neues Projekt hat
   // noch keine Zeilen, die Erklärung braucht man dort am meisten. Ohne Ziel
-  // steht die Karte mittig.
-  const schritte = alle
+  // steht die Karte mittig. Nur ein Reiter, den es für diese Rolle nicht gibt
+  // (Verträge ohne Gagenrecht), nimmt seine Schritte mit - sie erklärten sonst
+  // eine Fläche, die man nie sieht. Einmal beim Öffnen festgestellt.
+  const [schritte] = useState(() => alle.filter(x => !x.reiter || reiterKnopf(x.reiter)))
   const [index, setIndex] = useState(0)
   const schritt = schritte[index]
   const [ziel, setZiel] = useState<Rechteck | null>(null)

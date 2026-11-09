@@ -46,6 +46,10 @@ const PERSONENART: Record<string, string> = { cast: 'Besetzung', crew: 'Stab', e
 export function Component() {
   const { projectId } = useParams()
   const pid = Number(projectId)
+  // Verträge tragen Gagen und gehören der Produktion (server/src/lib/gagenschutz.ts).
+  // Den Jugendschutz braucht das Set trotzdem - er bleibt für alle.
+  const { rolle, siehtGagen } = useSchreibrecht()
+  const nurJugendschutz = !!rolle && !siehtGagen
 
   return (
     <div className="px-5 py-6 sm:p-6 max-w-5xl mx-auto space-y-4">
@@ -54,25 +58,36 @@ export function Component() {
         subtitle="Das Papier, das vor dem ersten Drehtag da sein muss"
       />
 
-      <Tabs defaultValue="personen">
+      {nurJugendschutz && (
+        <p className="text-sm text-muted-foreground flex items-start gap-2">
+          <Info className="w-4 h-4 mt-0.5 shrink-0" aria-hidden />
+          Verträge und Vorlagen sieht nur die Produktion. Der Jugendschutz steht hier für alle.
+        </p>
+      )}
+
+      <Tabs key={nurJugendschutz ? 'js' : 'alle'} defaultValue={nurJugendschutz ? 'jugendschutz' : 'personen'}>
         <TabsList data-einfuehrung="reiter">
+          {!nurJugendschutz && (
           <TabsTrigger value="personen" data-einfuehrung="reiter-personen">
             <FileSignature className="w-3.5 h-3.5 mr-1.5" />
             Wer hat was
           </TabsTrigger>
+          )}
           <TabsTrigger value="jugendschutz" data-einfuehrung="reiter-jugendschutz">
             <Baby className="w-3.5 h-3.5 mr-1.5" />
             Jugendschutz
           </TabsTrigger>
+          {!nurJugendschutz && (
           <TabsTrigger value="vorlagen" data-einfuehrung="reiter-vorlagen">
             <FileText className="w-3.5 h-3.5 mr-1.5" />
             Vorlagen
           </TabsTrigger>
+          )}
         </TabsList>
 
-        <TabsContent value="personen" className="mt-4"><Personen pid={pid} /></TabsContent>
+        {!nurJugendschutz && <TabsContent value="personen" className="mt-4"><Personen pid={pid} /></TabsContent>}
         <TabsContent value="jugendschutz" className="mt-4"><Jugendschutz pid={pid} /></TabsContent>
-        <TabsContent value="vorlagen" className="mt-4"><Vorlagen pid={pid} /></TabsContent>
+        {!nurJugendschutz && <TabsContent value="vorlagen" className="mt-4"><Vorlagen pid={pid} /></TabsContent>}
       </Tabs>
     </div>
   )

@@ -5,6 +5,7 @@ import { enthaeltMuster } from '../lib/suchmuster'
 import { requireAuth, AuthUser } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
 import { schreibeCsv } from '../lib/tabelle'
+import { ohneGagen, protokollwertOhneGagen, GELD_BEREICHE } from '../lib/gagenschutz'
 
 const router = Router()
 
@@ -87,7 +88,6 @@ export function aenderungenProtokollieren(req: Request, res: Response, next: Nex
   if (!AKTION[req.method]) return next()
   if (/^\/(auth|cse\/t|push|feedback|admin)\b/.test(req.path)) return next()
   const pfad = req.path
-  const koerper = saeubern(req.body)
   const zustand = { geschrieben: false }
   // ID eines neu angelegten Eintrags aus der Antwort mitnehmen
   let neueId: number | undefined
@@ -117,7 +117,11 @@ export function aenderungenProtokollieren(req: Request, res: Response, next: Nex
     const unterpfad = aktion !== AKTION[req.method]
     // Bei POST auf eine Sammlung ist die letzte Zahl die des Elternteils
     const eigeneId = neueId ?? (endetMitId || unterpfad ? Number(ids[ids.length - 1]) : undefined)
-    logAudit(projektId, user, aktion, entitaet, eigeneId, undefined, koerper)
+    // Der Körper erst jetzt: Der Gagenschutz (lib/gagenschutz.ts) entfernt
+    // vorher, was diese Rolle nicht setzen darf. Gemessen am 09.11.2026:
+    // Regie schickte eine Gage mit, die nicht übernommen wurde - im
+    // Protokoll stand sie trotzdem als Änderung.
+    logAudit(projektId, user, aktion, entitaet, eigeneId, undefined, saeubern(req.body))
   })
   eigenesProtokoll.run(zustand, () => next())
 }
@@ -145,6 +149,15 @@ function kurzfassung(zeile: any): string {
   return ''
 }
 
+/** Eine Protokollzeile, in deren gespeicherten Werten keine Gage steht. */
+function ohneGagenZeile(zeile: any): any {
+  return {
+    ...zeile,
+    old_value: protokollwertOhneGagen(zeile.old_value),
+    new_value: protokollwertOhneGagen(zeile.new_value),
+  }
+}
+
 /** Die Zeitzone, in der ein Datum im Protokoll gemeint ist. */
 const TAGESGRENZE = 'Europe/Berlin'
 
@@ -161,9 +174,16 @@ const TAGESGRENZE = 'Europe/Berlin'
  * dann je nach Serverstandort ein anderes Ergebnis, und bei einer Pruefung
  * waere nicht entscheidbar, welches das richtige ist.
  */
-export function einschraenkung(projectId: number, q: any): { sql: string; werte: any[] } {
+export function einschraenkung(projectId: number, q: any, ohneGeld = false): { sql: string; werte: any[] } {
   const teile = ['project_id = ?']
   const werte: any[] = [projectId]
+  // Unterhalb von Produzent: keine Kalkulation, keine Verträge im Protokoll
+  // (lib/gagenschutz.ts). Gesucht wird dann nicht im gespeicherten Wert -
+  // sonst verriete schon ein Treffer auf "50000" die Gage.
+  if (ohneGeld) {
+    teile.push('NOT (entity_type = ANY(?::text[]))')
+    werte.push([...GELD_BEREICHE])
+  }
 
   if (q.nutzer) {
     teile.push('(user_name ILIKE ? OR user_id = ?)')
@@ -179,7 +199,11 @@ export function einschraenkung(projectId: number, q: any): { sql: string; werte:
     teile.push(`created_at <= (?::timestamp AT TIME ZONE '${TAGESGRENZE}')`)
     werte.push(`${q.bis} 23:59:59.999`)
   }
-  if (q.suche) {
+  if (q.suche && ohneGeld) {
+    teile.push('(user_name ILIKE ? OR action ILIKE ? OR entity_type ILIKE ?)')
+    const muster = enthaeltMuster(q.suche)
+    werte.push(muster, muster, muster)
+  } else if (q.suche) {
     teile.push('(user_name ILIKE ? OR action ILIKE ? OR entity_type ILIKE ? OR new_value ILIKE ?)')
     const muster = enthaeltMuster(q.suche)
     werte.push(muster, muster, muster, muster)
@@ -196,7 +220,8 @@ export function einschraenkung(projectId: number, q: any): { sql: string; werte:
  */
 router.get('/projects/:projectId/audit', requireAuth, requireMember, async (req: Request, res: Response) => {
   const projectId = Number(req.params.projectId)
-  const { sql, werte } = einschraenkung(projectId, req.query)
+  const ohneGeld = ohneGagen(req)
+  const { sql, werte } = einschraenkung(projectId, req.query, ohneGeld)
   // Obergrenze 500: Wer mehr braucht, nimmt die CSV-Ausleitung.
   const grenze = Math.min(500, Math.max(1, Number(req.query.grenze) || 100))
   const sprung = Math.max(0, Number(req.query.sprung) || 0)
@@ -210,7 +235,10 @@ router.get('/projects/:projectId/audit', requireAuth, requireMember, async (req:
   ])
 
   return res.json({
-    data: zeilen.map((z) => ({ ...z, details: kurzfassung(z) })),
+    data: zeilen.map((z) => {
+      const zeile = ohneGeld ? ohneGagenZeile(z) : z
+      return { ...zeile, details: kurzfassung(zeile) }
+    }),
     meta: { gesamt: Number(summe?.anzahl ?? 0), grenze, sprung },
     error: null,
   })
@@ -234,7 +262,7 @@ router.get('/projects/:projectId/audit/werte', requireAuth, requireMember, async
   return res.json({
     data: {
       aktionen: aktionen.map((z) => z.action),
-      bereiche: bereiche.map((z) => z.entity_type),
+      bereiche: bereiche.map((z) => z.entity_type).filter((b) => !ohneGagen(req) || !GELD_BEREICHE.has(b)),
       nutzer: nutzer.map((z) => z.user_name),
       erste: spanne?.erste ?? null,
       letzte: spanne?.letzte ?? null,
@@ -253,11 +281,13 @@ router.get('/projects/:projectId/audit/werte', requireAuth, requireMember, async
  */
 router.get('/projects/:projectId/audit/export.csv', requireAuth, requireMember, async (req: Request, res: Response) => {
   const projectId = Number(req.params.projectId)
-  const { sql, werte } = einschraenkung(projectId, req.query)
-  const zeilen = (await db.all(
+  const ohneGeld = ohneGagen(req)
+  const { sql, werte } = einschraenkung(projectId, req.query, ohneGeld)
+  const roh = (await db.all(
     `SELECT * FROM audit_log WHERE ${sql} ORDER BY created_at DESC, id DESC LIMIT 50000`,
     werte
   )) as any[]
+  const zeilen = ohneGeld ? roh.map(ohneGagenZeile) : roh
 
   const csv = schreibeCsv(
     ['Zeitpunkt', 'Benutzer', 'Aktion', 'Bereich', 'Datensatz', 'Zusammenfassung', 'Vorher', 'Nachher'],

@@ -16,6 +16,7 @@ import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { getUserProjectRole, ROLE_RANK } from '../middleware/projectAuth'
 import { leseTabelle, feldWert, leseBetragCents, schreibeCsv, cents } from '../lib/tabelle'
+import { ohneGagen } from '../lib/gagenschutz'
 
 const router = Router()
 
@@ -84,7 +85,8 @@ async function verarbeite(
   art: Art,
   text: string,
   anwenden: boolean,
-  zugriff: Zugriff = db
+  zugriff: Zugriff = db,
+  mitGage = true
 ): Promise<{ befunde: Befund[]; neu: number; ergaenzt: number; uebersprungen: number }> {
   const zeilen = leseTabelle(text)
   const befunde: Befund[] = []
@@ -93,8 +95,9 @@ async function verarbeite(
   // 25.10.2026: Vorschau "neu 4", Übernahme "neu 2, ergänzt 2".
   const inDieserDatei = new Set<string>()
 
-  // Die Gage heisst je nach Tabelle anders
-  const gagenfeld = art === 'crew' ? 'fee_per_day' : art === 'cast' ? 'fee_per_day' : null
+  // Die Gage heisst je nach Tabelle anders. Wer keine Gagen sieht, setzt auch
+  // keine - die Spalte wird dann überlesen (lib/gagenschutz.ts).
+  const gagenfeld = !mitGage ? null : art === 'crew' ? 'fee_per_day' : art === 'cast' ? 'fee_per_day' : null
 
   for (let i = 0; i < zeilen.length; i++) {
     const zeile = zeilen[i]
@@ -188,8 +191,8 @@ router.post('/projects/:projectId/import/:art', requireAuth, async (req: Request
     // In einer Transaktion: Scheitert eine Zeile, bleibt keine halbe Liste
     // stehen. Wer die Datei korrigiert, faengt sauber an.
     const ergebnis = anwenden
-      ? await db.transaction((tx) => verarbeite(projectId, art, text, true, tx))
-      : await verarbeite(projectId, art, text, false)
+      ? await db.transaction((tx) => verarbeite(projectId, art, text, true, tx, !ohneGagen(req)))
+      : await verarbeite(projectId, art, text, false, db, !ohneGagen(req))
 
     return res.json({
       data: { ...ergebnis, angewendet: anwenden },
@@ -238,28 +241,29 @@ router.get('/import/:art/vorlage.csv', (req: Request, res: Response) => {
 router.get('/projects/:projectId/export/:art.csv', requireAuth, async (req: Request, res: Response) => {
   const projectId = Number(req.params.projectId)
   const art = String(req.params.art)
+  const mitGage = !ohneGagen(req)
 
   let kopf: string[] = []
   let zeilen: Array<Array<string | number | null>> = []
   let name = art
 
   if (art === 'crew') {
-    kopf = ['Name', 'Funktion', 'Abteilung', 'E-Mail', 'Telefon', 'Tagessatz']
+    kopf = ['Name', 'Funktion', 'Abteilung', 'E-Mail', 'Telefon', ...(mitGage ? ['Tagessatz'] : [])]
     const daten = (await db.all(
       'SELECT name, role, department, email, phone, fee_per_day FROM crew WHERE project_id = ? ORDER BY department, name',
       [projectId]
     )) as any[]
-    zeilen = daten.map((z) => [z.name, z.role, z.department, z.email, z.phone, cents(z.fee_per_day)])
+    zeilen = daten.map((z) => [z.name, z.role, z.department, z.email, z.phone, ...(mitGage ? [cents(z.fee_per_day)] : [])])
     name = 'stab'
   } else if (art === 'cast') {
-    kopf = ['Name', 'Rolle', 'E-Mail', 'Telefon', 'Tagessatz']
+    kopf = ['Name', 'Rolle', 'E-Mail', 'Telefon', ...(mitGage ? ['Tagessatz'] : [])]
     const daten = (await db.all(
       `SELECT c.actor_name, ch.name AS rolle, c.email, c.phone, c.fee_per_day
          FROM "cast" c LEFT JOIN characters ch ON ch.id = c.character_id
         WHERE c.project_id = ? ORDER BY c.actor_name`,
       [projectId]
     )) as any[]
-    zeilen = daten.map((z) => [z.actor_name, z.rolle, z.email, z.phone, cents(z.fee_per_day)])
+    zeilen = daten.map((z) => [z.actor_name, z.rolle, z.email, z.phone, ...(mitGage ? [cents(z.fee_per_day)] : [])])
     name = 'besetzung'
   } else if (art === 'scenes') {
     kopf = ['Nummer', 'Titel', 'INT/EXT', 'Tageszeit', 'Motiv', 'Achtel', 'Minuten']

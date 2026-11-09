@@ -25,6 +25,7 @@ import { maskiere } from '../lib/mailvorlagen'
 import { bereinigeWebadresse } from '../lib/webadresse'
 import { euro } from '../lib/rechnung'
 import { heuteISO } from '../lib/datum'
+import { ohneGagen } from '../lib/gagenschutz'
 
 const router = Router()
 
@@ -247,10 +248,23 @@ router.put('/projects/:projectId/casting-anfragen/:id/rollen', requireAuth, requ
     const figur = await db.get('SELECT id FROM characters WHERE id = ? AND project_id = ?', [Number(r.character_id), projectId])
     if (!figur) return res.status(404).json({ data: null, error: 'Figur nicht gefunden' })
   }
+  // Wer keine Gagen sieht, schickt keine mit (lib/gagenschutz.ts). Damit das
+  // Speichern die Gage nicht auf 0 setzt, bleibt sie je Figur und Rollenname
+  // stehen, wie sie war.
+  const bisher = new Map<string, number>()
+  if (ohneGagen(req)) {
+    const alt = (await db.all(
+      'SELECT character_id, role_name, fee_per_day_cents FROM casting_request_roles WHERE request_id = ?', [id]
+    )) as any[]
+    for (const a of alt) bisher.set(`${a.character_id ?? ''}|${a.role_name}`, Number(a.fee_per_day_cents) || 0)
+  }
   await db.transaction(async (tx) => {
     await tx.run('DELETE FROM casting_request_roles WHERE request_id = ?', [id])
     for (let i = 0; i < rollen.length; i++) {
       const r = rollen[i]
+      const gage = ohneGagen(req)
+        ? bisher.get(`${r?.character_id ? Number(r.character_id) : ''}|${String(r?.role_name || '')}`) ?? 0
+        : Math.max(0, Math.round(Number(r?.fee_per_day_cents ?? 0)))
       await tx.run(
         `INSERT INTO casting_request_roles
            (request_id, character_id, role_name, description, shoot_from, shoot_to,
@@ -264,7 +278,7 @@ router.put('/projects/:projectId/casting-anfragen/:id/rollen', requireAuth, requ
           r?.shoot_from ? String(r.shoot_from).slice(0, 10) : null,
           r?.shoot_to ? String(r.shoot_to).slice(0, 10) : null,
           Math.max(0, Math.round(Number(r?.shoot_days ?? 0))),
-          Math.max(0, Math.round(Number(r?.fee_per_day_cents ?? 0))),
+          gage,
           i,
         ]
       )

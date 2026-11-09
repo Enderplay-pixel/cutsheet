@@ -12,10 +12,11 @@ import { useSchreibrecht } from '@/lib/useSchreibrecht'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { kostenstandT as T } from '@/lib/texte/Kostenstand'
 import { parseISO } from 'date-fns'
+import { NurProduktion } from '@/components/shared/NurProduktion'
 
 // Kostenstand: Ist-Kosten (Belege) gegen die aktive Kalkulation - Soll/Ist je Kategorie
 
-export function Component() {
+function KostenstandSeite() {
   const { darfSchreiben } = useSchreibrecht()
   const { projectId } = useParams()
   const pid = Number(projectId)
@@ -297,4 +298,11 @@ export function Component() {
       )}
     </div>
   )
+}
+
+/** Gagen und Kalkulation sieht nur die Produktion (server/src/lib/gagenschutz.ts). */
+export function Component() {
+  const { rolle, siehtGagen } = useSchreibrecht()
+  if (rolle && !siehtGagen) return <NurProduktion />
+  return <KostenstandSeite />
 }
