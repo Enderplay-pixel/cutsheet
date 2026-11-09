@@ -2918,6 +2918,33 @@ describe('Drehtage je Person - eine Zählung für Kalkulation, DOOD und Besetzun
     // Stab: Tag 1 und 3 haben keine Dispo - eine neue riefe den ganzen Stab;
     // auf der Dispo von Tag 2 steht er nicht
     expect([...(await drehtageStab(db, projekt)).get(stab)!].sort()).toEqual([t1, t3].sort())
+
+    // Ein Sperrtag ist kein Drehtag - auch nicht für den Stab (Testbericht SALZWIND)
+    await db.run("UPDATE shoot_days SET status = 'Sperrtag' WHERE id = ?", [t3])
+    expect([...(await drehtageStab(db, projekt)).get(stab)!]).toEqual([t1])
+
+    // Der Vertrag zählt genauso - ohne jede Dispo für Tag 1 stand dort vorher
+    // "im Zeitraum ." und "insgesamt ."
+    await db.run('UPDATE "cast" SET fee_per_day = 60000 WHERE id = ?', [darstellerin])
+    const firma = (await db.run(
+      "INSERT INTO companies (name, legal_name, owner_id) VALUES ('Nordlicht Film', 'Nordlicht Filmproduktion GmbH', ?)", [nutzerId])).id
+    await db.run('UPDATE projects SET company_id = ? WHERE id = ?', [firma, projekt])
+    const vorschau = await hole(`/api/projects/${projekt}/vertraege/vorschau`, tokenInhaber, {
+      method: 'POST',
+      body: JSON.stringify({ person_type: 'cast', person_id: darstellerin, body: '{{drehtage}} Tage, {{drehzeitraum}}, {{gage_gesamt}}, {{produktion}}' }),
+    })
+    expect(vorschau.status).toBe(200)
+    expect(vorschau.daten.text).toBe('2 Tage, 01.12.2026 bis 02.12.2026, 1.200,00\u00a0€, Nordlicht Filmproduktion GmbH')
+    expect(vorschau.daten.fehlt).toEqual([])
+  })
+})
+
+describe('Vertrag als PDF-Text', () => {
+  it('hält einen Listenpunkt über mehrere Zeilen zusammen und zählt über Absätze weiter', async () => {
+    const { listenpunkte } = await import('../routes/vertraege')
+    expect(listenpunkte('1. Die Mitwirkung bedarf zusätzlich der Bewilligung der zuständigen\n   Aufsichtsbehörde nach § 6 JArbSchG.'))
+      .toEqual(['Die Mitwirkung bedarf zusätzlich der Bewilligung der zuständigen Aufsichtsbehörde nach § 6 JArbSchG.'])
+    expect(listenpunkte('- eins\n- zwei\n  weiter')).toEqual(['eins', 'zwei weiter'])
   })
 })
 

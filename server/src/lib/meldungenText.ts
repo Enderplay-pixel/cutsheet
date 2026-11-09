@@ -8,6 +8,7 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Abnahmerunde nicht gefunden': { en: 'Approval round not found', fr: 'Tour de validation introuvable' },
   'Abschnitt nicht gefunden': { en: 'Section not found', fr: 'Section introuvable' },
   'Agentur nicht gefunden': { en: 'Agency not found', fr: 'Agence introuvable' },
+  'Gagen, Kalkulation und Verträge sieht nur die Produktion.': { en: 'Fees, the budget and contracts are visible to the production only.', fr: 'Seule la production voit les cachets, le budget et les contrats.' },
   'Aktuelles Passwort falsch': { en: 'Current password is incorrect', fr: 'Mot de passe actuel incorrect' },
   'An Adressen außerhalb des Projekts dürfen nur Produktion und Admin schreiben. Trag die Person in den Stab oder die Besetzung ein, dann geht es.': { en: 'Only production and admins may write to addresses outside the project. Add the person to the crew or cast, then it works.', fr: "Seuls la production et les administrateurs peuvent écrire à des adresses extérieures au projet. Ajoute la personne à l'équipe ou au casting, et ça fonctionnera." },
   'An der Fassung fehlt der Link, unter dem sie zu sehen ist': { en: 'The cut is missing the link where it can be viewed', fr: 'Il manque à la version le lien permettant de la visionner' },

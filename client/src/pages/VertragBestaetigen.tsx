@@ -70,13 +70,28 @@ function Vertragstext({ text }: { text: string }) {
           )
         }
         if (a.startsWith('- ') || /^\d+\.\s/.test(a)) {
-          const punkte = a.split('\n')
+          // Wie das PDF (server/src/routes/vertraege.ts): Folgezeilen gehören
+          // zum Punkt davor, und ein Punkt in eigenem Absatz zählt weiter.
+          const punkte: string[] = []
+          for (const zeile of a.split('\n')) {
+            const t = zeile.trim()
+            if (!t) continue
+            if (/^(\d+\.|-)\s/.test(t) || punkte.length === 0) punkte.push(t.replace(/^(\d+\.|-)\s*/, ''))
+            else punkte[punkte.length - 1] += ' ' + t
+          }
           const nummeriert = /^\d+\.\s/.test(a)
-          const Liste = nummeriert ? 'ol' : 'ul'
+          const start = nummeriert ? parseInt(a, 10) : 1
+          if (nummeriert) {
+            return (
+              <ol key={i} start={start > 1 ? start : undefined} className="pl-5 space-y-1 list-decimal">
+                {punkte.map((p, j) => <li key={j}>{fett(p)}</li>)}
+              </ol>
+            )
+          }
           return (
-            <Liste key={i} className={`pl-5 space-y-1 ${nummeriert ? 'list-decimal' : 'list-disc'}`}>
-              {punkte.map((p, j) => <li key={j}>{fett(p.replace(/^(\d+\.|-)\s*/, ''))}</li>)}
-            </Liste>
+            <ul key={i} className="pl-5 space-y-1 list-disc">
+              {punkte.map((p, j) => <li key={j}>{fett(p)}</li>)}
+            </ul>
           )
         }
         return (

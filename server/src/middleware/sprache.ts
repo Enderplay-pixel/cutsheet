@@ -35,6 +35,8 @@ const MUSTER: Array<[RegExp, Record<Sprache, string>]> = [
   [/^(.+): zu viele Anfragen\. Bitte (\d+) Sekunden warten\.$/,
     { en: '$1: too many requests. Please wait $2 seconds.', fr: '$1 : trop de requêtes. Veuillez patienter $2 secondes.' }],
   [/^Validierungsfehler: (.*)$/s, { en: 'Validation error: $1', fr: 'Erreur de validation : $1' }],
+  [/^Das Projekt hat schon (\d+) Szenen\. Der Import würde (\d+) weitere anhängen\.$/,
+    { en: 'The project already has $1 scenes. The import would add $2 more.', fr: 'Le projet a déjà $1 scènes. L’import en ajouterait $2 de plus.' }],
 ]
 
 /** Übersetzt eine Meldung oder gibt sie unverändert zurück. */

@@ -29,6 +29,7 @@ import {
   pruefeEinsatz, grenzeFuer, alterAm, ANTRAGSUNTERLAGEN, KIND_BIS_ALTER,
 } from '../lib/jugendschutz'
 import { heuteISO } from '../lib/datum'
+import { drehtageBesetzung, drehtageStab } from '../lib/drehtage'
 
 const router = Router()
 
@@ -152,7 +153,7 @@ router.delete('/projects/:projectId/vertragsvorlagen/:id', requireAuth, requireM
 /** Was über eine Person im Projekt bekannt ist - für die Platzhalter. */
 async function werteFuer(projectId: number, art: string, personId: number) {
   const projekt = (await db.get(
-    `SELECT p.*, c.name AS firma_name FROM projects p
+    `SELECT p.*, c.name AS firma_name, c.legal_name AS firma_firmierung FROM projects p
        LEFT JOIN companies c ON p.company_id = c.id WHERE p.id = ?`,
     [projectId]
   )) as any
@@ -176,16 +177,27 @@ async function werteFuer(projectId: number, art: string, personId: number) {
   }
   if (!person) return null
 
-  // Drehtage und Zeitraum aus den Dispositionen dieser Person, nicht aus dem
-  // Projekt: Wer an drei von zwanzig Tagen dabei ist, soll drei im Vertrag
-  // stehen haben.
-  const tage = (await db.all(
-    `SELECT DISTINCT sd.date FROM call_sheet_entries cse
-       JOIN call_sheets cs ON cse.call_sheet_id = cs.id
-       JOIN shoot_days sd ON cs.shoot_day_id = sd.id
-      WHERE cse.person_type = ? AND cse.person_id = ? AND sd.project_id = ? AND sd.date <> ''
-      ORDER BY sd.date ASC`,
-    [art, personId, projectId]
+  // Drehtage und Zeitraum dieser Person, nicht des Projekts: Wer an drei von
+  // zwanzig Tagen dabei ist, soll drei im Vertrag stehen haben. Gezählt wie
+  // in Kalkulation und DOOD (lib/drehtage.ts) - Drehplan und Dispo. Vorher
+  // nur aus Dispositionen: Gemessen im Testbericht SALZWIND (09.11.2026)
+  // stand die Hauptdarstellerin an 14 Tagen im Drehplan, aber in keiner
+  // Dispo - im Vertrag "im Zeitraum ." und "insgesamt .".
+  const tagIds = art === 'cast'
+    ? [...((await drehtageBesetzung(db, projectId)).get(personId) ?? [])]
+    : art === 'crew'
+      ? [...((await drehtageStab(db, projectId)).get(personId) ?? [])]
+      : ((await db.all(
+          `SELECT DISTINCT cs.shoot_day_id AS id FROM call_sheet_entries cse
+             JOIN call_sheets cs ON cse.call_sheet_id = cs.id
+            WHERE cse.person_type = ? AND cse.person_id = ?`,
+          [art, personId]
+        )) as any[]).map((z) => Number(z.id))
+  const tage = tagIds.length === 0 ? [] : (await db.all(
+    `SELECT DISTINCT date FROM shoot_days
+      WHERE project_id = ? AND id = ANY(?::int[]) AND date <> ''
+      ORDER BY date ASC`,
+    [projectId, tagIds]
   )) as any[]
 
   // Drehorte wie die Drehtage: aus den Dispositionen dieser Person - die
@@ -226,7 +238,9 @@ async function werteFuer(projectId: number, art: string, personId: number) {
       name: String(person.name || ''),
       rolle: String(person.rolle || ''),
       projekt: String(projekt?.title || ''),
-      produktion: String(projekt?.firma_name || projekt?.production_company || ''),
+      // Im Vertrag steht die Firmierung ("Nordlicht Filmproduktion GmbH"),
+      // nicht der Kurzname der Firma - der ist kein Vertragspartner.
+      produktion: String(projekt?.firma_firmierung || projekt?.production_company || projekt?.firma_name || ''),
       drehzeitraum: zeitraum,
       drehtage: anzahl > 0 ? String(anzahl) : '',
       gage: gageCents > 0 ? euroText(gageCents) : '',
@@ -406,6 +420,18 @@ router.delete('/projects/:projectId/vertraege/:id', requireAuth, requireMember, 
 })
 
 /** Das Blatt - das, was unterschrieben wird. */
+/** Die Punkte einer Liste: Folgezeilen gehören zum Punkt davor. */
+export function listenpunkte(block: string): string[] {
+  const punkte: string[] = []
+  for (const zeile of block.split('\n')) {
+    const t = zeile.trim()
+    if (!t) continue
+    if (/^(\d+\.|-)\s/.test(t) || punkte.length === 0) punkte.push(t.replace(/^(\d+\.|-)\s*/, ''))
+    else punkte[punkte.length - 1] += ' ' + t
+  }
+  return punkte
+}
+
 function renderVertrag(titel: string, text: string, projekt: string): string {
   const esc = (w: any) => String(w ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -428,8 +454,14 @@ function renderVertrag(titel: string, text: string, projekt: string): string {
         return `<h${stufe}>${titel}</h${stufe}>` + (rest ? `<p>${rest.replace(/\n/g, '<br>')}</p>` : '')
       }
       if (/^\d+\.\s/.test(z) || z.startsWith('- ')) {
-        const punkte = z.split('\n').map((p) => `<li>${p.replace(/^(\d+\.|-)\s*/, '')}</li>`).join('')
-        return z.startsWith('- ') ? `<ul>${punkte}</ul>` : `<ol>${punkte}</ol>`
+        // Ein Punkt geht über mehrere Zeilen; nur eine Zeile mit "1." oder "-"
+        // beginnt einen neuen. Vorher wurde jede Zeile ein Punkt - im
+        // Kindervertrag stand "1. 2. 3." mitten im Satz (Testbericht SALZWIND).
+        // Steht jeder Punkt in einem eigenen Absatz, zählt `start` weiter.
+        const li = listenpunkte(z).map((p) => `<li>${p}</li>`).join('')
+        if (z.startsWith('- ')) return `<ul>${li}</ul>`
+        const start = parseInt(z, 10)
+        return `<ol${start > 1 ? ` start="${start}"` : ''}>${li}</ol>`
       }
       return `<p>${z.replace(/\n/g, '<br>')}</p>`
     })

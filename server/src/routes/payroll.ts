@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { schreibeCsv, cents } from '../lib/tabelle'
+import { drehtageBesetzung, drehtageStab } from '../lib/drehtage'
 
 const router = Router()
 
@@ -24,25 +25,37 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
   }
 
   /**
-   * Drehtage je Person - eine Abfrage für alle statt eine je Person.
+   * Drehtage je Person - dieselbe Zählung wie Kalkulation, DOOD und Vertrag
+   * (lib/drehtage.ts: Drehplan und Dispo), dazu jeder Tag mit einem
+   * Stundenzettel. Der Zeitraum wirkt auf das Datum des Drehtags.
    *
-   * Gezählt werden verschiedene Drehtage, an denen die Person auf einer
-   * Disposition steht. Der Zeitraum wirkt auf das Datum des Drehtags.
+   * Vorher nur Tage mit Disposition: Gemessen im Testbericht SALZWIND
+   * (09.11.2026) hatte die Hauptdarstellerin für Drehtag 1 Tagesbericht und
+   * Stundenzettel, aber keine Dispo - im Lohnexport 0 Drehtage, 0 €.
    */
+  const tagesdatum = new Map<number, string>(
+    ((await db.all('SELECT id, date FROM shoot_days WHERE project_id = ?', [projectId])) as any[])
+      .map((z) => [Number(z.id), String(z.date ?? '')])
+  )
+  const imZeitraum = (tag: number): boolean => {
+    const datum = tagesdatum.get(tag)
+    if (datum === undefined) return false
+    if (!from && !to) return true
+    if (!datum) return false
+    return (!from || datum >= from) && (!to || datum <= to)
+  }
   const drehtageJePerson = async (art: 'cast' | 'crew'): Promise<Map<number, number>> => {
-    let sql = `
-      SELECT cse.person_id, COUNT(DISTINCT sd.id) AS cnt
-        FROM call_sheet_entries cse
-        JOIN call_sheets cs ON cse.call_sheet_id = cs.id
-        JOIN shoot_days sd ON cs.shoot_day_id = sd.id
-       WHERE cse.person_type = ? AND sd.project_id = ?
-    `
-    const werte: any[] = [art, projectId]
-    if (from) { sql += ' AND sd.date >= ?'; werte.push(from) }
-    if (to)   { sql += ' AND sd.date <= ?'; werte.push(to) }
-    sql += ' GROUP BY cse.person_id'
-    const zeilen = (await db.all(sql, werte)) as any[]
-    return new Map(zeilen.map((z) => [Number(z.person_id), Number(z.cnt)]))
+    const geplant = art === 'cast' ? await drehtageBesetzung(db, projectId) : await drehtageStab(db, projectId)
+    const zettel = (await db.all(
+      'SELECT DISTINCT person_id, shoot_day_id FROM timesheets WHERE person_type = ? AND project_id = ? AND shoot_day_id IS NOT NULL',
+      [art, projectId]
+    )) as any[]
+    for (const z of zettel) {
+      const person = Number(z.person_id)
+      if (!geplant.has(person)) geplant.set(person, new Set())
+      geplant.get(person)!.add(Number(z.shoot_day_id))
+    }
+    return new Map([...geplant].map(([person, tage]) => [person, [...tage].filter(imZeitraum).length]))
   }
 
   /** Überstunden je Person - ebenfalls eine Abfrage für alle. */
