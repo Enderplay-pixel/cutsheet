@@ -93,11 +93,11 @@ router.get('/projects/:projectId/screenplay/export.fountain', async (req, res) =
     const blocks = mitUeberschrift(scene, gespeichert)
 
     if (gespeichert.length === 0 && scene.description) {
-      lines.push(blocks[0].content ?? '', '', scene.description, '')
+      lines.push(...fountainZeilen(blocks[0], scene.scene_number), scene.description, '')
       continue
     }
 
-    for (const b of blocks) lines.push(...fountainZeilen(b))
+    for (const b of blocks) lines.push(...fountainZeilen(b, b.block_type === 'scene_heading' ? scene.scene_number : null))
   }
 
   const filename = `${(project.title || 'drehbuch').replace(/[^\w\säöüÄÖÜß-]/g, '').replace(/\s+/g, '-').toLowerCase()}.fountain`
@@ -274,11 +274,30 @@ router.put('/scenes/:sceneId/blocks/reorder', async (req, res) => {
 
 // ─── FDX/Celtx Parser ─────────────────────────────────────────────────────────
 
-function parseFdxXml(xml: string): Array<{ type: BlockType; content: string }> {
-  const blocks: Array<{ type: BlockType; content: string }> = []
+/** Ein gelesener Absatz. `nummer` nur bei Szenenüberschriften mit eigener Nummer. */
+type Gelesen = { type: BlockType; content: string; nummer?: string }
+
+/**
+ * XML-Entities auflösen. `&amp;` zuletzt - sonst würde aus "&amp;lt;" ein "<".
+ * Vorher fehlten die hexadezimalen (`&#x27;` stand wörtlich im Drehbuch,
+ * Testbericht SALZWIND vom 09.11.2026).
+ */
+export function entitaetenAufloesen(text: string): string {
+  return text
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+}
+
+export function parseFdxXml(xml: string): Gelesen[] {
+  const blocks: Gelesen[] = []
 
   // Strip byte-order marks and normalize newlines
-  const normalized = xml.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  let normalized = xml.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
 
   // Map FDX paragraph types to our block types
   const typeMap: Record<string, BlockType> = {
@@ -298,33 +317,38 @@ function parseFdxXml(xml: string): Array<{ type: BlockType; content: string }> {
     const textRegex = /<Text[^>]*>([\s\S]*?)<\/Text>/gi
     let textMatch: RegExpExecArray | null
     while ((textMatch = textRegex.exec(paragraphXml)) !== null) {
-      // Decode HTML entities
-      const decoded = textMatch[1]
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&apos;/g, "'")
-        .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-      textParts.push(decoded)
+      textParts.push(entitaetenAufloesen(textMatch[1]))
     }
     return textParts.join('').trim()
   }
 
-  // Try FDX format: <Paragraph Type="..."><Text>...</Text></Paragraph>
-  const paragraphRegex = /<Paragraph\s[^>]*Type="([^"]*)"[^>]*>([\s\S]*?)<\/Paragraph>/gi
+  // Titelseite, Kopf- und Fußzeilen tragen auch Absätze - die gehören nicht
+  // ins Drehbuch. Vorher wurde daraus eine Szene "Import" (Testbericht
+  // SALZWIND). Gelesen wird nur der Inhalt.
+  normalized = normalized
+    .replace(/<TitlePage\b[\s\S]*?<\/TitlePage>/gi, '')
+    .replace(/<HeaderAndFooter\b[\s\S]*?<\/HeaderAndFooter>/gi, '')
+    // Leere Absätze als <Paragraph .../> - sonst griffe der nächste Treffer
+    // bis zum Ende des folgenden Absatzes
+    .replace(/<Paragraph\b[^>]*\/>/gi, '')
+  const inhalt = normalized.match(/<Content\b[^>]*>([\s\S]*)<\/Content>/i)
+  if (inhalt) normalized = inhalt[1]
+
+  // Try FDX format: <Paragraph Type="..." Number="13A"><Text>...</Text></Paragraph>
+  const paragraphRegex = /<Paragraph\b([^>]*)>([\s\S]*?)<\/Paragraph>/gi
   let match: RegExpExecArray | null
   let foundFdx = false
 
   while ((match = paragraphRegex.exec(normalized)) !== null) {
+    const attribute = match[1]
+    const rawType = (attribute.match(/\bType="([^"]*)"/) || [])[1]
+    if (rawType === undefined) continue
     foundFdx = true
-    const rawType = match[1]
-    const paragraphContent = match[2]
     const blockType: BlockType = typeMap[rawType] || 'action'
-    const content = extractText(paragraphContent)
-    if (content) {
-      blocks.push({ type: blockType, content })
-    }
+    const content = extractText(match[2])
+    if (!content) continue
+    const nummer = blockType === 'scene_heading' ? (attribute.match(/\bNumber="([^"]*)"/) || [])[1]?.trim() : undefined
+    blocks.push(nummer ? { type: blockType, content, nummer } : { type: blockType, content })
   }
 
   if (foundFdx) return blocks
@@ -341,7 +365,7 @@ function parseFdxXml(xml: string): Array<{ type: BlockType; content: string }> {
     // Extract scene heading from sceneline
     const scenelineMatch = sceneContent.match(/<sceneline[^>]*>([\s\S]*?)<\/sceneline>/i)
     if (scenelineMatch) {
-      const headingText = scenelineMatch[1].replace(/<[^>]+>/g, '').trim()
+      const headingText = entitaetenAufloesen(scenelineMatch[1].replace(/<[^>]+>/g, '')).trim()
       if (headingText) blocks.push({ type: 'scene_heading', content: headingText })
     }
 
@@ -350,7 +374,7 @@ function parseFdxXml(xml: string): Array<{ type: BlockType; content: string }> {
     let innerMatch: RegExpExecArray | null
     while ((innerMatch = innerParaRegex.exec(sceneContent)) !== null) {
       const elType = innerMatch[1].toLowerCase()
-      const text = innerMatch[2].replace(/<[^>]+>/g, '').trim()
+      const text = entitaetenAufloesen(innerMatch[2].replace(/<[^>]+>/g, '')).trim()
       if (!text) continue
       let blockType: BlockType = 'action'
       if (elType.includes('action') || elType.includes('slugline')) blockType = 'action'
@@ -369,14 +393,21 @@ function parseFdxXml(xml: string): Array<{ type: BlockType; content: string }> {
   return parsePlainText(normalized)
 }
 
-export function parsePlainText(text: string): Array<{ type: BlockType; content: string }> {
-  const blocks: Array<{ type: BlockType; content: string }> = []
+/**
+ * Anfang einer Szenenüberschrift: INT, EXT, INT./EXT., EXT./INT., I/E und die
+ * deutschen INNEN, AUSSEN, INNEN/AUSSEN. Vorher erkannte der Import
+ * "INT./EXT." als INT (Testbericht SALZWIND).
+ */
+const UEBERSCHRIFT_ANFANG = /^(INT\.?\s*\/\s*EXT|EXT\.?\s*\/\s*INT|I\s*\/\s*E|INNEN\s*\/\s*AU(?:SS|ß)EN|INT|EXT|INNEN|AU(?:SS|ß)EN)\b\.?/i
+
+export function parsePlainText(text: string): Gelesen[] {
+  const blocks: Gelesen[] = []
   let lines = text.split('\n')
 
   // Fountain-Titelblock ("Title: …", "Author: …") bis zur ersten Leerzeile.
   // Er gehört nicht ins Drehbuch - vorher wurde daraus eine Szene "Import".
   const erste = lines.findIndex((l) => l.trim() !== '')
-  if (erste !== -1 && /^[A-Za-z][A-Za-z ]*:\s*\S/.test(lines[erste].trim()) && !/^(INT|EXT)\b/i.test(lines[erste].trim())) {
+  if (erste !== -1 && /^[A-Za-z][A-Za-z ]*:\s*\S/.test(lines[erste].trim()) && !UEBERSCHRIFT_ANFANG.test(lines[erste].trim())) {
     const ende = lines.findIndex((l, i) => i > erste && l.trim() === '')
     lines = ende === -1 ? [] : lines.slice(ende + 1)
   }
@@ -395,7 +426,7 @@ export function parsePlainText(text: string): Array<{ type: BlockType; content: 
 
     let blockType: BlockType = 'action'
 
-    if (/^(INT|EXT|INT\/EXT|I\/E)\b/i.test(line)) {
+    if (UEBERSCHRIFT_ANFANG.test(line)) {
       blockType = 'scene_heading'
     } else if (/^(FADE|CUT|DISSOLVE|SMASH CUT|MATCH CUT)/i.test(line) || /\bTO:$/.test(line)) {
       blockType = 'transition'
@@ -408,27 +439,38 @@ export function parsePlainText(text: string): Array<{ type: BlockType; content: 
     }
 
     imDialog = blockType === 'character' || blockType === 'parenthetical' || blockType === 'dialogue'
+    if (blockType === 'scene_heading') {
+      // Fountain trägt die Szenennummer am Ende: "INT. HAUS - TAG #13A#"
+      const nummer = line.match(/\s#([^#\s]+)#\s*$/)
+      if (nummer) {
+        blocks.push({ type: blockType, content: line.slice(0, nummer.index).trim(), nummer: nummer[1] })
+        continue
+      }
+    }
     blocks.push({ type: blockType, content: line })
   }
 
   return blocks
 }
 
-function parseSceneHeading(heading: string): { int_ext: string; title: string; day_night: string } {
+export function parseSceneHeading(heading: string): { int_ext: string; title: string; day_night: string } {
   const upper = heading.toUpperCase().trim()
+  const anfang = (upper.match(UEBERSCHRIFT_ANFANG) || [])[1] ?? ''
 
   let int_ext = 'INT'
-  if (/^EXT/.test(upper)) int_ext = 'EXT'
-  else if (/^INT\/EXT/.test(upper) || /^I\/E/.test(upper)) int_ext = 'INT/EXT'
+  if (anfang.includes('/')) int_ext = 'INT/EXT'
+  else if (/^(EXT|AU)/.test(anfang)) int_ext = 'EXT'
 
   let day_night = 'TAG'
   if (/\bNACHT\b|\bNIGHT\b/i.test(upper)) day_night = 'NACHT'
   else if (/\bDÄMMERUNG\b|\bDAWN\b|\bDUSK\b|\bGOLDEN HOUR\b/i.test(upper)) day_night = 'DÄMMERUNG'
   else if (/\bMORGEN\b|\bMORNING\b/i.test(upper)) day_night = 'MORGEN'
 
-  // Extract location: "INT. LOCATION - DAY" → "LOCATION"
+  // Extract location: "INT./EXT. LOCATION - DAY" → "LOCATION"
   let title = heading
-    .replace(/^(INT\/EXT|INT|EXT|I\/E)[\s.]+/i, '')
+    .replace(UEBERSCHRIFT_ANFANG, '')
+    .replace(/^[\s.]+/, '')
+    .replace(/\s#[^#\s]+#\s*$/, '')
     .replace(/\s*[-–]\s*(TAG|NACHT|DÄMMERUNG|MORGEN|DAY|NIGHT|DAWN|DUSK|MORNING|GOLDEN HOUR).*/i, '')
     .trim()
 
@@ -453,34 +495,70 @@ export function entpackeImport(text: string): string {
 // ─── POST /api/projects/:projectId/fdx-import ────────────────────────────────
 router.post('/projects/:projectId/fdx-import', async (req, res) => {
   const { projectId } = req.params
-  const { xml, filename = 'import' } = req.body
+  const { xml, filename = 'import', anhaengen = false } = req.body
 
   if (!xml || typeof xml !== 'string') {
     return res.status(400).json({ data: null, error: 'Kein XML-Inhalt angegeben' })
   }
 
-  const parsedBlocks = parseFdxXml(entpackeImport(xml))
-
-  if (parsedBlocks.length === 0) {
+  const gelesen = parseFdxXml(entpackeImport(xml))
+  if (gelesen.length === 0) {
     return res.status(400).json({ data: null, error: 'Keine Inhalte im Skript gefunden' })
+  }
+
+  // Was vor der ersten Szenenüberschrift steht ("FADE IN:", Titelzeilen),
+  // gehört zu keiner Szene. Vorher entstand daraus eine Szene "Import"
+  // (Testbericht SALZWIND). Gibt es gar keine Überschrift, wird der Text
+  // eine Szene mit dem Dateinamen.
+  const ersteUeberschrift = gelesen.findIndex((b) => b.type === 'scene_heading')
+  const vorspann = ersteUeberschrift > 0 ? ersteUeberschrift : 0
+  const parsedBlocks = ersteUeberschrift > 0 ? gelesen.slice(ersteUeberschrift) : gelesen
+  const imImport = parsedBlocks.filter((b) => b.type === 'scene_heading').length || 1
+
+  // Ein zweiter Import hängte alles noch einmal an - gemessen im Testbericht
+  // SALZWIND: 20 Szenen wurden ohne Rückfrage 40. Hat das Projekt schon
+  // Szenen, muss das Anhängen ausdrücklich gewollt sein.
+  const bestand = (await db.get('SELECT COUNT(*) AS n FROM scenes WHERE project_id = ?', [projectId])) as any
+  const vorhandenAnzahl = Number(bestand?.n ?? 0)
+  if (vorhandenAnzahl > 0 && anhaengen !== true) {
+    return res.status(409).json({
+      data: { vorhanden: vorhandenAnzahl, im_import: imImport },
+      error: `Das Projekt hat schon ${vorhandenAnzahl} Szenen. Der Import würde ${imImport} weitere anhängen.`,
+    })
   }
 
   // Alles oder nichts: Vorher ließ ein Abbruch mitten im Import halbe
   // Szenen zurück, und ein zweiter Versuch legte alles noch einmal an.
   let scenesCreated = 0
   let blocksCreated = 0
+  const uebernommeneNummern: string[] = []
   await db.transaction(async (tx) => {
     // Get current max sort_order
     const maxSortRow = await tx.get('SELECT COALESCE(MAX(sort_order), -1) as m FROM scenes WHERE project_id = ?', [projectId]) as { m: number }
     let sortCounter = maxSortRow.m + 1
-    // Weiterzählen hinter der höchsten vorhandenen Nummer, wie POST /scenes.
-    // Vorher begann jeder Import bei 1, danach bei der Anzahl der Szenen -
-    // gemessen am 25.10.2026: Szenen 1 und 3 vorhanden, der Import vergab
-    // eine zweite 3. "12A" zählt als 12.
+    // Die Nummer aus dem Drehbuch (FDX `Number`, Fountain `#13A#`), solange
+    // sie im Projekt frei ist - vorher wurde sie verworfen und neu gezählt.
+    // Ohne eigene Nummer: weiterzählen hinter der höchsten vorhandenen, wie
+    // POST /scenes. "12A" zählt dabei als 12.
     const vorhanden = await tx.all('SELECT scene_number FROM scenes WHERE project_id = ?', [projectId]) as any[]
-    const nummerBasis = vorhanden.reduce(
+    const vergeben = new Set(vorhanden.map((z) => String(z.scene_number ?? '').trim().toUpperCase()).filter(Boolean))
+    let hoechste = vorhanden.reduce(
       (m, z) => Math.max(m, parseInt(String(z.scene_number ?? ''), 10) || 0), 0
     )
+    const naechsteNummer = (eigene?: string): string => {
+      const wunsch = eigene?.trim()
+      let nummer: string
+      if (wunsch && !vergeben.has(wunsch.toUpperCase())) {
+        nummer = wunsch
+        uebernommeneNummern.push(wunsch)
+      } else {
+        do { hoechste++ } while (vergeben.has(String(hoechste)))
+        nummer = String(hoechste)
+      }
+      vergeben.add(nummer.toUpperCase())
+      hoechste = Math.max(hoechste, parseInt(nummer, 10) || 0)
+      return nummer
+    }
 
     let currentSceneId: number | null = null
     let blockSortOrder = 0
@@ -489,7 +567,7 @@ router.post('/projects/:projectId/fdx-import', async (req, res) => {
       if (block.type === 'scene_heading') {
         // Create a new scene
         const { int_ext, title, day_night } = parseSceneHeading(block.content)
-        const sceneNumber = String(nummerBasis + scenesCreated + 1)
+        const sceneNumber = naechsteNummer(block.nummer)
 
         const sceneResult = await tx.run(`
           INSERT INTO scenes (project_id, scene_number, sort_order, title, int_ext, day_night, description)
@@ -511,12 +589,13 @@ router.post('/projects/:projectId/fdx-import', async (req, res) => {
         blockSortOrder++
         blocksCreated++
       } else {
-        // If no scene exists yet, create a default one
+        // Ein Drehbuch ganz ohne Szenenüberschrift: eine Szene, benannt nach der Datei
         if (currentSceneId === null) {
+          const name = String(filename).replace(/\.[a-z0-9]+$/i, '').trim() || 'Drehbuch'
           const sceneResult = await tx.run(`
             INSERT INTO scenes (project_id, scene_number, sort_order, title, int_ext, day_night)
             VALUES (?, ?, ?, ?, ?, ?)
-          `, [projectId, String(nummerBasis + scenesCreated + 1), sortCounter, 'Import', 'INT', 'TAG'])
+          `, [projectId, naechsteNummer(), sortCounter, name, 'INT', 'TAG'])
           currentSceneId = sceneResult.id
           sortCounter++
           scenesCreated++
@@ -543,7 +622,16 @@ router.post('/projects/:projectId/fdx-import', async (req, res) => {
     `, [projectId, filename, scenesCreated])
   })
 
-  res.json({ data: { scenes_created: scenesCreated, blocks_created: blocksCreated }, error: null })
+  res.json({
+    data: {
+      scenes_created: scenesCreated,
+      blocks_created: blocksCreated,
+      // Was vor der ersten Szene stand und nicht übernommen wurde
+      vorspann_uebersprungen: vorspann,
+      nummern_uebernommen: uebernommeneNummern.length,
+    },
+    error: null,
+  })
 })
 
 export default router

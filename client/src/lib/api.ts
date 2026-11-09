@@ -423,7 +423,7 @@ export const api = {
     updateBlock: (blockId: number, data: any) => req<any>(`/blocks/${blockId}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteBlock: (blockId: number) => req<void>(`/blocks/${blockId}`, { method: 'DELETE' }),
     reorder: (sceneId: number, blocks: any[]) => req<void>(`/scenes/${sceneId}/blocks/reorder`, { method: 'PUT', body: JSON.stringify({ blocks }) }),
-    importFdx: (projectId: number, xml: string, filename: string) => req<any>(`/projects/${projectId}/fdx-import`, { method: 'POST', body: JSON.stringify({ xml, filename }) }),
+    importFdx: (projectId: number, xml: string, filename: string, anhaengen = false) => req<any>(`/projects/${projectId}/fdx-import`, { method: 'POST', body: JSON.stringify({ xml, filename, anhaengen }) }),
   },
 
   // ─── Backup ────────────────────────────────────────────────────────────────

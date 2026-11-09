@@ -18,8 +18,14 @@
 
 type Block = { block_type: string; content?: string | null }
 
-/** Die Zeilen, die ein Block im Fountain-Text ergibt - leer, wenn er nichts enthält. */
-export function fountainZeilen(b: Block): string[] {
+/**
+ * Die Zeilen, die ein Block im Fountain-Text ergibt - leer, wenn er nichts enthält.
+ *
+ * `nummer` ist die Szenennummer für die Überschrift ("INT. HAUS - TAG #13A#").
+ * Vorher fehlte sie im Export (Testbericht SALZWIND, 09.11.2026) - wer das
+ * Drehbuch weitergab, verlor die Nummern, nach denen das Set arbeitet.
+ */
+export function fountainZeilen(b: Block, nummer?: string | null): string[] {
   const inhalt = String(b.content ?? '').trim()
   if (!inhalt) return []
 
@@ -30,7 +36,10 @@ export function fountainZeilen(b: Block): string[] {
       // galten INNEN und AUSSEN als erkannt - in jeder Fountain-App wurde
       // "INNEN. KÜCHE - TAG" damit zu Aktionstext (gemessen am 26.10.2026).
       const standard = /^(INT\.?\/EXT|INT|EXT|EST|I\/E)[.\s]/i.test(inhalt)
-      return [standard ? inhalt.toUpperCase() : `.${inhalt.toUpperCase()}`, '']
+      const kopf = standard ? inhalt.toUpperCase() : `.${inhalt.toUpperCase()}`
+      // Fountain erlaubt in der Nummer Buchstaben, Ziffern, Punkt und Bindestrich
+      const nr = String(nummer ?? '').trim()
+      return [/^[A-Za-z0-9.-]+$/.test(nr) ? `${kopf} #${nr}#` : kopf, '']
     }
     case 'character':
       return [inhalt.toUpperCase()]

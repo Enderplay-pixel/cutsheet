@@ -894,8 +894,8 @@ export function Component() {
   })
 
   const importFdxMutation = useMutation({
-    mutationFn: ({ xml, filename }: { xml: string; filename: string }) =>
-      api.screenplay.importFdx(pid, xml, filename),
+    mutationFn: ({ xml, filename, anhaengen }: { xml: string; filename: string; anhaengen: boolean }) =>
+      api.screenplay.importFdx(pid, xml, filename, anhaengen),
     onSuccess: (result: any) => {
       toast({
         title: tt(screenplayT.importSuccess),
@@ -1066,10 +1066,16 @@ export function Component() {
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    // Gibt es schon Szenen, hängt der Import an - erst nach Rückfrage
+    const vorhanden = (scenesData as any[] | undefined)?.length ?? 0
+    if (vorhanden > 0 && !confirm(tt(screenplayT.importAnhaengen).replace('{n}', String(vorhanden)))) {
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
     const reader = new FileReader()
     reader.onload = (event) => {
       const content = event.target?.result as string
-      importFdxMutation.mutate({ xml: content, filename: file.name })
+      importFdxMutation.mutate({ xml: content, filename: file.name, anhaengen: vorhanden > 0 })
     }
     reader.readAsText(file, 'utf-8')
     if (fileInputRef.current) fileInputRef.current.value = ''

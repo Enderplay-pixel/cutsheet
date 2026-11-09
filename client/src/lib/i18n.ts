@@ -1007,6 +1007,12 @@ export const screenplayT = {
   errImport:       { en: 'Import failed',        de: 'Import fehlgeschlagen', fr: 'Échec de l\'importation' },
   importSuccess:   { en: 'Import successful',    de: 'Import erfolgreich',  fr: 'Importation réussie'  },
   scenesCreated:   { en: '{n} scenes, {b} blocks imported', de: '{n} Szenen, {b} Blöcke importiert', fr: '{n} scènes, {b} blocs importés' },
+  // Der Server legt bei vorhandenen Szenen nur auf ausdrücklichen Wunsch an (Testbericht SALZWIND: 20 wurden still 40)
+  importAnhaengen: {
+    en: 'This project already has {n} scenes. The import adds the script at the end - scenes that are already here will exist twice. Import anyway?',
+    de: 'Das Projekt hat schon {n} Szenen. Der Import hängt das Drehbuch hinten an - Szenen, die schon da sind, gibt es danach doppelt. Trotzdem importieren?',
+    fr: 'Ce projet a déjà {n} scènes. L’import ajoute le scénario à la fin - les scènes déjà présentes existeront en double. Importer quand même ?',
+  },
   typeSceneHeading:  { en: 'Scene Heading',      de: 'Szenenüberschrift',   fr: 'En-tête de scène'     },
   typeAction:        { en: 'Action',             de: 'Aktion',              fr: 'Action'               },
   typeCharacter:     { en: 'Character',          de: 'Figur',               fr: 'Personnage'           },

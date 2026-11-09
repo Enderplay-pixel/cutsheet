@@ -1933,13 +1933,54 @@ describe('Drehbuch-Import gegen echte Datenbank', () => {
     expect(Number(anzahl.c)).toBe(0)
   })
 
-  it('nummeriert einen zweiten Import weiter statt doppelt', async () => {
-    await hole(`/api/projects/${projekt}/fdx-import`, tokenInhaber, {
+  it('fragt vor einem zweiten Import, statt still alles doppelt anzulegen', async () => {
+    // Testbericht SALZWIND: 20 Szenen wurden ohne Rückfrage 40
+    const ohne = await hole(`/api/projects/${projekt}/fdx-import`, tokenInhaber, {
       method: 'POST', body: JSON.stringify({ xml: fountain, filename: 'nochmal.fountain' }),
     })
+    expect(ohne.status).toBe(409)
+    expect(ohne.daten).toEqual({ vorhanden: 2, im_import: 2 })
+    const anzahl = (await db.get('SELECT COUNT(*) AS c FROM scenes WHERE project_id = ?', [projekt])) as any
+    expect(Number(anzahl.c)).toBe(2)
+  })
+
+  it('nummeriert einen gewollten zweiten Import weiter statt doppelt', async () => {
+    const mit = await hole(`/api/projects/${projekt}/fdx-import`, tokenInhaber, {
+      method: 'POST', body: JSON.stringify({ xml: fountain, filename: 'nochmal.fountain', anhaengen: true }),
+    })
+    expect(mit.status).toBe(200)
     const nummern = ((await db.all('SELECT scene_number FROM scenes WHERE project_id = ? ORDER BY sort_order', [projekt])) as any[])
       .map((z) => z.scene_number)
     expect(nummern).toEqual(['1', '2', '3', '4'])
+  })
+
+  it('übernimmt Nummern, INT./EXT. und Sonderzeichen aus Final Draft, ohne Titelseite als Szene', async () => {
+    const leer = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Salzwind', nutzerId])).id
+    const fdx = `<?xml version="1.0" encoding="UTF-8"?>
+<FinalDraft DocumentType="Script" Version="5">
+  <Content>
+    <Paragraph Type="Transition"><Text>FADE IN:</Text></Paragraph>
+    <Paragraph Number="13" Type="Scene Heading"><Text>EXT. DEICH - NACHT</Text></Paragraph>
+    <Paragraph Type="Action"><Text>Johanna&#x27;s Lampe flackert. Wasser &amp; Wind.</Text></Paragraph>
+    <Paragraph Type="Action"/>
+    <Paragraph Number="13A" Type="Scene Heading"><Text>INT./EXT. LKW - NACHT</Text></Paragraph>
+    <Paragraph Type="Character"><Text>JOHANNA</Text></Paragraph>
+    <Paragraph Type="Dialogue"><Text>Fahr!</Text></Paragraph>
+  </Content>
+  <TitlePage><Content><Paragraph Type="Text"><Text>SALZWIND</Text></Paragraph></Content></TitlePage>
+</FinalDraft>`
+    const antwort = await hole(`/api/projects/${leer}/fdx-import`, tokenInhaber, {
+      method: 'POST', body: JSON.stringify({ xml: fdx, filename: 'salzwind.fdx' }),
+    })
+    expect(antwort.status).toBe(200)
+    expect(antwort.daten).toMatchObject({ scenes_created: 2, vorspann_uebersprungen: 1, nummern_uebernommen: 2 })
+    const szenen = (await db.all('SELECT scene_number, int_ext, day_night, title FROM scenes WHERE project_id = ? ORDER BY sort_order', [leer])) as any[]
+    expect(szenen).toEqual([
+      { scene_number: '13', int_ext: 'EXT', day_night: 'NACHT', title: 'DEICH' },
+      { scene_number: '13A', int_ext: 'INT/EXT', day_night: 'NACHT', title: 'LKW' },
+    ])
+    const text = (await db.all("SELECT content FROM screenplay_blocks WHERE project_id = ? AND block_type = 'action'", [leer])) as any[]
+    expect(text.map((z) => z.content)).toEqual(["Johanna's Lampe flackert. Wasser & Wind."])
   })
 })
 

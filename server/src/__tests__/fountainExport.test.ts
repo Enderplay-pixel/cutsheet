@@ -62,3 +62,15 @@ describe('fountainZeilen', () => {
     expect(fountainZeilen({ block_type: 'action', content: '   ' })).toEqual([])
   })
 })
+
+describe('Szenennummern im Export', () => {
+  it('schreibt die Nummer an die Überschrift, wie Fountain sie liest', () => {
+    expect(fountainZeilen({ block_type: 'scene_heading', content: 'EXT. Deich - Nacht' }, '13A')[0]).toBe('EXT. DEICH - NACHT #13A#')
+    expect(fountainZeilen({ block_type: 'scene_heading', content: 'INNEN. Küche - Tag' }, '7')[0]).toBe('.INNEN. KÜCHE - TAG #7#')
+  })
+  it('lässt eine leere oder unlesbare Nummer weg', () => {
+    expect(fountainZeilen({ block_type: 'scene_heading', content: 'INT. Raum - Tag' }, '')[0]).toBe('INT. RAUM - TAG')
+    expect(fountainZeilen({ block_type: 'scene_heading', content: 'INT. Raum - Tag' }, '1 2')[0]).toBe('INT. RAUM - TAG')
+  })
+})
+

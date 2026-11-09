@@ -66,3 +66,26 @@ describe('Fountain lesen', () => {
     expect(parsePlainText('Es ist still.\n\nINT. FLUR - TAG')[0]).toEqual({ type: 'action', content: 'Es ist still.' })
   })
 })
+
+describe('Szenenüberschriften', () => {
+  it('liest INT./EXT., EXT./INT., I/E und die deutschen Formen', async () => {
+    const { parseSceneHeading } = await import('../routes/screenplay')
+    expect(parseSceneHeading('INT./EXT. LKW - NACHT')).toEqual({ int_ext: 'INT/EXT', title: 'LKW', day_night: 'NACHT' })
+    expect(parseSceneHeading('EXT./INT. AUTO - TAG')).toMatchObject({ int_ext: 'INT/EXT', title: 'AUTO' })
+    expect(parseSceneHeading('I/E. BUS - DAY')).toMatchObject({ int_ext: 'INT/EXT', title: 'BUS' })
+    expect(parseSceneHeading('INNEN. KÜCHE - TAG')).toMatchObject({ int_ext: 'INT', title: 'KÜCHE' })
+    expect(parseSceneHeading('AUSSEN. DEICH - NACHT')).toMatchObject({ int_ext: 'EXT', title: 'DEICH', day_night: 'NACHT' })
+    expect(parseSceneHeading('EXT. HAFEN - TAG')).toMatchObject({ int_ext: 'EXT', title: 'HAFEN' })
+  })
+
+  it('nimmt die Fountain-Nummer aus der Überschrift', async () => {
+    const { parsePlainText } = await import('../routes/screenplay')
+    expect(parsePlainText('INT. HAUS - TAG #13A#\n\nText.')[0]).toEqual({ type: 'scene_heading', content: 'INT. HAUS - TAG', nummer: '13A' })
+  })
+
+  it('löst hexadezimale Entities auf und &amp; zuletzt', async () => {
+    const { entitaetenAufloesen } = await import('../routes/screenplay')
+    expect(entitaetenAufloesen('Johanna&#x27;s &#228; &amp;lt;')).toBe("Johanna's ä &lt;")
+  })
+})
+
