@@ -3,7 +3,7 @@ import crypto from 'crypto'
 import { db } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { sendEmail, isSmtpConfigured, appBaseUrl } from './emailService'
-import { reiheEin, sendeFaellige } from '../lib/mailversand'
+import { reiheEin, sendeFaellige, versandMoeglich } from '../lib/mailversand'
 import { maskiere } from '../lib/mailvorlagen'
 import { sendPushToUser } from './push'
 import { personAngaben, istPersonenart, PERSONEN_TABELLE } from '../lib/person'
@@ -362,7 +362,9 @@ router.post('/shoot-days/:dayId/call-sheet/send', async (req: Request, res: Resp
       nicht_zustellbar: lauf.ohneVersand,
       failed,
       skipped_no_email: skipped,
-      smtp_configured: true,
+      // Ohne Mailserver geht nichts hinaus - die Seite sagt das, statt die
+      // Mails als "Testadresse" zu zählen (Testbericht SALZWIND)
+      smtp_configured: versandMoeglich(),
       scheduled_for: geplant ? geplant.toISOString() : null,
     },
     error: null,

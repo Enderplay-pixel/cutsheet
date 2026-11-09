@@ -18,7 +18,7 @@ import { requireAuth, AuthUser } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
 import { logAudit } from './audit'
 import { generatePdf } from './pdf'
-import { reiheEin, appBasisUrl } from '../lib/mailversand'
+import { reiheEin, appBasisUrl, versandMoeglich } from '../lib/mailversand'
 import { maskiere } from '../lib/mailvorlagen'
 import { pdfFontFaces, PDF_SANS } from '../lib/pdfFonts'
 import {
@@ -589,7 +589,7 @@ router.post('/projects/:projectId/vertraege/:id/senden', requireAuth, requireMem
     null, { titel: vertrag.title, an: empfaengerAdresse })
 
   return res.json({
-    data: { status: 'versendet', an: empfaengerAdresse, mail_id: eingereiht[0].id, link },
+    data: { status: 'versendet', an: empfaengerAdresse, mail_id: eingereiht[0].id, link, mailserver: versandMoeglich() },
     error: null,
   })
 })

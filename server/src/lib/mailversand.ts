@@ -61,6 +61,14 @@ export function istTestadresse(wert: string): boolean {
 
 let transporter: Transporter | null | undefined
 
+/**
+ * Geht eine Mail überhaupt hinaus? Dieselbe Bedingung wie `holeTransport`:
+ * ohne SMTP_HOST bleibt jede Mail im Postausgang ("ohne Versand").
+ */
+export function versandMoeglich(): boolean {
+  return !!process.env.SMTP_HOST
+}
+
 export function smtpEingerichtet(): boolean {
   return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
 }

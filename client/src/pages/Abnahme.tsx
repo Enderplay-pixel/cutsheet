@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { parseISO } from 'date-fns'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
+import { versandMelden, useMailserver } from '@/lib/versandMeldung'
 
 const datum = (wert: string | null | undefined) =>
   wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
@@ -107,6 +108,7 @@ export function Component() {
 // ─── Abnahmerunden ───────────────────────────────────────────────────────────
 
 function Runden({ pid }: { pid: number }) {
+  const mailserver = useMailserver(pid)
   const qc = useQueryClient()
   const { toast } = useToast()
   const { darfSchreiben } = useSchreibrecht()
@@ -174,7 +176,7 @@ function Runden({ pid }: { pid: number }) {
                     {Number(r.anmerkungen) > 0
                       ? `${r.anmerkungen} Anmerkungen, ${r.offen} offen`
                       : 'noch keine Anmerkungen'}
-                    {r.sent_at && ` · verschickt ${datum(r.sent_at)}`}
+                    {r.sent_at && (mailserver === false ? ` · Link aktiv seit ${datum(r.sent_at)}, keine Mail` : ` · verschickt ${datum(r.sent_at)}`)}
                     {r.decided_at && ` · entschieden ${zeitpunkt(r.decided_at)}`}
                   </div>
                 </div>
@@ -320,7 +322,7 @@ function RundeDialog({ pid, id, schliessen }: { pid: number; id: number; schlies
 
   const senden = useMutation({
     mutationFn: () => api.abnahmen.senden(pid, id),
-    onSuccess: (e: any) => { neuLaden(); toast({ title: 'Verschickt', description: `An ${e.an}` }) },
+    onSuccess: (e: any) => { neuLaden(); versandMelden(toast, e) },
     onError: (f: any) => toast({ title: 'Nicht verschickt', description: f.message, variant: 'destructive' }),
   })
 

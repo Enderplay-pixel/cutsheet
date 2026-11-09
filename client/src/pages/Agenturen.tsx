@@ -20,6 +20,7 @@ import {
 import { parseISO } from 'date-fns'
 import { heuteISO, betragInCent } from '@/lib/utils'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
+import { versandMelden, useMailserver } from '@/lib/versandMeldung'
 
 const euro = (cents: number) =>
   (Number(cents || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
@@ -90,6 +91,7 @@ export function Component() {
 // ─── Anfragen ────────────────────────────────────────────────────────────────
 
 function Anfragen({ pid, firmaId }: { pid: number; firmaId: number }) {
+  const mailserver = useMailserver(pid)
   const qc = useQueryClient()
   const { toast } = useToast()
   const [offen, setOffen] = useState<number | null>(null)
@@ -162,7 +164,7 @@ function Anfragen({ pid, firmaId }: { pid: number; firmaId: number }) {
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {a.rollen} {Number(a.rollen) === 1 ? 'Rolle' : 'Rollen'}
                     {Number(a.vorschlaege) > 0 && ` · ${a.vorschlaege} Vorschläge`}
-                    {a.sent_at && ` · verschickt ${datum(a.sent_at)}`}
+                    {a.sent_at && (mailserver === false ? ` · Link aktiv seit ${datum(a.sent_at)}, keine Mail` : ` · verschickt ${datum(a.sent_at)}`)}
                     {a.reminded_at && ' · nachgefasst'}
                   </div>
                 </div>
@@ -241,7 +243,7 @@ function AnfrageDialog({ pid, firmaId, id, schliessen }: {
     mutationFn: () => api.casting.senden(pid, id),
     onSuccess: (e: any) => {
       neuLaden()
-      toast({ title: 'Verschickt', description: `An ${e.an}` })
+      versandMelden(toast, e)
     },
     onError: (f: any) => toast({ title: 'Nicht verschickt', description: f.message, variant: 'destructive' }),
   })

@@ -14,6 +14,12 @@ export const tagesdispoT = {
   versendetMehr:    { de: 'Dispo an {n} Personen versendet', en: 'Call sheet sent to {n} people', fr: 'Feuille de service envoyée à {n} personnes' },
   warteschlange:    { de: '{n} in der Warteschlange - der Versand läuft weiter', en: '{n} queued - sending continues', fr: "{n} en file d'attente - l'envoi continue" },
   testadresse:      { de: '{n} mit Testadresse, nicht verschickt', en: '{n} with a test address, not sent', fr: '{n} avec une adresse de test, non envoyés' },
+  ohneMailserver:   { de: 'Nicht per Mail verschickt', en: 'Not sent by email', fr: 'Non envoyé par e-mail' },
+  ohneMailserverText: {
+    de: 'Es ist kein Mailserver eingerichtet. Die Dispo liegt im Postausgang - das PDF kannst du herunterladen und selbst weitergeben.',
+    en: 'No mail server is set up. The call sheet is in the outbox - download the PDF and pass it on yourself.',
+    fr: 'Aucun serveur de messagerie n’est configuré. La feuille de service est dans la boîte d’envoi - téléchargez le PDF et transmettez-le vous-même.',
+  },
   ohneMail:         { de: 'Ohne E-Mail übersprungen: {namen}', en: 'Skipped without email: {namen}', fr: 'Ignorés sans e-mail : {namen}' },
   fehlgeschlagen:   { de: 'Fehlgeschlagen: {namen}', en: 'Failed: {namen}', fr: 'Échec : {namen}' },
   alleErreicht:     { de: 'Alle Empfänger erreicht.', en: 'All recipients reached.', fr: 'Tous les destinataires ont été atteints.' },

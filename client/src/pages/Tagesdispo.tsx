@@ -63,6 +63,11 @@ function SendDispoButton({ dayId, entries, onSent }: {
         })
         return
       }
+      // Ohne Mailserver geht keine Dispo hinaus - nicht als "Testadresse" zählen
+      if (result.smtp_configured === false) {
+        toast({ variant: 'destructive', title: tt(D.ohneMailserver), description: tt(D.ohneMailserverText) })
+        return
+      }
       toast({
         title: tt(result.sent === 1 ? D.versendetEine : D.versendetMehr).replace('{n}', String(result.sent)),
         description: [

@@ -23,6 +23,7 @@ import { parseISO } from 'date-fns'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
 import { useT } from '@/lib/useT'
 import { vertraegeT, vertragPersonenartT, geburtsdatumT } from '@/lib/texte/Vertraege'
+import { versandMelden, useMailserver } from '@/lib/versandMeldung'
 
 const datum = (wert: string | null | undefined) =>
   wert ? parseISO(String(wert).slice(0, 10)).toLocaleDateString('de-DE') : '-'
@@ -96,6 +97,7 @@ export function Component() {
 // ─── Wer hat was ─────────────────────────────────────────────────────────────
 
 function Personen({ pid }: { pid: number }) {
+  const mailserver = useMailserver(pid)
   const qc = useQueryClient()
   const { toast } = useToast()
   const download = useDownload()
@@ -112,7 +114,7 @@ function Personen({ pid }: { pid: number }) {
     mutationFn: (id: number) => api.vertraege.senden(pid, id),
     onSuccess: (e: any) => {
       qc.invalidateQueries({ queryKey: ['vertraege', pid] })
-      toast({ title: 'Verschickt', description: `An ${e.an}` })
+      versandMelden(toast, e)
     },
     onError: (f: any) => toast({ title: 'Nicht verschickt', description: f.message, variant: 'destructive' }),
   })
@@ -215,7 +217,7 @@ function Personen({ pid }: { pid: number }) {
                     {p.vertraege.map((v: any) => (
                       <div key={v.id} className="flex flex-wrap items-center gap-2 text-sm">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS[v.status]?.klasse ?? ''}`}>
-                          {STATUS[v.status]?.label ?? v.status}
+                          {v.status === 'versendet' && mailserver === false ? 'Link aktiv, keine Mail' : (STATUS[v.status]?.label ?? v.status)}
                         </span>
                         <span className="flex-1 min-w-0 truncate">{v.title}</span>
                         {v.confirmed_at && (

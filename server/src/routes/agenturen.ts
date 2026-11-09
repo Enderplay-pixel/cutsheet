@@ -20,7 +20,7 @@ import { requireAuth, AuthUser } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
 import { erfordereFirma } from './companies'
 import { logAudit } from './audit'
-import { reiheEin, appBasisUrl } from '../lib/mailversand'
+import { reiheEin, appBasisUrl, versandMoeglich } from '../lib/mailversand'
 import { maskiere } from '../lib/mailvorlagen'
 import { bereinigeWebadresse } from '../lib/webadresse'
 import { euro } from '../lib/rechnung'
@@ -373,7 +373,7 @@ router.post('/projects/:projectId/casting-anfragen/:id/senden', requireAuth, req
   logAudit(projectId, (req as any).user as AuthUser, 'besetzungsanfrage versendet', 'casting_requests', id,
     null, { agentur: anfrage.agentur, rollen: anfrage.rollen.length })
 
-  return res.json({ data: { status: 'versendet', an: empfaenger, mail_id: eingereiht[0].id, link }, error: null })
+  return res.json({ data: { status: 'versendet', an: empfaenger, mail_id: eingereiht[0].id, link, mailserver: versandMoeglich() }, error: null })
 })
 
 /**
