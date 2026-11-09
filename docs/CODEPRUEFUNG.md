@@ -177,6 +177,11 @@ Je Datei:
 
 ## Deploy-Prüfung
 
+**Deploy v1.3 alpha am 09.11.2026.** Funde 268-290 aus dem Testbericht
+SALZWIND (siehe dort). Vorher lokal: 1162 Servertests grün, `npm run build`
+wie auf Render fehlerfrei, jeder Fund einzeln nachgemessen (Maus, Tastatur,
+zwei Konten für die Rollen).
+
 **Deploy v1.2 alpha am 09.11.2026.** Push `0c75ae5..51b8a56` (14 Commits:
 Arbeitsplatz, Seitenanordnung, Einführungen, Funde 262-265). Florian hat am
 09.11. gesagt, Pushes brauchen keine eigene Freigabe mehr. Vorher lokal: alle
@@ -513,6 +518,57 @@ sind ein Render-Dienst aus demselben Bau.
 | 288 | `client/src/components/ui/time-input.tsx`, `pages/Tagesdispo.tsx` (Sonnenzeiten), `pages/Dateien.tsx`, `pages/Moodboard.tsx`, `server/src/routes/scenes.ts` (Textimport), `pages/Drehbuch.tsx` | Ehrlichkeit | Stilles Verwerfen an fünf Stellen: Zeitfelder sprangen bei "25:99" ohne Wort zurück; Sonnenauf- und -untergang speicherten "25:99" sogar in Dispo und PDF; die Ablage merkte einen falschen Dateityp erst im zweiten Dialog; das Moodboard nahm jeden Text als Bildadresse und zeigte dann ein leeres Symbol; der Szenen-Textimport ließ nicht passende Zeilen wegfallen und kannte "INT./EXT." nicht. Jetzt: Meldung "„25:99“ ist keine Uhrzeit", Sonnenzeiten nur gültig gespeichert und vereinheitlicht ("2100" → 21:00), Dateityp bei der Auswahl geprüft, Bildadresse nur mit http(s) und Hinweis beim Tippen, nicht ladbares Bild benannt, Textimport nennt übersprungene Zeilen mit Nummer und erkennt INT./EXT., I/E, INNEN, AUSSEN, DAY, NIGHT. | ja: Testbericht SALZWIND #23; lokal: General Call und Sonnenuntergang mit "25:99" → Meldung, alter Wert bleibt; Textimport mit 5 Zeilen → 3 Szenen (13A INT/EXT), Zeilen 2 und 5 gemeldet | behoben |
 | 289 | `server/src/routes/checkin.ts`, `lib/motive.ts` (`verwaistesMotivEntfernen`), `routes/scenes.ts` | Fehler | Zwei Kleinigkeiten aus einem Punkt: Einchecken ging Monate vor dem Drehtag - jetzt frühestens am Vortag (Nachtdreh, früher Call), Zurücknehmen und Nachtragen gehen weiter. Gelöschte Szenen ließen ihre aus der Überschrift entstandenen Motive als Waisen zurück - jetzt geht eine leere Hülle mit (dieselbe Regel wie beim Umbenennen), ein ausgefülltes Motiv bleibt. | ja: Testbericht SALZWIND #25; lokal Check-in 08.11. → 200, 15.11. → "Einchecken geht erst am Drehtag (15.11.2026)"; Szenen "Leuchtturm" (leer) und "Schleuse" (mit Adresse) gelöscht → Leuchtturm weg, Schleuse bleibt | behoben |
 | 290 | `client/src/pages/CateringListe.tsx` | Bedienung | Komparsen stehen im Catering mit Absicht erst, wenn sie einem Drehtag zugeordnet sind - die Seite sagte das nicht, im Testbericht hieß es "Komparsen fehlen im Catering". Jetzt steht unter der Liste, wie viele Einträge der Komparserie deshalb fehlen und wo man sie zuordnet. | ja: Testbericht SALZWIND (Tabelle, Catering); lokal "Ein Eintrag der Komparserie steht hier nicht …" | behoben |
+
+### Testbericht SALZWIND (09.11.2026)
+
+Ein externer Test auf der Live-Seite mit einem fiktiven Kinofilm (32 Szenen,
+20 Drehtage, 4,7 Mio. € Kalkulation), Gesamteignung Kino 5 von 10. Jeder
+Punkt nachgemessen, bevor er angefasst wurde - lokal mit echter Maus und
+echten Tastendrücken, Server-Punkte mit Tests gegen eine echte Datenbank.
+
+| Bericht | Ergebnis |
+|---|---|
+| #1 Regie sieht Gagen (K) | Fund 268 |
+| #2 Kostenstand ohne Soll (K) | Fund 269 |
+| #3 Drehplan-Drop (K) | Fund 271 |
+| #4 Drehbuch-Import (H) | Fund 272 |
+| #5 Vertrag mit Leerstellen (H) | Fund 273 |
+| #6 Zahlungseingang ein Klick (H) | Fund 276 |
+| #7 Rechnung ohne Leistungszeitraum (H) | Fund 277 |
+| #8 "Verschickt" ohne Versand (H) | Fund 278 |
+| #9 Komparse unwiederbringlich gelöscht (H) | Fund 279 |
+| #10 Geburtsdatum verloren (H) | **nicht nachstellbar.** Mit echten Tastendrücken wird das Datum beim Verlassen gespeichert und ist nach dem Neuladen da (15.03.2016, Jugendschutz: 10 Jahre). Die Tippfunktion der Testautomatik fügt Text ein, ein Datumsfeld nimmt so nichts an - im Feld stand weiter "tt.mm.jjjj", daher "kein Request". |
+| #11 Impressum mit Platzhaltern (H) | **offen für Florian**: Name, Anschrift und Kontakt-Mail des Betreibers für Impressum und Datenschutz (`client/src/lib/texte/Impressum.ts`, `Datenschutz.ts`) |
+| #12 KI-Optimierung hängt (M) | Fund 281; die Meldung kam, der Dialog blieb offen. Der 400 heißt: Auf der Live-Seite ist kein Anthropic-Schlüssel gesetzt |
+| #13 Lohnexport zählt Dispo-Tage (M) | Fund 274 |
+| #14 Budget zählt Reservetage (M) | Fund 275 (Sperrtage); Haltetage offen für Florian |
+| #15 Auswertung ohne Kosten (M) | Fund 270 |
+| #16 Listenformat im Vertrag (M) | Fund 273 |
+| #17 Szenenfilter INT/EXT (M) | Fund 280 |
+| #18 Stammdaten ohne Prüfung (M) | Fund 282 |
+| #19 Mausklick in Szenenzeile (M) | Fund 283 - echte Mausnutzer waren betroffen |
+| #20 Szenenkommentar (M) | Fund 284 |
+| #21 Zeitanalyse (N) | Fund 285 |
+| #22 Kopfzeile Szenen (N) | Fund 286 |
+| #23 Stilles Verwerfen (N) | Fund 288 |
+| #24 Fremdes Projekt (N) | Fund 287 |
+| #25 Check-in vorher, Motiv-Waisen (N) | Fund 289 |
+| Tabelle: Passwort ändern ohne Meldung | nicht nachstellbar: "Aktuelles Passwort falsch" erscheint (lokal gemessen) |
+| Tabelle: Sperrtage "Bis vor Von ohne Erklärung" | im Code widerlegt: Hinweis "Das Ende liegt vor dem Beginn" steht unter den Feldern |
+| Tabelle: Catering ohne Komparsen | Fund 290 (gewollt, jetzt erklärt) |
+| Tabelle: Fountain-Export ohne Nummern, Ablage .txt | Funde 272, 288 |
+| Tabelle: Set-Plan "Verschieben ohne Wirkung" | nicht nachgemessen |
+
+**Offen für Florian - Entscheidungen und größere Bauten aus dem Bericht:**
+Impressum/Datenschutz (#11); Haltetage in der Kalkulation; Kino-Funktionen
+(Komparserie als Gruppen mit Anzahl und Tarif, Units und parallele Drehtage,
+Drehort-Hierarchie Motiv/Set, Förder-Kalkulationsschema, Arbeitszeitgesetz-
+Prüfung, Drehbuch-Revisionen mit gelockten Nummern); Stäbchenplan als
+Planungswerkzeug; ein Speicher- und Löschmodell für alle Tabellen;
+Massenaktionen; Projekt löschen nur mit Namenseingabe; Arbeitsplatz-Anordnung
+per Tastatur über Kategorien hinweg; Datenschutz-Auskunft lesbar statt JSON;
+Feld Debitorennummer beim Auftraggeber; Mailserver auf Render (laut Bericht
+"SMTP_HOST fehlt" - ohne ihn geht keine Mail hinaus).
 
 ### Verknüpfungen
 
