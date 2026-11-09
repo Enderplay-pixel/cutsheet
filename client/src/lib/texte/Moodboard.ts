@@ -19,6 +19,8 @@ export const moodboardT = {
   notiz:            { de: 'Notiz', en: 'Note', fr: 'Note' },
   farbe:            { de: 'Farbe', en: 'Colour', fr: 'Couleur' },
   bildViaUrl:       { de: 'Bild via URL', en: 'Image via URL', fr: 'Image par URL' },
+  nurWebadresse:    { de: 'Nur Webadressen mit http:// oder https://', en: 'Only web addresses starting with http:// or https://', fr: 'Uniquement des adresses web commençant par http:// ou https://' },
+  nichtLadbar:      { de: 'Bild unter dieser Adresse nicht ladbar', en: 'Image could not be loaded from this address', fr: 'Image introuvable à cette adresse' },
   bildHochladen:    { de: 'Bild hochladen', en: 'Upload image', fr: 'Importer une image' },
   ansichtZurueck:   { de: 'Ansicht zurücksetzen', en: 'Reset view', fr: 'Réinitialiser la vue' },
   titelPh:          { de: 'Titel…', en: 'Title…', fr: 'Titre…' },

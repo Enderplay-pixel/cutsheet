@@ -191,7 +191,7 @@ export const api = {
     removeCharacter: (id: number, charId: number) => req<any>(`/scenes/${id}/characters/${charId}`, { method: 'DELETE' }),
     addInventory: (id: number, data: any) => req<any>(`/scenes/${id}/inventory`, { method: 'POST', body: JSON.stringify(data) }),
     removeInventory: (id: number, itemId: number) => req<any>(`/scenes/${id}/inventory/${itemId}`, { method: 'DELETE' }),
-    import: (projectId: number, text: string) => req<any[]>(`/projects/${projectId}/scenes/import`, { method: 'POST', body: JSON.stringify({ text }) }),
+    import: (projectId: number, text: string) => req<{ szenen: any[]; uebersprungen: Array<{ zeile: number; text: string }> }>(`/projects/${projectId}/scenes/import`, { method: 'POST', body: JSON.stringify({ text }) }),
   },
 
   // ─── Characters & Cast ─────────────────────────────────────────────────────

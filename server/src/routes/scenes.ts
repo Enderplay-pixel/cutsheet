@@ -260,32 +260,46 @@ router.post('/projects/:projectId/scenes/import', async (req, res) => {
   const { text } = req.body
   if (!text) return res.status(400).json({ data: null, error: 'Kein Text angegeben' })
 
-  const lines = (text as string).split('\n').filter((l: string) => l.trim())
-  const sceneRegex = /^(\d+[A-Z]?)\s+(INT|EXT|INT\/EXT)[\s.]+(.+?)\s+(TAG|NACHT|DÄMMERUNG|MORGEN)/i
+  // Zeilennummern bleiben die des eingefügten Texts - so findet man eine
+  // übersprungene Zeile wieder
+  const lines = (text as string).split('\n').map((l: string, i: number) => ({ text: l.trim(), nr: i + 1 })).filter((l) => l.text)
+  // INT./EXT., EXT./INT., I/E und die deutschen Formen wie beim Drehbuch-Import
+  const sceneRegex = /^(\d+[A-Z]?)\s+(INT\.?\s*\/\s*EXT|EXT\.?\s*\/\s*INT|I\s*\/\s*E|INNEN\s*\/\s*AU(?:SS|ß)EN|INT|EXT|INNEN|AU(?:SS|ß)EN)[\s.]+(.+?)\s+(TAG|NACHT|DÄMMERUNG|MORGEN|DAY|NIGHT)\b/i
 
   const created: any[] = []
+  // Zeilen, die keine Szene ergaben - vorher fielen sie still weg
+  // (Testbericht SALZWIND, 09.11.2026)
+  const uebersprungen: Array<{ zeile: number; text: string }> = []
   const maxSortRow = await db.get('SELECT COALESCE(MAX(sort_order), -1) as m FROM scenes WHERE project_id = ?', [req.params.projectId])
   const maxSort = (maxSortRow as any).m
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
+    const line = lines[i].text
     const match = line.match(sceneRegex)
-    if (match) {
-      const [, num, intExt, titelRoh, dayNight] = match
+    if (!match) {
+      uebersprungen.push({ zeile: lines[i].nr, text: line.slice(0, 80) })
+      continue
+    }
+    {
+      const [, num, kopf, titelRoh, tageszeit] = match
+      const k = kopf.toUpperCase()
+      const intExt = k.includes('/') ? 'INT/EXT' : /^(EXT|AU)/.test(k) ? 'EXT' : 'INT'
+      const t = tageszeit.toUpperCase()
+      const dayNight = t === 'DAY' ? 'TAG' : t === 'NIGHT' ? 'NACHT' : t
       // Ohne den Trenner vor der Tageszeit: Aus "41 INT. HAFEN - NACHT"
       // wurde vorher der Titel "HAFEN -" (gemessen am 26.10.2026).
       const title = titelRoh.replace(/[\s\-–—]+$/, '').trim()
       const result = await db.run(`
         INSERT INTO scenes (project_id, scene_number, sort_order, title, int_ext, day_night)
         VALUES (?, ?, ?, ?, ?, ?)
-      `, [req.params.projectId, num, maxSort + 1 + i, title, intExt.toUpperCase(), dayNight.toUpperCase()])
+      `, [req.params.projectId, num, maxSort + 1 + i, title, intExt, dayNight])
       // Der Spielort wird Motiv des Projekts (lib/motive.ts)
       await motivVerknuepfen(db, Number(req.params.projectId), result.id, title)
       created.push(await db.get('SELECT * FROM scenes WHERE id = ?', [result.id]))
     }
   }
 
-  res.json({ data: created, error: null })
+  res.json({ data: { szenen: created, uebersprungen }, error: null })
 })
 
 export default router

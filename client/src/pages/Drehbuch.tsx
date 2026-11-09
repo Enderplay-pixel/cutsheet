@@ -391,10 +391,17 @@ function ImportDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
   const tt = useT()
   const importMutation = useMutation({
     mutationFn: () => api.scenes.import(projectId, text),
-    onSuccess: (scenes: any[]) => {
+    onSuccess: ({ szenen, uebersprungen }) => {
       szenenErneuern(queryClient, projectId)
-      toast({ title: tt(scenesT.importiert).replace('{n}', String(scenes.length)) })
-      onClose(); setText('')
+      // Übersprungene Zeilen nennen, statt sie still wegfallen zu lassen
+      const nr = uebersprungen.slice(0, 5).map(u => u.zeile).join(', ') + (uebersprungen.length > 5 ? ' …' : '')
+      toast({
+        title: tt(scenesT.importiert).replace('{n}', String(szenen.length)),
+        description: uebersprungen.length > 0 ? tt(scenesT.importUebersprungen).replace('{n}', String(uebersprungen.length)).replace('{zeilen}', nr) : undefined,
+        variant: szenen.length === 0 ? 'destructive' : undefined,
+      })
+      // Hat nichts gepasst, bleibt der Text zum Korrigieren stehen
+      if (szenen.length > 0) { onClose(); setText('') }
     },
     onError: () => toast({ title: tt(scenesT.importFehler), variant: 'destructive' }),
   })

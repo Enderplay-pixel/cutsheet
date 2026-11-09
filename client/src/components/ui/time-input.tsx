@@ -1,6 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { Input } from '@/components/ui/input'
+import { useToast } from '@/components/ui/use-toast'
+import { useT } from '@/lib/useT'
+import type { Lang } from '@/lib/i18n'
 import { formatTime, parseTime, cn } from '@/lib/utils'
+
+const T: Record<'keineZeit' | 'gueltig', Record<Lang, string>> = {
+  keineZeit: { de: '„{x}“ ist keine Uhrzeit', en: '“{x}” is not a time', fr: '« {x} » n’est pas une heure' },
+  gueltig: {
+    de: 'Gültig sind 00:00 bis 23:59. Die vorige Zeit bleibt stehen.',
+    en: 'Valid times are 00:00 to 23:59. The previous time stays.',
+    fr: 'Les heures valides vont de 00:00 à 23:59. L’heure précédente est conservée.',
+  },
+}
 
 interface TimeInputProps {
   value: number
@@ -30,6 +42,8 @@ interface TimeInputProps {
  */
 export function TimeInput({ value, onChange, className, placeholder = '08:00', disabled, label }: TimeInputProps) {
   const [str, setStr] = useState(formatTime(value || 0))
+  const { toast } = useToast()
+  const tt = useT()
   useEffect(() => setStr(formatTime(value || 0)), [value])
 
   // Aktuellen Stand für die Übernahme beim Ausblenden festhalten - der
@@ -37,11 +51,17 @@ export function TimeInput({ value, onChange, className, placeholder = '08:00', d
   const latest = useRef({ str, value, onChange })
   latest.current = { str, value, onChange }
 
-  /** Getippten Text übernehmen; bei Unsinn zurück auf den letzten gültigen Wert. */
+  /**
+   * Getippten Text übernehmen; bei Unsinn zurück auf den letzten gültigen Wert
+   * - und sagen, dass die Eingabe verworfen wurde. Vorher sprang "25:99" still
+   * zurück (Testbericht SALZWIND, 09.11.2026).
+   */
   function commit() {
     const parsed = parseTime(latest.current.str)
     if (Number.isNaN(parsed)) {
+      const getippt = latest.current.str.trim()
       setStr(formatTime(latest.current.value || 0))
+      if (getippt) toast({ variant: 'destructive', title: tt(T.keineZeit).replace('{x}', getippt), description: tt(T.gueltig) })
     } else if (parsed !== latest.current.value) {
       latest.current.onChange(parsed)
     }

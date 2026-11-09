@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
-import { formatDate, formatDateLong, debounce, cn, eighthsToString, szenenArt, SZENEN_ARTEN, type SzenenArt } from '@/lib/utils'
+import { formatDate, formatDateLong, debounce, cn, eighthsToString, szenenArt, SZENEN_ARTEN, type SzenenArt, parseTime, formatTime } from '@/lib/utils'
 import {
   ChevronLeft, ChevronRight, MapPin, Clock, Users,
   Plus, Minus, ClipboardList, Save, Download, Trash2, Clapperboard,
@@ -738,8 +738,24 @@ export function Component() {
   const updateHeader = (key: string, value: any) => {
     const next = { ...headerForm, [key]: value }
     setHeaderForm(next)
+    // Sonnenauf- und -untergang sind Text: Gespeichert wird erst eine gültige
+    // Uhrzeit - vorher landete "25:99" in Dispo und PDF (Testbericht SALZWIND)
+    if ((key === 'sunrise' || key === 'sunset') && value && Number.isNaN(parseTime(String(value)))) return
     pendingHeader.current = next
     debouncedSave(next)
+  }
+
+  /** Beim Verlassen: gültige Zeit vereinheitlichen, ungültige zurücknehmen und sagen. */
+  const sonnenzeitPruefen = (key: 'sunrise' | 'sunset', text: string) => {
+    const roh = text.trim()
+    if (!roh) return
+    const minuten = parseTime(roh)
+    if (Number.isNaN(minuten)) {
+      updateHeader(key, callSheet?.[key] ?? '')
+      toast({ variant: 'destructive', title: tt(D.keineUhrzeit).replace('{x}', roh), description: tt(D.uhrzeitGueltig) })
+    } else if (formatTime(minuten) !== roh) {
+      updateHeader(key, formatTime(minuten))
+    }
   }
 
   /** Offene Aenderung sofort schreiben, ohne auf den Debounce zu warten. */
@@ -1028,6 +1044,7 @@ export function Component() {
                   value={headerForm.sunrise || ''}
                   aria-label={tt(D.sonnenaufgang)}
                   onChange={e => updateHeader('sunrise', e.target.value)}
+                  onBlur={e => sonnenzeitPruefen('sunrise', e.target.value)}
                   className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono font-semibold shadow-none"
                   placeholder="05:30"
                 />
@@ -1043,6 +1060,7 @@ export function Component() {
                   value={headerForm.sunset || ''}
                   aria-label={tt(D.sonnenuntergang)}
                   onChange={e => updateHeader('sunset', e.target.value)}
+                  onBlur={e => sonnenzeitPruefen('sunset', e.target.value)}
                   className="h-7 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono font-semibold shadow-none"
                   placeholder="20:45"
                 />

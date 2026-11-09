@@ -71,6 +71,7 @@ function LoeschKnopf({ item, onDelete }: { item: MoodItem; onDelete?: () => void
 }
 
 function ImageCard({ item, onDelete }: { item: MoodItem; onDelete?: () => void }) {
+  const tt = useT()
   const [imgError, setImgError] = useState(false)
   return (
     <div className="relative group">
@@ -78,8 +79,9 @@ function ImageCard({ item, onDelete }: { item: MoodItem; onDelete?: () => void }
 
       <div className="rounded-xl overflow-hidden border border-foreground/[0.08] bg-card shadow-xl" style={{ width: item.width }}>
         {imgError ? (
-          <div className="flex items-center justify-center bg-foreground/[0.05] text-muted-foreground/70" style={{ height: 140 }}>
+          <div className="flex flex-col items-center justify-center gap-1.5 bg-foreground/[0.05] text-muted-foreground/70 px-3 text-center" style={{ height: 140 }}>
             <Image className="w-8 h-8" />
+            <span className="text-[11px]">{tt(moodboardT.nichtLadbar)}</span>
           </div>
         ) : (
           <img
@@ -294,7 +296,10 @@ function AddPanel({
     }
   }
 
-  const canSubmit = mode === 'image-url' ? imageUrl.trim() !== ''
+  // Nur Webadressen - vorher nahm das Feld jeden Text, und auf der Fläche
+  // stand danach ein leeres Bildsymbol ohne Erklärung (Testbericht SALZWIND)
+  const urlGueltig = /^https?:\/\/\S+$/i.test(imageUrl.trim())
+  const canSubmit = mode === 'image-url' ? urlGueltig
     : mode === 'image-file' ? fileBase64 !== ''
     : mode === 'note' ? (title.trim() !== '' || notes.trim() !== '')
     : mode === 'color' ? true
@@ -353,9 +358,13 @@ function AddPanel({
             onChange={e => setImageUrl(e.target.value)}
             placeholder="https://…"
             aria-label={tt(moodboardT.bildUrlFeld)}
+            aria-invalid={imageUrl.trim() !== '' && !urlGueltig}
             className="w-full rounded-lg px-3 py-2 text-[11px] font-mono outline-none"
             style={{ background: 'hsl(var(--foreground) / 0.07)', border: '1px solid hsl(var(--foreground) / 0.12)', color: 'hsl(var(--foreground) / 0.85)' }}
           />
+        )}
+        {mode === 'image-url' && imageUrl.trim() !== '' && !urlGueltig && (
+          <p role="alert" className="text-[11px] text-destructive">{tt(moodboardT.nurWebadresse)}</p>
         )}
 
         {mode === 'image-file' && (

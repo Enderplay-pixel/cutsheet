@@ -3,6 +3,7 @@ import type { Lang } from '@/lib/i18n'
 type Text = Record<Lang, string>
 
 export const dateienT = {
+  nurBilderPdf: { de: '„{name}“ geht nicht: Die Ablage nimmt Bilder und PDF', en: '“{name}” cannot be added: storage takes images and PDF', fr: '« {name} » impossible : le stockage accepte images et PDF' },
   geloescht:       { de: 'Gelöscht', en: 'Deleted', fr: 'Supprimé' },
   nichtGeloescht:  { de: 'Nicht gelöscht', en: 'Not deleted', fr: 'Non supprimé' },
   titel:           { de: 'Ablage', en: 'Files', fr: 'Documents' },

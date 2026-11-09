@@ -479,6 +479,7 @@ export const castT = {
 // ─── Scenes / Drehbuch ────────────────────────────────────────────────────────
 export const scenesT = {
   title:          { en: 'Scene Overview',       de: 'Szenenübersicht',         fr: 'Vue des scènes'          },
+  importUebersprungen: { en: '{n} lines skipped (line {zeilen}) - expected format: "12 INT. KITCHEN - DAY"', de: '{n} Zeilen übersprungen (Zeile {zeilen}) - erwartet wird "12 INT. KÜCHE - TAG"', fr: '{n} lignes ignorées (ligne {zeilen}) - format attendu : « 12 INT. CUISINE - JOUR »' },
   subtitle:       { en: '{n} scenes · {p} pages · ~{m} min. running time', de: '{n} Szenen · {p} Seiten · ca. {m} Min. Laufzeit', fr: '{n} scènes · {p} pages · ~{m} min. de durée' },
   // Summe der eingetragenen Drehzeiten der Szenen - getrennt von der Laufzeit
   drehzeitSumme:  { en: ' · {d} planned shooting time', de: ' · {d} geplante Drehzeit', fr: ' · {d} de tournage prévu' },

@@ -91,7 +91,18 @@ export function Component() {
                 ref={dateiFeld}
                 type="file"
                 accept="image/*,application/pdf"
-                onChange={(e) => setNeueDatei(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  // Der Server nimmt nur Bilder und PDF. Vorher merkte man das
+                  // erst nach dem zweiten Dialog (Testbericht SALZWIND: .txt)
+                  const datei = e.target.files?.[0] ?? null
+                  if (datei && !/^image\//.test(datei.type) && datei.type !== 'application/pdf') {
+                    toast({ title: tt(T.nurBilderPdf).replace('{name}', datei.name), variant: 'destructive' })
+                    e.target.value = ''
+                    setNeueDatei(null)
+                    return
+                  }
+                  setNeueDatei(datei)
+                }}
               />
             </div>
             <Button

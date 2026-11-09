@@ -15,6 +15,8 @@ export const tagesdispoT = {
   warteschlange:    { de: '{n} in der Warteschlange - der Versand läuft weiter', en: '{n} queued - sending continues', fr: "{n} en file d'attente - l'envoi continue" },
   testadresse:      { de: '{n} mit Testadresse, nicht verschickt', en: '{n} with a test address, not sent', fr: '{n} avec une adresse de test, non envoyés' },
   ohneMailserver:   { de: 'Nicht per Mail verschickt', en: 'Not sent by email', fr: 'Non envoyé par e-mail' },
+  keineUhrzeit:     { de: '„{x}“ ist keine Uhrzeit', en: '“{x}” is not a time', fr: '« {x} » n’est pas une heure' },
+  uhrzeitGueltig:   { de: 'Gültig sind 00:00 bis 23:59. Die vorige Zeit bleibt stehen.', en: 'Valid times are 00:00 to 23:59. The previous time stays.', fr: 'Les heures valides vont de 00:00 à 23:59. L’heure précédente est conservée.' },
   ohneMailserverText: {
     de: 'Es ist kein Mailserver eingerichtet. Die Dispo liegt im Postausgang - das PDF kannst du herunterladen und selbst weitergeben.',
     en: 'No mail server is set up. The call sheet is in the outbox - download the PDF and pass it on yourself.',
