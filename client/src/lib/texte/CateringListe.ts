@@ -23,6 +23,16 @@ export const cateringListeT = {
   darsteller:     { de: 'Darsteller', en: 'Actor', fr: 'Comédien(ne)' },
   crew:           { de: 'Crew', en: 'Crew', fr: 'Équipe' },
   komparse:       { de: 'Komparserie', en: 'Background', fr: 'Figuration' },
+  komparsenOhneTag: {
+    de: '{n} Einträge der Komparserie stehen hier nicht, weil sie noch keinem Drehtag zugeordnet sind - das geht in der Komparserie.',
+    en: '{n} background entries are not listed because they are not yet assigned to a shoot day - do that under Background.',
+    fr: '{n} entrées de figuration ne figurent pas ici car elles ne sont encore affectées à aucun jour de tournage - à faire dans Figuration.',
+  },
+  komparseOhneTag: {
+    de: 'Ein Eintrag der Komparserie steht hier nicht, weil er noch keinem Drehtag zugeordnet ist - das geht in der Komparserie.',
+    en: 'One background entry is not listed because it is not yet assigned to a shoot day - do that under Background.',
+    fr: 'Une entrée de figuration ne figure pas ici car elle n’est encore affectée à aucun jour de tournage - à faire dans Figuration.',
+  },
   allergienPh:    { de: 'Allergien…', en: 'Allergies…', fr: 'Allergies…' },
   notizenPh:      { de: 'Notizen…', en: 'Notes…', fr: 'Notes…' },
   titel:          { de: 'Catering', en: 'Catering', fr: 'Restauration' },

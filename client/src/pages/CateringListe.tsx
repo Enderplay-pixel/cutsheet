@@ -265,6 +265,10 @@ export function Component() {
     ...(extras ?? []).filter((p: any) => (p.drehtage ?? []).length > 0).map((p: any) => ({ ...p, person_type: 'extra' as const })),
   ]
 
+  // Komparsen ohne Drehtag essen nicht mit und stehen nicht in der Liste - die
+  // Seite sagt, wie viele das sind (Testbericht SALZWIND: "Komparsen fehlen")
+  const komparsenOhneTag = (extras ?? []).filter((p: any) => (p.drehtage ?? []).length === 0).length
+
   const prefMap = new Map<string, CateringPref>()
   for (const p of prefs ?? []) {
     prefMap.set(`${p.person_type}-${p.person_id}`, p)
@@ -368,6 +372,13 @@ export function Component() {
                 </table>
               </div>
             </div>
+          )}
+          {komparsenOhneTag > 0 && (
+            <p className="text-xs text-muted-foreground mt-3">
+              {komparsenOhneTag === 1
+                ? tt(cateringListeT.komparseOhneTag)
+                : tt(cateringListeT.komparsenOhneTag).replace('{n}', String(komparsenOhneTag))}
+            </p>
           )}
         </TabsContent>
 
