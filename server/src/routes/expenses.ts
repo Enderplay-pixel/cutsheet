@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
+import { massgeblicheKalkulation } from '../lib/kalkulation'
 
 const router = Router()
 
@@ -77,11 +78,8 @@ router.delete('/expenses/:id', requireAuth, async (req: Request, res: Response) 
 
 // GET /api/projects/:projectId/kostenstand - Soll/Ist je Kategorie gegen aktive Kalkulation
 router.get('/projects/:projectId/kostenstand', requireAuth, requireMember, async (req: Request, res: Response) => {
-  const activeVersion = await db.get(
-    `SELECT id, name, total_cents FROM budget_versions WHERE project_id = ? AND status = 'Aktiv'
-     ORDER BY id DESC LIMIT 1`,
-    [req.params.projectId]
-  ) as any
+  // Die aktive Fassung, sonst die neueste (lib/kalkulation.ts)
+  const activeVersion = await massgeblicheKalkulation(String(req.params.projectId))
 
   const sollByCategory: Record<string, number> = {}
   if (activeVersion) {
@@ -120,7 +118,7 @@ router.get('/projects/:projectId/kostenstand', requireAuth, requireMember, async
 
   return res.json({
     data: {
-      budget_version: activeVersion ? { id: activeVersion.id, name: activeVersion.name } : null,
+      budget_version: activeVersion ? { id: activeVersion.id, name: activeVersion.name, status: activeVersion.status } : null,
       rows,
       totals: { soll_cents: sollTotal, ist_cents: istTotal, diff_cents: sollTotal - istTotal },
     },

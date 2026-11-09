@@ -5,6 +5,7 @@ import { ProjectSchema } from '../schemas'
 import { getUserProjectRole, requireMember, ROLE_RANK } from '../middleware/projectAuth'
 import { requireAuth } from '../middleware/auth'
 import { heuteISO } from '../lib/datum'
+import { massgeblicheKalkulation } from '../lib/kalkulation'
 
 const router = Router()
 
@@ -409,7 +410,8 @@ router.get('/:id/stats', requireAuth, async (req: Request, res: Response) => {
   const total_cast = ((await db.get('SELECT COUNT(*) as c FROM cast WHERE project_id = ?', [pid])) as any).c
   const total_crew = ((await db.get('SELECT COUNT(*) as c FROM crew WHERE project_id = ?', [pid])) as any).c
   const pagesRow = await db.get('SELECT COALESCE(SUM(eighths), 0) as s FROM scenes WHERE project_id = ?', [pid]) as any
-  const budgetRow = await db.get('SELECT COALESCE(MAX(total_cents), 0) as s FROM budget_versions WHERE project_id = ? AND status = \'Aktiv\'', [pid]) as any
+  // Die aktive Fassung, sonst die neueste (lib/kalkulation.ts)
+  const budgetRow = { s: (await massgeblicheKalkulation(pid))?.total_cents ?? 0 }
   const finRow = await db.get('SELECT COALESCE(MAX(total_cents), 0) as s FROM financing_plan_versions WHERE project_id = ?', [pid]) as any
 
   // date ist Text: '' bei undatierten Tagen. Vorher date::date - ein einziger

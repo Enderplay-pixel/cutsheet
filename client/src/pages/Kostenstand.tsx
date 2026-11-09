@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { formatCurrency, cn, betragInCent } from '@/lib/utils'
+import { formatCurrency, cn, betragInCent, heuteISO } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -29,7 +29,8 @@ function KostenstandSeite() {
   const [category, setCategory] = useState('')
   const [amount, setAmount] = useState('')
   const [receiptNo, setReceiptNo] = useState('')
-  const [date, setDate] = useState('')
+  // Ein Beleg ohne Datum zählte in keiner Auswertung - vorbelegt mit heute
+  const [date, setDate] = useState(heuteISO())
 
   const { data: kostenstand, isLoading } = useQuery({
     queryKey: ['kostenstand', pid],
@@ -106,6 +107,9 @@ function KostenstandSeite() {
           <h1 className="font-display text-[28px] sm:text-[34px]">{tt(T.titel)}</h1>
           <p className="text-[12px] text-muted-foreground mt-1">
             {kostenstand?.budget_version ? tt(T.istGegenVersion).replace('{name}', kostenstand.budget_version.name) : tt(T.istGegen)}
+            {kostenstand?.budget_version && kostenstand.budget_version.status !== 'Aktiv' && (
+              <> ({tt(T.nichtAktiv).replace('{status}', kostenstand.budget_version.status)})</>
+            )}
           </p>
         </div>
       </div>

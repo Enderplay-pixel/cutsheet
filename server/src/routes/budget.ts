@@ -3,6 +3,7 @@ import * as kosten from '../lib/kostenquellen'
 import { drehtageBesetzung, drehtageStab, anzahl } from '../lib/drehtage'
 import { db } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
+import { massgeblicheKalkulation } from '../lib/kalkulation'
 
 const router = Router()
 
@@ -52,7 +53,8 @@ router.get('/projects/:projectId/budget-summary', async (req, res) => {
   // status = "Aktiv" suchte eine Spalte namens Aktiv. Die Auswertung
   // antwortete deshalb bei JEDEM Projekt mit 500 - und mit ihr der
   // Budgetalarm, der nie ausgeloest hat.
-  const budgetRow = await db.get("SELECT COALESCE(MAX(total_cents), 0) as total FROM budget_versions WHERE project_id = ? AND status = 'Aktiv'", [pid]) as any
+  // Die aktive Fassung, sonst die neueste (lib/kalkulation.ts)
+  const budgetRow = { total: (await massgeblicheKalkulation(pid))?.total_cents ?? 0 }
 
   // Ausgegeben heisst AUSGEGEBEN - die erfassten Kosten, nicht die Summe der
   // Kalkulationszeilen. Vorher stand hier die Kalkulation gegen sich selbst:

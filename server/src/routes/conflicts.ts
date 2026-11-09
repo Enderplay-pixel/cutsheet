@@ -5,6 +5,7 @@ import { ruhezeit } from '../lib/drehzeit'
 import { istIsoDatum } from '../lib/datum'
 import { sperrtagKonflikte } from '../lib/sperrtage'
 import { ohneGagen } from '../lib/gagenschutz'
+import { massgeblicheKalkulation } from '../lib/kalkulation'
 
 const router = Router()
 
@@ -151,7 +152,8 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
 
   // 7. Budget vs financing - nur für wer die Kalkulation sieht (lib/gagenschutz.ts)
   if (!ohneGagen(req)) await pruefung('Budget gegen Finanzierung', conflicts, async () => {
-    const budget = await db.get(`SELECT COALESCE(total_cents, 0) as t FROM budget_versions WHERE project_id = ? ORDER BY (status = 'Aktiv') DESC, created_at DESC LIMIT 1`, [pid]) as any
+    const kalkulation = await massgeblicheKalkulation(pid)
+    const budget = kalkulation ? { t: kalkulation.total_cents } : null
     const financing = await db.get(`SELECT COALESCE(total_cents, 0) as t FROM financing_plan_versions WHERE project_id = ? ORDER BY created_at DESC LIMIT 1`, [pid]) as any
     const gap = (budget?.t || 0) - (financing?.t || 0)
     if (gap > 5000) { // >50€ gap

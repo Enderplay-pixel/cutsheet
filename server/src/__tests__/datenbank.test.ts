@@ -143,6 +143,9 @@ beforeAll(async () => {
       .map(async (name) => (await import(`../routes/${name}`)).default)
   )
   app.use('/api', optionalAuth, ...loeschRouter)
+  const { default: belegeRouter } = await import('../routes/expenses')
+  const { default: auswertungenRouter } = await import('../routes/auswertungen')
+  app.use('/api', optionalAuth, belegeRouter, auswertungenRouter)
   const { default: motivvertragRouter } = await import('../routes/locationRelease')
   app.use('/api', optionalAuth, motivvertragRouter)
   const { default: drehbuchRouter } = await import('../routes/screenplay')
@@ -1976,6 +1979,57 @@ describe('Auswertungen ohne Abfrage je Zeile', () => {
     expect(antwort.daten.anzahl).toBe(40)
     expect(antwort.daten.steuer_cents).toBe(40 * 190)
     expect(bei40).toBe(bei5)
+  })
+})
+
+describe('Auswertung: Kosten wie im Kostenstand', () => {
+  // Testbericht SALZWIND 09.11.2026: Belege erfasst, Rechnung festgeschrieben,
+  // Auswertung "Kosten 0 €, Marge 100 %". Der Kostenstand speichert einen Beleg
+  // ohne Datum, wenn das Feld leer bleibt - die Auswertung filterte nach Datum.
+  // Und Umsatz zählte über die Rechnung, Kosten nur bei Projekten der Firma.
+  it('zählt Belege ohne Datum und Projekte, die nur über die Rechnung zur Firma gehören', async () => {
+    const firma = (await db.run("INSERT INTO companies (name, owner_id) VALUES ('Kosten GmbH', ?)", [nutzerId])).id
+    const kunde = (await db.run("INSERT INTO company_clients (company_id, name) VALUES (?, 'Sender')", [firma])).id
+    const projekt = (await db.run("INSERT INTO projects (title, owner_id) VALUES ('Ohne Firma', ?)", [nutzerId])).id
+    const heute = new Date().toISOString().slice(0, 10)
+    const rechnung = (await db.run(
+      "INSERT INTO invoices (company_id, client_id, project_id, number, status, issue_date, tax_mode, net_cents) VALUES (?, ?, ?, ?, 'versendet', ?, 'regel', 100000)",
+      [firma, kunde, projekt, `K-${Math.random()}`, heute]
+    )).id
+    expect(rechnung).toBeGreaterThan(0)
+    const beleg = await hole(`/api/projects/${projekt}/expenses`, tokenInhaber, {
+      method: 'POST', body: JSON.stringify({ description: 'Kamera', category: 'Equipment', amount_cents: 22190 }),
+    })
+    expect(beleg.status).toBe(201)
+
+    const auswertung = await hole(`/api/companies/${firma}/auswertungen`, tokenInhaber)
+    expect(auswertung.status).toBe(200)
+    expect(auswertung.daten.kosten_cents).toBe(22190)
+    const zeile = auswertung.daten.je_projekt.find((p: any) => Number(p.id) === projekt)
+    expect(zeile.kosten_cents).toBe(22190)
+    expect(zeile.marge_promille).toBe(778)
+  })
+})
+
+describe('Kostenstand gegen die maßgebliche Kalkulation', () => {
+  // Testbericht SALZWIND: Kalkulation gefüllt, aber als "Entwurf" -
+  // Kostenstand "Kalkuliert 0,00 €" und "Überzogen".
+  it('rechnet ohne aktive Fassung gegen die neueste und sagt, welche', async () => {
+    const projekt = (await db.run("INSERT INTO projects (title, owner_id) VALUES ('Soll', ?)", [nutzerId])).id
+    const alt = (await db.run("INSERT INTO budget_versions (project_id, name, created_at) VALUES (?, 'Erste', NOW() - interval '1 day')", [projekt])).id
+    const neu = (await db.run("INSERT INTO budget_versions (project_id, name) VALUES (?, 'Zweite')", [projekt])).id
+    await db.run("INSERT INTO budget_lines (budget_version_id, category, description, total_cents) VALUES (?, 'Equipment', 'alt', 100)", [alt])
+    await db.run("INSERT INTO budget_lines (budget_version_id, category, description, total_cents) VALUES (?, 'Equipment', 'Kamera', 7418000)", [neu])
+    const stand = await hole(`/api/projects/${projekt}/kostenstand`, tokenInhaber)
+    expect(stand.status).toBe(200)
+    expect(stand.daten.budget_version).toMatchObject({ id: neu, name: 'Zweite', status: 'Entwurf' })
+    expect(stand.daten.totals.soll_cents).toBe(7418000)
+
+    // Ist eine Fassung aktiv, zählt sie - auch wenn sie älter ist
+    await db.run("UPDATE budget_versions SET status = 'Aktiv' WHERE id = ?", [alt])
+    const aktiv = await hole(`/api/projects/${projekt}/kostenstand`, tokenInhaber)
+    expect(aktiv.daten.budget_version.id).toBe(alt)
+    expect(aktiv.daten.totals.soll_cents).toBe(100)
   })
 })
 

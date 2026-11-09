@@ -35,6 +35,9 @@ function zeitraum(req: Request): { von: string; bis: string } {
   }
 }
 
+/** Der Tag, an dem ein Beleg zählt: sein Datum, ohne Datum der Tag der Erfassung. */
+const BELEGTAG = "COALESCE(e.expense_date, (e.created_at AT TIME ZONE 'Europe/Berlin')::date)"
+
 // ─── Auswertungen ────────────────────────────────────────────────────────────
 
 /**
@@ -75,13 +78,19 @@ router.get('/companies/:companyId/auswertungen', requireAuth, erfordereAbrechnun
         GROUP BY p.id, p.title ORDER BY 3 DESC`,
       [companyId, von, bis]
     ) as Promise<any[]>,
-    // Ausgaben je Projekt - die andere Seite des Deckungsbeitrags.
+    // Ausgaben je Projekt - die andere Seite des Deckungsbeitrags. Dieselben
+    // Projekte wie beim Umsatz: der Firma zugeordnet ODER über eine ihrer
+    // Rechnungen abgerechnet. Ein Beleg ohne Datum zählt am Tag seiner
+    // Erfassung. Gemessen am 09.11.2026 (Testbericht SALZWIND): Beleg ohne
+    // Datum, Projekt ohne Firmenzuordnung, Rechnung der Firma - Auswertung
+    // "Kosten 0 €, Marge 100 %".
     db.all(
       `SELECT e.project_id, p.title, SUM(e.amount_cents) AS summe
          FROM expenses e JOIN projects p ON e.project_id = p.id
-        WHERE p.company_id = ? AND e.expense_date >= ? AND e.expense_date <= ?
+        WHERE (p.company_id = ? OR EXISTS (SELECT 1 FROM invoices i WHERE i.project_id = p.id AND i.company_id = ?))
+          AND ${BELEGTAG} >= ? AND ${BELEGTAG} <= ?
         GROUP BY e.project_id, p.title`,
-      [companyId, von, bis]
+      [companyId, companyId, von, bis]
     ) as Promise<any[]>,
     db.all(
       // shoot_days.date ist eine Textspalte im ISO-Format - to_char gibt es
@@ -174,7 +183,7 @@ router.get('/companies/:companyId/auswertungen/export.csv', requireAuth, erforde
   const zeilen = (await db.all(
     `SELECT p.title, SUM(i.net_cents) AS netto, COUNT(*) AS anzahl,
             COALESCE((SELECT SUM(amount_cents) FROM expenses e
-                       WHERE e.project_id = p.id AND e.expense_date >= ? AND e.expense_date <= ?), 0) AS kosten
+                       WHERE e.project_id = p.id AND ${BELEGTAG} >= ? AND ${BELEGTAG} <= ?), 0) AS kosten
        FROM invoices i JOIN projects p ON i.project_id = p.id
       WHERE i.company_id = ? AND i.kind = 'rechnung' AND i.status NOT IN ('entwurf', 'storniert')
         AND i.issue_date >= ? AND i.issue_date <= ?

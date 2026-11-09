@@ -9,6 +9,8 @@ export const kostenstandT = {
   titel:            { de: 'Kostenstand', en: 'Cost status', fr: 'État des coûts' },
   istGegenVersion:  { de: 'Ist-Kosten gegen Kalkulation „{name}“', en: 'Actual costs against budget "{name}"', fr: 'Coûts réels par rapport au budget « {name} »' },
   istGegen:         { de: 'Ist-Kosten gegen die Kalkulation', en: 'Actual costs against the budget', fr: 'Coûts réels par rapport au budget' },
+  // Keine Fassung ist "Aktiv": gerechnet wird gegen die neueste (server/src/lib/kalkulation.ts)
+  nichtAktiv:       { de: '{status}, keine Fassung ist als aktiv markiert - es zählt die neueste', en: '{status}, no version is marked active - the newest one counts', fr: '{status}, aucune version n’est marquée active - la plus récente compte' },
   ueberzogen:       {
     de: 'Budget überzogen: {p} % der Kalkulation ausgegeben.',
     en: 'Over budget: {p} % of the budget spent.',
