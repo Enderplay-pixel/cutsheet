@@ -44,11 +44,16 @@ function AppShell() {
   }
 
   // Fetch project to get my_role
-  const { data: project } = useQuery({
+  const { data: project, error: projektFehler } = useQuery({
     queryKey: ['project', Number(projectId)],
     queryFn: () => api.projects.get(Number(projectId)),
     enabled: !!projectId,
+    // Kein Zugriff und nicht gefunden ändern sich nicht durch Warten
+    retry: (n, e: any) => !/Zugriff|nicht gefunden|access|not found/i.test(String(e?.message)) && n < 2,
   })
+  // Fremdes oder fehlendes Projekt: Vorher stand ein leeres Dashboard da, als
+  // wäre das Projekt nur leer (Testbericht SALZWIND, /projects/999999)
+  const keinZugriff = !!projectId && !project && !!projektFehler
   const myRole = (project as any)?.my_role ?? 'read_only'
   const tt = useT()
 
@@ -117,7 +122,19 @@ function AppShell() {
                 {/* Seitenwechsel-Animation; h-full, damit Vollhöhen-Seiten wie
                     Drehplan und Moodboard ihre Höhe behalten */}
                 <div className="page-enter h-full">
-                  <Outlet />
+                  {keinZugriff ? (
+                    <div className="px-5 py-10 sm:p-10 max-w-xl mx-auto">
+                      <h1 className="font-display text-[26px]">{tt(appT.keinZugriffTitel)}</h1>
+                      <p className="text-sm text-muted-foreground mt-2">{tt(appT.keinZugriffText)}</p>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/')}
+                        className="mt-5 inline-flex items-center rounded-full border border-border px-4 h-9 text-[13px] font-medium hover:bg-muted/50"
+                      >
+                        {tt(appT.zuDenProjekten)}
+                      </button>
+                    </div>
+                  ) : <Outlet />}
                 </div>
               </ErrorBoundary>
             </main>

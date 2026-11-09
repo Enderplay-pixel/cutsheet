@@ -206,6 +206,14 @@ export const appT = {
     fr: 'Tu as un accès en lecture seule à ce projet - les modifications ne sont pas possibles.',
   },
   readOnlyLabel: { en: 'read-only access', de: 'Lesezugriff', fr: 'lecture seule' },
+  // Projekt ohne Zugriff oder nicht vorhanden - statt eines leeren Dashboards
+  keinZugriffTitel: { en: 'This project is not available', de: 'Dieses Projekt ist nicht erreichbar', fr: 'Ce projet n’est pas accessible' },
+  keinZugriffText: {
+    en: 'It does not exist, or you are not a member. Ask the production for an invitation.',
+    de: 'Entweder gibt es das Projekt nicht, oder du bist nicht Mitglied. Die Produktion kann dich einladen.',
+    fr: 'Il n’existe pas ou tu n’en es pas membre. La production peut t’inviter.',
+  },
+  zuDenProjekten: { en: 'To my projects', de: 'Zu meinen Projekten', fr: 'Vers mes projets' },
   // Auffangnetz in main.tsx für Schreibvorgänge ohne eigenes onError
   notSaved:      { en: 'Not saved', de: 'Nicht gespeichert', fr: 'Non enregistré' },
   notSavedText:  { en: 'The change could not be saved.', de: 'Die Änderung konnte nicht gespeichert werden.', fr: "La modification n'a pas pu être enregistrée." },
