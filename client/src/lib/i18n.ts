@@ -471,7 +471,9 @@ export const castT = {
 // ─── Scenes / Drehbuch ────────────────────────────────────────────────────────
 export const scenesT = {
   title:          { en: 'Scene Overview',       de: 'Szenenübersicht',         fr: 'Vue des scènes'          },
-  subtitle:       { en: '{n} scenes · {p} pages · ~{m} min.', de: '{n} Szenen · {p} Seiten · ca. {m} Min.', fr: '{n} scènes · {p} pages · ~{m} min.' },
+  subtitle:       { en: '{n} scenes · {p} pages · ~{m} min. running time', de: '{n} Szenen · {p} Seiten · ca. {m} Min. Laufzeit', fr: '{n} scènes · {p} pages · ~{m} min. de durée' },
+  // Summe der eingetragenen Drehzeiten der Szenen - getrennt von der Laufzeit
+  drehzeitSumme:  { en: ' · {d} planned shooting time', de: ' · {d} geplante Drehzeit', fr: ' · {d} de tournage prévu' },
   newScene:       { en: 'New Scene',            de: 'Neue Szene',              fr: 'Nouvelle scène'          },
   noScenes:       { en: 'No scenes yet',        de: 'Noch keine Szenen',       fr: 'Aucune scène'            },
   noScenesHint:   { en: 'Create the first scene or import from a script.', de: 'Erstelle die erste Szene oder importiere aus einem Skript.', fr: 'Crée la première scène ou importe-la depuis un script.' },

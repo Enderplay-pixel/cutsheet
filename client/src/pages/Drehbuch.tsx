@@ -456,7 +456,15 @@ export function Component() {
   })
 
   const totalEighths = (scenes || []).reduce((s: number, sc: any) => s + (sc.eighths || 0), 0)
-  const totalMinutes = Math.round((totalEighths / 8) * 60)
+  // Laufzeit: eine Seite ist etwa eine Minute Film. Vorher stand hier Seiten
+  // mal 60 als "ca. … Min." - 16,5 Seiten wurden "ca. 990 Min.", weder
+  // Laufzeit noch Drehzeit (Testbericht SALZWIND).
+  const totalMinutes = Math.round(totalEighths / 8)
+  // Drehzeit: was in den Szenen als geplante Minuten steht
+  const drehzeitMinuten = (scenes || []).reduce((s: number, sc: any) => s + (Number(sc.estimated_minutes) || 0), 0)
+  const drehzeitText = drehzeitMinuten >= 60
+    ? `${Math.floor(drehzeitMinuten / 60)} Std.${drehzeitMinuten % 60 ? ` ${drehzeitMinuten % 60} Min.` : ''}`
+    : `${drehzeitMinuten} Min.`
   // Eine INT/EXT-Szene hat Innen und Außen - sie gehört in beide Filter.
   // Vorher fehlte sie in beiden (Testbericht SALZWIND, Fahrszene).
   const teilVon = (intExt: string, art: string) => intExt === art || intExt === 'INT/EXT'
@@ -488,6 +496,7 @@ export function Component() {
                 .replace('{n}', String(scenes?.length || 0))
                 .replace('{p}', eighthsToString(totalEighths))
                 .replace('{m}', String(totalMinutes))}
+              {drehzeitMinuten > 0 && tt(scenesT.drehzeitSumme).replace('{d}', drehzeitText)}
             </p>
           </div>
           <div data-einfuehrung="aktionen" className="flex gap-2 flex-wrap">
