@@ -3,7 +3,7 @@ import { db } from '../db'
 import { besetzungNachziehen } from '../lib/dispo'
 import { requireMember } from '../middleware/projectAuth'
 import { baueUeberschrift, leseUeberschrift } from '../lib/szenenUeberschrift'
-import { motivVerknuepfen } from '../lib/motive'
+import { motivVerknuepfen, verwaistesMotivEntfernen } from '../lib/motive'
 
 const router = Router()
 
@@ -195,7 +195,10 @@ router.delete('/scenes/:id', async (req, res) => {
   // und dieser Anteil verschwand aus der Summe - der Tag wirkte kuerzer, als
   // er war.
   const szene = await db.get('SELECT shoot_day_id FROM shoot_day_scenes WHERE scene_id = ?', [req.params.id]) as any
+  // Ein Motiv, das nur als Hülle für diese Szene entstand, geht mit (lib/motive.ts)
+  const verwaist = await verwaistesMotivEntfernen(db, Number(req.params.id))
   await db.run('DELETE FROM scenes WHERE id = ?', [req.params.id])
+  if (verwaist) await db.run('DELETE FROM locations WHERE id = ?', [verwaist])
   if (szene?.shoot_day_id) {
     const bericht = await db.get(
       'SELECT id, scenes_completed, scenes_partial FROM daily_reports WHERE shoot_day_id = ?',

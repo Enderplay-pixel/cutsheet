@@ -70,6 +70,43 @@ const schluessel = (name: unknown) => String(name ?? '').trim().replace(/\s+/g, 
  * zuordnen - nach den Regeln oben. Gibt das Motiv zurück, oder null, wenn
  * nichts zugeordnet wurde.
  */
+/**
+ * Ein Motiv, das nur aus seinem Namen besteht und an dem außer `ausserSzene`
+ * nichts hängt: keine Adresse, kein Kontakt, keine Notiz, keine Miete, kein
+ * Foto, keine andere Szene, keine Dispo, kein Vertrag, kein Set-Plan, keine Datei.
+ */
+async function istLeereHuelle(z: Zugriff, locationId: number, ausserSzene: number): Promise<boolean> {
+  const huelle = await z.get(
+    `SELECT l.id FROM locations l
+      WHERE l.id = ? AND l.address = '' AND l.city = '' AND l.zip = '' AND l.notes = ''
+        AND l.contact_name = '' AND l.contact_phone = '' AND l.contact_email = ''
+        AND l.rental_fee = 0 AND l.lat IS NULL AND COALESCE(l.photos, '[]') IN ('[]', '')
+        AND NOT EXISTS (SELECT 1 FROM scenes s WHERE s.location_id = l.id AND s.id <> ?)
+        AND NOT EXISTS (SELECT 1 FROM call_sheets c WHERE c.location_id = l.id)
+        AND NOT EXISTS (SELECT 1 FROM location_releases r WHERE r.location_id = l.id)
+        AND NOT EXISTS (SELECT 1 FROM floorplans f WHERE f.location_id = l.id)
+        AND NOT EXISTS (SELECT 1 FROM project_files d WHERE d.entity_id = l.id
+                          AND (d.entity_type ILIKE 'location%' OR d.entity_type ILIKE 'motiv%'))`,
+    [locationId, ausserSzene]
+  )
+  return !!huelle
+}
+
+/**
+ * Nach dem Löschen einer Szene: Ihr Motiv geht mit, wenn es eine leere Hülle
+ * war, die nur für diese Szene aus der Überschrift entstand. Gemessen im
+ * Testbericht SALZWIND (09.11.2026): Szenen gelöscht, ihre Motive blieben als
+ * Waisen in der Motivliste. Ein ausgefülltes Motiv bleibt - dort steht ein
+ * realer Drehort. Aufzurufen, solange die Szene noch da ist.
+ */
+export async function verwaistesMotivEntfernen(z: Zugriff, sceneId: number): Promise<number | null> {
+  const szene = await z.get('SELECT location_id FROM scenes WHERE id = ?', [sceneId])
+  const locationId = Number(szene?.location_id)
+  if (!locationId) return null
+  if (!(await istLeereHuelle(z, locationId, sceneId))) return null
+  return locationId
+}
+
 export async function motivVerknuepfen(
   z: Zugriff,
   projectId: number,
@@ -89,20 +126,7 @@ export async function motivVerknuepfen(
 
   if (jetzt) {
     // Nur eine leere Hülle, an der sonst nichts hängt, folgt der Überschrift
-    const huelle = await z.get(
-      `SELECT l.id FROM locations l
-        WHERE l.id = ? AND l.address = '' AND l.city = '' AND l.zip = '' AND l.notes = ''
-          AND l.contact_name = '' AND l.contact_phone = '' AND l.contact_email = ''
-          AND l.rental_fee = 0 AND l.lat IS NULL AND COALESCE(l.photos, '[]') IN ('[]', '')
-          AND NOT EXISTS (SELECT 1 FROM scenes s WHERE s.location_id = l.id AND s.id <> ?)
-          AND NOT EXISTS (SELECT 1 FROM call_sheets c WHERE c.location_id = l.id)
-          AND NOT EXISTS (SELECT 1 FROM location_releases r WHERE r.location_id = l.id)
-          AND NOT EXISTS (SELECT 1 FROM floorplans f WHERE f.location_id = l.id)
-          AND NOT EXISTS (SELECT 1 FROM project_files d WHERE d.entity_id = l.id
-                            AND (d.entity_type ILIKE 'location%' OR d.entity_type ILIKE 'motiv%'))`,
-      [jetzt.id, sceneId]
-    )
-    if (!huelle) return null
+    if (!(await istLeereHuelle(z, Number(jetzt.id), sceneId))) return null
     if (!gleich) {
       const name = alsMotivname(ort)
       await z.run('UPDATE locations SET name = ? WHERE id = ?', [name, jetzt.id])
