@@ -466,6 +466,9 @@ export function Component() {
                   queryClient.invalidateQueries({ queryKey: ['drehplan-versions', pid] })
                   setShowAiOptimize(false)
                 } catch (e: any) {
+                  // Der Dialog schließt auch beim Fehler - offen sah er aus, als
+                  // hinge die KI noch (Testbericht SALZWIND: "über 60 s offen")
+                  setShowAiOptimize(false)
                   toast({ title: tt(T.optFehler), description: e.message, variant: 'destructive' })
                 } finally {
                   setAiOptimizing(false)

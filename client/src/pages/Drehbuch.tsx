@@ -457,8 +457,11 @@ export function Component() {
 
   const totalEighths = (scenes || []).reduce((s: number, sc: any) => s + (sc.eighths || 0), 0)
   const totalMinutes = Math.round((totalEighths / 8) * 60)
-  const intCount = (scenes || []).filter((s: any) => s.int_ext === 'INT').length
-  const extCount = (scenes || []).filter((s: any) => s.int_ext === 'EXT').length
+  // Eine INT/EXT-Szene hat Innen und Außen - sie gehört in beide Filter.
+  // Vorher fehlte sie in beiden (Testbericht SALZWIND, Fahrszene).
+  const teilVon = (intExt: string, art: string) => intExt === art || intExt === 'INT/EXT'
+  const intCount = (scenes || []).filter((s: any) => teilVon(s.int_ext, 'INT')).length
+  const extCount = (scenes || []).filter((s: any) => teilVon(s.int_ext, 'EXT')).length
   const nightCount = (scenes || []).filter((s: any) => s.day_night === 'NACHT').length
   const dayCount = (scenes || []).filter((s: any) => s.day_night === 'TAG').length
   const shotCount = (scenes || []).filter((s: any) => s.shot_status === 'abgedreht').length
@@ -466,7 +469,8 @@ export function Component() {
   const filtered = (scenes || []).filter((s: any) => {
     const matchSearch = !search || s.title?.toLowerCase().includes(search.toLowerCase()) ||
       s.scene_number?.includes(search) || s.location_name?.toLowerCase().includes(search.toLowerCase())
-    const matchFilter = filterType === 'all' || s.int_ext === filterType || s.day_night === filterType ||
+    const matchFilter = filterType === 'all' || s.day_night === filterType ||
+      ((filterType === 'INT' || filterType === 'EXT') && teilVon(s.int_ext, filterType)) ||
       (filterType === 'abgedreht' && s.shot_status === 'abgedreht') ||
       (filterType === 'offen' && s.shot_status !== 'abgedreht')
     return matchSearch && matchFilter
