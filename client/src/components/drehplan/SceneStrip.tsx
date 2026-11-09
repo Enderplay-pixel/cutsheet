@@ -32,6 +32,9 @@ export function SceneStrip({ scene, shootDayId, onRemove, draggable = true }: Sc
       role="listitem"
       aria-label={sceneLabel}
       aria-grabbed={isDragging}
+      // Die ganze Karte ist Greiffläche; der Entfernen-Knopf bleibt ein Klick
+      // (MouseSensor startet erst nach 8 px Bewegung)
+      {...(draggable ? listeners : {})}
       className={cn(
         'group flex items-center gap-1 rounded text-xs mb-1 cursor-grab active:cursor-grabbing select-none',
         stripClass,
@@ -41,7 +44,6 @@ export function SceneStrip({ scene, shootDayId, onRemove, draggable = true }: Sc
       {draggable && (
         <div
           {...attributes}
-          {...listeners}
           className="px-1 py-2 text-muted-foreground hover:text-foreground"
           aria-label={verschieben}
           title={verschieben}

@@ -35,7 +35,10 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
   const leerGesperrt = isSperrtag && (day.scenes || []).length === 0
 
   return (
+    // Die ganze Spalte nimmt Szenen an, auch über dem Kopf - vorher nur die
+    // Fläche darunter (Testbericht SALZWIND: Drop nur in der Spaltenmitte)
     <div
+      ref={setNodeRef}
       data-einfuehrung="drehtag"
       className={cn(
         'flex flex-col shrink-0 w-[200px] border rounded-lg overflow-hidden',
@@ -104,7 +107,6 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
 
       {/* Drop zone */}
       <div
-        ref={setNodeRef}
         className={cn(
           'flex-1 p-2 min-h-[120px] transition-colors',
           isOver && 'bg-primary/10',

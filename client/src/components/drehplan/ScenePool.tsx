@@ -17,16 +17,19 @@ function PoolSceneStrip({ scene }: { scene: any }) {
   const stripClass = getStripClass(scene.int_ext, scene.day_night)
 
   return (
+    // Die ganze Karte ist Greiffläche, nicht nur der Griff (Testbericht
+    // SALZWIND: 32 Szenen am 12-Pixel-Griff einzeln gezogen)
     <div
       ref={setNodeRef}
       style={style}
+      {...listeners}
       className={cn(
         'flex items-center gap-1 rounded text-xs mb-1 cursor-grab active:cursor-grabbing select-none',
         stripClass,
         isDragging && 'opacity-50 ring-1 ring-primary'
       )}
     >
-      <div {...attributes} {...listeners} className="px-1 py-2 text-muted-foreground">
+      <div {...attributes} className="px-1 py-2 text-muted-foreground">
         <GripVertical className="w-3 h-3" />
       </div>
       <div className="flex-1 py-1.5 min-w-0">
