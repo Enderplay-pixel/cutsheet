@@ -297,7 +297,11 @@ const ZAHLWEGE = [
   { wert: 'verrechnung', label: 'Verrechnung' },
 ]
 
-function ZahlungenDialog({ firmaId, posten, schliessen }: { firmaId: number; posten: any; schliessen: () => void }) {
+/**
+ * Zahlungen einer Rechnung erfassen - Betrag, Datum, Weg, Teilzahlung.
+ * Auch die Rechnung selbst öffnet diesen Dialog (pages/Rechnungen.tsx).
+ */
+export function ZahlungenDialog({ firmaId, posten, schliessen }: { firmaId: number; posten: any; schliessen: () => void }) {
   const qc = useQueryClient()
   const { toast } = useToast()
   // Voreingestellt ist der offene Restbetrag: Der häufigste Fall ist, dass

@@ -688,10 +688,10 @@ describe('Rechnungen', () => {
   }, 60_000)
 
   /** Legt einen Entwurf mit einer Position an und gibt die Kennung zurück. */
-  async function entwurfMitPosition(betragCents = 10000): Promise<number> {
+  async function entwurfMitPosition(betragCents = 10000, leistung: string | null = '2026-10-01'): Promise<number> {
     const entwurf = await hole(`/api/companies/${firmaId}/invoices`, tokenInhaber, {
       method: 'POST',
-      body: JSON.stringify({ client_id: kundeId, issue_date: '2026-10-08' }),
+      body: JSON.stringify({ client_id: kundeId, issue_date: '2026-10-08', service_from: leistung }),
     })
     const id = entwurf.daten.id
     await hole(`/api/companies/${firmaId}/invoices/${id}/items`, tokenInhaber, {
@@ -702,6 +702,17 @@ describe('Rechnungen', () => {
     })
     return id
   }
+
+  it('schreibt ohne Leistungsdatum nicht fest (§ 14 Abs. 4 Nr. 6 UStG)', async () => {
+    // Testbericht SALZWIND: Entwurf ohne "Leistung von" bekam Nummer 2026-0001
+    const id = await entwurfMitPosition(10000, null)
+    const antwort = await hole(`/api/companies/${firmaId}/invoices/${id}/issue`, tokenInhaber, { method: 'POST' })
+    expect(antwort.status).toBe(400)
+    expect(antwort.fehler).toContain('Leistungsdatum')
+    const gelesen = await hole(`/api/companies/${firmaId}/invoices/${id}`, tokenInhaber)
+    expect(gelesen.daten.status).toBe('entwurf')
+    expect(gelesen.daten.number ?? '').toBe('')
+  })
 
   it('legt einen Entwurf ohne Nummer an und rechnet die Fälligkeit', async () => {
     const entwurf = await hole(`/api/companies/${firmaId}/invoices`, tokenInhaber, {
@@ -891,7 +902,7 @@ describe('Rechnungen', () => {
   it('zählt den Jahreswechsel neu', async () => {
     const entwurf = await hole(`/api/companies/${firmaId}/invoices`, tokenInhaber, {
       method: 'POST',
-      body: JSON.stringify({ client_id: kundeId, issue_date: '2027-01-03' }),
+      body: JSON.stringify({ client_id: kundeId, issue_date: '2027-01-03', service_from: '2026-12-20' }),
     })
     await hole(`/api/companies/${firmaId}/invoices/${entwurf.daten.id}/items`, tokenInhaber, {
       method: 'PUT',

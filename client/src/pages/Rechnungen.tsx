@@ -23,6 +23,7 @@ import type { Lang } from '@/lib/i18n'
 import { rechnungenT as T } from '@/lib/texte/Rechnungen'
 import { parseISO } from 'date-fns'
 import { heuteISO } from '@/lib/utils'
+import { ZahlungenDialog } from './OffenePosten'
 
 const STATUS: Record<string, { label: Record<Lang, string>; klasse: string }> = {
   entwurf:    { label: T.entwurf,    klasse: 'bg-muted text-muted-foreground' },
@@ -430,14 +431,10 @@ function RechnungBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
     onError: (fehler: any) => toast({ title: tt(T.nichtFestgeschrieben), description: fehler.message, variant: 'destructive' }),
   })
 
-  const zahlung = useMutation({
-    mutationFn: () => api.rechnungen.zahlung(firmaId, id, {}),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['rechnung', firmaId, id] })
-      qc.invalidateQueries({ queryKey: ['rechnungen', firmaId] })
-      toast({ title: tt(T.zahlungErfasst) })
-    },
-  })
+  // Ein Klick buchte vorher den ganzen Betrag zu heute (Testbericht SALZWIND:
+  // 249.900 € ohne Betrag, Datum oder Rückfrage). Jetzt derselbe Dialog wie
+  // in den Offenen Posten - Betrag und Datum vorbelegt, Teilzahlung möglich.
+  const [zahlungOffen, setZahlungOffen] = useState(false)
 
   const stornieren = useMutation({
     mutationFn: () => api.rechnungen.stornieren(firmaId, id),
@@ -503,9 +500,22 @@ function RechnungBearbeiten({ firmaId, id }: { firmaId: number; id: number }) {
         )}
         {rechnung.status === 'versendet' && (
           <>
-            <Button variant="outline" size="sm" onClick={() => zahlung.mutate()}>
+            <Button variant="outline" size="sm" onClick={() => setZahlungOffen(true)}>
               <EuroIcon className="w-3.5 h-3.5 mr-1" />{tt(T.alsBezahlt)}
             </Button>
+            {zahlungOffen && (
+              <ZahlungenDialog
+                firmaId={firmaId}
+                posten={{
+                  id: rechnung.id,
+                  number: rechnung.number,
+                  client_name: rechnung.kunde?.name ?? '',
+                  gross_cents: Number(rechnung.gross_cents ?? 0),
+                  offen_cents: Number(rechnung.gross_cents ?? 0) - Number(rechnung.paid_cents ?? 0),
+                }}
+                schliessen={() => setZahlungOffen(false)}
+              />
+            )}
             <Button
               variant="ghost"
               size="sm"

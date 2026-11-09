@@ -8,6 +8,8 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Abnahmerunde nicht gefunden': { en: 'Approval round not found', fr: 'Tour de validation introuvable' },
   'Abschnitt nicht gefunden': { en: 'Section not found', fr: 'Section introuvable' },
   'Agentur nicht gefunden': { en: 'Agency not found', fr: 'Agence introuvable' },
+  'Ohne Leistungsdatum keine Rechnung - bitte „Leistung von“ eintragen (§ 14 Abs. 4 Nr. 6 UStG)': { en: 'No invoice without a date of service - please enter “Service from” (§ 14 (4) No. 6 UStG)', fr: 'Pas de facture sans date de prestation - veuillez saisir « Prestation du » (§ 14 al. 4 n° 6 UStG)' },
+  'Das Ende der Leistung liegt vor ihrem Beginn': { en: 'The end of the service is before its start', fr: 'La fin de la prestation précède son début' },
   'Gagen, Kalkulation und Verträge sieht nur die Produktion.': { en: 'Fees, the budget and contracts are visible to the production only.', fr: 'Seule la production voit les cachets, le budget et les contrats.' },
   'Aktuelles Passwort falsch': { en: 'Current password is incorrect', fr: 'Mot de passe actuel incorrect' },
   'An Adressen außerhalb des Projekts dürfen nur Produktion und Admin schreiben. Trag die Person in den Stab oder die Besetzung ein, dann geht es.': { en: 'Only production and admins may write to addresses outside the project. Add the person to the crew or cast, then it works.', fr: "Seuls la production et les administrateurs peuvent écrire à des adresses extérieures au projet. Ajoute la personne à l'équipe ou au casting, et ça fonctionnera." },

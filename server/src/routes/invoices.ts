@@ -539,6 +539,18 @@ router.post('/companies/:companyId/invoices/:invoiceId/issue', requireAuth, erfo
   if (Number(anzahl?.c ?? 0) === 0) {
     return res.status(400).json({ data: null, error: 'Ohne Position keine Rechnung' })
   }
+  // § 14 Abs. 4 Nr. 6 UStG: Die Rechnung nennt den Zeitpunkt der Leistung -
+  // auch wenn er mit dem Rechnungsdatum übereinstimmt. Vorher ließ sich eine
+  // Rechnung ohne festschreiben und bekam eine Nummer, die man nicht mehr
+  // zurücknehmen kann (Testbericht SALZWIND, 09.11.2026).
+  const leistungVon = rechnung.service_from ? String(rechnung.service_from instanceof Date ? rechnung.service_from.toISOString() : rechnung.service_from).slice(0, 10) : ''
+  const leistungBis = rechnung.service_to ? String(rechnung.service_to instanceof Date ? rechnung.service_to.toISOString() : rechnung.service_to).slice(0, 10) : ''
+  if (!leistungVon) {
+    return res.status(400).json({ data: null, error: 'Ohne Leistungsdatum keine Rechnung - bitte „Leistung von“ eintragen (§ 14 Abs. 4 Nr. 6 UStG)' })
+  }
+  if (leistungBis && leistungBis < leistungVon) {
+    return res.status(400).json({ data: null, error: 'Das Ende der Leistung liegt vor ihrem Beginn' })
+  }
 
   const jahr = Number(String(rechnung.issue_date || heuteISO()).slice(0, 4))
 
