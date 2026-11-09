@@ -38,9 +38,17 @@ const PFAD_ZU_TABELLE: Record<string, string> = {
   'budget-lines': 'budget_lines',
 }
 
-/** `/api/scenes/42` → `{ tabelle: 'scenes', id: 42 }`, sonst null. */
+/**
+ * `/api/scenes/42` → `{ tabelle: 'scenes', id: 42 }`, sonst null.
+ *
+ * Auch unter dem Projekt: `/projects/3/extras/7`. So löschen Komparsen und
+ * Fahrzeuge - bis zum 09.11.2026 erkannte der Wächter nur zwei Teile, und ein
+ * gelöschter Komparse war weg, obwohl die Tabelle beobachtet wurde
+ * (Testbericht SALZWIND).
+ */
 export function erkenneZiel(pfad: string): { tabelle: string; id: number } | null {
-  const teile = pfad.replace(/^\/+/, '').split('/')
+  let teile = pfad.replace(/^\/+/, '').split('/')
+  if (teile.length === 4 && teile[0] === 'projects' && /^\d+$/.test(teile[1])) teile = teile.slice(2)
   // Genau zwei Teile: Entität und Kennung. `/scenes/4/characters/7` ist eine
   // Verknüpfung und gehört nicht in den Papierkorb.
   if (teile.length !== 2) return null

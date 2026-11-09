@@ -4,6 +4,7 @@ type Text = Record<Lang, string>
 
 export const komparsenT = {
   geloescht:      { de: 'Komparse gelöscht', en: 'Extra deleted', fr: 'Figurant supprimé' },
+  imPapierkorb:   { de: '30 Tage lang im Papierkorb wiederherstellbar', en: 'Can be restored from the trash for 30 days', fr: 'Récupérable dans la corbeille pendant 30 jours' },
   fehlerLoeschen: { de: 'Fehler beim Löschen', en: 'Error while deleting', fr: 'Erreur lors de la suppression' },
   bearbeiten:     { de: 'Bearbeiten', en: 'Edit', fr: 'Modifier' },
   loeschen:       { de: 'Löschen', en: 'Delete', fr: 'Supprimer' },

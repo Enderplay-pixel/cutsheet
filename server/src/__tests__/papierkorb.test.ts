@@ -18,6 +18,14 @@ describe('Was in den Papierkorb gehört', () => {
     expect(erkenneZiel('/equipment-items/5')).toEqual({ tabelle: 'equipment_items', id: 5 })
   })
 
+  it('erkennt auch Löschpfade unter dem Projekt (Komparsen, Fahrzeuge)', () => {
+    // Testbericht SALZWIND: gelöschte Kinderkomparsin nicht im Papierkorb
+    expect(erkenneZiel('/projects/3/extras/7')).toEqual({ tabelle: 'extras', id: 7 })
+    expect(erkenneZiel('/projects/3/vehicles/2')).toEqual({ tabelle: 'vehicles', id: 2 })
+    expect(erkenneZiel('/projects/3/casting-anfragen/2')).toBeNull()
+    expect(erkenneZiel('/projects/abc/extras/7')).toBeNull()
+  })
+
   it('lässt Verknüpfungen in Ruhe', () => {
     // Eine Rolle aus einer Szene nehmen ist eine Änderung, kein Verlust.
     expect(erkenneZiel('/scenes/4/characters/7')).toBeNull()

@@ -56,7 +56,7 @@ function ExtraRow({ extra, pid, tage, onEdit }: { extra: Extra; pid: number; tag
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['extras', pid] })
       queryClient.invalidateQueries({ queryKey: ['call-sheet'] })
-      toast({ title: tt(k.geloescht) })
+      toast({ title: tt(k.geloescht), description: tt(k.imPapierkorb) })
     },
     onError: () => toast({ variant: 'destructive', title: tt(k.fehlerLoeschen) }),
   })
