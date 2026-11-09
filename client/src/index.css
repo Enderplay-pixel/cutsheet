@@ -697,7 +697,13 @@ main tbody tr:nth-child(n+9) { animation-delay: 160ms; }
 
 /* Knöpfe: geben nach, federn zurück, leuchten in ihrer Farbe */
 button, [role='button'], a { -webkit-tap-highlight-color: transparent; }
-button:not(:disabled):not([aria-roledescription]):active, [role='button']:not([aria-roledescription]):active {
+/* Nicht bei Flächen mit eigenen Knöpfen darin (aufklappbare Zeilen in Szenen,
+   Motiven, Besetzung): Die ganze Zeile schrumpfte beim Drücken, ihr rechter
+   Rand rückte rund 27 px nach links, der Mülleimer rutschte unter dem Zeiger
+   weg - losgelassen auf dem Pfeil daneben, ging der Klick an die Zeile, sie
+   klappte auf statt zu löschen (gemessen am 09.11.2026, Testbericht SALZWIND). */
+button:not(:disabled):not([aria-roledescription]):active,
+[role='button']:not([aria-roledescription]):not(:has(button, a, input, select, textarea, [role='button'])):active {
   transform: scale(0.95);
   transition-duration: 90ms !important;
 }
