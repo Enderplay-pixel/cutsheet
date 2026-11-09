@@ -177,6 +177,25 @@ Je Datei:
 
 ## Deploy-Prüfung
 
+**Deploy v1.2 alpha am 09.11.2026.** Push `0c75ae5..51b8a56` (14 Commits:
+Arbeitsplatz, Seitenanordnung, Einführungen, Funde 262-265). Florian hat am
+09.11. gesagt, Pushes brauchen keine eigene Freigabe mehr. Vorher lokal: alle
+1136 Servertests grün, `npm run build` wie auf Render fehlerfrei, Zielprüfung
+aller 73 Einführungen im Browser (278 von 279 Schritten mit Ziel; der eine
+wartet planmäßig auf die Einrichtung des Arbeitsplatzes), ein leeres
+Filmprojekt mit zurückgesetzten Einstellungen von der Einrichtung bis zur
+zweiten Seite durchgespielt, am Telefon (375 px).
+
+Online geprüft ohne Anmeldung: Push um 02:53, neuer Bau ab 03:06 ausgeliefert.
+Titel `CutSheet v1.2 alpha - Filmproduktion`, Hauptbundle `index-BQrA5Th_.js`
+→ `index-BK1giGD_.js`; es enthält "Einführung zu dieser Seite", "Schon
+gesehen", "Dein Arbeitsplatz" und `data-einfuehrung`. `/api/health` ok,
+`/api/einstellungen` ohne Anmeldung 401. Im Browser lieferte der Service
+Worker noch zwei Aufrufe lang die alte Fassung aus seinem Speicher, bis der
+neue Worker installiert war; danach v1.2 mit neuem Bundle, keine
+Konsolenfehler. Serververhalten hinter der Anmeldung ist online weiterhin
+nicht geprüft (Testkonto in der Produktion gesperrt).
+
 **Zweiter Deploy am 25.10.2026, gegen 17:45.** Push `5612997..ca38c75`
 (31 Commits, Funde 1-64) mit Florians Freigabe. Lokal `npm run build` wie auf
 Render: fehlerfrei. Online ohne Anmeldung geprüft: `/api/health` ok, Hauptbundle
