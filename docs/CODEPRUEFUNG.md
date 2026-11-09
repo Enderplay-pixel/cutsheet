@@ -181,6 +181,14 @@ Je Datei:
 SALZWIND (siehe dort). Vorher lokal: 1162 Servertests grün, `npm run build`
 wie auf Render fehlerfrei, jeder Fund einzeln nachgemessen (Maus, Tastatur,
 zwei Konten für die Rollen).
+Push `51b8a56..b5b2c1e` um 13:08, online ab 13:20. Geprüft ohne Anmeldung:
+Titel `CutSheet v1.3 alpha - Filmproduktion`, `/api/health` ok,
+`/api/projects/1/kostenstand` 401. Die neuen Texte stehen in den
+ausgelieferten Teilen - gesucht in den Dateinamen aus dem Live-Bundle, nicht
+in den lokalen: Der Server liefert für unbekannte Dateien die Startseite mit
+200, die lokalen Namen ergaben deshalb zuerst falsche Nullen. Tagesdispo
+"Nicht per Mail verschickt" und "ist keine Uhrzeit", NurProduktion "Nur für
+die Produktion", Verträge "Link aktiv, keine Mail".
 
 **Deploy v1.2 alpha am 09.11.2026.** Push `0c75ae5..51b8a56` (14 Commits:
 Arbeitsplatz, Seitenanordnung, Einführungen, Funde 262-265). Florian hat am
