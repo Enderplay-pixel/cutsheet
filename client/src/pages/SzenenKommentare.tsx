@@ -24,7 +24,9 @@ function formatRelativeTime(ts: string, tt: (map: Record<Lang, string>) => strin
 
 function CommentItem({ comment, onResolve, onDelete }: { comment: any; onResolve: () => void; onDelete: () => void }) {
   const tt = useT()
-  const authorName = comment.author_name || comment.user_name || tt(sk.unbekannt)
+  // Der Server speichert den Namen in `author` - gelesen wurden vorher nur
+  // author_name und user_name, jeder Kommentar hieß "Unbekannt" (Testbericht SALZWIND)
+  const authorName = comment.author || comment.author_name || comment.user_name || tt(sk.unbekannt)
   const initials = authorName.split(' ').map((p: string) => p[0]).join('').slice(0, 2).toUpperCase()
 
   return (
@@ -59,13 +61,16 @@ function CommentItem({ comment, onResolve, onDelete }: { comment: any; onResolve
         <div className="flex items-center gap-1 shrink-0 mt-0.5">
           {/* Der Server schaltet um - ein versehentlich gelöster Kommentar
               lässt sich so wieder öffnen */}
+          {/* Mit Text: Als blasses Häkchen allein wurde der Knopf übersehen
+              (Testbericht SALZWIND: "kein Erledigt") */}
           <button
             onClick={onResolve}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-500/10 text-muted-foreground/30 hover:text-green-600 transition-colors active:scale-[0.97]"
+            className="h-8 px-2.5 flex items-center gap-1.5 rounded-lg border border-border/60 text-xs font-medium hover:bg-green-500/10 text-muted-foreground hover:text-green-600 hover:border-green-500/30 transition-colors"
             title={tt(comment.resolved ? sk.wiederOeffnen : sk.alsGeloest)}
             aria-label={tt(comment.resolved ? sk.wiederOeffnen : sk.alsGeloest)}
           >
             {comment.resolved ? <RotateCcw className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
+            {tt(comment.resolved ? sk.wiederOeffnen : sk.erledigt)}
           </button>
           <button
             onClick={onDelete}
