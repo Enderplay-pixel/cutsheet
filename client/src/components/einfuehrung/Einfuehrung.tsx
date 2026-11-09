@@ -44,9 +44,11 @@ export function Einfuehrung() {
     if (!geladen || !hier || offen) return
     if ((gesehen ?? []).includes(hier.schluessel)) return
     const beginn = Date.now()
+    // Ohne Frist: Wer sich für die Einrichtung des Arbeitsplatzes oder einen
+    // Dialog Zeit nimmt, bekommt die Einführung danach - vorher gab sie nach
+    // 15 Sekunden auf.
     const takt = window.setInterval(() => {
       const vergangen = Date.now() - beginn
-      if (vergangen > 15_000) { window.clearInterval(takt); return }
       // Erst nach dem Einblenden der Seite, und nie über ein offenes Fenster
       if (vergangen < 700 || document.visibilityState !== 'visible') return
       if (document.querySelector(SPERRE) || document.querySelector(LAEDT)) return
@@ -55,7 +57,7 @@ export function Einfuehrung() {
       window.clearInterval(takt)
       setzen([...(gesehen ?? []).filter(s => s !== hier.schluessel), hier.schluessel])
       starten(hier.schluessel)
-    }, 250)
+    }, 400)
     return () => window.clearInterval(takt)
   }, [geladen, hier, offen, gesehen, setzen, starten])
 
