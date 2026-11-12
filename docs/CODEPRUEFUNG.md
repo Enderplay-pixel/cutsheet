@@ -62,6 +62,14 @@ Aus Florians `CLAUDE.md` und der Erfahrung dieser Sitzung:
 
 ## Hier weitermachen
 
+> **Kino-Ausbau (Plan vom 10.11.2026).** Was der Testbericht SALZWIND als
+> fehlende Funktion nennt, steht als Bauplan außerhalb des Repos im Coding
+> Vault: `C:\Users\flork\Documents\Coding Vault\Apps\CutSheet Kino-Ausbau.md`
+> (Zentrale mit Regeln, Referenzen, Reihenfolge und Fortschritt), daneben
+> vier Etappen-Notizen (`… - Etappe A.md` bis `D`) mit 22 Arbeitspaketen und
+> `… - Abnahme.md` mit dem Abnahmetest. Wer weiterbaut, liest zuerst die
+> Zentrale, dann das Arbeitspaket. Fundnummern laufen hier ab 291 weiter.
+
 > **Prüfmaßstab von Florian (26.10.2026): Alles ist verknüpft.** Was an einer
 > Stelle angelegt oder geändert wird, muss überall gelten - sein Beispiel: Eine
 > Figur im Drehbuch ist sofort Rolle, steht in Besetzung, Szenen, Dispo. "Und
