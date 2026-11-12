@@ -66,9 +66,11 @@ Aus Florians `CLAUDE.md` und der Erfahrung dieser Sitzung:
 > fehlende Funktion nennt, steht als Bauplan außerhalb des Repos im Coding
 > Vault: `C:\Users\flork\Documents\Coding Vault\Apps\CutSheet Kino-Ausbau.md`
 > (Zentrale mit Regeln, Referenzen, Reihenfolge und Fortschritt), daneben
-> fünf Etappen-Notizen (`… - Etappe A.md` bis `E`) mit 33 Arbeitspaketen und
-> `… - Abnahme.md` mit dem Abnahmetest. Wer weiterbaut, liest zuerst die
-> Zentrale, dann das Arbeitspaket. Fundnummern laufen hier ab 291 weiter.
+> fünf Etappen-Notizen (`… - Etappe A.md` bis `E`) mit 34 Arbeitspaketen und
+> `… - Abnahme.md` mit dem Abnahmetest. Wer weiterbaut, liest zuerst
+> `… - Opus-Anleitung.md` im selben Ordner (Ablauf, feste Reihenfolge,
+> Fertig-Regel), dann das Arbeitspaket. Fundnummern laufen hier ab 291
+> weiter.
 >
 > **Gemessen am 12.11.2026, nicht behoben** (im Plan als AP B0, noch ohne
 > Fundnummer): Alle Geldspalten sind INTEGER. Liegt die Summe einer
