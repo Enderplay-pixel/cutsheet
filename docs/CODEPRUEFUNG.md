@@ -66,9 +66,17 @@ Aus Florians `CLAUDE.md` und der Erfahrung dieser Sitzung:
 > fehlende Funktion nennt, steht als Bauplan außerhalb des Repos im Coding
 > Vault: `C:\Users\flork\Documents\Coding Vault\Apps\CutSheet Kino-Ausbau.md`
 > (Zentrale mit Regeln, Referenzen, Reihenfolge und Fortschritt), daneben
-> vier Etappen-Notizen (`… - Etappe A.md` bis `D`) mit 22 Arbeitspaketen und
+> fünf Etappen-Notizen (`… - Etappe A.md` bis `E`) mit 33 Arbeitspaketen und
 > `… - Abnahme.md` mit dem Abnahmetest. Wer weiterbaut, liest zuerst die
 > Zentrale, dann das Arbeitspaket. Fundnummern laufen hier ab 291 weiter.
+>
+> **Gemessen am 12.11.2026, nicht behoben** (im Plan als AP B0, noch ohne
+> Fundnummer): Alle Geldspalten sind INTEGER. Liegt die Summe einer
+> Kalkulation über 21.474.836,47 €, antwortet `POST /budget-versions/:id/lines`
+> mit 400, hat die Zeile aber gespeichert, und die Summe der Fassung bleibt
+> falsch - `recalcBudgetTotal` läuft nach dem INSERT und ohne Transaktion.
+> Negative Mengen werden angenommen, eine Menge als Text ergibt HTTP 500,
+> und `/budget-summary` liefert `total_spent_cents` als Text.
 
 > **Prüfmaßstab von Florian (26.10.2026): Alles ist verknüpft.** Was an einer
 > Stelle angelegt oder geändert wird, muss überall gelten - sein Beispiel: Eine
