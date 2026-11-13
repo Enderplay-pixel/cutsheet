@@ -28,6 +28,8 @@ const MUSTER: Array<[RegExp, Record<Sprache, string>]> = [
     { en: 'This project has already sent $1 emails in the last hour. Limit: $2.', fr: 'Ce projet a déjà envoyé $1 e-mails au cours de la dernière heure. Limite : $2.' }],
   [/^Die Liste wurde nicht übernommen: (.*)$/s, { en: 'The list was not imported: $1', fr: "La liste n'a pas été importée : $1" }],
   [/^Ungültige Kennung "(.*)" für (.+)\.$/, { en: 'Invalid ID "$1" for $2.', fr: 'Identifiant "$1" invalide pour $2.' }],
+  [/^Betrag zu groß \(höchstens ([^)]+)\): (.*)$/s,
+    { en: 'Amount too large (at most $1): $2', fr: 'Montant trop élevé (au maximum $1) : $2' }],
   [/^Zahl außerhalb des zulässigen Bereichs \(höchstens ([\d.]+)\): (.*)$/s,
     { en: 'Number out of range (at most $1): $2', fr: 'Nombre hors limites (au maximum $1) : $2' }],
   [/^Zu viele Fehlversuche\. Bitte (\d+) Sekunden warten\.$/,

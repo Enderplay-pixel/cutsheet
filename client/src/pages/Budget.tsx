@@ -36,6 +36,13 @@ const FINANZIERUNGSARTEN = Object.keys(FINANZIERUNGSART_TEXT)
 const zahl = (wert: string) => (wert === '' ? '' : Number(wert))
 const cent = (wert: string) => (wert === '' ? '' : Math.round(Number(wert) * 100))
 const euro = (c: any) => (c === '' || c == null ? '' : c / 100)
+// Ein leeres Zahlenfeld wird nicht gespeichert, sondern beim Verlassen auf den
+// gespeicherten Wert zurückgesetzt. Gemessen am 13.11.2026: "-" getippt, kurz
+// gewartet - das Feld ist in diesem Moment leer, nach 500 ms stand Menge 0 auf
+// dem Server, das Feld zeigte "0", und die folgende 5 wurde zu "05". Aus
+// gewollten -5 wurden still +5, die Zeile kostete 100 Mio. € statt einer
+// Fehlermeldung.
+const leer = (...werte: any[]) => werte.some(w => w === '')
 const loeschenBestaetigt = (frage: string, name: string) => window.confirm(frage.replace('{name}', name))
 
 function BudgetLineRow({ line, onDelete, darf }: { line: any; onDelete: () => void; darf: boolean }) {
@@ -43,13 +50,19 @@ function BudgetLineRow({ line, onDelete, darf }: { line: any; onDelete: () => vo
   const queryClient = useQueryClient()
   const tt = useT()
   const offen = useRef(false)
+  // Was der Server abgelehnt hat, steht an der Zeile. Bis zum 12.11.2026
+  // fehlte die Fehlerbehandlung: Eine Menge von -5 blieb im Feld stehen und
+  // sah gespeichert aus, die Antwort 400 sah niemand.
+  const [fehler, setFehler] = useState('')
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.budget.updateLine(line.id, data),
     onSuccess: () => {
+      setFehler('')
       queryClient.invalidateQueries({ queryKey: ['budget-lines'] })
       queryClient.invalidateQueries({ queryKey: ['budget-versions'] })
     },
+    onError: (e: any) => setFehler(String(e?.message || '')),
   })
 
   // "Kosten übernehmen" ändert Zeilen auf dem Server. Vorher blieb das Formular
@@ -60,7 +73,8 @@ function BudgetLineRow({ line, onDelete, darf }: { line: any; onDelete: () => vo
     if (!offen.current && !mutation.isPending) setForm(line)
   }, [line])
 
-  const debouncedUpdate = useRef(debounce((data: any) => {
+  const debouncedUpdate = useRef(debounce((data: any | null) => {
+    if (data === null) return
     offen.current = false
     mutation.mutate(data)
   }, 500)).current
@@ -69,13 +83,21 @@ function BudgetLineRow({ line, onDelete, darf }: { line: any; onDelete: () => vo
     const next = { ...form, [key]: value }
     setForm(next)
     offen.current = true
-    debouncedUpdate({ ...next, quantity: Number(next.quantity) || 0, unit_price_cents: Number(next.unit_price_cents) || 0, total_cents: summe(next) })
+    debouncedUpdate(leer(next.quantity, next.unit_price_cents)
+      ? null
+      : { ...next, quantity: Number(next.quantity), unit_price_cents: Number(next.unit_price_cents), total_cents: summe(next) })
+  }
+  const zuruecksetzenWennLeer = () => {
+    if (!leer(form.quantity, form.unit_price_cents)) return
+    offen.current = false
+    setForm(line)
   }
 
   const total = summe(form)
 
   return (
-    <tr className="border-b border-border/20 hover:bg-muted/10 group">
+    <Fragment>
+    <tr className={`hover:bg-muted/10 group ${fehler ? '' : 'border-b border-border/20'}`}>
       <td className="py-1.5 pl-4 pr-2 w-8 text-xs text-muted-foreground font-mono">{line.account_code}</td>
       <td className="py-1.5 px-2 flex-1">
         <Input value={form.description || ''} onChange={e => update('description', e.target.value)}
@@ -89,20 +111,22 @@ function BudgetLineRow({ line, onDelete, darf }: { line: any; onDelete: () => vo
         </Select>
       </td>
       <td className="py-1.5 px-2 w-16">
-        <Input type="number" value={form.quantity ?? ''} onChange={e => update('quantity', zahl(e.target.value))}
-          disabled={!darf} aria-label={form.description ? tt(T.mengeFuer).replace('{name}', form.description) : tt(T.menge)}
+        <Input type="number" value={form.quantity ?? ''} onChange={e => update('quantity', zahl(e.target.value))} onBlur={zuruecksetzenWennLeer}
+          disabled={!darf} aria-invalid={fehler ? true : undefined} aria-label={form.description ? tt(T.mengeFuer).replace('{name}', form.description) : tt(T.menge)}
           className="h-7 text-xs text-right" step="0.5" min="0" />
       </td>
       <td className="py-1.5 px-2 w-28">
         <div className="relative">
-          <Input type="number" value={euro(form.unit_price_cents)} disabled={!darf}
+          <Input type="number" value={euro(form.unit_price_cents)} disabled={!darf} aria-invalid={fehler ? true : undefined}
             aria-label={form.description ? tt(T.einzelpreisFuer).replace('{name}', form.description) : tt(T.einzelpreisEuro)}
-            onChange={e => update('unit_price_cents', cent(e.target.value))}
+            onChange={e => update('unit_price_cents', cent(e.target.value))} onBlur={zuruecksetzenWennLeer}
             className="h-7 text-xs text-right pr-5" step="0.01" />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
         </div>
       </td>
-      <td className="py-1.5 px-2 w-28 text-right font-mono text-sm font-medium">
+      {/* Abgelehnt heißt: Diese Summe gilt nicht. Durchgestrichen, damit sie
+          niemand für den gespeicherten Stand hält. */}
+      <td className={`py-1.5 px-2 w-28 text-right font-mono text-sm font-medium ${fehler ? 'line-through text-muted-foreground' : ''}`}>
         {formatCurrency(total)}
       </td>
       <td className="py-1.5 pr-3 w-8">
@@ -111,6 +135,14 @@ function BudgetLineRow({ line, onDelete, darf }: { line: any; onDelete: () => vo
         </button>}
       </td>
     </tr>
+    {fehler && (
+      <tr className="border-b border-border/20">
+        <td colSpan={7} role="alert" className="pb-2 pl-4 pr-3 text-xs text-destructive">
+          {tt(T.nichtGespeichert)}: {fehler}
+        </td>
+      </tr>
+    )}
+    </Fragment>
   )
 }
 
@@ -119,16 +151,22 @@ function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: num
   const queryClient = useQueryClient()
   const tt = useT()
 
+  const [fehler, setFehler] = useState('')
+
   const mutation = useMutation({
     mutationFn: (data: any) => api.financing.updateEntry(entry.id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financing-entries'] }),
+    onSuccess: () => {
+      setFehler('')
+      queryClient.invalidateQueries({ queryKey: ['financing-entries'] })
+    },
+    onError: (e: any) => setFehler(String(e?.message || '')),
   })
 
-  const debouncedUpdate = useRef(debounce((data: any) => mutation.mutate(data), 500)).current
+  const debouncedUpdate = useRef(debounce((data: any | null) => { if (data !== null) mutation.mutate(data) }, 500)).current
   const update = (key: string, value: any) => {
     const next = { ...form, [key]: value }
     setForm(next)
-    debouncedUpdate({ ...next, amount_cents: Number(next.amount_cents) || 0 })
+    debouncedUpdate(leer(next.amount_cents) ? null : { ...next, amount_cents: Number(next.amount_cents) })
   }
 
   const pct = total > 0 ? ((Number(form.amount_cents) || 0) / total * 100).toFixed(1) : '0'
@@ -137,7 +175,8 @@ function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: num
   const arten = FINANZIERUNGSARTEN.includes(form.type) || !form.type ? FINANZIERUNGSARTEN : [...FINANZIERUNGSARTEN, form.type]
 
   return (
-    <tr className="border-b border-border/20 hover:bg-muted/10 group">
+    <Fragment>
+    <tr className={`hover:bg-muted/10 group ${fehler ? '' : 'border-b border-border/20'}`}>
       <td className="py-2 pl-4 pr-2">
         <Input value={form.source || ''} onChange={e => update('source', e.target.value)}
           disabled={!darf} aria-label={tt(T.geldgeberQuelle)}
@@ -155,9 +194,10 @@ function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: num
       </td>
       <td className="py-2 px-2 w-36">
         <div className="relative">
-          <Input type="number" value={euro(form.amount_cents)} disabled={!darf}
+          <Input type="number" value={euro(form.amount_cents)} disabled={!darf} aria-invalid={fehler ? true : undefined}
             aria-label={form.source ? tt(T.betragVon).replace('{name}', form.source) : tt(T.betragEuro)}
             onChange={e => update('amount_cents', cent(e.target.value))}
+            onBlur={() => { if (leer(form.amount_cents)) setForm(entry) }}
             className="h-7 text-sm text-right font-mono pr-5" />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
         </div>
@@ -176,6 +216,14 @@ function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: num
         </button>}
       </td>
     </tr>
+    {fehler && (
+      <tr className="border-b border-border/20">
+        <td colSpan={6} role="alert" className="pb-2 pl-4 pr-3 text-xs text-destructive">
+          {tt(T.nichtGespeichert)}: {fehler}
+        </td>
+      </tr>
+    )}
+    </Fragment>
   )
 }
 
@@ -250,6 +298,7 @@ function BudgetSeite() {
       queryClient.invalidateQueries({ queryKey: ['budget-lines'] })
       queryClient.invalidateQueries({ queryKey: ['budget-versions', pid] })
     },
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(T.nichtGespeichert), description: e.message }),
   })
 
   const deleteLine = useMutation({
@@ -263,6 +312,7 @@ function BudgetSeite() {
   const createFinEntry = useMutation({
     mutationFn: async () => api.financing.createEntry(await finanzierungsFassung(), { source: tt(T.neuerGeldgeber), type: 'Förderung', amount_cents: 0 }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financing-entries'] }),
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(T.nichtGespeichert), description: e.message }),
   })
 
   const deleteFinEntry = useMutation({

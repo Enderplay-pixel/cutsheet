@@ -168,6 +168,8 @@ beforeAll(async () => {
   app.use('/api', optionalAuth, konfliktRouter)
   const { default: tagesberichtRouter } = await import('../routes/dailyreports')
   app.use('/api', optionalAuth, tagesberichtRouter)
+  const { default: kalkulationRouter } = await import('../routes/budget')
+  app.use('/api', optionalAuth, kalkulationRouter)
   const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
   app.use(uebersetzeDatenbankfehler)
   await new Promise<void>((aufloesen) => {
@@ -3098,5 +3100,134 @@ describe('Sicherung vor KI-Optimierung wiederherstellen', () => {
     expect(zurueck.status).toBe(200)
     const zeilen = await db.all('SELECT shoot_day_id FROM shoot_day_scenes WHERE scene_id = ?', [a]) as any[]
     expect(zeilen.map(z => Number(z.shoot_day_id))).toEqual([tag1])
+  })
+})
+
+describe('Geld über der alten Grenze von INTEGER', () => {
+  // Gemessen am 12.11.2026: Alle Geldspalten waren INTEGER. Über
+  // 21.474.836,47 € Summe antwortete die Kalkulation mit 400, hatte die Zeile
+  // aber gespeichert, und die Summe der Fassung blieb falsch.
+  const sende = (pfad: string, koerper: any, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+  const zeile = (extra: Record<string, any> = {}) =>
+    ({ category: 'Gagen', description: 'Probe', unit: 'pauschal', quantity: 1, unit_price_cents: 2_000_000_000, ...extra })
+
+  it('jede Geldspalte ist BIGINT, auch eine, die jemand neu anlegt', async () => {
+    const { GELDSPALTEN } = await import('../lib/geld')
+    const spalten = await db.all(
+      `SELECT table_name, column_name, data_type FROM information_schema.columns
+        WHERE table_schema = current_schema()`
+    ) as Array<{ table_name: string; column_name: string; data_type: string }>
+    const typ = new Map(spalten.map(s => [`${s.table_name}.${s.column_name}`, s.data_type]))
+
+    const falsch: string[] = []
+    for (const [tabelle, namen] of Object.entries(GELDSPALTEN)) {
+      for (const name of namen) {
+        if (typ.get(`${tabelle}.${name}`) !== 'bigint') falsch.push(`${tabelle}.${name}: ${typ.get(`${tabelle}.${name}`)}`)
+      }
+    }
+    expect(falsch).toEqual([])
+
+    // Eine neue Spalte mit _cents im Namen, die nicht in der Liste steht,
+    // bliebe INTEGER und fiele erst bei einem großen Film auf.
+    const vergessen = spalten
+      .filter(s => s.column_name.endsWith('_cents') && s.data_type !== 'bigint')
+      .map(s => `${s.table_name}.${s.column_name}`)
+    expect(vergessen).toEqual([])
+  })
+
+  it('Summen und Zählungen kommen als Zahl, nicht als Text', async () => {
+    const z = await db.get('SELECT COUNT(*) AS c, COALESCE(SUM(total_cents), 0) AS s FROM budget_lines') as any
+    expect(typeof z.c).toBe('number')
+    expect(typeof z.s).toBe('number')
+  })
+
+  it('zwei Zeilen zu je 20 Mio. € ergeben 40 Mio. €', async () => {
+    const projekt = (await db.run("INSERT INTO projects (title, owner_id) VALUES ('Groß', ?)", [nutzerId])).id
+    const fassung = (await sende(`/api/projects/${projekt}/budget-versions`, { name: 'Groß' })).daten.id
+    const a = await sende(`/api/budget-versions/${fassung}/lines`, zeile())
+    const b = await sende(`/api/budget-versions/${fassung}/lines`, zeile({ description: 'Probe 2' }))
+    expect([a.status, b.status]).toEqual([201, 201])
+    expect(b.daten.total_cents).toBe(2_000_000_000)
+
+    const fassungen = await hole(`/api/projects/${projekt}/budget-versions`, tokenInhaber)
+    expect(fassungen.daten.find((f: any) => f.id === fassung).total_cents).toBe(4_000_000_000)
+
+    // Belege über der alten Grenze: die Übersicht rechnet und liefert Zahlen
+    await db.run("INSERT INTO expenses (project_id, description, amount_cents) VALUES (?, 'A', 2000000000), (?, 'B', 2000000000)", [projekt, projekt])
+    const uebersicht = await hole(`/api/projects/${projekt}/budget-summary`, tokenInhaber)
+    expect(uebersicht.daten.total_spent_cents).toBe(4_000_000_000)
+    expect(uebersicht.daten.budget_total_cents).toBe(4_000_000_000)
+  })
+
+  it('eine abgelehnte Zeile ist nicht gespeichert', async () => {
+    const projekt = (await db.run("INSERT INTO projects (title, owner_id) VALUES ('Unsinn', ?)", [nutzerId])).id
+    const fassung = (await sende(`/api/projects/${projekt}/budget-versions`, { name: 'Unsinn' })).daten.id
+    const pfad = `/api/budget-versions/${fassung}/lines`
+
+    const zuGross = await sende(pfad, zeile({ quantity: 3, unit_price_cents: 99_999_999_999 }))
+    expect(zuGross.status).toBe(400)
+    expect(zuGross.fehler).toContain('999.999.999,99 €')
+
+    const negativ = await sende(pfad, zeile({ quantity: -5, unit_price_cents: 10000 }))
+    expect(negativ.status).toBe(400)
+    expect(negativ.fehler).toBe('Die Menge muss eine Zahl ab 0 sein.')
+
+    // Vorher HTTP 500 "Unerwarteter Serverfehler"
+    const text = await sende(pfad, zeile({ quantity: 'abc' }))
+    expect(text.status).toBe(400)
+    expect(text.fehler).toBe('Die Menge muss eine Zahl ab 0 sein.')
+
+    // Vorher 400 mit dem falschen Grund "Eine Zahl wurde als Text übergeben."
+    const krumm = await sende(pfad, zeile({ unit_price_cents: 100.5 }))
+    expect(krumm.status).toBe(400)
+    expect(krumm.fehler).toBe('Der Preis muss ein Betrag in ganzen Cent sein.')
+
+    const gespeichert = await db.get('SELECT COUNT(*) AS c FROM budget_lines WHERE budget_version_id = ?', [fassung]) as any
+    expect(gespeichert.c).toBe(0)
+
+    // Ändern einer vorhandenen Zeile auf Unsinn lässt sie, wie sie war
+    const gut = await sende(pfad, zeile({ unit_price_cents: 10000 }))
+    const geaendert = await sende(`/api/budget-lines/${gut.daten.id}`, { ...gut.daten, quantity: -1 }, 'PUT')
+    expect(geaendert.status).toBe(400)
+    const danach = await db.get('SELECT quantity, total_cents FROM budget_lines WHERE id = ?', [gut.daten.id]) as any
+    expect(danach).toMatchObject({ quantity: 1, total_cents: 10000 })
+  })
+
+  it('ein Abzug mit negativem Preis bleibt möglich', async () => {
+    const projekt = (await db.run("INSERT INTO projects (title, owner_id) VALUES ('Abzug', ?)", [nutzerId])).id
+    const fassung = (await sende(`/api/projects/${projekt}/budget-versions`, { name: 'Abzug' })).daten.id
+    await sende(`/api/budget-versions/${fassung}/lines`, zeile({ unit_price_cents: 50000 }))
+    const abzug = await sende(`/api/budget-versions/${fassung}/lines`, zeile({ description: 'Rabatt', quantity: 2, unit_price_cents: -10000 }))
+    expect(abzug.status).toBe(201)
+    const f = await db.get('SELECT total_cents FROM budget_versions WHERE id = ?', [fassung]) as any
+    expect(f.total_cents).toBe(30000)
+
+    // Löschen rechnet die Summe in derselben Transaktion neu
+    const weg = await hole(`/api/budget-lines/${abzug.daten.id}`, tokenInhaber, { method: 'DELETE' })
+    expect(weg.status).toBe(200)
+    const g = await db.get('SELECT total_cents FROM budget_versions WHERE id = ?', [fassung]) as any
+    expect(g.total_cents).toBe(50000)
+  })
+
+  it('Geldgeber: große Beträge ja, negative nein', async () => {
+    const projekt = (await db.run("INSERT INTO projects (title, owner_id) VALUES ('Geldgeber', ?)", [nutzerId])).id
+    const plan = (await sende(`/api/projects/${projekt}/financing-versions`, { name: 'Plan' })).daten.id
+    const pfad = `/api/financing-versions/${plan}/entries`
+    const a = await sende(pfad, { source: 'Förderung A', amount_cents: 2_000_000_000 })
+    const b = await sende(pfad, { source: 'Förderung B', amount_cents: 2_000_000_000 })
+    expect([a.status, b.status]).toEqual([201, 201])
+
+    const negativ = await sende(pfad, { source: 'Minus', amount_cents: -500000 })
+    expect(negativ.status).toBe(400)
+    expect(negativ.fehler).toBe('Der Betrag eines Geldgebers kann nicht negativ sein.')
+
+    const geaendert = await sende(`/api/financing-entries/${a.daten.id}`, { ...a.daten, amount_cents: -1 }, 'PUT')
+    expect(geaendert.status).toBe(400)
+
+    const stand = await db.get(
+      'SELECT total_cents, (SELECT COUNT(*) FROM financing_entries WHERE financing_version_id = ?) AS zahl FROM financing_plan_versions WHERE id = ?',
+      [plan, plan]) as any
+    expect(stand).toMatchObject({ total_cents: 4_000_000_000, zahl: 2 })
   })
 })

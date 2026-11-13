@@ -1,20 +1,35 @@
 import { Router, Request, Response } from 'express'
 import * as kosten from '../lib/kostenquellen'
 import { drehtageBesetzung, drehtageStab, anzahl } from '../lib/drehtage'
-import { db } from '../db'
+import { db, TxClient } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { massgeblicheKalkulation } from '../lib/kalkulation'
+import { pruefeBudgetzeile, pruefeGeldgeberBetrag } from '../lib/geld'
 
 const router = Router()
 
 // All /projects/:projectId/* routes require membership
 router.use('/projects/:projectId', requireMember)
 
-async function recalcBudgetTotal(versionId: number) {
-  const row = await db.get('SELECT COALESCE(SUM(total_cents), 0) as s FROM budget_lines WHERE budget_version_id = ?', [versionId])
-  const total = (row as any).s
-  await db.run("UPDATE budget_versions SET total_cents = ?, updated_at = datetime('now') WHERE id = ?", [total, versionId])
+/**
+ * Die Summe einer Fassung neu rechnen - in derselben Transaktion wie die
+ * Änderung, die sie auslöst.
+ *
+ * Bis zum 12.11.2026 lief das nach dem Schreiben und ohne Transaktion:
+ * Scheiterte die Summe, war die Zeile schon gespeichert. Gemessen mit zwei
+ * Zeilen zu je 20 Mio. €: Antwort 400, Zeile da, Summe der Fassung falsch.
+ */
+async function recalcBudgetTotal(versionId: number, tx: TxClient) {
+  const row = await tx.get('SELECT COALESCE(SUM(total_cents), 0) as s FROM budget_lines WHERE budget_version_id = ?', [versionId])
+  const total = Number((row as any).s) || 0
+  await tx.run("UPDATE budget_versions SET total_cents = ?, updated_at = datetime('now') WHERE id = ?", [total, versionId])
   return total
+}
+
+/** Dasselbe für einen Finanzierungsplan. */
+async function recalcFinancingTotal(versionId: number, tx: TxClient) {
+  const row = await tx.get('SELECT COALESCE(SUM(amount_cents), 0) as s FROM financing_entries WHERE financing_version_id = ?', [versionId])
+  await tx.run('UPDATE financing_plan_versions SET total_cents = ? WHERE id = ?', [Number((row as any).s) || 0, versionId])
 }
 
 // GET /api/projects/:projectId/budget-alerts
@@ -117,12 +132,17 @@ router.get('/budget-versions/:id/lines', requireMemberVia(projectIdFromTable('bu
 // POST /api/budget-versions/:id/lines
 router.post('/budget-versions/:id/lines', async (req, res) => {
   const { category = '', account_code = '', description = '', unit = 'Pauschal', quantity = 1, unit_price_cents = 0, notes = '' } = req.body
-  const total_cents = Math.round(quantity * unit_price_cents)
-  const maxSortRow = await db.get('SELECT COALESCE(MAX(sort_order), 0) as m FROM budget_lines WHERE budget_version_id = ?', [req.params.id])
-  const maxSort = (maxSortRow as any).m
-  const result = await db.run('INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.params.id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, maxSort + 1])
-  await recalcBudgetTotal(parseInt(req.params.id))
-  res.status(201).json({ data: await db.get('SELECT * FROM budget_lines WHERE id = ?', [result.id]), error: null })
+  // Gemessen am 12.11.2026: Menge -5 wurde gespeichert, Menge "abc" ergab 500.
+  const zeile = pruefeBudgetzeile(quantity, unit_price_cents)
+  if ('fehler' in zeile) return res.status(400).json({ data: null, error: zeile.fehler })
+  const id = await db.transaction(async (tx) => {
+    const maxSortRow = await tx.get('SELECT COALESCE(MAX(sort_order), 0) as m FROM budget_lines WHERE budget_version_id = ?', [req.params.id])
+    const maxSort = (maxSortRow as any).m
+    const result = await tx.run('INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.params.id, category, account_code, description, unit, zeile.quantity, zeile.unit_price_cents, zeile.total_cents, notes, maxSort + 1])
+    await recalcBudgetTotal(parseInt(req.params.id), tx)
+    return result.id
+  })
+  res.status(201).json({ data: await db.get('SELECT * FROM budget_lines WHERE id = ?', [id]), error: null })
 })
 
 // PUT /api/budget-lines/:id
@@ -132,18 +152,24 @@ router.put('/budget-lines/:id', async (req, res) => {
     return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
   }
   const { category, account_code, description, unit, quantity, unit_price_cents, notes } = req.body
-  const total_cents = Math.round((quantity || 0) * (unit_price_cents || 0))
-  await db.run('UPDATE budget_lines SET category=?, account_code=?, description=?, unit=?, quantity=?, unit_price_cents=?, total_cents=?, notes=? WHERE id=?', [category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, req.params.id])
-  const line = await db.get('SELECT * FROM budget_lines WHERE id = ?', [req.params.id]) as any
-  if (line) await recalcBudgetTotal(line.budget_version_id)
+  const zeile = pruefeBudgetzeile(quantity, unit_price_cents)
+  if ('fehler' in zeile) return res.status(400).json({ data: null, error: zeile.fehler })
+  const line = await db.transaction(async (tx) => {
+    await tx.run('UPDATE budget_lines SET category=?, account_code=?, description=?, unit=?, quantity=?, unit_price_cents=?, total_cents=?, notes=? WHERE id=?', [category, account_code, description, unit, zeile.quantity, zeile.unit_price_cents, zeile.total_cents, notes, req.params.id])
+    const zeileNeu = await tx.get('SELECT * FROM budget_lines WHERE id = ?', [req.params.id]) as any
+    if (zeileNeu) await recalcBudgetTotal(zeileNeu.budget_version_id, tx)
+    return zeileNeu
+  })
   res.json({ data: line, error: null })
 })
 
 // DELETE /api/budget-lines/:id
 router.delete('/budget-lines/:id', async (req, res) => {
-  const line = await db.get('SELECT * FROM budget_lines WHERE id = ?', [req.params.id]) as any
-  await db.run('DELETE FROM budget_lines WHERE id = ?', [req.params.id])
-  if (line) await recalcBudgetTotal(line.budget_version_id)
+  await db.transaction(async (tx) => {
+    const line = await tx.get('SELECT * FROM budget_lines WHERE id = ?', [req.params.id]) as any
+    await tx.run('DELETE FROM budget_lines WHERE id = ?', [req.params.id])
+    if (line) await recalcBudgetTotal(line.budget_version_id, tx)
+  })
   res.json({ data: { ok: true }, error: null })
 })
 
@@ -208,14 +234,16 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
   const plan = kosten.abgleiche(vorhanden, soll)
 
   if (!nurZeigen) {
-    const maxRow = await db.get(
+    // Alles oder nichts: Scheitert eine Zeile, bleibt die Fassung, wie sie war.
+    await db.transaction(async (tx) => {
+    const maxRow = await tx.get(
       'SELECT COALESCE(MAX(sort_order), 0) AS m FROM budget_lines WHERE budget_version_id = ?',
       [req.params.id]) as any
     let sort = Number(maxRow?.m ?? 0)
 
     for (const n of plan.neu) {
       sort++
-      await db.run(
+      await tx.run(
         `INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit,
          quantity, unit_price_cents, total_cents, sort_order, source_key)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -223,16 +251,17 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
          n.menge, n.einzelpreis_cent, n.gesamt_cent, sort, n.schluessel])
     }
     for (const g of plan.geaendert) {
-      await db.run(
+      await tx.run(
         `UPDATE budget_lines SET category = ?, description = ?, unit = ?, quantity = ?,
          unit_price_cents = ?, total_cents = ? WHERE id = ?`,
         [g.posten.kategorie, g.posten.beschreibung, g.posten.einheit, g.posten.menge,
          g.posten.einzelpreis_cent, g.posten.gesamt_cent, g.id])
     }
     for (const id of plan.entfallen) {
-      await db.run('DELETE FROM budget_lines WHERE id = ?', [id])
+      await tx.run('DELETE FROM budget_lines WHERE id = ?', [id])
     }
-    await recalcBudgetTotal(parseInt(req.params.id))
+    await recalcBudgetTotal(parseInt(req.params.id), tx)
+    })
   }
 
   res.json({
@@ -281,16 +310,18 @@ router.get('/financing-versions/:id/entries', requireMemberVia(projectIdFromTabl
 // POST /api/financing-versions/:id/entries
 router.post('/financing-versions/:id/entries', async (req, res) => {
   const { source = '', type = 'Förderung', amount_cents = 0, confirmed = false, notes = '' } = req.body
-  const maxSortRow = await db.get('SELECT COALESCE(MAX(sort_order), 0) as m FROM financing_entries WHERE financing_version_id = ?', [req.params.id])
-  const maxSort = (maxSortRow as any).m
-  const result = await db.run('INSERT INTO financing_entries (financing_version_id, source, type, amount_cents, confirmed, notes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)', [req.params.id, source, type, amount_cents, confirmed ? 1 : 0, notes, maxSort + 1])
+  // Gemessen am 12.11.2026: Ein Geldgeber mit -5.000 € wurde gespeichert.
+  const betrag = pruefeGeldgeberBetrag(amount_cents)
+  if ('fehler' in betrag) return res.status(400).json({ data: null, error: betrag.fehler })
+  const id = await db.transaction(async (tx) => {
+    const maxSortRow = await tx.get('SELECT COALESCE(MAX(sort_order), 0) as m FROM financing_entries WHERE financing_version_id = ?', [req.params.id])
+    const maxSort = (maxSortRow as any).m
+    const result = await tx.run('INSERT INTO financing_entries (financing_version_id, source, type, amount_cents, confirmed, notes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)', [req.params.id, source, type, betrag.amount_cents, confirmed ? 1 : 0, notes, maxSort + 1])
+    await recalcFinancingTotal(parseInt(req.params.id), tx)
+    return result.id
+  })
 
-  // Recalc total
-  const totalRow = await db.get('SELECT COALESCE(SUM(amount_cents), 0) as s FROM financing_entries WHERE financing_version_id = ?', [req.params.id])
-  const total = (totalRow as any).s
-  await db.run('UPDATE financing_plan_versions SET total_cents = ? WHERE id = ?', [total, req.params.id])
-
-  const row = await db.get('SELECT * FROM financing_entries WHERE id = ?', [result.id]) as any
+  const row = await db.get('SELECT * FROM financing_entries WHERE id = ?', [id]) as any
   res.status(201).json({ data: { ...row, confirmed: !!row.confirmed }, error: null })
 })
 
@@ -301,24 +332,24 @@ router.put('/financing-entries/:id', async (req, res) => {
     return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
   }
   const { source, type, amount_cents, confirmed, notes } = req.body
-  await db.run('UPDATE financing_entries SET source=?, type=?, amount_cents=?, confirmed=?, notes=? WHERE id=?', [source, type, amount_cents, confirmed ? 1 : 0, notes, req.params.id])
-  const entry = await db.get('SELECT * FROM financing_entries WHERE id = ?', [req.params.id]) as any
-  // Recalc total
-  const totalRow = await db.get('SELECT COALESCE(SUM(amount_cents), 0) as s FROM financing_entries WHERE financing_version_id = ?', [entry.financing_version_id])
-  const total = (totalRow as any).s
-  await db.run('UPDATE financing_plan_versions SET total_cents = ? WHERE id = ?', [total, entry.financing_version_id])
+  const betrag = pruefeGeldgeberBetrag(amount_cents)
+  if ('fehler' in betrag) return res.status(400).json({ data: null, error: betrag.fehler })
+  const entry = await db.transaction(async (tx) => {
+    await tx.run('UPDATE financing_entries SET source=?, type=?, amount_cents=?, confirmed=?, notes=? WHERE id=?', [source, type, betrag.amount_cents, confirmed ? 1 : 0, notes, req.params.id])
+    const eintrag = await tx.get('SELECT * FROM financing_entries WHERE id = ?', [req.params.id]) as any
+    await recalcFinancingTotal(eintrag.financing_version_id, tx)
+    return eintrag
+  })
   res.json({ data: { ...entry, confirmed: !!entry.confirmed }, error: null })
 })
 
 // DELETE /api/financing-entries/:id
 router.delete('/financing-entries/:id', async (req, res) => {
-  const entry = await db.get('SELECT * FROM financing_entries WHERE id = ?', [req.params.id]) as any
-  await db.run('DELETE FROM financing_entries WHERE id = ?', [req.params.id])
-  if (entry) {
-    const totalRow = await db.get('SELECT COALESCE(SUM(amount_cents), 0) as s FROM financing_entries WHERE financing_version_id = ?', [entry.financing_version_id])
-    const total = (totalRow as any).s
-    await db.run('UPDATE financing_plan_versions SET total_cents = ? WHERE id = ?', [total, entry.financing_version_id])
-  }
+  await db.transaction(async (tx) => {
+    const entry = await tx.get('SELECT * FROM financing_entries WHERE id = ?', [req.params.id]) as any
+    await tx.run('DELETE FROM financing_entries WHERE id = ?', [req.params.id])
+    if (entry) await recalcFinancingTotal(entry.financing_version_id, tx)
+  })
   res.json({ data: { ok: true }, error: null })
 })
 

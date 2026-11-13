@@ -28,6 +28,27 @@ describe('PDF-Vorlagen ohne Ersatzziffern', () => {
   }
 })
 
+describe('Beträge brechen in PDFs nicht um', () => {
+  // Gemessen am 13.11.2026: Die Listenvorlage erlaubte Umbrüche an jeder
+  // Stelle, die Summe einer Kategorie stand als "60.003.500," und "00 €" auf
+  // zwei Zeilen. Geprüft wird die Regel, die das verhindert.
+  it('documentLayout.ts hält Zahlenzellen und Summen zusammen', () => {
+    const quelle = fs.readFileSync(path.join(__dirname, '..', 'lib', 'documentLayout.ts'), 'utf8')
+    const ohneKommentare = quelle.replace(/\/\*[\s\S]*?\*\//g, '')
+    const regel = ohneKommentare.match(/td\.r:not\(\.sumlabel\),\s*tfoot \.sumvalue\s*\{([^}]*)\}/)
+    expect(regel, 'Regel für Zahlenzellen fehlt').not.toBeNull()
+    expect(regel![1]).toContain('white-space: nowrap')
+    expect(regel![1]).toContain('overflow-wrap: normal')
+  })
+
+  it('Rechnung und Mahnung tun es schon', () => {
+    for (const [datei, muster] of [['rechnungLayout.ts', /\.zahl\s*\{[^}]*nowrap/], ['mahnungLayout.ts', /td\.betrag[^{]*\{[^}]*nowrap/]] as const) {
+      const quelle = fs.readFileSync(path.join(__dirname, '..', 'lib', datei), 'utf8')
+      expect(quelle, datei).toMatch(muster)
+    }
+  })
+})
+
 describe('PDF-Schriften', () => {
   it('schalten Ligaturen und Ersatzziffern für alle Dokumente ab', async () => {
     const { pdfFontFaces } = await import('../lib/pdfFonts')

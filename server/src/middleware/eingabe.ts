@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import { istUeberlastet, UEBERLAST_TEXT } from '../lib/ueberlast'
+import { GELD_MAX_CENT, GELD_MAX_TEXT, istGeldfeld } from '../lib/geld'
 
 /**
  * Eingabepruefung an der Grenze.
@@ -75,6 +76,7 @@ export function pruefeIdParameter(req: Request, res: Response, next: NextFunctio
  */
 export function saeubereKoerper(req: Request, res: Response, next: NextFunction) {
   const ausreisser: string[] = []
+  const zuGross: string[] = []
 
   function gehe(wert: any, pfad: string, tiefe: number): any {
     if (tiefe > 12) return wert
@@ -83,6 +85,14 @@ export function saeubereKoerper(req: Request, res: Response, next: NextFunction)
     }
     if (typeof wert === 'number') {
       if (!Number.isFinite(wert)) { ausreisser.push(pfad); return wert }
+      // Geldfelder sind BIGINT (lib/geld.ts) und haben ihre eigene Grenze.
+      // Bis zum 12.11.2026 galt für sie die von INTEGER: Ein Einzelpreis über
+      // 21.474.836,47 € ließ sich nicht eingeben.
+      const feld = pfad.split('.').pop()!.replace(/\[\d+\]$/, '')
+      if (istGeldfeld(feld)) {
+        if (Math.abs(wert) > GELD_MAX_CENT) zuGross.push(pfad)
+        return wert
+      }
       // Nur ganze Zahlen betreffen INTEGER-Spalten. Kommazahlen wie eine
       // Menge von 1,5 sind zulässig und bleiben unberührt.
       if (Number.isInteger(wert) && (wert > PG_INT_MAX || wert < PG_INT_MIN)) {
@@ -103,6 +113,12 @@ export function saeubereKoerper(req: Request, res: Response, next: NextFunction)
     req.body = gehe(req.body, '', 0)
   }
 
+  if (zuGross.length) {
+    return res.status(400).json({
+      data: null,
+      error: `Betrag zu groß (höchstens ${GELD_MAX_TEXT}): ${zuGross.slice(0, 3).join(', ')}.`,
+    })
+  }
   if (ausreisser.length) {
     return res.status(400).json({
       data: null,

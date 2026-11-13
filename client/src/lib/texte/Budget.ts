@@ -19,6 +19,7 @@ export const budgetT = {
   finPostenLoeschen:{ de: 'Finanzierungsposten löschen', en: 'Delete funding entry', fr: 'Supprimer la ligne de financement' },
   postenLoeschen:   { de: 'Posten löschen', en: 'Delete entry', fr: 'Supprimer la ligne' },
   fehler:           { de: 'Fehler', en: 'Error', fr: 'Erreur' },
+  nichtGespeichert: { de: 'Nicht gespeichert', en: 'Not saved', fr: 'Non enregistré' },
   kostenUebernommen:{ de: 'Kosten übernommen', en: 'Costs imported', fr: 'Coûts importés' },
   kostenErgebnis:   {
     de: '{neu} neu, {geaendert} aktualisiert, {entfallen} entfernt.',

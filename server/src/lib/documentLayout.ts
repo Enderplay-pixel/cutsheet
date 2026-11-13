@@ -325,6 +325,12 @@ export function renderDocument(opts: DocumentOptions): string {
   td, th { overflow-wrap: anywhere; word-break: break-word; }
   table.zebra tbody tr:nth-child(even) td { background: #fafafc; }
   td.r, th[style*="right"] { text-align: right; }
+  /* Beträge und Zahlen brechen nie um. Gemessen am 13.11.2026 in der
+     Kalkulation: Ab 10 Mio. € rutschte das €-Zeichen in die nächste Zeile,
+     die Summe einer Kategorie brach mitten in der Zahl ("60.003.500," und
+     darunter "00 €") - eine Folge der Regel darüber. Rechnung und Mahnung
+     halten ihre Beträge schon so zusammen. */
+  td.r:not(.sumlabel), tfoot .sumvalue { white-space: nowrap; overflow-wrap: normal; word-break: normal; }
   td.c { text-align: center; }
   /* Kein tabular-nums in PDFs: Chromium bettet die Ersatzziffern ohne
      Unicode-Zuordnung ein, Beträge sind dann nicht mehr kopier- oder

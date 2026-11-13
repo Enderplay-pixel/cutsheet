@@ -3,6 +3,7 @@ import { hashPasswort, pruefePasswort } from '../lib/passwort'
 import { heuteISO } from '../lib/datum'
 import { ueberlastMelden } from '../lib/ueberlast'
 import { legeCodeAb, istAbgelegt } from '../lib/zweiterFaktor'
+import { GELDSPALTEN } from '../lib/geld'
 
 // DATE-Spalten als Text lesen, nicht als JS-Datum.
 //
@@ -13,6 +14,21 @@ import { legeCodeAb, istAbgelegt } from '../lib/zweiterFaktor'
 // was es ist.
 const PG_TYP_DATE = 1082
 pgTypes.setTypeParser(PG_TYP_DATE, (wert: string) => wert)
+
+// BIGINT und NUMERIC als Zahl lesen, nicht als Text.
+//
+// Der Treiber liefert beide als Text, weil sie groesser werden koennen, als
+// eine JS-Zahl exakt traegt. Hier kommen sie aus Geldspalten (BIGINT, siehe
+// lib/geld.ts), aus COUNT und aus Summen: SUM ueber INTEGER ist BIGINT, SUM
+// ueber BIGINT ist NUMERIC. Gemessen am 12.11.2026 lieferte /budget-summary
+// total_spent_cents als Text "4000000000" und budget_total_cents daneben als
+// Zahl. Einzelbetraege sind durch GELD_MAX_CENT begrenzt, Summen bleiben
+// damit weit unter Number.MAX_SAFE_INTEGER. Eine NUMERIC-Spalte gibt es im
+// Schema nicht, der Parser trifft also nur Rechenergebnisse.
+const PG_TYP_BIGINT = 20
+const PG_TYP_NUMERIC = 1700
+pgTypes.setTypeParser(PG_TYP_BIGINT, (wert: string) => Number(wert))
+pgTypes.setTypeParser(PG_TYP_NUMERIC, (wert: string) => Number(wert))
 
 // ─── Connection pool ──────────────────────────────────────────────────────────
 // Groesse und Zeitgrenzen per Umgebung einstellbar. Die Vorgaben passen zu
@@ -901,6 +917,28 @@ async function ensureTestAdmin() {
  * Dynamisch statt als Liste: neue Tabellen sind automatisch abgedeckt.
  * CREATE INDEX IF NOT EXISTS ist beim zweiten Start ein No-op.
  */
+/**
+ * Geldspalten auf BIGINT stellen.
+ *
+ * Alle Betraege stehen in Cent. Als INTEGER endeten sie bei 21.474.836,47 EUR -
+ * gemessen am 12.11.2026: Eine Kalkulation darueber meldete bei jeder Zeile
+ * einen Fehler, speicherte sie trotzdem und zeigte eine falsche Summe.
+ *
+ * Laeuft bei jedem Start. Umgestellt wird nur, was noch INTEGER ist: ALTER
+ * COLUMN TYPE sperrt die Tabelle, und das soll einmal geschehen, nicht bei
+ * jedem Neustart. Welche Spalten gemeint sind, steht in lib/geld.ts.
+ */
+async function geldspaltenAufBigint() {
+  const nochInteger = await db.all(
+    `SELECT table_name, column_name FROM information_schema.columns
+      WHERE table_schema = current_schema() AND data_type = 'integer'`
+  ) as Array<{ table_name: string; column_name: string }>
+  for (const { table_name, column_name } of nochInteger) {
+    if (!GELDSPALTEN[table_name]?.includes(column_name)) continue
+    await db.exec(`ALTER TABLE "${table_name}" ALTER COLUMN "${column_name}" TYPE BIGINT`)
+  }
+}
+
 async function fremdschluesselIndizieren() {
   const fehlend = await db.all(`
     SELECT c.conrelid::regclass::text AS tbl, a.attname AS col
@@ -2150,6 +2188,8 @@ export async function initDatabase() {
       [alteDemoAdressen]
     )
   }
+
+  await geldspaltenAufBigint()
 
   // Check if empty - seed demo data on first run
   const count = await db.get('SELECT COUNT(*) as c FROM projects')

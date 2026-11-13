@@ -93,6 +93,31 @@ describe('saeubereKoerper', () => {
     expect(res.koerper.error).toContain('eighths')
   })
 
+  // Gemessen am 12.11.2026: Ein Einzelpreis von 30 Mio. € wurde abgelehnt,
+  // weil fuer Geld die Grenze von INTEGER galt.
+  it('laesst Geldbetraege ueber 21,4 Mio. Euro durch', () => {
+    const next = vi.fn(); const res = antwort()
+    saeubereKoerper({ body: { unit_price_cents: 3_000_000_000, zeilen: [{ amount_cents: 2_500_000_000 }], fee_per_day: 2_200_000_000 } } as any, res, next)
+    expect(next).toHaveBeenCalled()
+    expect(res.code).toBe(0)
+  })
+
+  it('weist Geldbetraege ueber der Geldgrenze ab und nennt sie in Euro', () => {
+    const next = vi.fn(); const res = antwort()
+    saeubereKoerper({ body: { zeilen: [{ unit_price_cents: 10 ** 12 }] } } as any, res, next)
+    expect(next).not.toHaveBeenCalled()
+    expect(res.code).toBe(400)
+    expect(res.koerper.error).toBe('Betrag zu groß (höchstens 999.999.999,99 €): zeilen[0].unit_price_cents.')
+  })
+
+  it('laesst die Grenze von INTEGER fuer alles andere stehen', () => {
+    const next = vi.fn(); const res = antwort()
+    saeubereKoerper({ body: { total_days: 3_000_000_000 } } as any, res, next)
+    expect(next).not.toHaveBeenCalled()
+    expect(res.koerper.error).toContain('total_days')
+    expect(res.koerper.error).toContain('2.147.483.647')
+  })
+
   it('laesst Kommazahlen in Ruhe', () => {
     const next = vi.fn(); const res = antwort()
     saeubereKoerper({ body: { menge: 1.5, preis: 12.34 } } as any, res, next)
