@@ -71,6 +71,16 @@ export const entwicklung: Record<string, Schritt[]> = {
       },
       wirktAuf: ['papierkorb'],
     },
+    {
+      ziel: 'filter',
+      titel: { de: 'Gesperrtes Drehbuch: Szenen entfallen', en: 'Locked script: scenes are omitted', fr: 'Scénario verrouillé : les scènes sont supprimées' },
+      text: {
+        de: 'Ist das Drehbuch im Editor gesperrt, bleibt jede Nummer, wie sie ist - das Nummernfeld lässt sich nicht ändern. Löschen heißt dann "entfällt": Die Szene steht grau mit dem Vermerk ENTFÄLLT da, kommt aus dem Drehplan und zählt nirgends mehr mit. Der Filter "Entfällt" zeigt sie, "Zurückholen" holt sie wieder.',
+        en: 'If the script is locked in the editor, every number stays as it is - the number field cannot be changed. Deleting then means "omitted": the scene stays greyed out with the note OMITTED, leaves the schedule and no longer counts anywhere. The "Omitted" filter shows them, "Restore" brings one back.',
+        fr: "Si le scénario est verrouillé dans l'éditeur, chaque numéro reste tel quel - le champ ne peut pas être modifié. Supprimer signifie alors « supprimée » : la scène reste grisée avec la mention SUPPRIMÉE, quitte le plan et ne compte plus nulle part. Le filtre « Supprimées » les montre, « Rétablir » en ramène une.",
+      },
+      wirktAuf: ['drehplan', 'staebchenplan'],
+    },
   ],
 
   'screenplay-editor': [
@@ -119,6 +129,16 @@ export const entwicklung: Record<string, Schritt[]> = {
         en: 'On the right of the bar: import an existing script from Final Draft, Celtx, Fountain or plain text. Export it as a PDF, as a PDF with your notes or as a Fountain file.',
         fr: "À droite de la barre : importe un scénario existant depuis Final Draft, Celtx, Fountain ou texte. Exporte-le en PDF, en PDF avec vos annotations ou en Fountain.",
       },
+    },
+    {
+      ziel: 'werkzeuge',
+      titel: { de: 'Fassungen und Sperre', en: 'Revisions and locking', fr: 'Versions et verrouillage' },
+      text: {
+        de: 'Hat das Projekt schon Szenen, fragt das Einlesen: als neue Fassung, anhängen oder abbrechen. Die neue Fassung zeigt vorher, was unverändert, geändert, neu ist und was fehlt; geänderte Szenen bleiben an ihrem Drehtag, neue kommen hinter ihre Vorgängerin. "Drehbuch sperren" (Produktion) hält die Nummern fest: Neue Szenen bekommen einen Buchstaben wie 13A, gelöschte entfallen. "Fassungen" listet alle mit Farbe und zeigt eine Szene alt gegen neu; das Sternchen am Rand markiert, was die aktuelle Fassung geändert hat - auch im PDF.',
+        en: 'If the project already has scenes, importing asks: as a new revision, append or cancel. The new revision first shows what is unchanged, changed, new and missing; changed scenes stay on their shoot day, new ones follow their predecessor. "Lock script" (producers) fixes the numbers: new scenes get a letter such as 13A, deleted ones are omitted. "Revisions" lists them all with colour and shows a scene old against new; the asterisk in the margin marks what the current revision changed - in the PDF too.',
+        fr: "Si le projet a déjà des scènes, l'import demande : comme nouvelle version, ajouter ou annuler. La nouvelle version montre d'abord ce qui est inchangé, modifié, nouveau ou manquant ; les scènes modifiées restent à leur jour, les nouvelles suivent leur précédente. « Verrouiller le scénario » (production) fige les numéros : les nouvelles scènes reçoivent une lettre comme 13A, les supprimées sont marquées. « Versions » les liste avec leur couleur et compare une scène ; l'astérisque en marge marque ce que la version actuelle a changé - aussi dans le PDF.",
+      },
+      wirktAuf: ['drehbuch', 'drehplan', 'staebchenplan'],
     },
   ],
 

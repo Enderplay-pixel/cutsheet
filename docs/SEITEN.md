@@ -91,8 +91,8 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
 | **Stammdaten** | `/projects/:id/stammdaten` | Projektangaben, Mitglieder, Einladungen, Grundeinstellungen (Drehschluss, Ruhezeit, Währung, Bundesland für die Feiertage, Arbeitstage). | Einmal am Anfang, danach selten. |
-| **Drehbuch** | `/projects/:id/drehbuch` | Szenenliste mit Achteln, Innen/Außen, Tag/Nacht, Motiv, Figuren und Requisiten. Import aus Datei. | Nach dem ersten Buch - die Grundlage für alles Weitere. |
-| **ScreenplayEditor** | `/projects/:id/screenplay-editor` | Drehbuch schreiben im Format, mit Blöcken, Notizen und PDF-Export (auch mit Anmerkungen). | Wenn das Buch im Haus entsteht. |
+| **Drehbuch** | `/projects/:id/drehbuch` | Szenenliste mit Achteln, Innen/Außen, Tag/Nacht, Motiv, Figuren und Requisiten. Import aus Datei. Im gesperrten Drehbuch: Nummer fest, Löschen heißt "entfällt" (grau, Filter, Zurückholen). | Nach dem ersten Buch - die Grundlage für alles Weitere. |
+| **ScreenplayEditor** | `/projects/:id/screenplay-editor` | Drehbuch schreiben im Format, mit Blöcken, Notizen und PDF-Export (auch mit Anmerkungen). Fassungen (AP A3): Einlesen als neue Fassung mit Vorschau, Sperren ab Produktion, Liste mit Vergleich, Sternchen in Editor und PDF, Kopfzeile mit Fassung. | Wenn das Buch im Haus entsteht. |
 | **Shotlist** | `/projects/:id/shotlist` | Einstellungen je Szene: Größe, Bewegung, Brennweite, Dauer, bester Take. Abhaken am Drehtag, PDF nach Szenen oder nach Drehtagen. | In der Auflösung mit der Regie, dann täglich am Set. |
 | **SzenenKommentare** | `/projects/:id/kommentare` | Anmerkungen an einzelnen Szenen, auflösbar. | Wenn Regie und Produktion über eine Szene reden. |
 | **Moodboard** | `/projects/:id/moodboard` | Bilder und Referenzen sammeln. | In der Entwicklung, für Look und Ausstattung. |
