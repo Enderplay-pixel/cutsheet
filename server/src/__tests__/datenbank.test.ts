@@ -3356,3 +3356,107 @@ describe('DOOD nach Branchenregel und Haltetage (AP A1)', () => {
     expect(await zeile(`cast-halt:${cast}`)).toBeUndefined()
   })
 })
+
+describe('Vertrag vor dem Versand prüfen und danach (AP A4, A5)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+  const VORLAGE = '# Darstellervertrag\n\nRolle: {{rolle}}. Gage je Drehtag: **{{gage}}**, insgesamt {{gage_gesamt}}.'
+
+  async function projektMitDarstellerin(gage: number | null) {
+    const projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Verträge A4', nutzerId])).id
+    const figur = (await db.run("INSERT INTO characters (project_id, name) VALUES (?, 'Johanna')", [projekt])).id
+    const cast = (await db.run(
+      `INSERT INTO "cast" (project_id, character_id, actor_name, email, fee_per_day) VALUES (?, ?, 'Mara Lind', 'mara@demo.test', ?)`,
+      [projekt, figur, gage ?? 0])).id
+    const tag = (await db.run("INSERT INTO shoot_days (project_id, day_number, date, status) VALUES (?, 1, '2026-11-16', 'Geplant')", [projekt])).id
+    const szene = (await db.run("INSERT INTO scenes (project_id, scene_number, title) VALUES (?, '1', 'DEICH')", [projekt])).id
+    await db.run('INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?)', [szene, figur])
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, 0)', [tag, szene])
+    return { projekt, cast }
+  }
+
+  it('merkt sich die Lücken, sendet nicht still und füllt neu', async () => {
+    const { projekt, cast } = await projektMitDarstellerin(null)
+    // Wie die Seite: erst die Vorschau, dann der gefüllte Text samt Vorlage
+    const vorschau = await sende(`/api/projects/${projekt}/vertraege/vorschau`, { person_type: 'cast', person_id: cast, body: VORLAGE })
+    expect(vorschau.daten.text).not.toContain('{{')
+    const angelegt = await sende(`/api/projects/${projekt}/vertraege`,
+      { person_type: 'cast', person_id: cast, body: vorschau.daten.text, vorlage: VORLAGE, kind: 'darsteller' })
+    expect(angelegt.status).toBe(200)
+    expect(angelegt.daten.fehlt).toEqual(['gage', 'gage_gesamt'])
+    const id = angelegt.daten.id
+
+    const gesperrt = await sende(`/api/projects/${projekt}/vertraege/${id}/senden`)
+    expect(gesperrt.status).toBe(409)
+    expect(gesperrt.fehler).toContain('Gage je Drehtag')
+    expect((await db.get('SELECT status FROM contracts WHERE id = ?', [id])).status).toBe('entwurf')
+
+    await db.run('UPDATE "cast" SET fee_per_day = 60000 WHERE id = ?', [cast])
+    const neu = await sende(`/api/projects/${projekt}/vertraege/${id}/neu-fuellen`)
+    expect(neu.status).toBe(200)
+    expect(neu.daten.fehlt).toEqual([])
+    expect(neu.daten.body).toContain('600,00 €')
+
+    const gesendet = await sende(`/api/projects/${projekt}/vertraege/${id}/senden`)
+    expect(gesendet.status).toBe(200)
+    // Ein verschickter Vertrag wird nicht neu gefüllt
+    expect((await sende(`/api/projects/${projekt}/vertraege/${id}/neu-fuellen`)).status).toBe(400)
+  })
+
+  it('mit "trotzdem" geht es sofort und steht im Protokoll', async () => {
+    const { projekt, cast } = await projektMitDarstellerin(null)
+    const id = (await sende(`/api/projects/${projekt}/vertraege`, { person_type: 'cast', person_id: cast, body: VORLAGE })).daten.id
+    const r = await sende(`/api/projects/${projekt}/vertraege/${id}/senden`, { trotzdem: true })
+    expect(r.status).toBe(200)
+    // Das Protokoll wird ohne Warten geschrieben (routes/audit.ts)
+    let eintrag: any
+    for (let i = 0; i < 20 && !eintrag; i++) {
+      eintrag = await db.get(
+        "SELECT new_value FROM audit_log WHERE project_id = ? AND action = 'vertrag versendet' AND entity_id = ?", [projekt, id])
+      if (!eintrag) await new Promise(r => setTimeout(r, 50))
+    }
+    expect(String(eintrag?.new_value)).toContain('gage_gesamt')
+  })
+
+  it('Liste mit Link und unterschriebenem Exemplar, Text ohne Auszeichnung, Vermerk im Blatt', async () => {
+    const { projekt, cast } = await projektMitDarstellerin(50000)
+    const id = (await sende(`/api/projects/${projekt}/vertraege`, { person_type: 'cast', person_id: cast, body: VORLAGE })).daten.id
+    const liste = async () => (await hole(`/api/projects/${projekt}/vertraege`, tokenInhaber)).daten.personen
+      .flatMap((p: any) => p.vertraege).find((v: any) => v.id === id)
+
+    expect((await liste()).link).toBeNull()
+    await sende(`/api/projects/${projekt}/vertraege/${id}/senden`)
+    const v = await liste()
+    expect(v.link).toMatch(/\/vertrag\/[0-9a-f]{48}$/)
+    expect(v.unterschrieben).toBeNull()
+
+    await db.run(
+      "INSERT INTO project_files (project_id, kind, filename, mime, bytes, content, entity_type, entity_id) VALUES (?, 'vertrag', 'scan.pdf', 'application/pdf', 3, ?, 'contract', ?)",
+      [projekt, Buffer.from('pdf'), id])
+    expect((await liste()).unterschrieben).toMatchObject({ dateiname: 'scan.pdf' })
+
+    const text = await hole(`/api/projects/${projekt}/vertraege/${id}/text`, tokenInhaber)
+    expect(text.status).toBe(200)
+    expect(text.daten.text).toContain('Gage je Drehtag: 500,00 €')
+    expect(text.daten.text).not.toContain('**')
+
+    // Bestätigt über den Link: der Vermerk steht im Text des Blatts
+    const token = (await db.get('SELECT token FROM contracts WHERE id = ?', [id])).token
+    await hole(`/api/vertrag/${token}/bestaetigen`, '', { method: 'POST', body: JSON.stringify({ name: 'Mara Lind' }) })
+    const { vertragsBlatt } = await import('../routes/vertraege')
+    expect(await vertragsBlatt(id)).toContain('von Mara Lind über den persönlichen Link')
+  })
+
+  it('Abschluss zählt einen Vertrag mit unterschriebenem Exemplar nicht als offen', async () => {
+    const { projekt, cast } = await projektMitDarstellerin(50000)
+    const id = (await sende(`/api/projects/${projekt}/vertraege`, { person_type: 'cast', person_id: cast, body: VORLAGE })).daten.id
+    await sende(`/api/projects/${projekt}/vertraege/${id}/senden`)
+    const offen = async () => ((await hole(`/api/projects/${projekt}/abschluss`, tokenInhaber)).daten.punkte as any[])
+      .find((p: any) => p.schluessel === 'vertraege')?.anzahl ?? 0
+    expect(await offen()).toBe(1)
+    await db.run(
+      "INSERT INTO project_files (project_id, kind, filename, mime, bytes, content, entity_type, entity_id) VALUES (?, 'vertrag', 'scan.pdf', 'application/pdf', 3, ?, 'contract', ?)",
+      [projekt, Buffer.from('pdf'), id])
+    expect(await offen()).toBe(0)
+  })
+})

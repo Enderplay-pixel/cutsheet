@@ -1016,8 +1016,13 @@ export const api = {
       req<any>(`/projects/${projektId}/vertraege/${id}`, { method: 'PUT', body: JSON.stringify(daten) }),
     loeschen: (projektId: number, id: number) =>
       req<any>(`/projects/${projektId}/vertraege/${id}`, { method: 'DELETE' }),
-    senden: (projektId: number, id: number) =>
-      req<any>(`/projects/${projektId}/vertraege/${id}/senden`, { method: 'POST', body: '{}' }),
+    /** Mit `trotzdem` geht auch ein Vertrag mit Lücken hinaus - das Protokoll hält es fest. */
+    senden: (projektId: number, id: number, trotzdem = false) =>
+      req<any>(`/projects/${projektId}/vertraege/${id}/senden`, { method: 'POST', body: JSON.stringify({ trotzdem }) }),
+    neuFuellen: (projektId: number, id: number) =>
+      req<any>(`/projects/${projektId}/vertraege/${id}/neu-fuellen`, { method: 'POST', body: '{}' }),
+    /** Der gefüllte Text ohne Auszeichnung, zum Kopieren. */
+    text: (projektId: number, id: number) => req<any>(`/projects/${projektId}/vertraege/${id}/text`),
     zurueckziehen: (projektId: number, id: number) =>
       req<any>(`/projects/${projektId}/vertraege/${id}/zurueckziehen`, { method: 'POST', body: '{}' }),
     pdfUrl: (projektId: number, id: number) => `/api/projects/${projektId}/vertraege/${id}/pdf`,

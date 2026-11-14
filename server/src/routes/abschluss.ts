@@ -89,7 +89,8 @@ router.get('/projects/:projectId/abschluss', requireAuth, requireMember, async (
         [projectId]
       ) as Promise<any>,
       db.get(
-        "SELECT COUNT(*) AS anzahl FROM contracts WHERE project_id = ? AND status = 'versendet'",
+        `SELECT COUNT(*) AS anzahl FROM contracts WHERE project_id = ? AND status = 'versendet'
+          AND NOT EXISTS (SELECT 1 FROM project_files f WHERE f.entity_type = 'contract' AND f.entity_id = contracts.id AND f.kind = 'vertrag')`,
         [projectId]
       ) as Promise<any>,
       db.get(
@@ -136,6 +137,7 @@ router.get('/projects/:projectId/abschluss', requireAuth, requireMember, async (
     },
     {
       schluessel: 'vertraege',
+      // Ein unterschriebenes Exemplar in der Ablage zählt wie die Bestätigung (AP A5)
       titel: 'Verträge ohne Bestätigung',
       anzahl: zahl(vertraege),
       text: 'Verschickt, aber nie bestätigt. Ohne Zustimmung fehlt der Beleg dafür, was vereinbart war.',
@@ -283,7 +285,8 @@ router.post('/projects/:projectId/abschluss', requireAuth, requireMember, async 
             AND status NOT IN ('entwurf', 'storniert', 'bezahlt')`,
         [projectId]
       ) as Promise<any>,
-      db.get("SELECT COUNT(*) AS anzahl FROM contracts WHERE project_id = ? AND status = 'versendet'",
+      db.get(`SELECT COUNT(*) AS anzahl FROM contracts WHERE project_id = ? AND status = 'versendet'
+          AND NOT EXISTS (SELECT 1 FROM project_files f WHERE f.entity_type = 'contract' AND f.entity_id = contracts.id AND f.kind = 'vertrag')`,
         [projectId]) as Promise<any>,
       db.get(
         `SELECT COUNT(*) AS anzahl FROM reviews

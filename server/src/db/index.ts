@@ -1988,6 +1988,12 @@ export async function initDatabase() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `)
+  // Vertrag vor dem Versand prüfen (AP A4, 14.11.2026): Die Vorlage bleibt am
+  // Vertrag, damit er sich mit neuen Daten noch einmal füllen lässt, und was
+  // beim Füllen fehlte, steht als JSON-Liste der Platzhalter daneben.
+  await db.exec(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS template_body TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS missing TEXT NOT NULL DEFAULT '[]'`)
+
   await db.exec(`CREATE INDEX IF NOT EXISTS contracts_projekt_idx ON contracts (project_id, person_type, person_id)`)
   await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS contracts_token_idx ON contracts (token) WHERE token IS NOT NULL`)
 

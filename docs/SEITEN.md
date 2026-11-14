@@ -110,7 +110,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 | **Kontaktliste** | `/projects/:id/kontakte` | Alle Beteiligten an einem Ort, Export als CSV und **vCard** fürs Telefon. | Vor dem ersten Drehtag - damit alle Nummern im Telefon sind. |
 | **SperrtageKalender** | `/projects/:id/sperrtage` | Wann wer nicht kann. Fließt in den Konfliktradar. | Direkt nach der Besetzung, vor der Drehplanung. |
 | **Agenturen** | `/projects/:id/agenturen` | Agenturen (auf Firmenebene geführt) und **Besetzungsanfragen** mit mehreren Rollen in einem Schreiben. Vorschläge einsammeln, nachfassen, übernehmen. | Im Casting, bevor die Besetzung steht. |
-| **Vertraege** | `/projects/:id/vertraege` | Wer hat was unterschrieben. Verträge aus Vorlagen erzeugen, verschicken, Stand verfolgen. Zweiter Reiter: **Jugendarbeitsschutz** - prüft jeden Drehtag jedes Kindes gegen § 6 JArbSchG. | Sobald jemand zusagt. Und vor jedem Drehtag mit Kindern. |
+| **Vertraege** | `/projects/:id/vertraege` | Wer hat was unterschrieben. Verträge aus Vorlagen erzeugen; ein Entwurf mit Lücken steht als "unvollständig" da und lässt sich neu füllen. "Prüfen und senden" zeigt den Text vor dem Versand, mit Lücken nur ausdrücklich. Link und Text jederzeit kopieren, unterschriebenes Exemplar am Vertrag hochladen. Zweiter Reiter: **Jugendarbeitsschutz** - prüft jeden Drehtag jedes Kindes gegen § 6 JArbSchG. | Sobald jemand zusagt. Und vor jedem Drehtag mit Kindern. |
 
 ---
 

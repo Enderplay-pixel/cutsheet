@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   ARTEN, STANDARDVORLAGEN, VERTRAGS_PLATZHALTER,
   platzhalterIn, fehlendeWerte, fuelleVorlage, euroText, datumText,
+  lesbareLuecken, vermerkText, vertragAlsText,
 } from '../lib/vertraege'
 
 /**
@@ -127,5 +128,53 @@ describe('Darstellung von Beträgen und Daten', () => {
     expect(datumText('2026-01-01')).toBe('01.01.2026')
     expect(datumText('2026-12-31')).toBe('31.12.2026')
     expect(datumText(null)).toBe('')
+  })
+})
+
+// ─── AP A4 und A5 (14.11.2026) ───────────────────────────────────────────────
+
+describe('Lücken mit lesbarem Namen', () => {
+  it('nennt die Platzhalter so, wie sie in der Liste beschrieben sind', () => {
+    expect(lesbareLuecken(['gage', 'gage_gesamt'])).toEqual(['Gage je Drehtag', 'Gage mal Drehtage'])
+  })
+  it('lässt die Erläuterung in Klammern weg', () => {
+    expect(lesbareLuecken(['drehorte', 'haltetage'])).toEqual(['Motive der eigenen Drehtage', 'Anzahl der Haltetage laut DOOD'])
+  })
+  it('lässt Unbekanntes stehen, statt es zu verschlucken', () => {
+    expect(lesbareLuecken(['gibts_nicht'])).toEqual(['gibts_nicht'])
+  })
+})
+
+describe('Vermerk im Vertrag', () => {
+  it('nennt Name und Zeitpunkt der Bestätigung in deutscher Zeit', () => {
+    expect(vermerkText({ status: 'bestaetigt', confirmed_at: '2026-11-14T10:30:00Z', confirmed_name: 'Mara Lind' }))
+      .toBe('Bestätigt am 14.11.2026 um 11:30 Uhr von Mara Lind über den persönlichen Link.')
+  })
+  it('nennt bei einer Ablehnung den Grund', () => {
+    expect(vermerkText({ status: 'abgelehnt', declined_at: '2026-07-01T08:05:00Z', decline_reason: 'Gage zu niedrig' }))
+      .toBe('Abgelehnt am 01.07.2026 um 10:05 Uhr über den persönlichen Link. Grund: Gage zu niedrig')
+  })
+  it('steht bei Entwurf und versendetem Vertrag nicht da', () => {
+    expect(vermerkText({ status: 'versendet' })).toBe('')
+    expect(vermerkText({ status: 'entwurf' })).toBe('')
+  })
+  it('steht im Blatt vor den Unterschriften, ohne Vermerk nichts davon', async () => {
+    const { renderVertrag } = await import('../routes/vertraege')
+    const mit = renderVertrag('Darstellervertrag', 'Text', 'Salzwind', 'Bestätigt am 14.11.2026 um 11:30 Uhr von Mara Lind über den persönlichen Link.')
+    expect(mit).toContain('Mara Lind über den persönlichen Link')
+    expect(mit.indexOf('class="vermerk"')).toBeLessThan(mit.indexOf('class="unterschrift"'))
+    expect(renderVertrag('Darstellervertrag', 'Text', 'Salzwind')).not.toContain('class="vermerk"')
+  })
+})
+
+describe('Vertrag als reiner Text', () => {
+  const text = '# Darstellervertrag\n\nZwischen **Nordlicht Film** und Mara Lind.\n\n## 1. Leistung\nDie Darstellerin spielt die Rolle Johanna.\n\n1. erster Punkt\n2. zweiter Punkt'
+  it('ohne Zeichen der Auszeichnung, Überschriften auf eigener Zeile', () => {
+    const rein = vertragAlsText(text)
+    expect(rein).not.toContain('**')
+    expect(rein).not.toMatch(/^#/m)
+    expect(rein.split('\n')).toContain('1. Leistung')
+    expect(rein).toContain('Zwischen Nordlicht Film und Mara Lind.')
+    expect(rein).toContain('1. erster Punkt\n2. zweiter Punkt')
   })
 })

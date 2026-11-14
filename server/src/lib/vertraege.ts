@@ -50,7 +50,7 @@ export const VERTRAGS_PLATZHALTER = [
   { schluessel: 'gage', beschreibung: 'Gage je Drehtag', beispiel: '450,00 €' },
   { schluessel: 'gage_gesamt', beschreibung: 'Gage mal Drehtage', beispiel: '2.700,00 €' },
   { schluessel: 'haltetage', beschreibung: 'Anzahl der Haltetage laut DOOD (nur Besetzung)', beispiel: '2' },
-  { schluessel: 'drehorte', beschreibung: 'Die Motive der eigenen Drehtage (ohne Dispo: alle Motive)', beispiel: 'Hafen, Café Morgenrot' },
+  { schluessel: 'drehorte', beschreibung: 'Motive der eigenen Drehtage (ohne Dispo: alle Motive)', beispiel: 'Hafen, Café Morgenrot' },
   { schluessel: 'geburtsdatum', beschreibung: 'Geburtsdatum der Person', beispiel: '10.03.2020' },
   { schluessel: 'erziehungsberechtigt', beschreibung: 'Name der erziehungsberechtigten Person', beispiel: 'Anna Müller' },
   { schluessel: 'datum', beschreibung: 'Heutiges Datum', beispiel: '12.10.2026' },
@@ -76,6 +76,57 @@ export function fehlendeWerte(text: string, werte: Record<string, string>): stri
     const wert = werte[s]
     return wert === undefined || wert === null || wert === ''
   })
+}
+
+/**
+ * Die Lücken eines Vertrags mit den Namen aus der Platzhalterliste (seit
+ * 14.11.2026). Ohne die Erläuterung in Klammern: Im Etikett stand sonst "Die
+ * Motive der eigenen Drehtage (ohne Dispo: alle Motive)".
+ */
+export function lesbareLuecken(schluessel: string[]): string[] {
+  return schluessel.map((s) =>
+    (VERTRAGS_PLATZHALTER.find((p) => p.schluessel === s)?.beschreibung ?? s).replace(/\s*\(.*\)\s*$/, ''))
+}
+
+function zeitpunkt(wert: unknown): string {
+  const d = new Date(wert as any)
+  if (Number.isNaN(d.getTime())) return ''
+  const datum = d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' })
+  const uhr = d.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' })
+  return `${datum} um ${uhr} Uhr`
+}
+
+/**
+ * Der Vermerk unter einem bestätigten oder abgelehnten Vertrag (seit
+ * 14.11.2026). Bis dahin stand im PDF nicht, wer wann über den Link
+ * zugestimmt hatte - das Blatt sah aus wie ein Entwurf.
+ */
+export function vermerkText(v: {
+  status?: string | null; confirmed_at?: unknown; confirmed_name?: string | null
+  declined_at?: unknown; decline_reason?: string | null
+}): string {
+  if (v.status === 'bestaetigt' && v.confirmed_at) {
+    const von = String(v.confirmed_name || '').trim()
+    return `Bestätigt am ${zeitpunkt(v.confirmed_at)}${von ? ` von ${von}` : ''} über den persönlichen Link.`
+  }
+  if (v.status === 'abgelehnt' && v.declined_at) {
+    const grund = String(v.decline_reason || '').trim()
+    return `Abgelehnt am ${zeitpunkt(v.declined_at)} über den persönlichen Link.${grund ? ` Grund: ${grund}` : ''}`
+  }
+  return ''
+}
+
+/**
+ * Der Vertrag als reiner Text, für Mail oder Textverarbeitung (seit
+ * 14.11.2026, Testbericht: "Verträge gibt es nur als PDF"). Überschriften
+ * stehen auf eigener Zeile, die Zeichen der Auszeichnung fallen weg.
+ */
+export function vertragAlsText(text: string): string {
+  return String(text).replace(/\r\n/g, '\n').split('\n')
+    .map((z) => z.replace(/^\s*#{1,6}\s+/, '').replace(/\*\*(.+?)\*\*/g, '$1'))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 export function fuelleVorlage(text: string, werte: Record<string, string>): string {

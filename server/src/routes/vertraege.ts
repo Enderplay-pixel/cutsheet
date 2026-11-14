@@ -23,7 +23,7 @@ import { maskiere } from '../lib/mailvorlagen'
 import { pdfFontFaces, PDF_SANS } from '../lib/pdfFonts'
 import {
   ARTEN, STANDARDVORLAGEN, VERTRAGS_PLATZHALTER,
-  platzhalterIn, fehlendeWerte, fuelleVorlage, euroText, datumText,
+  platzhalterIn, fehlendeWerte, fuelleVorlage, lesbareLuecken, vermerkText, vertragAlsText, euroText, datumText,
 } from '../lib/vertraege'
 import {
   pruefeEinsatz, grenzeFuer, alterAm, ANTRAGSUNTERLAGEN, KIND_BIS_ALTER,
@@ -279,6 +279,16 @@ router.post('/projects/:projectId/vertraege/vorschau', requireAuth, requireMembe
 
 // ─── Verträge ────────────────────────────────────────────────────────────────
 
+/** Die beim Füllen gemerkten Lücken; alte Verträge haben keine Liste. */
+function fehltAus(vertrag: { missing?: unknown }): string[] {
+  try {
+    const liste = JSON.parse(String(vertrag.missing ?? '[]'))
+    return Array.isArray(liste) ? liste.map(String) : []
+  } catch {
+    return []
+  }
+}
+
 /**
  * Die Übersicht: wer hat was, und wem fehlt noch etwas.
  *
@@ -287,12 +297,22 @@ router.post('/projects/:projectId/vertraege/vorschau', requireAuth, requireMembe
  */
 router.get('/projects/:projectId/vertraege', requireAuth, requireMember, async (req: Request, res: Response) => {
   const projectId = Number(req.params.projectId)
-  const [vertraege, besetzung, stab, komparsen] = await Promise.all([
+  const [vertraege, besetzung, stab, komparsen, scans] = await Promise.all([
     db.all('SELECT * FROM contracts WHERE project_id = ? ORDER BY created_at DESC', [projectId]) as Promise<any[]>,
     db.all('SELECT id, actor_name AS name, birthdate FROM "cast" WHERE project_id = ? ORDER BY actor_name', [projectId]) as Promise<any[]>,
     db.all('SELECT id, name, birthdate FROM crew WHERE project_id = ? ORDER BY name', [projectId]) as Promise<any[]>,
     db.all('SELECT id, name, birthdate FROM extras WHERE project_id = ? ORDER BY name', [projectId]) as Promise<any[]>,
+    // Unterschriebene Exemplare aus der Ablage (AP A5): das neueste je Vertrag
+    db.all(
+      `SELECT DISTINCT ON (entity_id) entity_id, id, filename, created_at FROM project_files
+        WHERE project_id = ? AND entity_type = 'contract' AND kind = 'vertrag'
+        ORDER BY entity_id, created_at DESC`, [projectId]) as Promise<any[]>,
   ])
+  const scanJeVertrag = new Map(scans.map((d) => [Number(d.entity_id), d]))
+  // Der Link zur Bestätigung - jederzeit kopierbar, nicht nur in der Meldung
+  // nach dem Senden (AP A5). Die Route liegt in NUR_PRODUKTION, Regie und
+  // Nur-lesen sehen die Liste gar nicht.
+  const basis = appBasisUrl()
 
   const jePerson = new Map<string, any[]>()
   for (const v of vertraege) {
@@ -321,6 +341,12 @@ router.get('/projects/:projectId/vertraege', requireAuth, requireMember, async (
       vertraege: eigene.map((v) => ({
         id: v.id, kind: v.kind, title: v.title, status: v.status,
         sent_at: v.sent_at, confirmed_at: v.confirmed_at, confirmed_name: v.confirmed_name,
+        fehlt: lesbareLuecken(fehltAus(v)),
+        neu_fuellbar: v.status === 'entwurf' && !!v.template_body,
+        link: v.token ? `${basis}/vertrag/${v.token}` : null,
+        unterschrieben: scanJeVertrag.has(Number(v.id))
+          ? { datei_id: scanJeVertrag.get(Number(v.id)).id, dateiname: scanJeVertrag.get(Number(v.id)).filename, am: scanJeVertrag.get(Number(v.id)).created_at }
+          : null,
       })),
       bestaetigt: eigene.filter((v) => v.status === 'bestaetigt').length,
       offen: eigene.filter((v) => v.status === 'versendet').length,
@@ -349,8 +375,14 @@ router.post('/projects/:projectId/vertraege', requireAuth, requireMember, async 
   const daten = await werteFuer(projectId, art, personId)
   if (!daten) return res.status(404).json({ data: null, error: 'Person nicht gefunden' })
 
-  const vorlage = String(req.body?.body || '')
-  if (!vorlage.trim()) return res.status(400).json({ data: null, error: 'Ohne Text kein Vertrag' })
+  const text = String(req.body?.body || '')
+  if (!text.trim()) return res.status(400).json({ data: null, error: 'Ohne Text kein Vertrag' })
+  // Die Seite schickt den schon gefüllten Text (body) und dazu die Vorlage mit
+  // ihren Platzhaltern (vorlage). Im gefüllten Text ist eine Lücke nur noch
+  // eine leere Stelle - erkennen lässt sie sich nur an der Vorlage. Gemessen
+  // am 14.11.2026: Ohne die Vorlage blieb die Liste der Lücken in der echten
+  // Oberfläche immer leer.
+  const vorlage = String(req.body?.vorlage ?? text)
 
   // Nur eine Vorlage dieses Projekts oder seiner Firma
   if (req.body?.template_id) {
@@ -362,22 +394,65 @@ router.post('/projects/:projectId/vertraege', requireAuth, requireMember, async 
     if (!eigeneVorlage) return res.status(404).json({ data: null, error: 'Vorlage nicht gefunden' })
   }
 
+  // Was beim Füllen fehlt, bleibt am Vertrag stehen (AP A4). Vorher war eine
+  // Lücke ab hier nur noch ein halber Satz, den niemand mehr als Platzhalter
+  // erkannte - und Senden prüfte nichts.
+  const fehlt = fehlendeWerte(vorlage, daten.werte)
   const zeile = await db.run(
     `INSERT INTO contracts
-       (project_id, template_id, person_type, person_id, kind, title, body, status, fee_cents, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'entwurf', ?, ?)`,
+       (project_id, template_id, person_type, person_id, kind, title, body, status, fee_cents, created_by,
+        template_body, missing)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'entwurf', ?, ?, ?, ?)`,
     [
       projectId,
       req.body?.template_id ? Number(req.body.template_id) : null,
       art, personId,
       String(req.body?.kind || 'darsteller'),
       String(req.body?.title || '').slice(0, 200) || `Vertrag ${daten.werte.name}`,
-      fuelleVorlage(vorlage, daten.werte),
+      fuelleVorlage(text, daten.werte),
       Number(daten.person.fee_per_day ?? 0),
       (req as any).user?.id ?? null,
+      // Neu füllen geht nur mit einer Vorlage, die noch Platzhalter hat
+      platzhalterIn(vorlage).length > 0 ? vorlage : '',
+      JSON.stringify(fehlt),
     ]
   )
-  return res.json({ data: await db.get('SELECT * FROM contracts WHERE id = ?', [zeile.id]), error: null })
+  const neu = await db.get('SELECT * FROM contracts WHERE id = ?', [zeile.id]) as any
+  return res.json({ data: { ...neu, fehlt, fehlt_namen: lesbareLuecken(fehlt) }, error: null })
+})
+
+/**
+ * Einen Entwurf mit den heutigen Daten neu füllen (AP A4) - nach dem
+ * Nachtragen einer Gage oder eines Drehtags. Nur, solange er nicht verschickt
+ * ist, und nur, wenn die Vorlage am Vertrag steht (Verträge von vor dem
+ * 14.11.2026 haben keine).
+ */
+router.post('/projects/:projectId/vertraege/:id/neu-fuellen', requireAuth, requireMember, async (req: Request, res: Response) => {
+  const projectId = Number(req.params.projectId)
+  const vertrag = (await db.get('SELECT * FROM contracts WHERE id = ? AND project_id = ?', [Number(req.params.id), projectId])) as any
+  if (!vertrag) return res.status(404).json({ data: null, error: 'Vertrag nicht gefunden' })
+  if (vertrag.status !== 'entwurf') return res.status(400).json({ data: null, error: 'Nur ein Entwurf lässt sich neu füllen' })
+  if (!vertrag.template_body) {
+    return res.status(400).json({ data: null, error: 'Dieser Vertrag wurde ohne gespeicherte Vorlage angelegt und lässt sich nicht neu füllen' })
+  }
+  const daten = await werteFuer(projectId, vertrag.person_type, Number(vertrag.person_id))
+  if (!daten) return res.status(404).json({ data: null, error: 'Person nicht gefunden' })
+  const fehlt = fehlendeWerte(vertrag.template_body, daten.werte)
+  await db.run(
+    'UPDATE contracts SET body = ?, missing = ?, fee_cents = ?, updated_at = NOW() WHERE id = ?',
+    [fuelleVorlage(vertrag.template_body, daten.werte), JSON.stringify(fehlt), Number(daten.person.fee_per_day ?? 0), vertrag.id]
+  )
+  const neu = await db.get('SELECT * FROM contracts WHERE id = ?', [vertrag.id]) as any
+  return res.json({ data: { ...neu, fehlt, fehlt_namen: lesbareLuecken(fehlt) }, error: null })
+})
+
+/** Der gefüllte Text ohne Auszeichnung, zum Kopieren (AP A5). */
+router.get('/projects/:projectId/vertraege/:id/text', requireAuth, requireMember, async (req: Request, res: Response) => {
+  const vertrag = (await db.get('SELECT title, body FROM contracts WHERE id = ? AND project_id = ?', [
+    Number(req.params.id), Number(req.params.projectId),
+  ])) as any
+  if (!vertrag) return res.status(404).json({ data: null, error: 'Vertrag nicht gefunden' })
+  return res.json({ data: { titel: vertrag.title, text: vertragAlsText(vertrag.body) }, error: null })
 })
 
 router.get('/projects/:projectId/vertraege/:id', requireAuth, requireMember, async (req: Request, res: Response) => {
@@ -439,7 +514,7 @@ export function listenpunkte(block: string): string[] {
   return punkte
 }
 
-function renderVertrag(titel: string, text: string, projekt: string): string {
+export function renderVertrag(titel: string, text: string, projekt: string, vermerk = ''): string {
   const esc = (w: any) => String(w ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
@@ -490,11 +565,13 @@ ${pdfFontFaces()}
   .unterschrift { margin-top: 14mm; display: flex; gap: 14mm; }
   .unterschrift div { flex: 1; border-top: 0.4pt solid #333; padding-top: 1.5mm;
     font-size: 8.5pt; color: #555; }
+  .vermerk { margin-top: 10mm; padding: 2.5mm 3.5mm; border: 0.4pt solid #999; font-size: 9pt; }
   .fuss { position: absolute; bottom: 12mm; left: 25mm; right: 22mm; font-size: 7.5pt;
     color: #777; border-top: 0.3pt solid #ddd; padding-top: 2mm; }
 </style></head>
 <body><div class="blatt">
 ${html}
+${vermerk ? `<p class="vermerk">${esc(vermerk)}</p>` : ''}
 <div class="unterschrift">
   <div>Ort, Datum und Unterschrift Produktion</div>
   <div>Ort, Datum und Unterschrift</div>
@@ -503,13 +580,23 @@ ${html}
 </div></body></html>`
 }
 
+/**
+ * Das Blatt eines Vertrags samt Vermerk, wer wann über den Link bestätigt
+ * oder abgelehnt hat (AP A5). Für das PDF der Produktion und das über den Link.
+ */
+export async function vertragsBlatt(id: number): Promise<string | null> {
+  const vertrag = (await db.get('SELECT * FROM contracts WHERE id = ?', [id])) as any
+  if (!vertrag) return null
+  const projekt = (await db.get('SELECT title FROM projects WHERE id = ?', [vertrag.project_id])) as any
+  return renderVertrag(vertrag.title, vertrag.body, projekt?.title || '', vermerkText(vertrag))
+}
+
 router.get('/projects/:projectId/vertraege/:id/pdf', requireAuth, requireMember, async (req: Request, res: Response) => {
-  const vertrag = (await db.get('SELECT * FROM contracts WHERE id = ? AND project_id = ?', [
+  const vertrag = (await db.get('SELECT id FROM contracts WHERE id = ? AND project_id = ?', [
     Number(req.params.id), Number(req.params.projectId),
   ])) as any
   if (!vertrag) return res.status(404).json({ data: null, error: 'Vertrag nicht gefunden' })
-  const projekt = (await db.get('SELECT title FROM projects WHERE id = ?', [Number(req.params.projectId)])) as any
-  const pdf = await generatePdf(renderVertrag(vertrag.title, vertrag.body, projekt?.title || ''))
+  const pdf = await generatePdf((await vertragsBlatt(Number(vertrag.id)))!)
   res.setHeader('Content-Type', 'application/pdf')
   res.setHeader('Content-Disposition', `inline; filename="vertrag-${vertrag.id}.pdf"`)
   return res.send(pdf)
@@ -532,6 +619,17 @@ router.post('/projects/:projectId/vertraege/:id/senden', requireAuth, requireMem
   }
   if (vertrag.status === 'zurueckgezogen') {
     return res.status(400).json({ data: null, error: 'Dieser Vertrag ist zurückgezogen. Für einen neuen Versand einen neuen anlegen.' })
+  }
+
+  // Ein Vertrag mit Lücken geht nicht still hinaus (AP A4). Wer trotzdem
+  // senden will, sagt es ausdrücklich, und das Protokoll hält es fest.
+  const luecken = fehltAus(vertrag)
+  const trotzdem = req.body?.trotzdem === true
+  if (luecken.length > 0 && !trotzdem) {
+    return res.status(409).json({
+      data: { fehlt: luecken, fehlt_namen: lesbareLuecken(luecken) },
+      error: `Im Vertrag fehlen noch Angaben: ${lesbareLuecken(luecken).join(', ')}. Ergänzen und "Neu füllen" oder ausdrücklich trotzdem senden.`,
+    })
   }
 
   const daten = await werteFuer(projectId, vertrag.person_type, vertrag.person_id)
@@ -593,7 +691,7 @@ router.post('/projects/:projectId/vertraege/:id/senden', requireAuth, requireMem
     [token, vertrag.id]
   )
   logAudit(projectId, (req as any).user as AuthUser, 'vertrag versendet', 'contracts', vertrag.id,
-    null, { titel: vertrag.title, an: empfaengerAdresse })
+    null, { titel: vertrag.title, an: empfaengerAdresse, ...(luecken.length > 0 ? { trotz_luecken: luecken } : {}) })
 
   return res.json({
     data: { status: 'versendet', an: empfaengerAdresse, mail_id: eingereiht[0].id, link, mailserver: versandMoeglich() },
@@ -651,10 +749,9 @@ router.get('/vertrag/:token', async (req: Request, res: Response) => {
 
 /** Das Blatt über den Link - ebenfalls ohne Anmeldung. */
 router.get('/vertrag/:token/pdf', async (req: Request, res: Response) => {
-  const vertrag = (await db.get('SELECT * FROM contracts WHERE token = ?', [String(req.params.token)])) as any
+  const vertrag = (await db.get('SELECT id FROM contracts WHERE token = ?', [String(req.params.token)])) as any
   if (!vertrag) return res.status(404).json({ data: null, error: 'Dieser Link gilt nicht mehr' })
-  const projekt = (await db.get('SELECT title FROM projects WHERE id = ?', [vertrag.project_id])) as any
-  const pdf = await generatePdf(renderVertrag(vertrag.title, vertrag.body, projekt?.title || ''))
+  const pdf = await generatePdf((await vertragsBlatt(Number(vertrag.id)))!)
   res.setHeader('Content-Type', 'application/pdf')
   res.setHeader('Content-Disposition', `inline; filename="vertrag.pdf"`)
   return res.send(pdf)

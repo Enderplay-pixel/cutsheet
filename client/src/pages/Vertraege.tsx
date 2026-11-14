@@ -17,7 +17,7 @@ import {
 import { useToast } from '@/components/ui/use-toast'
 import {
   FileSignature, Send, FileText, Check, Clock, AlertTriangle, Baby,
-  Plus, Trash2, Info, ShieldAlert,
+  Plus, Trash2, Info, ShieldAlert, Link2, Copy, Upload, RefreshCw,
 } from 'lucide-react'
 import { parseISO } from 'date-fns'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
@@ -104,6 +104,9 @@ function Personen({ pid }: { pid: number }) {
   const { darfSchreiben } = useSchreibrecht()
   const [neuFuer, setNeuFuer] = useState<any>(null)
   const [nurOffene, setNurOffene] = useState(false)
+  const [ohneUnterschrift, setOhneUnterschrift] = useState(false)
+  // Vor dem Senden steht der Vertrag im Dialog (AP A4), nicht ungesehen per Klick
+  const [pruefen, setPruefen] = useState<any>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['vertraege', pid],
@@ -111,12 +114,56 @@ function Personen({ pid }: { pid: number }) {
   })
 
   const senden = useMutation({
-    mutationFn: (id: number) => api.vertraege.senden(pid, id),
+    mutationFn: ({ id, trotzdem }: { id: number; trotzdem: boolean }) => api.vertraege.senden(pid, id, trotzdem),
     onSuccess: (e: any) => {
       qc.invalidateQueries({ queryKey: ['vertraege', pid] })
+      setPruefen(null)
       versandMelden(toast, e)
     },
     onError: (f: any) => toast({ title: 'Nicht verschickt', description: f.message, variant: 'destructive' }),
+  })
+
+  // Einen Entwurf mit den heutigen Daten neu füllen - nach dem Nachtragen einer
+  // Gage oder eines Drehtags (AP A4)
+  const neuFuellen = useMutation({
+    mutationFn: (id: number) => api.vertraege.neuFuellen(pid, id),
+    onSuccess: (v: any) => {
+      qc.invalidateQueries({ queryKey: ['vertraege', pid] })
+      toast(v.fehlt?.length
+        ? { title: 'Neu gefüllt, es fehlt noch etwas', description: v.fehlt_namen.join(', ') }
+        : { title: 'Neu gefüllt', description: 'Alle Angaben sind jetzt im Vertrag.' })
+    },
+    onError: (f: any) => toast({ title: 'Nicht neu gefüllt', description: f.message, variant: 'destructive' }),
+  })
+
+  // Link und Text kopieren (AP A5): Der Link stand bisher nur einmal in der
+  // Meldung nach dem Senden - wer sie wegklickte, kam nicht mehr an ihn heran.
+  const kopieren = async (was: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast({ title: `${was} kopiert` })
+    } catch {
+      toast({ title: `${was} nicht kopiert`, description: 'Die Zwischenablage ist in diesem Browser gesperrt.', variant: 'destructive' })
+    }
+  }
+  const textKopieren = async (id: number) => {
+    try {
+      const t = await api.vertraege.text(pid, id)
+      await kopieren('Text', t.text)
+    } catch (f: any) {
+      toast({ title: 'Text nicht kopiert', description: f.message, variant: 'destructive' })
+    }
+  }
+
+  const hochladen = useMutation({
+    mutationFn: ({ id, datei }: { id: number; datei: File }) =>
+      api.dateien.hochladen(pid, datei, { kind: 'vertrag', entity_type: 'contract', entity_id: String(id), title: 'Unterschriebenes Exemplar' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vertraege', pid] })
+      qc.invalidateQueries({ queryKey: ['dateien', pid] })
+      toast({ title: 'Unterschriebenes Exemplar abgelegt' })
+    },
+    onError: (f: any) => toast({ title: 'Nicht hochgeladen', description: f.message, variant: 'destructive' }),
   })
 
   // Ein verschickter Link gilt, bis er zurückgezogen wird - etwa wenn er an die
@@ -131,7 +178,10 @@ function Personen({ pid }: { pid: number }) {
   })
 
   const personen: any[] = data?.personen ?? []
-  const gezeigt = nurOffene ? personen.filter((p) => p.vertraege.length === 0 || p.offen > 0) : personen
+  const ohneScan = (p: any) => p.vertraege.some((v: any) => !v.unterschrieben && v.status !== 'zurueckgezogen')
+  const gezeigt = personen
+    .filter((p) => !nurOffene || p.vertraege.length === 0 || p.offen > 0)
+    .filter((p) => !ohneUnterschrift || ohneScan(p))
   const summe = data?.summe
 
   if (isLoading) {
@@ -165,6 +215,14 @@ function Personen({ pid }: { pid: number }) {
         >
           Nur offene zeigen
         </Button>
+        <Button
+          variant={ohneUnterschrift ? 'default' : 'outline'}
+          size="sm"
+          aria-pressed={ohneUnterschrift}
+          onClick={() => setOhneUnterschrift((v) => !v)}
+        >
+          Ohne unterschriebenes Exemplar
+        </Button>
         <span className="text-xs text-muted-foreground">
           {gezeigt.length} von {personen.length}
         </span>
@@ -174,9 +232,13 @@ function Personen({ pid }: { pid: number }) {
         {gezeigt.length === 0 ? (
           <Card>
             <CardContent className="py-14 text-center text-sm text-muted-foreground">
-              {nurOffene
-                ? 'Alle haben einen Vertrag und alle haben bestätigt.'
-                : 'Noch niemand im Projekt. Besetzung und Stab anlegen, dann erscheinen sie hier.'}
+              {/* Gemessen am 14.11.2026: Mit dem Filter "ohne unterschriebenes
+                  Exemplar" stand hier "Noch niemand im Projekt", obwohl jemand da war. */}
+              {personen.length === 0
+                ? 'Noch niemand im Projekt. Besetzung und Stab anlegen, dann erscheinen sie hier.'
+                : ohneUnterschrift
+                  ? 'Zu jedem Vertrag liegt ein unterschriebenes Exemplar vor.'
+                  : 'Alle haben einen Vertrag und alle haben bestätigt.'}
             </CardContent>
           </Card>
         ) : (
@@ -220,6 +282,23 @@ function Personen({ pid }: { pid: number }) {
                           {v.status === 'versendet' && mailserver === false ? 'Link aktiv, keine Mail' : (STATUS[v.status]?.label ?? v.status)}
                         </span>
                         <span className="flex-1 min-w-0 truncate">{v.title}</span>
+                        {v.status === 'entwurf' && v.fehlt?.length > 0 && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            unvollständig: {v.fehlt.join(', ')}
+                          </span>
+                        )}
+                        {v.unterschrieben && (
+                          <button
+                            type="button"
+                            className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 flex items-center gap-1 hover:underline"
+                            title="Unterschriebenes Exemplar herunterladen"
+                            onClick={() => download(api.dateien.inhaltUrl(pid, v.unterschrieben.datei_id), v.unterschrieben.dateiname)}
+                          >
+                            <FileSignature className="w-3 h-3" />
+                            Unterschrift liegt vor · {datum(v.unterschrieben.am)}
+                          </button>
+                        )}
                         {v.confirmed_at && (
                           <span className="text-xs text-muted-foreground flex items-center gap-1">
                             <Check className="w-3 h-3" />
@@ -240,6 +319,38 @@ function Personen({ pid }: { pid: number }) {
                         >
                           <FileText className="w-3.5 h-3.5" />
                         </Button>
+                        <Button variant="ghost" size="sm" aria-label={`Text von „${v.title}“ kopieren`} title="Text kopieren"
+                          onClick={() => textKopieren(v.id)}>
+                          <Copy className="w-3.5 h-3.5" />
+                        </Button>
+                        {v.link && (
+                          <Button variant="ghost" size="sm" aria-label={`Link zu „${v.title}“ kopieren`} title="Link kopieren"
+                            onClick={() => kopieren('Link', v.link)}>
+                            <Link2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                        {darfSchreiben && v.status !== 'zurueckgezogen' && (
+                          <label className="inline-flex items-center justify-center h-8 px-2 rounded-md hover:bg-muted cursor-pointer"
+                            title="Unterschriebenes Exemplar hochladen">
+                            <Upload className="w-3.5 h-3.5" aria-hidden="true" />
+                            <span className="sr-only">Unterschriebenes Exemplar von „{v.title}“ hochladen</span>
+                            <input type="file" accept="application/pdf,image/*" className="sr-only" disabled={hochladen.isPending}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0]
+                                if (f) hochladen.mutate({ id: v.id, datei: f })
+                                e.target.value = ''
+                              }} />
+                          </label>
+                        )}
+                        {darfSchreiben && v.neu_fuellbar && v.fehlt?.length > 0 && (
+                          <Button variant="outline" size="sm" disabled={neuFuellen.isPending}
+                            onClick={() => {
+                              if (confirm(`„${v.title}" neu füllen? Der Text wird aus der Vorlage mit den heutigen Daten neu gesetzt - was von Hand am Text geändert wurde, geht dabei verloren.`)) neuFuellen.mutate(v.id)
+                            }}>
+                            <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                            Neu füllen
+                          </Button>
+                        )}
                         {darfSchreiben && (v.status === 'versendet' || v.status === 'abgelehnt') && (
                           <Button
                             variant="ghost"
@@ -253,9 +364,9 @@ function Personen({ pid }: { pid: number }) {
                           </Button>
                         )}
                         {darfSchreiben && v.status === 'entwurf' && (
-                          <Button size="sm" onClick={() => senden.mutate(v.id)} disabled={senden.isPending}>
+                          <Button size="sm" onClick={() => setPruefen(v)}>
                             <Send className="w-3.5 h-3.5 mr-1" />
-                            Senden
+                            Prüfen und senden
                           </Button>
                         )}
                       </div>
@@ -269,7 +380,74 @@ function Personen({ pid }: { pid: number }) {
       </div>
 
       {neuFuer && <VertragAnlegen pid={pid} person={neuFuer} schliessen={() => setNeuFuer(null)} />}
+      {pruefen && (
+        <VorDemSenden
+          pid={pid}
+          vertrag={pruefen}
+          sendet={senden.isPending}
+          senden={(trotzdem) => senden.mutate({ id: pruefen.id, trotzdem })}
+          pdf={() => download(api.vertraege.pdfUrl(pid, pruefen.id), `vertrag-${pruefen.id}.pdf`)}
+          schliessen={() => setPruefen(null)}
+        />
+      )}
     </div>
+  )
+}
+
+// ─── Vor dem Senden ──────────────────────────────────────────────────────────
+
+/**
+ * Der Vertrag, wie er hinausgeht, und was darin fehlt (AP A4).
+ *
+ * Bis zum 14.11.2026 ging ein Vertrag per Klick ungesehen hinaus, auch mit
+ * Lücken - "Gage: " ohne Betrag. Der Server lehnt das jetzt ab; hier steht,
+ * warum, und wer trotzdem senden will, sagt es ausdrücklich.
+ */
+function VorDemSenden({ pid, vertrag, sendet, senden, pdf, schliessen }: {
+  pid: number; vertrag: any; sendet: boolean
+  senden: (trotzdem: boolean) => void; pdf: () => void; schliessen: () => void
+}) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['vertragstext', pid, vertrag.id],
+    queryFn: () => api.vertraege.text(pid, vertrag.id),
+  })
+  const luecken: string[] = vertrag.fehlt ?? []
+  return (
+    <Dialog open onOpenChange={(offen) => !offen && schliessen()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{vertrag.title}</DialogTitle>
+          <DialogDescription>So geht der Vertrag hinaus. Das PDF liegt der Mail bei.</DialogDescription>
+        </DialogHeader>
+        {luecken.length > 0 && (
+          <div role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm flex gap-2">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
+            <div>
+              <div className="font-medium">Im Vertrag fehlen noch Angaben: {luecken.join(', ')}.</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                An der Stelle steht im Text nichts. Angaben bei der Person ergänzen und "Neu füllen". Wer die Stellen von Hand im Text ergänzt hat, sendet bewusst trotzdem.
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="max-h-[50vh] overflow-y-auto rounded-md border border-border/60 bg-muted/20 p-4 text-sm whitespace-pre-wrap">
+          {isLoading ? 'Lade…' : isError ? 'Der Text ließ sich nicht laden.' : data?.text}
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={schliessen}>Abbrechen</Button>
+          <Button variant="outline" onClick={pdf}><FileText className="w-3.5 h-3.5 mr-1" />PDF ansehen</Button>
+          {luecken.length > 0 ? (
+            <Button variant="destructive" disabled={sendet} onClick={() => senden(true)}>
+              <Send className="w-3.5 h-3.5 mr-1" />Trotz Lücken senden
+            </Button>
+          ) : (
+            <Button disabled={sendet || isLoading} onClick={() => senden(false)}>
+              <Send className="w-3.5 h-3.5 mr-1" />Senden
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -322,6 +500,10 @@ function VertragAnlegen({ pid, person, schliessen }: { pid: number; person: any;
         // Der bereits gefüllte Text wird gespeichert, nicht die Vorlage: Was
         // hier steht, ist was verschickt wird.
         body: text,
+        // Die Vorlage mit ihren Platzhaltern dazu: Nur an ihr sieht der Server,
+        // welche Stellen im gefüllten Text leer sind (AP A4), und nur mit ihr
+        // lässt sich der Entwurf später neu füllen.
+        vorlage: v?.body ?? '',
       })
     },
     onSuccess: () => {

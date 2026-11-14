@@ -78,6 +78,8 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Drop und Pickup gibt es nur, wenn Haltetage gezählt werden.': { en: 'Drop and pickup are only available when hold days are counted.', fr: "Le drop et le pickup n'existent que si les jours d'attente sont comptés." },
   'Für Drop und Pickup fehlt die Mindestzahl an Kalendertagen.': { en: 'The minimum number of calendar days for drop and pickup is missing.', fr: 'Il manque le nombre minimum de jours calendaires pour le drop et le pickup.' },
   'Die Menge muss eine Zahl ab 0 sein.': { en: 'The quantity must be a number from 0 upwards.', fr: 'La quantité doit être un nombre à partir de 0.' },
+  'Dieser Vertrag wurde ohne gespeicherte Vorlage angelegt und lässt sich nicht neu füllen': { en: 'This contract was created without a stored template and cannot be refilled', fr: 'Ce contrat a été créé sans modèle enregistré et ne peut pas être rempli à nouveau' },
+  'Nur ein Entwurf lässt sich neu füllen': { en: 'Only a draft can be refilled', fr: 'Seul un brouillon peut être rempli à nouveau' },
   'Die Person braucht einen Namen':{ en: 'The person needs a name', fr: 'La personne doit avoir un nom' },
   'Die Sachkontenlänge liegt zwischen 4 und 8': { en: 'The general ledger account length is between 4 and 8', fr: 'La longueur des comptes généraux est comprise entre 4 et 8' },
   'Die Steuerart ist "regel" oder "kleinunternehmer"': { en: 'The tax mode is "regel" (standard) or "kleinunternehmer" (small business)', fr: 'Le régime fiscal est "regel" (normal) ou "kleinunternehmer" (petite entreprise)' },
