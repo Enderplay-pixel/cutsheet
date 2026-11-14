@@ -38,6 +38,8 @@ const FREMDSCHLUESSEL: Record<string, string> = {
   equipment_list_id: 'equipment_lists',
   equipment_item_id: 'equipment_items',
   shot_id: 'shots',
+  // Drehbuch-Fassungen (AP A3): Blöcke und Szenenstände zeigen auf ihre Fassung
+  revision_id: 'script_revisions',
   camera_report_id: 'camera_reports',
   video_id: 'creator_videos',
   floorplan_id: 'floorplans',

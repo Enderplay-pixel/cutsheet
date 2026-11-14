@@ -5,6 +5,7 @@ import { leseUeberschrift, mitUeberschrift } from '../lib/szenenUeberschrift'
 import { motivVerknuepfen } from '../lib/motive'
 import { fountainZeilen } from '../lib/fountainExport'
 import { figurVerknuepfen } from '../lib/figuren'
+import { ordneZu, naechsteNummer as buchstabenNummer, farbeFuer, fassungsName, vergleiche, FARBSCHLUESSEL, drehbuchGesperrt, type SzenenText, type Vorhandene } from '../lib/fassungen'
 
 const router = Router()
 
@@ -82,6 +83,13 @@ router.get('/projects/:projectId/screenplay/export.fountain', async (req, res) =
   lines.push('')
 
   for (const scene of scenes) {
+    // Entfallen (AP A3): Nummer bleibt stehen, Inhalt nicht - so wie gedruckte
+    // Drehbücher "OMITTED" führen
+    if (scene.omitted) {
+      const nr = String(scene.scene_number ?? '').trim()
+      lines.push(/^[A-Za-z0-9.-]+$/.test(nr) ? `.OMITTED #${nr}#` : '.OMITTED', '')
+      continue
+    }
     const gespeichert = await db.all(
       'SELECT * FROM screenplay_blocks WHERE scene_id = ? ORDER BY sort_order ASC',
       [scene.id]
@@ -492,10 +500,262 @@ export function entpackeImport(text: string): string {
   return entpackt.includes('�') || entpackt.includes('\u0000') ? text : entpackt
 }
 
+// ─── Drehbuch-Fassungen (Plan Kino-Ausbau, AP A3) ───────────────────────────
+
+type Zugriff = { get: (s: string, w?: any[]) => Promise<any>; all: (s: string, w?: any[]) => Promise<any[]>; run: (s: string, w?: any[]) => Promise<{ id: number; changes: number }> }
+
+type DateiSzene = SzenenText & { bloecke: Gelesen[] }
+
+/** Die Szenen einer gelesenen Datei: je Überschrift ihre Blöcke. Was vor der ersten steht, fällt weg. */
+function szenenAusDatei(gelesen: Gelesen[]): DateiSzene[] {
+  const szenen: DateiSzene[] = []
+  for (const b of gelesen) {
+    if (b.type === 'scene_heading') szenen.push({ nummer: b.nummer ?? '', kopf: b.content, zeilen: [], bloecke: [b] })
+    else if (szenen.length > 0) {
+      szenen[szenen.length - 1].zeilen.push(b.content)
+      szenen[szenen.length - 1].bloecke.push(b)
+    }
+  }
+  return szenen
+}
+
+type ProjektSzene = Vorhandene & { bloecke: any[] }
+
+/** Die Szenen des Projekts mit Überschrift und Textzeilen, in Drehbuchreihenfolge - auch entfallene. */
+async function szenenDesProjekts(z: Zugriff, projectId: number | string): Promise<ProjektSzene[]> {
+  const szenen = await z.all('SELECT * FROM scenes WHERE project_id = ? ORDER BY sort_order ASC, scene_number ASC', [projectId])
+  const ids = szenen.map((s) => Number(s.id))
+  const bloecke = ids.length
+    ? await z.all('SELECT * FROM screenplay_blocks WHERE scene_id = ANY(?::int[]) ORDER BY sort_order ASC, id ASC', [ids])
+    : []
+  return szenen.map((s) => {
+    const eigene = mitUeberschrift(s, bloecke.filter((b) => Number(b.scene_id) === Number(s.id)))
+    const kopf = eigene.find((b: any) => b.block_type === 'scene_heading')
+    return {
+      id: Number(s.id),
+      nummer: String(s.scene_number ?? ''),
+      omitted: !!s.omitted,
+      kopf: String(kopf?.content ?? ''),
+      zeilen: eigene.filter((b: any) => b !== kopf).map((b: any) => String(b.content ?? '')),
+      bloecke: eigene,
+    }
+  })
+}
+
+/**
+ * Die Erstfassung sichern, bevor etwas geändert wird: Fassung 0, Weiß, mit
+ * dem Text jeder Szene. Ohne sie gäbe es für die erste Änderung nichts zu
+ * vergleichen.
+ */
+async function erstfassungSichern(tx: Zugriff, projectId: number, userId: number | null) {
+  if (await tx.get('SELECT id FROM script_revisions WHERE project_id = ? AND number = 0', [projectId])) return
+  const rev = (await tx.run(
+    "INSERT INTO script_revisions (project_id, number, color, note, created_by) VALUES (?, 0, 'weiss', 'Erstfassung', ?)",
+    [projectId, userId])).id
+  for (const s of await szenenDesProjekts(tx, projectId)) {
+    await tx.run(
+      'INSERT INTO script_revision_scenes (project_id, revision_id, scene_id, scene_number, heading, body, change) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [projectId, rev, s.id, s.nummer, s.kopf, s.zeilen.join('\n'), s.omitted ? 'entfaellt' : 'unveraendert'])
+  }
+}
+
+const kurz = (s: { nummer: string; kopf: string }) => ({ nummer: s.nummer, kopf: s.kopf })
+
+/**
+ * Eine Datei als neue Fassung einlesen (Soll 2 und 3). Mit `nurZeigen`
+ * nur die vier Listen, sonst in einer Transaktion:
+ * - geänderte Szene: Die Zeile in `scenes` bleibt (Drehplan, Breakdown,
+ *   Shotlist, Kommentare hängen daran), ihre Blöcke werden ersetzt -
+ *   gleich gebliebene behalten ihre Fassung, neue tragen die neue.
+ * - neue Szene: hinter der vorangehenden zugeordneten, mit eigener Nummer
+ *   aus der Datei oder der Buchstabennummer (13A).
+ * - fehlende Szene: gesperrt "entfällt", sonst bleibt sie und wird genannt.
+ * Ändert die Datei nichts, entsteht keine Fassung.
+ */
+async function alsFassungEinlesen(req: Request, res: Response, gelesen: Gelesen[]) {
+  const projectId = Number(req.params.projectId)
+  const userId = (req as any).user?.id ?? null
+  const { filename = 'import', nurZeigen = false, farbe } = req.body
+  const datei = szenenAusDatei(gelesen)
+  if (datei.length === 0) return res.status(400).json({ data: null, error: 'Die Datei enthält keine Szenenüberschrift' })
+
+  const vorhanden = await szenenDesProjekts(db, projectId)
+  const gesperrt = await drehbuchGesperrt(db, projectId)
+  const z = ordneZu(vorhanden, datei)
+  const zahlen = { unveraendert: z.unveraendert.length, geaendert: z.geaendert.length, neu: z.neu.length, fehlt: z.fehlt.length }
+  const antwort = {
+    zahlen,
+    gesperrt,
+    geaendert: z.geaendert.map((g) => kurz(g.alt)),
+    neu: z.neu.map((n) => kurz(n.neu)),
+    fehlt: z.fehlt.map(kurz),
+  }
+  const nichts = z.geaendert.length === 0 && z.neu.length === 0 && (z.fehlt.length === 0 || !gesperrt)
+  if (nurZeigen || nichts) {
+    return res.json({ data: { ...antwort, nichts, fassung: null, entfallen: [] }, error: null })
+  }
+  if (farbe !== undefined && !FARBSCHLUESSEL.includes(String(farbe).split('-')[0])) {
+    return res.status(400).json({ data: null, error: 'Unbekannte Farbe der Fassung' })
+  }
+
+  const fassung = await db.transaction(async (tx) => {
+    await erstfassungSichern(tx, projectId, userId)
+    const nummer = Number((await tx.get('SELECT COALESCE(MAX(number), 0) + 1 AS n FROM script_revisions WHERE project_id = ?', [projectId])).n)
+    const color = farbe !== undefined ? String(farbe) : farbeFuer(nummer)
+    const rev = (await tx.run(
+      'INSERT INTO script_revisions (project_id, number, color, filename, created_by) VALUES (?, ?, ?, ?, ?)',
+      [projectId, nummer, color, String(filename).slice(0, 200), userId])).id
+    const aenderung = new Map<number, string>()
+
+    // Geänderte Szenen: Zeile bleibt, Blöcke neu
+    for (const { alt, neu } of z.geaendert) {
+      const vergleich = vergleiche(alt.bloecke.map((b: any) => String(b.content ?? '')), neu.bloecke.map((b) => b.content))
+      const bleibt = new Map<number, number | null>()
+      for (const v of vergleich) {
+        if (v.art === 'gleich' && v.neu !== undefined && v.alt !== undefined) {
+          const altRev = alt.bloecke[v.alt]?.revision_id
+          bleibt.set(v.neu, altRev == null ? null : Number(altRev))
+        }
+      }
+      await tx.run('DELETE FROM screenplay_blocks WHERE scene_id = ?', [alt.id])
+      for (const [i, b] of neu.bloecke.entries()) {
+        await tx.run(
+          'INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content, revision_id) VALUES (?, ?, ?, ?, ?, ?)',
+          [alt.id, projectId, i, b.type, b.content, bleibt.has(i) ? bleibt.get(i) : rev])
+        if (b.type === 'character') await figurVerknuepfen(tx, projectId, alt.id, b.content)
+      }
+      const { int_ext, title, day_night } = parseSceneHeading(neu.kopf)
+      await tx.run('UPDATE scenes SET int_ext = ?, title = ?, day_night = ?, omitted = false, updated_at = NOW() WHERE id = ?',
+        [int_ext, title, day_night, alt.id])
+      await motivVerknuepfen(tx, projectId, alt.id, title)
+      aenderung.set(alt.id, 'geaendert')
+    }
+
+    // Neue Szenen: Nummer aus der Datei, wenn frei, sonst die Buchstabennummer
+    const vergeben = new Set(vorhanden.map((v) => v.nummer.trim().toUpperCase()).filter(Boolean))
+    const reihe: number[] = vorhanden.map((v) => v.id)
+    const nummerVon = new Map<number, string>(vorhanden.map((v) => [v.id, v.nummer]))
+    const zuletztNach = new Map<number | null, number>()
+    for (const { neu, nach } of z.neu) {
+      // Hinter der Vorgängerin - und hinter dem, was schon hinter ihr neu eingefügt wurde
+      const hinter = zuletztNach.get(nach) ?? nach
+      const stelle = hinter === null ? 0 : reihe.indexOf(hinter) + 1
+      const davor = stelle > 0 ? nummerVon.get(reihe[stelle - 1]) ?? null : null
+      const wunsch = neu.nummer.trim()
+      const sceneNumber = wunsch && !vergeben.has(wunsch.toUpperCase())
+        ? wunsch
+        : buchstabenNummer(davor, vergeben, reihe.length > 0 ? nummerVon.get(reihe[0]) : '1')
+      vergeben.add(sceneNumber.toUpperCase())
+      const { int_ext, title, day_night } = parseSceneHeading(neu.kopf)
+      const id = (await tx.run(
+        'INSERT INTO scenes (project_id, scene_number, sort_order, title, int_ext, day_night, description) VALUES (?, ?, 0, ?, ?, ?, ?)',
+        [projectId, sceneNumber, title, int_ext, day_night, ''])).id
+      for (const [i, b] of neu.bloecke.entries()) {
+        await tx.run(
+          'INSERT INTO screenplay_blocks (scene_id, project_id, sort_order, block_type, content, revision_id) VALUES (?, ?, ?, ?, ?, ?)',
+          [id, projectId, i, b.type, b.content, rev])
+        if (b.type === 'character') await figurVerknuepfen(tx, projectId, id, b.content)
+      }
+      await motivVerknuepfen(tx, projectId, id, title)
+      reihe.splice(stelle, 0, id)
+      nummerVon.set(id, sceneNumber)
+      zuletztNach.set(nach, id)
+      aenderung.set(id, 'neu')
+    }
+    for (const [i, id] of reihe.entries()) await tx.run('UPDATE scenes SET sort_order = ? WHERE id = ?', [i, id])
+
+    // Fehlende Szenen: im gesperrten Drehbuch entfallen sie
+    if (gesperrt) {
+      for (const f of z.fehlt) {
+        await tx.run('UPDATE scenes SET omitted = true, updated_at = NOW() WHERE id = ?', [f.id])
+        await tx.run('DELETE FROM shoot_day_scenes WHERE scene_id = ?', [f.id])
+        aenderung.set(f.id, 'entfaellt')
+      }
+    }
+
+    // Der Stand jeder Szene in dieser Fassung - Grundlage des Vergleichs
+    for (const s of await szenenDesProjekts(tx, projectId)) {
+      await tx.run(
+        'INSERT INTO script_revision_scenes (project_id, revision_id, scene_id, scene_number, heading, body, change) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [projectId, rev, s.id, s.nummer, s.kopf, s.zeilen.join('\n'), aenderung.get(s.id) ?? (s.omitted ? 'entfaellt' : 'unveraendert')])
+    }
+    await tx.run('INSERT INTO fdx_imports (project_id, filename, scene_count) VALUES (?, ?, ?)', [projectId, filename, z.neu.length])
+    return { id: rev, number: nummer, color }
+  })
+
+  res.json({
+    data: { ...antwort, nichts: false, fassung: { ...fassung, name: fassungsName(fassung.color) }, entfallen: gesperrt ? z.fehlt.map(kurz) : [] },
+    error: null,
+  })
+}
+
+// POST /api/projects/:projectId/drehbuch/sperren - ab Produktion (ROUTE_OVERRIDES)
+// Ab dann bleiben Szenennummern, neue bekommen einen Buchstaben, Löschen heißt
+// "entfällt". Die Erstfassung wird dabei als Fassung 0 gesichert.
+router.post('/projects/:projectId/drehbuch/sperren', async (req, res) => {
+  const projectId = Number(req.params.projectId)
+  await db.transaction(async (tx) => {
+    await tx.run(
+      `INSERT INTO project_settings (project_id, script_locked_at) VALUES (?, NOW())
+       ON CONFLICT (project_id) DO UPDATE SET script_locked_at = COALESCE(project_settings.script_locked_at, NOW())`,
+      [projectId])
+    await erstfassungSichern(tx, projectId, (req as any).user?.id ?? null)
+  })
+  const s = await db.get('SELECT script_locked_at FROM project_settings WHERE project_id = ?', [projectId])
+  res.json({ data: { gesperrt: true, seit: s?.script_locked_at ?? null }, error: null })
+})
+
+// POST /api/projects/:projectId/drehbuch/entsperren - ab Produktion
+router.post('/projects/:projectId/drehbuch/entsperren', async (req, res) => {
+  await db.run('UPDATE project_settings SET script_locked_at = NULL WHERE project_id = ?', [req.params.projectId])
+  res.json({ data: { gesperrt: false }, error: null })
+})
+
+// GET /api/projects/:projectId/drehbuch/fassungen - mit den vier Zahlen je Fassung
+router.get('/projects/:projectId/drehbuch/fassungen', async (req, res) => {
+  const fassungen = await db.all(
+    `SELECT r.id, r.number, r.color, r.note, r.filename, r.created_at,
+            COUNT(*) FILTER (WHERE s.change = 'unveraendert')::int AS unveraendert,
+            COUNT(*) FILTER (WHERE s.change = 'geaendert')::int AS geaendert,
+            COUNT(*) FILTER (WHERE s.change = 'neu')::int AS neu,
+            COUNT(*) FILTER (WHERE s.change = 'entfaellt' AND r.number > 0
+              AND NOT EXISTS (SELECT 1 FROM script_revision_scenes v JOIN script_revisions vr ON vr.id = v.revision_id
+                               WHERE vr.project_id = r.project_id AND vr.number < r.number AND v.scene_id = s.scene_id AND v.change = 'entfaellt'))::int AS entfaellt
+       FROM script_revisions r LEFT JOIN script_revision_scenes s ON s.revision_id = r.id
+      WHERE r.project_id = ?
+      GROUP BY r.id ORDER BY r.number ASC`,
+    [req.params.projectId])
+  const gesperrt = await drehbuchGesperrt(db, req.params.projectId)
+  res.json({ data: fassungen.map((f: any) => ({ ...f, name: fassungsName(f.color) })), meta: { gesperrt }, error: null })
+})
+
+// GET /api/projects/:projectId/drehbuch/fassungen/:revisionId/szenen/:sceneId
+// Die Szene in dieser Fassung gegen die Fassung davor, zeilenweise (Soll 5)
+router.get('/projects/:projectId/drehbuch/fassungen/:revisionId/szenen/:sceneId', async (req, res) => {
+  const fassung = await db.get('SELECT id, number FROM script_revisions WHERE id = ? AND project_id = ?', [req.params.revisionId, req.params.projectId])
+  if (!fassung) return res.status(404).json({ data: null, error: 'Drehbuch-Fassung nicht gefunden' })
+  const neu = await db.get('SELECT * FROM script_revision_scenes WHERE revision_id = ? AND scene_id = ?', [fassung.id, req.params.sceneId])
+  if (!neu) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+  const alt = await db.get(
+    `SELECT s.* FROM script_revision_scenes s JOIN script_revisions r ON r.id = s.revision_id
+      WHERE r.project_id = ? AND r.number < ? AND s.scene_id = ? ORDER BY r.number DESC LIMIT 1`,
+    [req.params.projectId, fassung.number, req.params.sceneId])
+  const zeilen = (x: any) => (x ? [String(x.heading ?? ''), ...String(x.body ?? '').split('\n').filter((z) => z !== '')] : [])
+  res.json({
+    data: { nummer: neu.scene_number, change: neu.change, alt: zeilen(alt), neu: zeilen(neu), zeilen: vergleiche(zeilen(alt), zeilen(neu)) },
+    error: null,
+  })
+})
+
 // ─── POST /api/projects/:projectId/fdx-import ────────────────────────────────
 router.post('/projects/:projectId/fdx-import', async (req, res) => {
   const { projectId } = req.params
-  const { xml, filename = 'import', anhaengen = false } = req.body
+  const { xml, filename = 'import' } = req.body
+  // `modus: 'anhaengen' | 'fassung'` (AP A3); `anhaengen: true` heißt wie bisher anhängen
+  const modus = req.body.modus ?? (req.body.anhaengen === true ? 'anhaengen' : undefined)
+  if (modus !== undefined && modus !== 'anhaengen' && modus !== 'fassung') {
+    return res.status(400).json({ data: null, error: 'Der Modus ist "anhaengen" oder "fassung"' })
+  }
 
   if (!xml || typeof xml !== 'string') {
     return res.status(400).json({ data: null, error: 'Kein XML-Inhalt angegeben' })
@@ -505,6 +765,7 @@ router.post('/projects/:projectId/fdx-import', async (req, res) => {
   if (gelesen.length === 0) {
     return res.status(400).json({ data: null, error: 'Keine Inhalte im Skript gefunden' })
   }
+  if (modus === 'fassung') return alsFassungEinlesen(req, res, gelesen)
 
   // Was vor der ersten Szenenüberschrift steht ("FADE IN:", Titelzeilen),
   // gehört zu keiner Szene. Vorher entstand daraus eine Szene "Import"
@@ -520,7 +781,7 @@ router.post('/projects/:projectId/fdx-import', async (req, res) => {
   // Szenen, muss das Anhängen ausdrücklich gewollt sein.
   const bestand = (await db.get('SELECT COUNT(*) AS n FROM scenes WHERE project_id = ?', [projectId])) as any
   const vorhandenAnzahl = Number(bestand?.n ?? 0)
-  if (vorhandenAnzahl > 0 && anhaengen !== true) {
+  if (vorhandenAnzahl > 0 && modus !== 'anhaengen') {
     return res.status(409).json({
       data: { vorhanden: vorhandenAnzahl, im_import: imImport },
       error: `Das Projekt hat schon ${vorhandenAnzahl} Szenen. Der Import würde ${imImport} weitere anhängen.`,
@@ -532,6 +793,9 @@ router.post('/projects/:projectId/fdx-import', async (req, res) => {
   let scenesCreated = 0
   let blocksCreated = 0
   const uebernommeneNummern: string[] = []
+  // Im gesperrten Drehbuch bekommt eine angehängte Szene ohne eigene freie
+  // Nummer die Nummer der Szene davor plus Buchstaben (AP A3), keine neue Zahl.
+  const gesperrt = await drehbuchGesperrt(db, projectId)
   await db.transaction(async (tx) => {
     // Get current max sort_order
     const maxSortRow = await tx.get('SELECT COALESCE(MAX(sort_order), -1) as m FROM scenes WHERE project_id = ?', [projectId]) as { m: number }
@@ -540,8 +804,9 @@ router.post('/projects/:projectId/fdx-import', async (req, res) => {
     // sie im Projekt frei ist - vorher wurde sie verworfen und neu gezählt.
     // Ohne eigene Nummer: weiterzählen hinter der höchsten vorhandenen, wie
     // POST /scenes. "12A" zählt dabei als 12.
-    const vorhanden = await tx.all('SELECT scene_number FROM scenes WHERE project_id = ?', [projectId]) as any[]
+    const vorhanden = await tx.all('SELECT scene_number FROM scenes WHERE project_id = ? ORDER BY sort_order ASC, scene_number ASC', [projectId]) as any[]
     const vergeben = new Set(vorhanden.map((z) => String(z.scene_number ?? '').trim().toUpperCase()).filter(Boolean))
+    let letzte: string | null = vorhanden.length ? String(vorhanden[vorhanden.length - 1].scene_number ?? '') : null
     let hoechste = vorhanden.reduce(
       (m, z) => Math.max(m, parseInt(String(z.scene_number ?? ''), 10) || 0), 0
     )
@@ -551,11 +816,14 @@ router.post('/projects/:projectId/fdx-import', async (req, res) => {
       if (wunsch && !vergeben.has(wunsch.toUpperCase())) {
         nummer = wunsch
         uebernommeneNummern.push(wunsch)
+      } else if (gesperrt) {
+        nummer = buchstabenNummer(letzte, vergeben)
       } else {
         do { hoechste++ } while (vergeben.has(String(hoechste)))
         nummer = String(hoechste)
       }
       vergeben.add(nummer.toUpperCase())
+      letzte = nummer
       hoechste = Math.max(hoechste, parseInt(nummer, 10) || 0)
       return nummer
     }

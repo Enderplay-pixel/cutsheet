@@ -162,6 +162,9 @@ beforeAll(async () => {
   app.use('/api', dispoLinkRouter)
   const { default: kommentarRouter } = await import('../routes/sceneComments')
   app.use('/api', optionalAuth, kommentarRouter)
+  // Szenen anlegen, ändern, entfallen lassen (AP A3)
+  const { default: szenenRouter } = await import('../routes/scenes')
+  app.use('/api', optionalAuth, szenenRouter)
   const { default: drehplanRouter } = await import('../routes/drehplan')
   app.use('/api', optionalAuth, drehplanRouter)
   const { default: konfliktRouter } = await import('../routes/conflicts')
@@ -3737,5 +3740,171 @@ describe('Stäbchenplan als Board (AP A2)', () => {
     expect((await sende(pfad, { nach: 'achtel', hoechstens: 0, start: '2026-06-03' })).status).toBe(400)
     expect((await sende(pfad, { nach: 'seiten', hoechstens: 8, start: '2026-06-03' })).status).toBe(400)
     expect((await sende(pfad, { nach: 'achtel', hoechstens: 8, start: 'morgen' })).status).toBe(400)
+  })
+})
+
+describe('Drehbuch-Fassungen mit gesperrten Nummern (AP A3)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+  const anzahl = async (sql: string, werte: any[]) => Number(((await db.get(sql, werte)) as any).n)
+
+  type Szene = [string | null, string, string]
+  /** Ein Drehbuch als Fountain-Text: Überschrift (mit Nummer, wenn angegeben) und eine Zeile Handlung. */
+  const drehbuch = (szenen: Szene[]) =>
+    szenen.map(([nr, kopf, text]) => `${kopf}${nr ? ` #${nr}#` : ''}\n\n${text}\n`).join('\n')
+  const ERSTE: Szene[] = [
+    ['1', 'INT. KÜCHE - TAG', 'Mara kocht.'],
+    ['2', 'EXT. HOF - NACHT', 'Ole raucht.'],
+    ['3', 'INT. FLUR - TAG', 'Jemand klingelt.'],
+    ['4', 'EXT. STRASSE - TAG', 'Ein Bus fährt vorbei.'],
+    ['5', 'INT. KELLER - NACHT', 'Licht geht aus.'],
+  ]
+  const mit = (aendern: (s: Szene[]) => Szene[]) => drehbuch(aendern(ERSTE.map((s) => [...s] as Szene)))
+
+  async function projektMitDrehbuch(titel: string) {
+    const projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', [titel, nutzerId])).id
+    const r = await sende(`/api/projects/${projekt}/fdx-import`, { xml: drehbuch(ERSTE), filename: 'erste.fountain' })
+    expect(r.status).toBe(200)
+    const szenen = (await db.all('SELECT id, scene_number FROM scenes WHERE project_id = ? ORDER BY sort_order', [projekt])) as any[]
+    const id: Record<string, number> = Object.fromEntries(szenen.map((s) => [s.scene_number, Number(s.id)]))
+    return { projekt, id }
+  }
+  const einlesen = (projekt: number, xml: string, mehr: Record<string, any> = {}) =>
+    sende(`/api/projects/${projekt}/fdx-import`, { xml, filename: 'zweite.fountain', modus: 'fassung', ...mehr })
+  const reihenfolge = async (projekt: number) =>
+    ((await db.all('SELECT scene_number FROM scenes WHERE project_id = ? ORDER BY sort_order', [projekt])) as any[]).map((s) => s.scene_number)
+
+  it('ohne Modus bleibt die Rückfrage, "Anhängen" hängt an wie bisher', async () => {
+    const { projekt } = await projektMitDrehbuch('Fassung Rückfrage')
+    const frage = await sende(`/api/projects/${projekt}/fdx-import`, { xml: drehbuch(ERSTE), filename: 'x.fountain' })
+    expect(frage.status).toBe(409)
+    const dran = await sende(`/api/projects/${projekt}/fdx-import`, { xml: drehbuch([[null, 'INT. DACH - TAG', 'Oben.']]), filename: 'x.fountain', modus: 'anhaengen' })
+    expect(dran.status).toBe(200)
+    expect((await reihenfolge(projekt)).length).toBe(6)
+  })
+
+  it('eine geänderte Szene behält ihre Zeile und ihren Drehtag, die Blöcke sind neu und tragen die Fassung', async () => {
+    const { projekt, id } = await projektMitDrehbuch('Fassung geändert')
+    const tag = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, '2026-11-16')", [projekt])).id
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, 0)', [tag, id['2']])
+    const xml = mit((s) => { s[1][2] = 'Ole raucht nicht mehr.'; return s })
+
+    const vorschau = await einlesen(projekt, xml, { nurZeigen: true })
+    expect(vorschau.status).toBe(200)
+    expect(vorschau.daten.zahlen).toEqual({ unveraendert: 4, geaendert: 1, neu: 0, fehlt: 0 })
+    expect(vorschau.daten.geaendert.map((g: any) => g.nummer)).toEqual(['2'])
+    expect(await anzahl('SELECT COUNT(*) AS n FROM script_revisions WHERE project_id = ?', [projekt])).toBe(0)
+    expect(await anzahl("SELECT COUNT(*) AS n FROM screenplay_blocks WHERE scene_id = ? AND content = 'Ole raucht nicht mehr.'", [id['2']])).toBe(0)
+
+    const r = await einlesen(projekt, xml)
+    expect(r.status).toBe(200)
+    expect(r.daten.fassung).toEqual(expect.objectContaining({ number: 1, color: 'blau' }))
+    expect(Number(((await db.get("SELECT id FROM scenes WHERE project_id = ? AND scene_number = '2'", [projekt])) as any).id)).toBe(id['2'])
+    expect(await anzahl('SELECT COUNT(*) AS n FROM shoot_day_scenes WHERE scene_id = ?', [id['2']])).toBe(1)
+    const bloecke = (await db.all('SELECT block_type, content, revision_id FROM screenplay_blocks WHERE scene_id = ? ORDER BY sort_order', [id['2']])) as any[]
+    expect(bloecke.map((b) => b.content)).toEqual(['EXT. HOF - NACHT', 'Ole raucht nicht mehr.'])
+    // Nur der geänderte Block trägt die neue Fassung, die Überschrift blieb gleich
+    expect(bloecke.map((b) => b.revision_id === null ? null : Number(b.revision_id))).toEqual([null, Number(r.daten.fassung.id)])
+    const fassungen = (await db.all('SELECT number, color FROM script_revisions WHERE project_id = ? ORDER BY number', [projekt])) as any[]
+    expect(fassungen.map((f) => [f.number, f.color])).toEqual([[0, 'weiss'], [1, 'blau']])
+  })
+
+  it('eine neue Szene ohne Nummer steht hinter ihrer Vorgängerin und bekommt deren Nummer mit Buchstaben', async () => {
+    const { projekt } = await projektMitDrehbuch('Fassung neu')
+    const xml = drehbuch([
+      ...ERSTE.slice(0, 3).map(([, k, t]) => [null, k, t] as Szene),
+      [null, 'EXT. GARTEN - TAG', 'Ein neuer Ort.'],
+      ...ERSTE.slice(3).map(([, k, t]) => [null, k, t] as Szene),
+    ])
+    const r = await einlesen(projekt, xml)
+    expect(r.status).toBe(200)
+    expect(r.daten.zahlen).toEqual({ unveraendert: 5, geaendert: 0, neu: 1, fehlt: 0 })
+    expect(await reihenfolge(projekt)).toEqual(['1', '2', '3', '3A', '4', '5'])
+    const neu = (await db.get("SELECT title, int_ext, day_night FROM scenes WHERE project_id = ? AND scene_number = '3A'", [projekt])) as any
+    expect([neu.title, neu.int_ext, neu.day_night]).toEqual(['GARTEN', 'EXT', 'TAG'])
+  })
+
+  it('eine fehlende Szene bleibt im offenen Drehbuch stehen und wird genannt', async () => {
+    const { projekt, id } = await projektMitDrehbuch('Fassung fehlt offen')
+    const r = await einlesen(projekt, mit((s) => s.filter(([nr]) => nr !== '4')))
+    expect(r.status).toBe(200)
+    expect(r.daten.fehlt.map((f: any) => f.nummer)).toEqual(['4'])
+    const vier = (await db.get('SELECT omitted FROM scenes WHERE id = ?', [id['4']])) as any
+    expect(vier.omitted).toBe(false)
+  })
+
+  it('im gesperrten Drehbuch entfällt eine fehlende Szene: Nummer bleibt, aus Plan und Prüfungen heraus', async () => {
+    const { projekt, id } = await projektMitDrehbuch('Fassung fehlt gesperrt')
+    const tag = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, '2026-11-16')", [projekt])).id
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, 0)', [tag, id['4']])
+    expect((await sende(`/api/projects/${projekt}/drehbuch/sperren`)).status).toBe(200)
+
+    const r = await einlesen(projekt, mit((s) => s.filter(([nr]) => nr !== '4')))
+    expect(r.status).toBe(200)
+    expect(r.daten.entfallen.map((f: any) => f.nummer)).toEqual(['4'])
+    const vier = (await db.get('SELECT scene_number, omitted FROM scenes WHERE id = ?', [id['4']])) as any
+    expect([vier.scene_number, vier.omitted]).toEqual(['4', true])
+    expect(await anzahl('SELECT COUNT(*) AS n FROM shoot_day_scenes WHERE scene_id = ?', [id['4']])).toBe(0)
+
+    // Nicht mehr in der Prüfung "Nicht eingeplante Szenen", nicht in der Ablage, nicht planbar
+    const konflikte = (await hole(`/api/projects/${projekt}/conflicts`, tokenInhaber)).daten as any[]
+    const ungeplant = konflikte.find((k) => /noch nicht im Drehplan/.test(k.message))
+    expect(ungeplant).toBeTruthy()
+    expect(ungeplant?.detail ?? '').not.toMatch(/\b4\b/)
+    const vorschau = await sende(`/api/projects/${projekt}/drehplan/einteilen`, { nach: 'achtel', hoechstens: 80, start: '2026-11-23', nurZeigen: true })
+    expect(vorschau.daten.verteilung.flatMap((t: any) => t.szenen).map(Number)).not.toContain(id['4'])
+    expect((await sende(`/api/projects/${projekt}/drehplan/verschieben`, { szenen: [id['4']], zielTag: tag, vor: null })).status).toBe(400)
+  })
+
+  it('dieselbe Datei zweimal: beim zweiten Mal nichts zu übernehmen, keine neue Fassung', async () => {
+    const { projekt } = await projektMitDrehbuch('Fassung doppelt')
+    const xml = mit((s) => { s[4][2] = 'Licht flackert.'; return s })
+    expect((await einlesen(projekt, xml)).status).toBe(200)
+    const zweites = await einlesen(projekt, xml)
+    expect(zweites.status).toBe(200)
+    expect(zweites.daten.nichts).toBe(true)
+    expect(zweites.daten.zahlen).toEqual({ unveraendert: 5, geaendert: 0, neu: 0, fehlt: 0 })
+    expect(await anzahl('SELECT COUNT(*) AS n FROM script_revisions WHERE project_id = ?', [projekt])).toBe(2)
+  })
+
+  it('gesperrt: Nummer ändern abgelehnt, Löschen heißt entfällt, neue Szene bekommt einen Buchstaben, Zurückholen geht', async () => {
+    const { projekt, id } = await projektMitDrehbuch('Fassung Sperre')
+    expect((await sende(`/api/projects/${projekt}/drehbuch/sperren`)).status).toBe(200)
+    // Ohne updated_at: Der zweite PUT unten käme sonst als veralteter Stand (409)
+    const { updated_at: _stand, ...zwei } = (await db.get('SELECT * FROM scenes WHERE id = ?', [id['2']])) as any
+
+    const umbenannt = await sende(`/api/scenes/${id['2']}`, { ...zwei, scene_number: '99' }, 'PUT')
+    expect(umbenannt.status).toBe(400)
+    expect(umbenannt.fehler).toMatch(/gesperrt/)
+    expect((await sende(`/api/scenes/${id['2']}`, { ...zwei, title: 'HOF HINTEN' }, 'PUT')).status).toBe(200)
+
+    expect((await sende(`/api/scenes/${id['3']}`, {}, 'DELETE')).status).toBe(200)
+    const drei = (await db.get('SELECT omitted FROM scenes WHERE id = ?', [id['3']])) as any
+    expect(drei.omitted).toBe(true)
+
+    const neu = await sende(`/api/projects/${projekt}/scenes`, { title: 'DACH' })
+    expect(neu.status).toBe(201)
+    expect(neu.daten.scene_number).toBe('5A')
+
+    expect((await sende(`/api/scenes/${id['3']}`, { omitted: false }, 'PUT')).status).toBe(200)
+    const zurueck = (await db.get('SELECT omitted, title FROM scenes WHERE id = ?', [id['3']])) as any
+    expect([zurueck.omitted, zurueck.title]).toEqual([false, 'FLUR'])
+
+    expect((await sende(`/api/projects/${projekt}/drehbuch/entsperren`)).status).toBe(200)
+    expect((await sende(`/api/scenes/${id['2']}`, { ...zwei, scene_number: '99' }, 'PUT')).status).toBe(200)
+  })
+
+  it('Liste der Fassungen mit Zahlen und Vergleich einer Szene alt gegen neu', async () => {
+    const { projekt, id } = await projektMitDrehbuch('Fassung Vergleich')
+    const r = await einlesen(projekt, mit((s) => { s[1][2] = 'Ole raucht nicht mehr.'; return s }))
+    const liste = await hole(`/api/projects/${projekt}/drehbuch/fassungen`, tokenInhaber)
+    expect(liste.status).toBe(200)
+    expect(liste.daten.map((f: any) => [f.number, f.color, f.geaendert, f.neu, f.entfaellt])).toEqual([[0, 'weiss', 0, 0, 0], [1, 'blau', 1, 0, 0]])
+    expect(liste.daten[1].name).toBe('Blaue Fassung')
+
+    const v = await hole(`/api/projects/${projekt}/drehbuch/fassungen/${r.daten.fassung.id}/szenen/${id['2']}`, tokenInhaber)
+    expect(v.status).toBe(200)
+    expect(v.daten.zeilen.filter((z: any) => z.art !== 'gleich').map((z: any) => `${z.art}:${z.zeile}`))
+      .toEqual(['weg:Ole raucht.', 'neu:Ole raucht nicht mehr.'])
   })
 })

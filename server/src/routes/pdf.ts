@@ -427,7 +427,7 @@ router.get('/projects/:projectId/pdf/drehplan', async (req: Request, res: Respon
     SELECT s.*, l.name as location_name
     FROM scenes s
     LEFT JOIN locations l ON s.location_id = l.id
-    WHERE s.project_id = ?
+    WHERE s.project_id = ? AND NOT s.omitted
       AND NOT EXISTS (SELECT 1 FROM shoot_day_scenes sds WHERE sds.scene_id = s.id)
     ORDER BY s.sort_order ASC
   `, [req.params.projectId]) as any[]

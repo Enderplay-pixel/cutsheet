@@ -47,7 +47,7 @@ router.get('/projects/:projectId/time-analysis', async (req, res) => {
   const scenes = await db.all(`
     SELECT s.id as scene_id, s.scene_number, s.title, s.estimated_minutes
     FROM scenes s
-    WHERE s.project_id = ?
+    WHERE s.project_id = ? AND NOT s.omitted
     ORDER BY s.sort_order ASC, s.scene_number ASC
   `, [pid]) as any[]
   // Wie die Szenenliste (routes/scenes.ts). Nach scene_number allein - Text -

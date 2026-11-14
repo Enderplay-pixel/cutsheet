@@ -444,7 +444,8 @@ router.get('/:id/stats', requireAuth, async (req: Request, res: Response) => {
 
   const pid = req.params.id
 
-  const total_scenes = ((await db.get('SELECT COUNT(*) as c FROM scenes WHERE project_id = ?', [pid])) as any).c
+  // Entfallene Szenen (AP A3) zählen nicht mit
+  const total_scenes = ((await db.get('SELECT COUNT(*) as c FROM scenes WHERE project_id = ? AND NOT omitted', [pid])) as any).c
   const shot_scenes = ((await db.get("SELECT COUNT(*) as c FROM scenes WHERE project_id = ? AND shot_status = 'abgedreht'", [pid])) as any).c
   const scheduled_scenes = ((await db.get(`
     SELECT COUNT(DISTINCT scene_id) as c FROM shoot_day_scenes sds
@@ -455,7 +456,7 @@ router.get('/:id/stats', requireAuth, async (req: Request, res: Response) => {
   const completed_shoot_days = ((await db.get("SELECT COUNT(*) as c FROM shoot_days WHERE project_id = ? AND status = 'Abgedreht'", [pid])) as any).c
   const total_cast = ((await db.get('SELECT COUNT(*) as c FROM cast WHERE project_id = ?', [pid])) as any).c
   const total_crew = ((await db.get('SELECT COUNT(*) as c FROM crew WHERE project_id = ?', [pid])) as any).c
-  const pagesRow = await db.get('SELECT COALESCE(SUM(eighths), 0) as s FROM scenes WHERE project_id = ?', [pid]) as any
+  const pagesRow = await db.get('SELECT COALESCE(SUM(eighths), 0) as s FROM scenes WHERE project_id = ? AND NOT omitted', [pid]) as any
   // Die aktive Fassung, sonst die neueste (lib/kalkulation.ts)
   const budgetRow = { s: (await massgeblicheKalkulation(pid))?.total_cents ?? 0 }
   const finRow = await db.get('SELECT COALESCE(MAX(total_cents), 0) as s FROM financing_plan_versions WHERE project_id = ?', [pid]) as any

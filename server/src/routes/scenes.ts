@@ -1,4 +1,6 @@
 import { Router } from 'express'
+import { drehbuchGesperrt, naechsteNummer as buchstabenNummer } from '../lib/fassungen'
+import { logAudit } from './audit'
 import { db } from '../db'
 import { besetzungNachziehen } from '../lib/dispo'
 import { requireMember } from '../middleware/projectAuth'
@@ -77,6 +79,17 @@ router.post('/projects/:projectId/scenes', async (req, res) => {
   // Nach dem Löschen einer Szene bekam die neue die Nummer einer
   // bestehenden - zweimal Szene 9 im Drehbuch, im Drehplan, auf der Dispo.
   let nummer = String(scene_number ?? '').trim()
+  // Im gesperrten Drehbuch (AP A3) bekommt eine neue Szene die Nummer der
+  // letzten plus Buchstaben - 20A -, nie eine neue Zahl oder eine vergebene.
+  if (await drehbuchGesperrt(db, req.params.projectId)) {
+    const vorhandene = await db.all(
+      'SELECT scene_number FROM scenes WHERE project_id = ? ORDER BY sort_order ASC, scene_number ASC', [req.params.projectId]
+    ) as any[]
+    const vergeben = vorhandene.map((z) => String(z.scene_number ?? ''))
+    if (!nummer || vergeben.some((v) => v.trim().toUpperCase() === nummer.toUpperCase())) {
+      nummer = buchstabenNummer(vergeben.length ? vergeben[vergeben.length - 1] : null, vergeben, '1')
+    }
+  }
   if (!nummer) {
     const vorhandene = await db.all(
       'SELECT scene_number FROM scenes WHERE project_id = ?', [req.params.projectId]
@@ -118,8 +131,26 @@ router.put('/scenes/:id', async (req, res) => {
   const { scene_number, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes, sort_order, shot_status, updated_at } = req.body
 
   // Gemessen am 25.10.2026: Eine Szene, die es nicht gibt, ergab 200 ohne Daten.
-  if (!(await db.get('SELECT id FROM scenes WHERE id = ?', [req.params.id]))) {
+  const vorher = await db.get('SELECT project_id, scene_number FROM scenes WHERE id = ?', [req.params.id]) as any
+  if (!vorher) {
     return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+  }
+
+  // Eine entfallene Szene zurückholen (AP A3). Entfallen lassen heißt löschen.
+  if (req.body?.omitted !== undefined) {
+    if (req.body.omitted !== false) return res.status(400).json({ data: null, error: 'Eine Szene entfällt über Löschen; hier geht nur das Zurückholen' })
+    await db.run('UPDATE scenes SET omitted = false, updated_at = NOW() WHERE id = ?', [req.params.id])
+    if (Object.keys(req.body).every((k) => k === 'omitted' || k === 'updated_at')) {
+      const zurueck = await db.get('SELECT s.*, l.name as location_name FROM scenes s LEFT JOIN locations l ON s.location_id = l.id WHERE s.id = ?', [req.params.id])
+      return res.json({ data: zurueck, error: null })
+    }
+  }
+
+  // Im gesperrten Drehbuch bleiben die Nummern - Dispo, Shotlist und
+  // Kontinuität am Set arbeiten danach (AP A3)
+  if (scene_number !== undefined && String(scene_number ?? '').trim() !== String(vorher.scene_number ?? '').trim()
+      && await drehbuchGesperrt(db, vorher.project_id)) {
+    return res.status(400).json({ data: null, error: 'Das Drehbuch ist gesperrt: Szenennummern bleiben, wie sie sind. Eine neue Szene bekommt eine Buchstabennummer wie 13A.' })
   }
 
   // Nur ein Motiv aus dem Projekt der Szene
@@ -194,6 +225,18 @@ router.delete('/scenes/:id', async (req, res) => {
   // bekam in der Zeitanalyse weiter einen Anteil der Tagesdrehzeit zugeteilt,
   // und dieser Anteil verschwand aus der Summe - der Tag wirkte kuerzer, als
   // er war.
+  // Im gesperrten Drehbuch heißt Löschen "entfällt" (AP A3): Die Szene bleibt
+  // mit ihrer Nummer stehen, grau, und kommt aus dem Drehplan. Ihre Nummer
+  // wird nie neu vergeben.
+  const eigene = await db.get('SELECT project_id FROM scenes WHERE id = ?', [req.params.id]) as any
+  if (eigene && await drehbuchGesperrt(db, eigene.project_id)) {
+    await db.run('UPDATE scenes SET omitted = true, updated_at = NOW() WHERE id = ?', [req.params.id])
+    await db.run('DELETE FROM shoot_day_scenes WHERE scene_id = ?', [req.params.id])
+    // Ein eigener Eintrag: Das Protokoll schrieb sonst "Szene gelöscht"
+    // (gemessen am 14.11.2026), dabei steht sie noch da.
+    logAudit(Number(eigene.project_id), (req as any).user, 'entfällt', 'Szene', Number(req.params.id))
+    return res.json({ data: { ok: true, entfaellt: true }, error: null })
+  }
   const szene = await db.get('SELECT shoot_day_id FROM shoot_day_scenes WHERE scene_id = ?', [req.params.id]) as any
   // Ein Motiv, das nur als Hülle für diese Szene entstand, geht mit (lib/motive.ts)
   const verwaist = await verwaistesMotivEntfernen(db, Number(req.params.id))

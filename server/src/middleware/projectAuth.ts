@@ -259,6 +259,8 @@ const ROUTE_OVERRIDES: Array<[RegExp, number]> = [
   [/\/members/,   ROLE_RANK.admin],
   // Drehplan versions: producer+
   [/\/drehplan-versions/, ROLE_RANK.producer],
+  // Drehbuch sperren und entsperren: ab Produktion (AP A3)
+  [/\/drehbuch\/(sperren|entsperren)$/, ROLE_RANK.producer],
 ]
 
 function minRankForPath(path: string): number {

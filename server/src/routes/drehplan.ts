@@ -200,10 +200,11 @@ router.post('/shoot-days/:id/scenes', async (req, res) => {
   // Der Drehtag holt die Szenen per JOIN dazu - eine Szene aus einem fremden
   // Projekt stünde sonst mit Titel und Motiv in diesem Drehplan.
   const szene = await db.get(
-    'SELECT s.id FROM scenes s JOIN shoot_days sd ON sd.project_id = s.project_id WHERE s.id = ? AND sd.id = ?',
+    'SELECT s.id, s.omitted FROM scenes s JOIN shoot_days sd ON sd.project_id = s.project_id WHERE s.id = ? AND sd.id = ?',
     [scene_id, req.params.id]
-  )
+  ) as any
   if (!szene) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+  if (szene.omitted) return res.status(400).json({ data: null, error: 'Eine entfallene Szene lässt sich nicht einplanen' })
   try {
     await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order, estimated_minutes) VALUES (?, ?, ?, ?)', [req.params.id, scene_id, sort_order, estimated_minutes])
   } catch (e: any) {
@@ -250,7 +251,8 @@ router.post('/shoot-days/move-scene', async (req, res) => {
   const nutzer = (req as any).user
   if (!nutzer) return res.status(401).json({ data: null, error: 'Nicht authentifiziert' })
 
-  const szene = await db.get('SELECT project_id FROM scenes WHERE id = ?', [sceneId]) as any
+  const szene = await db.get('SELECT project_id, omitted FROM scenes WHERE id = ?', [sceneId]) as any
+  if (szene?.omitted && toDayId) return res.status(400).json({ data: null, error: 'Eine entfallene Szene lässt sich nicht einplanen' })
   const ziel = toDayId
     ? await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [toDayId]) as any
     : null
@@ -399,8 +401,9 @@ router.post('/projects/:projectId/drehplan/verschieben', async (req, res) => {
   const zielTag = req.body?.zielTag == null ? null : Number(req.body.zielTag)
   const vor = req.body?.vor ?? null
 
-  const eigene = (await db.all('SELECT id FROM scenes WHERE project_id = ? AND id = ANY(?::int[])', [pid, szenen])) as any[]
+  const eigene = (await db.all('SELECT id, omitted FROM scenes WHERE project_id = ? AND id = ANY(?::int[])', [pid, szenen])) as any[]
   if (eigene.length !== szenen.length) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+  if (zielTag !== null && eigene.some((s) => s.omitted)) return res.status(400).json({ data: null, error: 'Eine entfallene Szene lässt sich nicht einplanen' })
   if (zielTag !== null) {
     const tag = Number.isInteger(zielTag)
       ? (await db.get('SELECT status FROM shoot_days WHERE id = ? AND project_id = ?', [zielTag, pid])) as any
@@ -571,7 +574,7 @@ router.post('/projects/:projectId/drehplan/einteilen', async (req, res) => {
 
   let ablage = (await db.all(
     `SELECT s.id, s.eighths, s.estimated_minutes FROM scenes s
-      WHERE s.project_id = ? AND NOT EXISTS (SELECT 1 FROM shoot_day_scenes sds WHERE sds.scene_id = s.id)
+      WHERE s.project_id = ? AND NOT s.omitted AND NOT EXISTS (SELECT 1 FROM shoot_day_scenes sds WHERE sds.scene_id = s.id)
       ORDER BY s.sort_order ASC, s.scene_number ASC, s.id ASC`,
     [pid])) as any[]
   if (req.body?.szenen !== undefined) {

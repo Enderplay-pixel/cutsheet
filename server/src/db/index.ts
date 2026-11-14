@@ -1578,6 +1578,41 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE project_settings ADD COLUMN IF NOT EXISTS work_weekdays TEXT NOT NULL DEFAULT '1,2,3,4,5'`)
   await db.exec(`ALTER TABLE project_settings ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT ''`)
 
+  // Drehbuch-Fassungen mit gesperrten Nummern (Plan "CutSheet Kino-Ausbau",
+  // AP A3, 14.11.2026). Eine Fassung hat Nummer, Farbe und Datum; je Fassung
+  // steht der Text jeder Szene, daraus entsteht der Vergleich. project_id auch
+  // in den Szenenzeilen, damit die Sicherung sie von selbst mitnimmt.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS script_revisions (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      number INTEGER NOT NULL,
+      color TEXT NOT NULL DEFAULT 'weiss',
+      note TEXT NOT NULL DEFAULT '',
+      filename TEXT NOT NULL DEFAULT '',
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(project_id, number)
+    )
+  `)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS script_revision_scenes (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      revision_id INTEGER NOT NULL REFERENCES script_revisions(id) ON DELETE CASCADE,
+      scene_id INTEGER REFERENCES scenes(id) ON DELETE SET NULL,
+      scene_number TEXT NOT NULL DEFAULT '',
+      heading TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL DEFAULT '',
+      change TEXT NOT NULL DEFAULT 'unveraendert'
+    )
+  `)
+  // Eine entfallene Szene bleibt mit ihrer Nummer stehen ("ENTFÄLLT") und
+  // fällt aus Plan, Ablage, Seitensumme und Prüfungen.
+  await db.exec(`ALTER TABLE scenes ADD COLUMN IF NOT EXISTS omitted BOOLEAN NOT NULL DEFAULT false`)
+  await db.exec(`ALTER TABLE screenplay_blocks ADD COLUMN IF NOT EXISTS revision_id INTEGER`)
+  await db.exec(`ALTER TABLE project_settings ADD COLUMN IF NOT EXISTS script_locked_at TIMESTAMPTZ`)
+
   // ── Rechnungen und Honorare ───────────────────────────────────────────────
   // Steuerart der Firma. Ein Einzelunternehmen nach Paragraf 19 UStG weist
   // keine Umsatzsteuer aus und muss das auf der Rechnung begruenden.

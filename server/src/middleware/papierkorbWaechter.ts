@@ -13,6 +13,7 @@
  */
 import { Request, Response, NextFunction } from 'express'
 import { inDenPapierkorb, BEOBACHTET } from '../lib/papierkorb'
+import { db } from '../db'
 
 /**
  * Welches Pfadsegment zu welcher Tabelle gehört.
@@ -64,6 +65,14 @@ export async function papierkorbWaechter(req: Request, res: Response, next: Next
   if (req.method !== 'DELETE') return next()
   const ziel = erkenneZiel(req.path)
   if (!ziel) return next()
+  // Im gesperrten Drehbuch wird eine Szene nicht gelöscht, sie entfällt
+  // (AP A3) - sie gehört dann nicht in den Papierkorb.
+  if (ziel.tabelle === 'scenes') {
+    const gesperrt = await db.get(
+      'SELECT 1 FROM scenes s JOIN project_settings ps ON ps.project_id = s.project_id WHERE s.id = ? AND ps.script_locked_at IS NOT NULL',
+      [ziel.id]).catch(() => null)
+    if (gesperrt) return next()
+  }
 
   try {
     await inDenPapierkorb(ziel.tabelle, ziel.id, {

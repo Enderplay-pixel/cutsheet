@@ -270,7 +270,7 @@ router.get('/projects/:projectId/export/:art.csv', requireAuth, async (req: Requ
     const daten = (await db.all(
       `SELECT s.scene_number, s.title, s.int_ext, s.day_night, l.name AS motiv, s.eighths, s.estimated_minutes
          FROM scenes s LEFT JOIN locations l ON l.id = s.location_id
-        WHERE s.project_id = ? ORDER BY s.sort_order, s.id`,
+        WHERE s.project_id = ? AND NOT s.omitted ORDER BY s.sort_order, s.id`,
       [projectId]
     )) as any[]
     zeilen = daten.map((z) => [

@@ -79,7 +79,7 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
   await pruefung('Nicht eingeplante Szenen', conflicts, async () => {
     const unscheduled = await db.all(`
       SELECT s.scene_number, s.title FROM scenes s
-      WHERE s.project_id = ?
+      WHERE s.project_id = ? AND NOT s.omitted
       AND s.id NOT IN (
         SELECT sds.scene_id FROM shoot_day_scenes sds
         JOIN shoot_days sd ON sds.shoot_day_id = sd.id WHERE sd.project_id = ?
@@ -130,7 +130,7 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
 
   // 5. Scenes without location
   await pruefung('Szenen ohne Motiv', conflicts, async () => {
-    const scenesNoLoc = await db.all('SELECT scene_number, title FROM scenes WHERE project_id = ? AND location_id IS NULL', [pid]) as any[]
+    const scenesNoLoc = await db.all('SELECT scene_number, title FROM scenes WHERE project_id = ? AND location_id IS NULL AND NOT omitted', [pid]) as any[]
     if (scenesNoLoc.length > 0) {
       conflicts.push({
         severity: 'info', category: 'Motive',
@@ -186,7 +186,7 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
   await pruefung('Szenen ohne Figuren', conflicts, async () => {
     const scenesNoChars = await db.all(`
       SELECT s.scene_number, s.title FROM scenes s
-      WHERE s.project_id = ?
+      WHERE s.project_id = ? AND NOT s.omitted
       AND s.id NOT IN (SELECT DISTINCT scene_id FROM scene_characters)
     `, [pid]) as any[]
     if (scenesNoChars.length > 0) {

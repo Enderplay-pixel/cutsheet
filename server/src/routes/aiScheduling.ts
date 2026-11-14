@@ -35,7 +35,7 @@ router.post('/projects/:pid/drehplan/ai-optimize', async (req: Request, res: Res
     FROM scenes s
     LEFT JOIN locations l ON s.location_id = l.id
     LEFT JOIN shoot_day_scenes sds ON sds.scene_id = s.id
-    WHERE s.project_id = ?
+    WHERE s.project_id = ? AND NOT s.omitted
   `, [pid]) as any[]
 
   // Get cast per scene
