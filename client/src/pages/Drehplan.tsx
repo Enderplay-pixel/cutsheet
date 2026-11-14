@@ -3,9 +3,9 @@ import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors,
-  type DragStartEvent, type DragEndEvent, type DragOverEvent, type CollisionDetection,
-  closestCenter, pointerWithin, rectIntersection
+  type DragStartEvent, type DragEndEvent, type DragOverEvent,
 } from '@dnd-kit/core'
+import { zielUnterDemZeiger } from '@/lib/zielUnterDemZeiger'
 import { arrayMove } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -14,6 +14,9 @@ import { ScenePool } from '@/components/drehplan/ScenePool'
 import { SceneStrip } from '@/components/drehplan/SceneStrip'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { formatDate } from '@/lib/utils'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
@@ -29,6 +32,7 @@ function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
   const [date, setDate] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [wochenenden, setWochenenden] = useState(false)
   const [loading, setLoading] = useState(false)
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -38,16 +42,17 @@ function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
     mutationFn: (d: string) => api.drehplan.createDay(projectId, { date: d }),
   })
 
-  const getDatesInRange = (start: string, end: string): string[] => {
-    const dates: string[] = []
-    const cur = new Date(start)
-    const last = new Date(end)
-    while (cur <= last) {
-      dates.push(cur.toISOString().slice(0, 10))
-      cur.setDate(cur.getDate() + 1)
-    }
-    return dates
-  }
+  // Welche Tage der Zeitraum ergibt, rechnet der Server: Arbeitstage des
+  // Projekts ohne Feiertage des Bundeslands, wie beim automatischen Einteilen
+  // im Stäbchenplan (Plan Kino-Ausbau, Nachtrag zu AP A2). Vorher legte der
+  // Dialog jeden Kalendertag an, auch Samstag und Sonntag.
+  const zeitraumGueltig = mode === 'range' && !!startDate && !!endDate && endDate >= startDate
+  const { data: vorschlag, error: vorschlagFehler } = useQuery({
+    queryKey: ['arbeitstage', projectId, startDate, endDate, wochenenden],
+    queryFn: () => api.drehplan.arbeitstage(projectId, startDate, endDate, wochenenden),
+    enabled: zeitraumGueltig,
+  })
+  const dates: string[] = zeitraumGueltig ? (vorschlag ?? []) : []
 
   const handleAdd = async () => {
     setLoading(true)
@@ -56,10 +61,10 @@ function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
         if (!date) return
         await mutation.mutateAsync(date) // texte-ok
       } else {
-        if (!startDate || !endDate) return
-        const dates = getDatesInRange(startDate, endDate)
+        if (dates.length === 0) return
         if (dates.length > 60) { toast({ title: tt(T.max60), variant: 'destructive' }); return }
-        for (const d of dates) await mutation.mutateAsync(d)
+        // Ein Aufruf statt einer Schleife: Der Server legt alle Tage an und nummeriert einmal
+        await api.drehplan.createDaysBatch(projectId, dates)
         toast({ title: tt(T.tageHinzugefuegt).replace('{n}', String(dates.length)) })
       }
       queryClient.invalidateQueries({ queryKey: ['shoot-days', projectId] })
@@ -71,7 +76,7 @@ function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
     }
   }
 
-  const rangeCount = startDate && endDate ? getDatesInRange(startDate, endDate).length : 0
+  const rangeCount = dates.length
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -97,9 +102,20 @@ function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
                 <label className="text-sm font-medium block mb-1">{tt(T.bis)}</label>
                 <Input type="date" value={endDate} min={startDate} onChange={e => setEndDate(e.target.value)} />
               </div>
+              <div className="flex items-center gap-2 pt-1">
+                <Switch id="zeitraum-wochenenden" checked={wochenenden} onCheckedChange={setWochenenden} />
+                <Label htmlFor="zeitraum-wochenenden" className="text-sm">{tt(T.wochenendenMitnehmen)}</Label>
+              </div>
+              <p className="text-xs text-muted-foreground">{tt(T.arbeitstageHinweis)}</p>
               {rangeCount > 0 && (
-                <p className="text-xs text-muted-foreground">{tt(T.werdenAngelegt).replace('{n}', String(rangeCount))}</p>
+                <p className="text-xs font-medium" role="status">
+                  {tt(T.ergibtTage).replace('{n}', String(rangeCount)).replace('{von}', formatDate(dates[0])).replace('{bis}', formatDate(dates[dates.length - 1]))}
+                </p>
               )}
+              {zeitraumGueltig && vorschlag && rangeCount === 0 && (
+                <p className="text-xs text-amber-700 dark:text-amber-400" role="status">{tt(T.keineArbeitstage)}</p>
+              )}
+              {vorschlagFehler && <p className="text-xs text-destructive" role="alert">{(vorschlagFehler as Error).message}</p>}
             </div>
           )}
         </div>
@@ -112,24 +128,6 @@ function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
       </DialogContent>
     </Dialog>
   )
-}
-
-/**
- * Wohin eine gezogene Szene fällt: dorthin, wo der Mauszeiger steht.
- *
- * Vorher closestCenter - der nächste Mittelpunkt. Gemessen im Testbericht
- * SALZWIND (09.11.2026, 1440 × 900, 32 Szenen in der Ablage): Im oberen
- * Drittel eines leeren Drehtags losgelassen, passierte nichts oder die Szene
- * landete still beim Nachbartag - dessen Szenen lagen näher als die Mitte der
- * hohen, leeren Spalte. Erst unter dem Zeiger, dann was sich überlappt, und
- * nur ohne beides der nächste Mittelpunkt.
- */
-const zielUnterDemZeiger: CollisionDetection = (args) => {
-  const unterDemZeiger = pointerWithin(args)
-  if (unterDemZeiger.length > 0) return unterDemZeiger
-  const ueberlappend = rectIntersection(args)
-  if (ueberlappend.length > 0) return ueberlappend
-  return closestCenter(args)
 }
 
 export function Component() {

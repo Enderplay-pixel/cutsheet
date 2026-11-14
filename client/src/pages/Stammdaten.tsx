@@ -15,9 +15,10 @@ import { TimeInput } from '@/components/ui/time-input'
 import { useAuth } from '@/contexts/AuthContext'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { Button } from '@/components/ui/button'
-import { useT } from '@/lib/useT'
+import { useT, useGebietsschema } from '@/lib/useT'
 import { masterT, navT, projectsT } from '@/lib/i18n'
 import { onboardingFormatT } from '@/lib/texte/komponenten/OnboardingWizard'
+import { BUNDESLAENDER } from '@/lib/texte/Bundeslaender'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 const FORMATS = ALL_FORMATS
@@ -341,7 +342,23 @@ export function Component() {
       queryClient.invalidateQueries({ queryKey: ['project', pid] })
       gespeichert()
     },
+    // Seit dem 14.11.2026 prüft der Server Arbeitstage und Bundesland. Ohne
+    // diese Zeile wäre eine Ablehnung still geblieben (Falle "Stille Antworten").
+    onError: (e: any) => toast({ title: tt(masterT.speicherFehler), description: e?.message, variant: 'destructive' }),
   })
+  const gebietsschema = useGebietsschema()
+  // Wochentage nach ISO, Montag 1. Die Namen aus dem 16.11.2026, einem Montag.
+  const wochentagName = (i: number) =>
+    new Date(Date.UTC(2026, 10, 15 + i, 12)).toLocaleDateString(gebietsschema, { weekday: 'short', timeZone: 'UTC' })
+  const arbeitstage = new Set(String(settingsData?.work_weekdays ?? '1,2,3,4,5').split(',').map(Number))
+  const arbeitstagUmschalten = (i: number) => {
+    const neu = new Set(arbeitstage)
+    if (neu.has(i)) neu.delete(i)
+    else neu.add(i)
+    // Mindestens ein Arbeitstag bleibt - so verlangt es auch der Server
+    if (neu.size === 0) return
+    updateSetting('work_weekdays', [...neu].sort((a, b) => a - b).join(','))
+  }
   const debouncedSettingsSave = useRef(debounce((data: any) => settingsMutation.mutate(data), 600)).current
   const updateSetting = (key: string, value: any) => {
     const next = { ...settingsData, [key]: value }
@@ -504,6 +521,33 @@ export function Component() {
               className="h-9"
               placeholder={tt(masterT.phLand)}
             />
+          </Field>
+          <Field label={tt(masterT.bundesland)}>
+            <Select value={settingsData.state || 'keins'} onValueChange={v => updateSetting('state', v === 'keins' ? '' : v)} disabled={!canAdmin}>
+              <SelectTrigger className="h-9" aria-label={tt(masterT.bundesland)}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="keins">{tt(masterT.bundeslandKeins)}</SelectItem>
+                {BUNDESLAENDER.map(([kuerzel, name]) => <SelectItem key={kuerzel} value={kuerzel}>{tt(name)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label={tt(masterT.arbeitstage)}>
+            <div className="flex flex-wrap gap-1" role="group" aria-label={tt(masterT.arbeitstage)}>
+              {[1, 2, 3, 4, 5, 6, 7].map(i => (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={!canAdmin}
+                  aria-pressed={arbeitstage.has(i)}
+                  aria-label={tt(masterT.arbeitstagName).replace('{tag}', wochentagName(i))}
+                  onClick={() => arbeitstagUmschalten(i)}
+                  className={`h-9 min-w-[2.5rem] px-2 rounded-md border text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${arbeitstage.has(i) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border text-muted-foreground'}`}
+                >
+                  {wochentagName(i)}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">{tt(masterT.arbeitstageHinweis)}</p>
           </Field>
           <Field label={tt(masterT.akzent)}>
             <div className="flex items-center gap-2">

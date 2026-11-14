@@ -335,4 +335,7 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Banner nicht gefunden': { en: 'Banner not found', fr: 'Bandeau introuvable' },
   'Mindestens ein Wochentag muss ein Arbeitstag sein': { en: 'At least one weekday must be a working day', fr: 'Au moins un jour de la semaine doit être un jour ouvré' },
   'Unbekanntes Bundesland': { en: 'Unknown federal state', fr: 'Land inconnu' },
+  'Von und bis sind ein Datum (JJJJ-MM-TT)': { en: 'From and to must be a date (YYYY-MM-DD)', fr: 'Du et au doivent être une date (AAAA-MM-JJ)' },
+  'Das Ende liegt vor dem Beginn': { en: 'The end is before the start', fr: 'La fin précède le début' },
+  'Ein Zeitraum umfasst höchstens 366 Tage': { en: 'A period covers at most 366 days', fr: 'Une période couvre au maximum 366 jours' },
 }

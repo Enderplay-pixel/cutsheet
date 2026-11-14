@@ -4,7 +4,7 @@ import { besetzungNachziehen } from '../lib/dispo'
 import { getUserProjectRole, requireMember, ROLE_RANK } from '../middleware/projectAuth'
 import { istIsoDatum } from '../lib/datum'
 import { KEIN_DREHTAG } from '../lib/drehtage'
-import { teileEin, wochentageAus, naechsterArbeitstag, folgetageVerschieben, plaetzeAb } from '../lib/board'
+import { teileEin, wochentageAus, naechsterArbeitstag, folgetageVerschieben, plaetzeAb, arbeitstageAb, plusTage } from '../lib/board'
 import { getHolidays } from '../services/holidays'
 import { inDenPapierkorb } from '../lib/papierkorb'
 
@@ -372,6 +372,22 @@ async function stehenImWeg(tage: any[]): Promise<any[]> {
     [tage.map((t) => Number(t.id))])) as any[]).map((r) => Number(r.shoot_day_id)))
   return tage.filter((t) => t.status === 'Abgedreht' || verschickt.has(Number(t.id)))
 }
+
+// GET /api/projects/:projectId/drehplan/arbeitstage?von=…&bis=…&wochenenden=1
+// Die Arbeitstage im Zeitraum, ohne Feiertage des Bundeslands - für den
+// Dialog "Zeitraum anlegen" (Nachtrag zu AP A2). Vorher legte er auch Samstag
+// und Sonntag an. Mit `wochenenden=1` zählt jeder Wochentag, Feiertage
+// fallen weiter weg. Dieselbe Rechnung wie beim Einteilen (lib/board.ts).
+router.get('/projects/:projectId/drehplan/arbeitstage', async (req, res) => {
+  const von = String(req.query.von ?? '')
+  const bis = String(req.query.bis ?? '')
+  if (!istIsoDatum(von) || !istIsoDatum(bis)) return res.status(400).json({ data: null, error: 'Von und bis sind ein Datum (JJJJ-MM-TT)' })
+  if (bis < von) return res.status(400).json({ data: null, error: 'Das Ende liegt vor dem Beginn' })
+  if (bis > plusTage(von, 365)) return res.status(400).json({ data: null, error: 'Ein Zeitraum umfasst höchstens 366 Tage' })
+  const { wochentage, feiertage } = await kalenderDesProjekts(Number(req.params.projectId), Number(von.slice(0, 4)))
+  const alle = req.query.wochenenden === '1' ? [1, 2, 3, 4, 5, 6, 7] : wochentage
+  res.json({ data: arbeitstageAb(von, 367, alle, feiertage).filter((d) => d <= bis), error: null })
+})
 
 // POST /api/projects/:projectId/drehplan/verschieben
 // { szenen, zielTag, vor }: die Szenen in ihrer Reihenfolge vor den Eintrag

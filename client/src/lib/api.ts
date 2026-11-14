@@ -34,6 +34,24 @@ export async function antwortLesen(res: Response): Promise<{ data: any; error: s
   }
 }
 
+/**
+ * Ein Fehler des Servers mit Status und den Angaben, die er mitschickt.
+ *
+ * Manche Antworten sind eine Rückfrage, kein Ende: Das Board des
+ * Stäbchenplans bekommt auf "Tagesgrenze einfügen" 409 mit `verschiebbar`,
+ * auf "Tagesgrenze entfernen" 409 mit `folgen` (AP A2). Vorher warf `req`
+ * nur den Text und die Angaben gingen verloren.
+ */
+export class ApiFehler extends Error {
+  status: number
+  daten: any
+  constructor(meldung: string, status: number, daten: any) {
+    super(meldung)
+    this.status = status
+    this.daten = daten
+  }
+}
+
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('token')
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -46,7 +64,7 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
     headers: { ...headers, ...options?.headers },
   })
   const { data, error } = await antwortLesen(res)
-  if (error) throw new Error(error)
+  if (error) throw new ApiFehler(error, res.status, data)
   return data
 }
 
@@ -240,6 +258,22 @@ export const api = {
     snapshot: (projectId: number, name?: string) => req<any>(`/projects/${projectId}/drehplan/snapshot`, { method: 'POST', body: JSON.stringify({ name }) }),
     restore: (projectId: number, versionId: number) => req<any[]>(`/projects/${projectId}/drehplan/restore/${versionId}`, { method: 'POST' }),
     deleteVersion: (versionId: number) => req<any>(`/drehplan-versions/${versionId}`, { method: 'DELETE' }),
+    // Board des Stäbchenplans (AP A2)
+    verschieben: (projectId: number, data: { szenen: number[]; zielTag: number | null; vor: { art: 'szene' | 'banner'; id: number } | null }) =>
+      req<any>(`/projects/${projectId}/drehplan/verschieben`, { method: 'POST', body: JSON.stringify(data) }),
+    tagesgrenzeEinfuegen: (projectId: number, nachSzene: number, folgetageVerschieben = false) =>
+      req<any>(`/projects/${projectId}/drehplan/tagesgrenze`, { method: 'POST', body: JSON.stringify({ nachSzene, folgetageVerschieben }) }),
+    tagesgrenzeEntfernen: (projectId: number, dayId: number, bestaetigt = false) =>
+      req<any>(`/projects/${projectId}/drehplan/tagesgrenze/${dayId}${bestaetigt ? '?bestaetigt=1' : ''}`, { method: 'DELETE' }),
+    einteilen: (projectId: number, data: { nach: 'achtel' | 'minuten'; hoechstens: number; start: string; nurZeigen: boolean; szenen?: number[] }) =>
+      req<any>(`/projects/${projectId}/drehplan/einteilen`, { method: 'POST', body: JSON.stringify(data) }),
+    arbeitstage: (projectId: number, von: string, bis: string, wochenenden: boolean) =>
+      req<string[]>(`/projects/${projectId}/drehplan/arbeitstage?von=${von}&bis=${bis}${wochenenden ? '&wochenenden=1' : ''}`),
+    bannerAnlegen: (dayId: number, data: { text: string; minutes: number }) =>
+      req<any>(`/shoot-days/${dayId}/banner`, { method: 'POST', body: JSON.stringify(data) }),
+    bannerAendern: (id: number, data: { text?: string; minutes?: number; shoot_day_id?: number; vor?: { art: 'szene' | 'banner'; id: number } | null }) =>
+      req<any>(`/shoot-day-banners/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    bannerLoeschen: (id: number) => req<any>(`/shoot-day-banners/${id}`, { method: 'DELETE' }),
   },
 
   // ─── Call Sheets ───────────────────────────────────────────────────────────

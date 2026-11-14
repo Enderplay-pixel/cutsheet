@@ -3715,6 +3715,22 @@ describe('Stäbchenplan als Board (AP A2)', () => {
     expect((await sende(pfad, koerper)).daten.bis).toBe('2026-06-08')
   })
 
+  it('Zeitraum anlegen schlägt die Arbeitstage des Projekts vor, auf Wunsch mit Wochenenden', async () => {
+    const { projekt } = await plan('Board Zeitraum', [])
+    const tage = (von: string, bis: string, mehr = '') =>
+      hole(`/api/projects/${projekt}/drehplan/arbeitstage?von=${von}&bis=${bis}${mehr}`, tokenInhaber)
+    // Montag bis Freitag der Folgewoche: 10 Tage, nicht 12 (Nachtrag zu AP A2)
+    const zwei = await tage('2026-11-16', '2026-11-27')
+    expect(zwei.status).toBe(200)
+    expect(zwei.daten.length).toBe(10)
+    expect([zwei.daten[0], zwei.daten[9]]).toEqual(['2026-11-16', '2026-11-27'])
+    expect((await tage('2026-11-16', '2026-11-27', '&wochenenden=1')).daten.length).toBe(12)
+    // Feiertage fallen auch mit Wochenenden weg: 21. bis 31.12. ohne den 25. und 26.
+    expect((await tage('2026-12-21', '2026-12-31', '&wochenenden=1')).daten.length).toBe(9)
+    expect((await tage('2026-11-27', '2026-11-16')).status).toBe(400)
+    expect((await tage('gestern', '2026-11-16')).status).toBe(400)
+  })
+
   it('Automatisch einteilen lehnt Unsinn ab', async () => {
     const { projekt } = await plan('Board Unsinn', [], ['1'])
     const pfad = `/api/projects/${projekt}/drehplan/einteilen`
