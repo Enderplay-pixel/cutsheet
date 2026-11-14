@@ -30,6 +30,13 @@ const MUSTER: Array<[RegExp, Record<Sprache, string>]> = [
   [/^Ungültige Kennung "(.*)" für (.+)\.$/, { en: 'Invalid ID "$1" for $2.', fr: 'Identifiant "$1" invalide pour $2.' }],
   [/^Im Vertrag fehlen noch Angaben: (.*)\. Ergänzen und "Neu füllen" oder ausdrücklich trotzdem senden\.$/s,
     { en: 'The contract is still missing: $1. Complete it and "Refill", or explicitly send anyway.', fr: 'Il manque encore dans le contrat : $1. Complétez puis « Remplir à nouveau », ou envoyez quand même explicitement.' }],
+  // Board des Stäbchenplans (AP A2, 14.11.2026)
+  [/^Im Weg steht (.*)\. Abgedrehte Tage und Tage mit verschickter Dispo werden nie verschoben\.$/s,
+    { en: 'In the way: $1. Days already shot and days with a sent call sheet are never moved.', fr: 'Bloque le passage : $1. Les jours déjà tournés et ceux dont la feuille de service est envoyée ne sont jamais déplacés.' }],
+  [/^Der (.+) ist schon Drehtag (\d+)\. Die Folgetage um einen Arbeitstag verschieben\?$/,
+    { en: '$1 is already shoot day $2. Move the following days by one working day?', fr: 'Le $1 est déjà le jour de tournage $2. Décaler les jours suivants d’un jour ouvré ?' }],
+  [/^Drehtag (\d+) hat eine Dispo, einen Tagesbericht oder Check-ins - beim Zusammenlegen werden sie mit gelöscht\.$/,
+    { en: 'Shoot day $1 has a call sheet, a daily report or check-ins - merging deletes them too.', fr: 'Le jour de tournage $1 a une feuille de service, un rapport ou des arrivées - la fusion les supprime aussi.' }],
   [/^Betrag zu groß \(höchstens ([^)]+)\): (.*)$/s,
     { en: 'Amount too large (at most $1): $2', fr: 'Montant trop élevé (au maximum $1) : $2' }],
   [/^Zahl außerhalb des zulässigen Bereichs \(höchstens ([\d.]+)\): (.*)$/s,

@@ -33,6 +33,7 @@ export const BEOBACHTET: Record<string, { bezeichnung: string; titelfeld: string
   vehicles:       { bezeichnung: 'Fahrzeug',     titelfeld: 'name' },
   extras:         { bezeichnung: 'Komparserie',  titelfeld: 'name' },
   budget_lines:   { bezeichnung: 'Budgetposten', titelfeld: 'description' },
+  shoot_day_banners: { bezeichnung: 'Banner im Drehplan', titelfeld: 'text' },
 }
 
 /**

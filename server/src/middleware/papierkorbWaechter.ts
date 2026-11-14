@@ -36,6 +36,7 @@ const PFAD_ZU_TABELLE: Record<string, string> = {
   vehicles: 'vehicles',
   extras: 'extras',
   'budget-lines': 'budget_lines',
+  'shoot-day-banners': 'shoot_day_banners',
 }
 
 /**

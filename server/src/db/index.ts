@@ -1556,6 +1556,28 @@ export async function initDatabase() {
     )
   `)
 
+  // Stäbchenplan als Board (Plan "CutSheet Kino-Ausbau", AP A2, 14.11.2026).
+  // Ein Banner ist eine Textzeile in einem Drehtag ("Umzug zum Hafen") mit
+  // einer Dauer, die zur Drehzeit des Tages zählt. sort_order teilt sich den
+  // Zahlenraum mit shoot_day_scenes desselben Tages. project_id steht mit
+  // drin wie bei event_people: Sicherung, Papierkorb und Projektprüfung
+  // finden die Zeile so ohne Umweg über den Drehtag.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS shoot_day_banners (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      shoot_day_id INTEGER NOT NULL REFERENCES shoot_days(id) ON DELETE CASCADE,
+      text TEXT NOT NULL DEFAULT '',
+      minutes INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `)
+  // Arbeitstage (ISO, Montag 1) und Bundesland für die Feiertage. Bis zum
+  // 14.11.2026 stand im Projekt nur das Land - gespeichert, aber ohne
+  // Wirkung (Fund 266). '' heißt: kein Bundesland, nur bundesweite Feiertage.
+  await db.exec(`ALTER TABLE project_settings ADD COLUMN IF NOT EXISTS work_weekdays TEXT NOT NULL DEFAULT '1,2,3,4,5'`)
+  await db.exec(`ALTER TABLE project_settings ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT ''`)
+
   // ── Rechnungen und Honorare ───────────────────────────────────────────────
   // Steuerart der Firma. Ein Einzelunternehmen nach Paragraf 19 UStG weist
   // keine Umsatzsteuer aus und muss das auf der Rechnung begruenden.

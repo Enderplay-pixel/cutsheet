@@ -16,6 +16,8 @@ describe('Was in den Papierkorb gehört', () => {
     expect(erkenneZiel('/shoot-days/1')).toEqual({ tabelle: 'shoot_days', id: 1 })
     expect(erkenneZiel('/budget-lines/99')).toEqual({ tabelle: 'budget_lines', id: 99 })
     expect(erkenneZiel('/equipment-items/5')).toEqual({ tabelle: 'equipment_items', id: 5 })
+    // Banner im Stäbchenplan (AP A2)
+    expect(erkenneZiel('/shoot-day-banners/4')).toEqual({ tabelle: 'shoot_day_banners', id: 4 })
   })
 
   it('erkennt auch Löschpfade unter dem Projekt (Komparsen, Fahrzeuge)', () => {

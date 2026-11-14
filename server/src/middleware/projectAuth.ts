@@ -154,6 +154,7 @@ export const entityPatterns: Array<[RegExp, string]> = [
     [/^\/budget-versions\/(\d+)/,    'SELECT project_id FROM budget_versions WHERE id = ?'],
     [/^\/equipment-lists\/(\d+)/,    'SELECT project_id FROM equipment_lists WHERE id = ?'],
     [/^\/drehplan-versions\/(\d+)/,  'SELECT project_id FROM drehplan_versions WHERE id = ?'],
+    [/^\/shoot-day-banners\/(\d+)/, 'SELECT project_id FROM shoot_day_banners WHERE id = ?'],
     [/^\/call-sheets\/(\d+)/,
      'SELECT sd.project_id FROM call_sheets cs JOIN shoot_days sd ON cs.shoot_day_id = sd.id WHERE cs.id = ?'],
     [/^\/budget-lines\/(\d+)/,

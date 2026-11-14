@@ -13,9 +13,13 @@ router.use('/projects/:projectId', requireMember)
 // Kürzel wie in services/holidays.ts. Der Standard war 'NRW' - das kennt die
 // Liste nicht, gemessen am 25.10.2026 fehlten damit Fronleichnam und
 // Allerheiligen (9 statt 13 Feiertage).
-router.get('/projects/:projectId/holidays', (req, res) => {
+// Ohne Angabe gilt seit dem 14.11.2026 das Bundesland des Projekts
+// (project_settings.state, AP A2), ohne Bundesland nur bundesweite Feiertage -
+// dieselben Tage, die das Board des Stäbchenplans auslässt.
+router.get('/projects/:projectId/holidays', async (req, res) => {
   const year = parseInt(String(req.query.year)) || Number(heuteISO().slice(0, 4))
-  const state = String(req.query.state || 'NW')
+  const eingestellt = (await db.get('SELECT state FROM project_settings WHERE project_id = ?', [req.params.projectId])) as any
+  const state = String(req.query.state || eingestellt?.state || '')
   const holidays = getHolidays(year, state)
   res.json({ data: holidays, error: null })
 })

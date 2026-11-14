@@ -5,6 +5,8 @@ import { ProjectSchema } from '../schemas'
 import { getUserProjectRole, requireMember, ROLE_RANK } from '../middleware/projectAuth'
 import { requireAuth } from '../middleware/auth'
 import { heuteISO } from '../lib/datum'
+import { wochentageAus } from '../lib/board'
+import { BUNDESLAENDER } from '../services/holidays'
 import { massgeblicheKalkulation } from '../lib/kalkulation'
 
 const router = Router()
@@ -250,18 +252,26 @@ router.put('/:id/settings', requireAuth, async (req, res) => {
     country = existing?.country ?? 'Deutschland',
     logo_url = existing?.logo_url ?? null,
     header_color = existing?.header_color ?? '#0071E3',
+    work_weekdays = existing?.work_weekdays ?? '1,2,3,4,5',
+    state = existing?.state ?? '',
   } = b
+  // Arbeitstage und Bundesland bestimmen, an welchen Tagen das Board des
+  // Stäbchenplans Drehtage anlegt (Plan Kino-Ausbau, AP A2).
+  const wochentage = wochentageAus(String(work_weekdays))
+  if (wochentage.length === 0) return res.status(400).json({ data: null, error: 'Mindestens ein Wochentag muss ein Arbeitstag sein' })
+  if (state !== '' && !BUNDESLAENDER.includes(String(state))) return res.status(400).json({ data: null, error: 'Unbekanntes Bundesland' })
+  const arbeitstage = wochentage.join(',')
   if (existing) {
     await db.run(`
       UPDATE project_settings
-      SET default_call_time=?, default_wrap_time=?, turnaround_hours=?, currency=?, country=?, logo_url=?, header_color=?
+      SET default_call_time=?, default_wrap_time=?, turnaround_hours=?, currency=?, country=?, logo_url=?, header_color=?, work_weekdays=?, state=?
       WHERE project_id=?
-    `, [default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color, req.params.id])
+    `, [default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color, arbeitstage, state, req.params.id])
   } else {
     await db.run(`
-      INSERT INTO project_settings (project_id, default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [req.params.id, default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color])
+      INSERT INTO project_settings (project_id, default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color, work_weekdays, state)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [req.params.id, default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color, arbeitstage, state])
   }
 
   const settings = await db.get('SELECT * FROM project_settings WHERE project_id = ?', [req.params.id])

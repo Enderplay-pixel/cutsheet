@@ -31,6 +31,9 @@ interface HolidayDef {
   states: string[]
 }
 
+/** Kürzel der Bundesländer, wie `getHolidays` sie erwartet (Einstellung `project_settings.state`). */
+export const BUNDESLAENDER = ['BW', 'BY', 'BE', 'BB', 'HB', 'HH', 'HE', 'MV', 'NI', 'NW', 'RP', 'SL', 'SN', 'ST', 'SH', 'TH']
+
 // Returns array of { date: string (YYYY-MM-DD), name: string }
 export function getHolidays(year: number, state: string = 'NW'): Array<{ date: string; name: string }> {
   const easter = easterDate(year)

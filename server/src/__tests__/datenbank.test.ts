@@ -3460,3 +3460,266 @@ describe('Vertrag vor dem Versand prüfen und danach (AP A4, A5)', () => {
     expect(await offen()).toBe(0)
   })
 })
+
+describe('Stäbchenplan als Board (AP A2)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+  const anzahl = async (sql: string, werte: any[]) => Number(((await db.get(sql, werte)) as any).n)
+
+  /** Projekt mit Drehtagen (Datum, Szenennummern, Status). Szenen ohne Tag liegen in der Ablage. */
+  async function plan(titel: string, tage: Array<{ datum: string; szenen: string[]; status?: string }>, ablage: string[] = []) {
+    const projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', [titel, nutzerId])).id
+    const szene: Record<string, number> = {}
+    const neu = async (nr: string) => {
+      szene[nr] = (await db.run(
+        "INSERT INTO scenes (project_id, scene_number, title, eighths, estimated_minutes) VALUES (?, ?, 'DEICH', 8, 60)",
+        [projekt, nr])).id
+    }
+    const tag: number[] = []
+    for (const [i, t] of tage.entries()) {
+      const id = (await db.run('INSERT INTO shoot_days (project_id, day_number, date, status) VALUES (?, ?, ?, ?)',
+        [projekt, i + 1, t.datum, t.status ?? 'Geplant'])).id
+      tag.push(id)
+      for (const [j, nr] of t.szenen.entries()) {
+        await neu(nr)
+        await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, ?)', [id, szene[nr], j])
+      }
+    }
+    for (const nr of ablage) await neu(nr)
+    return { projekt, szene, tag }
+  }
+
+  /** Was in einem Tag steht, in seiner Reihenfolge: Szenennummern, Banner als "B:Text". */
+  async function reihe(tagId: number) {
+    const zeilen = (await db.all(
+      `SELECT sds.sort_order, 'S' AS art, s.scene_number AS wert
+         FROM shoot_day_scenes sds JOIN scenes s ON s.id = sds.scene_id WHERE sds.shoot_day_id = ?
+       UNION ALL
+       SELECT sort_order, 'B', text FROM shoot_day_banners WHERE shoot_day_id = ?
+       ORDER BY 1`, [tagId, tagId])) as any[]
+    return {
+      werte: zeilen.map((z) => (z.art === 'B' ? `B:${z.wert}` : z.wert)),
+      ordnung: zeilen.map((z) => Number(z.sort_order)),
+    }
+  }
+  const daten = async (projekt: number) =>
+    ((await db.all('SELECT date FROM shoot_days WHERE project_id = ? ORDER BY day_number', [projekt])) as any[]).map((t) => t.date)
+
+  it('verschiebt mehrere Szenen in ihrer Reihenfolge an eine Stelle und nummeriert beide Tage neu', async () => {
+    const { projekt, szene, tag } = await plan('Board verschieben', [
+      { datum: '2026-11-16', szenen: ['1', '2', '3'] },
+      { datum: '2026-11-17', szenen: ['4', '5'] },
+    ], ['6'])
+    const banner = await sende(`/api/shoot-days/${tag[1]}/banner`, { text: 'Umzug zum Hafen', minutes: 45 })
+    expect(banner.status).toBe(201)
+
+    const pfad = `/api/projects/${projekt}/drehplan/verschieben`
+    const r = await sende(pfad, { szenen: [szene['6'], szene['1'], szene['3']], zielTag: tag[1], vor: { art: 'szene', id: szene['5'] } })
+    expect(r.status).toBe(200)
+    expect(await reihe(tag[1])).toEqual({ werte: ['4', '6', '1', '3', '5', 'B:Umzug zum Hafen'], ordnung: [0, 1, 2, 3, 4, 5] })
+    expect(await reihe(tag[0])).toEqual({ werte: ['2'], ordnung: [0] })
+
+    // Vor einen Banner, dann zurück in die Ablage
+    expect((await sende(pfad, { szenen: [szene['2']], zielTag: tag[1], vor: { art: 'banner', id: banner.daten.id } })).status).toBe(200)
+    expect((await reihe(tag[1])).werte).toEqual(['4', '6', '1', '3', '5', '2', 'B:Umzug zum Hafen'])
+    expect((await sende(pfad, { szenen: [szene['6']], zielTag: null, vor: null })).status).toBe(200)
+    expect(await reihe(tag[1])).toEqual({ werte: ['4', '1', '3', '5', '2', 'B:Umzug zum Hafen'], ordnung: [0, 1, 2, 3, 4, 5] })
+    expect(await anzahl('SELECT COUNT(*) AS n FROM shoot_day_scenes WHERE scene_id = ?', [szene['6']])).toBe(0)
+  })
+
+  it('verschieben behält die Messung vom Set, wenn eine Szene im selben Tag bleibt', async () => {
+    const { projekt, szene, tag } = await plan('Board Messung', [{ datum: '2026-11-16', szenen: ['1', '2'] }])
+    await db.run('UPDATE shoot_day_scenes SET actual_minutes = 75 WHERE scene_id = ?', [szene['2']])
+    await sende(`/api/projects/${projekt}/drehplan/verschieben`, { szenen: [szene['2']], zielTag: tag[0], vor: { art: 'szene', id: szene['1'] } })
+    expect((await reihe(tag[0])).werte).toEqual(['2', '1'])
+    expect(Number(((await db.get('SELECT actual_minutes FROM shoot_day_scenes WHERE scene_id = ?', [szene['2']])) as any).actual_minutes)).toBe(75)
+  })
+
+  it('lehnt fremde Szenen und Tage mit 404, einen Sperrtag und eine leere Auswahl mit 400 ab', async () => {
+    const eigen = await plan('Board eigen', [
+      { datum: '2026-11-16', szenen: ['1'] },
+      { datum: '2026-11-17', szenen: [], status: 'Sperrtag' },
+    ])
+    const fremd = await plan('Board fremd', [{ datum: '2026-11-16', szenen: ['9'] }])
+    const pfad = `/api/projects/${eigen.projekt}/drehplan/verschieben`
+    expect((await sende(pfad, { szenen: [fremd.szene['9']], zielTag: eigen.tag[0], vor: null })).status).toBe(404)
+    expect((await sende(pfad, { szenen: [eigen.szene['1']], zielTag: fremd.tag[0], vor: null })).status).toBe(404)
+    expect((await sende(pfad, { szenen: [eigen.szene['1']], zielTag: eigen.tag[1], vor: null })).status).toBe(400)
+    expect((await sende(pfad, { szenen: [], zielTag: eigen.tag[0], vor: null })).status).toBe(400)
+    expect((await reihe(eigen.tag[0])).werte).toEqual(['1'])
+    expect((await reihe(fremd.tag[0])).werte).toEqual(['9'])
+  })
+
+  it('verschieben zieht die Besetzung in die Dispo des Zieltags nach', async () => {
+    const { dispoFuerDrehtag } = await import('../lib/dispo')
+    const { projekt, szene, tag } = await plan('Board Dispo', [{ datum: '2026-11-16', szenen: ['1'] }], ['2'])
+    const rolle = (await db.run("INSERT INTO characters (project_id, name) VALUES (?, 'Fischer')", [projekt])).id
+    await db.run('INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?)', [szene['2'], rolle])
+    const ole = (await db.run('INSERT INTO "cast" (project_id, character_id, actor_name) VALUES (?, ?, \'Ole\')', [projekt, rolle])).id
+    const dispo = await dispoFuerDrehtag(tag[0])
+    await sende(`/api/projects/${projekt}/drehplan/verschieben`, { szenen: [szene['2']], zielTag: tag[0], vor: null })
+    const besetzung = ((await db.all("SELECT person_id FROM call_sheet_entries WHERE call_sheet_id = ? AND person_type = 'cast'", [dispo!.id])) as any[])
+      .map((e) => Number(e.person_id))
+    expect(besetzung).toEqual([Number(ole)])
+  })
+
+  it('zählt einen Banner zur Drehzeit des Tages und liefert ihn mit dem Tag', async () => {
+    const { projekt, tag } = await plan('Board Banner', [{ datum: '2026-11-16', szenen: ['1', '2'] }])
+    expect((await sende(`/api/shoot-days/${tag[0]}/banner`, { text: ' ', minutes: 10 })).status).toBe(400)
+    expect((await sende(`/api/shoot-days/${tag[0]}/banner`, { text: 'Umzug', minutes: -5 })).status).toBe(400)
+    const b = await sende(`/api/shoot-days/${tag[0]}/banner`, { text: 'Umzug', minutes: 45 })
+    expect(b.status).toBe(201)
+    const tagLesen = async () => (await hole(`/api/projects/${projekt}/shoot-days`, tokenInhaber)).daten[0]
+    let t = await tagLesen()
+    expect(t.estimated_minutes).toBe(165)
+    expect(t.banner).toEqual([expect.objectContaining({ id: b.daten.id, text: 'Umzug', minutes: 45, sort_order: 2 })])
+    expect((await sende(`/api/shoot-day-banners/${b.daten.id}`, { minutes: 30 }, 'PUT')).status).toBe(200)
+    t = await tagLesen()
+    expect(t.estimated_minutes).toBe(150)
+    expect(t.banner[0].text).toBe('Umzug')
+    expect((await sende(`/api/shoot-day-banners/${b.daten.id}`, {}, 'DELETE')).status).toBe(200)
+    t = await tagLesen()
+    expect(t.banner).toEqual([])
+    expect(t.estimated_minutes).toBe(120)
+  })
+
+  it('Tagesgrenze einfügen: der Rest des Tages kommt auf den nächsten freien Arbeitstag', async () => {
+    // Fr 20.11. und Di 24.11. - der nächste Arbeitstag nach dem Freitag ist Montag, der 23.
+    const { projekt, szene } = await plan('Board teilen', [
+      { datum: '2026-11-20', szenen: ['1', '2', '3'] },
+      { datum: '2026-11-24', szenen: ['4'] },
+    ])
+    const r = await sende(`/api/projects/${projekt}/drehplan/tagesgrenze`, { nachSzene: szene['1'] })
+    expect(r.status).toBe(201)
+    const tage = (await db.all('SELECT id, day_number, date FROM shoot_days WHERE project_id = ? ORDER BY day_number', [projekt])) as any[]
+    expect(tage.map((t) => [t.day_number, t.date])).toEqual([[1, '2026-11-20'], [2, '2026-11-23'], [3, '2026-11-24']])
+    expect((await reihe(tage[0].id)).werte).toEqual(['1'])
+    expect(await reihe(tage[1].id)).toEqual({ werte: ['2', '3'], ordnung: [0, 1] })
+    expect(Number(r.daten.id)).toBe(Number(tage[1].id))
+  })
+
+  it('Tagesgrenze einfügen: einen belegten Folgetag nur auf Nachfrage verschieben, Abgedrehtes und verschickte Dispo nie', async () => {
+    const { projekt, szene, tag } = await plan('Board schieben', [
+      { datum: '2026-11-16', szenen: ['1', '2'] },
+      { datum: '2026-11-17', szenen: ['3'] },
+      { datum: '2026-11-18', szenen: ['4'] },
+    ])
+    const pfad = `/api/projects/${projekt}/drehplan/tagesgrenze`
+    const frage = await sende(pfad, { nachSzene: szene['1'] })
+    expect(frage.status).toBe(409)
+    expect(frage.fehler).toContain('Drehtag 2')
+    expect(frage.daten).toEqual(expect.objectContaining({ belegt: true, verschiebbar: true }))
+    expect(await anzahl('SELECT COUNT(*) AS n FROM shoot_days WHERE project_id = ?', [projekt])).toBe(3)
+
+    // Ein abgedrehter Tag steht im Weg
+    await db.run("UPDATE shoot_days SET status = 'Abgedreht' WHERE id = ?", [tag[2]])
+    const abgedreht = await sende(pfad, { nachSzene: szene['1'], folgetageVerschieben: true })
+    expect(abgedreht.status).toBe(409)
+    expect(abgedreht.fehler).toContain('Drehtag 3')
+    expect(abgedreht.daten).toEqual(expect.objectContaining({ verschiebbar: false }))
+
+    // Eine verschickte Dispo genauso
+    await db.run("UPDATE shoot_days SET status = 'Geplant' WHERE id = ?", [tag[2]])
+    const dispo = (await db.run('INSERT INTO call_sheets (shoot_day_id) VALUES (?)', [tag[2]])).id
+    await db.run("INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, sent_at) VALUES (?, 'crew', 1, NOW())", [dispo])
+    const verschickt = await sende(pfad, { nachSzene: szene['1'], folgetageVerschieben: true })
+    expect(verschickt.status).toBe(409)
+    expect(verschickt.fehler).toContain('Drehtag 3')
+    expect(await daten(projekt)).toEqual(['2026-11-16', '2026-11-17', '2026-11-18'])
+
+    await db.run('UPDATE call_sheet_entries SET sent_at = NULL WHERE call_sheet_id = ?', [dispo])
+    const ok = await sende(pfad, { nachSzene: szene['1'], folgetageVerschieben: true })
+    expect(ok.status).toBe(201)
+    const tage = (await db.all('SELECT id, date FROM shoot_days WHERE project_id = ? ORDER BY day_number', [projekt])) as any[]
+    expect(tage.map((t) => t.date)).toEqual(['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19'])
+    expect((await reihe(tage[1].id)).werte).toEqual(['2'])
+    expect(Number(tage[2].id)).toBe(Number(tag[1]))
+    expect(Number(tage[3].id)).toBe(Number(tag[2]))
+  })
+
+  it('Tagesgrenze entfernen: der folgende Tag geht im Tag auf, bei Dispo erst nach Rückfrage', async () => {
+    const { projekt, tag } = await plan('Board zusammen', [
+      { datum: '2026-11-16', szenen: ['1'] },
+      { datum: '2026-11-17', szenen: ['2', '3'] },
+    ])
+    await sende(`/api/shoot-days/${tag[1]}/banner`, { text: 'Umzug', minutes: 30 })
+    await db.run('INSERT INTO call_sheets (shoot_day_id) VALUES (?)', [tag[1]])
+    const pfad = `/api/projects/${projekt}/drehplan/tagesgrenze/${tag[0]}`
+
+    const frage = await hole(pfad, tokenInhaber, { method: 'DELETE' })
+    expect(frage.status).toBe(409)
+    expect(frage.daten).toEqual(expect.objectContaining({ folgen: ['dispo'] }))
+    expect((await reihe(tag[0])).werte).toEqual(['1'])
+
+    const ok = await hole(`${pfad}?bestaetigt=1`, tokenInhaber, { method: 'DELETE' })
+    expect(ok.status).toBe(200)
+    expect(await reihe(tag[0])).toEqual({ werte: ['1', '2', '3', 'B:Umzug'], ordnung: [0, 1, 2, 3] })
+    expect(await db.get('SELECT id FROM shoot_days WHERE id = ?', [tag[1]])).toBeFalsy()
+    // Der aufgelöste Tag liegt im Papierkorb, ohne die Szenen, die jetzt im ersten Tag stehen
+    const korb = (await db.get("SELECT dependents FROM deleted_items WHERE table_name = 'shoot_days' AND row_id = ?", [tag[1]])) as any
+    expect(korb).toBeTruthy()
+    expect(korb.dependents).not.toContain('shoot_day_scenes')
+
+    // Nach dem letzten Tag gibt es nichts zum Zusammenlegen
+    expect((await hole(pfad, tokenInhaber, { method: 'DELETE' })).status).toBe(400)
+  })
+
+  it('Automatisch einteilen: nurZeigen schreibt nichts, danach Tage an Arbeitstagen und eine Sicherung', async () => {
+    // Start Do 19.11.; Fr 20.11. ist ein leerer Tag, Mo 23.11. ein Reservetag
+    const { projekt, tag } = await plan('Board einteilen', [
+      { datum: '2026-11-20', szenen: [] },
+      { datum: '2026-11-23', szenen: [], status: 'Reserve' },
+    ], ['1', '2', '3', '4', '5', '6'])
+    const pfad = `/api/projects/${projekt}/drehplan/einteilen`
+    const koerper = { nach: 'achtel', hoechstens: 16, start: '2026-11-19' }
+
+    const vorschau = await sende(pfad, { ...koerper, nurZeigen: true })
+    expect(vorschau.status).toBe(200)
+    expect(vorschau.daten).toEqual(expect.objectContaining({ tage: 3, neu: 2, von: '2026-11-19', bis: '2026-11-24' }))
+    expect(await anzahl('SELECT COUNT(*) AS n FROM shoot_days WHERE project_id = ?', [projekt])).toBe(2)
+    expect(await anzahl('SELECT COUNT(*) AS n FROM shoot_day_scenes sds JOIN shoot_days d ON d.id = sds.shoot_day_id WHERE d.project_id = ?', [projekt])).toBe(0)
+    expect(await anzahl('SELECT COUNT(*) AS n FROM drehplan_versions WHERE project_id = ?', [projekt])).toBe(0)
+
+    expect((await sende(pfad, koerper)).status).toBe(200)
+    const tage = (await db.all('SELECT id, date, status FROM shoot_days WHERE project_id = ? ORDER BY day_number', [projekt])) as any[]
+    expect(tage.map((t) => t.date)).toEqual(['2026-11-19', '2026-11-20', '2026-11-23', '2026-11-24'])
+    expect(Number(tage[1].id)).toBe(Number(tag[0]))
+    expect((await reihe(tage[0].id)).werte).toEqual(['1', '2'])
+    expect((await reihe(tage[1].id)).werte).toEqual(['3', '4'])
+    expect((await reihe(tage[2].id)).werte).toEqual([])
+    expect((await reihe(tage[3].id)).werte).toEqual(['5', '6'])
+    const versionen = (await db.all('SELECT name FROM drehplan_versions WHERE project_id = ?', [projekt])) as any[]
+    expect(versionen.length).toBe(1)
+    expect(versionen[0].name).toContain('Vor dem automatischen Einteilen')
+  })
+
+  it('Automatisch einteilen nimmt die Ablage in der übergebenen Reihenfolge und rechnet auch nach Minuten', async () => {
+    const { projekt, szene } = await plan('Board Reihenfolge', [], ['1', '2', '3'])
+    const r = await sende(`/api/projects/${projekt}/drehplan/einteilen`,
+      { nach: 'minuten', hoechstens: 120, start: '2026-11-16', szenen: [szene['3'], szene['1']], nurZeigen: true })
+    expect(r.status).toBe(200)
+    expect(r.daten.verteilung.map((t: any) => t.szenen.map(Number))).toEqual([[Number(szene['3']), Number(szene['1'])]])
+  })
+
+  it('Automatisch einteilen: Feiertage kommen aus dem Bundesland des Projekts', async () => {
+    // Fronleichnam, Do 04.06.2026, ist in Nordrhein-Westfalen frei, in Niedersachsen nicht
+    const { projekt } = await plan('Board Feiertag', [], ['1', '2'])
+    const pfad = `/api/projects/${projekt}/drehplan/einteilen`
+    const koerper = { nach: 'achtel', hoechstens: 8, start: '2026-06-03', nurZeigen: true }
+    await db.run("INSERT INTO project_settings (project_id, state) VALUES (?, 'NI')", [projekt])
+    expect((await sende(pfad, koerper)).daten.bis).toBe('2026-06-04')
+    await db.run("UPDATE project_settings SET state = 'NW' WHERE project_id = ?", [projekt])
+    expect((await sende(pfad, koerper)).daten.bis).toBe('2026-06-05')
+    // Nur Montag bis Mittwoch: aus dem Donnerstag wird der Montag danach
+    await db.run("UPDATE project_settings SET state = 'NI', work_weekdays = '1,2,3' WHERE project_id = ?", [projekt])
+    expect((await sende(pfad, koerper)).daten.bis).toBe('2026-06-08')
+  })
+
+  it('Automatisch einteilen lehnt Unsinn ab', async () => {
+    const { projekt } = await plan('Board Unsinn', [], ['1'])
+    const pfad = `/api/projects/${projekt}/drehplan/einteilen`
+    expect((await sende(pfad, { nach: 'achtel', hoechstens: 0, start: '2026-06-03' })).status).toBe(400)
+    expect((await sende(pfad, { nach: 'seiten', hoechstens: 8, start: '2026-06-03' })).status).toBe(400)
+    expect((await sende(pfad, { nach: 'achtel', hoechstens: 8, start: 'morgen' })).status).toBe(400)
+  })
+})
