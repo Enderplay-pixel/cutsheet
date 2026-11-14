@@ -90,7 +90,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
-| **Stammdaten** | `/projects/:id/stammdaten` | Projektangaben, Mitglieder, Einladungen, Grundeinstellungen (Drehschluss, Ruhezeit, Währung). | Einmal am Anfang, danach selten. |
+| **Stammdaten** | `/projects/:id/stammdaten` | Projektangaben, Mitglieder, Einladungen, Grundeinstellungen (Drehschluss, Ruhezeit, Währung, Bundesland für die Feiertage, Arbeitstage). | Einmal am Anfang, danach selten. |
 | **Drehbuch** | `/projects/:id/drehbuch` | Szenenliste mit Achteln, Innen/Außen, Tag/Nacht, Motiv, Figuren und Requisiten. Import aus Datei. | Nach dem ersten Buch - die Grundlage für alles Weitere. |
 | **ScreenplayEditor** | `/projects/:id/screenplay-editor` | Drehbuch schreiben im Format, mit Blöcken, Notizen und PDF-Export (auch mit Anmerkungen). | Wenn das Buch im Haus entsteht. |
 | **Shotlist** | `/projects/:id/shotlist` | Einstellungen je Szene: Größe, Bewegung, Brennweite, Dauer, bester Take. Abhaken am Drehtag, PDF nach Szenen oder nach Drehtagen. | In der Auflösung mit der Regie, dann täglich am Set. |
@@ -118,8 +118,8 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
-| **Drehplan** | `/projects/:id/drehplan` | Drehtage anlegen, Szenen per Ziehen zuordnen, zwischen Tagen verschieben und innerhalb eines Tages umsortieren (Fund 265), Versionen, KI-Optimierung der Reihenfolge. | Das Herzstück der Vorbereitung. |
-| **StaebchenplanNew** | `/projects/:id/staebchenplan` | Stripboard: der Drehplan als Streifen, farbig nach Innen/Außen und Tag/Nacht. Nur Ansicht - umsortiert wird im Drehplan. | Wenn man den Plan umwirft und sehen will, was das kostet. |
+| **Drehplan** | `/projects/:id/drehplan` | Drehtage anlegen (ein Zeitraum nur an Arbeitstagen, Wochenenden auf Wunsch), Szenen per Ziehen zuordnen, zwischen Tagen verschieben und innerhalb eines Tages umsortieren (Fund 265), Versionen, KI-Optimierung der Reihenfolge. | Das Herzstück der Vorbereitung. |
+| **StaebchenplanNew** | `/projects/:id/staebchenplan` | Board zum Planen (AP A2): je Drehtag die Streifen mit Nummer, I/E, T/N, Schauplatz, Kurzbeschreibung, Motiv, Seiten, Zeit und Figurennummern, darunter die Tagesgrenze mit Summen, Sonnenstand und Warnung über der Tageslänge, ganz unten die Ablage. Markieren, Ziehen, Alt und Pfeil, Verschieben nach…, Tagesgrenze einfügen und entfernen, Banner, automatisch einteilen. Dieselben Tabellen wie der Drehplan. | Wenn man den Plan umwirft und sehen will, was das kostet. |
 | **Terminkalender** | `/projects/:id/kalender` | Alle Termine des Projekts, Export als iCal fürs eigene Kalenderprogramm. | Für alles neben dem Dreh: Besprechungen, Abgaben. |
 | **Konfliktradar** | `/projects/:id/konfliktradar` | Prüft den Plan: Szenen doppelt oder gar nicht eingeplant, leere Drehtage, mehrere Drehtage an einem Datum, zu kurze Ruhezeiten, Besetzung an ihren Sperrtagen (seit Fund 262), Szenen ohne Motiv oder Figuren, Motive ohne Adresse, Budget gegen Finanzierung. | Nach jeder Änderung am Drehplan. |
 | **DOOD** | `/projects/:id/dood` | Day-out-of-Days nach den Kürzeln der Branche (SW, W, WF, SWF, H, WD/PW, TR, R, FT): je Darsteller eine Zeile, je Kalendertag eine Spalte. Haltetage nur, wo sie in der Besetzung eingeschaltet sind; Reisen aus Reise und Unterkunft, Proben aus dem Kalender. | Für Verträge, Gagen und Verfügbarkeitsanfragen. Rechnung in `server/src/lib/dood.ts`. |
