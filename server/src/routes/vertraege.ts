@@ -30,6 +30,7 @@ import {
 } from '../lib/jugendschutz'
 import { heuteISO } from '../lib/datum'
 import { drehtageBesetzung, drehtageStab } from '../lib/drehtage'
+import { ladeDood } from '../lib/dood'
 
 const router = Router()
 
@@ -224,6 +225,11 @@ async function werteFuer(projectId: number, art: string, personId: number) {
     'SELECT name FROM locations WHERE project_id = ? ORDER BY name ASC LIMIT 8', [projectId]
   )) as any[]
 
+  // Haltetage wie im DOOD (lib/dood.ts). Nur die Besetzung hält; für Stab
+  // und Komparserie steht 0 da, nicht eine Lücke.
+  const haltetage = art === 'cast'
+    ? (await ladeDood(db, projectId)).cast.find((c) => c.id === personId)?.total_hold_days ?? 0
+    : 0
   const gageCents = Number(person.fee_per_day ?? 0)
   const anzahl = tage.length
   const zeitraum = anzahl === 0
@@ -245,6 +251,7 @@ async function werteFuer(projectId: number, art: string, personId: number) {
       drehtage: anzahl > 0 ? String(anzahl) : '',
       gage: gageCents > 0 ? euroText(gageCents) : '',
       gage_gesamt: gageCents > 0 && anzahl > 0 ? euroText(gageCents * anzahl) : '',
+      haltetage: String(haltetage),
       drehorte: motive.map((m) => m.name).filter(Boolean).join(', '),
       geburtsdatum: person.birthdate ? datumText(person.birthdate) : '',
       erziehungsberechtigt: String(person.guardian_name || ''),

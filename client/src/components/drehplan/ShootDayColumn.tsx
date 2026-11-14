@@ -29,6 +29,8 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
   const sceneIds = (day.scenes || []).map((s: any) => `scene-${s.scene_id}`)
   const totalEighths = day.total_eighths || 0
   const isSperrtag = day.status === 'Sperrtag'
+  // Reserve bleibt sichtbar, aber grau: Der Tag zählt für niemanden
+  const isReserve = day.status === 'Reserve'
   // Ein Sperrtag mit Szenen zeigt sie weiter an. Vorher verschwanden sie: nicht
   // in der Spalte, nicht in der Ablage, aber als "geplant" gezählt (gemessen
   // am 31.10.2026). So lassen sie sich wegziehen.
@@ -42,7 +44,7 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
       data-einfuehrung="drehtag"
       className={cn(
         'flex flex-col shrink-0 w-[200px] border rounded-lg overflow-hidden',
-        isSperrtag ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-border bg-card'
+        isSperrtag ? 'border-yellow-500/30 bg-yellow-500/5' : isReserve ? 'border-dashed border-border bg-muted/30' : 'border-border bg-card'
       )}
       aria-label={tt(shootDayColumnT.drehtagDatum).replace('{n}', String(day.day_number)).replace('{d}', formatDate(day.date))}
     >
@@ -78,7 +80,7 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
             isSperrtag && 'text-yellow-400'
           )}
         >
-          {['Geplant', 'Bestätigt', 'Abgedreht', 'Ausgefallen', 'Sperrtag'].map(s => (
+          {['Geplant', 'Bestätigt', 'Abgedreht', 'Ausgefallen', 'Reserve', 'Sperrtag'].map(s => (
             <option key={s} value={s}>{tt(drehtagStatusT[s])}</option>
           ))}
         </select>

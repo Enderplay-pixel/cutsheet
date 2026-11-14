@@ -19,6 +19,8 @@ import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { useT } from '@/lib/useT'
 import { castT, uiT } from '@/lib/i18n'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
+import { Switch } from '@/components/ui/switch'
+import { planungT } from '@/lib/texte/Besetzung'
 
 function Avatar({ name, color = 'primary' }: { name: string; color?: string }) {
   return (
@@ -152,17 +154,23 @@ function CastCard({ castMember, characters, daysCount, onDelete }: { castMember:
 
   const tt = useT()
 
+  const { toast } = useToast()
   const mutation = useMutation({
     mutationFn: (data: any) => api.cast.update(castMember.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cast', pid] })
-      // Eine andere Rolle heißt andere Drehtage
+      // Eine andere Rolle heißt andere Drehtage; Haltetage ändern den DOOD
       queryClient.invalidateQueries({ queryKey: ['drehtage', pid] })
+      queryClient.invalidateQueries({ queryKey: ['dood-report', pid] })
     },
+    // Bis zum 13.11.2026 ohne: Eine Ablehnung blieb unsichtbar
+    onError: (f: any) => toast({ title: tt(planungT.nichtGespeichert), description: f.message, variant: 'destructive' }),
   })
   const debouncedUpdate = useRef(debounce((data: any) => mutation.mutate(data), 500)).current
   const update = (key: string, value: any) => {
     const next = { ...form, [key]: value }
+    // Drop hängt an den Haltetagen und an einer Mindestzahl (der Server prüft dasselbe)
+    if (!next.hold_allowed || !(Number(next.drop_min_days) > 0)) next.drop_allowed = false
     setForm(next)
     debouncedUpdate(next)
   }
@@ -173,7 +181,6 @@ function CastCard({ castMember, characters, daysCount, onDelete }: { castMember:
   // Das Geburtsdatum geht über die Jugendschutz-Route, die es prüft. Beim
   // Verlassen des Felds, nicht beim Tippen: Das Feld meldet sonst schon
   // "0002-…", während die Jahreszahl entsteht (Fund 263).
-  const { toast } = useToast()
   const geburtsdatum = useMutation({
     mutationFn: (wert: string) => api.jugendschutz.speichern(pid, 'cast', castMember.id, { birthdate: wert || null }),
     onSuccess: () => {
@@ -258,6 +265,43 @@ function CastCard({ castMember, characters, daysCount, onDelete }: { castMember:
               className="mt-1 h-8 text-xs w-44"
             />
             <p className="text-[11px] text-muted-foreground mt-1">{tt(geburtsdatumT.hinweis)}</p>
+          </div>
+          <div data-einfuehrung="planung" className="pt-3 border-t border-border/40 space-y-2.5">
+            <p className="text-xs font-semibold">{tt(planungT.titel)}</p>
+            <div className="flex items-start gap-2.5">
+              <Switch id={`halt-${castMember.id}`} checked={!!form.hold_allowed} onCheckedChange={v => update('hold_allowed', v)} />
+              <div>
+                <Label htmlFor={`halt-${castMember.id}`} className="text-xs cursor-pointer">{tt(planungT.haltetage)}</Label>
+                <p className="text-[11px] text-muted-foreground">{tt(planungT.haltetageHilfe)}</p>
+              </div>
+            </div>
+            {siehtGagen && form.hold_allowed && (
+              <div>
+                <Label htmlFor={`haltegage-${castMember.id}`} className="text-xs text-muted-foreground">{tt(planungT.haltegage)}</Label>
+                <Input id={`haltegage-${castMember.id}`} type="number" min="0" step="0.01" value={(Number(form.hold_fee_per_day) || 0) / 100}
+                  onChange={e => update('hold_fee_per_day', Math.max(0, Math.round(Number(e.target.value) * 100) || 0))}
+                  className="mt-1 h-8 text-xs w-40" />
+                <p className="text-[11px] text-muted-foreground mt-1">{tt(planungT.haltegageHilfe)}</p>
+              </div>
+            )}
+            <div className="flex items-start gap-2.5">
+              <Switch id={`drop-${castMember.id}`} checked={!!form.drop_allowed}
+                disabled={!form.hold_allowed || !(Number(form.drop_min_days) > 0)}
+                onCheckedChange={v => update('drop_allowed', v)} />
+              <div className="space-y-1">
+                <Label htmlFor={`drop-${castMember.id}`} className="text-xs cursor-pointer">{tt(planungT.drop)}</Label>
+                <div className="flex items-center gap-2">
+                  <Input id={`droptage-${castMember.id}`} type="number" min="0" max="366" step="1" disabled={!form.hold_allowed}
+                    value={form.drop_min_days ?? 0}
+                    onChange={e => update('drop_min_days', Math.min(366, Math.max(0, Math.round(Number(e.target.value)) || 0)))}
+                    aria-label={tt(planungT.dropTage)} className="h-7 text-xs w-20" />
+                  <span className="text-[11px] text-muted-foreground">{tt(planungT.dropTage)}</span>
+                </div>
+                {!form.hold_allowed
+                  ? <p className="text-[11px] text-muted-foreground">{tt(planungT.dropOhneHalt)}</p>
+                  : !(Number(form.drop_min_days) > 0) && <p className="text-[11px] text-muted-foreground">{tt(planungT.dropOhneTage)}</p>}
+              </div>
+            </div>
           </div>
           {form.fee_per_day > 0 && daysCount > 0 && (
             <div className="pt-2 border-t border-border/40 flex items-center justify-between">

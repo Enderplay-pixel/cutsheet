@@ -21,6 +21,19 @@
  * rechnete die Stabgagen auch für den Sperrtag.
  */
 
+/**
+ * Status, an denen nicht gedreht wird - kein Drehtag für niemanden.
+ *
+ * Sperrtag (seit 09.11.2026). Ausgefallen und Reserve seit dem 13.11.2026
+ * (Plan "CutSheet Kino-Ausbau", AP A1): Ein Reservetag liegt bereit, falls
+ * Wetter oder Ausfall ihn brauchen. Bis dahin rechnete die Kalkulation jedem
+ * Stabmitglied jeden leeren Tag als Drehtag an.
+ */
+export const KEIN_DREHTAG = ['Sperrtag', 'Ausgefallen', 'Reserve'] as const
+
+/** Dieselbe Liste für SQL: `sd.status NOT IN ${KEIN_DREHTAG_SQL}`. */
+export const KEIN_DREHTAG_SQL = `(${KEIN_DREHTAG.map(s => `'${s}'`).join(', ')})`
+
 type Lesen = { all: (sql: string, werte?: any[]) => Promise<any[]> }
 
 function sammle(zeilen: any[]): Map<number, Set<number>> {
@@ -40,13 +53,13 @@ export async function drehtageBesetzung(z: Lesen, projectId: number): Promise<Ma
        JOIN scene_characters sc ON sc.character_id = ca.character_id
        JOIN shoot_day_scenes sds ON sds.scene_id = sc.scene_id
        JOIN shoot_days sd ON sd.id = sds.shoot_day_id
-      WHERE ca.project_id = ? AND sd.project_id = ? AND sd.status <> 'Sperrtag'
+      WHERE ca.project_id = ? AND sd.project_id = ? AND sd.status NOT IN ${KEIN_DREHTAG_SQL}
      UNION
      SELECT cse.person_id, cs.shoot_day_id
        FROM call_sheet_entries cse
        JOIN call_sheets cs ON cs.id = cse.call_sheet_id
        JOIN shoot_days sd ON sd.id = cs.shoot_day_id
-      WHERE cse.person_type = 'cast' AND sd.project_id = ? AND sd.status <> 'Sperrtag'`,
+      WHERE cse.person_type = 'cast' AND sd.project_id = ? AND sd.status NOT IN ${KEIN_DREHTAG_SQL}`,
     [projectId, projectId, projectId]
   ))
 }
@@ -57,12 +70,12 @@ export async function drehtageStab(z: Lesen, projectId: number): Promise<Map<num
        FROM call_sheet_entries cse
        JOIN call_sheets cs ON cs.id = cse.call_sheet_id
        JOIN shoot_days sd ON sd.id = cs.shoot_day_id
-      WHERE cse.person_type = 'crew' AND sd.project_id = ? AND sd.status <> 'Sperrtag'
+      WHERE cse.person_type = 'crew' AND sd.project_id = ? AND sd.status NOT IN ${KEIN_DREHTAG_SQL}
      UNION
      SELECT c.id, sd.id
        FROM crew c
        JOIN shoot_days sd ON sd.project_id = c.project_id
-      WHERE c.project_id = ? AND sd.status <> 'Sperrtag'
+      WHERE c.project_id = ? AND sd.status NOT IN ${KEIN_DREHTAG_SQL}
         AND NOT EXISTS (SELECT 1 FROM call_sheets cs WHERE cs.shoot_day_id = sd.id)`,
     [projectId, projectId]
   ))

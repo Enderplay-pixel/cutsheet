@@ -87,6 +87,15 @@ describe('Regeln', () => {
     expect(koerper).toEqual({ name: 'x', rollen: [{ role_name: 'A' }] })
   })
 
+  // Haltegage und Haltekosten seit dem 13.11.2026 (Plan AP A1)
+  it('verbirgt Haltegage und Haltekosten, lässt die Haltetage stehen', () => {
+    const zeile = { actor_name: 'Ida', total_hold_days: 3, hold_fee_per_day: 30000, total_hold_cost_cents: 90000, total_cost_cents: 210000 }
+    expect(gagenVerbergen(zeile)).toEqual({ actor_name: 'Ida', total_hold_days: 3, hold_fee_per_day: null, total_hold_cost_cents: null, total_cost_cents: null })
+    const koerper = { actor_name: 'Ida', hold_allowed: true, hold_fee_per_day: 1 }
+    gagenEntfernen(koerper)
+    expect(koerper).toEqual({ actor_name: 'Ida', hold_allowed: true })
+  })
+
   it('säubert gespeicherte Protokollwerte', () => {
     expect(protokollwertOhneGagen('{"actor_name":"Ida","fee_per_day":120000}')).toBe('{"actor_name":"Ida","fee_per_day":null}')
     expect(protokollwertOhneGagen('kein json')).toBe('kein json')

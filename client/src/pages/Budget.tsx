@@ -401,6 +401,11 @@ function BudgetSeite() {
           <p className="text-[12px] text-muted-foreground/80 mt-2 leading-relaxed">
             {tt(T.vorschauHinweis)}
           </p>
+          {vorschau.leere_drehtage?.length > 0 && (
+            <p className="text-[12px] text-warning mt-2 leading-relaxed">
+              {tt(T.leereDrehtage).replace('{tage}', vorschau.leere_drehtage.join(', '))}
+            </p>
+          )}
           {vorschau.ohne_drehtag?.length > 0 && (
             <p className="text-[12px] text-warning mt-2 leading-relaxed">
               {tt(T.ohneDrehtag).replace('{namen}', vorschau.ohne_drehtag.join(', '))}

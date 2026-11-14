@@ -6,6 +6,7 @@ import { istIsoDatum } from '../lib/datum'
 import { sperrtagKonflikte } from '../lib/sperrtage'
 import { ohneGagen } from '../lib/gagenschutz'
 import { massgeblicheKalkulation } from '../lib/kalkulation'
+import { KEIN_DREHTAG_SQL } from '../lib/drehtage'
 
 const router = Router()
 
@@ -101,7 +102,9 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
       SELECT sd.day_number, sd.date FROM shoot_days sd
       WHERE sd.project_id = ?
       AND sd.id NOT IN (SELECT DISTINCT shoot_day_id FROM shoot_day_scenes)
-      AND sd.status NOT IN ('Sperrtag', 'Drehfrei', 'Reisetag', 'Feiertag')
+      AND sd.status NOT IN ${KEIN_DREHTAG_SQL}
+      -- Werte, die niemand setzen kann - bis AP C2 sie aufräumt
+      AND sd.status NOT IN ('Drehfrei', 'Reisetag', 'Feiertag')
     `, [pid]) as any[]
 
     emptyDays.forEach(d => {

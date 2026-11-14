@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { schreibeCsv, cents } from '../lib/tabelle'
 import { drehtageBesetzung, drehtageStab } from '../lib/drehtage'
+import { ladeDood } from '../lib/dood'
 
 const router = Router()
 
@@ -22,6 +23,8 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
     fee_per_day: number
     shoot_days: number
     overtime_hours: number
+    hold_days: number
+    hold_fee_per_day: number
   }
 
   /**
@@ -86,10 +89,17 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
       [projectId]
     )
 
-    const [tageCast, ueberstundenCast] = await Promise.all([
+    const [tageCast, ueberstundenCast, dood] = await Promise.all([
       drehtageJePerson('cast'),
       ueberstundenJePerson('cast'),
+      ladeDood(db, projectId),
     ])
+    // Haltetage aus dem DOOD, im Zeitraum nach ihrem Datum (seit 13.11.2026)
+    const imDatumsraum = (datum: string) => (!from && !to) || (!!datum && (!from || datum >= from) && (!to || datum <= to))
+    const halt = new Map(dood.cast.map((c) => [c.id, {
+      tage: c.days.filter((d) => d.code === 'H' && imDatumsraum(d.date)).length,
+      satz: c.hold_fee_per_day ?? 0,
+    }]))
 
     for (const person of castList) {
       rows.push({
@@ -99,6 +109,8 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
         fee_per_day: Number(person.fee_per_day ?? 0),
         shoot_days: tageCast.get(Number(person.id)) ?? 0,
         overtime_hours: ueberstundenCast.get(Number(person.id)) ?? 0,
+        hold_days: halt.get(Number(person.id))?.tage ?? 0,
+        hold_fee_per_day: halt.get(Number(person.id))?.satz ?? 0,
       })
     }
   }
@@ -123,6 +135,9 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
         fee_per_day: Number(person.fee_per_day ?? 0),
         shoot_days: tageCrew.get(Number(person.id)) ?? 0,
         overtime_hours: ueberstundenCrew.get(Number(person.id)) ?? 0,
+        // Kein Halt für den Stab (Nicht-Ziel im Plan, AP A1)
+        hold_days: 0,
+        hold_fee_per_day: 0,
       })
     }
   }
@@ -131,7 +146,8 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
   // Wie jeder Export: Semikolon und Dezimalkomma (lib/tabelle.ts). Vorher
   // Komma und Dezimalpunkt - "6500.00" als einzige Ausnahme im Programm.
   const csv = schreibeCsv(
-    ['Typ', 'Name', 'Rolle', 'Drehtage', 'Tagesgage (EUR)', 'Gesamtgage (EUR)', 'Überstunden'],
+    // Die Haltetage stehen hinten, damit vorhandene Importe ihre Spalten behalten
+    ['Typ', 'Name', 'Rolle', 'Drehtage', 'Tagesgage (EUR)', 'Gesamtgage (EUR)', 'Überstunden', 'Haltetage', 'Haltegage gesamt (EUR)'],
     rows.map((r) => [
       r.typ,
       r.name,
@@ -140,6 +156,8 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
       cents(r.fee_per_day),
       cents(r.fee_per_day * r.shoot_days),
       r.overtime_hours.toFixed(2).replace('.', ','),
+      r.hold_days,
+      cents(r.hold_fee_per_day * r.hold_days),
     ])
   )
 

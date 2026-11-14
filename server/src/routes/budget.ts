@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import * as kosten from '../lib/kostenquellen'
-import { drehtageBesetzung, drehtageStab, anzahl } from '../lib/drehtage'
+import { drehtageBesetzung, drehtageStab, anzahl, KEIN_DREHTAG_SQL } from '../lib/drehtage'
+import { ladeDood } from '../lib/dood'
 import { db, TxClient } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { massgeblicheKalkulation } from '../lib/kalkulation'
@@ -212,9 +213,24 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
 
   const castTage = anzahl(await drehtageBesetzung(db, pid))
   const stabTage = anzahl(await drehtageStab(db, pid))
+  // Haltetage aus dem DOOD - dieselbe Zählung, die die DOOD-Seite zeigt
+  const dood = await ladeDood(db, pid)
+  const halteTage = new Map(dood.cast.map(c => [c.id, c.total_hold_days]))
+  const haltende = dood.cast.map(c => ({ id: c.id, name: c.actor_name, hold_fee_per_day: c.hold_fee_per_day }))
+
+  // Drehtage ohne Szenen zählen für den Stab mit (lib/drehtage.ts). Ein
+  // Reservetag ist oft genau so ein Tag; die Vorschau nennt sie, damit
+  // niemand Stabgagen für einen Tag kalkuliert, an dem nichts gedreht wird
+  // (Testbericht SALZWIND, Plan AP A1).
+  const leereTage = await db.all(
+    `SELECT sd.day_number FROM shoot_days sd
+      WHERE sd.project_id = ? AND sd.status NOT IN ${KEIN_DREHTAG_SQL}
+        AND NOT EXISTS (SELECT 1 FROM shoot_day_scenes sds WHERE sds.shoot_day_id = sd.id)
+      ORDER BY sd.day_number ASC`, [pid]) as any[]
 
   const soll = [
     ...kosten.gagenPosten(besetzung, castTage, 'cast'),
+    ...kosten.haltePosten(haltende, halteTage),
     ...kosten.gagenPosten(stab, stabTage, 'crew'),
     ...kosten.equipmentPosten(equipment),
     ...kosten.versicherungsPosten(policen),
@@ -273,6 +289,7 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
       unveraendert: plan.unveraendert,
       summe_cent: soll.reduce((s, p) => s + p.gesamt_cent, 0),
       ohne_drehtag: ohneDrehtag,
+      leere_drehtage: leereTage.map(t => Number(t.day_number)),
       posten: plan.neu.concat(plan.geaendert.map(g => g.posten)),
     },
     error: null,

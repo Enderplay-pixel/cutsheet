@@ -49,6 +49,7 @@ export const VERTRAGS_PLATZHALTER = [
   { schluessel: 'drehtage', beschreibung: 'Anzahl der Drehtage', beispiel: '6' },
   { schluessel: 'gage', beschreibung: 'Gage je Drehtag', beispiel: '450,00 €' },
   { schluessel: 'gage_gesamt', beschreibung: 'Gage mal Drehtage', beispiel: '2.700,00 €' },
+  { schluessel: 'haltetage', beschreibung: 'Anzahl der Haltetage laut DOOD (nur Besetzung)', beispiel: '2' },
   { schluessel: 'drehorte', beschreibung: 'Die Motive der eigenen Drehtage (ohne Dispo: alle Motive)', beispiel: 'Hafen, Café Morgenrot' },
   { schluessel: 'geburtsdatum', beschreibung: 'Geburtsdatum der Person', beispiel: '10.03.2020' },
   { schluessel: 'erziehungsberechtigt', beschreibung: 'Name der erziehungsberechtigten Person', beispiel: 'Anna Müller' },

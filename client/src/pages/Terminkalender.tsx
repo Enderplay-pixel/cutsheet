@@ -27,11 +27,15 @@ const EVENT_TYPES = [
   { value: 'Casting', color: '#3b82f6' },
   { value: 'Locationscout', color: '#10b981' },
   { value: 'Probe', color: '#8b5cf6' },
+  { value: 'Kostümprobe', color: '#a855f7' },
   { value: 'Meeting', color: '#6366f1' },
   { value: 'Sperrtag', color: '#ef4444' },
   { value: 'Reise', color: '#ec4899' },
   { value: 'Sonstiges', color: '#6b7280' },
 ]
+
+/** Termine mit Teilnehmern aus der Besetzung: Sie stehen im DOOD (seit 13.11.2026). */
+const MIT_BESETZUNG = new Set(['Probe', 'Kostümprobe'])
 
 /** Beschriftung eines Termintyps; unbekannte Werte erscheinen, wie sie sind. */
 function typLabel(tt: (m: Record<Lang, string>) => string, wert: string): string {
@@ -54,6 +58,12 @@ function AddEventDialog({ open, onClose, projectId, defaultDate }: { open: boole
     type: 'Meeting',
     color: '#6366f1',
     notes: '',
+    cast_ids: [] as number[],
+  })
+  const { data: besetzung = [] } = useQuery<any[]>({
+    queryKey: ['cast', projectId],
+    queryFn: () => api.cast.list(projectId),
+    enabled: open && MIT_BESETZUNG.has(form.type),
   })
 
   // Der Dialog bleibt eingehängt - der Startwert von useState galt nur beim
@@ -68,9 +78,10 @@ function AddEventDialog({ open, onClose, projectId, defaultDate }: { open: boole
       queryClient.invalidateQueries({ queryKey: ['events', projectId] })
       toast({ title: tt(T.hinzugefuegt) })
       onClose()
-      setForm({ title: '', start_date: '', end_date: '', type: 'Meeting', color: '#6366f1', notes: '' })
+      setForm({ title: '', start_date: '', end_date: '', type: 'Meeting', color: '#6366f1', notes: '', cast_ids: [] })
+      queryClient.invalidateQueries({ queryKey: ['dood-report', projectId] })
     },
-    onError: () => toast({ title: tt(T.fehler), variant: 'destructive' }),
+    onError: (f: any) => toast({ title: tt(T.fehler), description: f.message, variant: 'destructive' }),
   })
 
   const updateType = (type: string) => {
@@ -114,10 +125,27 @@ function AddEventDialog({ open, onClose, projectId, defaultDate }: { open: boole
             <Label className="text-xs">{tt(T.notizen)}</Label>
             <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="mt-1 resize-none" />
           </div>
+          {MIT_BESETZUNG.has(form.type) && (
+            <fieldset className="border-0 p-0 m-0 min-w-0">
+              <legend className="text-xs font-medium">{tt(T.teilnehmer)}</legend>
+              <p className="text-[11px] text-muted-foreground mb-1.5">{tt(T.teilnehmerHilfe)}</p>
+              {besetzung.length === 0
+                ? <p className="text-xs text-muted-foreground">{tt(T.keineBesetzung)}</p>
+                : <div className="max-h-40 overflow-y-auto space-y-1 rounded-md border border-border/50 p-2">
+                    {besetzung.map((c: any) => (
+                      <label key={c.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                        <input type="checkbox" checked={form.cast_ids.includes(c.id)}
+                          onChange={e => setForm(f => ({ ...f, cast_ids: e.target.checked ? [...f.cast_ids, c.id] : f.cast_ids.filter(x => x !== c.id) }))} />
+                        {c.actor_name}{c.character_name ? ` (${c.character_name})` : ''}
+                      </label>
+                    ))}
+                  </div>}
+            </fieldset>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{tt(T.abbrechen)}</Button>
-          <Button onClick={() => form.title && form.start_date && mutation.mutate(form)} disabled={!form.title || !form.start_date || mutation.isPending}>
+          <Button onClick={() => form.title && form.start_date && mutation.mutate({ ...form, cast_ids: MIT_BESETZUNG.has(form.type) ? form.cast_ids : [] })} disabled={!form.title || !form.start_date || mutation.isPending}>
             {tt(T.hinzufuegen)}
           </Button>
         </DialogFooter>

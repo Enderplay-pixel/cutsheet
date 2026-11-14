@@ -182,7 +182,13 @@ export function Component() {
 
   const statusMutation = useMutation({
     mutationFn: ({ dayId, status }: { dayId: number; status: string }) => api.drehplan.updateDay(dayId, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shoot-days', pid] })
+      // Sperr-, Ausfall- und Reservetage zählen für niemanden: DOOD und Drehtage ändern sich
+      queryClient.invalidateQueries({ queryKey: ['dood-report', pid] })
+      queryClient.invalidateQueries({ queryKey: ['drehtage', pid] })
+    },
+    onError: (e: any) => toast({ title: tt(T.fehler), description: e.message, variant: 'destructive' }),
   })
 
   const moveSceneMutation = useMutation({
@@ -248,7 +254,7 @@ export function Component() {
     setActiveDrag(event.active.data.current)
   }
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     setActiveDrag(null)
     const { active, over } = event
     if (!over) return
@@ -296,6 +302,14 @@ export function Component() {
     }
 
     const sceneId = scene.scene_id || scene.id
+
+    // Ein Reservetag zählt für niemanden. Nicht still umstellen - sonst ändern
+    // sich Drehtage, DOOD und Kalkulation ohne Ansage (Plan AP A1).
+    const zielTag = toDayId ? (shootDays || []).find((d: any) => d.id === toDayId) : null
+    if (zielTag?.status === 'Reserve') {
+      if (!confirm(tt(T.reserveZiel).replace('{n}', String(zielTag.day_number)))) return
+      await statusMutation.mutateAsync({ dayId: zielTag.id, status: 'Geplant' })
+    }
 
     moveSceneMutation.mutate({
       sceneId,

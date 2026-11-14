@@ -46,6 +46,26 @@ function posten(
 
 // ─── Gagen ──────────────────────────────────────────────────────────────────
 
+export type Haltende = { id: number; name?: string | null; hold_fee_per_day?: unknown }
+
+/**
+ * Haltetage mal Haltegage, ein eigener Posten je Person (seit 13.11.2026).
+ * Die Tage kommen aus dem DOOD (lib/dood.ts) und zählen nur, wenn für die
+ * Person Haltetage vereinbart sind. Ohne Tage oder ohne Haltegage: kein
+ * Posten - unbezahlte Haltetage sind die Vorgabe.
+ */
+export function haltePosten(personen: Haltende[], halteTage: Map<number, number>): Kostenposten[] {
+  const out: Kostenposten[] = []
+  for (const person of personen) {
+    const satz = zahl(person.hold_fee_per_day)
+    const tage = halteTage.get(Number(person.id)) ?? 0
+    if (satz === null || satz <= 0 || tage <= 0) continue
+    const name = String(person.name ?? '').trim() || 'Ohne Namen'
+    out.push(posten(`cast-halt:${person.id}`, 'Gagen Besetzung', `Haltetage ${name}`, 'Tag', tage, satz))
+  }
+  return out
+}
+
 export type Person = {
   id: number
   name?: string | null

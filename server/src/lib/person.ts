@@ -55,7 +55,7 @@ export async function personAngaben(art: string, personId: number | string): Pro
  * mitgefahren.
  */
 export async function loeschePersonenspuren(art: Personenart, personId: number | string) {
-  for (const tabelle of ['call_sheet_entries', 'timesheets', 'catering_preferences']) {
+  for (const tabelle of ['call_sheet_entries', 'timesheets', 'catering_preferences', 'event_people']) {
     await db.run(`DELETE FROM ${tabelle} WHERE person_type = ? AND person_id = ?`, [art, personId])
   }
 }

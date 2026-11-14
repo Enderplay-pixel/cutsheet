@@ -46,7 +46,7 @@ export const GELDSPALTEN: Record<string, string[]> = {
   invoice_reminders: ['open_cents', 'interest_cents', 'fee_cents', 'lump_sum_cents', 'total_cents'],
   equipment_items: ['rental_per_day_cents', 'total_cents'],
   insurances: ['coverage_amount_cents', 'premium_cents'],
-  cast: ['fee_per_day'],
+  cast: ['fee_per_day', 'hold_fee_per_day'],
   crew: ['fee_per_day'],
   locations: ['rental_fee'],
   location_releases: ['fee_cents'],

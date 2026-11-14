@@ -44,6 +44,7 @@ export const budgetT = {
     en: 'Manually entered items remain untouched. Imported items are updated on the next run instead of being created twice.',
     fr: "Les postes saisis à la main restent intacts. Les postes importés sont mis à jour au prochain passage au lieu d'être créés en double.",
   },
+  leereDrehtage:    { de: 'Ohne Szene, aber für den Stab mitgezählt: Tag {tage}. Liegt ein Tag nur in Bereitschaft, im Drehplan den Status "Reserve" wählen - dann zählt er für niemanden.', en: 'No scene, but counted for the crew: day {tage}. If a day is only on standby, set its status to "Standby day" in the schedule - then it counts for nobody.', fr: "Sans scène, mais compté pour l'équipe : jour {tage}. Si un jour est seulement en réserve, choisissez le statut « Jour de réserve » dans le plan de tournage - il ne compte alors pour personne." },
   ohneDrehtag:      {
     de: 'Ohne Position, weil an keinem Drehtag: {namen}. Erst einer Szene oder Dispo zuordnen, dann erneut übernehmen.',
     en: 'No item, because not on any shoot day: {namen}. Assign them to a scene or call sheet first, then import again.',

@@ -170,6 +170,10 @@ beforeAll(async () => {
   app.use('/api', optionalAuth, tagesberichtRouter)
   const { default: kalkulationRouter } = await import('../routes/budget')
   app.use('/api', optionalAuth, kalkulationRouter)
+  const { default: doodRouter } = await import('../routes/dood')
+  const { default: kalenderRouter } = await import('../routes/calendar')
+  const { default: besetzungRouter } = await import('../routes/characters')
+  app.use('/api', optionalAuth, doodRouter, kalenderRouter, besetzungRouter)
   const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
   app.use(uebersetzeDatenbankfehler)
   await new Promise<void>((aufloesen) => {
@@ -3229,5 +3233,126 @@ describe('Geld über der alten Grenze von INTEGER', () => {
       'SELECT total_cents, (SELECT COUNT(*) FROM financing_entries WHERE financing_version_id = ?) AS zahl FROM financing_plan_versions WHERE id = ?',
       [plan, plan]) as any
     expect(stand).toMatchObject({ total_cents: 4_000_000_000, zahl: 2 })
+  })
+})
+
+describe('DOOD nach Branchenregel und Haltetage (AP A1)', () => {
+  const sende = (pfad: string, koerper: any, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+
+  /** Projekt mit einer Darstellerin, die an den genannten Tagen einer Woche (Mo = 0) spielt. */
+  async function woche(titel: string, tage: number, spielt: number[], darstellerin: Record<string, any>) {
+    const projekt = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', [titel, nutzerId])).id
+    const figur = (await db.run("INSERT INTO characters (project_id, name) VALUES (?, 'Johanna')", [projekt])).id
+    const spalten = Object.keys(darstellerin)
+    const cast = (await db.run(
+      `INSERT INTO "cast" (project_id, character_id, actor_name${spalten.map(s => ', ' + s).join('')})
+       VALUES (?, ?, 'Mara Lind'${spalten.map(() => ', ?').join('')})`,
+      [projekt, figur, ...spalten.map(s => darstellerin[s])])).id
+    const ids: number[] = []
+    for (let i = 0; i < tage; i++) {
+      const datum = `2026-11-${String(16 + i).padStart(2, '0')}`
+      ids.push((await db.run("INSERT INTO shoot_days (project_id, day_number, date, status) VALUES (?, ?, ?, 'Geplant')", [projekt, i + 1, datum])).id)
+      if (spielt.includes(i)) {
+        const szene = (await db.run("INSERT INTO scenes (project_id, scene_number, title) VALUES (?, ?, 'DEICH')", [projekt, String(i + 1)])).id
+        await db.run('INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?)', [szene, figur])
+        await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order) VALUES (?, ?, 0)', [ids[i], szene])
+      }
+    }
+    return { projekt, cast, ids }
+  }
+
+  it('Kürzel, Sperr- und Reservetage, Reise und Probe', async () => {
+    const { projekt, cast, ids } = await woche('DOOD', 5, [0, 4], { fee_per_day: 60000, hold_allowed: true, hold_fee_per_day: 30000 })
+    const bericht = async () => (await hole(`/api/projects/${projekt}/dood-report`, tokenInhaber)).daten
+    let r = await bericht()
+    expect(r.cast[0].days.map((d: any) => d.code)).toEqual(['SW', 'H', 'H', 'H', 'WF'])
+    expect(r.cast[0]).toMatchObject({ total_work_days: 2, total_hold_days: 3, total_hold_cost_cents: 90000, total_cost_cents: 210000 })
+
+    // Sperrtag und Reservetag sind frei: kein Halt, keine Zählung
+    await db.run("UPDATE shoot_days SET status = 'Sperrtag' WHERE id = ?", [ids[2]])
+    await db.run("UPDATE shoot_days SET status = 'Reserve' WHERE id = ?", [ids[1]])
+    r = await bericht()
+    expect(r.cast[0].days.map((d: any) => d.code)).toEqual(['SW', '', '', 'H', 'WF'])
+    expect(r.spalten.map((s: any) => s.frei)).toEqual([false, true, true, false, false])
+    expect(r.cast[0].total_hold_days).toBe(1)
+
+    // Anreise am Sonntag davor und eine Probe am Samstag erweitern die Spalten
+    const reise = (await db.run(
+      "INSERT INTO trips (project_id, person_type, person_id, from_date, to_date) VALUES (?, 'cast', ?, '2026-11-15', '2026-11-15')",
+      [projekt, cast])).id
+    await db.run("INSERT INTO trip_days (trip_id, day_date, kind) VALUES (?, '2026-11-15', 'anreise')", [reise])
+    const probe = await sende(`/api/projects/${projekt}/events`, { title: 'Leseprobe', start_date: '2026-11-14', type: 'Probe', cast_ids: [cast] })
+    expect(probe.status).toBe(201)
+    expect(probe.daten.cast_ids).toEqual([cast])
+    r = await bericht()
+    expect(r.spalten[0].datum).toBe('2026-11-14')
+    expect(r.cast[0].days.slice(0, 3).map((d: any) => d.code)).toEqual(['R', 'TR', 'SW'])
+    expect(r.cast[0]).toMatchObject({ total_work_days: 2, total_worked_days: 4, total_travel_days: 1, total_rehearsal_days: 1 })
+  })
+
+  it('Termine nehmen nur Darsteller aus dem eigenen Projekt', async () => {
+    const eigen = await woche('Eigen', 1, [0], {})
+    const fremd = await woche('Fremd', 1, [0], {})
+    const vorher = await db.get('SELECT COUNT(*) AS c FROM project_events WHERE project_id = ?', [eigen.projekt]) as any
+    const r = await sende(`/api/projects/${eigen.projekt}/events`, { title: 'Probe', start_date: '2026-11-14', type: 'Probe', cast_ids: [eigen.cast, fremd.cast] })
+    expect(r.status).toBe(404)
+    const nachher = await db.get('SELECT COUNT(*) AS c FROM project_events WHERE project_id = ?', [eigen.projekt]) as any
+    expect(nachher.c).toBe(vorher.c)
+  })
+
+  it('Drop nur mit Haltetagen und mit Mindestzahl', async () => {
+    const { cast } = await woche('Drop', 1, [0], {})
+    // Die Seite schickt immer die ganze Zeile; ohne die neuen Felder bleiben sie, wie sie sind
+    const zeile = async () => {
+      const z = await db.get('SELECT * FROM "cast" WHERE id = ?', [cast]) as any
+      const { hold_allowed, hold_fee_per_day, drop_allowed, drop_min_days, ...rest } = z
+      return rest
+    }
+    const speichere = async (aenderung: Record<string, any>) => sende(`/api/cast/${cast}`, { ...(await zeile()), ...aenderung }, 'PUT')
+
+    expect((await speichere({ drop_allowed: true, drop_min_days: 10 })).status).toBe(400)
+    const ohneTage = await speichere({ hold_allowed: true, drop_allowed: true })
+    expect(ohneTage.fehler).toBe('Für Drop und Pickup fehlt die Mindestzahl an Kalendertagen.')
+    const gut = await speichere({ hold_allowed: true, drop_allowed: true, drop_min_days: 10, hold_fee_per_day: 25000 })
+    expect(gut.fehler ?? '').toBe('')
+    expect(gut.daten).toMatchObject({ hold_allowed: true, drop_allowed: true, drop_min_days: 10, hold_fee_per_day: 25000 })
+    const ohneFelder = await speichere({ actor_name: 'Mara L.' })
+    expect(ohneFelder.daten).toMatchObject({ actor_name: 'Mara L.', hold_allowed: true, drop_allowed: true, drop_min_days: 10, hold_fee_per_day: 25000 })
+    // Haltetage aus nimmt den Drop mit
+    const aus = await speichere({ hold_allowed: false })
+    expect(aus.daten).toMatchObject({ hold_allowed: false, drop_allowed: false })
+  })
+
+  it('Kosten übernehmen: Haltetage als eigener Posten, Reservetage zählen für niemanden', async () => {
+    const { projekt, cast, ids } = await woche('Kalkulation Halt', 4, [0, 2], { fee_per_day: 60000, hold_allowed: true, hold_fee_per_day: 30000 })
+    const stab = (await db.run("INSERT INTO crew (project_id, name, role, fee_per_day) VALUES (?, 'Kai Brehm', 'Kamera', 10000)", [projekt])).id
+    const fassung = (await db.run("INSERT INTO budget_versions (project_id, name) VALUES (?, 'K')", [projekt])).id
+    const uebernehmen = async () => (await sende(`/api/budget-versions/${fassung}/kosten-uebernehmen`, {})).daten
+    const zeile = async (schluessel: string) =>
+      await db.get('SELECT quantity, total_cents FROM budget_lines WHERE budget_version_id = ? AND source_key = ?', [fassung, schluessel]) as any
+
+    const erst = await uebernehmen()
+    expect(await zeile(`cast:${cast}`)).toMatchObject({ quantity: 2, total_cents: 120000 })
+    expect(await zeile(`cast-halt:${cast}`)).toMatchObject({ quantity: 1, total_cents: 30000 })
+    // Tag 2 und 4 haben keine Szene und keine Dispo: Sie zählen für den Stab und werden genannt
+    expect(await zeile(`crew:${stab}`)).toMatchObject({ quantity: 4 })
+    expect(erst.leere_drehtage).toEqual([2, 4])
+
+    // Ein zweiter Lauf ändert nichts
+    const zweit = await uebernehmen()
+    expect([zweit.neu, zweit.geaendert, zweit.entfallen]).toEqual([0, 0, 0])
+
+    // Tag 4 als Reserve: zählt für niemanden, der Hinweis nennt ihn nicht mehr
+    await db.run("UPDATE shoot_days SET status = 'Reserve' WHERE id = ?", [ids[3]])
+    const reserve = await uebernehmen()
+    expect(await zeile(`crew:${stab}`)).toMatchObject({ quantity: 3 })
+    expect(reserve.leere_drehtage).toEqual([2])
+
+    // Haltegage 0: kein Posten mehr
+    await db.run('UPDATE "cast" SET hold_fee_per_day = 0 WHERE id = ?', [cast])
+    const ohne = await uebernehmen()
+    expect(ohne.entfallen).toBe(1)
+    expect(await zeile(`cast-halt:${cast}`)).toBeUndefined()
   })
 })

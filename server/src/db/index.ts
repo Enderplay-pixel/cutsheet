@@ -1534,6 +1534,28 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE crew ADD COLUMN IF NOT EXISTS contact_id INTEGER REFERENCES company_contacts(id) ON DELETE SET NULL`)
   await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS contact_id INTEGER REFERENCES company_contacts(id) ON DELETE SET NULL`)
 
+  // DOOD nach Branchenregel (Plan "CutSheet Kino-Ausbau", AP A1, 13.11.2026):
+  // Haltetage zählen nur, wenn sie für die Person vereinbart sind, und
+  // kosten, was als Haltegage dasteht (Vorgabe 0 - unbezahlt). Drop und
+  // Pickup ab einer Mindestzahl Kalendertage.
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS hold_allowed BOOLEAN NOT NULL DEFAULT false`)
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS hold_fee_per_day BIGINT NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS drop_allowed BOOLEAN NOT NULL DEFAULT false`)
+  await db.exec(`ALTER TABLE "cast" ADD COLUMN IF NOT EXISTS drop_min_days INTEGER NOT NULL DEFAULT 0`)
+  // Wer an einem Termin teilnimmt. Proben und Kostümproben stehen so im
+  // DOOD der Person. project_id steht mit drin, damit Sicherung und
+  // Wiederherstellung die Zeilen von selbst mitnehmen (routes/backup.ts).
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS event_people (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      event_id INTEGER NOT NULL REFERENCES project_events(id) ON DELETE CASCADE,
+      person_type TEXT NOT NULL DEFAULT 'cast',
+      person_id INTEGER NOT NULL,
+      UNIQUE(event_id, person_type, person_id)
+    )
+  `)
+
   // ── Rechnungen und Honorare ───────────────────────────────────────────────
   // Steuerart der Firma. Ein Einzelunternehmen nach Paragraf 19 UStG weist
   // keine Umsatzsteuer aus und muss das auf der Rechnung begruenden.

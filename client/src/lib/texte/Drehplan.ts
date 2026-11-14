@@ -3,6 +3,7 @@ import type { Lang } from '@/lib/i18n'
 type Text = Record<Lang, string>
 
 export const drehplanT = {
+  reserveZiel:     { de: 'Drehtag {n} ist ein Reservetag und zählt für niemanden. Soll er ein geplanter Drehtag werden, damit die Szene dort gedreht wird?', en: 'Shoot day {n} is a standby day and counts for nobody. Make it a planned shoot day so the scene is shot there?', fr: 'Le jour {n} est un jour de réserve et ne compte pour personne. En faire un jour de tournage planifié pour y tourner la scène ?' },
   sperrtagZiel:    { de: 'Auf einen Sperrtag lassen sich keine Szenen legen', en: 'Scenes cannot be placed on a blocked day', fr: 'Impossible de placer des scènes sur un jour bloqué' },
   wiederherstellenFrage: { de: 'Version „{name}" wiederherstellen? Der aktuelle Plan wird vorher als Version gesichert.', en: 'Restore version "{name}"? The current plan is saved as a version first.', fr: 'Restaurer la version « {name} » ? Le plan actuel est d\'abord enregistré comme version.' },
   max60:            { de: 'Maximal 60 Tage auf einmal', en: 'Maximum 60 days at once', fr: '60 jours maximum à la fois' },

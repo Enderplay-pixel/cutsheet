@@ -43,4 +43,7 @@ export const drehtagStatusT: Record<string, Text> = {
   Abgedreht:   { de: 'Abgedreht', en: 'Shot', fr: 'Tourné' },
   Ausgefallen: { de: 'Ausgefallen', en: 'Cancelled', fr: 'Annulé' },
   Sperrtag:    { de: 'Sperrtag', en: 'Blocked day', fr: 'Jour bloqué' },
+  // Ein Tag in Bereitschaft (Wetter, Ausfall). Zählt für niemanden, bis er
+  // gebraucht wird (seit 13.11.2026, server/src/lib/drehtage.ts).
+  Reserve:     { de: 'Reserve', en: 'Standby day', fr: 'Jour de réserve' },
 }

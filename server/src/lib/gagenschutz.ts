@@ -25,7 +25,9 @@ export const GAGENFELDER = new Set([
   'fee_per_day',          // Besetzung, Stab
   'fee_per_day_cents',    // Besetzungsanfragen und Vorschläge der Agenturen
   'fee_cents',            // Verträge, Motivverträge
-  'total_cost_cents',     // DOOD: Drehtage mal Gage
+  'total_cost_cents',     // DOOD: Drehtage mal Gage plus Haltetage mal Haltegage
+  'hold_fee_per_day',     // Besetzung: Haltegage (seit 13.11.2026)
+  'total_hold_cost_cents', // DOOD: Haltetage mal Haltegage
   'budget_total_cents',   // Dashboard
   'financing_total_cents',
 ])
