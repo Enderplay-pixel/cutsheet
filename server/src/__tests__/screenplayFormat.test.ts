@@ -359,3 +359,39 @@ describe('Blöcke länger als eine Seite', () => {
     expect(seiten.slice(1).map(s => s.lines[0].text)).toEqual(["MARA (CONT'D)", "MARA (CONT'D)"])
   })
 })
+
+describe('Fassungen im Drehbuch-PDF (AP A3)', () => {
+  const mitStern = (pages: ReturnType<typeof layoutScreenplay>) =>
+    pages.flatMap((p) => p.lines).filter((l) => l.geaendert).map((l) => l.text)
+
+  it('markiert die Zeilen eines geänderten Blocks, auch über einen Umbruch hinweg', () => {
+    const lang = 'Ein sehr langer Satz, der über mehr als eine Zeile des Textspiegels reicht und deshalb umbricht.'
+    const pages = layoutScreenplay([{
+      scene_number: '5',
+      blocks: [
+        { id: 1, block_type: 'scene_heading', content: 'INT. KÜCHE - TAG' },
+        { id: 2, block_type: 'action', content: 'Mara kocht.' },
+        { id: 3, block_type: 'action', content: lang, geaendert: true },
+      ],
+    }])
+    expect(mitStern(pages).length).toBe(2)
+    expect(mitStern(pages).join(' ')).toContain('Ein sehr langer Satz')
+    expect(mitStern(pages)).not.toContain('Mara kocht.')
+  })
+
+  it('setzt das Sternchen rechts neben den Textspiegel und die Fassung in die Kopfzeile', () => {
+    const pages = layoutScreenplay([{
+      scene_number: '5',
+      blocks: [
+        { id: 1, block_type: 'scene_heading', content: 'INT. KÜCHE - TAG' },
+        { id: 2, block_type: 'action', content: 'Neu.', geaendert: true },
+      ],
+    }])
+    const html = renderScreenplayHtml(pages, { paper: 'a4', docTitle: 'Test', header: 'Blaue Fassung - 12.11.2026' })
+    expect(html).toContain('Blaue Fassung - 12.11.2026')
+    // Ohne Tags: Die letzte Zeile einer Seite endet sonst mit </pre>
+    const zeile = html.split('\n').find((z) => z.includes('Neu.'))!.replace(/<[^>]+>/g, '')
+    expect(zeile.trimEnd().endsWith('*')).toBe(true)
+    expect(zeile.indexOf('*')).toBeGreaterThan(COL_ACTION + 60)
+  })
+})

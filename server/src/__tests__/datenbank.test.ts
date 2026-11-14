@@ -3894,6 +3894,17 @@ describe('Drehbuch-Fassungen mit gesperrten Nummern (AP A3)', () => {
     expect((await sende(`/api/scenes/${id['2']}`, { ...zwei, scene_number: '99' }, 'PUT')).status).toBe(200)
   })
 
+  it('der Fountain-Export schreibt eine entfallene Szene als OMITTED mit Nummer, ohne Inhalt', async () => {
+    const { projekt, id } = await projektMitDrehbuch('Fassung Export')
+    await sende(`/api/projects/${projekt}/drehbuch/sperren`)
+    await sende(`/api/scenes/${id['3']}`, {}, 'DELETE')
+    const antwort = await fetch(`${basis}/api/projects/${projekt}/screenplay/export.fountain`, { headers: { Authorization: `Bearer ${tokenInhaber}` } })
+    const text = await antwort.text()
+    expect(text).toContain('.OMITTED #3#')
+    expect(text).not.toContain('Jemand klingelt.')
+    expect(text).toContain('INT. KÜCHE - TAG #1#')
+  })
+
   it('Liste der Fassungen mit Zahlen und Vergleich einer Szene alt gegen neu', async () => {
     const { projekt, id } = await projektMitDrehbuch('Fassung Vergleich')
     const r = await einlesen(projekt, mit((s) => { s[1][2] = 'Ole raucht nicht mehr.'; return s }))
@@ -3901,6 +3912,7 @@ describe('Drehbuch-Fassungen mit gesperrten Nummern (AP A3)', () => {
     expect(liste.status).toBe(200)
     expect(liste.daten.map((f: any) => [f.number, f.color, f.geaendert, f.neu, f.entfaellt])).toEqual([[0, 'weiss', 0, 0, 0], [1, 'blau', 1, 0, 0]])
     expect(liste.daten[1].name).toBe('Blaue Fassung')
+    expect(liste.daten[1].aenderungen.map((a: any) => [a.scene_number, a.change])).toEqual([['2', 'geaendert']])
 
     const v = await hole(`/api/projects/${projekt}/drehbuch/fassungen/${r.daten.fassung.id}/szenen/${id['2']}`, tokenInhaber)
     expect(v.status).toBe(200)

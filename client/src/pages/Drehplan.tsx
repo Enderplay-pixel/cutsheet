@@ -246,7 +246,8 @@ export function Component() {
 
   const scheduledSceneIds = new Set<number>()
   shootDays?.forEach((day: any) => day.scenes?.forEach((s: any) => scheduledSceneIds.add(s.scene_id)))
-  const unscheduledScenes = (allScenes || []).filter((s: any) => !scheduledSceneIds.has(s.id))
+  // Entfallene Szenen (AP A3) stehen nicht in der Ablage
+  const unscheduledScenes = (allScenes || []).filter((s: any) => !scheduledSceneIds.has(s.id) && !s.omitted)
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveDrag(event.active.data.current)

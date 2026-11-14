@@ -17,6 +17,7 @@ import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { useT } from '@/lib/useT'
 import { scenesT, uiT } from '@/lib/i18n'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
+import { fassungT } from '@/lib/texte/Fassungen'
 
 const INT_EXT_OPTIONS = ['INT', 'EXT', 'INT/EXT']
 const DAY_NIGHT_OPTIONS = ['TAG', 'NACHT', 'DÄMMERUNG', 'MORGEN']
@@ -43,7 +44,7 @@ function szenenErneuern(queryClient: ReturnType<typeof useQueryClient>, projectI
   queryClient.invalidateQueries({ queryKey: ['screenplay', projectId] })
 }
 
-function SceneRow({ scene, locations, characters, projectId }: { scene: any; locations: any[]; characters: any[]; projectId: number }) {
+function SceneRow({ scene, locations, characters, projectId, gesperrt }: { scene: any; locations: any[]; characters: any[]; projectId: number; gesperrt: boolean }) {
   const { canEdit } = useProjectPerms()
   const tt = useT()
   const [expanded, setExpanded] = useState(false)
@@ -124,11 +125,17 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
     laeuftGerade.current = true
     updateMutation.mutate(daten)
   }
-  // Gelöschte Szenen landen im Papierkorb (papierkorbWaechter), deshalb ohne Rückfrage
+  // Gelöschte Szenen landen im Papierkorb (papierkorbWaechter), deshalb ohne
+  // Rückfrage. Im gesperrten Drehbuch entfallen sie nur (AP A3).
   const deleteMutation = useMutation({
     mutationFn: () => api.scenes.delete(scene.id),
     onSuccess: () => szenenErneuern(queryClient, projectId),
     onError: () => toast({ title: tt(scenesT.loeschFehler), variant: 'destructive' }),
+  })
+  const zurueckholenMutation = useMutation({
+    mutationFn: () => api.scenes.update(scene.id, { omitted: false }),
+    onSuccess: () => szenenErneuern(queryClient, projectId),
+    onError: (e: any) => toast({ title: tt(scenesT.loeschFehler), description: e.message, variant: 'destructive' }),
   })
   const addCharMutation = useMutation({
     mutationFn: (charId: number) => api.scenes.addCharacter(scene.id, { character_id: charId }),
@@ -196,7 +203,10 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
         </div>
 
         {/* Title */}
-        <span className="text-sm font-medium flex-1 truncate">{scene.title || tt(scenesT.ohneTitel)}</span>
+        <span className={cn('text-sm font-medium flex-1 truncate', scene.omitted && 'line-through text-muted-foreground')}>{scene.title || tt(scenesT.ohneTitel)}</span>
+        {scene.omitted && (
+          <span className="text-[10px] font-bold tracking-wide text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">{tt(fassungT.entfaellt)}</span>
+        )}
 
         {/* Location */}
         {scene.location_name && (
@@ -241,12 +251,22 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
           >
             ✓
           </button>
-          {canEdit && (
+          {canEdit && scene.omitted && (
+            <button
+              onClick={e => { e.stopPropagation(); zurueckholenMutation.mutate() }}
+              onKeyDown={e => e.stopPropagation()}
+              aria-label={tt(fassungT.zurueckholenName).replace('{n}', scene.scene_number)}
+              className="text-xs font-medium text-primary hover:underline px-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {tt(fassungT.zurueckholen)}
+            </button>
+          )}
+          {canEdit && !scene.omitted && (
             <button
               onClick={e => { e.stopPropagation(); deleteMutation.mutate() }}
               onKeyDown={e => e.stopPropagation()}
-              title={tt(uiT.delete)}
-              aria-label={tt(scenesT.szeneLoeschen).replace('{n}', scene.scene_number)}
+              title={gesperrt ? tt(fassungT.entfallenLassen).replace('{n}', scene.scene_number) : tt(uiT.delete)}
+              aria-label={gesperrt ? tt(fassungT.entfallenLassen).replace('{n}', scene.scene_number) : tt(scenesT.szeneLoeschen).replace('{n}', scene.scene_number)}
               className="w-6 h-6 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
             >
               <Trash2 className="w-3 h-3" />
@@ -262,8 +282,10 @@ function SceneRow({ scene, locations, characters, projectId }: { scene: any; loc
           <div className="grid grid-cols-12 gap-3">
             <div className="col-span-1">
               <Label className="text-xs text-muted-foreground">{tt(scenesT.colNumber)}</Label>
+              {/* Im gesperrten Drehbuch bleibt die Nummer (AP A3) - der Server lehnt sonst ab */}
               <Input value={form.scene_number || ''} onChange={e => updateField('scene_number', e.target.value)}
-                aria-label={tt(scenesT.colNumber)} className="mt-1 h-8 text-sm font-mono" />
+                aria-label={tt(scenesT.colNumber)} className="mt-1 h-8 text-sm font-mono"
+                disabled={gesperrt} title={gesperrt ? tt(fassungT.nummerGesperrt) : undefined} />
             </div>
             <div className="col-span-5">
               <Label className="text-xs text-muted-foreground">{tt(scenesT.detailTitle)}</Label>
@@ -436,6 +458,8 @@ export function Component() {
   const [importOpen, setImportOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState<string>('all')
+  const { data: projekt } = useQuery<any>({ queryKey: ['project', pid], queryFn: () => api.projects.get(pid), enabled: !!pid })
+  const gesperrt = !!projekt?.settings?.script_locked_at
 
   const { data: scenes, isLoading } = useQuery({
     queryKey: ['scenes', pid],
@@ -475,19 +499,23 @@ export function Component() {
   // Eine INT/EXT-Szene hat Innen und Außen - sie gehört in beide Filter.
   // Vorher fehlte sie in beiden (Testbericht SALZWIND, Fahrszene).
   const teilVon = (intExt: string, art: string) => intExt === art || intExt === 'INT/EXT'
-  const intCount = (scenes || []).filter((s: any) => teilVon(s.int_ext, 'INT')).length
-  const extCount = (scenes || []).filter((s: any) => teilVon(s.int_ext, 'EXT')).length
-  const nightCount = (scenes || []).filter((s: any) => s.day_night === 'NACHT').length
-  const dayCount = (scenes || []).filter((s: any) => s.day_night === 'TAG').length
-  const shotCount = (scenes || []).filter((s: any) => s.shot_status === 'abgedreht').length
+  // Entfallene Szenen (AP A3) zählen in keinem Filter außer "Alle" und "Entfällt"
+  const aktive = (scenes || []).filter((s: any) => !s.omitted)
+  const intCount = aktive.filter((s: any) => teilVon(s.int_ext, 'INT')).length
+  const extCount = aktive.filter((s: any) => teilVon(s.int_ext, 'EXT')).length
+  const nightCount = aktive.filter((s: any) => s.day_night === 'NACHT').length
+  const dayCount = aktive.filter((s: any) => s.day_night === 'TAG').length
+  const shotCount = aktive.filter((s: any) => s.shot_status === 'abgedreht').length
+  const entfallenCount = (scenes || []).length - aktive.length
 
   const filtered = (scenes || []).filter((s: any) => {
     const matchSearch = !search || s.title?.toLowerCase().includes(search.toLowerCase()) ||
       s.scene_number?.includes(search) || s.location_name?.toLowerCase().includes(search.toLowerCase())
-    const matchFilter = filterType === 'all' || s.day_night === filterType ||
+    const matchFilter = filterType === 'all' ||
+      (filterType === 'entfaellt' ? !!s.omitted : !s.omitted && (s.day_night === filterType ||
       ((filterType === 'INT' || filterType === 'EXT') && teilVon(s.int_ext, filterType)) ||
       (filterType === 'abgedreht' && s.shot_status === 'abgedreht') ||
-      (filterType === 'offen' && s.shot_status !== 'abgedreht')
+      (filterType === 'offen' && s.shot_status !== 'abgedreht')))
     return matchSearch && matchFilter
   })
 
@@ -541,7 +569,8 @@ export function Component() {
             { label: tt(scenesT.filterDay), value: 'TAG', count: dayCount },
             { label: tt(scenesT.filterNight), value: 'NACHT', count: nightCount },
             { label: tt(scenesT.filterShot), value: 'abgedreht', count: shotCount },
-            { label: tt(scenesT.filterOpen), value: 'offen', count: (scenes?.length || 0) - shotCount },
+            { label: tt(scenesT.filterOpen), value: 'offen', count: aktive.length - shotCount },
+            ...(entfallenCount > 0 ? [{ label: tt(fassungT.filterEntfaellt), value: 'entfaellt', count: entfallenCount }] : []),
           ].map(f => (
             <button key={f.value}
               onClick={() => setFilterType(f.value)}
@@ -601,7 +630,7 @@ export function Component() {
         ) : (
           <div>
             {filtered.map((scene: any) => (
-              <SceneRow key={scene.id} scene={scene} locations={locations || []} characters={characters || []} projectId={pid} />
+              <SceneRow key={scene.id} scene={scene} locations={locations || []} characters={characters || []} projectId={pid} gesperrt={gesperrt} />
             ))}
           </div>
         )}

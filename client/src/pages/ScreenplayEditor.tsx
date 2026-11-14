@@ -5,11 +5,14 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import { useT } from '@/lib/useT'
 import { useDownload } from '@/lib/useDownload'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
 import { screenplayT, scenesT } from '@/lib/i18n'
+import { useProjectPerms } from '@/contexts/ProjectRoleContext'
+import { fassungT } from '@/lib/texte/Fassungen'
+import { ImportDialog, FassungenDialog, useFassungen } from '@/components/drehbuch/Fassungen'
 import {
   ArrowLeft, Plus, Upload, FileText, ChevronRight, ChevronDown, Film,
   AlignLeft, User, MessageSquare, Parentheses, CornerUpRight, StickyNote,
@@ -235,6 +238,8 @@ interface BlockEditorProps {
   blockTypeLabel: string
   /** Lesezugriff: lesen und mit den Pfeilen wandern, sonst nichts */
   nurLesen: boolean
+  /** Gehört zur aktuellen Fassung: Sternchen am Rand (AP A3) */
+  geaendert?: boolean
 }
 
 function BlockEditor({
@@ -253,6 +258,7 @@ function BlockEditor({
   textareaRef,
   blockTypeLabel,
   nurLesen,
+  geaendert,
 }: BlockEditorProps) {
   const tt = useT()
   const [localContent, setLocalContent] = useState(block.content)
@@ -408,6 +414,12 @@ function BlockEditor({
         spellCheck
       />
 
+      {/* Geändert in der aktuellen Fassung (AP A3) - wie im PDF am rechten Rand */}
+      {geaendert && (
+        <span className="absolute -right-6 top-0.5 font-mono text-sm font-bold text-primary select-none" title={tt(fassungT.sternTitel)}>
+          <span aria-hidden="true">*</span><span className="sr-only">{tt(fassungT.sternTitel)}</span>
+        </span>
+      )}
     </div>
   )
 }
@@ -433,6 +445,9 @@ interface SceneSectionProps {
   sectionRef: (el: HTMLDivElement | null) => void
   blockTypeLabels: Record<BlockType, string>
   nurLesen: boolean
+  /** Kennung der aktuellen Fassung (> 0); ihre Blöcke tragen das Sternchen */
+  aktuelleFassung: number | null
+  onZurueckholen: (sceneId: number) => void
 }
 
 function SceneSection({
@@ -454,9 +469,30 @@ function SceneSection({
   sectionRef,
   blockTypeLabels,
   nurLesen,
+  aktuelleFassung,
+  onZurueckholen,
 }: SceneSectionProps) {
   const tt = useT()
   const { scene, blocks } = sceneData
+
+  // Entfallen (AP A3): Nummer und Vermerk bleiben stehen, der Text nicht
+  if (scene.omitted) {
+    return (
+      <div ref={sectionRef} className="mb-12 mt-8 pt-3 border-t border-border/30 relative" data-scene-id={scene.id}>
+        <span className="absolute -left-8 top-3.5 text-[10px] font-mono text-muted-foreground/40 select-none">{scene.scene_number}.</span>
+        <p className="font-mono text-sm font-bold uppercase text-muted-foreground/60 flex items-center gap-3">
+          {tt(fassungT.entfaellt)}
+          {!nurLesen && (
+            <button type="button" onClick={() => onZurueckholen(scene.id)}
+              aria-label={tt(fassungT.zurueckholenName).replace('{n}', String(scene.scene_number))}
+              className="text-xs font-sans font-medium normal-case text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
+              {tt(fassungT.zurueckholen)}
+            </button>
+          )}
+        </p>
+      </div>
+    )
+  }
 
   const headingBlock = blocks.find(b => b.block_type === 'scene_heading')
   const allBlocks = zeilenFolge(blocks)
@@ -506,6 +542,7 @@ function SceneSection({
           }}
           blockTypeLabel={blockTypeLabels[block.block_type]}
           nurLesen={nurLesen}
+          geaendert={aktuelleFassung !== null && Number((block as any).revision_id) === aktuelleFassung}
         />
       ))}
     </div>
@@ -525,6 +562,17 @@ export function Component() {
   // Ohne Sperre tippte ein Lese-Konto drauflos: Das Feld zeigte den neuen
   // Text, jede Speicherung scheiterte mit zwei Meldungen (gemessen 03.11.2026)
   const { darfSchreiben } = useSchreibrecht()
+  // Sperren und Entsperren ab Produktion, wie der Server es prüft (AP A3)
+  const { canEditBudget: darfSperren } = useProjectPerms()
+  const { data: fassungen } = useFassungen(pid)
+  const aktuelleFassung = (() => {
+    const letzte = (fassungen ?? []).reduce((m: any, f: any) => (!m || f.number > m.number ? f : m), null)
+    return letzte && letzte.number > 0 ? Number(letzte.id) : null
+  })()
+  const { data: projekt } = useQuery<any>({ queryKey: ['project', pid], queryFn: () => api.projects.get(pid), enabled: !!pid })
+  const gesperrtSeit: string | null = projekt?.settings?.script_locked_at ?? null
+  const [importDatei, setImportDatei] = useState<{ name: string; inhalt: string } | null>(null)
+  const [fassungenOffen, setFassungenOffen] = useState(false)
 
   const [activeBlockId, setActiveBlockId] = useState<number | null>(null)
   /** Szenenleiste am Telefon - dort liegt sie ueber dem Text statt daneben */
@@ -893,9 +941,26 @@ export function Component() {
     onError: () => toast({ title: tt(screenplayT.errScene), variant: 'destructive' }),
   })
 
+  /** Nach Einlesen, Sperren oder Zurückholen: alles neu, was am Drehbuch hängt */
+  const drehbuchErneuern = () => {
+    for (const k of ['screenplay', 'scenes', 'shoot-days', 'drehbuch-fassungen', 'project', 'conflicts', 'stats']) {
+      queryClient.invalidateQueries({ queryKey: [k, pid] })
+    }
+  }
+  const sperrMutation = useMutation({
+    mutationFn: (sperren: boolean) => (sperren ? api.screenplay.sperren(pid) : api.screenplay.entsperren(pid)),
+    onSuccess: (_d, sperren) => { toast({ title: tt(sperren ? fassungT.wurdeGesperrt : fassungT.wurdeEntsperrt) }); drehbuchErneuern() },
+    onError: (e: any) => toast({ title: tt(screenplayT.errImport), description: e.message, variant: 'destructive' }),
+  })
+  const zurueckholenMutation = useMutation({
+    mutationFn: (sceneId: number) => api.scenes.update(sceneId, { omitted: false }),
+    onSuccess: drehbuchErneuern,
+    onError: (e: any) => toast({ title: tt(screenplayT.errSave), description: e.message, variant: 'destructive' }),
+  })
+
   const importFdxMutation = useMutation({
-    mutationFn: ({ xml, filename, anhaengen }: { xml: string; filename: string; anhaengen: boolean }) =>
-      api.screenplay.importFdx(pid, xml, filename, anhaengen),
+    mutationFn: ({ xml, filename }: { xml: string; filename: string }) =>
+      api.screenplay.importFdx(pid, xml, filename),
     onSuccess: (result: any) => {
       toast({
         title: tt(screenplayT.importSuccess),
@@ -1066,16 +1131,14 @@ export function Component() {
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    // Gibt es schon Szenen, hängt der Import an - erst nach Rückfrage
+    // Gibt es schon Szenen, fragt ein Dialog: als neue Fassung, anhängen oder
+    // abbrechen (AP A3). Vorher gab es nur "Trotzdem anhängen?".
     const vorhanden = (scenesData as any[] | undefined)?.length ?? 0
-    if (vorhanden > 0 && !confirm(tt(screenplayT.importAnhaengen).replace('{n}', String(vorhanden)))) {
-      if (fileInputRef.current) fileInputRef.current.value = ''
-      return
-    }
     const reader = new FileReader()
     reader.onload = (event) => {
       const content = event.target?.result as string
-      importFdxMutation.mutate({ xml: content, filename: file.name, anhaengen: vorhanden > 0 })
+      if (vorhanden > 0) setImportDatei({ name: file.name, inhalt: content })
+      else importFdxMutation.mutate({ xml: content, filename: file.name })
     }
     reader.readAsText(file, 'utf-8')
     if (fileInputRef.current) fileInputRef.current.value = ''
@@ -1374,6 +1437,25 @@ export function Component() {
             </>
           )}
 
+          {/* Fassungen und Sperre (AP A3) */}
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setFassungenOffen(true)}>
+            {tt(fassungT.fassungen)}
+          </Button>
+          {gesperrtSeit && (
+            <span className="text-xs rounded-full bg-muted px-2 py-0.5" title={tt(fassungT.gesperrtTitel)}>
+              {tt(fassungT.gesperrtSeit).replace('{datum}', formatDate(gesperrtSeit))}
+            </span>
+          )}
+          {darfSperren && (
+            <Button variant="outline" size="sm" className="h-7 text-xs" disabled={sperrMutation.isPending}
+              onClick={() => {
+                const sperren = !gesperrtSeit
+                if (confirm(tt(sperren ? fassungT.sperrenFrage : fassungT.entsperrenFrage))) sperrMutation.mutate(sperren)
+              }}>
+              {gesperrtSeit ? tt(fassungT.entsperren) : tt(fassungT.sperren)}
+            </Button>
+          )}
+
           {/* Export dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1471,6 +1553,8 @@ export function Component() {
                     else sectionRefs.current.delete(sd.scene.id)
                   }}
                   blockTypeLabels={blockTypeLabels}
+                  aktuelleFassung={aktuelleFassung}
+                  onZurueckholen={(id) => zurueckholenMutation.mutate(id)}
                 />
               ))}
 
@@ -1478,6 +1562,11 @@ export function Component() {
             </div>
           )}
         </div>
+        <ImportDialog offen={!!importDatei} pid={pid} datei={importDatei}
+          vorhanden={(scenesData as any[] | undefined)?.length ?? 0}
+          onSchliessen={() => setImportDatei(null)}
+          onFertig={() => { setImportDatei(null); drehbuchErneuern() }} />
+        <FassungenDialog offen={fassungenOffen} pid={pid} onSchliessen={() => setFassungenOffen(false)} />
 
         {/* Keyboard hints */}
         {darfSchreiben && <div className="px-4 py-1.5 border-t border-border/30 bg-muted/30 flex flex-wrap items-center gap-x-4 gap-y-1 shrink-0">

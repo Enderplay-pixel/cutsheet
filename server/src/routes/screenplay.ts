@@ -726,7 +726,21 @@ router.get('/projects/:projectId/drehbuch/fassungen', async (req, res) => {
       GROUP BY r.id ORDER BY r.number ASC`,
     [req.params.projectId])
   const gesperrt = await drehbuchGesperrt(db, req.params.projectId)
-  res.json({ data: fassungen.map((f: any) => ({ ...f, name: fassungsName(f.color) })), meta: { gesperrt }, error: null })
+  // Je Fassung die Szenen, die sich geändert haben - für den Dialog "Fassungen"
+  const aenderungen = await db.all(
+    `SELECT s.revision_id, s.scene_id, s.scene_number, s.heading, s.change FROM script_revision_scenes s
+       JOIN script_revisions r ON r.id = s.revision_id
+      WHERE r.project_id = ? AND r.number > 0 AND s.change <> 'unveraendert' ORDER BY s.id`,
+    [req.params.projectId])
+  res.json({
+    data: fassungen.map((f: any) => ({
+      ...f,
+      name: fassungsName(f.color),
+      aenderungen: aenderungen.filter((a: any) => Number(a.revision_id) === Number(f.id)),
+    })),
+    meta: { gesperrt },
+    error: null,
+  })
 })
 
 // GET /api/projects/:projectId/drehbuch/fassungen/:revisionId/szenen/:sceneId

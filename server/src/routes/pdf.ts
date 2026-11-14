@@ -1,4 +1,5 @@
 import { dateiname } from '../lib/dateiname'
+import { fassungsName } from '../lib/fassungen'
 import { Router, Request, Response } from 'express'
 import { resolveAccent } from '../lib/pdfFonts'
 import { db } from '../db'
@@ -1088,14 +1089,24 @@ router.get('/projects/:projectId/pdf/screenplay', async (req, res) => {
   // Szenen separat laden: Szenen ohne Blöcke fielen bei einem JOIN über die
   // Blöcke komplett aus dem PDF. Ihre Überschrift wird unten synthetisiert.
   const scenes = await db.all(`
-    SELECT id, scene_number, title, int_ext, day_night
+    SELECT id, scene_number, title, int_ext, day_night, omitted
     FROM scenes
     WHERE project_id = ?
     ORDER BY sort_order ASC, scene_number ASC
   `, [req.params.projectId]) as any[]
 
+  // Die aktuelle Fassung (AP A3): Ihre Blöcke tragen das Sternchen, ihr Name
+  // und Datum stehen in der Kopfzeile. Die Erstfassung (0) markiert nichts.
+  const fassung = await db.get(
+    'SELECT id, number, color, created_at FROM script_revisions WHERE project_id = ? ORDER BY number DESC LIMIT 1',
+    [req.params.projectId]) as any
+  const aktuelle = fassung && Number(fassung.number) > 0 ? Number(fassung.id) : null
+  const kopfzeile = aktuelle
+    ? `${fassungsName(fassung.color)} - ${new Date(fassung.created_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' })}`
+    : undefined
+
   const blocks = await db.all(`
-    SELECT sb.scene_id, sb.block_type, sb.content, sb.annotation_color, sb.sort_order
+    SELECT sb.scene_id, sb.block_type, sb.content, sb.annotation_color, sb.sort_order, sb.revision_id
     FROM screenplay_blocks sb
     JOIN scenes s ON sb.scene_id = s.id
     WHERE sb.project_id = ?
@@ -1115,7 +1126,13 @@ router.get('/projects/:projectId/pdf/screenplay', async (req, res) => {
   // sie ohne INT/EXT, ohne Titel und ohne Tageszeit im PDF stand.
   const sceneInputs: SceneInput[] = scenes.map(scene => ({
     scene_number: scene.scene_number,
-    blocks: mitUeberschrift(scene, bySceneId.get(scene.id) ?? []) as SceneInput['blocks'],
+    // Eine entfallene Szene steht nur noch mit Nummer und "ENTFÄLLT" da
+    blocks: scene.omitted
+      ? [{ block_type: 'scene_heading', content: 'ENTFÄLLT', scene_number: scene.scene_number }]
+      : (mitUeberschrift(scene, bySceneId.get(scene.id) ?? []) as any[]).map((b) => ({
+          ...b,
+          geaendert: aktuelle !== null && Number(b.revision_id) === aktuelle,
+        })) as SceneInput['blocks'],
   }))
 
   const scriptPages = layoutScreenplay(sceneInputs, { includeAnnotations })
@@ -1135,6 +1152,7 @@ router.get('/projects/:projectId/pdf/screenplay', async (req, res) => {
   const html = renderScreenplayHtml([...front, ...scriptPages], {
     paper,
     docTitle: `${project.title || 'Drehbuch'} - Drehbuch`,
+    header: kopfzeile,
   })
 
   try {

@@ -457,7 +457,14 @@ export const api = {
     updateBlock: (blockId: number, data: any) => req<any>(`/blocks/${blockId}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteBlock: (blockId: number) => req<void>(`/blocks/${blockId}`, { method: 'DELETE' }),
     reorder: (sceneId: number, blocks: any[]) => req<void>(`/scenes/${sceneId}/blocks/reorder`, { method: 'PUT', body: JSON.stringify({ blocks }) }),
-    importFdx: (projectId: number, xml: string, filename: string, anhaengen = false) => req<any>(`/projects/${projectId}/fdx-import`, { method: 'POST', body: JSON.stringify({ xml, filename, anhaengen }) }),
+    // modus: ohne Szenen im Projekt keiner; sonst 'fassung' (AP A3) oder 'anhaengen'
+    importFdx: (projectId: number, xml: string, filename: string, optionen: { modus?: 'anhaengen' | 'fassung'; nurZeigen?: boolean; farbe?: string } = {}) =>
+      req<any>(`/projects/${projectId}/fdx-import`, { method: 'POST', body: JSON.stringify({ xml, filename, ...optionen }) }),
+    sperren: (projectId: number) => req<any>(`/projects/${projectId}/drehbuch/sperren`, { method: 'POST' }),
+    entsperren: (projectId: number) => req<any>(`/projects/${projectId}/drehbuch/entsperren`, { method: 'POST' }),
+    fassungen: (projectId: number) => req<any[]>(`/projects/${projectId}/drehbuch/fassungen`),
+    vergleich: (projectId: number, revisionId: number, sceneId: number) =>
+      req<any>(`/projects/${projectId}/drehbuch/fassungen/${revisionId}/szenen/${sceneId}`),
   },
 
   // ─── Backup ────────────────────────────────────────────────────────────────

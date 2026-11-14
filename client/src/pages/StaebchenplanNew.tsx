@@ -484,7 +484,8 @@ export function Component() {
   // Die Ablage: ungeplante Szenen, sortiert nach bis zu drei Feldern (Soll 9).
   // Ohne Sortierung die Reihenfolge des Servers (sort_order, Nummer).
   const ablage = useMemo(() => {
-    const liste = (allScenes ?? []).filter((s) => !geplant.has(Number(s.id)))
+    // Entfallene Szenen (AP A3) gehören nicht in die Ablage
+    const liste = (allScenes ?? []).filter((s) => !geplant.has(Number(s.id)) && !s.omitted)
     const wertVon = (s: any, f: SortFeld) =>
       f === 'motiv' ? String(s.location_name ?? '') : f === 'ie' ? String(s.int_ext ?? '') : f === 'tn' ? String(s.day_night ?? '') : String(s.scene_number ?? '')
     const felder = sortFelder.filter(Boolean)
@@ -781,8 +782,8 @@ export function Component() {
   // ─── Anzeige ──────────────────────────────────────────────────────────────
 
   const isLoading = daysLoading || scenesLoading
-  const totalScenes = allScenes?.length ?? 0
-  const totalEighthsAll = (allScenes ?? []).reduce((sum, s) => sum + (s.eighths ?? 0), 0)
+  const totalScenes = (allScenes ?? []).filter((s) => !s.omitted).length
+  const totalEighthsAll = (allScenes ?? []).filter((s) => !s.omitted).reduce((sum, s) => sum + (s.eighths ?? 0), 0)
   const isEmpty = !isLoading && totalScenes === 0 && tage.length === 0
   const tagVon = (id: number | null) => tage.find((t) => t.id === id)
 

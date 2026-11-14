@@ -42,6 +42,8 @@ export const TEXT_COL = 5
 export const TEXT_WIDTH = 60
 /** Spalte der gespiegelten Szenennummer rechts neben dem Textspiegel. */
 const SCENE_NUM_RIGHT_COL = TEXT_COL + TEXT_WIDTH + 1
+/** Spalte des Sternchens einer geänderten Zeile - rechts neben der gespiegelten Nummer. */
+const STERN_COL = SCENE_NUM_RIGHT_COL + 6
 
 export type PaperName = 'letter' | 'a4'
 
@@ -126,6 +128,8 @@ export interface SourceBlock {
   /** Szenennummer, nur bei scene_heading gesetzt. */
   scene_number?: string | null
   annotation_color?: string | null
+  /** Gehört zur aktuellen Fassung (AP A3): Sternchen am rechten Rand. */
+  geaendert?: boolean
 }
 
 export interface LaidOutLine {
@@ -137,6 +141,8 @@ export interface LaidOutLine {
   sceneNumber?: string
   /** Für farbige Randnotizen im "mit Notizen"-Export. */
   color?: string
+  /** Geändert in der aktuellen Fassung: Sternchen rechts neben dem Spiegel. */
+  geaendert?: boolean
 }
 
 export interface LaidOutPage {
@@ -155,6 +161,7 @@ interface Element {
   speaker?: string
   sceneNumber?: string
   color?: string
+  geaendert?: boolean
 }
 
 const BLANK: LaidOutLine = { col: 0, text: '', type: 'blank' }
@@ -181,6 +188,7 @@ function blocksToElements(blocks: SourceBlock[], includeAnnotations: boolean): E
     const type = (b.block_type || 'action') as string
 
     if (type === 'annotation' && !includeAnnotations) continue
+    const vorher = els.length
 
     switch (type) {
       case 'scene_heading': {
@@ -298,6 +306,8 @@ function blocksToElements(blocks: SourceBlock[], includeAnnotations: boolean): E
         })
       }
     }
+    // Ein Block der aktuellen Fassung markiert alle seine Zeilen (AP A3)
+    if (b.geaendert && els.length > vorher) els[els.length - 1].geaendert = true
   }
 
   return els
@@ -328,7 +338,7 @@ function minLinesToStart(el: { type: ElementType; lines: string[] }): number {
 }
 
 function lineOf(el: Element, text: string): LaidOutLine {
-  return { col: GEOMETRY[el.type].col, text, type: el.type, color: el.color }
+  return { col: GEOMETRY[el.type].col, text, type: el.type, color: el.color, geaendert: el.geaendert }
 }
 
 /** Rechtsbündig im Textspiegel - für Transitions. */
@@ -410,8 +420,8 @@ export function layoutScreenplay(scenes: SceneInput[], opts: LayoutOptions = {})
 
     // Sonderfall Transition/SUPER: Ausrichtung berechnen
     const renderLine = (text: string, idx: number): LaidOutLine => {
-      if (el.type === 'transition') return { col: rightAlign(text), text, type: 'transition' }
-      if (el.type === 'super') return { col: centerCol(text), text, type: 'super' }
+      if (el.type === 'transition') return { col: rightAlign(text), text, type: 'transition', geaendert: el.geaendert }
+      if (el.type === 'super') return { col: centerCol(text), text, type: 'super', geaendert: el.geaendert }
       const line = lineOf(el, text)
       if (el.type === 'scene_heading' && idx === 0 && el.sceneNumber) line.sceneNumber = el.sceneNumber
       return line
@@ -473,7 +483,7 @@ export function layoutScreenplay(scenes: SceneInput[], opts: LayoutOptions = {})
       const teil = Math.min(budget, rest.length - MIN_SPLIT_LINES)
       rest.slice(0, teil).forEach((t, idx) => current.push(ersterTeil
         ? renderLine(t, idx)
-        : { col: geo.col, text: t, type: el.type, color: el.color }))
+        : { col: geo.col, text: t, type: el.type, color: el.color, geaendert: el.geaendert }))
       ersterTeil = false
       if (isDialogue) current.push({ col: GEOMETRY.more.col, text: '(MORE)', type: 'more' })
       flushPage()
@@ -593,13 +603,18 @@ function lineToHtml(l: LaidOutLine): string {
     ? `<span style="color:${escapeHtml(l.color)}">${escapeHtml(l.text)}</span>`
     : escapeHtml(l.text)
 
-  if (!l.sceneNumber) return spaces(l.col) + body
+  // Sternchen der aktuellen Fassung rechts außen, hinter der gespiegelten
+  // Szenennummer (AP A3) - so steht es in gedruckten Revisionsseiten
+  const stern = (sichtbar: number) => (l.geaendert ? spaces(Math.max(1, STERN_COL - sichtbar)) + '*' : '')
+
+  if (!l.sceneNumber) return spaces(l.col) + body + stern(l.col + l.text.length)
 
   // Szenennummer links im Raster und gespiegelt rechts neben dem Textspiegel
   const num = `${l.sceneNumber}.`
   const cell = num.slice(0, Math.max(1, l.col - 1)).padEnd(l.col, ' ')
-  const mirror = spaces(SCENE_NUM_RIGHT_COL - cell.length - l.text.length) + escapeHtml(num)
-  return cell + body + mirror
+  const luecke = Math.max(1, SCENE_NUM_RIGHT_COL - cell.length - l.text.length)
+  const mirror = spaces(luecke) + escapeHtml(num)
+  return cell + body + mirror + stern(cell.length + l.text.length + luecke + num.length)
 }
 
 /**
