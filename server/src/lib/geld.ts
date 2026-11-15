@@ -39,6 +39,7 @@ export const GELDSPALTEN: Record<string, string[]> = {
   budget_lines: ['unit_price_cents', 'total_cents'],
   financing_plan_versions: ['total_cents'],
   financing_entries: ['amount_cents'],
+  financing_installments: ['amount_cents'],
   expenses: ['amount_cents'],
   invoices: ['net_cents', 'tax_cents', 'gross_cents', 'paid_cents'],
   invoice_items: ['unit_price_cents'],

@@ -39,7 +39,7 @@ const NUR_PRODUKTION: RegExp[] = [
   /^\/projects\/\d+\/budget/,
   /^\/budget-(versions|lines)\//,
   /^\/projects\/\d+\/financing/,
-  /^\/financing-(versions|entries)\//,
+  /^\/financing-(versions|entries|raten)\//,
   /^\/projects\/\d+\/(expenses|kostenstand)\b/,
   /^\/expenses\//,
   /^\/projects\/\d+\/payroll\//,

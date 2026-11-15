@@ -7,7 +7,7 @@ import { ruhezeit } from '../lib/drehzeit'
 import { istIsoDatum } from '../lib/datum'
 import { sperrtagKonflikte } from '../lib/sperrtage'
 import { ohneGagen } from '../lib/gagenschutz'
-import { massgeblicheKalkulation } from '../lib/kalkulation'
+import { massgeblicheKalkulation, massgeblicherFinanzierungsplan, finanzierungsstand } from '../lib/kalkulation'
 import { KEIN_DREHTAG_SQL } from '../lib/drehtage'
 
 const router = Router()
@@ -157,10 +157,12 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
 
   // 7. Budget vs financing - nur für wer die Kalkulation sieht (lib/gagenschutz.ts)
   if (!ohneGagen(req)) await pruefung('Budget gegen Finanzierung', conflicts, async () => {
+    // Lücke wie im Kopf des Finanzierungsplans (lib/kalkulation.ts, AP B2)
     const kalkulation = await massgeblicheKalkulation(pid)
     const budget = kalkulation ? { t: kalkulation.total_cents } : null
-    const financing = await db.get(`SELECT COALESCE(total_cents, 0) as t FROM financing_plan_versions WHERE project_id = ? ORDER BY created_at DESC LIMIT 1`, [pid]) as any
-    const gap = (budget?.t || 0) - (financing?.t || 0)
+    const plan = await massgeblicherFinanzierungsplan(pid)
+    const financing = { t: plan?.total_cents ?? 0 }
+    const gap = finanzierungsstand(plan ? [{ id: plan.id, amount_cents: plan.total_cents, status: 'geplant' }] : [], [], budget?.t || 0, '').luecke_cents
     if (gap > 5000) { // >50€ gap
       conflicts.push({
         severity: 'warning', category: 'Budget',

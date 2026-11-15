@@ -9,7 +9,7 @@ import { wochentageAus } from '../lib/board'
 import { BUNDESLAENDER } from '../services/holidays'
 import { SATZ_ARTEN } from '../lib/arbeitszeit'
 import { ueberstundenNeuRechnen } from '../lib/arbeitszeitProjekt'
-import { massgeblicheKalkulation } from '../lib/kalkulation'
+import { massgeblicheKalkulation, massgeblicherFinanzierungsplan } from '../lib/kalkulation'
 
 const router = Router()
 
@@ -495,7 +495,9 @@ router.get('/:id/stats', requireAuth, async (req: Request, res: Response) => {
   const pagesRow = await db.get('SELECT COALESCE(SUM(eighths), 0) as s FROM scenes WHERE project_id = ? AND NOT omitted', [pid]) as any
   // Die aktive Fassung, sonst die neueste (lib/kalkulation.ts)
   const budgetRow = { s: (await massgeblicheKalkulation(pid))?.total_cents ?? 0 }
-  const finRow = await db.get('SELECT COALESCE(MAX(total_cents), 0) as s FROM financing_plan_versions WHERE project_id = ?', [pid]) as any
+  // Der Finanzierungsplan, der gilt - wie Konfliktradar und Kopf des Plans
+  // (AP B2). Vorher die höchste Summe aller Fassungen.
+  const finRow = { s: (await massgeblicherFinanzierungsplan(pid))?.total_cents ?? 0 }
 
   // date ist Text: '' bei undatierten Tagen. Vorher date::date - ein einziger
   // undatierter Drehtag ließ die ganze Übersicht scheitern (gemessen am

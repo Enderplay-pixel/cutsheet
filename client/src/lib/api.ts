@@ -335,6 +335,11 @@ export const api = {
     createEntry: (versionId: number, data: any) => req<any>(`/financing-versions/${versionId}/entries`, { method: 'POST', body: JSON.stringify(data) }),
     updateEntry: (id: number, data: any) => req<any>(`/financing-entries/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteEntry: (id: number) => req<any>(`/financing-entries/${id}`, { method: 'DELETE' }),
+    // Stand des Plans und Raten je Geldgeber (AP B2)
+    stand: (versionId: number) => req<any>(`/financing-versions/${versionId}/stand`),
+    createRate: (entryId: number, data: any) => req<any>(`/financing-entries/${entryId}/raten`, { method: 'POST', body: JSON.stringify(data) }),
+    updateRate: (id: number, data: any) => req<any>(`/financing-raten/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteRate: (id: number) => req<any>(`/financing-raten/${id}`, { method: 'DELETE' }),
   },
 
   // ─── Equipment ─────────────────────────────────────────────────────────────

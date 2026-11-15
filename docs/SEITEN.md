@@ -159,7 +159,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
-| **Budget** | `/projects/:id/budget` | Kalkulation in Fassungen, im FFA-Schema mit elf Kostenarten und Rechenwerk (Handlungskosten, Reserve, Produzentenhonorar, Herstellungskosten) oder frei; PDF und CSV im selben Aufbau; Finanzierungsplan, Förderantrag-Export. Kosten aus dem Projekt übernehmen. | In der Kalkulation, dann bei jeder Änderung. |
+| **Budget** | `/projects/:id/budget` | Kalkulation in Fassungen, im FFA-Schema mit elf Kostenarten und Rechenwerk (Handlungskosten, Reserve, Produzentenhonorar, Herstellungskosten) oder frei; PDF und CSV im selben Aufbau; Finanzierungsplan mit Stand je Geldgeber, Raten, Lücke gegen die Herstellungskosten; Förderantrag-Export. Kosten aus dem Projekt übernehmen. | In der Kalkulation, dann bei jeder Änderung. |
 | **Kostenstand** | `/projects/:id/kostenstand` | Plan gegen Ist je Kategorie, im FFA-Schema je Kostenart und aufklappbar je Zeile, mit Warnschwellen. Ausgaben mit Kostenart erfassen. | Wöchentlich während des Drehs. |
 
 ---

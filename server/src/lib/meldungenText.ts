@@ -363,6 +363,9 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   // Kalkulation nach FFA-Schema (AP B1, 15.11.2026)
   'Einheit ist Tag, Woche oder pauschal': { en: 'Unit is day, week or flat rate', fr: 'L’unité est le jour, la semaine ou le forfait' },
   'Unbekannte Kostenart': { en: 'Unknown cost group', fr: 'Catégorie de coûts inconnue' },
+  // Finanzierungsplan mit Status und Raten (AP B2, 15.11.2026)
+  'Ein Datum hat die Form JJJJ-MM-TT': { en: 'A date has the form YYYY-MM-DD', fr: 'Une date a la forme AAAA-MM-JJ' },
+  'Rate nicht gefunden': { en: 'Installment not found', fr: 'Échéance introuvable' },
   'Vor- und Abwicklungstage sind ganze Zahlen von 0 bis 366': { en: 'Preparation and wrap days are whole numbers from 0 to 366', fr: 'Les jours de préparation et de clôture sont des nombres entiers de 0 à 366' },
   'Das Schema ist "frei" oder "ffa"': { en: 'The scheme is "frei" (free) or "ffa"', fr: 'Le schéma est « frei » (libre) ou « ffa »' },
   'Ein Satz liegt zwischen 0 und 99,99 %': { en: 'A rate is between 0 and 99.99 %', fr: 'Un taux est compris entre 0 et 99,99 %' },

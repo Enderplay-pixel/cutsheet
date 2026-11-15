@@ -201,6 +201,9 @@ export const entityPatterns: Array<[RegExp, string]> = [
      'SELECT project_id FROM financing_plan_versions WHERE id = ?'],
     [/^\/blocks\/(\d+)/,
      'SELECT project_id FROM screenplay_blocks WHERE id = ?'],
+    // Raten eines Geldgebers (AP B2)
+    [/^\/financing-raten\/(\d+)/,
+     'SELECT fv.project_id FROM financing_installments fi JOIN financing_entries fe ON fi.entry_id = fe.id JOIN financing_plan_versions fv ON fe.financing_version_id = fv.id WHERE fi.id = ?'],
     [/^\/financing-entries\/(\d+)/,
      'SELECT fv.project_id FROM financing_entries fe JOIN financing_plan_versions fv ON fe.financing_version_id = fv.id WHERE fe.id = ?'],
     [/^\/equipment-bookings\/(\d+)/,

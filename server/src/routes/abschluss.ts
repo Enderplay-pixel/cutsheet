@@ -28,6 +28,8 @@ import { requireMember } from '../middleware/projectAuth'
 import { logAudit } from './audit'
 import { euro } from '../lib/rechnung'
 import { heuteISO } from '../lib/datum'
+import { massgeblicherFinanzierungsplan } from '../lib/kalkulation'
+import { ohneGagen } from '../lib/gagenschutz'
 
 const router = Router()
 
@@ -123,6 +125,14 @@ router.get('/projects/:projectId/abschluss', requireAuth, requireMember, async (
   const zahl = (z: any) => Number(z?.anzahl ?? 0)
   const offenCents = Number(rechnungen?.offen ?? 0)
 
+  // Überfällige Raten der Finanzierung (AP B2): fällig vor heute, nicht eingegangen
+  const plan = await massgeblicherFinanzierungsplan(projectId)
+  const raten = plan ? (await db.get(
+    `SELECT COUNT(*) AS anzahl, COALESCE(SUM(fi.amount_cents), 0) AS summe
+       FROM financing_installments fi JOIN financing_entries fe ON fi.entry_id = fe.id
+      WHERE fe.financing_version_id = ? AND fi.due_on IS NOT NULL AND fi.due_on < ? AND fi.received_on IS NULL`,
+    [plan.id, heute])) as any : null
+
   const punkte: Punkt[] = [
     {
       schluessel: 'rechnungen',
@@ -133,6 +143,18 @@ router.get('/projects/:projectId/abschluss', requireAuth, requireMember, async (
         : 'Alles bezahlt.',
       pfad: `/firma/${projekt.company_id ?? 0}/offene-posten`,
       // Offenes Geld steht einem Abschluss wirklich entgegen.
+      blockiert: true,
+    },
+    {
+      schluessel: 'raten',
+      titel: 'Raten der Finanzierung überfällig',
+      anzahl: zahl(raten),
+      // Den Betrag sieht nur, wer die Finanzierung sehen darf (lib/gagenschutz.ts)
+      text: zahl(raten) > 0
+        ? `${ohneGagen(req) ? 'Fällig und' : `${euro(Number(raten?.summe ?? 0))} fällig und`} noch nicht eingegangen. Bei den Geldgebern nachfassen.`
+        : 'Keine Rate überfällig.',
+      pfad: `/projects/${projectId}/budget`,
+      // Offenes Geld steht einem Abschluss entgegen
       blockiert: true,
     },
     {

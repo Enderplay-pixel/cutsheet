@@ -4162,6 +4162,78 @@ describe('Kalkulation nach FFA-Schema (AP B1)', () => {
   })
 })
 
+describe('Finanzierungsplan mit Status, Lücke und Raten (AP B2)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+
+  /** Firma, Projekt, freie Kalkulation über 430.000 € und ein Finanzierungsplan mit sieben Geldgebern. */
+  async function aufbau() {
+    const firma = (await db.run("INSERT INTO companies (name, owner_id) VALUES ('Finanzierung GmbH', ?)", [nutzerId])).id
+    const p = (await db.run('INSERT INTO projects (title, owner_id, company_id) VALUES (?, ?, ?)', ['Finanzierung B2', nutzerId, firma])).id
+    const k = (await sende(`/api/projects/${p}/budget-versions`, { name: 'K', schema: 'frei' })).daten
+    await sende(`/api/budget-versions/${k.id}/lines`, { category: 'Alles', description: 'Alles', quantity: 1, unit_price_cents: 43_000_000 })
+    const plan = (await sende(`/api/projects/${p}/financing-versions`, { name: 'Plan' })).daten
+    const geldgeber: any[] = []
+    for (const [quelle, cent, status] of [['FFA', 10_000_000, 'zugesagt'], ['DFFF', 8_500_000, 'ausgezahlt'], ['Sender', 12_000_000, 'zugesagt'],
+      ['Nordmedia', 3_000_000, 'beantragt'], ['Verleih', 4_500_000, 'beantragt'], ['Weltvertrieb', 2_000_000, 'geplant'], ['Eigenmittel', 3_000_000, 'geplant']] as const) {
+      geldgeber.push((await sende(`/api/financing-versions/${plan.id}/entries`, { source: quelle, type: 'Förderung', amount_cents: cent, status })).daten)
+    }
+    return { firma, p, plan, geldgeber }
+  }
+
+  it('sieben Geldgeber decken die Kalkulation: Lücke 0, zugesagt, ausgezahlt, nicht zugesagt; kein Konflikt', async () => {
+    const a = await aufbau()
+    expect(a.geldgeber[0]).toMatchObject({ status: 'zugesagt', confirmed: true })
+    expect(a.geldgeber[3]).toMatchObject({ status: 'beantragt', confirmed: false })
+    const stand = (await hole(`/api/financing-versions/${a.plan.id}/stand`, tokenInhaber)).daten
+    expect(stand).toMatchObject({
+      herstellungskosten_cents: 43_000_000, summe_cents: 43_000_000, luecke_cents: 0,
+      zugesagt_cents: 30_500_000, ausgezahlt_cents: 8_500_000, nicht_zugesagt_cents: 12_500_000, ueberfinanziert_cents: 0,
+    })
+    const konflikte = (await hole(`/api/projects/${a.p}/conflicts`, tokenInhaber)).daten as any[]
+    expect(konflikte.some((k) => /Finanzierungslücke/.test(k.message))).toBe(false)
+    // Um 10.000 € erhöht: überfinanziert
+    await sende(`/api/financing-entries/${a.geldgeber[6].id}`, { ...a.geldgeber[6], amount_cents: 4_000_000 }, 'PUT')
+    expect((await hole(`/api/financing-versions/${a.plan.id}/stand`, tokenInhaber)).daten.ueberfinanziert_cents).toBe(1_000_000)
+    // Unbekannter Stand und falsches Datum werden abgelehnt
+    expect((await sende(`/api/financing-entries/${a.geldgeber[6].id}`, { ...a.geldgeber[6], status: 'erledigt' }, 'PUT')).status).toBe(400)
+    expect((await sende(`/api/financing-entries/${a.geldgeber[6].id}`, { ...a.geldgeber[6], granted_on: '15.11.2026' }, 'PUT')).status).toBe(400)
+  })
+
+  it('der alte Schalter "bestätigt" wird "zugesagt"', async () => {
+    const a = await aufbau()
+    // Wie die Seite vor AP B2: der ganze Eintrag, mit dem Schalter statt des Stands
+    const { status: _status, ...ohneStand } = a.geldgeber[5]
+    const alt = await sende(`/api/financing-entries/${a.geldgeber[5].id}`, { ...ohneStand, confirmed: true }, 'PUT')
+    expect(alt.daten).toMatchObject({ status: 'zugesagt', confirmed: true })
+  })
+
+  it('Raten: über dem Betrag meldet sich; eine überfällige Rate steht in Abschlussprüfung und "Was anliegt"', async () => {
+    const a = await aufbau()
+    const ffa = a.geldgeber[0]
+    expect((await sende(`/api/financing-entries/${ffa.id}/raten`, { label: 'Drehbeginn', due_on: '2026-03-01', amount_cents: 6_000_000, received_on: '2026-03-05' })).status).toBe(201)
+    const ueberfaellig = await sende(`/api/financing-entries/${ffa.id}/raten`, { label: 'Rohschnittabnahme', due_on: '2026-06-01', amount_cents: 4_000_000 })
+    expect(ueberfaellig.status).toBe(201)
+    let liste = (await hole(`/api/financing-versions/${a.plan.id}/entries`, tokenInhaber)).daten as any[]
+    expect(liste[0]).toMatchObject({ raten_summe_cents: 10_000_000, raten_ueber_betrag: false })
+    expect(liste[0].raten.map((r: any) => r.label)).toEqual(['Drehbeginn', 'Rohschnittabnahme'])
+    await sende(`/api/financing-entries/${ffa.id}/raten`, { label: 'Schluss', amount_cents: 100 })
+    liste = (await hole(`/api/financing-versions/${a.plan.id}/entries`, tokenInhaber)).daten as any[]
+    expect(liste[0].raten_ueber_betrag).toBe(true)
+    expect((await hole(`/api/financing-versions/${a.plan.id}/stand`, tokenInhaber)).daten.ausgezahlt_cents).toBe(8_500_000 + 6_000_000)
+
+    const abschluss = (await hole(`/api/projects/${a.p}/abschluss`, tokenInhaber)).daten
+    const raten = (abschluss.punkte ?? abschluss.offen ?? []).find((x: any) => x.schluessel === 'raten')
+    expect(raten).toMatchObject({ anzahl: 1, blockiert: true })
+    const anliegen = (await hole(`/api/companies/${a.firma}/anliegen`, tokenInhaber)).daten.punkte as any[]
+    expect(anliegen.find((x) => x.art === 'rate')).toMatchObject({ titel: 'Rate von FFA überfällig', stufe: 'dringend' })
+    // Eingegangen: nicht mehr überfällig
+    await sende(`/api/financing-raten/${ueberfaellig.daten.id}`, { received_on: '2026-06-10' }, 'PUT')
+    expect(((await hole(`/api/companies/${a.firma}/anliegen`, tokenInhaber)).daten.punkte as any[]).some((x) => x.art === 'rate')).toBe(false)
+    expect((await sende(`/api/financing-raten/${ueberfaellig.daten.id}`, { due_on: 'Drehbeginn' }, 'PUT')).status).toBe(400)
+  })
+})
+
 describe('Stundenzettel: Freigabe in Stufen (AP E8)', () => {
   /** Konto mit Rolle im Projekt; mit Abteilung steht es mit seiner E-Mail im Stab. */
   async function konto(p: number, rolle: string, abteilung = '') {

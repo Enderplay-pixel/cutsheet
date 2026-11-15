@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Coins } from 'lucide-react'
 import {
   Building2, Users, BookUser, Euro, Plus, Trash2, PenLine,
   CalendarDays, ArrowRight, Search, Download, FileText, Mail, Receipt,
@@ -838,6 +839,8 @@ const ANLIEGEN_SYMBOL: Record<string, any> = {
   ksk: Palette,
   nachweis: FileText,
   mail: Mail,
+  // Überfällige Rate der Finanzierung (AP B2)
+  rate: Coins,
 }
 
 /**

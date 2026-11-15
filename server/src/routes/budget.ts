@@ -4,7 +4,8 @@ import { drehtageBesetzung, drehtageStab, anzahl, KEIN_DREHTAG_SQL } from '../li
 import { ladeDood } from '../lib/dood'
 import { db, TxClient } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
-import { massgeblicheKalkulation } from '../lib/kalkulation'
+import { massgeblicheKalkulation, finanzierungsstand, istFinanzStatus, istZugesagt } from '../lib/kalkulation'
+import { heuteISO } from '../lib/datum'
 import { pruefeBudgetzeile, pruefeGeldgeberBetrag, GELD_MAX_CENT } from '../lib/geld'
 import { auswertung, istKostenart, SCHEMATA, VORGABE, type Schema } from '../lib/ffaSchema'
 import { rechneReise, type Tagesart } from '../lib/spesen'
@@ -505,21 +506,70 @@ router.get('/financing-versions/:id/entries', requireMemberVia(projectIdFromTabl
     if ((await getUserProjectRole(user.id, version.project_id)) === null)
       return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   }
-  const entries = await db.all('SELECT * FROM financing_entries WHERE financing_version_id = ? ORDER BY sort_order ASC', [req.params.id])
-  const parsed = (entries as any[]).map(e => ({ ...e, confirmed: !!e.confirmed }))
+  const entries = await db.all('SELECT * FROM financing_entries WHERE financing_version_id = ? ORDER BY sort_order ASC', [req.params.id]) as any[]
+  // Raten je Geldgeber (AP B2), und ob ihre Summe den Betrag übersteigt
+  const raten = entries.length
+    ? await db.all('SELECT * FROM financing_installments WHERE entry_id = ANY(?::int[]) ORDER BY sort_order, due_on NULLS LAST, id', [entries.map((e) => e.id)]) as any[]
+    : []
+  const stand = finanzierungsstand(entries, raten, 0, heuteISO())
+  const parsed = entries.map(e => ({
+    ...e, confirmed: !!e.confirmed,
+    raten: raten.filter((r) => r.entry_id === e.id),
+    raten_summe_cents: stand.je_geldgeber[e.id]?.summe_cents ?? 0,
+    raten_ueber_betrag: stand.je_geldgeber[e.id]?.ueber_betrag ?? false,
+  }))
   res.json({ data: parsed, error: null })
 })
 
+/**
+ * GET /api/financing-versions/:id/stand - der Kopf des Plans (AP B2):
+ * Herstellungskosten der maßgeblichen Kalkulation, Summe, zugesagt,
+ * ausgezahlt, Lücke, noch nicht zugesagt, überfinanziert.
+ */
+router.get('/financing-versions/:id/stand', requireMemberVia(projectIdFromTable('financing_plan_versions', 'id')), async (req: Request, res: Response) => {
+  const version = await db.get('SELECT * FROM financing_plan_versions WHERE id = ?', [req.params.id]) as any
+  if (!version) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
+  const entries = await db.all('SELECT id, amount_cents, status FROM financing_entries WHERE financing_version_id = ?', [req.params.id]) as any[]
+  const raten = entries.length ? await db.all('SELECT * FROM financing_installments WHERE entry_id = ANY(?::int[])', [entries.map((e) => e.id)]) as any[] : []
+  const kalkulation = await massgeblicheKalkulation(version.project_id)
+  res.json({ data: { ...finanzierungsstand(entries, raten, kalkulation?.total_cents ?? 0, heuteISO()), kalkulation: kalkulation ? { id: kalkulation.id, name: kalkulation.name } : null }, error: null })
+})
+
+/** Status und Angaben eines Geldgebers aus der Anfrage (AP B2); undefined heißt: bleibt. */
+function geldgeberAngaben(body: any, vorher: any): { werte: { status: string; applied_on: string | null; granted_on: string | null; reference: string } } | { fehler: string } {
+  let status = vorher?.status ?? 'geplant'
+  if (body?.status !== undefined) {
+    if (!istFinanzStatus(body.status)) return { fehler: 'Unbekannter Stand' }
+    status = body.status
+  } else if (body?.confirmed !== undefined) {
+    // Ältere Aufrufer schicken noch den Schalter "bestätigt"
+    status = body.confirmed ? (istZugesagt(status) ? status : 'zugesagt') : (istZugesagt(status) ? 'geplant' : status)
+  }
+  const datum = (w: unknown, alt: unknown): string | null | undefined => {
+    if (w === undefined) return (alt as string | null) ?? null
+    if (w === null || w === '') return null
+    return typeof w === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(w) ? w : undefined
+  }
+  const applied_on = datum(body?.applied_on, vorher?.applied_on)
+  const granted_on = datum(body?.granted_on, vorher?.granted_on)
+  if (applied_on === undefined || granted_on === undefined) return { fehler: 'Ein Datum hat die Form JJJJ-MM-TT' }
+  const reference = body?.reference === undefined ? String(vorher?.reference ?? '') : String(body.reference ?? '').trim()
+  return { werte: { status, applied_on, granted_on, reference } }
+}
+
 // POST /api/financing-versions/:id/entries
 router.post('/financing-versions/:id/entries', async (req, res) => {
-  const { source = '', type = 'Förderung', amount_cents = 0, confirmed = false, notes = '' } = req.body
+  const { source = '', type = 'Förderung', amount_cents = 0, notes = '' } = req.body
   // Gemessen am 12.11.2026: Ein Geldgeber mit -5.000 € wurde gespeichert.
   const betrag = pruefeGeldgeberBetrag(amount_cents)
   if ('fehler' in betrag) return res.status(400).json({ data: null, error: betrag.fehler })
+  const angaben = geldgeberAngaben(req.body, null)
+  if ('fehler' in angaben) return res.status(400).json({ data: null, error: angaben.fehler })
+  const a = angaben.werte
   const id = await db.transaction(async (tx) => {
     const maxSortRow = await tx.get('SELECT COALESCE(MAX(sort_order), 0) as m FROM financing_entries WHERE financing_version_id = ?', [req.params.id])
     const maxSort = (maxSortRow as any).m
-    const result = await tx.run('INSERT INTO financing_entries (financing_version_id, source, type, amount_cents, confirmed, notes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)', [req.params.id, source, type, betrag.amount_cents, confirmed ? 1 : 0, notes, maxSort + 1])
+    const result = await tx.run('INSERT INTO financing_entries (financing_version_id, source, type, amount_cents, confirmed, notes, sort_order, status, applied_on, granted_on, reference) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.params.id, source, type, betrag.amount_cents, istZugesagt(a.status) ? 1 : 0, notes, maxSort + 1, a.status, a.applied_on, a.granted_on, a.reference])
     await recalcFinancingTotal(parseInt(req.params.id), tx)
     return result.id
   })
@@ -531,19 +581,75 @@ router.post('/financing-versions/:id/entries', async (req, res) => {
 // PUT /api/financing-entries/:id
 router.put('/financing-entries/:id', async (req, res) => {
   // Gemessen am 25.10.2026: Eine Zeile, die es nicht gibt, ergab 500.
-  if (!(await db.get('SELECT id FROM financing_entries WHERE id = ?', [req.params.id]))) {
+  const vorher = await db.get('SELECT * FROM financing_entries WHERE id = ?', [req.params.id]) as any
+  if (!vorher) {
     return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
   }
-  const { source, type, amount_cents, confirmed, notes } = req.body
+  const { source, type, amount_cents, notes } = req.body
   const betrag = pruefeGeldgeberBetrag(amount_cents)
   if ('fehler' in betrag) return res.status(400).json({ data: null, error: betrag.fehler })
+  const angaben = geldgeberAngaben(req.body, vorher)
+  if ('fehler' in angaben) return res.status(400).json({ data: null, error: angaben.fehler })
+  const a = angaben.werte
   const entry = await db.transaction(async (tx) => {
-    await tx.run('UPDATE financing_entries SET source=?, type=?, amount_cents=?, confirmed=?, notes=? WHERE id=?', [source, type, betrag.amount_cents, confirmed ? 1 : 0, notes, req.params.id])
+    await tx.run('UPDATE financing_entries SET source=?, type=?, amount_cents=?, confirmed=?, notes=?, status=?, applied_on=?, granted_on=?, reference=? WHERE id=?', [source, type, betrag.amount_cents, istZugesagt(a.status) ? 1 : 0, notes, a.status, a.applied_on, a.granted_on, a.reference, req.params.id])
     const eintrag = await tx.get('SELECT * FROM financing_entries WHERE id = ?', [req.params.id]) as any
     await recalcFinancingTotal(eintrag.financing_version_id, tx)
     return eintrag
   })
   res.json({ data: { ...entry, confirmed: !!entry.confirmed }, error: null })
+})
+
+// ─── Raten je Geldgeber (AP B2) ─────────────────────────────────────────────
+
+/** Eine Rate aus der Anfrage: Anlass als Text, Fälligkeit, Betrag, Eingang. */
+function rateAus(body: any, vorher: any): { werte: { label: string; due_on: string | null; amount_cents: number; received_on: string | null } } | { fehler: string } {
+  const datum = (w: unknown, alt: unknown): string | null | undefined => {
+    if (w === undefined) return (alt as string | null) ?? null
+    if (w === null || w === '') return null
+    return typeof w === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(w) ? w : undefined
+  }
+  const due_on = datum(body?.due_on, vorher?.due_on)
+  const received_on = datum(body?.received_on, vorher?.received_on)
+  if (due_on === undefined || received_on === undefined) return { fehler: 'Ein Datum hat die Form JJJJ-MM-TT' }
+  const betrag = pruefeGeldgeberBetrag(body?.amount_cents === undefined ? (vorher?.amount_cents ?? 0) : body.amount_cents)
+  if ('fehler' in betrag) return { fehler: betrag.fehler }
+  const label = body?.label === undefined ? String(vorher?.label ?? '') : String(body.label ?? '').trim()
+  return { werte: { label, due_on, amount_cents: betrag.amount_cents, received_on } }
+}
+
+// POST /api/financing-entries/:id/raten
+router.post('/financing-entries/:id/raten', async (req, res) => {
+  const eintrag = await db.get('SELECT id FROM financing_entries WHERE id = ?', [req.params.id])
+  if (!eintrag) return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
+  const r = rateAus(req.body, null)
+  if ('fehler' in r) return res.status(400).json({ data: null, error: r.fehler })
+  const sort = Number(((await db.get('SELECT COALESCE(MAX(sort_order), 0) AS m FROM financing_installments WHERE entry_id = ?', [req.params.id])) as any)?.m ?? 0) + 1
+  const neu = await db.run('INSERT INTO financing_installments (entry_id, label, due_on, amount_cents, received_on, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+    [req.params.id, r.werte.label, r.werte.due_on, r.werte.amount_cents, r.werte.received_on, sort])
+  res.status(201).json({ data: await db.get('SELECT * FROM financing_installments WHERE id = ?', [neu.id]), error: null })
+})
+
+// PUT /api/financing-raten/:id
+router.put('/financing-raten/:id', async (req, res) => {
+  const vorher = await db.get('SELECT * FROM financing_installments WHERE id = ?', [req.params.id]) as any
+  if (!vorher) return res.status(404).json({ data: null, error: 'Rate nicht gefunden' })
+  const r = rateAus(req.body, vorher)
+  if ('fehler' in r) return res.status(400).json({ data: null, error: r.fehler })
+  // Nur die geschickten Felder schreiben: Zwei schnelle Änderungen an
+  // verschiedenen Feldern überschrieben sich sonst mit dem alten Stand
+  const felder = (['label', 'due_on', 'amount_cents', 'received_on'] as const).filter((k) => req.body?.[k] !== undefined)
+  if (felder.length) {
+    await db.run(`UPDATE financing_installments SET ${felder.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`,
+      [...felder.map((k) => r.werte[k]), req.params.id])
+  }
+  res.json({ data: await db.get('SELECT * FROM financing_installments WHERE id = ?', [req.params.id]), error: null })
+})
+
+// DELETE /api/financing-raten/:id
+router.delete('/financing-raten/:id', async (req, res) => {
+  await db.run('DELETE FROM financing_installments WHERE id = ?', [req.params.id])
+  res.json({ data: { ok: true }, error: null })
 })
 
 // DELETE /api/financing-entries/:id

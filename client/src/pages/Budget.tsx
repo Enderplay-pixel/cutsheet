@@ -25,6 +25,9 @@ import { NurProduktion } from '@/components/shared/NurProduktion'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Rechenwerk, NeueFassungDialog, UmstellenDialog } from '@/components/budget/Kalkulation'
 import { kalkT as K, KOSTENART_TEXT, KOSTENARTEN } from '@/lib/texte/Kalkulation'
+import { finT as F, STAND_TEXT, STAENDE } from '@/lib/texte/Finanzierung'
+import { ChevronRight } from 'lucide-react'
+import { heuteISO } from '@/lib/utils'
 
 const UNITS = ['Pauschal', 'Tage', 'Stunden', 'Wochen', 'Monate', 'Stück']
 const CATEGORIES = [
@@ -175,10 +178,104 @@ function BudgetLineRow({ line, onDelete, darf, ffa = false }: { line: any; onDel
   )
 }
 
+/**
+ * Raten eines Geldgebers (AP B2): Anlass, Fälligkeit, Betrag, Eingang.
+ *
+ * Jedes Feld speichert beim Verlassen. Gemessen am 15.11.2026: Speichern
+ * lädt die Liste neu, und das setzte das ganze Formular zurück - wer schon im
+ * nächsten Feld tippte, verlor Betrag und Datum; die Datumsfelder speicherten
+ * zudem bei jedem Tastendruck Zwischenwerte (Jahr 0002). Ungespeicherte
+ * Eingaben überstehen das Neuladen jetzt. Ein Datum speichert, sobald es
+ * vollständig dasteht - Tab bleibt in Chrome im Datumsfeld, ein Verlassen
+ * kommt dann womöglich nie (gemessen am 16.11.2026).
+ */
+function RateRow({ rate, darf }: { rate: any; darf: boolean }) {
+  const tt = useT()
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const offen = useRef<Record<string, any>>({})
+  const aktuell = useRef(rate)
+  aktuell.current = rate
+  const [form, setForm] = useState(rate)
+  useEffect(() => setForm({ ...rate, ...offen.current }), [rate])
+  const neuLaden = () => {
+    queryClient.invalidateQueries({ queryKey: ['financing-entries'] })
+    queryClient.invalidateQueries({ queryKey: ['financing-stand'] })
+  }
+  const speichern = useMutation({
+    mutationFn: (data: any) => api.financing.updateRate(rate.id, data),
+    onSuccess: neuLaden,
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(T.nichtGespeichert), description: e?.message }),
+  })
+  const loeschen = useMutation({ mutationFn: () => api.financing.deleteRate(rate.id), onSuccess: neuLaden })
+  /** Tippen: nur lokal, als offen gemerkt */
+  const setze = (k: string, wert: any) => {
+    offen.current = { ...offen.current, [k]: wert }
+    setForm((f: any) => ({ ...f, [k]: wert }))
+  }
+  /** Verlassen: speichern, wenn anders als auf dem Server; danach nicht mehr offen */
+  const verlassen = (k: string, wert: any) => {
+    const { [k]: _weg, ...rest } = offen.current
+    offen.current = rest
+    if (wert === (aktuell.current[k] ?? (k === 'label' ? '' : null))) return
+    speichern.mutate({ [k]: wert })
+  }
+  /** Ein vollständiges Datum (oder geleert) kurz nach dem letzten Tastendruck speichern */
+  const verlassenRef = useRef(verlassen)
+  verlassenRef.current = verlassen
+  // Je Feld ein eigener Verzögerer - sonst verschluckt das zweite Datum das erste
+  const spaeter = useRef<Record<string, (wert: string | null) => void>>({}).current
+  const datumGetippt = (k: string, wert: string) => {
+    setze(k, wert || null)
+    spaeter[k] ??= debounce((w: string | null) => verlassenRef.current(k, w), 600)
+    if (!wert || /^(19|20)\d{2}-\d{2}-\d{2}$/.test(wert)) spaeter[k](wert || null)
+  }
+  const datum = (w: any) => (w ? String(w).slice(0, 10) : '')
+  const ueberfaellig = !!form.due_on && datum(form.due_on) < heuteISO() && !form.received_on
+  return (
+    <tr className="text-xs">
+      <td className="py-1 pr-2">
+        <Input value={form.label || ''} disabled={!darf} placeholder={tt(F.anlassBeispiel)} aria-label={tt(F.anlass)}
+          onChange={e => setze('label', e.target.value)} onBlur={e => verlassen('label', e.target.value)}
+          className="h-7 text-xs" />
+      </td>
+      <td className="py-1 pr-2">
+        <Input type="date" value={datum(form.due_on)} disabled={!darf} aria-label={tt(F.faelligAm)}
+          onChange={e => datumGetippt('due_on', e.target.value)} onBlur={e => verlassen('due_on', e.target.value || null)}
+          className={`h-7 text-xs w-36 ${ueberfaellig ? 'border-destructive text-destructive' : ''}`} />
+        {ueberfaellig && <span className="ml-1 text-[10px] font-semibold text-destructive">{tt(F.ueberfaellig)}</span>}
+      </td>
+      <td className="py-1 pr-2">
+        <div className="relative w-32">
+          <Input type="number" value={euro(form.amount_cents)} disabled={!darf} aria-label={`${tt(F.betrag)} ${form.label || ''}`.trim()}
+            onChange={e => setze('amount_cents', cent(e.target.value))}
+            onBlur={() => {
+              if (leer(form.amount_cents)) { offen.current = {}; setForm(rate); return }
+              verlassen('amount_cents', Number(form.amount_cents))
+            }}
+            className="h-7 text-xs text-right font-mono pr-5" />
+          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
+        </div>
+      </td>
+      <td className="py-1 pr-2">
+        <Input type="date" value={datum(form.received_on)} disabled={!darf} aria-label={tt(F.eingangAm)}
+          onChange={e => datumGetippt('received_on', e.target.value)} onBlur={e => verlassen('received_on', e.target.value || null)}
+          className="h-7 text-xs w-36" />
+      </td>
+      <td className="py-1 w-8">
+        {darf && <button onClick={() => loeschen.mutate()} aria-label={tt(F.rateLoeschen)} title={tt(F.rateLoeschen)} className="text-muted-foreground hover:text-destructive">
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>}
+      </td>
+    </tr>
+  )
+}
+
 function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: number; onDelete: () => void; darf: boolean }) {
   const [form, setForm] = useState(entry)
   const queryClient = useQueryClient()
   const tt = useT()
+  const [auf, setAuf] = useState(false)
 
   const [fehler, setFehler] = useState('')
 
@@ -187,8 +284,15 @@ function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: num
     onSuccess: () => {
       setFehler('')
       queryClient.invalidateQueries({ queryKey: ['financing-entries'] })
+      queryClient.invalidateQueries({ queryKey: ['financing-stand'] })
     },
     onError: (e: any) => setFehler(String(e?.message || '')),
+  })
+  // Raten und ihre Summe kommen vom Server - nach jeder Änderung neu in die Zeile
+  useEffect(() => { setForm((f: any) => ({ ...f, raten: entry.raten, raten_summe_cents: entry.raten_summe_cents, raten_ueber_betrag: entry.raten_ueber_betrag })) }, [entry])
+  const rateNeu = useMutation({
+    mutationFn: () => api.financing.createRate(entry.id, { label: '', amount_cents: 0 }),
+    onSuccess: () => { setAuf(true); queryClient.invalidateQueries({ queryKey: ['financing-entries'] }); queryClient.invalidateQueries({ queryKey: ['financing-stand'] }) },
   })
 
   const debouncedUpdate = useRef(debounce((data: any | null) => { if (data !== null) mutation.mutate(data) }, 500)).current
@@ -232,19 +336,66 @@ function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: num
         </div>
       </td>
       <td className="py-2 px-2 w-16 text-right text-sm text-muted-foreground font-mono">{pct}%</td>
-      <td className="py-2 px-2 w-20">
-        <button onClick={() => update('confirmed', !form.confirmed)} disabled={!darf} aria-pressed={!!form.confirmed}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary disabled:hover:text-muted-foreground">
-          {form.confirmed ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Circle className="w-4 h-4" />}
-          {form.confirmed ? tt(T.bestaetigt) : tt(T.offen)}
-        </button>
+      {/* Stand statt Schalter "bestätigt" (AP B2) */}
+      <td className="py-2 px-2 w-32">
+        <Select value={form.status || 'geplant'} onValueChange={v => update('status', v)} disabled={!darf}>
+          <SelectTrigger aria-label={tt(F.standVon).replace('{name}', form.source || '')}
+            className={`h-7 text-xs ${form.status === 'ausgezahlt' || form.status === 'zugesagt' ? 'text-green-700 dark:text-green-400' : ''}`}><SelectValue /></SelectTrigger>
+          <SelectContent>{STAENDE.map(s => <SelectItem key={s} value={s} className="text-xs">{tt(STAND_TEXT[s])}</SelectItem>)}</SelectContent>
+        </Select>
       </td>
-      <td className="py-2 pr-3 w-8">
-        {darf && <button onClick={onDelete} aria-label={tt(T.finPostenLoeschen)} title={tt(T.postenLoeschen)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>}
+      <td className="py-2 pr-3 w-14">
+        <div className="flex items-center gap-1">
+          <button onClick={() => setAuf(!auf)} aria-expanded={auf} aria-label={tt(F.details).replace('{name}', form.source || '')}
+            className="text-muted-foreground hover:text-primary inline-flex items-center gap-0.5 text-[10px]">
+            <ChevronRight className={`w-3.5 h-3.5 transition-transform ${auf ? 'rotate-90' : ''}`} />
+            {(form.raten ?? []).length > 0 && <span>{form.raten.length}</span>}
+          </button>
+          {darf && <button onClick={onDelete} aria-label={tt(T.finPostenLoeschen)} title={tt(T.postenLoeschen)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>}
+        </div>
       </td>
     </tr>
+    {form.raten_ueber_betrag && (
+      <tr><td colSpan={6} role="alert" className="pb-1.5 pl-4 text-xs text-amber-700 dark:text-amber-300">
+        {tt(F.ratenUeber).replace('{summe}', formatCurrency(form.raten_summe_cents)).replace('{betrag}', formatCurrency(Number(form.amount_cents) || 0))}
+      </td></tr>
+    )}
+    {auf && (
+      <tr className="border-b border-border/20 bg-muted/10">
+        <td colSpan={6} className="px-4 py-3 space-y-3">
+          <div className="flex flex-wrap items-end gap-3 text-xs">
+            <label className="space-y-1"><span className="block text-muted-foreground">{tt(F.antragAm)}</span>
+              <Input type="date" value={form.applied_on ? String(form.applied_on).slice(0, 10) : ''} disabled={!darf} onChange={e => update('applied_on', e.target.value || null)} className="h-7 text-xs w-36" />
+            </label>
+            <label className="space-y-1"><span className="block text-muted-foreground">{tt(F.zusageAm)}</span>
+              <Input type="date" value={form.granted_on ? String(form.granted_on).slice(0, 10) : ''} disabled={!darf} onChange={e => update('granted_on', e.target.value || null)} className="h-7 text-xs w-36" />
+            </label>
+            <label className="space-y-1 flex-1 min-w-[10rem]"><span className="block text-muted-foreground">{tt(F.aktenzeichen)}</span>
+              <Input value={form.reference || ''} disabled={!darf} onChange={e => update('reference', e.target.value)} className="h-7 text-xs" />
+            </label>
+          </div>
+          <div>
+            <p className="text-xs font-semibold mb-1">{tt(F.raten)}</p>
+            {(form.raten ?? []).length === 0 ? <p className="text-xs text-muted-foreground">{tt(F.keineRaten)}</p> : (
+              <table className="w-full">
+                <thead><tr className="text-[10px] text-muted-foreground text-left">
+                  <th className="font-medium pb-1">{tt(F.anlass)}</th><th className="font-medium pb-1">{tt(F.faelligAm)}</th>
+                  <th className="font-medium pb-1">{tt(F.betrag)}</th><th className="font-medium pb-1">{tt(F.eingangAm)}</th><th />
+                </tr></thead>
+                <tbody>{form.raten.map((r: any) => <RateRow key={r.id} rate={r} darf={darf} />)}</tbody>
+              </table>
+            )}
+            {darf && (
+              <Button variant="ghost" size="sm" className="h-7 text-xs mt-1" onClick={() => rateNeu.mutate()} disabled={rateNeu.isPending}>
+                <Plus className="w-3.5 h-3.5 mr-1" />{tt(F.rateNeu)}
+              </Button>
+            )}
+          </div>
+        </td>
+      </tr>
+    )}
     {fehler && (
       <tr className="border-b border-border/20">
         <td colSpan={6} role="alert" className="pb-2 pl-4 pr-3 text-xs text-destructive">
@@ -307,6 +458,12 @@ function BudgetSeite() {
     queryFn: () => api.financing.listEntries(selectedFinVersionId!),
     enabled: !!selectedFinVersionId,
   })
+  // Kopf des Plans: Herstellungskosten, Summe, zugesagt, ausgezahlt, Lücke (AP B2)
+  const { data: finStand } = useQuery({
+    queryKey: ['financing-stand', selectedFinVersionId],
+    queryFn: () => api.financing.stand(selectedFinVersionId!),
+    enabled: !!selectedFinVersionId,
+  })
 
   /**
    * Fassung bei Bedarf anlegen. Ein neues Projekt hat weder Kalkulation noch
@@ -354,13 +511,13 @@ function BudgetSeite() {
 
   const createFinEntry = useMutation({
     mutationFn: async () => api.financing.createEntry(await finanzierungsFassung(), { source: tt(T.neuerGeldgeber), type: 'Förderung', amount_cents: 0 }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financing-entries'] }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['financing-entries'] }); queryClient.invalidateQueries({ queryKey: ['financing-stand'] }) },
     onError: (e: any) => toast({ variant: 'destructive', title: tt(T.nichtGespeichert), description: e.message }),
   })
 
   const deleteFinEntry = useMutation({
     mutationFn: (id: number) => api.financing.deleteEntry(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financing-entries', selectedFinVersionId] }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['financing-entries', selectedFinVersionId] }); queryClient.invalidateQueries({ queryKey: ['financing-stand'] }) },
   })
 
   const currentVersion = versions?.find((v: any) => v.id === selectedVersionId)
@@ -649,6 +806,30 @@ function BudgetSeite() {
             </div>
           </div>
 
+          {/* Kopf des Plans (AP B2): die Lücke gegen die Summe, daneben "noch nicht zugesagt" */}
+          {finStand && (
+            <div data-einfuehrung="finanzstand" className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+              {([
+                [F.herstellungskosten, finStand.herstellungskosten_cents, finStand.kalkulation ? tt(F.ausKalkulation).replace('{name}', finStand.kalkulation.name) : tt(F.ohneKalkulation)],
+                [F.finanzierung, finStand.summe_cents, ''],
+                [F.zugesagt, finStand.zugesagt_cents, ''],
+                [F.ausgezahlt, finStand.ausgezahlt_cents, ''],
+                [F.luecke, finStand.luecke_cents, tt(F.nichtZugesagt).replace('{betrag}', formatCurrency(finStand.nicht_zugesagt_cents))],
+              ] as const).map(([titel, betrag, zusatz], i) => (
+                <div key={i} className={`rounded-lg border p-3 ${i === 4 && finStand.luecke_cents > 0 ? 'border-destructive/40 bg-destructive/5' : 'bg-card/30'}`}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{tt(titel)}</p>
+                  <p className="text-lg font-bold font-mono tabular-nums">{formatCurrency(betrag)}</p>
+                  {zusatz && <p className="text-[11px] text-muted-foreground">{zusatz}</p>}
+                </div>
+              ))}
+              {finStand.ueberfinanziert_cents > 0 && (
+                <p role="status" className="col-span-full text-xs text-amber-700 dark:text-amber-300">
+                  {tt(F.ueberfinanziert).replace('{betrag}', formatCurrency(finStand.ueberfinanziert_cents))}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Visual breakdown */}
           {finEntries && finEntries.length > 0 && (
             <div className="grid grid-cols-2 gap-4 mb-2">
@@ -679,8 +860,8 @@ function BudgetSeite() {
                     <th className="text-left py-2 px-2 w-40">{tt(T.typ)}</th>
                     <th className="text-right py-2 px-2 w-36">{tt(T.betrag)}</th>
                     <th className="text-right py-2 px-2 w-16">{tt(T.anteil)}</th>
-                    <th className="text-left py-2 px-2 w-24">{tt(T.status)}</th>
-                    <th className="w-8" />
+                    <th className="text-left py-2 px-2 w-32">{tt(F.stand)}</th>
+                    <th className="w-14" />
                   </tr>
                 </thead>
                 <tbody>

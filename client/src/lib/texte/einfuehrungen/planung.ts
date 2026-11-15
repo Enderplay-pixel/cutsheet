@@ -585,9 +585,9 @@ export const planung: Record<string, Schritt[]> = {
       reiter: 'finanzierung',
       titel: { de: 'Der Finanzierungsplan', en: 'The financing plan', fr: 'Le plan de financement' },
       text: {
-        de: "Jeder Geldgeber mit Art - Förderung regional oder national, Sender, Eigenmittel, Co-Produktion, Vertrieb -, Betrag und ob er schon bestätigt ist. Deckt die Finanzierung die Kalkulation nicht, zeigt die Hauptseite die Lücke und der Konfliktradar warnt.",
-        en: "Each funder with type - regional or national funding, broadcaster, own funds, co-production, distribution -, amount and whether it is confirmed. If financing doesn’t cover the budget, the main page shows the gap and the conflict radar warns.",
-        fr: "Chaque financeur avec son type - aide régionale ou nationale, diffuseur, fonds propres, coproduction, distribution -, son montant et s'il est confirmé. Si le financement ne couvre pas le budget, la page principale montre l'écart et le radar des conflits avertit.",
+        de: "Jeder Geldgeber mit Art, Betrag und Stand: geplant, beantragt, zugesagt, ausgezahlt; aufgeklappt Antrag, Zusage, Aktenzeichen und die Raten mit Fälligkeit und Eingang. Oben stehen Herstellungskosten, Finanzierung, davon zugesagt und ausgezahlt und die Lücke - eine Überfinanzierung als Hinweis. Überfällige Raten meldet die Abschlussprüfung.",
+        en: "Each funder with type, amount and status: planned, applied for, granted, paid out; expanded, application, grant, reference and the installments with due date and receipt. At the top: total production costs, financing, of which granted and paid out, and the gap - overfinancing as a note. The closing check reports overdue installments.",
+        fr: "Chaque financeur avec type, montant et statut : prévu, demandé, accordé, versé ; déplié, demande, accord, référence et les échéances avec date et réception. En haut : coût total, financement, dont accordé et versé, et l'écart - un surfinancement en remarque. Le bilan de clôture signale les échéances en retard.",
       },
       wirktAuf: ['', 'konfliktradar'],
     },

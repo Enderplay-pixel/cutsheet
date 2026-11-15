@@ -521,8 +521,9 @@ export async function seedGrossproduktion(
       ['Weltvertrieb-MG', 'Vertrieb', 20000000, 0], ['Eigenmittel / Rückstellungen Elbwerk', 'Eigenmittel', 30000000, 1],
     ]
     let finSumme = 0
-    await insertMany(tx, 'financing_entries', ['financing_version_id', 'source', 'type', 'amount_cents', 'confirmed', 'notes', 'sort_order'],
-      fin.map(([q, t, b, c], i) => { finSumme += b; return [fv.id, q, t, b, c, c ? 'Vertrag liegt vor' : 'Zusage mündlich', i] }))
+    // Stand je Geldgeber (AP B2): mit Vertrag "zugesagt", sonst "beantragt"
+    await insertMany(tx, 'financing_entries', ['financing_version_id', 'source', 'type', 'amount_cents', 'confirmed', 'notes', 'sort_order', 'status'],
+      fin.map(([q, t, b, c], i) => { finSumme += b; return [fv.id, q, t, b, c, c ? 'Vertrag liegt vor' : 'Zusage mündlich', i, c ? 'zugesagt' : 'beantragt'] }))
     await tx.run('UPDATE financing_plan_versions SET total_cents = ? WHERE id = ?', [finSumme, fv.id])
 
     zahlen.belege = (await insertMany(tx, 'expenses', ['project_id', 'budget_line_id', 'category', 'description', 'amount_cents', 'receipt_no', 'expense_date', 'paid'],

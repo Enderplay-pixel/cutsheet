@@ -29,7 +29,7 @@ const router = Router()
 
 export type Punkt = {
   /** Woher der Punkt kommt - für das Symbol und die Gruppierung. */
-  art: 'vertrag' | 'bewilligung' | 'rechnung' | 'casting' | 'ksk' | 'nachweis' | 'mail'
+  art: 'vertrag' | 'bewilligung' | 'rechnung' | 'casting' | 'ksk' | 'nachweis' | 'mail' | 'rate'
   /** 'dringend' sperrt etwas oder kostet Geld. 'offen' will nur erledigt werden. */
   stufe: 'dringend' | 'offen'
   titel: string
@@ -56,7 +56,7 @@ router.get('/companies/:companyId/anliegen', requireAuth, erfordereFirma('mitarb
   // Mitarbeiter bekam dort 403, hier aber Nummer und offenen Betrag.
   const mitRechnungen = (FIRMEN_RANG[(req as any).firmenrolle] ?? 0) >= FIRMEN_RANG.produktion
 
-  const [vertraege, kinder, rechnungen, anfragen, ksk, nachweise, mails] = await Promise.all([
+  const [vertraege, kinder, rechnungen, anfragen, ksk, nachweise, mails, raten] = await Promise.all([
     // Verträge, auf die seit mehr als fünf Tagen niemand geantwortet hat.
     db.all(
       `SELECT c.id, c.title, c.project_id, c.sent_at, p.title AS projekt
@@ -133,6 +133,20 @@ router.get('/companies/:companyId/anliegen', requireAuth, erfordereFirma('mitarb
                    AND o.reference_id IN (SELECT id FROM invoices WHERE company_id = ?)))`,
       [companyId, companyId]
     ) as Promise<any>,
+    // Überfällige Raten der Finanzierung (AP B2), aus dem jeweils neuesten
+    // Plan eines laufenden Projekts. Geld - wie die Rechnungen ab Produktion.
+    mitRechnungen ? db.all(
+      `SELECT fi.id, fi.label, fi.due_on, fi.amount_cents, fe.source, p.id AS project_id, p.title AS projekt
+         FROM financing_installments fi
+         JOIN financing_entries fe ON fi.entry_id = fe.id
+         JOIN financing_plan_versions fv ON fe.financing_version_id = fv.id
+         JOIN projects p ON fv.project_id = p.id
+        WHERE p.company_id = ? AND p.archived = 0
+          AND fv.id = (SELECT v.id FROM financing_plan_versions v WHERE v.project_id = p.id ORDER BY v.created_at DESC, v.id DESC LIMIT 1)
+          AND fi.due_on IS NOT NULL AND fi.due_on < ? AND fi.received_on IS NULL
+        ORDER BY fi.due_on ASC`,
+      [companyId, heute]
+    ) as Promise<any[]> : Promise.resolve([] as any[]),
   ])
 
   // sent_at ist ein Zeitstempel, und pg liefert ihn als Date. Vorher
@@ -229,6 +243,18 @@ router.get('/companies/:companyId/anliegen', requireAuth, erfordereFirma('mitarb
         : `Noch ${tage} Tage gültig. Verlängern dauert. ${n.projekt}.`,
       pfad: `/projects/${n.project_id}/ablage`,
       tage: Math.abs(tage),
+    })
+  }
+
+  for (const r of raten) {
+    const tage = tageZwischen(String(r.due_on).slice(0, 10), heute)
+    punkte.push({
+      art: 'rate',
+      stufe: 'dringend',
+      titel: `Rate von ${r.source || 'Geldgeber'} überfällig`,
+      text: `${(Number(r.amount_cents) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}${r.label ? ` (${r.label})` : ''}, seit ${tage} ${tage === 1 ? 'Tag' : 'Tagen'} fällig. ${r.projekt}.`,
+      pfad: `/projects/${r.project_id}/budget`,
+      tage,
     })
   }
 

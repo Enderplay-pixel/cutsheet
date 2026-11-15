@@ -659,9 +659,9 @@ export const creator: Record<string, Schritt[]> = {
       reiter: 'finanzierung',
       titel: { de: 'Der Finanzierungsplan', en: 'The financing plan', fr: 'Le plan de financement' },
       text: {
-        de: "Wer was beisteuert, mit Art, Betrag und ob es bestätigt ist. Deckt die Finanzierung die Kalkulation nicht, zeigt die Hauptseite die Lücke.",
-        en: "Who contributes what, with type, amount and whether it is confirmed. If financing doesn’t cover the budget, the main page shows the gap.",
-        fr: "Qui apporte quoi, avec type, montant et confirmation. Si le financement ne couvre pas le budget, la page principale montre l'écart.",
+        de: "Wer was beisteuert, mit Art, Betrag und Stand - geplant, beantragt, zugesagt, ausgezahlt -, aufgeklappt mit Raten. Oben stehen die Summen und die Lücke.",
+        en: "Who contributes what, with type, amount and status - planned, applied for, granted, paid out -, expandable with installments. The totals and the gap are at the top.",
+        fr: "Qui apporte quoi, avec type, montant et statut - prévu, demandé, accordé, versé -, dépliable avec les échéances. Les totaux et l'écart sont en haut.",
       },
       wirktAuf: [''],
     },

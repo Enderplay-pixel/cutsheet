@@ -1657,6 +1657,27 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE crew ADD COLUMN IF NOT EXISTS fee_per_week BIGINT NOT NULL DEFAULT 0`)
   await db.exec(`ALTER TABLE equipment_items ADD COLUMN IF NOT EXISTS rate_unit TEXT NOT NULL DEFAULT 'tag'`)
 
+  // Finanzierungsplan mit Status, Lücke und Raten (Plan Kino-Ausbau, AP B2,
+  // 15.11.2026). "bestätigt" wird "zugesagt"; `confirmed` bleibt und wird aus
+  // dem Status mitgeschrieben, solange es noch gelesen wird.
+  await db.exec(`ALTER TABLE financing_entries ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'geplant'`)
+  await db.exec(`ALTER TABLE financing_entries ADD COLUMN IF NOT EXISTS applied_on DATE`)
+  await db.exec(`ALTER TABLE financing_entries ADD COLUMN IF NOT EXISTS granted_on DATE`)
+  await db.exec(`ALTER TABLE financing_entries ADD COLUMN IF NOT EXISTS reference TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`UPDATE financing_entries SET status = 'zugesagt' WHERE confirmed = 1 AND status = 'geplant'`)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS financing_installments (
+      id SERIAL PRIMARY KEY,
+      entry_id INTEGER NOT NULL REFERENCES financing_entries(id) ON DELETE CASCADE,
+      label TEXT NOT NULL DEFAULT '',
+      due_on DATE,
+      amount_cents BIGINT NOT NULL DEFAULT 0,
+      received_on DATE,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS financing_installments_eintrag_idx ON financing_installments (entry_id)`)
+
   // ── Rechnungen und Honorare ───────────────────────────────────────────────
   // Steuerart der Firma. Ein Einzelunternehmen nach Paragraf 19 UStG weist
   // keine Umsatzsteuer aus und muss das auf der Rechnung begruenden.
@@ -2589,8 +2610,8 @@ export async function seedDemoData(ownerId?: number): Promise<number> {
     const [source, type, amount, confirmed] = finEntries[i]
     totalFin += amount
     await db.run(
-      'INSERT INTO financing_entries (financing_version_id, source, type, amount_cents, confirmed, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
-      [finId, source, type, amount, confirmed, i]
+      'INSERT INTO financing_entries (financing_version_id, source, type, amount_cents, confirmed, sort_order, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [finId, source, type, amount, confirmed, i, confirmed ? 'zugesagt' : 'geplant']
     )
   }
   await db.run('UPDATE financing_plan_versions SET total_cents = ? WHERE id = ?', [totalFin, finId])
