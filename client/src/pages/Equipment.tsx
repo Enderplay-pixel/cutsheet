@@ -78,7 +78,7 @@ function EquipmentItemRow({ item, shootDayCount, onDelete }: { item: any; shootD
         <div className="relative">
           <Input type="number" value={(form.rental_per_day_cents || 0) / 100}
             onChange={e => update('rental_per_day_cents', Math.round(Number(e.target.value) * 100))} disabled={!canEdit}
-            aria-label={tt(equipT.ariaTagessatz).replace('{item}', name)}
+            aria-label={(form.rate_unit === 'woche' ? tt(K.preisWocheFuer) : form.rate_unit === 'pauschal' ? tt(K.preisPauschalFuer) : tt(equipT.ariaTagessatz)).replace('{item}', name)}
             className="h-7 text-xs text-right pr-5" />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{form.rate_unit === 'tag' || !form.rate_unit ? tt(equipT.proTag) : '€'}</span>
         </div>

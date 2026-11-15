@@ -78,6 +78,8 @@ export const kalkT = {
   jeTag: { de: 'je Tag', en: 'per day', fr: 'par jour' },
   jeWoche: { de: 'je Woche', en: 'per week', fr: 'par semaine' },
   pauschal: { de: 'pauschal', en: 'flat', fr: 'forfait' },
+  preisWocheFuer: { de: 'Preis je Woche in Euro für {item}', en: 'Price per week in euros for {item}', fr: 'Prix par semaine en euros pour {item}' },
+  preisPauschalFuer: { de: 'Pauschalpreis in Euro für {item}', en: 'Flat price in euros for {item}', fr: 'Prix forfaitaire en euros pour {item}' },
   wochenVon: { de: 'Wochen für {item}', en: 'Weeks for {item}', fr: 'Semaines pour {item}' },
   vor: { de: 'Vor', en: 'Prep', fr: 'Prép.' },
   nach: { de: 'Nach', en: 'Wrap', fr: 'Fin' },

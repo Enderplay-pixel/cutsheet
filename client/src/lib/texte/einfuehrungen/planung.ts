@@ -554,9 +554,19 @@ export const planung: Record<string, Schritt[]> = {
       reiter: 'kalkulation',
       titel: { de: 'Die Kalkulation', en: 'The budget', fr: 'Le budget' },
       text: {
-        de: "Links die Fassung, rechts die Summe. Positionen legst du nach Kontenrahmen an, von 1000 Stab bis 10000 Musik, je mit Menge, Einheit und Einzelpreis. Das PDF ist die Kalkulation zum Weitergeben.",
-        en: "The version on the left, the total on the right. Add lines by account, from 1000 crew to 10000 music, each with quantity, unit and unit price. The PDF is the budget to hand on.",
-        fr: "La version à gauche, le total à droite. Ajoute les lignes par compte, de 1000 équipe à 10000 musique, chacune avec quantité, unité et prix unitaire. Le PDF est le budget à transmettre.",
+        de: "Links die Fassung und ihr Schema, rechts die Summe. Im FFA-Schema stehen die elf Kostenarten der FFA als Abschnitte, jede Position trägt ihre Kostenart, Gagen den Haken SV; im freien Schema legst du Positionen nach eigenen Kategorien an. Eine freie Fassung lässt sich umstellen, ohne dass eine Zeile verloren geht. PDF und CSV haben denselben Aufbau wie der Bildschirm.",
+        en: "The version and its scheme on the left, the total on the right. In the FFA scheme the eleven FFA cost groups are the sections, each line carries its cost group, wages the SI tick; in the free scheme you add lines by your own categories. A free version can be switched without losing a line. PDF and CSV have the same layout as the screen.",
+        fr: "La version et son schéma à gauche, le total à droite. Dans le schéma FFA, les onze catégories de la FFA forment les sections, chaque ligne porte sa catégorie, les salaires la case SS ; dans le schéma libre, tu ajoutes des lignes selon tes propres catégories. Une version libre peut être convertie sans perdre de ligne. Le PDF et le CSV ont la même structure que l'écran.",
+      },
+    },
+    {
+      ziel: 'rechenwerk',
+      reiter: 'kalkulation',
+      titel: { de: 'Das Rechenwerk', en: 'The calculation', fr: 'Le calcul' },
+      text: {
+        de: "Unter den Kostenarten: Fertigungskosten, Handlungskosten, Überschreitungsreserve, Produzentenhonorar und Herstellungskosten - die Summe der Fassung. Die Sätze sind Felder mit den Vorgaben der FFA-FAQ 07/2021; ein höherer Satz geht, die Zeile sagt es. Den Satz für die Zusatzkosten Gagen trägst du selbst ein.",
+        en: "Below the cost groups: production costs, overheads, contingency, producer fee and total production costs - the version's total. The rates are fields with the defaults of the FFA FAQ 07/2021; a higher rate works, the line says so. You enter the rate for additional wage costs yourself.",
+        fr: "Sous les catégories : coûts de fabrication, frais généraux, réserve, rémunération du producteur et coût total - le total de la version. Les taux sont des champs avec les valeurs de la FAQ FFA 07/2021 ; un taux plus élevé est possible, la ligne le signale. Le taux des charges sur salaires, tu le saisis toi-même.",
       },
     },
     {
@@ -564,11 +574,11 @@ export const planung: Record<string, Schritt[]> = {
       reiter: 'kalkulation',
       titel: { de: 'Kosten aus dem Projekt holen', en: 'Pull costs from the project', fr: 'Récupérer les coûts du projet' },
       text: {
-        de: "Gagen aus Besetzung und Stab mal Drehtage, Mieten aus dem Equipment und Prämien der Versicherungen. Erst kommt eine Vorschau, was neu, geändert oder entfallen wäre; wer ohne Drehtag noch nichts kostet, steht dabei. Von Hand angelegte Posten bleiben unberührt.",
-        en: "Fees from cast and crew times shoot days, rentals from equipment and insurance premiums. First comes a preview of what would be new, changed or dropped; anyone without a shoot day, who costs nothing yet, is listed. Lines added by hand stay untouched.",
-        fr: "Cachets du casting et de l'équipe fois jours de tournage, locations du matériel et primes d'assurance. D'abord un aperçu de ce qui serait nouveau, modifié ou supprimé ; qui n'a pas encore de jour, et ne coûte donc rien, y figure. Les lignes saisies à la main restent intactes.",
+        de: "Gagen aus Besetzung und Stab mal Drehtage (beim Stab mit Vor- und Abwicklungstagen, auch als Wochengage), Mieten aus dem Equipment je Tag, Woche oder pauschal, Motivmieten, Reisen, Unterkünfte und Prämien der Versicherungen - im FFA-Schema gleich in der richtigen Kostenart. Erst kommt eine Vorschau, was neu, geändert oder entfallen wäre; wer ohne Drehtag noch nichts kostet, steht dabei. Von Hand angelegte Posten bleiben unberührt.",
+        en: "Fees from cast and crew times shoot days (crew with preparation and wrap days, also as a weekly rate), equipment rentals per day, week or flat, location fees, travel, accommodation and insurance premiums - in the FFA scheme straight into the right cost group. First comes a preview of what would be new, changed or dropped; anyone without a shoot day, who costs nothing yet, is listed. Lines added by hand stay untouched.",
+        fr: "Cachets du casting et de l'équipe fois jours de tournage (l'équipe avec jours de préparation et de clôture, aussi en hebdomadaire), locations du matériel par jour, semaine ou forfait, locations de décors, voyages, hébergements et primes d'assurance - dans le schéma FFA directement dans la bonne catégorie. D'abord un aperçu de ce qui serait nouveau, modifié ou supprimé ; qui n'a pas encore de jour, et ne coûte donc rien, y figure. Les lignes saisies à la main restent intactes.",
       },
-      wirktAuf: ['besetzung', 'stabliste', 'equipment', 'versicherungen'],
+      wirktAuf: ['besetzung', 'stabliste', 'equipment', 'motive', 'reise', 'versicherungen'],
     },
     {
       ziel: 'finanzierung',
@@ -609,9 +619,9 @@ export const planung: Record<string, Schritt[]> = {
       ziel: 'summen',
       titel: { de: 'Kalkuliert, ausgegeben, übrig', en: 'Budgeted, spent, left', fr: 'Prévu, dépensé, restant' },
       text: {
-        de: "Kalkuliert ist, was in der aktiven Kalkulation steht; ausgegeben, was du hier als Beleg erfasst; dazu, was übrig bleibt.",
-        en: "Budgeted is what the active budget version says; spent is what you record here as receipts; plus what is left.",
-        fr: "Prévu, c'est ce qui figure dans le budget actif ; dépensé, ce que tu saisis ici comme justificatifs ; plus ce qui reste.",
+        de: "Kalkuliert ist, was in der aktiven Kalkulation steht - im FFA-Schema die Fertigungskosten, die Herstellungskosten stehen darunter; ausgegeben, was du hier als Beleg erfasst; dazu, was übrig bleibt. Im FFA-Schema stehen Soll und Ist je Kostenart, aufklappbar je Zeile; Belege ohne Kostenart stehen für sich.",
+        en: "Budgeted is what the active budget says - in the FFA scheme the production costs, with the total production costs below; spent is what you record here as receipts; plus what is left. In the FFA scheme plan and actual are shown per cost group, expandable per line; receipts without a cost group are shown on their own.",
+        fr: "Prévu, c'est ce qui figure dans le budget actif - dans le schéma FFA les coûts de fabrication, le coût total en dessous ; dépensé, ce que tu saisis ici comme justificatifs ; plus ce qui reste. Dans le schéma FFA, prévu et réel apparaissent par catégorie, dépliables par ligne ; les justificatifs sans catégorie apparaissent à part.",
       },
     },
     {
@@ -627,9 +637,9 @@ export const planung: Record<string, Schritt[]> = {
       ziel: 'beleg',
       titel: { de: 'Ausgaben erfassen', en: 'Record expenses', fr: 'Saisir les dépenses' },
       text: {
-        de: "Eine Zeile je Beleg: Beschreibung, Kategorie, Betrag, Datum und Belegnummer. Darunter stehen alle Belege; ein Klick auf das Zeichen löscht einen.",
-        en: "One line per receipt: description, category, amount, date and receipt number. All receipts are listed below; one click on the icon deletes one.",
-        fr: "Une ligne par justificatif : description, catégorie, montant, date et numéro. Tous les justificatifs sont listés en dessous ; un clic sur l'icône en supprime un.",
+        de: "Eine Zeile je Beleg: Beschreibung, Kategorie - im FFA-Schema die Kostenart aus der Liste und freiwillig die Zeile der Kalkulation -, Betrag, Datum und Belegnummer. Darunter stehen alle Belege; ein Klick auf das Zeichen löscht einen.",
+        en: "One line per receipt: description, category - in the FFA scheme the cost group from the list and optionally the budget line -, amount, date and receipt number. All receipts are listed below; one click on the icon deletes one.",
+        fr: "Une ligne par justificatif : description, catégorie - dans le schéma FFA la catégorie de coûts dans la liste et, au choix, la ligne du budget -, montant, date et numéro. Tous les justificatifs sont listés en dessous ; un clic sur l'icône en supprime un.",
       },
     },
   ],

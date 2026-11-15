@@ -106,7 +106,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 |---|---|---|---|
 | **Besetzung** | `/projects/:id/besetzung` | Figuren und ihre Darsteller, Gage, Agentur, Mail, Geburtsdatum, Foto. | Sobald die Besetzung steht. |
 | **Komparsen** | `/projects/:id/komparsen` | Komparserie mit Tarifgruppe und Kontakt. | Bei Massenszenen. |
-| **Stabliste** | `/projects/:id/stabliste` | Der Stab nach Gewerk, mit Tagesgage und Vertragsart, als PDF. | Beim Aufbau der Crew. |
+| **Stabliste** | `/projects/:id/stabliste` | Der Stab nach Gewerk, mit Tages- oder Wochengage, Vor- und Abwicklungstagen, als PDF. | Beim Aufbau der Crew. |
 | **Kontaktliste** | `/projects/:id/kontakte` | Alle Beteiligten an einem Ort, Export als CSV und **vCard** fürs Telefon. | Vor dem ersten Drehtag - damit alle Nummern im Telefon sind. |
 | **SperrtageKalender** | `/projects/:id/sperrtage` | Wann wer nicht kann. Fließt in den Konfliktradar. | Direkt nach der Besetzung, vor der Drehplanung. |
 | **Agenturen** | `/projects/:id/agenturen` | Agenturen (auf Firmenebene geführt) und **Besetzungsanfragen** mit mehreren Rollen in einem Schreiben. Vorschläge einsammeln, nachfassen, übernehmen. | Im Casting, bevor die Besetzung steht. |
@@ -134,7 +134,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
-| **Equipment** | `/projects/:id/equipment` | Equipmentlisten je Drehtag oder Gewerk, mit Mietpreis und Status. | In der Vorbereitung, dann beim Packen. |
+| **Equipment** | `/projects/:id/equipment` | Equipmentlisten je Drehtag oder Gewerk, mit Mietpreis je Tag, Woche oder pauschal und Status. | In der Vorbereitung, dann beim Packen. |
 | **EquipmentKalender** | `/projects/:id/equipment-kalender` | Wann welches Gerät wo ist - findet Doppelbuchungen. | Wenn mehrere Projekte sich Technik teilen. |
 | **Fahrzeuge** | `/projects/:id/fahrzeuge` | Fahrzeuge mit Kennzeichen, Plätzen und Fahrer. | Bei Fahrgemeinschaften und auswärtigen Drehs. |
 | **CateringListe** | `/projects/:id/catering` | Wer isst was nicht - Unverträglichkeiten und Vorlieben, je Drehtag ausgewertet. | Vor der Bestellung beim Caterer. |
@@ -159,8 +159,8 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
-| **Budget** | `/projects/:id/budget` | Kalkulation mit Positionen und Versionen, Finanzierungsplan, Förderantrag-Export. Kosten aus dem Iststand übernehmen. | In der Kalkulation, dann bei jeder Änderung. |
-| **Kostenstand** | `/projects/:id/kostenstand` | Plan gegen Ist je Position, mit Warnschwellen. Ausgaben erfassen. | Wöchentlich während des Drehs. |
+| **Budget** | `/projects/:id/budget` | Kalkulation in Fassungen, im FFA-Schema mit elf Kostenarten und Rechenwerk (Handlungskosten, Reserve, Produzentenhonorar, Herstellungskosten) oder frei; PDF und CSV im selben Aufbau; Finanzierungsplan, Förderantrag-Export. Kosten aus dem Projekt übernehmen. | In der Kalkulation, dann bei jeder Änderung. |
+| **Kostenstand** | `/projects/:id/kostenstand` | Plan gegen Ist je Kategorie, im FFA-Schema je Kostenart und aufklappbar je Zeile, mit Warnschwellen. Ausgaben mit Kostenart erfassen. | Wöchentlich während des Drehs. |
 
 ---
 
