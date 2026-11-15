@@ -1626,6 +1626,16 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE call_sheets ADD COLUMN IF NOT EXISTS planned_wrap INTEGER`)
   await db.exec(`ALTER TABLE timesheets ADD COLUMN IF NOT EXISTS break_minutes INTEGER NOT NULL DEFAULT 0`)
 
+  // Freigabe der Stundenzettel in Stufen und Fahrzeit (Plan Kino-Ausbau, AP E8,
+  // 15.11.2026). Bestehende Zettel stehen auf "erfasst" - eine Freigabe, die
+  // niemand gegeben hat, wird nicht nachgetragen.
+  await db.exec(`ALTER TABLE timesheets ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'erfasst'`)
+  await db.exec(`ALTER TABLE timesheets ADD COLUMN IF NOT EXISTS approved_by INTEGER REFERENCES users(id) ON DELETE SET NULL`)
+  await db.exec(`ALTER TABLE timesheets ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ`)
+  await db.exec(`ALTER TABLE timesheets ADD COLUMN IF NOT EXISTS travel_minutes INTEGER NOT NULL DEFAULT 0`)
+  // Zählt die Fahrzeit zur Arbeitszeit? Vorgabe nein
+  await db.exec(`ALTER TABLE project_settings ADD COLUMN IF NOT EXISTS travel_counts BOOLEAN NOT NULL DEFAULT false`)
+
   // ── Rechnungen und Honorare ───────────────────────────────────────────────
   // Steuerart der Firma. Ein Einzelunternehmen nach Paragraf 19 UStG weist
   // keine Umsatzsteuer aus und muss das auf der Rechnung begruenden.

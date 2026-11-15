@@ -4,9 +4,45 @@
  * Lohnexport, Konfliktradar und Dispo rechnen hier, nicht jeder für sich.
  */
 import { getHolidays } from '../services/holidays'
+import { dauer } from './drehzeit'
 import { saetzeAus, pruefeTag, pruefeRuhezeit, pruefeWoche, sonnFeiertag, freierTag, wochenbeginn, zuschlaege, betrag, arbeitszeit, type Regel, type Saetze, type Befund } from './arbeitszeit'
 
 type Lesen = { get: (sql: string, werte?: any[]) => Promise<any>; all: (sql: string, werte?: any[]) => Promise<any[]> }
+
+/**
+ * Stunden über zehn. Mit `dauer()`, die den Tageswechsel trägt - gemessen am
+ * 25.10.2026: 08:00 bis 02:00, also 18 Stunden, ergab 0 Überstunden. Die
+ * Gagenliste summiert diesen Wert.
+ */
+export function calcOvertimeHours(callTime: number | null, wrapTime: number | null, pause = 0, fahrzeit = 0): number {
+  const minuten = dauer(callTime, wrapTime)
+  if (minuten === null) return 0
+  // Die Pause ist keine Arbeitszeit (§ 2 ArbZG, AP B3); die Fahrzeit nur,
+  // wenn die Regel des Projekts sie zählt (AP E8) - das entscheidet der Aufrufer
+  const p = Math.max(0, Number(pause) || 0)
+  return Math.max(0, (minuten - (p > minuten ? 0 : p) + Math.max(0, fahrzeit)) / 60 - 10)
+}
+
+/**
+ * Die gespeicherten Überstunden aller Zettel eines Projekts neu rechnen -
+ * nach dem Umschalten "Fahrzeit zählt". Gemessen am 15.11.2026: Ohne das
+ * blieben 1,25 Stunden stehen, obwohl die Fahrt nun zählte; Lohnexport und
+ * CSV lesen diesen Wert.
+ */
+export async function ueberstundenNeuRechnen(
+  z: Lesen & { run: (sql: string, werte?: any[]) => Promise<any> }, projectId: number | string, fahrzeitZaehlt: boolean,
+): Promise<number> {
+  const zettel = await z.all('SELECT id, call_time, wrap_time, break_minutes, travel_minutes, overtime_hours FROM timesheets WHERE project_id = ?', [projectId])
+  let geaendert = 0
+  for (const t of zettel) {
+    const neu = calcOvertimeHours(t.call_time, t.wrap_time, Number(t.break_minutes ?? 0), fahrzeitZaehlt ? Number(t.travel_minutes ?? 0) : 0)
+    if (Math.abs(neu - Number(t.overtime_hours ?? 0)) > 1e-9) {
+      await z.run('UPDATE timesheets SET overtime_hours = ? WHERE id = ?', [neu, t.id])
+      geaendert++
+    }
+  }
+  return geaendert
+}
 
 export interface ArbeitszeitEinstellung {
   regel: Regel
@@ -20,6 +56,8 @@ export interface ArbeitszeitEinstellung {
   ruhezeit: number
   defaultCall: number
   defaultWrap: number
+  /** Zählt die Fahrzeit der Stundenzettel zur Arbeitszeit? (AP E8, Vorgabe nein) */
+  fahrzeitZaehlt: boolean
 }
 
 export async function arbeitszeitEinstellung(z: Lesen, projectId: number | string): Promise<ArbeitszeitEinstellung> {
@@ -34,6 +72,7 @@ export async function arbeitszeitEinstellung(z: Lesen, projectId: number | strin
     ruhezeit: (Number(s.turnaround_hours) || 11) * 60,
     defaultCall: s.default_call_time ?? 480,
     defaultWrap: s.default_wrap_time ?? 1200,
+    fahrzeitZaehlt: s.travel_counts === true,
   }
 }
 
@@ -45,27 +84,28 @@ export function feiertageFuer(land: string, daten: string[]): string[] {
 
 /** Was ein Stundenzettel ergibt: Befunde, Minuten je Zuschlagsart, Betrag in Cent. */
 export function zettelAuswerten(
-  zettel: { call_time: unknown; wrap_time: unknown; break_minutes?: number | null; datum: string },
+  zettel: { call_time: unknown; wrap_time: unknown; break_minutes?: number | null; travel_minutes?: number | null; datum: string },
   vortag: { call_time: unknown; wrap_time: unknown } | null,
   e: ArbeitszeitEinstellung,
   feiertage: string[],
   tagesgageCent: number,
 ): { befunde: Befund[]; zuschlag_minuten: Saetze; surcharge_cents: number; arbeitszeit_minuten: number | null } {
   const pause = Math.max(0, Number(zettel.break_minutes) || 0)
+  const fahrzeit = e.fahrzeitZaehlt ? Math.max(0, Number(zettel.travel_minutes) || 0) : 0
   const befunde: Befund[] = [
-    ...pruefeTag({ call: zettel.call_time, wrap: zettel.wrap_time, pause }, e.regel),
+    ...pruefeTag({ call: zettel.call_time, wrap: zettel.wrap_time, pause, fahrzeit }, e.regel),
     ...(vortag ? pruefeRuhezeit(vortag.wrap_time, vortag.call_time, zettel.call_time, e.regel, e.ruhezeit) : []),
     ...sonnFeiertag(zettel.datum, feiertage, e.regel),
   ]
   const minuten = zuschlaege(
-    { call: zettel.call_time, wrap: zettel.wrap_time, pause, datum: zettel.datum, feiertage },
+    { call: zettel.call_time, wrap: zettel.wrap_time, pause, fahrzeit, datum: zettel.datum, feiertage },
     { stundenJeTagesgage: e.stundenJeTagesgage, nachtVon: e.nachtVon, nachtBis: e.nachtBis },
   )
   return {
     befunde,
     zuschlag_minuten: minuten,
     surcharge_cents: betrag(minuten, tagesgageCent, e.stundenJeTagesgage, e.saetze),
-    arbeitszeit_minuten: arbeitszeit(zettel.call_time, zettel.wrap_time, pause),
+    arbeitszeit_minuten: arbeitszeit(zettel.call_time, zettel.wrap_time, pause, fahrzeit),
   }
 }
 

@@ -34,7 +34,9 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
 
   // Überstunden und Zuschläge je Person aus den Stundenzetteln im Zeitraum -
   // dieselbe Rechnung wie in den Timesheets (lib/arbeitszeitProjekt.ts)
-  const bedingung: string[] = []
+  // Nur freigegebene und abgerechnete Zettel (AP E8); wie viele fehlen, sagt
+  // die Seite neben dem Knopf (GET …/timesheets/staende)
+  const bedingung: string[] = [`AND t.status IN ('freigegeben', 'abgerechnet')`]
   const bedingungWerte: any[] = []
   if (from) { bedingung.push('AND sd.date >= ?'); bedingungWerte.push(from) }
   if (to) { bedingung.push('AND sd.date <= ?'); bedingungWerte.push(to) }
@@ -74,7 +76,7 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
   const drehtageJePerson = async (art: 'cast' | 'crew'): Promise<Map<number, number>> => {
     const geplant = art === 'cast' ? await drehtageBesetzung(db, projectId) : await drehtageStab(db, projectId)
     const zettel = (await db.all(
-      'SELECT DISTINCT person_id, shoot_day_id FROM timesheets WHERE person_type = ? AND project_id = ? AND shoot_day_id IS NOT NULL',
+      "SELECT DISTINCT person_id, shoot_day_id FROM timesheets WHERE person_type = ? AND project_id = ? AND shoot_day_id IS NOT NULL AND status IN ('freigegeben', 'abgerechnet')",
       [art, projectId]
     )) as any[]
     for (const z of zettel) {
@@ -91,7 +93,7 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
       SELECT t.person_id, COALESCE(SUM(t.overtime_hours), 0) AS total_ot
         FROM timesheets t
         JOIN shoot_days sd ON t.shoot_day_id = sd.id
-       WHERE t.person_type = ? AND t.project_id = ?
+       WHERE t.person_type = ? AND t.project_id = ? AND t.status IN ('freigegeben', 'abgerechnet')
     `
     const werte: any[] = [art, projectId]
     if (from) { sql += ' AND sd.date >= ?'; werte.push(from) }

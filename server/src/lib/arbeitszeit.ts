@@ -12,7 +12,8 @@
  * vor (offener Punkt F3) - deshalb gibt es für sie keine Vorgabe, die
  * Produktion trägt sie ein.
  *
- * Arbeitszeit ist die Zeit von Call bis Drehschluss ohne Pause (§ 2 ArbZG).
+ * Arbeitszeit ist die Zeit von Call bis Drehschluss ohne Pause (§ 2 ArbZG),
+ * dazu die Fahrzeit, wenn die Regel des Projekts sie zählt (AP E8).
  */
 import { dauer, ruhezeit } from './drehzeit'
 
@@ -41,12 +42,12 @@ export function saetzeAus(text: string | null | undefined): Saetze {
   return s
 }
 
-/** Arbeitszeit ohne Pause; null, wenn Call oder Drehschluss fehlt. */
-export function arbeitszeit(call: unknown, wrap: unknown, pause: unknown): number | null {
+/** Arbeitszeit ohne Pause, mit gezählter Fahrzeit; null, wenn Call oder Drehschluss fehlt. */
+export function arbeitszeit(call: unknown, wrap: unknown, pause: unknown, fahrzeit: unknown = 0): number | null {
   const brutto = dauer(call, wrap)
   if (brutto === null) return null
   const p = Math.max(0, Number(pause) || 0)
-  return Math.max(0, brutto - (p > brutto ? 0 : p))
+  return Math.max(0, brutto - (p > brutto ? 0 : p)) + Math.max(0, Number(fahrzeit) || 0)
 }
 
 /**
@@ -54,13 +55,13 @@ export function arbeitszeit(call: unknown, wrap: unknown, pause: unknown): numbe
  * dann zählt die Mindestpause nach § 4 als genommen, statt eine fehlende
  * Pause zu melden, die niemand eingetragen haben kann.
  */
-export function pruefeTag(t: { call: unknown; wrap: unknown; pause?: number | null }, regel: Regel): Befund[] {
+export function pruefeTag(t: { call: unknown; wrap: unknown; pause?: number | null; fahrzeit?: number }, regel: Regel): Befund[] {
   const brutto = dauer(t.call, t.wrap)
   if (brutto === null) return []
   const geplant = t.pause === undefined || t.pause === null
   const mindest = brutto - 30 > 540 ? 45 : brutto - 0 > 360 ? 30 : 0
   const pause = geplant ? mindest : Math.max(0, Number(t.pause) || 0)
-  const netto = Math.max(0, brutto - pause)
+  const netto = Math.max(0, brutto - pause) + Math.max(0, Number(t.fahrzeit) || 0)
   const befunde: Befund[] = []
   const zusatz = geplant ? ' (geplant, abzüglich der Mindestpause)' : ''
 
@@ -154,11 +155,13 @@ const ueberschneidung = (a1: number, a2: number, b1: number, b2: number) => Math
  * Arbeitszeit.
  */
 export function zuschlaege(
-  t: { call: unknown; wrap: unknown; pause?: number | null; datum: string; feiertage: Iterable<string> },
+  t: { call: unknown; wrap: unknown; pause?: number | null; fahrzeit?: number; datum: string; feiertage: Iterable<string> },
   opt: { stundenJeTagesgage: number; nachtVon: number; nachtBis: number },
 ): Saetze {
   const m: Saetze = { elfte: 0, ab_zwoelfte: 0, nacht: 0, sonntag: 0, feiertag: 0 }
-  const netto = arbeitszeit(t.call, t.wrap, t.pause)
+  // Gezählte Fahrzeit macht den Tag länger; die Nacht zählt nur von Call bis
+  // Drehschluss - wann gefahren wurde, steht nirgends
+  const netto = arbeitszeit(t.call, t.wrap, t.pause, t.fahrzeit)
   const brutto = dauer(t.call, t.wrap)
   if (netto === null || brutto === null) return m
   const ueber = Math.max(0, netto - opt.stundenJeTagesgage * 60)

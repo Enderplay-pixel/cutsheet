@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
 import { api } from '@/lib/api'
-import { Plus, Download, AlertTriangle, Clock, Users, FileText, CalendarDays } from 'lucide-react'
+import { Plus, Download, AlertTriangle, Clock, Users, FileText, CalendarDays, Euro, User } from 'lucide-react'
 import { parseISO, addDays, format } from 'date-fns'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
@@ -39,7 +39,32 @@ interface Timesheet {
   befunde?: Array<{ art: 'verstoss' | 'zuschlag' | 'hinweis'; text: string; quelle: string }>
   /** Überstunden und Zuschläge in Cent - nur für die Produktion, sonst null */
   surcharge_cents?: number | null
+  /** Arbeitszeit in Minuten nach der Regel der Stammdaten (ohne Pause, mit gezählter Fahrzeit) */
+  arbeitszeit_minuten?: number | null
+  /** Fahrzeit in Minuten (AP E8) */
+  travel_minutes?: number
+  /** Stand und was dieses Konto an der Zeile darf - der Server rechnet es aus (AP E8) */
+  status?: Stand
+  staende?: Stand[]
+  darf_aendern?: boolean
+  abteilung?: string
+  /** Nur in der Ansicht je Person */
+  date?: string
+  day_number?: number
 }
+
+type Stand = 'erfasst' | 'geprueft' | 'freigegeben' | 'abgerechnet'
+const STAND_NAME: Record<Stand, string> = { erfasst: 'Erfasst', geprueft: 'Geprüft', freigegeben: 'Freigegeben', abgerechnet: 'Abgerechnet' }
+const STAND_STUFE: Record<Stand, number> = { erfasst: 0, geprueft: 1, freigegeben: 2, abgerechnet: 3 }
+const STAND_FARBE: Record<Stand, string> = {
+  erfasst: 'text-muted-foreground',
+  geprueft: 'text-sky-700 dark:text-sky-300',
+  freigegeben: 'text-emerald-700 dark:text-emerald-300',
+  abgerechnet: 'text-violet-700 dark:text-violet-300',
+}
+
+const euro = (cent: number) => (cent / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
+const stunden = (minuten: number) => `${(Math.round(minuten / 6) / 10).toLocaleString('de-DE')} Std.`
 
 interface Person {
   id: number
@@ -48,6 +73,7 @@ interface Person {
   name?: string
   actor_name?: string
   person_type: 'cast' | 'crew'
+  department?: string
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -81,12 +107,13 @@ function ruhezeit(wrap: number, callHeute: number | null, callMorgen: number): n
   return 1440 - wrap + callMorgen
 }
 
-function calcOvertime(callMin: number | null, wrapMin: number | null, pause = 0): number {
+function calcOvertime(callMin: number | null, wrapMin: number | null, pause = 0, fahrzeit = 0): number {
   if (callMin == null || wrapMin == null) return 0
   const worked = wrapMin > callMin ? wrapMin - callMin : wrapMin + 1440 - callMin
   const standard = 10 * 60 // 10h standard day
-  // Die Pause ist keine Arbeitszeit - wie der Server rechnet (AP B3)
-  return Math.max(0, worked - (pause > worked ? 0 : pause) - standard)
+  // Die Pause ist keine Arbeitszeit - wie der Server rechnet (AP B3); die
+  // Fahrzeit nur, wenn die Stammdaten sie zählen (AP E8)
+  return Math.max(0, worked - (pause > worked ? 0 : pause) + fahrzeit - standard)
 }
 
 const BEFUND_FARBE: Record<string, string> = {
@@ -106,9 +133,18 @@ function totalMinutesToH(mins: number) {
 
 // ─── Timesheet row ────────────────────────────────────────────────────────────
 
-function TimesheetRow({ ts, dayId, darf, mitGeld }: { ts: Timesheet; dayId: number; darf: boolean; mitGeld: boolean }) {
+function TimesheetRow({ ts, darf: schreibrecht, mitGeld, fahrzeitZaehlt, titel }: {
+  ts: Timesheet; darf: boolean; mitGeld: boolean; fahrzeitZaehlt: boolean
+  /** Erste Spalte in der Ansicht je Person: der Drehtag statt Name und Art */
+  titel?: string
+}) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  // Ab "freigegeben" ändert nur die Produktion (AP E8) - der Server sagt es je Zeile
+  const darf = schreibrecht && ts.darf_aendern !== false
+  const [fahrtVal, setFahrtVal] = useState(String(ts.travel_minutes ?? 0))
+  // Alle Ansichten und Zähler, die an Stundenzetteln hängen
+  const neuLaden = () => queryClient.invalidateQueries({ queryKey: ['timesheets'] })
 
   const [callVal, setCallVal] = useState(minutesToHHMM(ts.call_time))
   const [wrapVal, setWrapVal] = useState(minutesToHHMM(ts.wrap_time))
@@ -131,8 +167,19 @@ function TimesheetRow({ ts, dayId, darf, mitGeld }: { ts: Timesheet; dayId: numb
       if (!res.ok) throw new Error(json?.error || 'Fehler')
       return json?.data
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['timesheets', dayId] }),
+    onSuccess: neuLaden,
     onError: (e: any) => toast({ variant: 'destructive', title: 'Fehler beim Speichern', description: e?.message }),
+  })
+
+  const standMutation = useMutation({
+    mutationFn: async (status: Stand) => {
+      const res = await fetch(`/api/timesheets/${ts.id}/stand`, { method: 'POST', headers, body: JSON.stringify({ status }) })
+      const json = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(json?.error || 'Fehler')
+      return json?.data
+    },
+    onSuccess: neuLaden,
+    onError: (e: any) => toast({ variant: 'destructive', title: 'Stand nicht geändert', description: e?.message }),
   })
 
   const deleteMutation = useMutation({
@@ -141,7 +188,7 @@ function TimesheetRow({ ts, dayId, darf, mitGeld }: { ts: Timesheet; dayId: numb
       if (!res.ok) throw new Error('Fehler')
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['timesheets', dayId] })
+      neuLaden()
       toast({ title: 'Eintrag gelöscht' })
     },
     onError: () => toast({ variant: 'destructive', title: 'Fehler beim Löschen' }),
@@ -150,7 +197,19 @@ function TimesheetRow({ ts, dayId, darf, mitGeld }: { ts: Timesheet; dayId: numb
   const callMin = parseHHMM(callVal)
   const wrapMin = parseHHMM(wrapVal)
   const pauseMin = /^\d{1,3}$/.test(pauseVal.trim()) ? Number(pauseVal.trim()) : NaN
-  const overtime = calcOvertime(callMin ?? null, wrapMin ?? null, Number.isFinite(pauseMin) ? pauseMin : (ts.break_minutes ?? 0))
+  const fahrtMin = /^\d{1,4}$/.test(fahrtVal.trim()) ? Number(fahrtVal.trim()) : NaN
+  const overtime = calcOvertime(callMin ?? null, wrapMin ?? null, Number.isFinite(pauseMin) ? pauseMin : (ts.break_minutes ?? 0),
+    fahrzeitZaehlt ? (Number.isFinite(fahrtMin) ? fahrtMin : (ts.travel_minutes ?? 0)) : 0)
+  const saveFahrt = () => {
+    if (!Number.isFinite(fahrtMin) || fahrtMin > 1440) {
+      toast({ variant: 'destructive', title: 'Fahrzeit nicht erkannt', description: 'Bitte die Fahrzeit in Minuten eingeben, 0 bis 1440.' })
+      setFahrtVal(String(ts.travel_minutes ?? 0))
+      return
+    }
+    if (fahrtMin !== (ts.travel_minutes ?? 0)) updateMutation.mutate({ travel_minutes: fahrtMin })
+  }
+  const stand: Stand = ts.status ?? 'erfasst'
+  const staende = ts.staende ?? [stand]
   const savePause = () => {
     if (!Number.isFinite(pauseMin) || pauseMin > 720) {
       toast({ variant: 'destructive', title: 'Pause nicht erkannt', description: 'Bitte die Pause in Minuten eingeben, 0 bis 720.' })
@@ -181,7 +240,7 @@ function TimesheetRow({ ts, dayId, darf, mitGeld }: { ts: Timesheet; dayId: numb
   return (
     <tr className="border-b border-border/30 hover:bg-muted/20 transition-colors">
       <td className="px-4 py-3 font-medium text-sm">
-        {ts.person_name}
+        {titel ?? ts.person_name}
         {/* Befunde nach der Regel der Stammdaten (AP B3) - sie melden, sie sperren nichts */}
         {(ts.befunde ?? []).length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1">
@@ -193,11 +252,14 @@ function TimesheetRow({ ts, dayId, darf, mitGeld }: { ts: Timesheet; dayId: numb
           </div>
         )}
       </td>
-      <td className="px-4 py-3">
-        <Badge variant={ts.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px] font-semibold uppercase tracking-wide">
-          {ts.person_type === 'cast' ? 'Darsteller' : 'Crew'}
-        </Badge>
-      </td>
+      {titel === undefined && (
+        <td className="px-4 py-3">
+          <Badge variant={ts.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px] font-semibold uppercase tracking-wide">
+            {ts.person_type === 'cast' ? 'Darsteller' : 'Crew'}
+          </Badge>
+          {ts.abteilung && <span className="block text-[10px] text-muted-foreground mt-1">{ts.abteilung}</span>}
+        </td>
+      )}
       <td className="px-4 py-3 w-28">
         <Input
           value={callVal}
@@ -206,7 +268,7 @@ function TimesheetRow({ ts, dayId, darf, mitGeld }: { ts: Timesheet; dayId: numb
           disabled={!darf}
           aria-label={`Call ${ts.person_name}`}
           placeholder="08:00"
-          className="h-8 text-xs font-mono w-full bg-muted/30 border-border/40 focus:bg-background"
+          className="h-8 text-xs font-mono w-full min-w-[4.5rem] bg-muted/30 border-border/40 focus:bg-background"
         />
       </td>
       <td className="px-4 py-3 w-28">
@@ -217,7 +279,7 @@ function TimesheetRow({ ts, dayId, darf, mitGeld }: { ts: Timesheet; dayId: numb
           disabled={!darf}
           aria-label={`Wrap ${ts.person_name}`}
           placeholder="18:00"
-          className="h-8 text-xs font-mono w-full bg-muted/30 border-border/40 focus:bg-background"
+          className="h-8 text-xs font-mono w-full min-w-[4.5rem] bg-muted/30 border-border/40 focus:bg-background"
         />
       </td>
       <td className="px-4 py-3 w-24">
@@ -229,7 +291,20 @@ function TimesheetRow({ ts, dayId, darf, mitGeld }: { ts: Timesheet; dayId: numb
           inputMode="numeric"
           aria-label={`Pause in Minuten ${ts.person_name}`}
           placeholder="45"
-          className="h-8 text-xs font-mono w-full bg-muted/30 border-border/40 focus:bg-background"
+          className="h-8 text-xs font-mono w-full min-w-[3.5rem] bg-muted/30 border-border/40 focus:bg-background"
+        />
+      </td>
+      <td className="px-4 py-3 w-24">
+        <Input
+          value={fahrtVal}
+          onChange={e => setFahrtVal(e.target.value)}
+          onBlur={saveFahrt}
+          disabled={!darf}
+          inputMode="numeric"
+          aria-label={`Fahrzeit in Minuten ${ts.person_name}`}
+          title={fahrzeitZaehlt ? 'Zählt als Arbeitszeit (Stammdaten)' : 'Zählt nicht als Arbeitszeit (Stammdaten)'}
+          placeholder="0"
+          className="h-8 text-xs font-mono w-full min-w-[3.5rem] bg-muted/30 border-border/40 focus:bg-background"
         />
       </td>
       <td className="px-4 py-3 text-center">
@@ -244,7 +319,7 @@ function TimesheetRow({ ts, dayId, darf, mitGeld }: { ts: Timesheet; dayId: numb
       </td>
       {mitGeld && (
         <td className="px-4 py-3 text-right font-mono text-sm tabular-nums">
-          {ts.surcharge_cents ? (ts.surcharge_cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) : '-'}
+          {ts.surcharge_cents ? euro(ts.surcharge_cents) : '-'}
         </td>
       )}
       <td className="px-4 py-3 text-center">
@@ -266,6 +341,18 @@ function TimesheetRow({ ts, dayId, darf, mitGeld }: { ts: Timesheet; dayId: numb
           placeholder="Notizen…"
           className="h-8 text-xs w-full bg-muted/30 border-border/40 focus:bg-background"
         />
+      </td>
+      <td className="px-4 py-3 w-36">
+        {/* Stand (AP E8): wählbar ist, was dieses Konto setzen darf */}
+        <Select value={stand} onValueChange={v => v !== stand && standMutation.mutate(v as Stand)}
+          disabled={!schreibrecht || staende.length < 2 || standMutation.isPending}>
+          <SelectTrigger aria-label={`Stand ${ts.person_name}`} className={`h-8 min-w-[7.5rem] text-xs font-medium bg-muted/30 border-border/40 ${STAND_FARBE[stand]}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {staende.map(s => <SelectItem key={s} value={s}>{STAND_NAME[s]}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </td>
       <td className="px-4 py-3">
         {/* Timesheets gehen nicht über den Papierkorb - endgültig, deshalb die Rückfrage */}
@@ -347,7 +434,7 @@ function AddTimesheetDialog({
       return (await res.json()).data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['timesheets', dayId] })
+      queryClient.invalidateQueries({ queryKey: ['timesheets'] })
       toast({ title: 'Eintrag erstellt' })
       onClose()
     },
@@ -419,8 +506,16 @@ export function Component() {
   const download = useDownload()
   // Zuschlag in Euro nur für die Produktion (Gagenschutz, AP B3)
   const { darfSchreiben, siehtGagen } = useSchreibrecht()
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
   const [selectedDayId, setSelectedDayId] = useState<number | null>(null)
   const [showAdd, setShowAdd] = useState(false)
+  // Ansicht je Drehtag (alle Personen) oder je Person (alle Tage) - AP E8
+  const [ansicht, setAnsicht] = useState<'tag' | 'person'>('tag')
+  const [personKey, setPersonKey] = useState('')
+  // Sammelfreigabe: alle Zettel des Tags, auf Wunsch nur einer Abteilung - auch über alle Tage
+  const [abteilung, setAbteilung] = useState('')
+  const [umfang, setUmfang] = useState<'tag' | 'alle'>('tag')
 
   const token = localStorage.getItem('token')
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
@@ -448,9 +543,69 @@ export function Component() {
   const sheets = timesheets ?? []
   const selectedDay = (shootDays ?? []).find(d => d.id === selectedDayId)
 
+  const { data: castListe } = useQuery<Person[]>({
+    queryKey: ['cast', pid],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${pid}/cast`, { headers })
+      if (!res.ok) throw new Error('Fehler')
+      return (await res.json()).data
+    },
+  })
+  const { data: crewListe } = useQuery<Person[]>({
+    queryKey: ['crew', pid],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${pid}/crew`, { headers })
+      if (!res.ok) throw new Error('Fehler')
+      return (await res.json()).data
+    },
+  })
+  const abteilungen = [...new Set((crewListe ?? []).map(c => (c.department ?? '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'))
+
+  // Ansicht je Person
+  const [personArt, personId] = personKey ? personKey.split(':') : ['', '']
+  const { data: personSheets, isLoading: personLaedt } = useQuery<Timesheet[]>({
+    queryKey: ['timesheets', 'person', personKey],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${pid}/timesheets?person_type=${personArt}&person_id=${personId}`, { headers })
+      if (!res.ok) throw new Error('Fehler')
+      return (await res.json()).data
+    },
+    enabled: ansicht === 'person' && !!personKey,
+  })
+
+  // Wie viele Zettel noch nicht freigegeben sind - der Lohnexport nimmt sie nicht mit
+  const { data: staende } = useQuery<{ nicht_freigegeben: number }>({
+    queryKey: ['timesheets', 'staende', pid],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${pid}/timesheets/staende`, { headers })
+      if (!res.ok) throw new Error('Fehler')
+      return (await res.json()).data
+    },
+    enabled: siehtGagen,
+  })
+
+  const sammelMutation = useMutation({
+    mutationFn: async (status: Stand) => {
+      const res = await fetch(`/api/projects/${pid}/timesheets/stand`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ status, ...(umfang === 'tag' || !abteilung ? { shoot_day_id: selectedDayId } : {}), ...(abteilung ? { department: abteilung } : {}) }),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(json?.error || 'Fehler')
+      return json?.data as { geaendert: number; schon: number; ohne_recht: number; status: Stand }
+    },
+    onSuccess: (d) => {
+      queryClient.invalidateQueries({ queryKey: ['timesheets'] })
+      const rest = [d.schon > 0 ? `${d.schon} schon so weit` : '', d.ohne_recht > 0 ? `${d.ohne_recht} ohne Berechtigung übersprungen` : ''].filter(Boolean).join(', ')
+      toast({ title: `${d.geaendert} Stundenzettel ${STAND_NAME[d.status].toLowerCase()}`, description: rest || undefined })
+    },
+    onError: (e: any) => toast({ variant: 'destructive', title: 'Nichts geändert', description: e?.message }),
+  })
+
   // Ruhezeit aus den Stammdaten (Turnaround-Mindestzeit), wie im Konfliktradar
   const { data: projekt } = useQuery({ queryKey: ['project', pid], queryFn: () => api.projects.get(pid) })
   const mindestRuhe = ((projekt as any)?.settings?.turnaround_hours ?? 11) * 60
+  const fahrzeitZaehlt = (projekt as any)?.settings?.travel_counts === true
   // Der Drehtag am folgenden Kalendertag, falls es einen gibt
   const folgetag = selectedDay?.date
     ? (shootDays ?? []).find(d => d.date === format(addDays(parseISO(selectedDay.date), 1), 'yyyy-MM-dd'))
@@ -466,10 +621,20 @@ export function Component() {
   })
 
   // Summary stats
+  const fahrt = (ts: Timesheet) => (fahrzeitZaehlt ? ts.travel_minutes ?? 0 : 0)
   const totalOvertimeMins = sheets.reduce((sum, ts) => {
-    return sum + calcOvertime(ts.call_time, ts.wrap_time, ts.break_minutes ?? 0)
+    return sum + calcOvertime(ts.call_time, ts.wrap_time, ts.break_minutes ?? 0, fahrt(ts))
   }, 0)
-  const countWithOT = sheets.filter(ts => calcOvertime(ts.call_time, ts.wrap_time, ts.break_minutes ?? 0) > 0).length
+  const countWithOT = sheets.filter(ts => calcOvertime(ts.call_time, ts.wrap_time, ts.break_minutes ?? 0, fahrt(ts)) > 0).length
+  // Summen nach der Rechnung des Servers (Arbeitszeit-Regel der Stammdaten)
+  const summe = (liste: Timesheet[]) => ({
+    minuten: liste.reduce((s, ts) => s + (ts.arbeitszeit_minuten ?? 0), 0),
+    ueberstunden: liste.reduce((s, ts) => s + Number(ts.overtime_hours ?? 0), 0),
+    cent: liste.reduce((s, ts) => s + (ts.surcharge_cents ?? 0), 0),
+  })
+  const tagSumme = summe(sheets)
+  const kannPruefen = sheets.some(ts => ts.status === 'erfasst' && ts.staende?.includes('geprueft'))
+  const kannFreigeben = sheets.some(ts => STAND_STUFE[ts.status ?? 'erfasst'] < 2 && ts.staende?.includes('freigegeben'))
 
   /**
    * Ruhezeit je Person. Vorher: "Wrap ab 22:00" als Faustregel - ein Wrap nach
@@ -528,6 +693,91 @@ export function Component() {
         </div>
       </div>
 
+      {/* Der Lohnexport nimmt nur freigegebene Zettel - die übrigen nicht still weglassen (AP E8) */}
+      {siehtGagen && (staende?.nicht_freigegeben ?? 0) > 0 && (
+        <p role="status" className="mb-6 -mt-3 text-xs text-amber-800 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+          {staende!.nicht_freigegeben === 1 ? '1 Stundenzettel ist' : `${staende!.nicht_freigegeben} Stundenzettel sind`} noch nicht freigegeben.
+          Der Lohnexport nimmt nur freigegebene - Überstunden, Zuschläge und Drehtage aus diesen Zetteln fehlen dort, bis die Produktion sie freigibt.
+        </p>
+      )}
+
+      {/* Ansicht je Drehtag oder je Person (AP E8) */}
+      <div role="tablist" aria-label="Ansicht" className="mb-4 inline-flex rounded-lg border border-border/60 bg-muted/30 p-0.5">
+        {([['tag', 'Je Drehtag', CalendarDays], ['person', 'Je Person', User]] as const).map(([wert, name, Icon]) => (
+          <button key={wert} type="button" role="tab" aria-selected={ansicht === wert} onClick={() => setAnsicht(wert)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${ansicht === wert ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+            <Icon className="w-3.5 h-3.5" />{name}
+          </button>
+        ))}
+      </div>
+
+      {ansicht === 'person' && (
+        <div className="space-y-6">
+          <div className="rounded-xl border border-border/60 bg-card p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <Select value={personKey} onValueChange={setPersonKey}>
+              <SelectTrigger className="w-full sm:w-72 bg-muted/30 border-border/40" aria-label="Person">
+                <SelectValue placeholder="Person auswählen…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(crewListe ?? []).map(p => <SelectItem key={`crew:${p.id}`} value={`crew:${p.id}`}>{p.name}{p.department ? ` · ${p.department}` : ''}</SelectItem>)}
+                {(castListe ?? []).map(p => <SelectItem key={`cast:${p.id}`} value={`cast:${p.id}`}>{p.actor_name ?? p.name} · Darsteller</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          {!personKey && (
+            <div className="text-center py-16 text-muted-foreground/40">
+              <User className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Bitte eine Person auswählen</p>
+            </div>
+          )}
+          {personKey && personLaedt && <Skeleton className="h-24 w-full rounded-xl" />}
+          {personKey && !personLaedt && (personSheets ?? []).length === 0 && (
+            <p className="text-center py-16 text-sm text-muted-foreground/60">Für diese Person gibt es noch keine Stundenzettel.</p>
+          )}
+          {personKey && !personLaedt && (personSheets ?? []).length > 0 && (() => {
+            const liste = personSheets!
+            const s = summe(liste)
+            return (
+              <div>
+                <p role="status" className="text-sm mb-3">
+                  <span className="font-semibold">{liste.length} {liste.length === 1 ? 'Tag' : 'Tage'}</span>
+                  <span className="text-muted-foreground"> · {stunden(s.minuten)} · {stunden(s.ueberstunden * 60)} Überstunden{siehtGagen ? ` · Zuschlag ${euro(s.cent)}` : ''}</span>
+                </p>
+                <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/30 border-b border-border/40">
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Drehtag</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Call</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Wrap</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Pause (Min.)</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Fahrt (Min.)</th>
+                          <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Überstunden</th>
+                          {siehtGagen && <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Zuschlag €</th>}
+                          <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Mahlzeit-Penalty</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Notizen</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Stand</th>
+                          <th className="px-4 py-3 w-20" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {liste.map(ts => (
+                          <TimesheetRow key={ts.id} ts={ts} darf={darfSchreiben} mitGeld={siehtGagen} fahrzeitZaehlt={fahrzeitZaehlt}
+                            titel={`DT ${ts.day_number ?? '?'} · ${formatDate(String(ts.date ?? '').slice(0, 10))}`} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      )}
+
+      {ansicht === 'tag' && (<>
+
       {/* Day selector card */}
       <div data-einfuehrung="tag" className="mb-6">
         <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">Drehtag auswählen</p>
@@ -580,7 +830,21 @@ export function Component() {
           {sheets.length > 0 && (
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">Übersicht</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${siehtGagen ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+                <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center">
+                      <Clock className="w-4 h-4 text-muted-foreground/70" />
+                    </div>
+                  </div>
+                  <div className="text-[2.25rem] font-bold tabular-nums leading-none mb-1">
+                    {totalMinutesToH(tagSumme.minuten)}
+                  </div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60">
+                    Gesamt Stunden
+                  </div>
+                </div>
+
                 <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center">
@@ -622,6 +886,22 @@ export function Component() {
                     Einträge gesamt
                   </div>
                 </div>
+
+                {siehtGagen && (
+                  <div className="rounded-xl border border-border/60 bg-card p-5 card-lift group">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                        <Euro className="w-4 h-4 text-amber-600" />
+                      </div>
+                    </div>
+                    <div className="text-[2.25rem] font-bold tabular-nums leading-none mb-1">
+                      {euro(tagSumme.cent)}
+                    </div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60">
+                      Zuschlag gesamt
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -658,6 +938,39 @@ export function Component() {
               <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40 mb-3">
                 Einträge{selectedDay ? ` - DT ${selectedDay.day_number} · ${formatDate(selectedDay.date)}` : ''}
               </p>
+              {/* Sammelfreigabe (AP E8): alle Zettel des Tags, auf Wunsch einer Abteilung */}
+              {darfSchreiben && (kannPruefen || kannFreigeben) && (
+                <div data-einfuehrung="freigabe" className="flex flex-wrap items-center gap-2 mb-3">
+                  <Select value={abteilung || '__alle'} onValueChange={v => setAbteilung(v === '__alle' ? '' : v)}>
+                    <SelectTrigger className="h-8 w-48 text-xs bg-muted/30 border-border/40" aria-label="Abteilung für die Sammelfreigabe">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__alle">Alle Abteilungen</SelectItem>
+                      {abteilungen.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  {abteilung && (
+                    <Select value={umfang} onValueChange={v => setUmfang(v as 'tag' | 'alle')}>
+                      <SelectTrigger className="h-8 w-44 text-xs bg-muted/30 border-border/40" aria-label="Umfang der Sammelfreigabe">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="tag">Nur dieser Drehtag</SelectItem>
+                        <SelectItem value="alle">Alle Drehtage</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {kannPruefen && (
+                    <Button variant="outline" size="sm" className="h-8 text-xs active:scale-[0.97]" disabled={sammelMutation.isPending}
+                      onClick={() => sammelMutation.mutate('geprueft')}>Alle prüfen</Button>
+                  )}
+                  {kannFreigeben && (
+                    <Button size="sm" className="h-8 text-xs active:scale-[0.97]" disabled={sammelMutation.isPending}
+                      onClick={() => sammelMutation.mutate('freigegeben')}>Alle freigeben</Button>
+                  )}
+                </div>
+              )}
               <div data-einfuehrung="eintraege" className="rounded-xl border border-border/60 bg-card overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -668,16 +981,18 @@ export function Component() {
                         <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Call</th>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Wrap</th>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Pause (Min.)</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Fahrt (Min.)</th>
                         <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Überstunden</th>
                         {siehtGagen && <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Zuschlag €</th>}
                         <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Mahlzeit-Penalty</th>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Notizen</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Stand</th>
                         <th className="px-4 py-3 w-20" />
                       </tr>
                     </thead>
                     <tbody>
                       {sheets.map(ts => (
-                        <TimesheetRow key={ts.id} ts={ts} dayId={selectedDayId} darf={darfSchreiben} mitGeld={siehtGagen} />
+                        <TimesheetRow key={ts.id} ts={ts} darf={darfSchreiben} mitGeld={siehtGagen} fahrzeitZaehlt={fahrzeitZaehlt} />
                       ))}
                     </tbody>
                   </table>
@@ -687,6 +1002,8 @@ export function Component() {
           )}
         </div>
       )}
+
+      </>)}
 
       {showAdd && selectedDayId && (
         <AddTimesheetDialog

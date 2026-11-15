@@ -353,4 +353,11 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Von und bis sind ein Datum (JJJJ-MM-TT)': { en: 'From and to must be a date (YYYY-MM-DD)', fr: 'Du et au doivent être une date (AAAA-MM-JJ)' },
   'Das Ende liegt vor dem Beginn': { en: 'The end is before the start', fr: 'La fin précède le début' },
   'Ein Zeitraum umfasst höchstens 366 Tage': { en: 'A period covers at most 366 days', fr: 'Une période couvre au maximum 366 jours' },
+  // Freigabe der Stundenzettel und Fahrzeit (AP E8, 15.11.2026)
+  'Die Fahrzeit liegt zwischen 0 und 1440 Minuten': { en: 'Travel time is between 0 and 1440 minutes', fr: 'Le temps de trajet est compris entre 0 et 1440 minutes' },
+  'Fahrzeit zählt oder zählt nicht - ja oder nein': { en: 'Travel time counts or it does not - yes or no', fr: 'Le temps de trajet compte ou non - oui ou non' },
+  'Drehtag oder Abteilung angeben': { en: 'Specify a shoot day or a department', fr: 'Indiquer un jour de tournage ou un département' },
+  'Prüfen darf die Abteilungsleitung der eigenen Abteilung, dazu Regie und Produktion': { en: 'Checking is for the head of the own department, plus director and production', fr: 'La vérification revient au chef de son propre département, ainsi qu’à la réalisation et à la production' },
+  'Freigeben und Abrechnen darf nur die Produktion': { en: 'Only production may approve and settle', fr: 'Seule la production peut valider et régler' },
+  'Freigegebene Stundenzettel ändert nur die Produktion': { en: 'Only production changes approved timesheets', fr: 'Seule la production modifie les feuilles de temps validées' },
 }

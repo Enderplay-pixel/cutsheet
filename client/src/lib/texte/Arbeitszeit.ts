@@ -38,6 +38,13 @@ export const arbeitszeitT = {
     fr: 'Selon un résultat de recherche, la convention fixe la nuit de 22 h à 6 h (texte non vérifié).',
   },
   nachtUebernehmen: { de: '22 bis 6 Uhr übernehmen', en: 'Use 22:00 to 6:00', fr: 'Appliquer 22 h à 6 h' },
+  fahrzeit: { de: 'Fahrzeit', en: 'Travel time', fr: 'Temps de trajet' },
+  fahrzeitZaehlt: { de: 'Fahrzeit zählt als Arbeitszeit', en: 'Travel time counts as working time', fr: 'Le temps de trajet compte comme temps de travail' },
+  fahrzeitHilfe: {
+    de: 'Die Fahrzeit steht je Stundenzettel in Minuten. Ob sie Arbeitszeit ist, regelt euer Vertrag; ohne Haken zählt sie nicht.',
+    en: 'Travel time is entered per timesheet in minutes. Whether it is working time is set by your contract; unticked it does not count.',
+    fr: 'Le temps de trajet se saisit par feuille de temps, en minutes. Votre contrat dit s’il compte ; sans coche, il ne compte pas.',
+  },
   quelle: {
     de: 'Quellen, Stand 14.11.2026: Arbeitszeitgesetz (§ 3 höchstens 10 Stunden, § 4 Pausen, § 5 elf Stunden Ruhezeit, § 11 Ersatzruhetag; Nachtzeit 23 bis 6 Uhr nach § 2). TV FFS laut ver.di vom 12.10.2024: höchstens 12 Stunden am Tag, über 10 zuschlagspflichtig. Die Prüfung meldet nach eingestellter Regel, sie sperrt nichts.',
     en: 'Sources as of 14.11.2026: German Working Hours Act (§ 3 at most 10 hours, § 4 breaks, § 5 eleven hours of rest, § 11 substitute rest day; night 23:00 to 6:00 per § 2). TV FFS per ver.di of 12.10.2024: at most 12 hours a day, above 10 subject to surcharge. The check reports under the configured rule; it blocks nothing.',

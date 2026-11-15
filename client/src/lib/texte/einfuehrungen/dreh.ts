@@ -389,9 +389,9 @@ export const dreh: Record<string, Schritt[]> = {
       ziel: 'tag',
       titel: { de: 'Drehtag wählen', en: 'Choose the shoot day', fr: 'Choisir le jour' },
       text: {
-        de: "Für den gewählten Tag trägst du Personen mit Call, Wrap und Pause ein; die Überstunden rechnen sich selbst, ohne die Pause.",
-        en: "For the chosen day you add people with call, wrap and break; overtime calculates itself, without the break.",
-        fr: "Pour le jour choisi, tu ajoutes les personnes avec convocation, fin et pause ; les heures supplémentaires se calculent seules, sans la pause.",
+        de: "Für den gewählten Tag trägst du Personen mit Call, Wrap, Pause und Fahrzeit ein; die Überstunden rechnen sich selbst. Oben wechselst du zur Ansicht je Person mit allen Tagen und ihren Summen.",
+        en: "For the chosen day you add people with call, wrap, break and travel time; overtime calculates itself. Above you can switch to the view per person with all days and their totals.",
+        fr: "Pour le jour choisi, tu ajoutes les personnes avec convocation, fin, pause et trajet ; les heures supplémentaires se calculent seules. En haut, tu passes à la vue par personne avec tous les jours et leurs totaux.",
       },
     },
     {
@@ -405,12 +405,22 @@ export const dreh: Record<string, Schritt[]> = {
       wirktAuf: ['stammdaten'],
     },
     {
+      ziel: 'freigabe|eintraege',
+      titel: { de: 'Freigabe in Stufen', en: 'Approval in stages', fr: 'Validation par étapes' },
+      text: {
+        de: "Jeder Zettel hat einen Stand: erfasst, geprüft, freigegeben, abgerechnet. Prüfen darf die Abteilungsleitung für ihre Abteilung, dazu Regie und Produktion; freigeben und abrechnen nur die Produktion. Ein freigegebener Zettel ändert nur noch die Produktion, mit altem und neuem Wert im Protokoll. \"Alle prüfen\" und \"Alle freigeben\" nehmen den ganzen Tag oder eine Abteilung.",
+        en: "Each timesheet has a status: recorded, checked, approved, settled. Department heads check their own department, as do director and production; only production approves and settles. Once approved, only production changes a timesheet, with old and new value in the audit log. \"Check all\" and \"Approve all\" take the whole day or one department.",
+        fr: "Chaque feuille a un statut : saisie, vérifiée, validée, réglée. Le chef de département vérifie le sien, la réalisation et la production aussi ; seule la production valide et règle. Une fois validée, seule la production modifie la feuille, avec l'ancienne et la nouvelle valeur dans le journal. « Tout vérifier » et « Tout valider » prennent la journée entière ou un département.",
+      },
+      wirktAuf: ['audit'],
+    },
+    {
       ziel: 'aktionen',
       titel: { de: 'Für die Lohnabrechnung', en: 'For payroll', fr: 'Pour la paie' },
       text: {
-        de: "Die Zeiten als CSV, und für die Produktion der Lohnexport: Drehtage laut Drehplan, Dispo und Stundenzetteln mal Tagesgage aus Besetzung und Stab, dazu Haltetage, Überstunden und die Zuschläge je Art in Stunden und Euro.",
-        en: "The times as CSV, and for production the payroll export: shoot days according to the schedule, call sheets and timesheets times the day rate from cast and crew, plus hold days, overtime and the surcharges by type in hours and euros.",
-        fr: "Les horaires en CSV et, pour la production, l'export de paie : jours selon le plan, les feuilles de service et les feuilles de temps fois tarif journalier du casting et de l'équipe, plus jours de réserve, heures supplémentaires et majorations par type en heures et en euros.",
+        de: "Die Zeiten als CSV, und für die Produktion der Lohnexport: Drehtage laut Drehplan, Dispo und freigegebenen Stundenzetteln mal Tagesgage aus Besetzung und Stab, dazu Haltetage, Überstunden und die Zuschläge je Art in Stunden und Euro. Wie viele Zettel noch nicht freigegeben sind, steht darunter.",
+        en: "The times as CSV, and for production the payroll export: shoot days according to the schedule, call sheets and approved timesheets times the day rate from cast and crew, plus hold days, overtime and the surcharges by type in hours and euros. How many timesheets are not yet approved is shown below.",
+        fr: "Les horaires en CSV et, pour la production, l'export de paie : jours selon le plan, les feuilles de service et les feuilles de temps validées fois tarif journalier du casting et de l'équipe, plus jours de réserve, heures supplémentaires et majorations par type en heures et en euros. Le nombre de feuilles pas encore validées s'affiche en dessous.",
       },
       wirktAuf: ['tagesdispo', 'besetzung', 'stabliste'],
     },

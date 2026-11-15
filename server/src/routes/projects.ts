@@ -8,6 +8,7 @@ import { heuteISO } from '../lib/datum'
 import { wochentageAus } from '../lib/board'
 import { BUNDESLAENDER } from '../services/holidays'
 import { SATZ_ARTEN } from '../lib/arbeitszeit'
+import { ueberstundenNeuRechnen } from '../lib/arbeitszeitProjekt'
 import { massgeblicheKalkulation } from '../lib/kalkulation'
 
 const router = Router()
@@ -259,12 +260,14 @@ router.put('/:id/settings', requireAuth, async (req, res) => {
     hours_per_day_rate = existing?.hours_per_day_rate ?? 10,
     night_from = existing?.night_from ?? 1380,
     night_to = existing?.night_to ?? 360,
+    travel_counts = existing?.travel_counts ?? false,
   } = b
   // Arbeitszeit-Prüfung (AP B3): Regel, Stunden je Tagesgage, Sätze, Nachtzeit
   if (worktime_rule !== 'gesetz' && worktime_rule !== 'tarif') return res.status(400).json({ data: null, error: 'Die Regel der Arbeitszeit ist "gesetz" oder "tarif"' })
   if (!Number.isInteger(Number(hours_per_day_rate)) || Number(hours_per_day_rate) < 1 || Number(hours_per_day_rate) > 24) {
     return res.status(400).json({ data: null, error: 'Stunden je Tagesgage liegen zwischen 1 und 24' })
   }
+  if (typeof travel_counts !== 'boolean') return res.status(400).json({ data: null, error: 'Fahrzeit zählt oder zählt nicht - ja oder nein' })
   for (const n of [night_from, night_to]) {
     if (!Number.isInteger(Number(n)) || Number(n) < 0 || Number(n) > 1439) return res.status(400).json({ data: null, error: 'Die Nachtzeit ist eine Uhrzeit' })
   }
@@ -291,18 +294,21 @@ router.put('/:id/settings', requireAuth, async (req, res) => {
     await db.run(`
       UPDATE project_settings
       SET default_call_time=?, default_wrap_time=?, turnaround_hours=?, currency=?, country=?, logo_url=?, header_color=?, work_weekdays=?, state=?,
-          worktime_rule=?, hours_per_day_rate=?, surcharges=?, night_from=?, night_to=?
+          worktime_rule=?, hours_per_day_rate=?, surcharges=?, night_from=?, night_to=?, travel_counts=?
       WHERE project_id=?
     `, [default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color, arbeitstage, state,
-        worktime_rule, Number(hours_per_day_rate), surcharges, Number(night_from), Number(night_to), req.params.id])
+        worktime_rule, Number(hours_per_day_rate), surcharges, Number(night_from), Number(night_to), travel_counts, req.params.id])
   } else {
     await db.run(`
       INSERT INTO project_settings (project_id, default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color, work_weekdays, state,
-        worktime_rule, hours_per_day_rate, surcharges, night_from, night_to)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        worktime_rule, hours_per_day_rate, surcharges, night_from, night_to, travel_counts)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [req.params.id, default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color, arbeitstage, state,
-        worktime_rule, Number(hours_per_day_rate), surcharges, Number(night_from), Number(night_to)])
+        worktime_rule, Number(hours_per_day_rate), surcharges, Number(night_from), Number(night_to), travel_counts])
   }
+
+  // Zählt die Fahrzeit jetzt anders, stimmen die gespeicherten Überstunden nicht mehr (AP E8)
+  if ((existing?.travel_counts === true) !== travel_counts) await ueberstundenNeuRechnen(db, req.params.id, travel_counts)
 
   const settings = await db.get('SELECT * FROM project_settings WHERE project_id = ?', [req.params.id])
   res.json({ data: settings, error: null })

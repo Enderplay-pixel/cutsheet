@@ -21,6 +21,7 @@ import { onboardingFormatT } from '@/lib/texte/komponenten/OnboardingWizard'
 import { BUNDESLAENDER } from '@/lib/texte/Bundeslaender'
 import { arbeitszeitT as AZ } from '@/lib/texte/Arbeitszeit'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
+import { Checkbox } from '@/components/ui/checkbox'
 
 const FORMATS = ALL_FORMATS
 const STATUSES = ['Entwicklung', 'Vorproduktion', 'Produktion', 'Postproduktion', 'Abgeschlossen', 'Archiviert']
@@ -621,6 +622,18 @@ export function Component() {
             </Field>
             <Field label={tt(AZ.nachtBis)}>
               <TimeInput disabled={!canAdmin} value={settingsData.night_to ?? 360} onChange={v => updateSetting('night_to', v)} label={tt(AZ.nachtBis)} className="h-9 w-full" />
+            </Field>
+            {/* Fahrzeit als Arbeitszeit: Schalter der Projektregel, Vorgabe aus (AP E8) */}
+            <Field label={tt(AZ.fahrzeit)} full>
+              <label className="flex items-start gap-2 text-sm">
+                <Checkbox disabled={!canAdmin} checked={settingsData.travel_counts === true}
+                  onCheckedChange={v => updateSetting('travel_counts', v === true)}
+                  aria-label={tt(AZ.fahrzeitZaehlt)} className="mt-0.5" />
+                <span>
+                  {tt(AZ.fahrzeitZaehlt)}
+                  <span className="block text-[11px] text-muted-foreground">{tt(AZ.fahrzeitHilfe)}</span>
+                </span>
+              </label>
             </Field>
             {/* Beim Tarif die Nachtzeit vorschlagen, nicht still umstellen (Plan) */}
             {tarif && canAdmin && (settingsData.night_from ?? 1380) !== 1320 && (

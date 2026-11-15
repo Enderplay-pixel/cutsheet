@@ -137,9 +137,18 @@ export function aenderungenProtokollieren(req: Request, res: Response, next: Nex
  * einer Tabelle, also wird daraus ein Satz: der Titel des Datensatzes, wenn es
  * einen gibt, sonst die Namen der geaenderten Felder.
  */
-function kurzfassung(zeile: any): string {
+export function kurzfassung(zeile: any): string {
   try {
     const neu = zeile.new_value ? JSON.parse(zeile.new_value) : null
+    const alt = zeile.old_value ? JSON.parse(zeile.old_value) : null
+    // Alt und neu als Objekte: "Call: 07:00 → 07:30" - vorher stand im
+    // Protokoll nur, welche Felder neu waren (AP E8)
+    if (neu && alt && typeof neu === 'object' && typeof alt === 'object' && !Array.isArray(neu) && !Array.isArray(alt)) {
+      const teile = Object.keys(neu)
+        .filter((k) => k in alt && JSON.stringify(alt[k]) !== JSON.stringify(neu[k]))
+        .map((k) => `${k}: ${alt[k] ?? ''} → ${neu[k] ?? ''}`)
+      if (teile.length) return teile.join(', ')
+    }
     if (neu && typeof neu === 'object') {
       const titel = neu.title ?? neu.name ?? neu.label ?? neu.description ?? neu.content
       const felder = Object.keys(neu).filter((k) => !['project_id', 'sort_order'].includes(k))

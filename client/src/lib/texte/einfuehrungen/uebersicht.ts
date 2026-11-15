@@ -223,9 +223,9 @@ export const uebersicht: Record<string, Schritt[]> = {
       ziel: 'arbeitszeit',
       titel: { de: 'Arbeitszeit nach Gesetz oder Tarif', en: 'Working time by law or agreement', fr: 'Temps de travail selon la loi ou la convention' },
       text: {
-        de: 'Hier wählst du, wonach geprüft wird: Arbeitszeitgesetz oder Tarifvertrag (TV FFS). Stunden je Tagesgage ergeben den Stundensatz, die Sätze in Prozent die Zuschläge. Stundenzettel, Dispo, Konfliktradar und Lohnexport rechnen damit. Die Prüfung meldet, sie sperrt nichts.',
-        en: 'Here you choose what the check follows: the Working Hours Act or the collective agreement (TV FFS). Hours per day rate give the hourly rate, the percentages the surcharges. Timesheets, call sheet, conflict radar and payroll export calculate with them. The check reports; it blocks nothing.',
-        fr: "Ici tu choisis la base du contrôle : la loi sur le temps de travail ou la convention collective (TV FFS). Les heures par cachet donnent le taux horaire, les pourcentages les majorations. Feuilles de temps, feuille de service, radar des conflits et export de paie s'en servent. Le contrôle signale, il ne bloque rien.",
+        de: 'Hier wählst du, wonach geprüft wird: Arbeitszeitgesetz oder Tarifvertrag (TV FFS). Stunden je Tagesgage ergeben den Stundensatz, die Sätze in Prozent die Zuschläge; ob die Fahrzeit zählt, ist ein Haken. Stundenzettel, Dispo, Konfliktradar und Lohnexport rechnen damit. Die Prüfung meldet, sie sperrt nichts.',
+        en: 'Here you choose what the check follows: the Working Hours Act or the collective agreement (TV FFS). Hours per day rate give the hourly rate, the percentages the surcharges; whether travel time counts is a tick box. Timesheets, call sheet, conflict radar and payroll export calculate with them. The check reports; it blocks nothing.',
+        fr: "Ici tu choisis la base du contrôle : la loi sur le temps de travail ou la convention collective (TV FFS). Les heures par cachet donnent le taux horaire, les pourcentages les majorations ; une case dit si le trajet compte. Feuilles de temps, feuille de service, radar des conflits et export de paie s'en servent. Le contrôle signale, il ne bloque rien.",
       },
       wirktAuf: ['timesheets', 'tagesdispo', 'konfliktradar'],
     },

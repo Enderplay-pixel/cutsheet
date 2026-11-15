@@ -3984,7 +3984,9 @@ describe('Arbeitszeit-Prüfung und Überstunden in Euro (AP B3)', () => {
 
   it('der Lohnexport enthält die Zuschlagsstunden je Art und den Betrag', async () => {
     const { p, kamera, tag1 } = await projekt('tarif', { elfte: 25, ab_zwoelfte: 50 })
-    await sende(`/api/shoot-days/${tag1}/timesheets`, { person_type: 'crew', person_id: kamera, call_time: 420, wrap_time: 1140, break_minutes: 45 })
+    const z = await sende(`/api/shoot-days/${tag1}/timesheets`, { person_type: 'crew', person_id: kamera, call_time: 420, wrap_time: 1140, break_minutes: 45 })
+    // Seit AP E8 nimmt der Lohnexport nur freigegebene Zettel
+    expect((await sende(`/api/timesheets/${z.daten.id}/stand`, { status: 'freigegeben' })).status).toBe(200)
     const antwort = await fetch(`${basis}/api/projects/${p}/payroll/export.csv?type=crew`, { headers: { Authorization: `Bearer ${tokenInhaber}` } })
     const text = await antwort.text()
     const [kopf, zeile] = text.replace(/^\ufeff/, '').split(/\r?\n/)
@@ -4039,5 +4041,155 @@ describe('Arbeitszeit-Prüfung und Überstunden in Euro (AP B3)', () => {
     const zwanzig = await freiAm(tage[19])
     expect(zwanzig.map((b) => `${b.art}:${b.quelle}`)).toEqual(['hinweis:TV FFS'])
     expect(zwanzig[0].text).toMatch(/^20\. Drehtag/)
+  })
+})
+
+describe('Stundenzettel: Freigabe in Stufen (AP E8)', () => {
+  /** Konto mit Rolle im Projekt; mit Abteilung steht es mit seiner E-Mail im Stab. */
+  async function konto(p: number, rolle: string, abteilung = '') {
+    const mail = `e8-${rolle}-${abteilung || 'ohne'}-${p}@example.com`
+    const id = (await db.run("INSERT INTO users (email, password_hash, name, role) VALUES (?, 'x', ?, 'user')", [mail, `${rolle} ${abteilung}`])).id
+    await db.run('INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?)', [p, id, rolle])
+    if (abteilung) await db.run("INSERT INTO crew (project_id, name, department, email) VALUES (?, ?, ?, ?)", [p, `Leitung ${abteilung}`, abteilung, mail.toUpperCase()])
+    const { signToken } = await import('../middleware/auth')
+    return signToken({ id, email: mail, name: `${rolle} ${abteilung}`, role: 'user' })
+  }
+
+  /** Projekt mit Ida (Kamera), Tom (Licht) und Anna (Besetzung), je ein Zettel an Tag 1. */
+  async function aufbau() {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Freigabe E8', nutzerId])).id
+    await db.run("INSERT INTO project_settings (project_id, default_call_time, default_wrap_time, state) VALUES (?, 420, 1140, 'NW')", [p])
+    const ida = (await db.run("INSERT INTO crew (project_id, name, department, fee_per_day) VALUES (?, 'Ida', 'Kamera', 40000)", [p])).id
+    const tom = (await db.run("INSERT INTO crew (project_id, name, department, fee_per_day) VALUES (?, 'Tom', 'Licht', 30000)", [p])).id
+    const anna = (await db.run("INSERT INTO \"cast\" (project_id, actor_name, fee_per_day) VALUES (?, 'Anna', 80000)", [p])).id
+    const tag1 = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, '2026-11-16')", [p])).id
+    const tag2 = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 2, '2026-11-17')", [p])).id
+    const zettel = async (art: string, person: number, tag = tag1) =>
+      (await db.run("INSERT INTO timesheets (project_id, shoot_day_id, person_type, person_id, call_time, wrap_time, break_minutes, overtime_hours) VALUES (?, ?, ?, ?, 420, 1170, 45, 1.75)", [p, tag, art, person])).id
+    return { p, ida, tom, anna, tag1, tag2, zIda: await zettel('crew', ida), zTom: await zettel('crew', tom), zAnna: await zettel('cast', anna), zettel }
+  }
+  const stand = (id: number, status: string, token: string) =>
+    hole(`/api/timesheets/${id}/stand`, token, { method: 'POST', body: JSON.stringify({ status }) })
+  const sammel = (p: number, koerper: any, token: string) =>
+    hole(`/api/projects/${p}/timesheets/stand`, token, { method: 'POST', body: JSON.stringify(koerper) })
+
+  it('die Abteilungsleitung prüft die eigene Abteilung, keine fremde, und gibt nicht frei', async () => {
+    const a = await aufbau()
+    const kamera = await konto(a.p, 'dept_head', 'Kamera')
+    expect((await stand(a.zIda, 'geprueft', kamera)).status).toBe(200)
+    expect((await stand(a.zTom, 'geprueft', kamera)).status).toBe(403)
+    expect((await stand(a.zAnna, 'geprueft', kamera)).status).toBe(403)
+    const frei = await stand(a.zIda, 'freigegeben', kamera)
+    expect(frei.status).toBe(403)
+    // Was die Seite anbietet, sagt der Server je Zeile
+    const liste = (await hole(`/api/shoot-days/${a.tag1}/timesheets`, kamera)).daten as any[]
+    const zeileIda = liste.find((z) => z.id === a.zIda)
+    expect(zeileIda.status).toBe('geprueft')
+    expect(zeileIda.staende).toEqual(['erfasst', 'geprueft'])
+    expect(liste.find((z) => z.id === a.zTom).staende).toEqual(['erfasst'])
+    // Regie prüft alle, gibt aber auch nicht frei
+    const regie = await konto(a.p, 'director')
+    expect((await stand(a.zTom, 'geprueft', regie)).status).toBe(200)
+    expect((await stand(a.zTom, 'freigegeben', regie)).status).toBe(403)
+  })
+
+  it('nach der Freigabe ändert nur die Produktion, mit altem und neuem Wert im Protokoll', async () => {
+    const a = await aufbau()
+    const kamera = await konto(a.p, 'dept_head', 'Kamera')
+    const frei = await stand(a.zIda, 'freigegeben', tokenInhaber)
+    expect(frei.status).toBe(200)
+    expect(frei.daten.status).toBe('freigegeben')
+    expect(frei.daten.approved_by).toBe(nutzerId)
+    expect(frei.daten.approved_at).toBeTruthy()
+    // Die Abteilungsleitung ändert und löscht nicht mehr, und setzt nicht zurück
+    expect((await hole(`/api/timesheets/${a.zIda}`, kamera, { method: 'PUT', body: JSON.stringify({ call_time: 450 }) })).status).toBe(403)
+    expect((await hole(`/api/timesheets/${a.zIda}`, kamera, { method: 'DELETE' })).status).toBe(403)
+    expect((await stand(a.zIda, 'erfasst', kamera)).status).toBe(403)
+    // Die Produktion korrigiert: 200 und eine Zeile mit alt und neu
+    const korrektur = await hole(`/api/timesheets/${a.zIda}`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ call_time: 450 }) })
+    expect(korrektur.status).toBe(200)
+    expect(korrektur.daten.status).toBe('freigegeben')
+    let zeile: any
+    for (let i = 0; i < 20 && !zeile; i++) {
+      zeile = await db.get("SELECT * FROM audit_log WHERE project_id = ? AND entity_id = ? AND action = 'nach Freigabe geändert'", [a.p, a.zIda])
+      if (!zeile) await new Promise((r) => setTimeout(r, 50))
+    }
+    expect(zeile).toBeTruthy()
+    expect(zeile.user_id).toBe(nutzerId)
+    expect(JSON.parse(zeile.old_value)).toEqual({ Call: '07:00' })
+    expect(JSON.parse(zeile.new_value)).toEqual({ Call: '07:30' })
+    const { kurzfassung } = await import('../routes/audit')
+    expect(kurzfassung(zeile)).toBe('Call: 07:00 → 07:30')
+  })
+
+  it('Sammelfreigabe eines Drehtags nennt die Zahl, die Abteilungsleitung trifft nur die eigene Abteilung', async () => {
+    const a = await aufbau()
+    const kamera = await konto(a.p, 'dept_head', 'Kamera')
+    const pruefen = await sammel(a.p, { status: 'geprueft', shoot_day_id: a.tag1 }, kamera)
+    expect(pruefen.status).toBe(200)
+    expect(pruefen.daten).toMatchObject({ geaendert: 1, schon: 0, ohne_recht: 2 })
+    expect((await sammel(a.p, { status: 'freigegeben', shoot_day_id: a.tag1 }, kamera)).status).toBe(403)
+    const frei = await sammel(a.p, { status: 'freigegeben', shoot_day_id: a.tag1 }, tokenInhaber)
+    expect(frei.daten).toMatchObject({ geaendert: 3, schon: 0, ohne_recht: 0 })
+    expect((await sammel(a.p, { status: 'freigegeben', shoot_day_id: a.tag1 }, tokenInhaber)).daten).toMatchObject({ geaendert: 0, schon: 3 })
+    // Eine Abteilung über alle Tage
+    await a.zettel('crew', a.tom, a.tag2)
+    const licht = await sammel(a.p, { status: 'abgerechnet', department: 'licht' }, tokenInhaber)
+    expect(licht.daten).toMatchObject({ geaendert: 2 })
+    expect((await sammel(a.p, { status: 'freigegeben' }, tokenInhaber)).status).toBe(400)
+  })
+
+  it('der Lohnexport nimmt nur freigegebene Zettel, die Zahl der offenen steht daneben', async () => {
+    const a = await aufbau()
+    const offen = await a.zettel('crew', a.ida, a.tag2)
+    await stand(a.zIda, 'freigegeben', tokenInhaber)
+    const staende = (await hole(`/api/projects/${a.p}/timesheets/staende`, tokenInhaber)).daten
+    expect(staende).toMatchObject({ erfasst: 3, freigegeben: 1, nicht_freigegeben: 3 })
+    const export_ = async () => {
+      const text = await (await fetch(`${basis}/api/projects/${a.p}/payroll/export.csv`, { headers: { Authorization: `Bearer ${tokenInhaber}` } })).text()
+      const [kopf, ...zeilen] = text.replace(/^\ufeff/, '').split(/\r?\n/)
+      const spalten = kopf.split(';')
+      return (name: string, spalte: string) => zeilen.find((z) => z.split(';')[1] === name)!.split(';')[spalten.indexOf(spalte)]
+    }
+    let wert = await export_()
+    // Zwei Zettel von Ida mit je 1,75 Überstunden, nur der freigegebene zählt
+    expect(wert('Ida', 'Überstunden')).toBe('1,75')
+    // Anna hat keine Szene und keine Dispo: Ihr Drehtag kommt allein vom Zettel
+    // und zählt erst nach der Freigabe (der Stab zählt ohne Dispo jeden Drehtag)
+    expect(wert('Anna', 'Drehtage')).toBe('0')
+    await stand(a.zAnna, 'freigegeben', tokenInhaber)
+    wert = await export_()
+    expect(wert('Anna', 'Drehtage')).toBe('1')
+    expect(offen).toBeGreaterThan(0)
+  })
+
+  it('je Person: alle Tage einer Person mit Datum', async () => {
+    const a = await aufbau()
+    await a.zettel('crew', a.ida, a.tag2)
+    const r = await hole(`/api/projects/${a.p}/timesheets?person_type=crew&person_id=${a.ida}`, tokenInhaber)
+    expect(r.status).toBe(200)
+    expect((r.daten as any[]).map((z) => String(z.date).slice(0, 10))).toEqual(['2026-11-16', '2026-11-17'])
+    expect((r.daten as any[]).every((z) => z.person_name === 'Ida')).toBe(true)
+    expect((await hole(`/api/projects/${a.p}/timesheets?person_type=x&person_id=1`, tokenInhaber)).status).toBe(400)
+  })
+
+  it('Fahrzeit zählt nur, wenn die Regel des Projekts es sagt', async () => {
+    const a = await aufbau()
+    const z = await hole(`/api/shoot-days/${a.tag2}/timesheets`, tokenInhaber, { method: 'POST',
+      body: JSON.stringify({ person_type: 'crew', person_id: a.ida, call_time: 420, wrap_time: 1065, break_minutes: 45, travel_minutes: 60 }) })
+    expect(z.status).toBe(201)
+    // 07:00 bis 17:45 mit 45 Minuten Pause: 10 Stunden, die Fahrt zählt nicht
+    expect(Number(z.daten.overtime_hours)).toBe(0)
+    expect(z.daten.arbeitszeit_minuten).toBe(600)
+    await db.run('UPDATE project_settings SET travel_counts = true WHERE project_id = ?', [a.p])
+    const mit = await hole(`/api/timesheets/${z.daten.id}`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ notes: 'mit Fahrt' }) })
+    expect(Number(mit.daten.overtime_hours)).toBe(1)
+    expect(mit.daten.arbeitszeit_minuten).toBe(660)
+    expect((await hole(`/api/timesheets/${z.daten.id}`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ travel_minutes: 2000 }) })).status).toBe(400)
+    // Umschalten der Regel rechnet die gespeicherten Überstunden aller Zettel neu
+    const { ueberstundenNeuRechnen } = await import('../lib/arbeitszeitProjekt')
+    expect(await ueberstundenNeuRechnen(db, a.p, false)).toBe(1)
+    expect(Number((await db.get('SELECT overtime_hours FROM timesheets WHERE id = ?', [z.daten.id])).overtime_hours)).toBe(0)
+    expect(await ueberstundenNeuRechnen(db, a.p, false)).toBe(0)
   })
 })
