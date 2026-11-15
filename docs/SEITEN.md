@@ -90,7 +90,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
-| **Stammdaten** | `/projects/:id/stammdaten` | Projektangaben, Mitglieder, Einladungen, Grundeinstellungen (Drehschluss, Ruhezeit, Währung, Bundesland für die Feiertage, Arbeitstage). | Einmal am Anfang, danach selten. |
+| **Stammdaten** | `/projects/:id/stammdaten` | Projektangaben, Mitglieder, Einladungen, Grundeinstellungen (Drehschluss, Ruhezeit, Währung, Bundesland für die Feiertage, Arbeitstage), Arbeitszeit-Regel (Gesetz oder Tarifvertrag, Stunden je Tagesgage, Zuschlagssätze, Nachtzeit). | Einmal am Anfang, danach selten. |
 | **Drehbuch** | `/projects/:id/drehbuch` | Szenenliste mit Achteln, Innen/Außen, Tag/Nacht, Motiv, Figuren und Requisiten. Import aus Datei. Im gesperrten Drehbuch: Nummer fest, Löschen heißt "entfällt" (grau, Filter, Zurückholen). | Nach dem ersten Buch - die Grundlage für alles Weitere. |
 | **ScreenplayEditor** | `/projects/:id/screenplay-editor` | Drehbuch schreiben im Format, mit Blöcken, Notizen und PDF-Export (auch mit Anmerkungen). Fassungen (AP A3): Einlesen als neue Fassung mit Vorschau, Sperren ab Produktion, Liste mit Vergleich, Sternchen in Editor und PDF, Kopfzeile mit Fassung. | Wenn das Buch im Haus entsteht. |
 | **Shotlist** | `/projects/:id/shotlist` | Einstellungen je Szene: Größe, Bewegung, Brennweite, Dauer, bester Take. Abhaken am Drehtag, PDF nach Szenen oder nach Drehtagen. | In der Auflösung mit der Regie, dann täglich am Set. |
@@ -146,12 +146,12 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
-| **Tagesdispo** | `/projects/:id/tagesdispo`, `/tagesdispo/:dayId` | Die Disposition: General Call, persönliche Zeiten, Szenen, Motiv, Wetter. Versand per Mail mit persönlichem Bestätigungslink; Zeiten geschlossen verschieben. | Am Vortag, meist abends. |
+| **Tagesdispo** | `/projects/:id/tagesdispo`, `/tagesdispo/:dayId` | Die Disposition: General Call, geplanter Drehschluss mit Arbeitszeit-Befund, persönliche Zeiten, Szenen, Motiv, Wetter. Versand per Mail mit persönlichem Bestätigungslink; Zeiten geschlossen verschieben. | Am Vortag, meist abends. |
 | **CheckinBoard** | `/projects/:id/checkin` | Wer ist da: alle von der Dispo des Tages, am Set abzuhaken. (Selbst einchecken über einen Link gibt es nicht, siehe Fund 79.) | Morgens am Set. |
 | **Tagesbericht** | `/projects/:id/tagesbericht` | Was wirklich gedreht wurde: Szenen, Seiten, Zeiten, Pausen, Vorkommnisse. Als PDF. | Abends nach Drehschluss. |
 | **Kameraberichte** | `/projects/:id/kameraberichte` | Takes je Einstellung mit Bewertung, Karten und Speicherplatz. | Am Set durch die Kamera-Assistenz. |
 | **Continuity** | `/projects/:id/continuity` | Anschlüsse: Kostüm, Maske, Requisite je Szene, mit Foto. | Am Set durch die Script/Continuity. |
-| **Timesheets** | `/projects/:id/timesheets` | Arbeitszeiten je Person und Drehtag mit Überstunden; Export für die Lohnabrechnung. | Täglich erfassen, am Monatsende exportieren. |
+| **Timesheets** | `/projects/:id/timesheets` | Arbeitszeiten je Person und Drehtag mit Pause, Überstunden und Befunden nach der Arbeitszeit-Regel (mit Fundstelle); Zuschlag in Euro und Lohnexport nur für die Produktion. | Täglich erfassen, am Monatsende exportieren. |
 
 ---
 

@@ -7,6 +7,7 @@ import { requireAuth } from '../middleware/auth'
 import { heuteISO } from '../lib/datum'
 import { wochentageAus } from '../lib/board'
 import { BUNDESLAENDER } from '../services/holidays'
+import { SATZ_ARTEN } from '../lib/arbeitszeit'
 import { massgeblicheKalkulation } from '../lib/kalkulation'
 
 const router = Router()
@@ -254,7 +255,32 @@ router.put('/:id/settings', requireAuth, async (req, res) => {
     header_color = existing?.header_color ?? '#0071E3',
     work_weekdays = existing?.work_weekdays ?? '1,2,3,4,5',
     state = existing?.state ?? '',
+    worktime_rule = existing?.worktime_rule ?? 'gesetz',
+    hours_per_day_rate = existing?.hours_per_day_rate ?? 10,
+    night_from = existing?.night_from ?? 1380,
+    night_to = existing?.night_to ?? 360,
   } = b
+  // Arbeitszeit-Prüfung (AP B3): Regel, Stunden je Tagesgage, Sätze, Nachtzeit
+  if (worktime_rule !== 'gesetz' && worktime_rule !== 'tarif') return res.status(400).json({ data: null, error: 'Die Regel der Arbeitszeit ist "gesetz" oder "tarif"' })
+  if (!Number.isInteger(Number(hours_per_day_rate)) || Number(hours_per_day_rate) < 1 || Number(hours_per_day_rate) > 24) {
+    return res.status(400).json({ data: null, error: 'Stunden je Tagesgage liegen zwischen 1 und 24' })
+  }
+  for (const n of [night_from, night_to]) {
+    if (!Number.isInteger(Number(n)) || Number(n) < 0 || Number(n) > 1439) return res.status(400).json({ data: null, error: 'Die Nachtzeit ist eine Uhrzeit' })
+  }
+  let surcharges = existing?.surcharges ?? '{}'
+  if (b.surcharges !== undefined) {
+    const roh = typeof b.surcharges === 'string' ? (() => { try { return JSON.parse(b.surcharges) } catch { return null } })() : b.surcharges
+    if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return res.status(400).json({ data: null, error: 'Zuschlagssätze sind Prozentwerte von 0 bis 500' })
+    const sauber: Record<string, number> = {}
+    for (const art of SATZ_ARTEN) {
+      if (roh[art] === undefined || roh[art] === '' || roh[art] === null) continue
+      const n = Number(roh[art])
+      if (!Number.isFinite(n) || n < 0 || n > 500) return res.status(400).json({ data: null, error: 'Zuschlagssätze sind Prozentwerte von 0 bis 500' })
+      sauber[art] = n
+    }
+    surcharges = JSON.stringify(sauber)
+  }
   // Arbeitstage und Bundesland bestimmen, an welchen Tagen das Board des
   // Stäbchenplans Drehtage anlegt (Plan Kino-Ausbau, AP A2).
   const wochentage = wochentageAus(String(work_weekdays))
@@ -264,14 +290,18 @@ router.put('/:id/settings', requireAuth, async (req, res) => {
   if (existing) {
     await db.run(`
       UPDATE project_settings
-      SET default_call_time=?, default_wrap_time=?, turnaround_hours=?, currency=?, country=?, logo_url=?, header_color=?, work_weekdays=?, state=?
+      SET default_call_time=?, default_wrap_time=?, turnaround_hours=?, currency=?, country=?, logo_url=?, header_color=?, work_weekdays=?, state=?,
+          worktime_rule=?, hours_per_day_rate=?, surcharges=?, night_from=?, night_to=?
       WHERE project_id=?
-    `, [default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color, arbeitstage, state, req.params.id])
+    `, [default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color, arbeitstage, state,
+        worktime_rule, Number(hours_per_day_rate), surcharges, Number(night_from), Number(night_to), req.params.id])
   } else {
     await db.run(`
-      INSERT INTO project_settings (project_id, default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color, work_weekdays, state)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [req.params.id, default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color, arbeitstage, state])
+      INSERT INTO project_settings (project_id, default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color, work_weekdays, state,
+        worktime_rule, hours_per_day_rate, surcharges, night_from, night_to)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [req.params.id, default_call_time, default_wrap_time, turnaround_hours, currency, country, logo_url, header_color, arbeitstage, state,
+        worktime_rule, Number(hours_per_day_rate), surcharges, Number(night_from), Number(night_to)])
   }
 
   const settings = await db.get('SELECT * FROM project_settings WHERE project_id = ?', [req.params.id])

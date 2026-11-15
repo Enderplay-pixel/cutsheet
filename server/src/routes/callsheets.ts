@@ -1,4 +1,6 @@
 import { Router, Request, Response } from 'express'
+import { arbeitszeitEinstellung, feiertageFuer } from '../lib/arbeitszeitProjekt'
+import { pruefeTag, sonnFeiertag } from '../lib/arbeitszeit'
 import crypto from 'crypto'
 import { db } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
@@ -43,7 +45,27 @@ async function getCallSheet(id: number) {
     return { ...e, person_name: person?.name || '', role: person?.rolle || '' }
   }))
 
-  return { ...sheet, entries: enriched }
+  // Arbeitszeit nach eingestellter Regel im Kopf der Dispo (AP B3): Call der
+  // Person bis geplanter Drehschluss, sonst der aus den Stammdaten
+  const tag = await db.get('SELECT project_id, date FROM shoot_days WHERE id = ?', [sheet.shoot_day_id]) as any
+  const einstellung = tag ? await arbeitszeitEinstellung(db, tag.project_id) : null
+  const wrap = sheet.planned_wrap ?? einstellung?.defaultWrap ?? null
+  const befunde: any[] = []
+  if (einstellung && wrap !== null) {
+    const gesehen = new Set<string>()
+    for (const e of enriched) {
+      if (e.person_type === 'extra') continue
+      for (const b of pruefeTag({ call: e.call_time ?? sheet.general_call, wrap }, einstellung.regel)) {
+        const key = `${b.quelle}|${b.art}`
+        if (gesehen.has(key)) { befunde.find((x) => `${x.quelle}|${x.art}` === key)?.personen.push(e.person_name); continue }
+        gesehen.add(key)
+        befunde.push({ ...b, personen: [e.person_name] })
+      }
+    }
+    for (const b of sonnFeiertag(String(tag.date ?? ''), feiertageFuer(einstellung.land, [String(tag.date ?? '')]), einstellung.regel)) befunde.push({ ...b, personen: [] })
+  }
+
+  return { ...sheet, entries: enriched, arbeitszeit: { wrap, regel: einstellung?.regel ?? 'gesetz', befunde } }
 }
 
 // GET /api/shoot-days/:dayId/call-sheet
@@ -89,6 +111,13 @@ router.post('/shoot-days/:dayId/call-sheet', async (req, res) => {
     walkie_channels = '',
     dept_notes = '',
   } = req.body
+  // Geplanter Drehschluss (AP B3): ohne Angabe bleibt der bisherige stehen
+  const bisher = await db.get('SELECT planned_wrap FROM call_sheets WHERE shoot_day_id = ?', [req.params.dayId]) as any
+  const plannedWrapRoh = req.body.planned_wrap === undefined ? (bisher?.planned_wrap ?? null) : req.body.planned_wrap
+  const planned_wrap = plannedWrapRoh === null || plannedWrapRoh === '' ? null : Number(plannedWrapRoh)
+  if (planned_wrap !== null && !(Number.isInteger(planned_wrap) && planned_wrap >= 0 && planned_wrap < 1440)) {
+    return res.status(400).json({ data: null, error: 'Der geplante Drehschluss ist eine Uhrzeit' })
+  }
 
   // Die Dispo holt den Motivnamen per JOIN. Ein Motiv aus einem fremden
   // Projekt stünde sonst mit Namen auf dieser Dispo.
@@ -117,18 +146,18 @@ router.post('/shoot-days/:dayId/call-sheet', async (req, res) => {
         general_call=?, shooting_call=?, location_id=?, weather_forecast=?, sunrise=?, sunset=?, notes=?,
         hospital_name=?, hospital_address=?, crew_parking=?, basecamp=?,
         breakfast_call=?, lunch_call=?, weather_high=?, weather_low=?, walkie_channels=?, dept_notes=?,
-        updated_at=NOW()
+        planned_wrap=?, updated_at=NOW()
       WHERE id=?
-    `, [general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes, ...extraCols, existing.id])
+    `, [general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes, ...extraCols, planned_wrap, existing.id])
     sheetId = existing.id
   } else {
     const result = await db.run(`
       INSERT INTO call_sheets (
         shoot_day_id, general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes,
         hospital_name, hospital_address, crew_parking, basecamp,
-        breakfast_call, lunch_call, weather_high, weather_low, walkie_channels, dept_notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [req.params.dayId, general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes, ...extraCols])
+        breakfast_call, lunch_call, weather_high, weather_low, walkie_channels, dept_notes, planned_wrap
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [req.params.dayId, general_call, shooting_call, location_id, weather_forecast, sunrise, sunset, notes, ...extraCols, planned_wrap])
     sheetId = result.id
 
     // Der Stab, dazu die Besetzung der Szenen des Tages (lib/dispo.ts)

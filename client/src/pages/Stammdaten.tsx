@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/components/ui/use-toast'
 import { debounce, formatDate, cn } from '@/lib/utils'
 import { ALL_FORMATS } from '@/lib/projectKind'
-import { Film, Calendar, Building2, Check, Settings2, Link2, Plus, Trash2, Copy, Users, QrCode, Send } from 'lucide-react'
+import { Film, Calendar, Building2, Check, Settings2, Link2, Plus, Trash2, Copy, Users, QrCode, Send, Clock } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { TimeInput } from '@/components/ui/time-input'
 import { useAuth } from '@/contexts/AuthContext'
@@ -19,6 +19,7 @@ import { useT, useGebietsschema } from '@/lib/useT'
 import { masterT, navT, projectsT } from '@/lib/i18n'
 import { onboardingFormatT } from '@/lib/texte/komponenten/OnboardingWizard'
 import { BUNDESLAENDER } from '@/lib/texte/Bundeslaender'
+import { arbeitszeitT as AZ } from '@/lib/texte/Arbeitszeit'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 const FORMATS = ALL_FORMATS
@@ -570,6 +571,72 @@ export function Component() {
           </Field>
         </FormSection>
       )}
+
+      {/* Arbeitszeit-Prüfung (Plan Kino-Ausbau, AP B3) */}
+      {settingsData && (() => {
+        let saetze: Record<string, number> = {}
+        try { saetze = JSON.parse(settingsData.surcharges || '{}') || {} } catch { saetze = {} }
+        const satzSetzen = (art: string, text: string) => {
+          const neu = { ...saetze }
+          const n = Number(text.replace(',', '.'))
+          if (text.trim() === '' || !Number.isFinite(n)) delete neu[art]
+          else neu[art] = n
+          updateSetting('surcharges', JSON.stringify(neu))
+        }
+        const tarif = settingsData.worktime_rule === 'tarif'
+        return (
+          <FormSection icon={Clock} title={tt(AZ.abschnitt)} anker="arbeitszeit">
+            <Field label={tt(AZ.regel)}>
+              <Select value={settingsData.worktime_rule || 'gesetz'} onValueChange={v => updateSetting('worktime_rule', v)} disabled={!canAdmin}>
+                <SelectTrigger className="h-9" aria-label={tt(AZ.regel)}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gesetz">{tt(AZ.gesetz)}</SelectItem>
+                  <SelectItem value="tarif">{tt(AZ.tarif)}</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label={tt(AZ.stundenJeGage)}>
+              <Input disabled={!canAdmin} type="number" min={1} max={24}
+                value={settingsData.hours_per_day_rate ?? 10}
+                onChange={e => updateSetting('hours_per_day_rate', Number(e.target.value))}
+                aria-label={tt(AZ.stundenJeGage)} className="h-9" />
+              <p className="text-[11px] text-muted-foreground mt-1">{tt(AZ.stundenJeGageHilfe)}</p>
+            </Field>
+            <Field label={tt(AZ.saetze)} full>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {(['elfte', 'ab_zwoelfte', 'nacht', 'sonntag', 'feiertag'] as const).map(art => (
+                  <label key={art} className="text-[11px] text-muted-foreground space-y-1">
+                    <span className="block">{tt(AZ[art])}</span>
+                    <Input disabled={!canAdmin} inputMode="decimal" placeholder="0"
+                      defaultValue={saetze[art] ?? ''}
+                      onBlur={e => satzSetzen(art, e.target.value)}
+                      aria-label={`${tt(AZ[art])} %`} className="h-9" />
+                  </label>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">{tarif ? tt(AZ.tarifHinweis) : tt(AZ.gesetzHinweis)}</p>
+            </Field>
+            <Field label={tt(AZ.nachtVon)}>
+              <TimeInput disabled={!canAdmin} value={settingsData.night_from ?? 1380} onChange={v => updateSetting('night_from', v)} label={tt(AZ.nachtVon)} className="h-9 w-full" />
+            </Field>
+            <Field label={tt(AZ.nachtBis)}>
+              <TimeInput disabled={!canAdmin} value={settingsData.night_to ?? 360} onChange={v => updateSetting('night_to', v)} label={tt(AZ.nachtBis)} className="h-9 w-full" />
+            </Field>
+            {/* Beim Tarif die Nachtzeit vorschlagen, nicht still umstellen (Plan) */}
+            {tarif && canAdmin && (settingsData.night_from ?? 1380) !== 1320 && (
+              <Field label="" full>
+                <p className="text-[11px] text-muted-foreground">
+                  {tt(AZ.nachtVorschlag)}{' '}
+                  <button type="button" className="text-primary hover:underline" onClick={() => { updateSetting('night_from', 1320); }}>
+                    {tt(AZ.nachtUebernehmen)}
+                  </button>
+                </p>
+              </Field>
+            )}
+            <p className="col-span-2 text-[11px] text-muted-foreground">{tt(AZ.quelle)}</p>
+          </FormSection>
+        )
+      })()}
 
       <InviteSection pid={pid} />
     </div>

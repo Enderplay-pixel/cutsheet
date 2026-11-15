@@ -342,6 +342,13 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Das Drehbuch ist gesperrt: Szenennummern bleiben, wie sie sind. Eine neue Szene bekommt eine Buchstabennummer wie 13A.': { en: 'The script is locked: scene numbers stay as they are. A new scene gets a letter number such as 13A.', fr: 'Le scénario est verrouillé : les numéros de scène restent tels quels. Une nouvelle scène reçoit un numéro avec lettre comme 13A.' },
   'Eine entfallene Szene lässt sich nicht einplanen': { en: 'An omitted scene cannot be scheduled', fr: 'Une scène supprimée ne peut pas être planifiée' },
   'Eine Szene entfällt über Löschen; hier geht nur das Zurückholen': { en: 'A scene is omitted by deleting it; this only restores it', fr: 'Une scène est supprimée en la supprimant ; ici on peut seulement la rétablir' },
+  // Arbeitszeit-Prüfung (AP B3, 14.11.2026)
+  'Die Pause liegt zwischen 0 und 720 Minuten': { en: 'The break is between 0 and 720 minutes', fr: 'La pause est comprise entre 0 et 720 minutes' },
+  'Der geplante Drehschluss ist eine Uhrzeit': { en: 'The planned wrap is a time of day', fr: 'La fin de tournage prévue est une heure' },
+  'Die Regel der Arbeitszeit ist "gesetz" oder "tarif"': { en: 'The working time rule is "gesetz" (law) or "tarif" (collective agreement)', fr: 'La règle du temps de travail est « gesetz » (loi) ou « tarif » (convention collective)' },
+  'Stunden je Tagesgage liegen zwischen 1 und 24': { en: 'Hours per day rate are between 1 and 24', fr: 'Les heures par cachet journalier sont comprises entre 1 et 24' },
+  'Die Nachtzeit ist eine Uhrzeit': { en: 'Night time is a time of day', fr: 'Les heures de nuit sont une heure' },
+  'Zuschlagssätze sind Prozentwerte von 0 bis 500': { en: 'Surcharge rates are percentages from 0 to 500', fr: 'Les majorations sont des pourcentages de 0 à 500' },
   'Unbekanntes Bundesland': { en: 'Unknown federal state', fr: 'Land inconnu' },
   'Von und bis sind ein Datum (JJJJ-MM-TT)': { en: 'From and to must be a date (YYYY-MM-DD)', fr: 'Du et au doivent être une date (AAAA-MM-JJ)' },
   'Das Ende liegt vor dem Beginn': { en: 'The end is before the start', fr: 'La fin précède le début' },

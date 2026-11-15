@@ -30,6 +30,7 @@ export const GAGENFELDER = new Set([
   'total_hold_cost_cents', // DOOD: Haltetage mal Haltegage
   'budget_total_cents',   // Dashboard
   'financing_total_cents',
+  'surcharge_cents',      // Stundenzettel: Überstunden und Zuschläge in Euro (AP B3)
 ])
 
 /** Bereiche, die ganz der Produktion gehören - Pfade unterhalb von /api. */

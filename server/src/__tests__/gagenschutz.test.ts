@@ -96,6 +96,10 @@ describe('Regeln', () => {
     expect(koerper).toEqual({ actor_name: 'Ida', hold_allowed: true })
   })
 
+  it('verbirgt Überstunden und Zuschläge in Euro am Stundenzettel, lässt die Stunden stehen (AP B3)', () => {
+    const zeile = { person_name: 'Ida', overtime_hours: 1.25, zuschlag_minuten: { elfte: 60 }, surcharge_cents: 6500 }
+    expect(gagenVerbergen(zeile)).toEqual({ person_name: 'Ida', overtime_hours: 1.25, zuschlag_minuten: { elfte: 60 }, surcharge_cents: null })
+  })
   it('säubert gespeicherte Protokollwerte', () => {
     expect(protokollwertOhneGagen('{"actor_name":"Ida","fee_per_day":120000}')).toBe('{"actor_name":"Ida","fee_per_day":null}')
     expect(protokollwertOhneGagen('kein json')).toBe('kein json')

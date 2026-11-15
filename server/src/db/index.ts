@@ -1613,6 +1613,19 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE screenplay_blocks ADD COLUMN IF NOT EXISTS revision_id INTEGER`)
   await db.exec(`ALTER TABLE project_settings ADD COLUMN IF NOT EXISTS script_locked_at TIMESTAMPTZ`)
 
+  // Arbeitszeit-Prüfung (Plan "CutSheet Kino-Ausbau", AP B3, 14.11.2026):
+  // Regel des Projekts, Stunden je Tagesgage, Zuschlagssätze in Prozent (JSON,
+  // leer heißt 0 - die Sätze des Tarifvertrags liegen nicht im Wortlaut vor),
+  // Nachtzeit in Minuten seit Mitternacht (Vorgabe 23 bis 6 Uhr, § 2 ArbZG).
+  await db.exec(`ALTER TABLE project_settings ADD COLUMN IF NOT EXISTS worktime_rule TEXT NOT NULL DEFAULT 'gesetz'`)
+  await db.exec(`ALTER TABLE project_settings ADD COLUMN IF NOT EXISTS hours_per_day_rate INTEGER NOT NULL DEFAULT 10`)
+  await db.exec(`ALTER TABLE project_settings ADD COLUMN IF NOT EXISTS surcharges TEXT NOT NULL DEFAULT '{}'`)
+  await db.exec(`ALTER TABLE project_settings ADD COLUMN IF NOT EXISTS night_from INTEGER NOT NULL DEFAULT 1380`)
+  await db.exec(`ALTER TABLE project_settings ADD COLUMN IF NOT EXISTS night_to INTEGER NOT NULL DEFAULT 360`)
+  // Geplanter Drehschluss je Dispo - vorher kannte die Dispo nur den Call
+  await db.exec(`ALTER TABLE call_sheets ADD COLUMN IF NOT EXISTS planned_wrap INTEGER`)
+  await db.exec(`ALTER TABLE timesheets ADD COLUMN IF NOT EXISTS break_minutes INTEGER NOT NULL DEFAULT 0`)
+
   // ── Rechnungen und Honorare ───────────────────────────────────────────────
   // Steuerart der Firma. Ein Einzelunternehmen nach Paragraf 19 UStG weist
   // keine Umsatzsteuer aus und muss das auf der Rechnung begruenden.

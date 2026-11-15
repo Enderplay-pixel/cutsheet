@@ -4,6 +4,7 @@ import { personAngaben, istPersonenart, PERSONEN_TABELLE } from '../lib/person'
 import { requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { dauer } from '../lib/drehzeit'
 import { schreibeCsv } from '../lib/tabelle'
+import { zettelDesProjekts } from '../lib/arbeitszeitProjekt'
 
 const router = Router()
 
@@ -16,10 +17,32 @@ router.use('/projects/:pid', requireMemberVia(async req => Number(req.params.pid
  * 25.10.2026: 08:00 bis 02:00, also 18 Stunden, ergab 0 Überstunden. Die
  * Gagenliste summiert diesen Wert.
  */
-function calcOvertimeHours(callTime: number | null, wrapTime: number | null): number {
+function calcOvertimeHours(callTime: number | null, wrapTime: number | null, pause = 0): number {
   const minuten = dauer(callTime, wrapTime)
   if (minuten === null) return 0
-  return Math.max(0, minuten / 60 - 10)
+  // Die Pause ist keine Arbeitszeit (§ 2 ArbZG, AP B3)
+  const p = Math.max(0, Number(pause) || 0)
+  return Math.max(0, (minuten - (p > minuten ? 0 : p)) / 60 - 10)
+}
+
+/** Pause in Minuten: ganze Zahl von 0 bis 720, sonst null (= Unsinn). */
+function pauseAus(wert: unknown): number | null {
+  const n = Number(wert ?? 0)
+  return Number.isInteger(n) && n >= 0 && n <= 720 ? n : null
+}
+
+/**
+ * Befunde, Minuten je Zuschlagsart und Betrag an die Zeilen hängen (AP B3).
+ * Der Betrag ist ein Gagenfeld - unterhalb der Produktion macht der
+ * Gagenschutz ihn zu null.
+ */
+async function mitAuswertung(projectId: number, zeilen: any[]): Promise<any[]> {
+  if (zeilen.length === 0) return zeilen
+  const { ergebnis } = await zettelDesProjekts(db, projectId)
+  return zeilen.map((z) => {
+    const a = ergebnis.get(Number(z.id))
+    return a ? { ...z, befunde: a.befunde, zuschlag_minuten: a.zuschlag_minuten, surcharge_cents: a.surcharge_cents, arbeitszeit_minuten: a.arbeitszeit_minuten } : z
+  })
 }
 
 function minutesToHHMM(minutes: number | null): string {
@@ -78,7 +101,7 @@ router.get('/shoot-days/:dayId/timesheets', async (req: Request, res: Response) 
   // dieser Route nicht, jede Zeile kam ohne Namen (gemessen am 25.10.2026).
   const tag = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [req.params.dayId]) as any
   const enriched = mitNamen(rows, tag ? await ladeNamen(tag.project_id) : new Map())
-  return res.json({ data: enriched, error: null })
+  return res.json({ data: tag ? await mitAuswertung(Number(tag.project_id), enriched) : enriched, error: null })
 })
 
 // POST /api/shoot-days/:dayId/timesheets
@@ -97,6 +120,8 @@ router.post('/shoot-days/:dayId/timesheets', async (req: Request, res: Response)
     meal_penalty = false,
     notes = '',
   } = req.body
+  const break_minutes = pauseAus(req.body.break_minutes)
+  if (break_minutes === null) return res.status(400).json({ data: null, error: 'Die Pause liegt zwischen 0 und 720 Minuten' })
 
   if (!person_type || !person_id) {
     return res.status(400).json({ data: null, error: 'person_type und person_id erforderlich' })
@@ -112,16 +137,17 @@ router.post('/shoot-days/:dayId/timesheets', async (req: Request, res: Response)
   const person = await db.get(`SELECT id FROM ${personenTabelle} WHERE id = ? AND project_id = ?`, [person_id, day.project_id])
   if (!person) return res.status(404).json({ data: null, error: 'Person nicht gefunden' })
 
-  const overtime_hours = calcOvertimeHours(call_time, wrap_time)
+  const overtime_hours = calcOvertimeHours(call_time, wrap_time, break_minutes)
 
   const result = await db.run(
-    `INSERT INTO timesheets (project_id, shoot_day_id, person_type, person_id, call_time, wrap_time, meal_penalty, overtime_hours, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [day.project_id, req.params.dayId, person_type, person_id, call_time, wrap_time, meal_penalty, overtime_hours, notes]
+    `INSERT INTO timesheets (project_id, shoot_day_id, person_type, person_id, call_time, wrap_time, meal_penalty, overtime_hours, notes, break_minutes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [day.project_id, req.params.dayId, person_type, person_id, call_time, wrap_time, meal_penalty, overtime_hours, notes, break_minutes]
   )
 
   const row = await db.get('SELECT * FROM timesheets WHERE id = ?', [result.id]) as any
-  return res.status(201).json({ data: await enrichWithPersonName(row), error: null })
+  const [mit] = await mitAuswertung(Number(day.project_id), [await enrichWithPersonName(row)])
+  return res.status(201).json({ data: mit, error: null })
 })
 
 // PUT /api/timesheets/:id
@@ -138,16 +164,19 @@ router.put('/timesheets/:id', async (req: Request, res: Response) => {
     meal_penalty = existing.meal_penalty,
     notes = existing.notes,
   } = req.body
+  const break_minutes = req.body.break_minutes === undefined ? Number(existing.break_minutes ?? 0) : pauseAus(req.body.break_minutes)
+  if (break_minutes === null) return res.status(400).json({ data: null, error: 'Die Pause liegt zwischen 0 und 720 Minuten' })
 
-  const overtime_hours = calcOvertimeHours(call_time, wrap_time)
+  const overtime_hours = calcOvertimeHours(call_time, wrap_time, break_minutes)
 
   await db.run(
-    'UPDATE timesheets SET call_time=?, wrap_time=?, meal_penalty=?, overtime_hours=?, notes=? WHERE id=?',
-    [call_time, wrap_time, meal_penalty, overtime_hours, notes, req.params.id]
+    'UPDATE timesheets SET call_time=?, wrap_time=?, meal_penalty=?, overtime_hours=?, notes=?, break_minutes=? WHERE id=?',
+    [call_time, wrap_time, meal_penalty, overtime_hours, notes, break_minutes, req.params.id]
   )
 
   const row = await db.get('SELECT * FROM timesheets WHERE id = ?', [req.params.id]) as any
-  return res.json({ data: await enrichWithPersonName(row), error: null })
+  const [mit] = await mitAuswertung(Number(row.project_id), [await enrichWithPersonName(row)])
+  return res.json({ data: mit, error: null })
 })
 
 // DELETE /api/timesheets/:id
@@ -182,13 +211,14 @@ router.get('/projects/:pid/timesheets/export.csv', async (req: Request, res: Res
 
   // Wie jeder Export: Semikolon und Dezimalkomma (lib/tabelle.ts, Fund 92)
   const csv = schreibeCsv(
-    ['Name', 'Tag', 'Datum', 'Call', 'Wrap', 'Überstunden', 'Notizen'],
+    ['Name', 'Tag', 'Datum', 'Call', 'Wrap', 'Pause (Min.)', 'Überstunden', 'Notizen'],
     enriched.map((r: any) => [
       r.person_name || '',
       r.day_number ?? '',
       r.date ?? '',
       minutesToHHMM(r.call_time),
       minutesToHHMM(r.wrap_time),
+      Number(r.break_minutes || 0),
       Number(r.overtime_hours || 0).toFixed(2).replace('.', ','),
       r.notes || '',
     ])

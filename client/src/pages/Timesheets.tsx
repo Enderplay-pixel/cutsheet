@@ -33,6 +33,12 @@ interface Timesheet {
   meal_penalty: boolean
   notes: string
   overtime_hours: number | null
+  /** Pause in Minuten - keine Arbeitszeit (AP B3) */
+  break_minutes?: number
+  /** Prüfung nach der Arbeitszeit-Regel der Stammdaten, mit Fundstelle */
+  befunde?: Array<{ art: 'verstoss' | 'zuschlag' | 'hinweis'; text: string; quelle: string }>
+  /** Überstunden und Zuschläge in Cent - nur für die Produktion, sonst null */
+  surcharge_cents?: number | null
 }
 
 interface Person {
@@ -75,11 +81,18 @@ function ruhezeit(wrap: number, callHeute: number | null, callMorgen: number): n
   return 1440 - wrap + callMorgen
 }
 
-function calcOvertime(callMin: number | null, wrapMin: number | null): number {
+function calcOvertime(callMin: number | null, wrapMin: number | null, pause = 0): number {
   if (callMin == null || wrapMin == null) return 0
   const worked = wrapMin > callMin ? wrapMin - callMin : wrapMin + 1440 - callMin
   const standard = 10 * 60 // 10h standard day
-  return Math.max(0, worked - standard)
+  // Die Pause ist keine Arbeitszeit - wie der Server rechnet (AP B3)
+  return Math.max(0, worked - (pause > worked ? 0 : pause) - standard)
+}
+
+const BEFUND_FARBE: Record<string, string> = {
+  verstoss: 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/30',
+  zuschlag: 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/30',
+  hinweis: 'bg-muted text-muted-foreground border-border',
 }
 
 function formatDate(iso: string) {
@@ -93,12 +106,13 @@ function totalMinutesToH(mins: number) {
 
 // ─── Timesheet row ────────────────────────────────────────────────────────────
 
-function TimesheetRow({ ts, dayId, darf }: { ts: Timesheet; dayId: number; darf: boolean }) {
+function TimesheetRow({ ts, dayId, darf, mitGeld }: { ts: Timesheet; dayId: number; darf: boolean; mitGeld: boolean }) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
   const [callVal, setCallVal] = useState(minutesToHHMM(ts.call_time))
   const [wrapVal, setWrapVal] = useState(minutesToHHMM(ts.wrap_time))
+  const [pauseVal, setPauseVal] = useState(String(ts.break_minutes ?? 0))
   const [mealPenalty, setMealPenalty] = useState(ts.meal_penalty)
   const [notes, setNotes] = useState(ts.notes ?? '')
 
@@ -112,11 +126,13 @@ function TimesheetRow({ ts, dayId, darf }: { ts: Timesheet; dayId: number; darf:
         headers,
         body: JSON.stringify(data),
       })
-      if (!res.ok) throw new Error('Fehler')
-      return (await res.json()).data
+      // Der Grund des Servers in die Meldung (etwa "Die Pause liegt zwischen 0 und 720 Minuten")
+      const json = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(json?.error || 'Fehler')
+      return json?.data
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['timesheets', dayId] }),
-    onError: () => toast({ variant: 'destructive', title: 'Fehler beim Speichern' }),
+    onError: (e: any) => toast({ variant: 'destructive', title: 'Fehler beim Speichern', description: e?.message }),
   })
 
   const deleteMutation = useMutation({
@@ -133,7 +149,16 @@ function TimesheetRow({ ts, dayId, darf }: { ts: Timesheet; dayId: number; darf:
 
   const callMin = parseHHMM(callVal)
   const wrapMin = parseHHMM(wrapVal)
-  const overtime = calcOvertime(callMin ?? null, wrapMin ?? null)
+  const pauseMin = /^\d{1,3}$/.test(pauseVal.trim()) ? Number(pauseVal.trim()) : NaN
+  const overtime = calcOvertime(callMin ?? null, wrapMin ?? null, Number.isFinite(pauseMin) ? pauseMin : (ts.break_minutes ?? 0))
+  const savePause = () => {
+    if (!Number.isFinite(pauseMin) || pauseMin > 720) {
+      toast({ variant: 'destructive', title: 'Pause nicht erkannt', description: 'Bitte die Pause in Minuten eingeben, 0 bis 720.' })
+      setPauseVal(String(ts.break_minutes ?? 0))
+      return
+    }
+    if (pauseMin !== (ts.break_minutes ?? 0)) updateMutation.mutate({ break_minutes: pauseMin })
+  }
 
   // Unlesbare Zeit: nicht speichern, gespeicherten Wert zurück ins Feld
   const zeitSpeichern = (feld: 'call_time' | 'wrap_time', wert: number | null | undefined, setze: (v: string) => void) => {
@@ -155,7 +180,19 @@ function TimesheetRow({ ts, dayId, darf }: { ts: Timesheet; dayId: number; darf:
 
   return (
     <tr className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-      <td className="px-4 py-3 font-medium text-sm">{ts.person_name}</td>
+      <td className="px-4 py-3 font-medium text-sm">
+        {ts.person_name}
+        {/* Befunde nach der Regel der Stammdaten (AP B3) - sie melden, sie sperren nichts */}
+        {(ts.befunde ?? []).length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {(ts.befunde ?? []).map((b, i) => (
+              <span key={i} title={b.text} className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${BEFUND_FARBE[b.art] ?? BEFUND_FARBE.hinweis}`}>
+                {b.quelle}<span className="sr-only">: {b.text}</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </td>
       <td className="px-4 py-3">
         <Badge variant={ts.person_type === 'cast' ? 'purple' : 'blue'} className="text-[10px] font-semibold uppercase tracking-wide">
           {ts.person_type === 'cast' ? 'Darsteller' : 'Crew'}
@@ -183,6 +220,18 @@ function TimesheetRow({ ts, dayId, darf }: { ts: Timesheet; dayId: number; darf:
           className="h-8 text-xs font-mono w-full bg-muted/30 border-border/40 focus:bg-background"
         />
       </td>
+      <td className="px-4 py-3 w-24">
+        <Input
+          value={pauseVal}
+          onChange={e => setPauseVal(e.target.value)}
+          onBlur={savePause}
+          disabled={!darf}
+          inputMode="numeric"
+          aria-label={`Pause in Minuten ${ts.person_name}`}
+          placeholder="45"
+          className="h-8 text-xs font-mono w-full bg-muted/30 border-border/40 focus:bg-background"
+        />
+      </td>
       <td className="px-4 py-3 text-center">
         {overtime > 0 ? (
           <span className="inline-flex items-center gap-1 text-red-500 font-bold text-sm tabular-nums">
@@ -193,6 +242,11 @@ function TimesheetRow({ ts, dayId, darf }: { ts: Timesheet; dayId: number; darf:
           <span className="text-muted-foreground/40 text-sm">-</span>
         )}
       </td>
+      {mitGeld && (
+        <td className="px-4 py-3 text-right font-mono text-sm tabular-nums">
+          {ts.surcharge_cents ? (ts.surcharge_cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) : '-'}
+        </td>
+      )}
       <td className="px-4 py-3 text-center">
         <Checkbox
           checked={!!mealPenalty}
@@ -363,7 +417,8 @@ export function Component() {
   const { projectId: id } = useParams<{ projectId: string }>()
   const pid = Number(id)
   const download = useDownload()
-  const { darfSchreiben } = useSchreibrecht()
+  // Zuschlag in Euro nur für die Produktion (Gagenschutz, AP B3)
+  const { darfSchreiben, siehtGagen } = useSchreibrecht()
   const [selectedDayId, setSelectedDayId] = useState<number | null>(null)
   const [showAdd, setShowAdd] = useState(false)
 
@@ -412,9 +467,9 @@ export function Component() {
 
   // Summary stats
   const totalOvertimeMins = sheets.reduce((sum, ts) => {
-    return sum + calcOvertime(ts.call_time, ts.wrap_time)
+    return sum + calcOvertime(ts.call_time, ts.wrap_time, ts.break_minutes ?? 0)
   }, 0)
-  const countWithOT = sheets.filter(ts => calcOvertime(ts.call_time, ts.wrap_time) > 0).length
+  const countWithOT = sheets.filter(ts => calcOvertime(ts.call_time, ts.wrap_time, ts.break_minutes ?? 0) > 0).length
 
   /**
    * Ruhezeit je Person. Vorher: "Wrap ab 22:00" als Faustregel - ein Wrap nach
@@ -459,16 +514,17 @@ export function Component() {
             <Download className="mr-2 h-4 w-4" />
             CSV exportieren
           </Button>
-          <Button
+          {/* Nur für die Produktion: alle anderen bekamen beim Klick 403 (gemessen 15.11.2026, AP B3) */}
+          {siehtGagen && <Button
             variant="outline"
             size="sm"
             className="active:scale-[0.97]"
-            title="Drehtage laut Dispo × Tagesgage, plus Überstunden - für die Lohnbuchhaltung"
+            title="Drehtage laut Drehplan, Dispo und Stundenzetteln × Tagesgage, dazu Haltetage, Überstunden und Zuschläge nach der Arbeitszeit-Regel der Stammdaten - für die Lohnbuchhaltung"
             onClick={() => download(api.payroll.export(pid), 'lohnexport.csv')}
           >
             <FileText className="mr-2 h-4 w-4" />
             Lohnexport
-          </Button>
+          </Button>}
         </div>
       </div>
 
@@ -611,7 +667,9 @@ export function Component() {
                         <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Typ</th>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Call</th>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Wrap</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Pause (Min.)</th>
                         <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Überstunden</th>
+                        {siehtGagen && <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Zuschlag €</th>}
                         <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Mahlzeit-Penalty</th>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Notizen</th>
                         <th className="px-4 py-3 w-20" />
@@ -619,7 +677,7 @@ export function Component() {
                     </thead>
                     <tbody>
                       {sheets.map(ts => (
-                        <TimesheetRow key={ts.id} ts={ts} dayId={selectedDayId} darf={darfSchreiben} />
+                        <TimesheetRow key={ts.id} ts={ts} dayId={selectedDayId} darf={darfSchreiben} mitGeld={siehtGagen} />
                       ))}
                     </tbody>
                   </table>

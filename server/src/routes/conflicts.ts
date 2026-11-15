@@ -1,4 +1,6 @@
 import { Router } from 'express'
+import { arbeitszeitEinstellung } from '../lib/arbeitszeitProjekt'
+import { pruefeTag, pruefeRuhezeit } from '../lib/arbeitszeit'
 import { db } from '../db'
 import { requireMember } from '../middleware/projectAuth'
 import { ruhezeit } from '../lib/drehzeit'
@@ -199,15 +201,63 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
     }
   })
 
+  // Arbeitszeit nach eingestellter Regel (AP B3): aus den Dispos, Call der
+  // Person bis geplanter Drehschluss. Eine Meldung je Drehtag, nicht je Person.
+  await pruefung('Arbeitszeit', conflicts, async () => {
+    const e = await arbeitszeitEinstellung(db, pid)
+    const zeilen = await db.all(`
+      SELECT cse.person_type, cse.person_id, cse.call_time, cs.general_call, cs.planned_wrap, sd.date, sd.day_number
+        FROM call_sheet_entries cse
+        JOIN call_sheets cs ON cse.call_sheet_id = cs.id
+        JOIN shoot_days sd ON cs.shoot_day_id = sd.id
+       WHERE sd.project_id = ? AND sd.status NOT IN ${KEIN_DREHTAG_SQL}
+       ORDER BY sd.date, sd.day_number`, [pid]) as any[]
+    const namen = new Map<string, string>([
+      ...((await db.all('SELECT id, actor_name AS name FROM "cast" WHERE project_id = ?', [pid])) as any[]).map((c): [string, string] => [`cast:${c.id}`, c.name]),
+      ...((await db.all('SELECT id, name FROM crew WHERE project_id = ?', [pid])) as any[]).map((c): [string, string] => [`crew:${c.id}`, c.name]),
+    ])
+    const jeTag = new Map<string, { tag: number; befunde: Map<string, string[]> }>()
+    for (const z of zeilen) {
+      const call = z.call_time ?? z.general_call
+      const wrap = z.planned_wrap ?? e.defaultWrap
+      for (const b of pruefeTag({ call, wrap }, e.regel)) {
+        if (b.art === 'hinweis') continue
+        const eintrag = jeTag.get(z.date) ?? { tag: z.day_number, befunde: new Map<string, string[]>() }
+        const schluessel = `${b.quelle}: ${b.art === 'verstoss' ? 'Verstoß' : 'zuschlagspflichtig'}`
+        const name = namen.get(`${z.person_type}:${z.person_id}`)
+        if (name) eintrag.befunde.set(schluessel, [...(eintrag.befunde.get(schluessel) ?? []), name])
+        jeTag.set(z.date, eintrag)
+      }
+    }
+    for (const [datum, { tag, befunde }] of jeTag) {
+      for (const [art, leute] of befunde) {
+        conflicts.push({
+          severity: art.includes('Verstoß') ? 'warning' : 'info', category: 'Arbeitszeit',
+          message: `Drehtag ${tag} (${datumText(datum)}): ${leute.length} ${leute.length === 1 ? 'Person' : 'Personen'} über der Tagesarbeitszeit - ${art}`,
+          detail: `Nach eingestellter Regel (${e.regel === 'tarif' ? 'Tarifvertrag' : 'Gesetz'}), geplant bis zum Drehschluss der Dispo, abzüglich der Mindestpause: ${leute.slice(0, 5).join(', ')}${leute.length > 5 ? ` und ${leute.length - 5} weitere` : ''}`,
+          link: 'tagesdispo',
+        })
+      }
+    }
+    if (zeilen.length > 0 && !e.land) {
+      conflicts.push({
+        severity: 'info', category: 'Arbeitszeit',
+        message: 'Bundesland nicht gesetzt',
+        detail: 'Ohne Bundesland prüft CutSheet nur die bundesweiten Feiertage. Einstellen in den Stammdaten.',
+        link: 'stammdaten',
+      })
+    }
+  })
+
   // 10. Turnaround violations - cast called back before minimum rest
   await pruefung('Turnaround', conflicts, async () => {
-    const settings = await db.get('SELECT turnaround_hours FROM project_settings WHERE project_id = ?', [pid]) as any
-    const turnaroundMins = (settings?.turnaround_hours ?? 11) * 60
+    const einstellung = await arbeitszeitEinstellung(db, pid)
+    const turnaroundMins = einstellung.ruhezeit
 
     // Get all call sheet entries for this project, joined to shoot day date
     const entries = await db.all(`
       SELECT cse.person_type, cse.person_id, cse.call_time, sd.date, sd.day_number,
-             cs.general_call
+             cs.general_call, cs.planned_wrap
       FROM call_sheet_entries cse
       JOIN call_sheets cs ON cse.call_sheet_id = cs.id
       JOIN shoot_days sd ON cs.shoot_day_id = sd.id
@@ -259,13 +309,17 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
         const diffDays = Math.round((d2.getTime() - d1.getTime()) / 86400000)
         if (diffDays !== 1) continue
 
-        const wrapToday = wrapByDate[today.date] ?? today.general_call + 480 // fallback: 8h day
-        // ruhezeit() braucht den Call des Drehtags, um einen Wrap nach
-        // Mitternacht zu erkennen: ein Drehschluss um 02:00 steht als 120 in
-        // der Datenbank. Die alte Rechnung (24h - 120) + Call ergab daraus 32
-        // Stunden Ruhezeit statt acht - die Verletzung blieb unentdeckt.
-        const restMins = ruhezeit(wrapToday, callByDate[today.date] ?? today.general_call, tomorrow.call_time)
-        if (restMins !== null && restMins < turnaroundMins) {
+        // Drehschluss: gemessen aus dem Tagesbericht, sonst der geplante der
+        // Dispo, sonst der aus den Stammdaten (AP B3). Vorher Call plus acht
+        // Stunden - eine Annahme, die keiner Einstellung folgte.
+        const wrapToday = wrapByDate[today.date] ?? today.planned_wrap ?? einstellung.defaultWrap
+        // Die Ruhezeit rechnet lib/arbeitszeit.ts (pruefeRuhezeit) - sie
+        // braucht den Call des Drehtags, um einen Wrap nach Mitternacht zu
+        // erkennen: ein Drehschluss um 02:00 steht als 120 in der Datenbank.
+        const callToday = callByDate[today.date] ?? today.general_call
+        const befund = pruefeRuhezeit(wrapToday, callToday, tomorrow.call_time, einstellung.regel, turnaroundMins)
+        const restMins = ruhezeit(wrapToday, callToday, tomorrow.call_time)
+        if (befund.length > 0 && restMins !== null) {
           verletzungen.push({ von: today.date, bis: tomorrow.date, stunden: Math.round(restMins / 60 * 10) / 10 })
         }
       }

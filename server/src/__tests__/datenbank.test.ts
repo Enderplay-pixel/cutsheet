@@ -165,6 +165,11 @@ beforeAll(async () => {
   // Szenen anlegen, ändern, entfallen lassen (AP A3)
   const { default: szenenRouter } = await import('../routes/scenes')
   app.use('/api', optionalAuth, szenenRouter)
+  // Arbeitszeit-Prüfung (AP B3)
+  const { default: stundenzettelRouter } = await import('../routes/timesheets')
+  const { default: lohnRouter } = await import('../routes/payroll')
+  const { default: dispoRouter } = await import('../routes/callsheets')
+  app.use('/api', optionalAuth, stundenzettelRouter, lohnRouter, dispoRouter)
   const { default: drehplanRouter } = await import('../routes/drehplan')
   app.use('/api', optionalAuth, drehplanRouter)
   const { default: konfliktRouter } = await import('../routes/conflicts')
@@ -3918,5 +3923,121 @@ describe('Drehbuch-Fassungen mit gesperrten Nummern (AP A3)', () => {
     expect(v.status).toBe(200)
     expect(v.daten.zeilen.filter((z: any) => z.art !== 'gleich').map((z: any) => `${z.art}:${z.zeile}`))
       .toEqual(['weg:Ole raucht.', 'neu:Ole raucht nicht mehr.'])
+  })
+})
+
+describe('Arbeitszeit-Prüfung und Überstunden in Euro (AP B3)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+
+  /** Projekt mit Regel, einem Stabmitglied (400 € Tagesgage) und zwei Drehtagen Mo/Di. */
+  async function projekt(regel: 'gesetz' | 'tarif', saetze: Record<string, number> = {}) {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', [`Arbeitszeit ${regel}`, nutzerId])).id
+    await db.run("INSERT INTO project_settings (project_id, default_call_time, default_wrap_time, state, worktime_rule, surcharges) VALUES (?, 420, 1140, 'NW', ?, ?)",
+      [p, regel, JSON.stringify(saetze)])
+    const kamera = (await db.run("INSERT INTO crew (project_id, name, role, fee_per_day) VALUES (?, 'Ida Kamera', 'Kamera', 40000)", [p])).id
+    const tag1 = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, '2026-11-16')", [p])).id
+    const tag2 = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 2, '2026-11-17')", [p])).id
+    return { p, kamera, tag1, tag2 }
+  }
+
+  it('der Konfliktradar meldet eine Dispo mit 13 Stunden nach eingestellter Regel, mit Fundstelle', async () => {
+    const { p, kamera, tag1 } = await projekt('gesetz')
+    const dispo = (await db.run('INSERT INTO call_sheets (shoot_day_id, general_call, planned_wrap) VALUES (?, 420, 1200)', [tag1])).id
+    await db.run("INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, call_time) VALUES (?, 'crew', ?, 420)", [dispo, kamera])
+    const konflikte = (await hole(`/api/projects/${p}/conflicts`, tokenInhaber)).daten as any[]
+    const az = konflikte.find((k) => k.category === 'Arbeitszeit')
+    expect(az).toBeTruthy()
+    expect(`${az.message} ${az.detail}`).toMatch(/§ 3 ArbZG/)
+    expect(`${az.message} ${az.detail}`).toMatch(/Ida Kamera/)
+    // Die Dispo selbst nennt den Befund im Kopf
+    const blatt = (await hole(`/api/shoot-days/${tag1}/call-sheet`, tokenInhaber)).daten
+    expect(blatt.planned_wrap).toBe(1200)
+    expect(blatt.arbeitszeit.befunde.map((b: any) => b.quelle)).toContain('§ 3 ArbZG')
+  })
+
+  it('geplanter Drehschluss lässt sich an der Dispo setzen und bleibt bei einer Änderung ohne ihn stehen', async () => {
+    const { tag1 } = await projekt('gesetz')
+    expect((await sende(`/api/shoot-days/${tag1}/call-sheet`, { general_call: 420, planned_wrap: 1110 })).daten.planned_wrap).toBe(1110)
+    expect((await sende(`/api/shoot-days/${tag1}/call-sheet`, { general_call: 450 })).daten.planned_wrap).toBe(1110)
+  })
+
+  it('Stundenzettel: Pause wird abgezogen, Befunde je Zeile, Zuschlag in Euro für die Produktion', async () => {
+    const { kamera, tag1 } = await projekt('tarif', { elfte: 25, ab_zwoelfte: 50 })
+    const r = await sende(`/api/shoot-days/${tag1}/timesheets`, { person_type: 'crew', person_id: kamera, call_time: 420, wrap_time: 1140, break_minutes: 45 })
+    expect(r.status).toBe(201)
+    expect(r.daten.break_minutes).toBe(45)
+    // 07:00 bis 19:00 mit 45 Minuten Pause: 11,25 Stunden, 1,25 über zehn
+    expect(Number(r.daten.overtime_hours)).toBeCloseTo(1.25, 5)
+    expect(r.daten.befunde.map((b: any) => `${b.art}:${b.quelle}`)).toContain('zuschlag:TV FFS')
+    expect(r.daten.surcharge_cents).toBe(6500)
+    const liste = (await hole(`/api/shoot-days/${tag1}/timesheets`, tokenInhaber)).daten
+    expect(liste[0].surcharge_cents).toBe(6500)
+  })
+
+  it('Ruhezeit unter elf Stunden zwischen zwei Stundenzetteln wird gemeldet', async () => {
+    const { kamera, tag1, tag2 } = await projekt('gesetz')
+    await sende(`/api/shoot-days/${tag1}/timesheets`, { person_type: 'crew', person_id: kamera, call_time: 420, wrap_time: 1140, break_minutes: 45 })
+    const r = await sende(`/api/shoot-days/${tag2}/timesheets`, { person_type: 'crew', person_id: kamera, call_time: 300, wrap_time: 900, break_minutes: 30 })
+    expect(r.daten.befunde.map((b: any) => b.quelle)).toContain('§ 5 ArbZG')
+  })
+
+  it('der Lohnexport enthält die Zuschlagsstunden je Art und den Betrag', async () => {
+    const { p, kamera, tag1 } = await projekt('tarif', { elfte: 25, ab_zwoelfte: 50 })
+    await sende(`/api/shoot-days/${tag1}/timesheets`, { person_type: 'crew', person_id: kamera, call_time: 420, wrap_time: 1140, break_minutes: 45 })
+    const antwort = await fetch(`${basis}/api/projects/${p}/payroll/export.csv?type=crew`, { headers: { Authorization: `Bearer ${tokenInhaber}` } })
+    const text = await antwort.text()
+    const [kopf, zeile] = text.replace(/^\ufeff/, '').split(/\r?\n/)
+    const spalten = kopf.split(';')
+    const werte = zeile.split(';')
+    const wert = (name: string) => werte[spalten.indexOf(name)]
+    expect(spalten).toContain('Zuschlag Überstunden und Zeiten')
+    expect(wert('Std. erste Überstunde')).toBe('1,00')
+    expect(wert('Std. ab zweiter Überstunde')).toBe('0,25')
+    expect(wert('Zuschlag Überstunden und Zeiten')).toBe('65,00')
+  })
+
+  it('Gesetz: keine Sätze eingetragen heißt Zuschläge 0, die Überstunde zahlt den Stundensatz', async () => {
+    const { kamera, tag1 } = await projekt('gesetz')
+    const r = await sende(`/api/shoot-days/${tag1}/timesheets`, { person_type: 'crew', person_id: kamera, call_time: 420, wrap_time: 1140, break_minutes: 45 })
+    expect(r.daten.befunde.map((b: any) => `${b.art}:${b.quelle}`)).toContain('verstoss:§ 3 ArbZG')
+    // 75 Minuten zu je 40 €/Stunde ohne Zuschlag
+    expect(r.daten.surcharge_cents).toBe(5000)
+  })
+
+  /** Drehtage ab Montag, 02.11.2026, je einer pro Kalendertag, mit Stundenzettel. */
+  async function drehtageMitZettel(p: number, kamera: number, anzahl: number, wrap: number) {
+    const tage: number[] = []
+    for (let i = 0; i < anzahl; i++) {
+      const datum = new Date(Date.UTC(2026, 10, 2 + i)).toISOString().slice(0, 10)
+      const tag = (await db.run('INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, ?, ?)', [p, 10 + i, datum])).id
+      await db.run("INSERT INTO timesheets (project_id, shoot_day_id, person_type, person_id, call_time, wrap_time, break_minutes) VALUES (?, ?, 'crew', ?, 420, ?, 45)",
+        [p, tag, kamera, wrap])
+      tage.push(tag)
+    }
+    return tage
+  }
+
+  it('Tarifvertrag: eine Woche über 50 Stunden steht am letzten Zettel der Woche', async () => {
+    const { p, kamera } = await projekt('tarif')
+    // Montag bis Freitag je 11 Stunden: 07:00 bis 18:45 mit 45 Minuten Pause
+    const tage = await drehtageMitZettel(p, kamera, 5, 1125)
+    const quellenAm = async (tag: number) => ((await hole(`/api/shoot-days/${tag}/timesheets`, tokenInhaber)).daten[0].befunde as any[])
+      .filter((b) => /^Woche/.test(b.text))
+    expect(await quellenAm(tage[0])).toEqual([])
+    const freitag = await quellenAm(tage[4])
+    expect(freitag.map((b) => `${b.art}:${b.quelle}`)).toEqual(['zuschlag:TV FFS'])
+    expect(freitag[0].text).toMatch(/55 Stunden/)
+  })
+
+  it('Tarifvertrag: am 20. Drehtag einer Person der Hinweis auf den freien Tag', async () => {
+    const { p, kamera } = await projekt('tarif')
+    const tage = await drehtageMitZettel(p, kamera, 20, 1005)
+    const freiAm = async (tag: number) => ((await hole(`/api/shoot-days/${tag}/timesheets`, tokenInhaber)).daten[0].befunde as any[])
+      .filter((b) => /freier Tag/.test(b.text))
+    expect(await freiAm(tage[18])).toEqual([])
+    const zwanzig = await freiAm(tage[19])
+    expect(zwanzig.map((b) => `${b.art}:${b.quelle}`)).toEqual(['hinweis:TV FFS'])
+    expect(zwanzig[0].text).toMatch(/^20\. Drehtag/)
   })
 })

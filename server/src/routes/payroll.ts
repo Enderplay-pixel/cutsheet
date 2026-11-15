@@ -3,6 +3,8 @@ import { db } from '../db'
 import { schreibeCsv, cents } from '../lib/tabelle'
 import { drehtageBesetzung, drehtageStab } from '../lib/drehtage'
 import { ladeDood } from '../lib/dood'
+import { zettelDesProjekts } from '../lib/arbeitszeitProjekt'
+import { SATZ_ARTEN, type Saetze } from '../lib/arbeitszeit'
 
 const router = Router()
 
@@ -25,7 +27,29 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
     overtime_hours: number
     hold_days: number
     hold_fee_per_day: number
+    /** Minuten je Zuschlagsart und Betrag aus den Stundenzetteln (AP B3) */
+    zuschlag_minuten: Saetze
+    zuschlag_cent: number
   }
+
+  // Überstunden und Zuschläge je Person aus den Stundenzetteln im Zeitraum -
+  // dieselbe Rechnung wie in den Timesheets (lib/arbeitszeitProjekt.ts)
+  const bedingung: string[] = []
+  const bedingungWerte: any[] = []
+  if (from) { bedingung.push('AND sd.date >= ?'); bedingungWerte.push(from) }
+  if (to) { bedingung.push('AND sd.date <= ?'); bedingungWerte.push(to) }
+  const { zeilen: zettel, ergebnis } = await zettelDesProjekts(db, projectId, bedingung.join(' '), bedingungWerte)
+  const zuschlagJePerson = new Map<string, { minuten: Saetze; cent: number }>()
+  for (const z of zettel) {
+    const a = ergebnis.get(Number(z.id))
+    if (!a) continue
+    const key = `${z.person_type}:${z.person_id}`
+    const bisher = zuschlagJePerson.get(key) ?? { minuten: { elfte: 0, ab_zwoelfte: 0, nacht: 0, sonntag: 0, feiertag: 0 }, cent: 0 }
+    for (const art of SATZ_ARTEN) bisher.minuten[art] += a.zuschlag_minuten[art]
+    bisher.cent += a.surcharge_cents
+    zuschlagJePerson.set(key, bisher)
+  }
+  const keinZuschlag = { minuten: { elfte: 0, ab_zwoelfte: 0, nacht: 0, sonntag: 0, feiertag: 0 }, cent: 0 }
 
   /**
    * Drehtage je Person - dieselbe Zählung wie Kalkulation, DOOD und Vertrag
@@ -111,6 +135,8 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
         overtime_hours: ueberstundenCast.get(Number(person.id)) ?? 0,
         hold_days: halt.get(Number(person.id))?.tage ?? 0,
         hold_fee_per_day: halt.get(Number(person.id))?.satz ?? 0,
+        zuschlag_minuten: (zuschlagJePerson.get(`cast:${person.id}`) ?? keinZuschlag).minuten,
+        zuschlag_cent: (zuschlagJePerson.get(`cast:${person.id}`) ?? keinZuschlag).cent,
       })
     }
   }
@@ -138,6 +164,8 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
         // Kein Halt für den Stab (Nicht-Ziel im Plan, AP A1)
         hold_days: 0,
         hold_fee_per_day: 0,
+        zuschlag_minuten: (zuschlagJePerson.get(`crew:${person.id}`) ?? keinZuschlag).minuten,
+        zuschlag_cent: (zuschlagJePerson.get(`crew:${person.id}`) ?? keinZuschlag).cent,
       })
     }
   }
@@ -147,7 +175,9 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
   // Komma und Dezimalpunkt - "6500.00" als einzige Ausnahme im Programm.
   const csv = schreibeCsv(
     // Die Haltetage stehen hinten, damit vorhandene Importe ihre Spalten behalten
-    ['Typ', 'Name', 'Rolle', 'Drehtage', 'Tagesgage (EUR)', 'Gesamtgage (EUR)', 'Überstunden', 'Haltetage', 'Haltegage gesamt (EUR)'],
+    // Die Zuschläge (AP B3) ebenfalls hinten: Stunden je Art und der Betrag
+    ['Typ', 'Name', 'Rolle', 'Drehtage', 'Tagesgage (EUR)', 'Gesamtgage (EUR)', 'Überstunden', 'Haltetage', 'Haltegage gesamt (EUR)',
+      'Std. erste Überstunde', 'Std. ab zweiter Überstunde', 'Std. Nacht', 'Std. Sonntag', 'Std. Feiertag', 'Zuschlag Überstunden und Zeiten'],
     rows.map((r) => [
       r.typ,
       r.name,
@@ -158,6 +188,8 @@ router.get('/projects/:pid/payroll/export.csv', async (req: Request, res: Respon
       r.overtime_hours.toFixed(2).replace('.', ','),
       r.hold_days,
       cents(r.hold_fee_per_day * r.hold_days),
+      ...SATZ_ARTEN.map((art) => (r.zuschlag_minuten[art] / 60).toFixed(2).replace('.', ',')),
+      cents(r.zuschlag_cent),
     ])
   )
 

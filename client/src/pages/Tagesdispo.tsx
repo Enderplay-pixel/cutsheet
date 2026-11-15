@@ -735,9 +735,17 @@ export function Component() {
     saveMutation.mutate(data)
   }, 600)).current
 
-  const updateHeader = (key: string, value: any) => {
-    const next = { ...headerForm, [key]: value }
+  const updateHeader = (key: string, value: any) => aendereKopf({ [key]: value })
+  /**
+   * Mehrere Felder auf einmal. Gemessen am 14.11.2026: Nach "Abrufen" der
+   * Sonnenzeiten stand nur der Sonnenuntergang da - zwei Aufrufe nacheinander
+   * gingen vom selben alten Stand aus, der zweite überschrieb den ersten.
+   */
+  const aendereKopf = (felder: Record<string, any>) => {
+    const next = { ...headerForm, ...felder }
     setHeaderForm(next)
+    const key = Object.keys(felder).length === 1 ? Object.keys(felder)[0] : ''
+    const value = key ? felder[key] : undefined
     // Sonnenauf- und -untergang sind Text: Gespeichert wird erst eine gültige
     // Uhrzeit - vorher landete "25:99" in Dispo und PDF (Testbericht SALZWIND)
     if ((key === 'sunrise' || key === 'sunset') && value && Number.isNaN(parseTime(String(value)))) return
@@ -805,8 +813,7 @@ export function Component() {
       const auf = uhr(d.sunrise)
       const unter = uhr(d.sunset)
       if (!auf && !unter) { toast({ title: tt(D.keineSonne), variant: 'destructive' }); return }
-      if (auf) updateHeader('sunrise', auf)
-      if (unter) updateHeader('sunset', unter)
+      aendereKopf({ ...(auf ? { sunrise: auf } : {}), ...(unter ? { sunset: unter } : {}) })
       const golden = uhr(d.golden_hour_evening_start)
       toast({
         title: tt(D.sonne).replace('{auf}', auf).replace('{unter}', unter),
@@ -988,6 +995,33 @@ export function Component() {
                   className="h-16 text-5xl font-black text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 shadow-none text-primary"
                 />
               </div>
+            </div>
+
+            {/* ── Geplanter Drehschluss und Arbeitszeit (AP B3) ─────────────── */}
+            <div className="flex flex-wrap items-start gap-4 bg-muted/30 border border-border/50 rounded-lg px-3 py-2.5">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-1">{tt(D.geplanterDrehschluss)}</p>
+                <TimeInput disabled={!darfSchreiben}
+                  value={headerForm.planned_wrap ?? project?.settings?.default_wrap_time ?? 1200}
+                  onChange={v => updateHeader('planned_wrap', v)}
+                  label={tt(D.geplanterDrehschlussName)}
+                  className="h-9 w-28 font-mono"
+                />
+                {headerForm.planned_wrap == null && <p className="text-[10px] text-muted-foreground mt-1 max-w-[14rem]">{tt(D.ausStammdaten)}</p>}
+              </div>
+              {(callSheet?.arbeitszeit?.befunde ?? []).length > 0 && (
+                <div role="status" className="flex-1 min-w-[14rem]">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-400 mb-1">{tt(D.arbeitszeitTitel)}</p>
+                  <ul className="text-xs space-y-0.5">
+                    {(callSheet.arbeitszeit.befunde as any[]).map((b, i) => (
+                      <li key={i}>
+                        <span className="font-semibold">{b.quelle}</span>: {b.text}
+                        {b.personen?.length > 0 && <span className="text-muted-foreground"> ({b.personen.slice(0, 4).join(', ')}{b.personen.length > 4 ? ` +${b.personen.length - 4}` : ''})</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             {/* ── Info strip: location, weather, sunrise, sunset ─────────── */}
