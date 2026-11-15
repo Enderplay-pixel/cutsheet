@@ -47,6 +47,10 @@ export const rechnungenT = {
   feldOrt:              { de: 'Ort', en: 'Town/City', fr: 'Ville' },
   feldUstId:            { de: 'Umsatzsteuer-ID', en: 'VAT ID', fr: 'N° de TVA' },
   feldEmail:            { de: 'E-Mail', en: 'Email', fr: 'E-mail' },
+  // AP B4: die Nummer, unter der die Kanzlei den Auftraggeber bucht
+  feldDebitor:          { de: 'Debitorennummer', en: 'Debtor number', fr: 'Numéro de débiteur' },
+  feldDebitorHilfe:     { de: 'Für den DATEV-Export. Die Nummer vergibt eure Steuerkanzlei - ohne sie bleibt die Rechnung aus dem Export.', en: 'For the DATEV export. Your tax office assigns the number - without it the invoice stays out of the export.', fr: 'Pour l’export DATEV. Votre cabinet comptable attribue ce numéro - sans lui, la facture reste hors de l’export.' },
+  debitorKurz:          { de: 'Debitor {nr}', en: 'Debtor {nr}', fr: 'Débiteur {nr}' },
   speichern:            { de: 'Speichern', en: 'Save', fr: 'Enregistrer' },
   abbrechen:            { de: 'Abbrechen', en: 'Cancel', fr: 'Annuler' },
 

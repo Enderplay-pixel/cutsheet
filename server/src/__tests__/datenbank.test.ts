@@ -1900,6 +1900,27 @@ describe('DATEV: Storno bucht zum eigenen Datum zurück', () => {
   })
 })
 
+describe('Debitorennummer (AP B4)', () => {
+  it('ohne Nummer nennt die Prüfung, wo sie hingehört; mit Nummer steht die Rechnung im Export', async () => {
+    const firma = (await db.run(
+      "INSERT INTO companies (name, owner_id, datev_berater, datev_mandant) VALUES ('Debitor GmbH', ?, 1001, 1)", [nutzerId])).id
+    const kunde = await db.run("INSERT INTO company_clients (company_id, name) VALUES (?, 'Nordlicht')", [firma])
+    const r = await db.run(
+      "INSERT INTO invoices (company_id, client_id, number, status, issue_date, tax_mode) VALUES (?, ?, 'D-1', 'versendet', '2026-09-15', 'regel')",
+      [firma, kunde.id])
+    await db.run('INSERT INTO invoice_items (invoice_id, quantity_milli, unit_price_cents, tax_percent) VALUES (?, 1000, 10000, 19)', [r.id])
+    const { buchungenBauen } = await import('../routes/buchhaltung')
+    const ohne = await buchungenBauen(firma, '2026-09-01', '2026-09-30')
+    expect(ohne.buchungen).toHaveLength(0)
+    expect(ohne.fehlt).toContain('Debitorennummer für: Nordlicht - einzutragen unter Rechnungen, Reiter Auftraggeber')
+    // Eintragen über die Route, die die Seite benutzt
+    const antwort = await hole(`/api/companies/${firma}/clients/${kunde.id}`, tokenInhaber, { method: 'PUT', body: JSON.stringify({ debitor_number: '10001' }) })
+    expect(antwort.status).toBe(200)
+    const mit = await buchungenBauen(firma, '2026-09-01', '2026-09-30')
+    expect(mit.buchungen.map((b: any) => [b.konto, b.belegfeld1])).toEqual([['10001', 'D-1']])
+  })
+})
+
 describe('Umsatzsteuer: Storno mindert im eigenen Monat', () => {
   it('September behält die Steuer, Oktober zieht sie ab', async () => {
     const firma = (await db.run("INSERT INTO companies (name, owner_id) VALUES ('USt GmbH', ?)", [nutzerId])).id

@@ -201,7 +201,8 @@ export async function buchungenBauen(companyId: number, von: string, bis: string
   }
 
   if (ohneDebitor.size > 0) {
-    fehlt.push(`Debitorennummer für: ${[...ohneDebitor].join(', ')}`)
+    // Wo man sie einträgt (AP B4) - vorher sagte die Warnung nur, dass sie fehlt
+    fehlt.push(`Debitorennummer für: ${[...ohneDebitor].join(', ')} - einzutragen unter Rechnungen, Reiter Auftraggeber`)
   }
   return { firma, rahmen, buchungen, fehlt, anzahlRechnungen: rechnungen.length }
 }

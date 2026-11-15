@@ -232,7 +232,7 @@ function Auftraggeber({ firmaId, kunden }: { firmaId: number; kunden: any[] }) {
         <CardHeader className="pb-2 pt-3 flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm">{tt(T.auftraggeber)}</CardTitle>
           <Button variant="outline" size="sm" className="h-7 text-xs"
-            onClick={() => setEntwurf({ name: '', contact_name: '', address: '', zip: '', city: '', vat_id: '', email: '' })}>
+            onClick={() => setEntwurf({ name: '', contact_name: '', address: '', zip: '', city: '', vat_id: '', email: '', debitor_number: '' })}>
             <Plus className="w-3.5 h-3.5 mr-1" />{tt(T.neu)}
           </Button>
         </CardHeader>
@@ -242,7 +242,8 @@ function Auftraggeber({ firmaId, kunden }: { firmaId: number; kunden: any[] }) {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium truncate">{kunde.name}</p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {[kunde.contact_name, [kunde.zip, kunde.city].filter(Boolean).join(' '), kunde.vat_id].filter(Boolean).join(' · ')}
+                  {[kunde.contact_name, [kunde.zip, kunde.city].filter(Boolean).join(' '), kunde.vat_id,
+                    kunde.debitor_number ? tt(T.debitorKurz).replace('{nr}', kunde.debitor_number) : ''].filter(Boolean).join(' · ')}
                 </p>
               </div>
               <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setEntwurf({ ...kunde })}
@@ -273,11 +274,15 @@ function Auftraggeber({ firmaId, kunden }: { firmaId: number; kunden: any[] }) {
             {([
               ['name', T.feldName], ['contact_name', T.feldAnsprechperson], ['address', T.feldStrasse],
               ['zip', T.feldPlz], ['city', T.feldOrt], ['vat_id', T.feldUstId], ['email', T.feldEmail],
+              // Debitorennummer (AP B4): der Server nahm sie schon an, die Oberfläche kannte sie nicht
+              ['debitor_number', T.feldDebitor],
             ] as const).map(([feld, label]) => (
               <div key={feld}>
                 <Label className="text-xs" htmlFor={`k-${feld}`}>{tt(label)}</Label>
                 <Input id={`k-${feld}`} value={entwurf[feld] || ''} className="mt-1 h-8 text-sm"
+                  inputMode={feld === 'debitor_number' ? 'numeric' : undefined}
                   onChange={e => setEntwurf({ ...entwurf, [feld]: e.target.value })} />
+                {feld === 'debitor_number' && <p className="text-[11px] text-muted-foreground mt-1">{tt(T.feldDebitorHilfe)}</p>}
               </div>
             ))}
             <div className="flex gap-2 pt-1">
