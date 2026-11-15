@@ -39,13 +39,23 @@ router.get('/equipment-lists/:id/items', requireMemberVia(projectIdFromTable('eq
   res.json({ data: parsed, error: null })
 })
 
+/**
+ * Einheit des Preises (AP B1): Tag, Woche oder pauschal. Gerechnet wird Preis
+ * mal Anzahl mal Stück; pauschal ohne Anzahl. Kein Umrechnungsfaktor Tag zu
+ * Woche - den hat jeder Verleih anders.
+ */
+const EINHEITEN = ['tag', 'woche', 'pauschal']
+const summeAus = (preis: unknown, anzahl: unknown, stueck: unknown, einheit: string) =>
+  Math.round((Number(preis) || 0) * (einheit === 'pauschal' ? 1 : Number(anzahl ?? 1)) * Number(stueck ?? 1))
+
 // POST /api/equipment-lists/:id/items
 router.post('/equipment-lists/:id/items', async (req, res) => {
-  const { item = '', quantity = 1, supplier = '', rental_per_day_cents = 0, total_days = 1, notes = '' } = req.body
-  const total_cents = rental_per_day_cents * total_days * quantity
+  const { item = '', quantity = 1, supplier = '', rental_per_day_cents = 0, total_days = 1, notes = '', rate_unit = 'tag' } = req.body
+  if (!EINHEITEN.includes(rate_unit)) return res.status(400).json({ data: null, error: 'Einheit ist Tag, Woche oder pauschal' })
+  const total_cents = summeAus(rental_per_day_cents, total_days, quantity, rate_unit)
   const maxSortRow = await db.get('SELECT COALESCE(MAX(sort_order), 0) as m FROM equipment_items WHERE equipment_list_id = ?', [req.params.id])
   const maxSort = (maxSortRow as any).m
-  const result = await db.run('INSERT INTO equipment_items (equipment_list_id, item, quantity, supplier, rental_per_day_cents, total_days, total_cents, notes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.params.id, item, quantity, supplier, rental_per_day_cents, total_days, total_cents, notes, maxSort + 1])
+  const result = await db.run('INSERT INTO equipment_items (equipment_list_id, item, quantity, supplier, rental_per_day_cents, total_days, total_cents, notes, sort_order, rate_unit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.params.id, item, quantity, supplier, rental_per_day_cents, total_days, total_cents, notes, maxSort + 1, rate_unit])
   const row = await db.get('SELECT * FROM equipment_items WHERE id = ?', [result.id]) as any
   res.status(201).json({ data: { ...row, checked: !!row.checked }, error: null })
 })
@@ -57,10 +67,13 @@ router.put('/equipment-items/:id', async (req, res) => {
     return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
   }
   const { item, quantity, supplier, rental_per_day_cents, total_days, checked, notes } = req.body
+  const vorher = await db.get('SELECT rate_unit FROM equipment_items WHERE id = ?', [req.params.id]) as any
+  const rate_unit = req.body.rate_unit ?? vorher?.rate_unit ?? 'tag'
+  if (!EINHEITEN.includes(rate_unit)) return res.status(400).json({ data: null, error: 'Einheit ist Tag, Woche oder pauschal' })
   // Wie beim Anlegen: Stückzahl oder Tage 0 heißen 0 Euro. Vorher machte
   // "|| 1" aus der 0 eine 1 - gemessen 100 € für Stückzahl 0.
-  const total_cents = (Number(rental_per_day_cents) || 0) * Number(total_days ?? 1) * Number(quantity ?? 1)
-  await db.run('UPDATE equipment_items SET item=?, quantity=?, supplier=?, rental_per_day_cents=?, total_days=?, total_cents=?, checked=?, notes=? WHERE id=?', [item, quantity, supplier, rental_per_day_cents, total_days, total_cents, checked ? 1 : 0, notes, req.params.id])
+  const total_cents = summeAus(rental_per_day_cents, total_days, quantity, rate_unit)
+  await db.run('UPDATE equipment_items SET item=?, quantity=?, supplier=?, rental_per_day_cents=?, total_days=?, total_cents=?, checked=?, notes=?, rate_unit=? WHERE id=?', [item, quantity, supplier, rental_per_day_cents, total_days, total_cents, checked ? 1 : 0, notes, rate_unit, req.params.id])
   const row = await db.get('SELECT * FROM equipment_items WHERE id = ?', [req.params.id]) as any
   res.json({ data: { ...row, checked: !!row.checked }, error: null })
 })

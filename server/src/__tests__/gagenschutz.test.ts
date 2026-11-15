@@ -49,6 +49,7 @@ beforeAll(async () => {
     '/api/projects/7/financing-versions', '/api/projects/7/kostenstand', '/api/projects/7/expenses',
     '/api/projects/7/payroll/export.csv', '/api/projects/7/vertraege', '/api/projects/7/vertraege/4/pdf',
     '/api/projects/7/backup', '/api/projects/7/pdf/kalkulation/3', '/api/projects/7/foerderantrag/export',
+    '/api/budget-versions/3/auswertung',
   ]) app.get(pfad, (_req, res) => res.json({ data: 'offen', error: null }))
   app.get('/api/projects/7/jugendschutz', (_req, res) => res.json({ data: 'offen', error: null }))
   server = http.createServer(app)
@@ -100,6 +101,9 @@ describe('Regeln', () => {
     const zeile = { person_name: 'Ida', overtime_hours: 1.25, zuschlag_minuten: { elfte: 60 }, surcharge_cents: 6500 }
     expect(gagenVerbergen(zeile)).toEqual({ person_name: 'Ida', overtime_hours: 1.25, zuschlag_minuten: { elfte: 60 }, surcharge_cents: null })
   })
+  it('verbirgt die Wochengage des Stabs (AP B1)', () => {
+    expect(gagenVerbergen({ name: 'Ole', fee_per_week: 250000, prep_days: 5 })).toEqual({ name: 'Ole', fee_per_week: null, prep_days: 5 })
+  })
   it('säubert gespeicherte Protokollwerte', () => {
     expect(protokollwertOhneGagen('{"actor_name":"Ida","fee_per_day":120000}')).toBe('{"actor_name":"Ida","fee_per_day":null}')
     expect(protokollwertOhneGagen('kein json')).toBe('kein json')
@@ -129,6 +133,8 @@ describe('Regie', () => {
       '/api/projects/7/financing-versions', '/api/projects/7/kostenstand', '/api/projects/7/expenses',
       '/api/projects/7/payroll/export.csv', '/api/projects/7/vertraege', '/api/projects/7/vertraege/4/pdf',
       '/api/projects/7/backup', '/api/projects/7/pdf/kalkulation/3', '/api/projects/7/foerderantrag/export',
+      // Auswertung im FFA-Schema (AP B1)
+      '/api/budget-versions/3/auswertung',
     ]) {
       const { status } = await hole(pfad)
       expect(status, pfad).toBe(403)

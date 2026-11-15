@@ -35,7 +35,7 @@ export const GELD_MAX_TEXT = '999.999.999,99 €'
  * im Namen an, die hier fehlt. Eine neue Geldspalte gehört in diese Liste.
  */
 export const GELDSPALTEN: Record<string, string[]> = {
-  budget_versions: ['total_cents'],
+  budget_versions: ['total_cents', 'hu_threshold_cents', 'hu_cap_cents', 'producer_fee_cap_cents'],
   budget_lines: ['unit_price_cents', 'total_cents'],
   financing_plan_versions: ['total_cents'],
   financing_entries: ['amount_cents'],
@@ -47,7 +47,7 @@ export const GELDSPALTEN: Record<string, string[]> = {
   equipment_items: ['rental_per_day_cents', 'total_cents'],
   insurances: ['coverage_amount_cents', 'premium_cents'],
   cast: ['fee_per_day', 'hold_fee_per_day'],
-  crew: ['fee_per_day'],
+  crew: ['fee_per_day', 'fee_per_week'],
   locations: ['rental_fee'],
   location_releases: ['fee_cents'],
   contracts: ['fee_cents'],

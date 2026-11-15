@@ -3156,7 +3156,7 @@ describe('Geld über der alten Grenze von INTEGER', () => {
 
   it('zwei Zeilen zu je 20 Mio. € ergeben 40 Mio. €', async () => {
     const projekt = (await db.run("INSERT INTO projects (title, owner_id) VALUES ('Groß', ?)", [nutzerId])).id
-    const fassung = (await sende(`/api/projects/${projekt}/budget-versions`, { name: 'Groß' })).daten.id
+    const fassung = (await sende(`/api/projects/${projekt}/budget-versions`, { name: 'Groß', schema: 'frei' })).daten.id
     const a = await sende(`/api/budget-versions/${fassung}/lines`, zeile())
     const b = await sende(`/api/budget-versions/${fassung}/lines`, zeile({ description: 'Probe 2' }))
     expect([a.status, b.status]).toEqual([201, 201])
@@ -3174,7 +3174,7 @@ describe('Geld über der alten Grenze von INTEGER', () => {
 
   it('eine abgelehnte Zeile ist nicht gespeichert', async () => {
     const projekt = (await db.run("INSERT INTO projects (title, owner_id) VALUES ('Unsinn', ?)", [nutzerId])).id
-    const fassung = (await sende(`/api/projects/${projekt}/budget-versions`, { name: 'Unsinn' })).daten.id
+    const fassung = (await sende(`/api/projects/${projekt}/budget-versions`, { name: 'Unsinn', schema: 'frei' })).daten.id
     const pfad = `/api/budget-versions/${fassung}/lines`
 
     const zuGross = await sende(pfad, zeile({ quantity: 3, unit_price_cents: 99_999_999_999 }))
@@ -3208,7 +3208,7 @@ describe('Geld über der alten Grenze von INTEGER', () => {
 
   it('ein Abzug mit negativem Preis bleibt möglich', async () => {
     const projekt = (await db.run("INSERT INTO projects (title, owner_id) VALUES ('Abzug', ?)", [nutzerId])).id
-    const fassung = (await sende(`/api/projects/${projekt}/budget-versions`, { name: 'Abzug' })).daten.id
+    const fassung = (await sende(`/api/projects/${projekt}/budget-versions`, { name: 'Abzug', schema: 'frei' })).daten.id
     await sende(`/api/budget-versions/${fassung}/lines`, zeile({ unit_price_cents: 50000 }))
     const abzug = await sende(`/api/budget-versions/${fassung}/lines`, zeile({ description: 'Rabatt', quantity: 2, unit_price_cents: -10000 }))
     expect(abzug.status).toBe(201)
@@ -4041,6 +4041,104 @@ describe('Arbeitszeit-Prüfung und Überstunden in Euro (AP B3)', () => {
     const zwanzig = await freiAm(tage[19])
     expect(zwanzig.map((b) => `${b.art}:${b.quelle}`)).toEqual(['hinweis:TV FFS'])
     expect(zwanzig[0].text).toMatch(/^20\. Drehtag/)
+  })
+})
+
+describe('Kalkulation nach FFA-Schema (AP B1)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+  const projekt = async () => (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Kalkulation FFA', nutzerId])).id
+
+  it('eine neue Fassung eines Films beginnt im FFA-Schema; die Sätze sind änderbar und geprüft', async () => {
+    const p = await projekt()
+    const f = await sende(`/api/projects/${p}/budget-versions`, { name: 'Fassung 1' })
+    expect(f.status).toBe(201)
+    expect(f.daten.schema).toBe('ffa')
+    expect(f.daten.reserve_percent_bp).toBe(800)
+    expect((await sende(`/api/projects/${p}/budget-versions`, { name: 'Frei', schema: 'frei' })).daten.schema).toBe('frei')
+    const geaendert = await sende(`/api/budget-versions/${f.daten.id}`, { reserve_percent_bp: 1000, social_percent_bp: 2100 }, 'PUT')
+    expect(geaendert.status).toBe(200)
+    expect(geaendert.daten).toMatchObject({ reserve_percent_bp: 1000, social_percent_bp: 2100 })
+    expect((await sende(`/api/budget-versions/${f.daten.id}`, { producer_fee_percent_bp: 10_000 }, 'PUT')).status).toBe(400)
+  })
+
+  it('Summe der Fassung sind die Herstellungskosten; die Auswertung nennt Rechenwerk und Hinweise', async () => {
+    const p = await projekt()
+    const f = (await sende(`/api/projects/${p}/budget-versions`, { name: 'F' })).daten
+    await sende(`/api/budget-versions/${f.id}/lines`, { description: 'Kamera', cost_group: 5, quantity: 1, unit_price_cents: 300_000_000 })
+    const z = await sende(`/api/budget-versions/${f.id}/lines`, { description: 'Regie', cost_group: 3, social: true, quantity: 1, unit_price_cents: 100 })
+    expect(z.daten).toMatchObject({ cost_group: 3, social: true })
+    expect((await sende(`/api/budget-versions/${f.id}/lines`, { description: 'x', cost_group: 12, quantity: 1, unit_price_cents: 1 })).status).toBe(400)
+    const a = (await hole(`/api/budget-versions/${f.id}/auswertung`, tokenInhaber)).daten
+    expect(a.rechenwerk.fertigungskosten).toBe(300_000_100)
+    expect(a.hinweise).toContain('Zusatzkosten Gagen fehlen')
+    const version = await db.get('SELECT total_cents FROM budget_versions WHERE id = ?', [f.id])
+    expect(Number(version.total_cents)).toBe(a.rechenwerk.herstellungskosten)
+  })
+
+  it('Umstellen von "frei" auf "FFA" behält alle Zeilen und ordnet Kategorien zu', async () => {
+    const p = await projekt()
+    const f = (await sende(`/api/projects/${p}/budget-versions`, { name: 'Alt', schema: 'frei' })).daten
+    for (const [kategorie, cent] of [['2000 - Kamera', 50_000], ['1000 - Stab', 70_000], ['Sonstiges', 5_000]] as const) {
+      await sende(`/api/budget-versions/${f.id}/lines`, { category: kategorie, description: kategorie, quantity: 1, unit_price_cents: cent })
+    }
+    const um = await sende(`/api/budget-versions/${f.id}/schema`, { schema: 'ffa', zuordnung: { '2000 - Kamera': 5, '1000 - Stab': 3 } })
+    expect(um.status).toBe(200)
+    expect(um.daten.schema).toBe('ffa')
+    const zeilen = (await hole(`/api/budget-versions/${f.id}/lines`, tokenInhaber)).daten as any[]
+    expect(zeilen).toHaveLength(3)
+    expect(zeilen.map((z) => [z.category, z.cost_group])).toEqual([['2000 - Kamera', 5], ['1000 - Stab', 3], ['Sonstiges', null]])
+    expect((await hole(`/api/budget-versions/${f.id}/auswertung`, tokenInhaber)).daten.hinweise).toContain('1 Zeile ohne Kostenart')
+  })
+
+  it('Kosten übernehmen ordnet in Kostenarten: Wochengage mit Vorbereitung, Verleih je Woche, Motivmiete', async () => {
+    const p = await projekt()
+    await db.run("INSERT INTO project_settings (project_id, work_weekdays) VALUES (?, '1,2,3,4,5')", [p])
+    const ole = (await db.run("INSERT INTO crew (project_id, name, role, contract_type, fee_per_week, prep_days) VALUES (?, 'Ole', 'Szenenbild', 'Wochengage', 250000, 5)", [p])).id
+    const motiv = (await db.run("INSERT INTO locations (project_id, name, rental_fee) VALUES (?, 'Mole', 50000)", [p])).id
+    // Zwei Drehtage am Motiv, je mit einer eigenen Szene (eine Szene steht an genau einem Tag)
+    for (let i = 0; i < 20; i++) {
+      const tag = (await db.run('INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, ?, ?)', [p, i + 1, `2026-12-${String(i + 1).padStart(2, '0')}`])).id
+      if (i < 2) {
+        const szene = (await db.run('INSERT INTO scenes (project_id, scene_number, location_id) VALUES (?, ?, ?)', [p, String(i + 1), motiv])).id
+        await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id) VALUES (?, ?)', [tag, szene])
+      }
+    }
+    const liste = (await db.run("INSERT INTO equipment_lists (project_id, name) VALUES (?, 'Kamera')", [p])).id
+    await db.run("INSERT INTO equipment_items (equipment_list_id, item, quantity, rental_per_day_cents, total_days, total_cents, rate_unit) VALUES (?, 'Kamerapaket', 1, 420000, 3, 1260000, 'woche')", [liste])
+    const f = (await sende(`/api/projects/${p}/budget-versions`, { name: 'F' })).daten
+    expect((await sende(`/api/budget-versions/${f.id}/kosten-uebernehmen`, {})).status).toBe(200)
+    const zeilen = (await hole(`/api/budget-versions/${f.id}/lines`, tokenInhaber)).daten as any[]
+    const zu = (schluessel: string) => zeilen.find((z) => z.source_key === schluessel)
+    // 20 Drehtage plus 5 Vorbereitung: 5 Wochen zu 2.500 €
+    expect(zu(`crew:${ole}`)).toMatchObject({ cost_group: 3, unit: 'Woche', total_cents: 1_250_000 })
+    expect(zu(`crew:${ole}`).description).toBe('Ole (Szenenbild), Vorbereitung 5 Tage')
+    expect(zu(`motiv:${motiv}`)).toMatchObject({ cost_group: 4, unit: 'Tag', total_cents: 100_000 })
+    const kamera = zeilen.find((z) => String(z.source_key).startsWith('equipment:'))
+    expect(kamera).toMatchObject({ cost_group: 5, description: 'Kamerapaket, 3 Wochen zu 4.200,00 €', total_cents: 1_260_000 })
+    // Ein zweiter Lauf ändert nichts
+    const zweimal = await sende(`/api/budget-versions/${f.id}/kosten-uebernehmen`, {})
+    expect(zweimal.daten).toMatchObject({ neu: 0, geaendert: 0, entfallen: 0 })
+  })
+
+  it('Kostenstand je Kostenart, Belege ohne Kostenart in ihrer eigenen Zeile', async () => {
+    const p = await projekt()
+    const f = (await sende(`/api/projects/${p}/budget-versions`, { name: 'F' })).daten
+    const technik = await sende(`/api/budget-versions/${f.id}/lines`, { description: 'Kamera', cost_group: 5, quantity: 1, unit_price_cents: 3_000_000 })
+    await sende(`/api/budget-versions/${f.id}/lines`, { description: 'Gagen', cost_group: 3, quantity: 1, unit_price_cents: 10_000_000 })
+    // Zwei Belege über zusammen 22.190 € in Kostenart 5 - einer über die Zeile, einer direkt
+    await sende(`/api/projects/${p}/expenses`, { description: 'Verleih Rechnung 1', amount_cents: 1_500_000, budget_line_id: technik.daten.id })
+    await sende(`/api/projects/${p}/expenses`, { description: 'Verleih Rechnung 2', amount_cents: 719_000, cost_group: 5 })
+    await sende(`/api/projects/${p}/expenses`, { description: 'Taxi', amount_cents: 4_200 })
+    expect((await sende(`/api/projects/${p}/expenses`, { description: 'x', amount_cents: 1, cost_group: 0 })).status).toBe(400)
+    const k = (await hole(`/api/projects/${p}/kostenstand`, tokenInhaber)).daten
+    expect(k.budget_version.schema).toBe('ffa')
+    const art5 = k.rows.find((r: any) => r.cost_group === 5)
+    expect(art5).toMatchObject({ soll_cents: 3_000_000, ist_cents: 2_219_000, diff_cents: 781_000 })
+    expect(art5.zeilen).toEqual([expect.objectContaining({ description: 'Kamera', soll_cents: 3_000_000, ist_cents: 1_500_000 })])
+    expect(k.rows.find((r: any) => r.category === 'Ohne Kostenart')).toMatchObject({ soll_cents: 0, ist_cents: 4_200 })
+    expect(k.rows.filter((r: any) => r.cost_group !== null)).toHaveLength(11)
+    expect(k.rechenwerk.fertigungskosten).toBe(13_000_000)
   })
 })
 

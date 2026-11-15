@@ -360,4 +360,9 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Prüfen darf die Abteilungsleitung der eigenen Abteilung, dazu Regie und Produktion': { en: 'Checking is for the head of the own department, plus director and production', fr: 'La vérification revient au chef de son propre département, ainsi qu’à la réalisation et à la production' },
   'Freigeben und Abrechnen darf nur die Produktion': { en: 'Only production may approve and settle', fr: 'Seule la production peut valider et régler' },
   'Freigegebene Stundenzettel ändert nur die Produktion': { en: 'Only production changes approved timesheets', fr: 'Seule la production modifie les feuilles de temps validées' },
+  // Kalkulation nach FFA-Schema (AP B1, 15.11.2026)
+  'Einheit ist Tag, Woche oder pauschal': { en: 'Unit is day, week or flat rate', fr: 'L’unité est le jour, la semaine ou le forfait' },
+  'Unbekannte Kostenart': { en: 'Unknown cost group', fr: 'Catégorie de coûts inconnue' },
+  'Das Schema ist "frei" oder "ffa"': { en: 'The scheme is "frei" (free) or "ffa"', fr: 'Le schéma est « frei » (libre) ou « ffa »' },
+  'Ein Satz liegt zwischen 0 und 99,99 %': { en: 'A rate is between 0 and 99.99 %', fr: 'Un taux est compris entre 0 et 99,99 %' },
 }

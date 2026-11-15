@@ -31,6 +31,7 @@ export const GAGENFELDER = new Set([
   'budget_total_cents',   // Dashboard
   'financing_total_cents',
   'surcharge_cents',      // Stundenzettel: Überstunden und Zuschläge in Euro (AP B3)
+  'fee_per_week',         // Stab: Wochengage (AP B1)
 ])
 
 /** Bereiche, die ganz der Produktion gehören - Pfade unterhalb von /api. */

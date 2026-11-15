@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  zahl, gagenPosten, equipmentPosten, versicherungsPosten, abgleiche,
+  zahl, gagenPosten, equipmentPosten, versicherungsPosten, abgleiche, motivPosten, reisePosten, unterkunftPosten,
   type Kostenposten,
 } from '../lib/kostenquellen'
 
@@ -61,6 +61,52 @@ describe('Equipment', () => {
 
   it('ueberspringt Posten ganz ohne Preis', () => {
     expect(equipmentPosten([{ id: 9, name: 'Geliehen', total_cents: 0, rental_per_day_cents: 0 }])).toEqual([])
+  })
+})
+
+describe('Equipment mit Einheit (AP B1)', () => {
+  it('Kamerapaket, 3 Wochen zu 4.200 € ergibt 12.600 € in Kostenart 5', () => {
+    const [p] = equipmentPosten([{ id: 10, name: 'Kamerapaket', rate_unit: 'woche', rental_per_day_cents: 420_000, days: 3, quantity: 1, total_cents: 1_260_000 }])
+    expect(p).toMatchObject({ beschreibung: 'Kamerapaket, 3 Wochen zu 4.200,00 €', einheit: 'Woche', menge: 3, einzelpreis_cent: 420_000, gesamt_cent: 1_260_000, kostenart: 5 })
+  })
+  it('pauschal: Preis mal Stück, ohne Anzahl', () => {
+    const [p] = equipmentPosten([{ id: 11, name: 'Kran', rate_unit: 'pauschal', rental_per_day_cents: 150_000, days: 7, quantity: 2, total_cents: 300_000 }])
+    expect(p).toMatchObject({ einheit: 'Pauschal', menge: 2, gesamt_cent: 300_000 })
+  })
+})
+
+describe('Wochengage, Vor- und Nachbereitung (AP B1)', () => {
+  it('Wochengage mal Wochen aus Drehtagen und Vorbereitung', () => {
+    const [p] = gagenPosten([{ id: 4, name: 'Ole', rolle: 'Szenenbild', contract_type: 'Wochengage', fee_per_week: 250_000, prep_days: 5 }], new Map([[4, 20]]), 'crew')
+    // 20 Drehtage plus 5 Vorbereitung = 25 Tage = 5 Wochen zu 2.500 €
+    expect(p).toMatchObject({ einheit: 'Woche', menge: 5, einzelpreis_cent: 250_000, gesamt_cent: 1_250_000, kostenart: 3 })
+    expect(p.beschreibung).toBe('Ole (Szenenbild), Vorbereitung 5 Tage')
+  })
+  it('Tagesgage mal Drehtage plus Vor- und Nachtage; die Woche hat so viele Tage wie das Projekt', () => {
+    const [p] = gagenPosten([{ id: 5, name: 'Mia', fee_per_day: 30_000, prep_days: 2, wrap_days: 1 }], new Map([[5, 10]]), 'crew')
+    expect(p).toMatchObject({ einheit: 'Tag', menge: 13, gesamt_cent: 390_000 })
+    const [w] = gagenPosten([{ id: 6, name: 'Jo', contract_type: 'Wochengage', fee_per_week: 300_000 }], new Map([[6, 9]]), 'crew', 6)
+    expect(w).toMatchObject({ menge: 1.5, gesamt_cent: 450_000 })
+  })
+  it('die Besetzung hat keine Vor- und Nachtage', () => {
+    const [p] = gagenPosten([{ id: 7, name: 'Anna', fee_per_day: 80_000, prep_days: 3 }], new Map([[7, 2]]), 'cast')
+    expect(p).toMatchObject({ menge: 2, kostenart: 3 })
+  })
+})
+
+describe('Motive, Reisen, Unterkünfte (AP B1)', () => {
+  it('Motivmiete mal Drehtage am Motiv in Kostenart 4, ein Motivvertrag ersetzt die Schätzung', () => {
+    const p = motivPosten(
+      [{ id: 1, name: 'Mole', rental_fee: 50_000 }, { id: 2, name: 'Villa', rental_fee: 90_000 }, { id: 3, name: 'Ohne Tag', rental_fee: 10_000 }],
+      new Map([[1, 3], [2, 4]]),
+      [{ id: 8, location_id: 2, owner_name: 'Fam. Berg', fee_cents: 300_000 }])
+    expect(p.map((x) => [x.schluessel, x.gesamt_cent, x.kostenart])).toEqual([['motiv:1', 150_000, 4], ['motiv-vertrag:8', 300_000, 4]])
+  })
+  it('Reisen und Unterkünfte in Kostenart 6, ohne Betrag kein Posten', () => {
+    expect(reisePosten([{ id: 1, person_name: 'Ida', purpose: 'Dreh Hamburg', gesamt_cent: 12_340 }, { id: 2, gesamt_cent: 0 }]))
+      .toEqual([expect.objectContaining({ schluessel: 'reise:1', beschreibung: 'Reise Ida, Dreh Hamburg', gesamt_cent: 12_340, kostenart: 6 })])
+    expect(unterkunftPosten([{ id: 5, name: 'Hotel Hafen', price_per_night_cents: 8_900, naechte: 12 }, { id: 6, name: 'Leer', price_per_night_cents: 5_000, naechte: 0 }]))
+      .toEqual([expect.objectContaining({ schluessel: 'unterkunft:5', einheit: 'Nacht', menge: 12, gesamt_cent: 106_800, kostenart: 6 })])
   })
 })
 

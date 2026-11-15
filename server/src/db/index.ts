@@ -1636,6 +1636,27 @@ export async function initDatabase() {
   // Zählt die Fahrzeit zur Arbeitszeit? Vorgabe nein
   await db.exec(`ALTER TABLE project_settings ADD COLUMN IF NOT EXISTS travel_counts BOOLEAN NOT NULL DEFAULT false`)
 
+  // Kalkulation nach FFA-Schema (Plan Kino-Ausbau, AP B1, 15.11.2026):
+  // Schema je Fassung, Sätze des Rechenwerks in Basispunkten (1000 = 10 %)
+  // mit den Vorgaben der FFA-FAQ 07/2021, Kostenart je Zeile und Beleg,
+  // Vor- und Nachbereitung und Wochengage im Stab, Einheit des Verleihs.
+  await db.exec(`ALTER TABLE budget_versions ADD COLUMN IF NOT EXISTS schema TEXT NOT NULL DEFAULT 'frei'`)
+  await db.exec(`ALTER TABLE budget_versions ADD COLUMN IF NOT EXISTS hu_percent_bp INTEGER NOT NULL DEFAULT 1000`)
+  await db.exec(`ALTER TABLE budget_versions ADD COLUMN IF NOT EXISTS hu_percent_above_bp INTEGER NOT NULL DEFAULT 500`)
+  await db.exec(`ALTER TABLE budget_versions ADD COLUMN IF NOT EXISTS hu_threshold_cents BIGINT NOT NULL DEFAULT 500000000`)
+  await db.exec(`ALTER TABLE budget_versions ADD COLUMN IF NOT EXISTS hu_cap_cents BIGINT NOT NULL DEFAULT 65000000`)
+  await db.exec(`ALTER TABLE budget_versions ADD COLUMN IF NOT EXISTS reserve_percent_bp INTEGER NOT NULL DEFAULT 800`)
+  await db.exec(`ALTER TABLE budget_versions ADD COLUMN IF NOT EXISTS producer_fee_percent_bp INTEGER NOT NULL DEFAULT 500`)
+  await db.exec(`ALTER TABLE budget_versions ADD COLUMN IF NOT EXISTS producer_fee_cap_cents BIGINT NOT NULL DEFAULT 25000000`)
+  await db.exec(`ALTER TABLE budget_versions ADD COLUMN IF NOT EXISTS social_percent_bp INTEGER`)
+  await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS cost_group INTEGER`)
+  await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS social BOOLEAN NOT NULL DEFAULT false`)
+  await db.exec(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS cost_group INTEGER`)
+  await db.exec(`ALTER TABLE crew ADD COLUMN IF NOT EXISTS prep_days INTEGER NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE crew ADD COLUMN IF NOT EXISTS wrap_days INTEGER NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE crew ADD COLUMN IF NOT EXISTS fee_per_week BIGINT NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE equipment_items ADD COLUMN IF NOT EXISTS rate_unit TEXT NOT NULL DEFAULT 'tag'`)
+
   // ── Rechnungen und Honorare ───────────────────────────────────────────────
   // Steuerart der Firma. Ein Einzelunternehmen nach Paragraf 19 UStG weist
   // keine Umsatzsteuer aus und muss das auf der Rechnung begruenden.

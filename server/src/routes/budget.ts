@@ -5,7 +5,10 @@ import { ladeDood } from '../lib/dood'
 import { db, TxClient } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { massgeblicheKalkulation } from '../lib/kalkulation'
-import { pruefeBudgetzeile, pruefeGeldgeberBetrag } from '../lib/geld'
+import { pruefeBudgetzeile, pruefeGeldgeberBetrag, GELD_MAX_CENT } from '../lib/geld'
+import { auswertung, istKostenart, SCHEMATA, VORGABE, type Schema } from '../lib/ffaSchema'
+import { rechneReise, type Tagesart } from '../lib/spesen'
+import { wochentageAus } from '../lib/board'
 
 const router = Router()
 
@@ -21,10 +24,55 @@ router.use('/projects/:projectId', requireMember)
  * Zeilen zu je 20 Mio. €: Antwort 400, Zeile da, Summe der Fassung falsch.
  */
 async function recalcBudgetTotal(versionId: number, tx: TxClient) {
-  const row = await tx.get('SELECT COALESCE(SUM(total_cents), 0) as s FROM budget_lines WHERE budget_version_id = ?', [versionId])
-  const total = Number((row as any).s) || 0
+  // Im FFA-Schema ist die Summe der Fassung die Herstellungskosten:
+  // Kostenarten minus Erträge, dazu Handlungskosten, Reserve und Honorar (AP B1)
+  const version = await tx.get('SELECT * FROM budget_versions WHERE id = ?', [versionId]) as any
+  let total: number
+  if (version?.schema === 'ffa') {
+    const zeilen = await tx.all('SELECT cost_group, social, total_cents FROM budget_lines WHERE budget_version_id = ?', [versionId]) as any[]
+    total = auswertung(zeilen, version).rechenwerk.herstellungskosten
+  } else {
+    const row = await tx.get('SELECT COALESCE(SUM(total_cents), 0) as s FROM budget_lines WHERE budget_version_id = ?', [versionId])
+    total = Number((row as any).s) || 0
+  }
   await tx.run("UPDATE budget_versions SET total_cents = ?, updated_at = datetime('now') WHERE id = ?", [total, versionId])
   return total
+}
+
+/** Kostenart einer Zeile: 1 bis 11, leer heißt keine; sonst undefined (Unsinn). */
+function kostenartAus(wert: unknown): number | null | undefined {
+  if (wert === null || wert === '' || wert === undefined) return null
+  const n = Number(wert)
+  return istKostenart(n) ? n : undefined
+}
+
+/** Die Sätze des Rechenwerks aus einer Anfrage: Basispunkte und Cent, geprüft. */
+const SATZFELDER = ['hu_percent_bp', 'hu_percent_above_bp', 'reserve_percent_bp', 'producer_fee_percent_bp'] as const
+const BETRAGSFELDER = ['hu_threshold_cents', 'hu_cap_cents', 'producer_fee_cap_cents'] as const
+function saetzeAusAnfrage(body: any): { werte: Record<string, number | null> } | { fehler: string } {
+  const werte: Record<string, number | null> = {}
+  for (const k of SATZFELDER) {
+    if (body?.[k] === undefined) continue
+    const n = Number(body[k])
+    // Unter 100 % - das Honorar teilt durch (1 minus Satz)
+    if (!Number.isInteger(n) || n < 0 || n >= 10_000) return { fehler: 'Ein Satz liegt zwischen 0 und 99,99 %' }
+    werte[k] = n
+  }
+  for (const k of BETRAGSFELDER) {
+    if (body?.[k] === undefined) continue
+    const n = Number(body[k])
+    if (!Number.isInteger(n) || n < 0 || n > GELD_MAX_CENT) return { fehler: 'Der Preis muss ein Betrag in ganzen Cent sein.' }
+    werte[k] = n
+  }
+  if (body?.social_percent_bp !== undefined) {
+    if (body.social_percent_bp === null || body.social_percent_bp === '') werte.social_percent_bp = null
+    else {
+      const n = Number(body.social_percent_bp)
+      if (!Number.isInteger(n) || n < 0 || n >= 10_000) return { fehler: 'Ein Satz liegt zwischen 0 und 99,99 %' }
+      werte.social_percent_bp = n
+    }
+  }
+  return { werte }
 }
 
 /** Dasselbe für einen Finanzierungsplan. */
@@ -110,10 +158,71 @@ router.get('/projects/:projectId/budget-versions', async (req, res) => {
 })
 
 // POST /api/projects/:projectId/budget-versions
+// Eine neue Fassung eines Films beginnt im FFA-Schema, sonst frei (AP B1)
 router.post('/projects/:projectId/budget-versions', async (req, res) => {
   const { name = 'Neue Kalkulation', status = 'Entwurf' } = req.body
-  const result = await db.run('INSERT INTO budget_versions (project_id, name, status) VALUES (?, ?, ?)', [req.params.projectId, name, status])
+  const projekt = await db.get('SELECT project_kind FROM projects WHERE id = ?', [req.params.projectId]) as any
+  const schema: Schema = (SCHEMATA as readonly string[]).includes(req.body?.schema)
+    ? req.body.schema
+    : (projekt?.project_kind ?? 'film') === 'film' ? 'ffa' : 'frei'
+  const result = await db.run('INSERT INTO budget_versions (project_id, name, status, schema) VALUES (?, ?, ?, ?)', [req.params.projectId, name, status, schema])
   res.status(201).json({ data: await db.get('SELECT * FROM budget_versions WHERE id = ?', [result.id]), error: null })
+})
+
+// PUT /api/budget-versions/:id - Name, Status und die Sätze des Rechenwerks (AP B1)
+router.put('/budget-versions/:id', async (req, res) => {
+  const version = await db.get('SELECT * FROM budget_versions WHERE id = ?', [req.params.id]) as any
+  if (!version) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
+  const s = saetzeAusAnfrage(req.body)
+  if ('fehler' in s) return res.status(400).json({ data: null, error: s.fehler })
+  const felder: string[] = []
+  const werte: unknown[] = []
+  for (const k of ['name', 'status'] as const) {
+    if (typeof req.body?.[k] === 'string' && req.body[k].trim()) { felder.push(`${k} = ?`); werte.push(req.body[k].trim()) }
+  }
+  for (const [k, v] of Object.entries(s.werte)) { felder.push(`${k} = ?`); werte.push(v) }
+  const neu = await db.transaction(async (tx) => {
+    if (felder.length) await tx.run(`UPDATE budget_versions SET ${felder.join(', ')} WHERE id = ?`, [...werte, req.params.id])
+    await recalcBudgetTotal(Number(req.params.id), tx)
+    return tx.get('SELECT * FROM budget_versions WHERE id = ?', [req.params.id])
+  })
+  res.json({ data: neu, error: null })
+})
+
+/**
+ * POST /api/budget-versions/:id/schema - eine Fassung umstellen (AP B1).
+ * Von "frei" auf "FFA" ordnet `zuordnung` jede Kategorie einer Kostenart zu
+ * ({ "Kamera": 5 }); Zeilen, die schon eine Kostenart haben (aus "Kosten
+ * übernehmen"), behalten sie. Keine Zeile geht verloren.
+ */
+router.post('/budget-versions/:id/schema', async (req, res) => {
+  const version = await db.get('SELECT * FROM budget_versions WHERE id = ?', [req.params.id]) as any
+  if (!version) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
+  const schema = req.body?.schema
+  if (!(SCHEMATA as readonly string[]).includes(schema)) return res.status(400).json({ data: null, error: 'Das Schema ist "frei" oder "ffa"' })
+  const zuordnung = req.body?.zuordnung ?? {}
+  if (typeof zuordnung !== 'object' || Array.isArray(zuordnung)) return res.status(400).json({ data: null, error: 'Unbekannte Kostenart' })
+  for (const v of Object.values(zuordnung)) if (kostenartAus(v) === undefined) return res.status(400).json({ data: null, error: 'Unbekannte Kostenart' })
+  const neu = await db.transaction(async (tx) => {
+    if (schema === 'ffa') {
+      for (const [kategorie, nr] of Object.entries(zuordnung)) {
+        await tx.run('UPDATE budget_lines SET cost_group = ? WHERE budget_version_id = ? AND cost_group IS NULL AND category = ?',
+          [kostenartAus(nr), req.params.id, kategorie])
+      }
+    }
+    await tx.run('UPDATE budget_versions SET schema = ? WHERE id = ?', [schema, req.params.id])
+    await recalcBudgetTotal(Number(req.params.id), tx)
+    return tx.get('SELECT * FROM budget_versions WHERE id = ?', [req.params.id])
+  })
+  res.json({ data: neu, error: null })
+})
+
+// GET /api/budget-versions/:id/auswertung - Kostenarten, Rechenwerk, Hinweise (AP B1)
+router.get('/budget-versions/:id/auswertung', requireMemberVia(projectIdFromTable('budget_versions', 'id')), async (req: Request, res: Response) => {
+  const version = await db.get('SELECT * FROM budget_versions WHERE id = ?', [req.params.id]) as any
+  if (!version) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
+  const zeilen = await db.all('SELECT cost_group, social, total_cents FROM budget_lines WHERE budget_version_id = ?', [req.params.id]) as any[]
+  res.json({ data: { schema: version.schema, vorgabe: VORGABE, ...auswertung(zeilen, version) }, error: null })
 })
 
 // GET /api/budget-versions/:id/lines
@@ -136,10 +245,13 @@ router.post('/budget-versions/:id/lines', async (req, res) => {
   // Gemessen am 12.11.2026: Menge -5 wurde gespeichert, Menge "abc" ergab 500.
   const zeile = pruefeBudgetzeile(quantity, unit_price_cents)
   if ('fehler' in zeile) return res.status(400).json({ data: null, error: zeile.fehler })
+  const kostenart = kostenartAus(req.body?.cost_group)
+  if (kostenart === undefined) return res.status(400).json({ data: null, error: 'Unbekannte Kostenart' })
+  const social = req.body?.social === true
   const id = await db.transaction(async (tx) => {
     const maxSortRow = await tx.get('SELECT COALESCE(MAX(sort_order), 0) as m FROM budget_lines WHERE budget_version_id = ?', [req.params.id])
     const maxSort = (maxSortRow as any).m
-    const result = await tx.run('INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.params.id, category, account_code, description, unit, zeile.quantity, zeile.unit_price_cents, zeile.total_cents, notes, maxSort + 1])
+    const result = await tx.run('INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, cost_group, social) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.params.id, category, account_code, description, unit, zeile.quantity, zeile.unit_price_cents, zeile.total_cents, notes, maxSort + 1, kostenart, social])
     await recalcBudgetTotal(parseInt(req.params.id), tx)
     return result.id
   })
@@ -155,8 +267,13 @@ router.put('/budget-lines/:id', async (req, res) => {
   const { category, account_code, description, unit, quantity, unit_price_cents, notes } = req.body
   const zeile = pruefeBudgetzeile(quantity, unit_price_cents)
   if ('fehler' in zeile) return res.status(400).json({ data: null, error: zeile.fehler })
+  // Kostenart und Sozialversicherung (AP B1): ohne Angabe bleibt, was war
+  const alt = await db.get('SELECT cost_group, social FROM budget_lines WHERE id = ?', [req.params.id]) as any
+  const kostenart = req.body?.cost_group === undefined ? (alt?.cost_group ?? null) : kostenartAus(req.body.cost_group)
+  if (kostenart === undefined) return res.status(400).json({ data: null, error: 'Unbekannte Kostenart' })
+  const social = req.body?.social === undefined ? alt?.social === true : req.body.social === true
   const line = await db.transaction(async (tx) => {
-    await tx.run('UPDATE budget_lines SET category=?, account_code=?, description=?, unit=?, quantity=?, unit_price_cents=?, total_cents=?, notes=? WHERE id=?', [category, account_code, description, unit, zeile.quantity, zeile.unit_price_cents, zeile.total_cents, notes, req.params.id])
+    await tx.run('UPDATE budget_lines SET category=?, account_code=?, description=?, unit=?, quantity=?, unit_price_cents=?, total_cents=?, notes=?, cost_group=?, social=? WHERE id=?', [category, account_code, description, unit, zeile.quantity, zeile.unit_price_cents, zeile.total_cents, notes, kostenart, social, req.params.id])
     const zeileNeu = await tx.get('SELECT * FROM budget_lines WHERE id = ?', [req.params.id]) as any
     if (zeileNeu) await recalcBudgetTotal(zeileNeu.budget_version_id, tx)
     return zeileNeu
@@ -201,15 +318,53 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
      FROM "cast" c LEFT JOIN characters ch ON c.character_id = ch.id
      WHERE c.project_id = ?`, [pid]) as any[]
   const stab = await db.all(
-    'SELECT id, name, role AS rolle, fee_per_day FROM crew WHERE project_id = ?', [pid]) as any[]
+    'SELECT id, name, role AS rolle, fee_per_day, contract_type, fee_per_week, prep_days, wrap_days FROM crew WHERE project_id = ?', [pid]) as any[]
   const equipment = await db.all(
     `SELECT ei.id, ei.item AS name, ei.quantity, ei.total_days AS days,
-            ei.rental_per_day_cents, ei.total_cents
+            ei.rental_per_day_cents, ei.total_cents, ei.rate_unit
      FROM equipment_items ei
      JOIN equipment_lists el ON ei.equipment_list_id = el.id
      WHERE el.project_id = ?`, [pid]) as any[]
   const policen = await db.all(
     'SELECT id, ins_type AS type, provider, premium_cents FROM insurances WHERE project_id = ?', [pid]) as any[]
+
+  // Motive, Reisen, Unterkünfte flossen bis AP B1 gar nicht in die Kalkulation
+  const motive = await db.all('SELECT id, name, rental_fee FROM locations WHERE project_id = ?', [pid]) as any[]
+  // Drehtage am Motiv wie auf der Seite Motive: Tage mit einer Szene dort
+  const motivTage = new Map(((await db.all(
+    `SELECT s.location_id, COUNT(DISTINCT sd.id) AS tage
+       FROM shoot_days sd
+       JOIN shoot_day_scenes sds ON sds.shoot_day_id = sd.id
+       JOIN scenes s ON s.id = sds.scene_id
+      WHERE sd.project_id = ? AND sd.status NOT IN ${KEIN_DREHTAG_SQL} AND s.location_id IS NOT NULL AND COALESCE(s.omitted, false) = false
+      GROUP BY s.location_id`, [pid])) as any[]).map((z) => [Number(z.location_id), Number(z.tage)]))
+  const motivvertraege = await db.all(
+    `SELECT lr.id, lr.location_id, lr.owner_name, lr.fee_cents
+       FROM location_releases lr JOIN locations l ON l.id = lr.location_id WHERE l.project_id = ?`, [pid]) as any[]
+  const reisenRoh = await db.all('SELECT * FROM trips WHERE project_id = ?', [pid]) as any[]
+  const reiseTage = await db.all('SELECT d.* FROM trip_days d JOIN trips t ON t.id = d.trip_id WHERE t.project_id = ? ORDER BY d.day_date', [pid]) as any[]
+  const reisen = reisenRoh.map((r) => ({
+    id: Number(r.id), person_name: r.person_name, purpose: r.purpose,
+    gesamt_cent: rechneReise(
+      reiseTage.filter((t) => t.trip_id === r.id).map((t) => ({
+        datum: String(t.day_date).slice(0, 10), art: String(t.kind) as Tagesart, dauerMinuten: Number(t.minutes_away || 0),
+        mahlzeiten: { fruehstueck: t.breakfast === true, mittag: t.lunch === true, abend: t.dinner === true },
+      })),
+      {
+        kilometer: Number(r.kilometers || 0),
+        fahrzeugart: r.vehicle_kind === 'sonstige' ? 'sonstige' : 'pkw',
+        // Wohnt die Person in einer erfassten Unterkunft, steht das Zimmer
+        // dort - sonst zählte die Übernachtung doppelt
+        uebernachtungCents: r.accommodation_id ? 0 : Number(r.lodging_cents || 0),
+      }).gesamtCents,
+  }))
+  const unterkuenfte = await db.all(
+    `SELECT a.id, a.name, a.price_per_night_cents,
+            COALESCE((SELECT SUM(r.nights) FROM accommodation_rooms r WHERE r.accommodation_id = a.id), 0) AS naechte
+       FROM accommodations a WHERE a.project_id = ?`, [pid]) as any[]
+  // Eine Woche hat so viele Tage, wie das Projekt Arbeitstage hat (AP A2)
+  const einstellung = await db.get('SELECT work_weekdays FROM project_settings WHERE project_id = ?', [pid]) as any
+  const tageJeWoche = Math.max(1, wochentageAus(String(einstellung?.work_weekdays ?? '1,2,3,4,5')).length)
 
   const castTage = anzahl(await drehtageBesetzung(db, pid))
   const stabTage = anzahl(await drehtageStab(db, pid))
@@ -231,8 +386,11 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
   const soll = [
     ...kosten.gagenPosten(besetzung, castTage, 'cast'),
     ...kosten.haltePosten(haltende, halteTage),
-    ...kosten.gagenPosten(stab, stabTage, 'crew'),
+    ...kosten.gagenPosten(stab, stabTage, 'crew', tageJeWoche),
     ...kosten.equipmentPosten(equipment),
+    ...kosten.motivPosten(motive, motivTage, motivvertraege),
+    ...kosten.reisePosten(reisen),
+    ...kosten.unterkunftPosten(unterkuenfte.map((u) => ({ ...u, naechte: Number(u.naechte) || 0 }))),
     ...kosten.versicherungsPosten(policen),
   ]
 
@@ -245,9 +403,11 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
     .map(x => String(x.name ?? '').trim() || 'Ohne Namen')
 
   const vorhanden = await db.all(
-    'SELECT id, source_key, description, quantity, unit_price_cents, total_cents FROM budget_lines WHERE budget_version_id = ?',
+    'SELECT id, source_key, description, quantity, unit_price_cents, total_cents, cost_group FROM budget_lines WHERE budget_version_id = ?',
     [req.params.id]) as any[]
-  const plan = kosten.abgleiche(vorhanden, soll)
+  // Jede erzeugte Zeile trägt ihre Kostenart (AP B1) - im FFA-Schema ist eine
+  // falsche Kostenart eine Änderung
+  const plan = kosten.abgleiche(vorhanden, soll, version.schema === 'ffa')
 
   if (!nurZeigen) {
     // Alles oder nichts: Scheitert eine Zeile, bleibt die Fassung, wie sie war.
@@ -261,17 +421,17 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
       sort++
       await tx.run(
         `INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit,
-         quantity, unit_price_cents, total_cents, sort_order, source_key)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         quantity, unit_price_cents, total_cents, sort_order, source_key, cost_group)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [req.params.id, n.kategorie, '', n.beschreibung, n.einheit,
-         n.menge, n.einzelpreis_cent, n.gesamt_cent, sort, n.schluessel])
+         n.menge, n.einzelpreis_cent, n.gesamt_cent, sort, n.schluessel, n.kostenart])
     }
     for (const g of plan.geaendert) {
       await tx.run(
         `UPDATE budget_lines SET category = ?, description = ?, unit = ?, quantity = ?,
-         unit_price_cents = ?, total_cents = ? WHERE id = ?`,
+         unit_price_cents = ?, total_cents = ?, cost_group = ? WHERE id = ?`,
         [g.posten.kategorie, g.posten.beschreibung, g.posten.einheit, g.posten.menge,
-         g.posten.einzelpreis_cent, g.posten.gesamt_cent, g.id])
+         g.posten.einzelpreis_cent, g.posten.gesamt_cent, g.posten.kostenart, g.id])
     }
     for (const id of plan.entfallen) {
       await tx.run('DELETE FROM budget_lines WHERE id = ?', [id])
