@@ -14,6 +14,7 @@ import { Plus, Trash2, Mail, Phone, Copy, Check, ChevronDown, ChevronUp, Users, 
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { useT } from '@/lib/useT'
 import { crewT, uiT } from '@/lib/i18n'
+import { kalkT as K } from '@/lib/texte/Kalkulation'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
 
 const DEPARTMENTS = [
@@ -83,13 +84,40 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
           className="h-7 text-xs w-24 lg:w-28 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="+49…" />
       </div>
 
-      {/* Fee - nur für die Produktion (lib/useSchreibrecht.ts) */}
+      {/* Vor- und Abwicklungstage zählen in der Kalkulation mit (AP B1) */}
+      <div className="flex items-center gap-1 shrink-0 pl-9 sm:pl-0">
+        <Input disabled={!darfSchreiben} type="number" min={0} value={form.prep_days ?? 0} title={tt(K.vorLang)}
+          onChange={e => update('prep_days', Math.max(0, Math.round(Number(e.target.value) || 0)))}
+          aria-label={von(tt(K.vorLang))}
+          className="h-7 text-xs w-12 bg-transparent border-transparent hover:border-border focus:border-border transition-colors text-right" />
+        <span className="text-[10px] text-muted-foreground/60">{tt(K.vor)}</span>
+        <Input disabled={!darfSchreiben} type="number" min={0} value={form.wrap_days ?? 0} title={tt(K.nachLang)}
+          onChange={e => update('wrap_days', Math.max(0, Math.round(Number(e.target.value) || 0)))}
+          aria-label={von(tt(K.nachLang))}
+          className="h-7 text-xs w-12 bg-transparent border-transparent hover:border-border focus:border-border transition-colors text-right" />
+        <span className="text-[10px] text-muted-foreground/60">{tt(K.nach)}</span>
+      </div>
+
+      {/* Fee - nur für die Produktion (lib/useSchreibrecht.ts); Tages- oder Wochengage (AP B1) */}
       {siehtGagen && (
       <div className="flex items-center gap-1 shrink-0">
-        <Input disabled={!darfSchreiben} type="number" value={(form.fee_per_day || 0) / 100}
-          onChange={e => update('fee_per_day', Math.round(Number(e.target.value) * 100))}
-          aria-label={von(tt(crewT.tagesgageEuro))}
-          className="h-7 text-xs w-20 bg-transparent border-transparent hover:border-border focus:border-border transition-colors text-right" />
+        <select disabled={!darfSchreiben} value={form.contract_type === 'Wochengage' ? 'Wochengage' : 'Tagesgage'}
+          onChange={e => update('contract_type', e.target.value)} aria-label={von(tt(K.vertragsart))}
+          className="h-7 text-[11px] rounded-md bg-transparent border border-transparent hover:border-border focus:border-border text-muted-foreground">
+          <option value="Tagesgage">{tt(K.tagesgage)}</option>
+          <option value="Wochengage">{tt(K.wochengage)}</option>
+        </select>
+        {form.contract_type === 'Wochengage' ? (
+          <Input disabled={!darfSchreiben} type="number" value={(form.fee_per_week || 0) / 100}
+            onChange={e => update('fee_per_week', Math.round(Number(e.target.value) * 100))}
+            aria-label={von(tt(K.wochengageEuro))}
+            className="h-7 text-xs w-20 bg-transparent border-transparent hover:border-border focus:border-border transition-colors text-right" />
+        ) : (
+          <Input disabled={!darfSchreiben} type="number" value={(form.fee_per_day || 0) / 100}
+            onChange={e => update('fee_per_day', Math.round(Number(e.target.value) * 100))}
+            aria-label={von(tt(crewT.tagesgageEuro))}
+            className="h-7 text-xs w-20 bg-transparent border-transparent hover:border-border focus:border-border transition-colors text-right" />
+        )}
         <span className="text-xs text-muted-foreground/50">€</span>
       </div>
       )}

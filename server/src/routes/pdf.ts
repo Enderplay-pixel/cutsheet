@@ -25,6 +25,7 @@ import {
 import { dauer, nettoDrehzeit } from '../lib/drehzeit'
 import { mitUeberschrift } from '../lib/szenenUeberschrift'
 import { dateiIdAus } from '../lib/dateien'
+import { kalkulationsAufbau } from '../lib/kalkulationsAufbau'
 
 const router = Router()
 
@@ -795,42 +796,47 @@ router.get('/projects/:projectId/pdf/kalkulation/:versionId', async (req, res) =
     [req.params.versionId]
   ) as any[]
 
-  const byCategory: Record<string, any[]> = {}
-  for (const l of lines) {
-    const cat = l.category || 'Ohne Kategorie'
-    if (!byCategory[cat]) byCategory[cat] = []
-    byCategory[cat].push(l)
-  }
-
-  const catTotals = Object.entries(byCategory).map(([cat, items]) => ({
-    cat,
-    items,
-    total: items.reduce((sum: number, i: any) => sum + (Number(i.total_cents) || 0), 0),
-  }))
-  const grandTotal = catTotals.reduce((sum, c) => sum + c.total, 0)
+  // Derselbe Aufbau wie Bildschirm und CSV (lib/kalkulationsAufbau.ts, AP B1):
+  // im FFA-Schema die elf Kostenarten und darunter das Rechenwerk
+  const aufbau = kalkulationsAufbau(version, lines)
+  const ffa = aufbau.schema === 'ffa'
+  const catTotals = aufbau.bloecke.map((b) => ({ cat: b.titel, items: b.zeilen, total: b.summe_cent, mindernd: b.mindernd }))
+  const grandTotal = aufbau.gesamt_cent
   const share = (cents: number) => (grandTotal > 0 ? `${Math.round((cents / grandTotal) * 100)} %` : '-')
 
   // Übersicht zuerst: die Frage "wo steckt das Geld?" ohne Blättern beantworten
-  const overview = section('Übersicht', table({
+  const overview = section(ffa ? 'Übersicht nach Kostenarten (FFA)' : 'Übersicht', table({
     columns: [
-      { header: 'Kategorie', value: (r: any) => r.cat },
+      { header: ffa ? 'Kostenart' : 'Kategorie', value: (r: any) => r.cat },
       { header: 'Positionen', value: (r: any) => r.items.length, align: 'right', width: '14%' },
       { header: 'Anteil', value: (r: any) => share(r.total), align: 'right', width: '12%' },
-      { header: 'Summe', value: (r: any) => fmtMoney(r.total, currency), align: 'right', width: '20%' },
+      { header: 'Summe', value: (r: any) => (r.mindernd && r.total ? '- ' : '') + fmtMoney(r.total, currency), align: 'right', width: '20%' },
     ],
     rows: catTotals,
     empty: 'Noch keine Positionen erfasst.',
-    footer: [{ label: 'Gesamtbudget', value: fmtMoney(grandTotal, currency) }],
+    footer: [{ label: ffa ? 'Fertigungskosten' : 'Gesamtbudget', value: fmtMoney(ffa ? aufbau.rechenwerk[0].betrag_cent : grandTotal, currency) }],
   }))
 
-  const detail = catTotals.map(({ cat, items, total }) => section(cat, table({
+  // Das Rechenwerk mit seinen Sätzen und Hinweisen (über dem Höchstsatz, gedeckelt)
+  const rechenwerkHtml = ffa ? section('Rechenwerk', table({
     columns: [
-      { header: 'Konto', value: (r: any) => r.account_code, width: '10%' },
-      { header: 'Bezeichnung', value: (r: any) => r.description },
-      { header: 'Einheit', value: (r: any) => r.unit, width: '11%' },
-      { header: 'Menge', value: (r: any) => r.quantity, align: 'right', width: '9%' },
-      { header: 'Einzelpreis', value: (r: any) => fmtMoney(r.unit_price_cents, currency), align: 'right', width: '15%' },
-      { header: 'Gesamt', value: (r: any) => fmtMoney(r.total_cents, currency), align: 'right', width: '15%' },
+      { header: 'Zeile', value: (r: any) => r.bezeichnung },
+      { header: 'Satz', value: (r: any) => r.satz },
+      { header: 'Hinweis', value: (r: any) => r.hinweis, width: '22%' },
+      { header: 'Betrag', value: (r: any) => fmtMoney(r.betrag_cent, currency), align: 'right', width: '18%' },
+    ],
+    rows: aufbau.rechenwerk.slice(0, -1),
+    footer: [{ label: 'Herstellungskosten', value: fmtMoney(aufbau.gesamt_cent, currency) }],
+  }), aufbau.hinweise.join(' · ')) : ''
+
+  const detail = catTotals.filter((c) => c.items.length > 0).map(({ cat, items, total }) => section(cat, table({
+    columns: [
+      { header: 'Konto', value: (r: any) => r.konto, width: '10%' },
+      { header: 'Bezeichnung', value: (r: any) => r.bezeichnung },
+      { header: 'Einheit', value: (r: any) => r.einheit, width: '11%' },
+      { header: 'Menge', value: (r: any) => r.menge, align: 'right', width: '9%' },
+      { header: 'Einzelpreis', value: (r: any) => fmtMoney(r.einzelpreis_cent, currency), align: 'right', width: '15%' },
+      { header: 'Gesamt', value: (r: any) => fmtMoney(r.gesamt_cent, currency), align: 'right', width: '15%' },
     ],
     rows: items,
     footer: [{ label: `Summe ${cat}`, value: fmtMoney(total, currency) }],
@@ -844,14 +850,15 @@ router.get('/projects/:projectId/pdf/kalkulation/:versionId', async (req, res) =
     subtitle: version.name,
     meta: [
       { label: 'Fassung', value: version.name },
+      { label: 'Schema', value: ffa ? 'FFA' : 'frei' },
       { label: 'Stand', value: fmtDate(new Date().toISOString()) },
     ],
     body:
       stats([
-        { label: 'Gesamtbudget', value: fmtMoney(grandTotal, currency) },
-        { label: 'Kategorien', value: catTotals.length },
+        { label: ffa ? 'Herstellungskosten' : 'Gesamtbudget', value: fmtMoney(grandTotal, currency) },
+        { label: ffa ? 'Kostenarten' : 'Kategorien', value: catTotals.filter((c) => c.items.length > 0).length },
         { label: 'Positionen', value: lines.length },
-      ]) + overview + detail,
+      ]) + overview + rechenwerkHtml + detail,
   })
 
   await sendPdf(res, html, `kalkulation-${slug(version.name)}.pdf`)
@@ -1019,8 +1026,9 @@ router.get('/projects/:projectId/pdf/equipment', async (req, res) => {
     { header: 'Artikel', value: (r: any) => r.item },
     { header: 'Menge', value: (r: any) => r.quantity, align: 'right', width: '8%' },
     { header: 'Verleiher', value: (r: any) => r.supplier, width: '18%' },
-    { header: 'Tagesmiete', value: (r: any) => fmtMoney(r.rental_per_day_cents, currency), align: 'right', width: '14%' },
-    { header: 'Tage', value: (r: any) => r.total_days, align: 'right', width: '7%' },
+    // Verleih je Tag, Woche oder pauschal (AP B1)
+    { header: 'Preis', value: (r: any) => `${fmtMoney(r.rental_per_day_cents, currency)}${r.rate_unit === 'woche' ? ' je Woche' : r.rate_unit === 'pauschal' ? ' pauschal' : ' je Tag'}`, align: 'right', width: '18%' },
+    { header: 'Anzahl', value: (r: any) => (r.rate_unit === 'pauschal' ? '-' : `${r.total_days} ${r.rate_unit === 'woche' ? 'Wo.' : 'Tg.'}`), align: 'right', width: '9%' },
     { header: 'Gesamt', value: (r: any) => fmtMoney(r.total_cents, currency), align: 'right', width: '14%' },
     { header: 'Da', value: (r: any) => (r.checked ? '✓' : ''), align: 'center', width: '5%' },
   ]

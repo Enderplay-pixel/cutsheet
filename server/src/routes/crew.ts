@@ -33,10 +33,19 @@ router.put('/crew/:id', async (req, res) => {
     return res.status(404).json({ data: null, error: 'Person nicht gefunden' })
   }
   const { name, department, role, email, phone, fee_per_day, contract_type, availability_notes, notes } = req.body
+  // Wochengage, Vor- und Abwicklungstage (AP B1). Ohne Angabe bleibt, was war -
+  // die Gage fehlt bei Rollen ohne Gagenrecht, weil der Gagenschutz sie streicht
+  const tage = (w: unknown) => (w === undefined || w === null || w === '' ? null : Number(w))
+  for (const w of [req.body.prep_days, req.body.wrap_days]) {
+    const n = tage(w)
+    if (n !== null && (!Number.isInteger(n) || n < 0 || n > 366)) return res.status(400).json({ data: null, error: 'Vor- und Abwicklungstage sind ganze Zahlen von 0 bis 366' })
+  }
   await db.run(`
-    UPDATE crew SET name=?, department=?, role=?, email=?, phone=?, fee_per_day=COALESCE(?, fee_per_day), contract_type=?, availability_notes=?, notes=?
+    UPDATE crew SET name=?, department=?, role=?, email=?, phone=?, fee_per_day=COALESCE(?, fee_per_day), contract_type=?, availability_notes=?, notes=?,
+      fee_per_week=COALESCE(?, fee_per_week), prep_days=COALESCE(?, prep_days), wrap_days=COALESCE(?, wrap_days)
     WHERE id=?
-  `, [name, department, role, email, phone, fee_per_day, contract_type, availability_notes, notes, req.params.id])
+  `, [name, department, role, email, phone, fee_per_day, contract_type, availability_notes, notes,
+      req.body.fee_per_week ?? null, tage(req.body.prep_days), tage(req.body.wrap_days), req.params.id])
   res.json({ data: await db.get('SELECT * FROM crew WHERE id = ?', [req.params.id]), error: null })
 })
 

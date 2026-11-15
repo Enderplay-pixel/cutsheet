@@ -2,6 +2,7 @@ import { dateiname } from '../lib/dateiname'
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { generatePdf } from './pdf'
+import { kalkulationsAufbau } from '../lib/kalkulationsAufbau'
 import {
   renderDocument, table, stats, section, definitions, badge, fmtMoney, fmtDate,
 } from '../lib/documentLayout'
@@ -52,13 +53,15 @@ router.get('/projects/:pid/foerderantrag/export', async (req: Request, res: Resp
     return !keineLeitung.test(rolle) && leitung.some((muster) => muster.test(rolle))
   })
 
-  // Budget by category (FFA-like structure)
+  // Budget im Aufbau der Fassung (AP B1): im FFA-Schema die Kostenarten in
+  // ihrer Reihenfolge und das Rechenwerk, sonst je Kategorie
+  const aufbau = budgetVersion ? kalkulationsAufbau(budgetVersion, budgetLines) : null
   const budgetByCategory: Record<string, number> = {}
-  for (const line of budgetLines) {
-    // Mit Namen ("2000 - Stab"): nur die Nummer sagt einem Förderer nichts
-    const cat = String(line.category || 'Ohne Kategorie').trim()
-    budgetByCategory[cat] = (budgetByCategory[cat] || 0) + line.total_cents
+  for (const b of aufbau?.bloecke ?? []) {
+    if (aufbau?.schema === 'ffa' && b.zeilen.length === 0) continue
+    budgetByCategory[b.titel] = b.mindernd ? -b.summe_cent : b.summe_cent
   }
+  for (const r of aufbau?.rechenwerk ?? []) budgetByCategory[r.bezeichnung] = r.betrag_cent
 
   // Regional effect: count locations per city/state
   const locationsByCity: Record<string, number> = {}
@@ -86,8 +89,10 @@ router.get('/projects/:pid/foerderantrag/export', async (req: Request, res: Resp
     budget: {
       total_eur: budgetVersion ? (budgetVersion.total_cents / 100).toFixed(2) : '0.00',
       by_category: Object.entries(budgetByCategory)
-        .sort(([a], [b]) => (parseInt(a) || 1e9) - (parseInt(b) || 1e9) || a.localeCompare(b, 'de'))
+        // Im FFA-Schema steht die Reihenfolge schon fest (Kostenarten, dann Rechenwerk)
+        .sort(([a], [b]) => aufbau?.schema === 'ffa' ? 0 : (parseInt(a) || 1e9) - (parseInt(b) || 1e9) || a.localeCompare(b, 'de'))
         .map(([cat, cents]) => ({ category: cat, amount_eur: (cents / 100).toFixed(2) })),
+      schema: aufbau?.schema ?? null,
     },
     financing: {
       total_eur: finVersion ? (finVersion.total_cents / 100).toFixed(2) : '0.00',

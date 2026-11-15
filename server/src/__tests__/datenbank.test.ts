@@ -4121,6 +4121,26 @@ describe('Kalkulation nach FFA-Schema (AP B1)', () => {
     expect(zweimal.daten).toMatchObject({ neu: 0, geaendert: 0, entfallen: 0 })
   })
 
+  it('die CSV hat den Aufbau des Schemas und dieselbe Summe wie die Fassung', async () => {
+    const p = await projekt()
+    const f = (await sende(`/api/projects/${p}/budget-versions`, { name: 'F' })).daten
+    await sende(`/api/budget-versions/${f.id}/lines`, { description: 'Kamera', cost_group: 5, quantity: 2, unit_price_cents: 150_000_000 })
+    await sende(`/api/budget-versions/${f.id}/lines`, { description: 'Verkauf Requisiten', cost_group: 11, quantity: 1, unit_price_cents: 1_000_000 })
+    const antwort = await fetch(`${basis}/api/budget-versions/${f.id}/export.csv`, { headers: { Authorization: `Bearer ${tokenInhaber}` } })
+    expect(antwort.status).toBe(200)
+    const zeilen = (await antwort.text()).replace(/^\ufeff/, '').split(/\r?\n/).map((z) => z.split(';'))
+    expect(zeilen[0]).toEqual(['Kostenart', 'Konto', 'Bezeichnung', 'Einheit', 'Menge', 'Einzelpreis', 'Gesamt', 'Hinweis'])
+    // Die elf Kostenarten in ihrer Reihenfolge, je mit Summe; Erträge abgezogen
+    const summen = zeilen.filter((z) => z[2]?.startsWith('Summe '))
+    expect(summen.map((z) => z[0])).toEqual(['1 Vorkosten', '2 Rechte und Manuskript', '3 Gagen', '4 Atelier', '5 Ausstattung und Technik',
+      '6 Reise- und Transportkosten', '7 Filmmaterial und Bearbeitung', '8 Endfertigung', '9 Versicherungen', '10 Allgemeine Kosten', '11 Kostenmindernde Erträge'])
+    expect(summen.find((z) => z[0] === '11 Kostenmindernde Erträge')![6]).toBe('-10000,00')
+    const rechenwerk = zeilen.filter((z) => z[0] === 'Rechenwerk').map((z) => [z[2], z[6]])
+    expect(rechenwerk[0]).toEqual(['Fertigungskosten', '2990000,00'])
+    const fassung = await db.get('SELECT total_cents FROM budget_versions WHERE id = ?', [f.id])
+    expect(rechenwerk[4]).toEqual(['Herstellungskosten', (Number(fassung.total_cents) / 100).toFixed(2).replace('.', ',')])
+  })
+
   it('Kostenstand je Kostenart, Belege ohne Kostenart in ihrer eigenen Zeile', async () => {
     const p = await projekt()
     const f = (await sende(`/api/projects/${p}/budget-versions`, { name: 'F' })).daten

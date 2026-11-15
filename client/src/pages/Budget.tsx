@@ -22,6 +22,9 @@ import { budgetT as T, EINHEIT_TEXT, FINANZIERUNGSART_TEXT } from '@/lib/texte/B
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
 import { NurProduktion } from '@/components/shared/NurProduktion'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Rechenwerk, NeueFassungDialog, UmstellenDialog } from '@/components/budget/Kalkulation'
+import { kalkT as K, KOSTENART_TEXT, KOSTENARTEN } from '@/lib/texte/Kalkulation'
 
 const UNITS = ['Pauschal', 'Tage', 'Stunden', 'Wochen', 'Monate', 'Stück']
 const CATEGORIES = [
@@ -45,7 +48,7 @@ const euro = (c: any) => (c === '' || c == null ? '' : c / 100)
 const leer = (...werte: any[]) => werte.some(w => w === '')
 const loeschenBestaetigt = (frage: string, name: string) => window.confirm(frage.replace('{name}', name))
 
-function BudgetLineRow({ line, onDelete, darf }: { line: any; onDelete: () => void; darf: boolean }) {
+function BudgetLineRow({ line, onDelete, darf, ffa = false }: { line: any; onDelete: () => void; darf: boolean; ffa?: boolean }) {
   const [form, setForm] = useState(line)
   const queryClient = useQueryClient()
   const tt = useT()
@@ -61,6 +64,7 @@ function BudgetLineRow({ line, onDelete, darf }: { line: any; onDelete: () => vo
       setFehler('')
       queryClient.invalidateQueries({ queryKey: ['budget-lines'] })
       queryClient.invalidateQueries({ queryKey: ['budget-versions'] })
+      queryClient.invalidateQueries({ queryKey: ['budget-auswertung'] })
     },
     onError: (e: any) => setFehler(String(e?.message || '')),
   })
@@ -94,6 +98,9 @@ function BudgetLineRow({ line, onDelete, darf }: { line: any; onDelete: () => vo
   }
 
   const total = summe(form)
+  // Erzeugte Zeilen tragen "Tag", "Woche" oder "Nacht" - die Auswahl kannte
+  // sie nicht und stand leer da
+  const einheiten = UNITS.includes(form.unit) || !form.unit ? UNITS : [...UNITS, form.unit]
 
   return (
     <Fragment>
@@ -107,7 +114,7 @@ function BudgetLineRow({ line, onDelete, darf }: { line: any; onDelete: () => vo
       <td className="py-1.5 px-2 w-24">
         <Select value={form.unit || 'Pauschal'} onValueChange={v => update('unit', v)} disabled={!darf}>
           <SelectTrigger aria-label={tt(T.einheit)} className="h-7 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>{UNITS.map(u => <SelectItem key={u} value={u} className="text-xs">{EINHEIT_TEXT[u] ? tt(EINHEIT_TEXT[u]) : u}</SelectItem>)}</SelectContent>
+          <SelectContent>{einheiten.map(u => <SelectItem key={u} value={u} className="text-xs">{EINHEIT_TEXT[u] ? tt(EINHEIT_TEXT[u]) : u}</SelectItem>)}</SelectContent>
         </Select>
       </td>
       <td className="py-1.5 px-2 w-16">
@@ -129,6 +136,28 @@ function BudgetLineRow({ line, onDelete, darf }: { line: any; onDelete: () => vo
       <td className={`py-1.5 px-2 w-28 text-right font-mono text-sm font-medium ${fehler ? 'line-through text-muted-foreground' : ''}`}>
         {formatCurrency(total)}
       </td>
+      {/* FFA-Schema (AP B1): Kostenart der Zeile, bei Gagen der Haken SV */}
+      {ffa && (
+        <td className="py-1.5 px-2 w-28">
+          <div className="flex items-center gap-1.5">
+            <Select value={form.cost_group ? String(form.cost_group) : '__ohne'} disabled={!darf}
+              onValueChange={v => update('cost_group', v === '__ohne' ? null : Number(v))}>
+              <SelectTrigger aria-label={`${tt(K.kostenart)} ${form.description || ''}`} className="h-7 w-14 text-xs px-2"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__ohne" className="text-xs">{tt(K.ohneKostenart)}</SelectItem>
+                {KOSTENARTEN.map(nr => <SelectItem key={nr} value={String(nr)} className="text-xs">{nr} {tt(KOSTENART_TEXT[nr])}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {Number(form.cost_group) === 3 && (
+              <label className="inline-flex items-center gap-1 text-[10px] text-muted-foreground" title={tt(K.svLang)}>
+                <Checkbox checked={form.social === true} disabled={!darf} onCheckedChange={v => update('social', v === true)}
+                  aria-label={`${tt(K.svLang)}: ${form.description || ''}`} />
+                {tt(K.sv)}
+              </label>
+            )}
+          </div>
+        </td>
+      )}
       <td className="py-1.5 pr-3 w-8">
         {darf && <button onClick={onDelete} aria-label={tt(T.positionLoeschenN).replace('{name}', line.description || line.account_code || '')} title={tt(T.positionLoeschen)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all">
           <Trash2 className="w-3.5 h-3.5" />
@@ -137,7 +166,7 @@ function BudgetLineRow({ line, onDelete, darf }: { line: any; onDelete: () => vo
     </tr>
     {fehler && (
       <tr className="border-b border-border/20">
-        <td colSpan={7} role="alert" className="pb-2 pl-4 pr-3 text-xs text-destructive">
+        <td colSpan={ffa ? 8 : 7} role="alert" className="pb-2 pl-4 pr-3 text-xs text-destructive">
           {tt(T.nichtGespeichert)}: {fehler}
         </td>
       </tr>
@@ -241,6 +270,9 @@ function BudgetSeite() {
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
   const [selectedFinVersionId, setSelectedFinVersionId] = useState<number | null>(null)
   const [newCategory, setNewCategory] = useState(CATEGORIES[0])
+  const [neueKostenart, setNeueKostenart] = useState('3')
+  const [neueFassungOffen, setNeueFassungOffen] = useState(false)
+  const [umstellenOffen, setUmstellenOffen] = useState(false)
 
   const { data: versions } = useQuery({
     queryKey: ['budget-versions', pid],
@@ -260,6 +292,13 @@ function BudgetSeite() {
   const { data: lines, isLoading: linesLoading } = useQuery({
     queryKey: ['budget-lines', selectedVersionId],
     queryFn: () => api.budget.listLines(selectedVersionId!),
+    enabled: !!selectedVersionId,
+  })
+
+  // Kostenarten, Rechenwerk und Hinweise der Fassung (AP B1) - der Server rechnet
+  const { data: auswertung } = useQuery({
+    queryKey: ['budget-auswertung', selectedVersionId],
+    queryFn: () => api.budget.auswertung(selectedVersionId!),
     enabled: !!selectedVersionId,
   })
 
@@ -292,11 +331,14 @@ function BudgetSeite() {
 
   const createLine = useMutation({
     mutationFn: async (category: string) => api.budget.createLine(await kalkulationsFassung(), {
-      category, description: 'Neue Position', unit: 'Pauschal', quantity: 1, unit_price_cents: 0 // texte-ok
+      category, description: 'Neue Position', unit: 'Pauschal', quantity: 1, unit_price_cents: 0, // texte-ok
+      // Im FFA-Schema mit der gewählten Kostenart (AP B1)
+      ...(ffa ? { cost_group: Number(neueKostenart) } : {}),
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budget-lines'] })
       queryClient.invalidateQueries({ queryKey: ['budget-versions', pid] })
+      queryClient.invalidateQueries({ queryKey: ['budget-auswertung'] })
     },
     onError: (e: any) => toast({ variant: 'destructive', title: tt(T.nichtGespeichert), description: e.message }),
   })
@@ -306,6 +348,7 @@ function BudgetSeite() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budget-lines', selectedVersionId] })
       queryClient.invalidateQueries({ queryKey: ['budget-versions', pid] })
+      queryClient.invalidateQueries({ queryKey: ['budget-auswertung'] })
     },
   })
 
@@ -322,9 +365,17 @@ function BudgetSeite() {
 
   const currentVersion = versions?.find((v: any) => v.id === selectedVersionId)
   const totalBudget = currentVersion?.total_cents || 0
+  // FFA-Schema (AP B1): Gruppen sind die elf Kostenarten, auch leere - wie im
+  // Formular. Die Summe der Fassung sind dann die Herstellungskosten.
+  const ffa = currentVersion?.schema === 'ffa'
+  const OHNE = 'ohne-kostenart'
+  const gruppeVon = (line: any) => ffa
+    ? (line.cost_group >= 1 && line.cost_group <= 11 ? `k${line.cost_group}` : OHNE)
+    : (line.category || 'Sonstiges')
+  const gruppenName = (g: string) => g === OHNE ? tt(K.ohneKostenart) : ffa ? `${g.slice(1)} ${tt(KOSTENART_TEXT[Number(g.slice(1))])}` : g
 
   const grouped = (lines || []).reduce((acc: Record<string, any[]>, line: any) => {
-    const cat = line.category || 'Sonstiges'
+    const cat = gruppeVon(line)
     if (!acc[cat]) acc[cat] = []
     acc[cat].push(line) // texte-ok
     return acc
@@ -340,17 +391,21 @@ function BudgetSeite() {
    * die Tabelle zeigte sie nicht. Geld, das dasteht und nirgends zu finden
    * ist, ist schlimmer als kein Geld.
    */
-  const sichtbareGruppen = [
-    ...CATEGORIES.filter(cat => grouped[cat]?.length > 0),
-    ...Object.keys(grouped).filter(cat => !CATEGORIES.includes(cat) && grouped[cat].length > 0).sort(),
-  ]
+  const sichtbareGruppen = ffa
+    ? [...KOSTENARTEN.map(nr => `k${nr}`), ...(grouped[OHNE]?.length ? [OHNE] : [])]
+    : [
+      ...CATEGORIES.filter(cat => grouped[cat]?.length > 0),
+      ...Object.keys(grouped).filter(cat => !CATEGORIES.includes(cat) && grouped[cat].length > 0).sort(),
+    ]
 
-  const catTotals = Object.fromEntries(
+  const catTotals: Record<string, number> = Object.fromEntries(
     Object.entries(grouped).map(([cat, items]) => [
       cat,
       (items as any[]).reduce((sum, l) => sum + (l.total_cents || 0), 0)
     ])
   )
+  // Kostenart 3 enthält die Zusatzkosten Gagen - die Summen kommen vom Server
+  if (ffa) for (const a of auswertung?.arten ?? []) catTotals[`k${a.nr}`] = a.summe_cent
 
   const finTotal = (finEntries || []).reduce((sum: number, e: any) => sum + (e.amount_cents || 0), 0)
 
@@ -376,6 +431,7 @@ function BudgetSeite() {
       setVorschau(null)
       queryClient.invalidateQueries({ queryKey: ['budget-lines'] })
       queryClient.invalidateQueries({ queryKey: ['budget-versions', pid] })
+      queryClient.invalidateQueries({ queryKey: ['budget-auswertung'] })
       toast({ title: tt(T.kostenUebernommen),
         description: tt(T.kostenErgebnis).replace('{neu}', String(r.neu)).replace('{geaendert}', String(r.geaendert)).replace('{entfallen}', String(r.entfallen)) })
     },
@@ -431,12 +487,21 @@ function BudgetSeite() {
           {/* Fassungswahl links, Summe und Werkzeuge rechts - am Telefon
               untereinander, sonst beginnt die Werkzeugleiste bei x=232 */}
           <div data-einfuehrung="kalkulation" className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {versions && versions.length > 0 && (
                 <Select value={String(selectedVersionId)} onValueChange={v => setSelectedVersionId(Number(v))}>
                   <SelectTrigger aria-label={tt(T.fassungWaehlen)} className="w-full sm:w-52 h-8"><SelectValue /></SelectTrigger>
                   <SelectContent>{versions.map((v: any) => <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>)}</SelectContent>
                 </Select>
+              )}
+              {currentVersion && <Badge variant="outline" className="text-[10px]">{ffa ? tt(K.schemaFfa) : tt(K.schemaFrei)}</Badge>}
+              {darf && (
+                <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setNeueFassungOffen(true)}>
+                  <Plus className="w-3.5 h-3.5 mr-1" />{tt(K.neueFassung)}
+                </Button>
+              )}
+              {darf && currentVersion && !ffa && (
+                <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setUmstellenOffen(true)}>{tt(K.umstellen)}</Button>
               )}
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -444,11 +509,18 @@ function BudgetSeite() {
               <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 {darf && (
                   <>
-                    <Select value={newCategory} onValueChange={setNewCategory}>
-                      <SelectTrigger aria-label={tt(T.kategorieWaehlen)} className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Button size="sm" onClick={() => createLine.mutate(newCategory)} disabled={createLine.isPending}>
+                    {ffa ? (
+                      <Select value={neueKostenart} onValueChange={setNeueKostenart}>
+                        <SelectTrigger aria-label={tt(K.kostenart)} className="w-52 h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>{KOSTENARTEN.map(nr => <SelectItem key={nr} value={String(nr)} className="text-xs">{nr} {tt(KOSTENART_TEXT[nr])}</SelectItem>)}</SelectContent>
+                      </Select>
+                    ) : (
+                      <Select value={newCategory} onValueChange={setNewCategory}>
+                        <SelectTrigger aria-label={tt(T.kategorieWaehlen)} className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
+                      </Select>
+                    )}
+                    <Button size="sm" onClick={() => createLine.mutate(ffa ? tt(KOSTENART_TEXT[Number(neueKostenart)]) : newCategory)} disabled={createLine.isPending}>
                       <Plus className="w-4 h-4 mr-1" />{tt(T.position)}
                     </Button>
                     <Button variant="outline" size="sm" data-einfuehrung="kosten" onClick={() => kostenVorschau.mutate()}
@@ -461,6 +533,11 @@ function BudgetSeite() {
                   <Button variant="outline" size="sm" onClick={() => download(api.pdf.kalkulation(pid, selectedVersionId), 'kalkulation.pdf')}>
                       <Download className="w-4 h-4 mr-1" />PDF
                     </Button>
+                )}
+                {selectedVersionId && (
+                  <Button variant="outline" size="sm" onClick={() => download(api.budget.csv(selectedVersionId), 'kalkulation.csv')}>
+                    <Download className="w-4 h-4 mr-1" />{tt(K.csv)}
+                  </Button>
                 )}
                 <Button variant="outline" size="sm" data-einfuehrung="foerderantrag" title={tt(T.foerderTitel)}
                   onClick={() => download(api.foerderantrag.pdf(pid), 'foerderantrag.pdf')}>
@@ -476,15 +553,15 @@ function BudgetSeite() {
             {/* Category totals sidebar */}
             <div className="w-full lg:w-52 lg:shrink-0 space-y-1">
               {/* Reihenfolge wie die Tabelle - nach Text sortiert stand "10000 - Musik" an zweiter Stelle */}
-              {sichtbareGruppen.map(cat => (
+              {sichtbareGruppen.filter(cat => !ffa || (catTotals[cat] || 0) !== 0).map(cat => (
                 <div key={cat} className="flex items-center justify-between text-xs p-2 rounded bg-muted/30">
-                  <span className="truncate text-muted-foreground">{cat.split(' - ')[1] || cat}</span>
-                  <span className="font-mono font-medium shrink-0 ml-1">{formatCurrency(catTotals[cat] || 0)}</span>
+                  <span className="truncate text-muted-foreground">{ffa ? gruppenName(cat) : (cat.split(' - ')[1] || cat)}</span>
+                  <span className="font-mono font-medium shrink-0 ml-1">{cat === 'k11' && catTotals[cat] ? '- ' : ''}{formatCurrency(catTotals[cat] || 0)}</span>
                 </div>
               ))}
               {totalBudget > 0 && (
                 <div className="flex items-center justify-between text-sm p-2 rounded bg-primary/20 font-bold mt-2">
-                  <span>{tt(T.gesamt)}</span>
+                  <span>{ffa ? tt(K.herstellungskosten) : tt(T.gesamt)}</span>
                   <span className="font-mono">{formatCurrency(totalBudget)}</span>
                 </div>
               )}
@@ -504,6 +581,7 @@ function BudgetSeite() {
                       <th className="text-right py-2 px-2 w-16">{tt(T.menge)}</th>
                       <th className="text-right py-2 px-2 w-28">{tt(T.einzelpreis)}</th>
                       <th className="text-right py-2 px-2 w-28">{tt(T.gesamt)}</th>
+                      {ffa && <th className="text-left py-2 px-2 w-28">{tt(K.kostenart)}</th>}
                       <th className="w-8" />
                     </tr>
                   </thead>
@@ -511,25 +589,33 @@ function BudgetSeite() {
                     {sichtbareGruppen.map(cat => (
                       <Fragment key={cat}>
                         <tr className="bg-muted/50">
-                          <td colSpan={5} className="py-1.5 pl-4 text-xs font-semibold text-muted-foreground">{cat}</td>
-                          <td className="py-1.5 pr-4 text-right text-xs font-mono font-semibold">{formatCurrency(catTotals[cat] || 0)}</td>
-                          <td />
+                          <td colSpan={5} className="py-1.5 pl-4 text-xs font-semibold text-muted-foreground">{ffa ? gruppenName(cat) : cat}</td>
+                          <td className="py-1.5 pr-4 text-right text-xs font-mono font-semibold">{cat === 'k11' && catTotals[cat] ? '- ' : ''}{formatCurrency(catTotals[cat] || 0)}</td>
+                          <td colSpan={ffa ? 2 : 1} />
                         </tr>
                         {(grouped[cat] || []).map((line: any) => (
-                          <BudgetLineRow key={line.id} line={line} darf={darf} onDelete={() => positionLoeschen(line)} />
+                          <BudgetLineRow key={line.id} line={line} darf={darf} ffa={ffa} onDelete={() => positionLoeschen(line)} />
                         ))}
+                        {ffa && cat === 'k3' && auswertung?.zusatzkosten_gagen_cent != null && (
+                          <tr className="border-b border-border/20 text-muted-foreground">
+                            <td />
+                            <td colSpan={4} className="py-1.5 px-2 text-sm italic">{tt(K.zusatzkosten)}</td>
+                            <td className="py-1.5 px-2 text-right font-mono text-sm">{formatCurrency(auswertung.zusatzkosten_gagen_cent)}</td>
+                            <td colSpan={2} />
+                          </tr>
+                        )}
                       </Fragment>
                     ))}
                     {(!lines || lines.length === 0) && (
-                      <tr><td colSpan={7} className="py-8 text-center text-muted-foreground text-sm">{tt(T.keinePositionen)}</td></tr>
+                      <tr><td colSpan={ffa ? 8 : 7} className="py-8 text-center text-muted-foreground text-sm">{tt(T.keinePositionen)}</td></tr>
                     )}
                   </tbody>
                   {lines && lines.length > 0 && (
                     <tfoot className="sticky bottom-0 bg-card border-t-2 border-border shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
                       <tr>
-                        <td colSpan={5} className="py-2.5 pl-4 text-sm font-bold uppercase tracking-wide">{tt(T.gesamtbudget)}</td>
+                        <td colSpan={5} className="py-2.5 pl-4 text-sm font-bold uppercase tracking-wide">{ffa ? tt(K.herstellungskosten) : tt(T.gesamtbudget)}</td>
                         <td className="py-2.5 pr-4 text-right font-mono text-base font-black text-primary">{formatCurrency(totalBudget)}</td>
-                        <td />
+                        <td colSpan={ffa ? 2 : 1} />
                       </tr>
                     </tfoot>
                   )}
@@ -537,6 +623,11 @@ function BudgetSeite() {
               )}
             </div>
           </div>
+
+          {/* Rechenwerk unter den Kostenarten (AP B1) */}
+          {ffa && currentVersion && <Rechenwerk version={currentVersion} auswertung={auswertung} darf={darf} />}
+          <NeueFassungDialog pid={pid} offen={neueFassungOffen} onClose={() => setNeueFassungOffen(false)} onAngelegt={setSelectedVersionId} />
+          {currentVersion && <UmstellenDialog version={currentVersion} lines={lines ?? []} offen={umstellenOffen} onClose={() => setUmstellenOffen(false)} />}
         </TabsContent>
 
         {/* ── FINANZIERUNGSPLAN ── */}

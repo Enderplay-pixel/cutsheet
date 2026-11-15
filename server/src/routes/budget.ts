@@ -9,6 +9,9 @@ import { pruefeBudgetzeile, pruefeGeldgeberBetrag, GELD_MAX_CENT } from '../lib/
 import { auswertung, istKostenart, SCHEMATA, VORGABE, type Schema } from '../lib/ffaSchema'
 import { rechneReise, type Tagesart } from '../lib/spesen'
 import { wochentageAus } from '../lib/board'
+import { kalkulationsAufbau } from '../lib/kalkulationsAufbau'
+import { schreibeCsv, cents } from '../lib/tabelle'
+import { dateiname } from '../lib/dateiname'
 
 const router = Router()
 
@@ -215,6 +218,29 @@ router.post('/budget-versions/:id/schema', async (req, res) => {
     return tx.get('SELECT * FROM budget_versions WHERE id = ?', [req.params.id])
   })
   res.json({ data: neu, error: null })
+})
+
+/**
+ * GET /api/budget-versions/:id/export.csv - die Kalkulation im Aufbau des
+ * Schemas, wie PDF und Bildschirm (AP B1). Kein XLSX: Die CSV öffnet Excel mit
+ * BOM, Semikolon und Dezimalkomma (lib/tabelle.ts).
+ */
+router.get('/budget-versions/:id/export.csv', requireMemberVia(projectIdFromTable('budget_versions', 'id')), async (req: Request, res: Response) => {
+  const version = await db.get('SELECT * FROM budget_versions WHERE id = ?', [req.params.id]) as any
+  if (!version) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
+  const lines = await db.all('SELECT * FROM budget_lines WHERE budget_version_id = ? ORDER BY sort_order ASC, account_code ASC', [req.params.id]) as any[]
+  const a = kalkulationsAufbau(version, lines)
+  const zeilen: unknown[][] = []
+  for (const b of a.bloecke) {
+    for (const z of b.zeilen) zeilen.push([b.titel, z.konto, z.bezeichnung, z.einheit, String(z.menge).replace('.', ','), cents(z.einzelpreis_cent), cents(z.gesamt_cent), ''])
+    zeilen.push([b.titel, '', `Summe ${b.titel}`, '', '', '', cents(b.mindernd ? -b.summe_cent : b.summe_cent), ''])
+  }
+  for (const r of a.rechenwerk) zeilen.push(['Rechenwerk', '', r.bezeichnung, r.satz, '', '', cents(r.betrag_cent), r.hinweis])
+  if (a.schema === 'frei') zeilen.push(['', '', 'Gesamt', '', '', '', cents(a.gesamt_cent), ''])
+  const csv = schreibeCsv([a.schema === 'ffa' ? 'Kostenart' : 'Kategorie', 'Konto', 'Bezeichnung', 'Einheit', 'Menge', 'Einzelpreis', 'Gesamt', 'Hinweis'], zeilen as any)
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+  res.setHeader('Content-Disposition', `attachment; filename="kalkulation-${dateiname(String(version.name || 'fassung'))}.csv"`)
+  return res.send(csv)
 })
 
 // GET /api/budget-versions/:id/auswertung - Kostenarten, Rechenwerk, Hinweise (AP B1)

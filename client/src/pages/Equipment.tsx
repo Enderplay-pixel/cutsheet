@@ -19,6 +19,7 @@ import { Plus, Trash2, Package, Check, Download } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { useT } from '@/lib/useT'
 import { equipT, uiT } from '@/lib/i18n'
+import { kalkT as K } from '@/lib/texte/Kalkulation'
 
 const DEPARTMENTS = ['Kamera', 'Licht', 'Grip', 'Ton', 'Requisite', 'Kostüm', 'Maske', 'Fahrzeuge', 'Sonstiges']
 
@@ -28,7 +29,7 @@ const DEPARTMENTS = ['Kamera', 'Licht', 'Grip', 'Ton', 'Requisite', 'Kostüm', '
  * hier mit 150 €, im PDF und im Budget mit 300 € (gemessen am 31.10.2026).
  */
 const gesamtVon = (f: any) =>
-  (Number(f.rental_per_day_cents) || 0) * (Number(f.total_days) || 1) * (Number(f.quantity) || 1)
+  (Number(f.rental_per_day_cents) || 0) * (f.rate_unit === 'pauschal' ? 1 : (Number(f.total_days) || 1)) * (Number(f.quantity) || 1)
 
 function EquipmentItemRow({ item, shootDayCount, onDelete }: { item: any; shootDayCount: number; onDelete: () => void }) {
   const [form, setForm] = useState(item)
@@ -79,14 +80,24 @@ function EquipmentItemRow({ item, shootDayCount, onDelete }: { item: any; shootD
             onChange={e => update('rental_per_day_cents', Math.round(Number(e.target.value) * 100))} disabled={!canEdit}
             aria-label={tt(equipT.ariaTagessatz).replace('{item}', name)}
             className="h-7 text-xs text-right pr-5" />
-          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{tt(equipT.proTag)}</span>
+          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{form.rate_unit === 'tag' || !form.rate_unit ? tt(equipT.proTag) : '€'}</span>
         </div>
+        {/* Verleih je Tag, Woche oder pauschal (AP B1) - kein Umrechnungsfaktor, den hat jeder Verleih anders */}
+        <select value={form.rate_unit || 'tag'} onChange={e => update('rate_unit', e.target.value)} disabled={!canEdit}
+          aria-label={tt(K.einheitPreis).replace('{item}', name)}
+          className="mt-1 h-6 w-full rounded border border-transparent hover:border-border bg-transparent text-[11px] text-muted-foreground">
+          <option value="tag">{tt(K.jeTag)}</option>
+          <option value="woche">{tt(K.jeWoche)}</option>
+          <option value="pauschal">{tt(K.pauschal)}</option>
+        </select>
       </td>
       <td className="py-2 px-2 w-16">
-        <Input type="number" value={form.total_days ?? shootDayCount}
-          onChange={e => update('total_days', zahl(e.target.value))} disabled={!canEdit}
-          aria-label={tt(equipT.ariaTage).replace('{item}', name)}
-          className="h-7 text-xs text-center" min="1" />
+        {form.rate_unit === 'pauschal' ? <span className="block text-center text-xs text-muted-foreground">-</span> : (
+          <Input type="number" value={form.total_days ?? shootDayCount}
+            onChange={e => update('total_days', zahl(e.target.value))} disabled={!canEdit}
+            aria-label={(form.rate_unit === 'woche' ? tt(K.wochenVon) : tt(equipT.ariaTage)).replace('{item}', name)}
+            className="h-7 text-xs text-center" min="1" />
+        )}
       </td>
       <td className="py-2 px-2 w-24 text-right font-mono text-sm font-medium">
         {formatCurrency(gesamtVon(form))}
@@ -162,8 +173,8 @@ function EquipmentListCard({ list, shootDayCount }: { list: any; shootDayCount: 
                   <th className="text-left py-1.5 px-2">{tt(equipT.labelItem)}</th>
                   <th className="text-center py-1.5 px-2 w-16">{tt(equipT.labelQty)}</th>
                   <th className="text-left py-1.5 px-2 w-36">{tt(equipT.verleiher)}</th>
-                  <th className="text-right py-1.5 px-2 w-28">{tt(equipT.preisTag)}</th>
-                  <th className="text-center py-1.5 px-2 w-16">{tt(equipT.tage)}</th>
+                  <th className="text-right py-1.5 px-2 w-28">{tt(K.preis)}</th>
+                  <th className="text-center py-1.5 px-2 w-16">{tt(K.anzahl)}</th>
                   <th className="text-right py-1.5 px-2 w-24">{tt(equipT.gesamt)}</th>
                   <th className="w-8" />
                 </tr>

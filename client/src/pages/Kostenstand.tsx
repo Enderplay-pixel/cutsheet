@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -13,6 +13,8 @@ import { useT, useGebietsschema } from '@/lib/useT'
 import { kostenstandT as T } from '@/lib/texte/Kostenstand'
 import { parseISO } from 'date-fns'
 import { NurProduktion } from '@/components/shared/NurProduktion'
+import { kalkT as K, KOSTENART_TEXT, KOSTENARTEN } from '@/lib/texte/Kalkulation'
+import { ChevronRight } from 'lucide-react'
 
 // Kostenstand: Ist-Kosten (Belege) gegen die aktive Kalkulation - Soll/Ist je Kategorie
 
@@ -31,6 +33,10 @@ function KostenstandSeite() {
   const [receiptNo, setReceiptNo] = useState('')
   // Ein Beleg ohne Datum zählte in keiner Auswertung - vorbelegt mit heute
   const [date, setDate] = useState(heuteISO())
+  // FFA-Schema (AP B1): Kostenart aus der Liste statt freiem Text, Zeile freiwillig
+  const [kostenart, setKostenart] = useState('')
+  const [zeileId, setZeileId] = useState('')
+  const [offen, setOffen] = useState<Record<string, boolean>>({})
 
   const { data: kostenstand, isLoading } = useQuery({
     queryKey: ['kostenstand', pid],
@@ -69,12 +75,13 @@ function KostenstandSeite() {
   const createMutation = useMutation({
     mutationFn: () => api.expenses.create(pid, {
       description: desc,
-      category,
+      category: ffa ? (kostenart ? `${kostenart} ${tt(KOSTENART_TEXT[Number(kostenart)])}` : '') : category,
       amount_cents: betragInCent(amount),
       receipt_no: receiptNo,
       expense_date: date || null,
+      ...(ffa ? { cost_group: kostenart ? Number(kostenart) : null, budget_line_id: zeileId ? Number(zeileId) : null } : {}),
     }),
-    onSuccess: () => { setDesc(''); setAmount(''); setReceiptNo(''); invalidate() },
+    onSuccess: () => { setDesc(''); setAmount(''); setReceiptNo(''); setZeileId(''); invalidate() },
     onError: (e: any) => toast({ variant: 'destructive', title: tt(T.fehler), description: e.message }),
   })
 
@@ -94,6 +101,10 @@ function KostenstandSeite() {
 
   const totals = kostenstand?.totals ?? { soll_cents: 0, ist_cents: 0, diff_cents: 0 }
   const rows = kostenstand?.rows ?? []
+  const ffa = kostenstand?.budget_version?.schema === 'ffa'
+  // Im FFA-Schema stehen alle elf Kostenarten; ohne Soll und Ist bleiben sie in der Tabelle weg
+  const sichtbar = ffa ? rows.filter((r: any) => r.soll_cents !== 0 || r.ist_cents !== 0) : rows
+  const zeilenDerArt = ffa && kostenart ? (rows.find((r: any) => r.cost_group === Number(kostenart))?.zeilen ?? []).filter((z: any) => z.id) : []
   const overBudget = totals.diff_cents < 0
   const usedPct = totals.soll_cents > 0 ? Math.round((totals.ist_cents / totals.soll_cents) * 100) : 0
 
@@ -186,6 +197,9 @@ function KostenstandSeite() {
         <div className="stat-card">
           <p className="section-label mb-2">{tt(T.kalkuliert)}</p>
           <p className="text-2xl font-bold tabular-nums tracking-tight">{formatCurrency(totals.soll_cents)}</p>
+          {ffa && kostenstand?.rechenwerk && (
+            <p className="text-[11px] text-muted-foreground mt-1">{tt(K.kalkuliertFk).replace('{hk}', formatCurrency(kostenstand.rechenwerk.herstellungskosten))}</p>
+          )}
         </div>
         <div className="stat-card">
           <p className="section-label mb-2">{tt(T.ausgegeben)}</p>
@@ -206,26 +220,53 @@ function KostenstandSeite() {
         </div>
       </div>
 
-      {/* Soll/Ist je Kategorie */}
-      {rows.length > 0 && (
+      {/* Soll/Ist je Kategorie - im FFA-Schema je Kostenart, aufklappbar je Zeile (AP B1) */}
+      {sichtbar.length > 0 && (
         <div className="mb-8">
-          <p className="section-label mb-3">{tt(T.sollIstJe)}</p>
+          <p className="section-label mb-3">{ffa ? `${tt(T.soll)}/${tt(T.ist)} · ${tt(K.kostenart)}` : tt(T.sollIstJe)}</p>
+          {ffa && (kostenstand?.hinweise ?? []).length > 0 && (
+            <p role="status" className="text-xs text-amber-700 dark:text-amber-300 mb-2">{kostenstand.hinweise.join(' · ')}</p>
+          )}
           <div className="overflow-x-auto">
             <table className="data-table min-w-[480px]">
               <thead>
-                <tr><th>{tt(T.kategorie)}</th><th className="text-right">{tt(T.soll)}</th><th className="text-right">{tt(T.ist)}</th><th className="text-right">{tt(T.differenz)}</th></tr>
+                <tr><th>{ffa ? tt(K.kostenart) : tt(T.kategorie)}</th><th className="text-right">{tt(T.soll)}</th><th className="text-right">{tt(T.ist)}</th><th className="text-right">{tt(T.differenz)}</th></tr>
               </thead>
               <tbody>
-                {rows.map((r: any) => (
-                  <tr key={r.category}>
-                    <td className="font-medium">{r.category || tt(T.ohneKategorie)}</td>
-                    <td className="text-right tabular-nums">{formatCurrency(r.soll_cents)}</td>
-                    <td className="text-right tabular-nums">{formatCurrency(r.ist_cents)}</td>
-                    <td className={cn('text-right tabular-nums font-semibold', r.diff_cents < 0 ? 'text-danger' : 'text-success')}>
-                      {r.diff_cents < 0 ? '−' : '+'}{formatCurrency(Math.abs(r.diff_cents))}
-                    </td>
-                  </tr>
-                ))}
+                {sichtbar.map((r: any) => {
+                  const name = ffa && r.cost_group ? `${r.cost_group} ${tt(KOSTENART_TEXT[r.cost_group])}` : ffa && r.cost_group === null ? tt(K.ohneKostenart) : (r.category || tt(T.ohneKategorie))
+                  const auf = !!offen[r.category]
+                  const mitZeilen = ffa && (r.zeilen ?? []).length > 0
+                  return (
+                    <Fragment key={r.category}>
+                      <tr>
+                        <td className="font-medium">
+                          {mitZeilen ? (
+                            <button type="button" onClick={() => setOffen(o => ({ ...o, [r.category]: !auf }))} aria-expanded={auf}
+                              aria-label={tt(K.aufklappen).replace('{name}', name)} className="inline-flex items-center gap-1 hover:text-primary">
+                              <ChevronRight className={cn('w-3.5 h-3.5 transition-transform', auf && 'rotate-90')} />{name}
+                            </button>
+                          ) : name}
+                        </td>
+                        <td className="text-right tabular-nums">{r.cost_group === 11 && r.soll_cents ? '− ' : ''}{formatCurrency(r.soll_cents)}</td>
+                        <td className="text-right tabular-nums">{formatCurrency(r.ist_cents)}</td>
+                        <td className={cn('text-right tabular-nums font-semibold', r.diff_cents < 0 ? 'text-danger' : 'text-success')}>
+                          {r.diff_cents < 0 ? '−' : '+'}{formatCurrency(Math.abs(r.diff_cents))}
+                        </td>
+                      </tr>
+                      {auf && (r.zeilen ?? []).map((z: any, i: number) => (
+                        <tr key={`${r.category}-${z.id}-${i}`} className="text-muted-foreground text-[13px]">
+                          <td className="pl-8">{z.description || '-'}</td>
+                          <td className="text-right tabular-nums">{formatCurrency(z.soll_cents)}</td>
+                          <td className="text-right tabular-nums">{formatCurrency(z.ist_cents)}</td>
+                          <td className={cn('text-right tabular-nums', z.diff_cents < 0 ? 'text-danger' : '')}>
+                            {z.diff_cents < 0 ? '−' : '+'}{formatCurrency(Math.abs(z.diff_cents))}
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -248,10 +289,27 @@ function KostenstandSeite() {
         className="grid grid-cols-2 lg:grid-cols-6 gap-2 mb-6"
       >
         <Input disabled={!darfSchreiben} value={desc} onChange={e => setDesc(e.target.value)} placeholder={tt(T.beschreibung)} className="col-span-2" required />
-        <Input disabled={!darfSchreiben} value={category} onChange={e => setCategory(e.target.value)} placeholder={tt(T.kategorie)} list="kostenstand-categories" />
-        <datalist id="kostenstand-categories">
-          {rows.map((r: any) => <option key={r.category} value={r.category} />)}
-        </datalist>
+        {ffa ? (
+          <select disabled={!darfSchreiben} value={kostenart} onChange={e => { setKostenart(e.target.value); setZeileId('') }}
+            aria-label={tt(K.kostenart)} className="h-10 rounded-md border border-input bg-background px-2 text-sm">
+            <option value="">{tt(K.ohneKostenart)}</option>
+            {KOSTENARTEN.map(nr => <option key={nr} value={nr}>{nr} {tt(KOSTENART_TEXT[nr])}</option>)}
+          </select>
+        ) : (
+          <>
+            <Input disabled={!darfSchreiben} value={category} onChange={e => setCategory(e.target.value)} placeholder={tt(T.kategorie)} list="kostenstand-categories" />
+            <datalist id="kostenstand-categories">
+              {rows.map((r: any) => <option key={r.category} value={r.category} />)}
+            </datalist>
+          </>
+        )}
+        {ffa && zeilenDerArt.length > 0 && (
+          <select disabled={!darfSchreiben} value={zeileId} onChange={e => setZeileId(e.target.value)}
+            aria-label={tt(K.zeileFrei)} className="h-10 rounded-md border border-input bg-background px-2 text-sm col-span-2 lg:col-span-1">
+            <option value="">{tt(K.ohneZeile)}</option>
+            {zeilenDerArt.map((z: any) => <option key={z.id} value={z.id}>{z.description}</option>)}
+          </select>
+        )}
         <Input disabled={!darfSchreiben} value={amount} onChange={e => setAmount(e.target.value)} placeholder={tt(T.betragEuro)} inputMode="decimal" required />
         <Input disabled={!darfSchreiben} value={date} onChange={e => setDate(e.target.value)} type="date" aria-label={tt(T.belegdatum)} />
         <div className="flex gap-2">
@@ -283,7 +341,7 @@ function KostenstandSeite() {
                   </td>
                   <td className="text-muted-foreground">{e.receipt_no || '-'}</td>
                   <td className="font-medium">{e.description}</td>
-                  <td className="text-muted-foreground">{e.category || '-'}</td>
+                  <td className="text-muted-foreground">{e.cost_group ? `${e.cost_group} ${tt(KOSTENART_TEXT[e.cost_group])}` : (e.category || '-')}</td>
                   <td className="text-right tabular-nums font-semibold">{formatCurrency(e.amount_cents)}</td>
                   <td className="w-8">
                     {darfSchreiben && <button

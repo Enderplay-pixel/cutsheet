@@ -320,6 +320,12 @@ export const api = {
     kostenUebernehmen: (versionId: number, nurZeigen = false) =>
       req<any>(`/budget-versions/${versionId}/kosten-uebernehmen`,
         { method: 'POST', body: JSON.stringify({ nurZeigen }) }),
+    // FFA-Schema (AP B1): Sätze des Rechenwerks, Umstellen, Auswertung, CSV
+    updateVersion: (versionId: number, data: any) => req<any>(`/budget-versions/${versionId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    umstellen: (versionId: number, data: { schema: 'ffa' | 'frei'; zuordnung?: Record<string, number> }) =>
+      req<any>(`/budget-versions/${versionId}/schema`, { method: 'POST', body: JSON.stringify(data) }),
+    auswertung: (versionId: number) => req<any>(`/budget-versions/${versionId}/auswertung`),
+    csv: (versionId: number) => `/api/budget-versions/${versionId}/export.csv`,
   },
 
   financing: {
