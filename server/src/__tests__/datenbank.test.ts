@@ -4162,6 +4162,52 @@ describe('Kalkulation nach FFA-Schema (AP B1)', () => {
     expect(rechenwerk[4]).toEqual(['Herstellungskosten', (Number(fassung.total_cents) / 100).toFixed(2).replace('.', ',')])
   })
 
+  it('Endstand (AP E1): 100.000 € kalkuliert, 60.000 € Ist; Rest setzen, abschließen; wer und wann', async () => {
+    const p = await projekt()
+    const f = (await sende(`/api/projects/${p}/budget-versions`, { name: 'F' })).daten
+    const z = (await sende(`/api/budget-versions/${f.id}/lines`, { description: 'Kamera', cost_group: 5, quantity: 1, unit_price_cents: 10_000_000 })).daten
+    await sende(`/api/projects/${p}/expenses`, { description: 'Verleih', amount_cents: 6_000_000, budget_line_id: z.id })
+    const zeileVon = async () => ((await hole(`/api/projects/${p}/kostenstand`, tokenInhaber)).daten.rows as any[]).find((r) => r.cost_group === 5).zeilen[0]
+    expect(await zeileVon()).toMatchObject({ rest_cents: 4_000_000, endstand_cents: 10_000_000, abweichung_cents: 0, ueber: false })
+    expect((await sende(`/api/budget-lines/${z.id}/prognose`, { rest_cents: 5_500_000 }, 'PUT')).status).toBe(200)
+    expect(await zeileVon()).toMatchObject({ rest_cents: 5_500_000, endstand_cents: 11_500_000, abweichung_cents: 1_500_000, abweichung_prozent: 15, ueber: true, rest_gesetzt: true, gesetzt_von: 'Inhaberin' })
+    expect((await zeileVon()).gesetzt_am).toBeTruthy()
+    await sende(`/api/budget-lines/${z.id}/prognose`, { abgeschlossen: true }, 'PUT')
+    expect(await zeileVon()).toMatchObject({ rest_cents: 0, endstand_cents: 6_000_000, abgeschlossen: true })
+    // Zurück auf die Vorgabe
+    await sende(`/api/budget-lines/${z.id}/prognose`, { rest_cents: null, abgeschlossen: false }, 'PUT')
+    expect(await zeileVon()).toMatchObject({ rest_cents: 4_000_000, rest_gesetzt: false, gesetzt_von: null })
+    expect((await sende(`/api/budget-lines/${z.id}/prognose`, { rest_cents: -1 }, 'PUT')).status).toBe(400)
+  })
+
+  it('Fassung kopieren, eine Zeile ändern, eine löschen: der Vergleich zeigt genau diese zwei', async () => {
+    const p = await projekt()
+    const f = (await sende(`/api/projects/${p}/budget-versions`, { name: 'Vorkalkulation' })).daten
+    for (const [d, art, cent] of [['Kamera', 5, 3_000_000], ['Regie', 3, 8_000_000], ['Büro', 10, 400_000]] as const) {
+      await sende(`/api/budget-versions/${f.id}/lines`, { description: d, cost_group: art, quantity: 1, unit_price_cents: cent })
+    }
+    const kopie = await sende(`/api/budget-versions/${f.id}/kopie`, { name: 'Abschlusskalkulation' })
+    expect(kopie.status).toBe(201)
+    expect(kopie.daten).toMatchObject({ name: 'Abschlusskalkulation', schema: 'ffa', status: 'Entwurf' })
+    const zeilen = (await hole(`/api/budget-versions/${kopie.daten.id}/lines`, tokenInhaber)).daten as any[]
+    expect(zeilen).toHaveLength(3)
+    const kamera = zeilen.find((z) => z.description === 'Kamera')
+    await sende(`/api/budget-lines/${kamera.id}`, { ...kamera, unit_price_cents: 3_500_000 }, 'PUT')
+    await hole(`/api/budget-lines/${zeilen.find((z) => z.description === 'Büro').id}`, tokenInhaber, { method: 'DELETE' })
+    const v = (await hole(`/api/projects/${p}/budget-versions/vergleich?a=${f.id}&b=${kopie.daten.id}`, tokenInhaber)).daten
+    expect(v.unterschiede).toBe(2)
+    const alle = v.gruppen.flatMap((g: any) => g.zeilen)
+    expect(alle.filter((z: any) => z.art !== 'beide' || z.diff_cents !== 0).map((z: any) => [z.description, z.art, z.diff_cents]))
+      .toEqual([['Kamera', 'beide', 500_000], ['Büro', 'nur_a', -400_000]])
+    // CSV im selben Aufbau, und eine fremde Fassung ergibt 404
+    const csv = await (await fetch(`${basis}/api/projects/${p}/budget-versions/vergleich?a=${f.id}&b=${kopie.daten.id}&format=csv`, { headers: { Authorization: `Bearer ${tokenInhaber}` } })).text()
+    expect(csv.replace(/^\ufeff/, '').split(/\r?\n/)[0]).toBe('Kostenart;Zeile;Vorkalkulation;Abschlusskalkulation;Differenz;Stand')
+    expect(csv).toContain('10 Allgemeine Kosten;Büro;4000,00;;-4000,00;nur in A')
+    const anderes = await projekt()
+    const fremd = (await sende(`/api/projects/${anderes}/budget-versions`, { name: 'Fremd' })).daten
+    expect((await hole(`/api/projects/${p}/budget-versions/vergleich?a=${f.id}&b=${fremd.id}`, tokenInhaber)).status).toBe(404)
+  })
+
   it('Kostenstand je Kostenart, Belege ohne Kostenart in ihrer eigenen Zeile', async () => {
     const p = await projekt()
     const f = (await sende(`/api/projects/${p}/budget-versions`, { name: 'F' })).daten
@@ -4176,7 +4222,11 @@ describe('Kalkulation nach FFA-Schema (AP B1)', () => {
     expect(k.budget_version.schema).toBe('ffa')
     const art5 = k.rows.find((r: any) => r.cost_group === 5)
     expect(art5).toMatchObject({ soll_cents: 3_000_000, ist_cents: 2_219_000, diff_cents: 781_000 })
-    expect(art5.zeilen).toEqual([expect.objectContaining({ description: 'Kamera', soll_cents: 3_000_000, ist_cents: 1_500_000 })])
+    // Seit AP E1 steht der Beleg ohne Zeile als eigene Zeile der Kostenart
+    expect(art5.zeilen).toEqual([
+      expect.objectContaining({ description: 'Kamera', soll_cents: 3_000_000, ist_cents: 1_500_000, rest_cents: 1_500_000 }),
+      expect.objectContaining({ description: 'Belege ohne Zeile', soll_cents: 0, ist_cents: 719_000, rest_cents: 0 }),
+    ])
     expect(k.rows.find((r: any) => r.category === 'Ohne Kostenart')).toMatchObject({ soll_cents: 0, ist_cents: 4_200 })
     expect(k.rows.filter((r: any) => r.cost_group !== null)).toHaveLength(11)
     expect(k.rechenwerk.fertigungskosten).toBe(13_000_000)

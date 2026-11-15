@@ -326,6 +326,13 @@ export const api = {
       req<any>(`/budget-versions/${versionId}/schema`, { method: 'POST', body: JSON.stringify(data) }),
     auswertung: (versionId: number) => req<any>(`/budget-versions/${versionId}/auswertung`),
     csv: (versionId: number) => `/api/budget-versions/${versionId}/export.csv`,
+    // Endstand und Vergleich (AP E1)
+    prognose: (lineId: number, data: { rest_cents?: number | null; abgeschlossen?: boolean }) =>
+      req<any>(`/budget-lines/${lineId}/prognose`, { method: 'PUT', body: JSON.stringify(data) }),
+    kopie: (versionId: number, name?: string) => req<any>(`/budget-versions/${versionId}/kopie`, { method: 'POST', body: JSON.stringify({ name }) }),
+    vergleich: (projectId: number, a: number, b: number) => req<any>(`/projects/${projectId}/budget-versions/vergleich?a=${a}&b=${b}`),
+    vergleichCsv: (projectId: number, a: number, b: number) => `/api/projects/${projectId}/budget-versions/vergleich?a=${a}&b=${b}&format=csv`,
+    vergleichPdf: (projectId: number, a: number, b: number) => `/api/projects/${projectId}/pdf/kalkulation-vergleich?a=${a}&b=${b}`,
   },
 
   financing: {

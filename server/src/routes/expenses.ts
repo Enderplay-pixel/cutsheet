@@ -2,8 +2,8 @@ import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { requireAuth } from '../middleware/auth'
 import { requireMember } from '../middleware/projectAuth'
-import { massgeblicheKalkulation } from '../lib/kalkulation'
-import { auswertung, istKostenart, KOSTENARTEN } from '../lib/ffaSchema'
+import { massgeblicheKalkulation, kostenstand, vierZahlen } from '../lib/kalkulation'
+import { auswertung, istKostenart, KOSTENARTEN, kostenartName } from '../lib/ffaSchema'
 
 /**
  * Kostenart eines Belegs (AP B1): 1 bis 11 oder leer. Ohne Angabe, aber mit
@@ -100,103 +100,54 @@ router.delete('/expenses/:id', requireAuth, async (req: Request, res: Response) 
   return res.json({ data: { ok: true }, error: null })
 })
 
-// GET /api/projects/:projectId/kostenstand - Soll/Ist je Kategorie gegen aktive Kalkulation
+// GET /api/projects/:projectId/kostenstand - Kalkulation, Ist, noch zu erwarten
+// und Endstand je Kostenart (FFA) oder Kategorie, darunter je Zeile (AP B1, E1)
 router.get('/projects/:projectId/kostenstand', requireAuth, requireMember, async (req: Request, res: Response) => {
   // Die aktive Fassung, sonst die neueste (lib/kalkulation.ts)
   const activeVersion = await massgeblicheKalkulation(String(req.params.projectId))
+  const ffa = activeVersion?.schema === 'ffa'
+  const version = activeVersion ? await db.get('SELECT * FROM budget_versions WHERE id = ?', [activeVersion.id]) as any : null
+  const zeilenRoh = activeVersion ? await db.all(
+    `SELECT bl.id, bl.cost_group, bl.social, bl.total_cents, bl.description, bl.category, bl.forecast_rest_cents, bl.closed,
+            bl.forecast_set_at, u.name AS forecast_set_by_name
+       FROM budget_lines bl LEFT JOIN users u ON u.id = bl.forecast_set_by
+      WHERE bl.budget_version_id = ? ORDER BY bl.sort_order, bl.id`,
+    [activeVersion.id]) as any[] : []
+  const belegeRoh = await db.all('SELECT cost_group, category, budget_line_id, amount_cents FROM expenses WHERE project_id = ?', [req.params.projectId]) as any[]
 
-  // FFA-Schema (AP B1): Soll und Ist je Kostenart, darunter je Zeile. Belege
-  // ohne Kostenart stehen in einer eigenen, benannten Zeile.
-  if (activeVersion?.schema === 'ffa') {
-    const version = await db.get('SELECT * FROM budget_versions WHERE id = ?', [activeVersion.id]) as any
-    const zeilen = await db.all(
-      'SELECT id, cost_group, social, total_cents, description, category FROM budget_lines WHERE budget_version_id = ? ORDER BY sort_order, id',
-      [activeVersion.id]) as any[]
-    const belege = await db.all('SELECT cost_group, budget_line_id, amount_cents FROM expenses WHERE project_id = ?', [req.params.projectId]) as any[]
-    const a = auswertung(zeilen, version)
-    const istJeArt = new Map<number | null, number>()
-    const istJeZeile = new Map<number, number>()
-    for (const b of belege) {
-      const art = istKostenart(Number(b.cost_group)) ? Number(b.cost_group) : null
-      istJeArt.set(art, (istJeArt.get(art) ?? 0) + (Number(b.amount_cents) || 0))
-      if (b.budget_line_id) istJeZeile.set(Number(b.budget_line_id), (istJeZeile.get(Number(b.budget_line_id)) ?? 0) + (Number(b.amount_cents) || 0))
-    }
-    const zeileAus = (z: any) => {
-      const soll = Number(z.total_cents) || 0
-      const ist = istJeZeile.get(Number(z.id)) ?? 0
-      return { id: Number(z.id), description: z.description || z.category || '', soll_cents: soll, ist_cents: ist, diff_cents: soll - ist }
-    }
-    const rows = KOSTENARTEN.map((k) => {
-      const soll = a.arten.find((x) => x.nr === k.nr)?.summe_cent ?? 0
-      const ist = istJeArt.get(k.nr) ?? 0
-      const eigene = zeilen.filter((z) => Number(z.cost_group) === k.nr).map(zeileAus)
-      if (k.nr === 3 && a.zusatzkosten_gagen_cent !== null) {
-        eigene.push({ id: 0, description: 'Zusatzkosten Gagen', soll_cents: a.zusatzkosten_gagen_cent, ist_cents: 0, diff_cents: a.zusatzkosten_gagen_cent })
-      }
-      return { cost_group: k.nr, category: `${k.nr} ${k.name}`, soll_cents: soll, ist_cents: ist, diff_cents: soll - ist, zeilen: eigene }
-    })
-    const ohneSoll = a.ohne_kostenart.summe_cent
-    const ohneIst = istJeArt.get(null) ?? 0
-    if (ohneSoll > 0 || ohneIst > 0) {
-      rows.push({ cost_group: null as any, category: 'Ohne Kostenart', soll_cents: ohneSoll, ist_cents: ohneIst, diff_cents: ohneSoll - ohneIst,
-        zeilen: zeilen.filter((z) => !istKostenart(Number(z.cost_group))).map(zeileAus) })
-    }
-    // Die Erträge (Kostenart 11) mindern - in der Summe wird abgezogen
-    const vorzeichen = (r: { cost_group: number | null }) => (r.cost_group === 11 ? -1 : 1)
-    const sollTotal = rows.reduce((s, r) => s + vorzeichen(r) * r.soll_cents, 0)
-    const istTotal = rows.reduce((s, r) => s + vorzeichen(r) * r.ist_cents, 0)
-    return res.json({
-      data: {
-        budget_version: { id: activeVersion.id, name: activeVersion.name, status: activeVersion.status, schema: 'ffa' },
-        rows,
-        totals: { soll_cents: sollTotal, ist_cents: istTotal, diff_cents: sollTotal - istTotal },
-        rechenwerk: a.rechenwerk,
-        hinweise: a.hinweise,
-      },
-      error: null,
-    })
+  // Gruppe: im FFA-Schema die Kostenart ("ohne" ohne), sonst die Kategorie
+  const gruppeFfa = (nr: unknown) => (istKostenart(Number(nr)) ? String(Number(nr)) : 'ohne')
+  const gruppeFrei = (k: unknown) => String(k || '').trim() || 'Ohne Kategorie'
+  const zeilen = zeilenRoh.map((z) => ({ ...z, gruppe: ffa ? gruppeFfa(z.cost_group) : gruppeFrei(z.category) }))
+  const belege = belegeRoh.map((b) => ({ ...b, gruppe: ffa ? gruppeFfa(b.cost_group) : gruppeFrei(b.category) }))
+  const a = ffa ? auswertung(zeilenRoh, version) : null
+  const gruppen = ffa
+    ? KOSTENARTEN.map((k) => ({
+      gruppe: String(k.nr),
+      ...(k.nr === 3 && a!.zusatzkosten_gagen_cent !== null ? { zusatz: { description: 'Zusatzkosten Gagen', cents: a!.zusatzkosten_gagen_cent } } : {}),
+    }))
+    : [...new Set(zeilen.map((z) => z.gruppe))].sort().map((g) => ({ gruppe: g }))
+  const stand = kostenstand(zeilen, belege, gruppen)
+  const rows = stand.map((g) => ffa
+    ? { ...g, cost_group: g.gruppe === 'ohne' ? null : Number(g.gruppe), category: g.gruppe === 'ohne' ? 'Ohne Kostenart' : `${g.gruppe} ${kostenartName(Number(g.gruppe))}` }
+    : { ...g, category: g.gruppe })
+  // Die Erträge (Kostenart 11) mindern - in der Summe wird abgezogen
+  const vorzeichen = (r: any) => (ffa && r.cost_group === 11 ? -1 : 1)
+  const summe = (k: 'soll_cents' | 'ist_cents' | 'rest_cents') => rows.reduce((s, r: any) => s + vorzeichen(r) * r[k], 0)
+  const totals = vierZahlen(summe('soll_cents'), summe('ist_cents'), summe('rest_cents'))
+  const hinweise = [...(a?.hinweise ?? [])]
+  if (stand.some((g) => g.zeilen.some((z) => z.description === 'Belege ohne Zeile'))) {
+    hinweise.push('Belege ohne Zeile mindern keinen Rest - der Endstand kann zu hoch sein')
   }
-
-  const sollByCategory: Record<string, number> = {}
-  if (activeVersion) {
-    const lines = await db.all(
-      'SELECT category, SUM(total_cents) as total FROM budget_lines WHERE budget_version_id = ? GROUP BY category',
-      [activeVersion.id]
-    ) as Array<{ category: string; total: number }>
-    // Wie bei den Belegen unten: ohne Kategorie heißt "Ohne Kategorie". Vorher
-    // standen Soll und Ist derselben leeren Kategorie in zwei Zeilen ("" und
-    // "Ohne Kategorie") - gemessen am 25.10.2026.
-    for (const l of lines) {
-      const kategorie = l.category || 'Ohne Kategorie'
-      sollByCategory[kategorie] = (sollByCategory[kategorie] || 0) + (Number(l.total) || 0)
-    }
-  }
-
-  const istRows = await db.all(
-    'SELECT category, SUM(amount_cents) as total FROM expenses WHERE project_id = ? GROUP BY category',
-    [req.params.projectId]
-  ) as Array<{ category: string; total: number }>
-  const istByCategory: Record<string, number> = {}
-  for (const r of istRows) {
-    const kategorie = r.category || 'Ohne Kategorie'
-    istByCategory[kategorie] = (istByCategory[kategorie] || 0) + (Number(r.total) || 0)
-  }
-
-  const categories = Array.from(new Set([...Object.keys(sollByCategory), ...Object.keys(istByCategory)])).sort()
-  const rows = categories.map(cat => {
-    const soll = sollByCategory[cat] || 0
-    const ist = istByCategory[cat] || 0
-    return { category: cat, soll_cents: soll, ist_cents: ist, diff_cents: soll - ist }
-  })
-
-  const sollTotal = rows.reduce((s, r) => s + r.soll_cents, 0)
-  const istTotal = rows.reduce((s, r) => s + r.ist_cents, 0)
 
   return res.json({
     data: {
       budget_version: activeVersion ? { id: activeVersion.id, name: activeVersion.name, status: activeVersion.status, schema: activeVersion.schema } : null,
-      rows,
-      totals: { soll_cents: sollTotal, ist_cents: istTotal, diff_cents: sollTotal - istTotal },
+      // Ohne Fassung keine Zeilen; ohne Soll und Ist bleibt eine leere Kostenart weg
+      rows: ffa ? rows : rows.filter((r) => r.soll_cents !== 0 || r.ist_cents !== 0),
+      totals,
+      ...(a ? { rechenwerk: a.rechenwerk } : {}),
+      hinweise,
     },
     error: null,
   })

@@ -560,6 +560,16 @@ export const planung: Record<string, Schritt[]> = {
       },
     },
     {
+      ziel: 'vergleich|kalkulation',
+      reiter: 'kalkulation',
+      titel: { de: 'Kopieren und vergleichen', en: 'Copy and compare', fr: 'Copier et comparer' },
+      text: {
+        de: "Eine Fassung lässt sich kopieren - etwa als Abschlusskalkulation - und ab zwei Fassungen mit einer anderen vergleichen: je Kostenart und Zeile beide Beträge und die Differenz, Zeilen nur in einer Fassung stehen dabei. Der Vergleich geht auch als CSV und PDF.",
+        en: "A version can be copied - say as the final budget - and, once there are two, compared with another: per cost group and line both amounts and the difference, lines only in one version are marked. The comparison is also available as CSV and PDF.",
+        fr: "Une version se copie - par exemple comme budget final - et, dès qu'il y en a deux, se compare à une autre : par catégorie et par ligne les deux montants et l'écart, les lignes présentes dans une seule version sont signalées. La comparaison existe aussi en CSV et en PDF.",
+      },
+    },
+    {
       ziel: 'rechenwerk',
       reiter: 'kalkulation',
       titel: { de: 'Das Rechenwerk', en: 'The calculation', fr: 'Le calcul' },
@@ -623,6 +633,16 @@ export const planung: Record<string, Schritt[]> = {
         en: "Budgeted is what the active budget says - in the FFA scheme the production costs, with the total production costs below; spent is what you record here as receipts; plus what is left. In the FFA scheme plan and actual are shown per cost group, expandable per line; receipts without a cost group are shown on their own.",
         fr: "Prévu, c'est ce qui figure dans le budget actif - dans le schéma FFA les coûts de fabrication, le coût total en dessous ; dépensé, ce que tu saisis ici comme justificatifs ; plus ce qui reste. Dans le schéma FFA, prévu et réel apparaissent par catégorie, dépliables par ligne ; les justificatifs sans catégorie apparaissent à part.",
       },
+    },
+    {
+      ziel: 'endstand',
+      titel: { de: 'Reicht das Geld?', en: 'Will the money last?', fr: 'L’argent suffira-t-il ?' },
+      text: {
+        de: 'Je Kostenart und je Zeile: Kalkulation, Ist, noch zu erwarten und der voraussichtliche Endstand, dazu die Abweichung in Euro und Prozent - rot, wo es teurer wird. "Noch zu erwarten" ist zuerst Kalkulation minus Ist; in der aufgeklappten Zeile setzt ihr einen eigenen Wert (mit Name und Datum) oder schließt die Zeile ab, dann kommt nichts mehr.',
+        en: 'Per cost group and per line: budget, actual, still expected and the expected final total, plus the variance in euros and percent - red where it gets more expensive. "Still expected" starts as budget minus actual; in the expanded line you set your own value (with name and date) or close the line, then nothing more is expected.',
+        fr: 'Par catégorie et par ligne : budget, réel, encore attendu et total final prévu, avec l’écart en euros et en pourcentage - en rouge là où cela coûte plus. « Encore attendu » vaut d’abord budget moins réel ; dans la ligne dépliée, vous fixez votre propre valeur (avec nom et date) ou clôturez la ligne, plus rien n’est alors attendu.',
+      },
+      wirktAuf: ['budget'],
     },
     {
       ziel: 'warnung',

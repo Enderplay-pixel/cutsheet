@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Fragment, useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useDownload } from '@/lib/useDownload'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -217,6 +218,92 @@ export function UmstellenDialog({ version, lines, offen, onClose }: { version: a
           <Button variant="outline" onClick={onClose}>{tt(K.abbrechen)}</Button>
           <Button onClick={() => umstellen.mutate()} disabled={umstellen.isPending}>{tt(K.umstellen)}</Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Zwei Fassungen nebeneinander, mit CSV und PDF (AP E1). */
+export function VergleichDialog({ pid, versionen, offen, onClose }: { pid: number; versionen: any[]; offen: boolean; onClose: () => void }) {
+  const tt = useT()
+  const download = useDownload()
+  const [a, setA] = useState<string>('')
+  const [b, setB] = useState<string>('')
+  useEffect(() => {
+    if (!offen) return
+    // Vorbelegt: die älteste gegen die neueste Fassung
+    if (versionen.length >= 2) { setA(String(versionen[versionen.length - 1].id)); setB(String(versionen[0].id)) }
+  }, [offen])
+  const bereit = !!a && !!b && a !== b
+  const { data: v, isLoading } = useQuery({
+    queryKey: ['budget-vergleich', pid, a, b],
+    queryFn: () => api.budget.vergleich(pid, Number(a), Number(b)),
+    enabled: offen && bereit,
+  })
+  const betrag = (c: number | null) => (c === null ? '-' : formatCurrency(c))
+  const wahl = (wert: string, setze: (v: string) => void, label: string) => (
+    <Select value={wert} onValueChange={setze}>
+      <SelectTrigger aria-label={label} className="h-8 w-56 text-xs"><SelectValue placeholder={label} /></SelectTrigger>
+      <SelectContent>{versionen.map((x: any) => <SelectItem key={x.id} value={String(x.id)} className="text-xs">{x.name}</SelectItem>)}</SelectContent>
+    </Select>
+  )
+  return (
+    <Dialog open={offen} onOpenChange={x => !x && onClose()}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>{tt(K.vergleichen)}</DialogTitle>
+          {v && <DialogDescription>{v.unterschiede === 1 ? tt(K.einUnterschied) : tt(K.unterschiede).replace('{n}', String(v.unterschiede))}</DialogDescription>}
+        </DialogHeader>
+        <div className="flex flex-wrap items-center gap-2">
+          {wahl(a, setA, tt(K.fassungA))}
+          <span className="text-xs text-muted-foreground">↔</span>
+          {wahl(b, setB, tt(K.fassungB))}
+          {bereit && (
+            <>
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => download(api.budget.vergleichCsv(pid, Number(a), Number(b)), 'vergleich.csv')}>{tt(K.csv)}</Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => download(api.budget.vergleichPdf(pid, Number(a), Number(b)), 'vergleich.pdf')}>PDF</Button>
+            </>
+          )}
+        </div>
+        <div className="max-h-[60vh] overflow-y-auto">
+          {isLoading && <p className="text-xs text-muted-foreground py-4">…</p>}
+          {v && (
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-card">
+                <tr className="text-xs text-muted-foreground border-b">
+                  <th className="text-left py-1.5">{tt(K.kostenart)}</th>
+                  <th className="text-right py-1.5">{v.a.name}</th><th className="text-right py-1.5">{v.b.name}</th>
+                  <th className="text-right py-1.5">{tt(K.differenz)}</th><th className="w-24" />
+                </tr>
+              </thead>
+              <tbody>
+                {v.gruppen.map((g: any) => (
+                  <Fragment key={g.name}>
+                    <tr className="bg-muted/40 font-semibold text-xs">
+                      <td className="py-1.5 pl-1">{g.name}</td>
+                      <td className="text-right font-mono">{formatCurrency(g.a_cents)}</td><td className="text-right font-mono">{formatCurrency(g.b_cents)}</td>
+                      <td className={`text-right font-mono ${g.diff_cents > 0 ? 'text-danger' : g.diff_cents < 0 ? 'text-success' : ''}`}>{formatCurrency(g.diff_cents)}</td><td />
+                    </tr>
+                    {g.zeilen.map((z: any, i: number) => (
+                      <tr key={i} className={`border-b border-border/20 text-xs ${z.art === 'beide' && z.diff_cents === 0 ? 'text-muted-foreground' : ''}`}>
+                        <td className="py-1 pl-4">{z.description}</td>
+                        <td className="text-right font-mono">{betrag(z.a_cents)}</td><td className="text-right font-mono">{betrag(z.b_cents)}</td>
+                        <td className="text-right font-mono">{z.diff_cents ? formatCurrency(z.diff_cents) : ''}</td>
+                        <td className="text-right text-[10px] font-semibold">{z.art === 'nur_a' ? tt(K.nurInA) : z.art === 'nur_b' ? tt(K.nurInB) : ''}</td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))}
+                <tr className="font-bold text-sm">
+                  <td className="py-2 pl-1">{tt(K.gesamt)}</td>
+                  <td className="text-right font-mono">{formatCurrency(v.summe.a_cents)}</td><td className="text-right font-mono">{formatCurrency(v.summe.b_cents)}</td>
+                  <td className="text-right font-mono">{formatCurrency(v.summe.diff_cents)}</td><td />
+                </tr>
+              </tbody>
+            </table>
+          )}
+        </div>
+        <DialogFooter><Button variant="outline" onClick={onClose}>{tt(K.schliessen)}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   )

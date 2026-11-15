@@ -4,7 +4,7 @@ import { drehtageBesetzung, drehtageStab, anzahl, KEIN_DREHTAG_SQL } from '../li
 import { ladeDood } from '../lib/dood'
 import { db, TxClient } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
-import { massgeblicheKalkulation, finanzierungsstand, istFinanzStatus, istZugesagt } from '../lib/kalkulation'
+import { massgeblicheKalkulation, finanzierungsstand, istFinanzStatus, istZugesagt, fassungenVergleichen, VERGLEICH_ART } from '../lib/kalkulation'
 import { heuteISO } from '../lib/datum'
 import { pruefeBudgetzeile, pruefeGeldgeberBetrag, GELD_MAX_CENT } from '../lib/geld'
 import { auswertung, istKostenart, SCHEMATA, VORGABE, type Schema } from '../lib/ffaSchema'
@@ -244,12 +244,61 @@ router.get('/budget-versions/:id/export.csv', requireMemberVia(projectIdFromTabl
   return res.send(csv)
 })
 
+/**
+ * POST /api/budget-versions/:id/kopie - eine Fassung kopieren, etwa die
+ * Vorkalkulation als Grundlage der Abschlusskalkulation (AP E1). Schema,
+ * Sätze und alle Zeilen samt Herkunft und Kostenart; keine Prognosen.
+ */
+router.post('/budget-versions/:id/kopie', async (req, res) => {
+  const alt = await db.get('SELECT * FROM budget_versions WHERE id = ?', [req.params.id]) as any
+  if (!alt) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
+  const name = typeof req.body?.name === 'string' && req.body.name.trim() ? req.body.name.trim() : `${alt.name} (Kopie)`
+  const neu = await db.transaction(async (tx) => {
+    const v = await tx.run(
+      `INSERT INTO budget_versions (project_id, name, status, schema, hu_percent_bp, hu_percent_above_bp, hu_threshold_cents, hu_cap_cents,
+         reserve_percent_bp, producer_fee_percent_bp, producer_fee_cap_cents, social_percent_bp)
+       VALUES (?, ?, 'Entwurf', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [alt.project_id, name, alt.schema, alt.hu_percent_bp, alt.hu_percent_above_bp, alt.hu_threshold_cents, alt.hu_cap_cents,
+        alt.reserve_percent_bp, alt.producer_fee_percent_bp, alt.producer_fee_cap_cents, alt.social_percent_bp])
+    await tx.run(
+      `INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, source_key, cost_group, social)
+       SELECT ?, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, source_key, cost_group, social
+         FROM budget_lines WHERE budget_version_id = ?`, [v.id, alt.id])
+    await recalcBudgetTotal(v.id, tx)
+    return tx.get('SELECT * FROM budget_versions WHERE id = ?', [v.id])
+  })
+  res.status(201).json({ data: neu, error: null })
+})
+
 // GET /api/budget-versions/:id/auswertung - Kostenarten, Rechenwerk, Hinweise (AP B1)
 router.get('/budget-versions/:id/auswertung', requireMemberVia(projectIdFromTable('budget_versions', 'id')), async (req: Request, res: Response) => {
   const version = await db.get('SELECT * FROM budget_versions WHERE id = ?', [req.params.id]) as any
   if (!version) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
   const zeilen = await db.all('SELECT cost_group, social, total_cents FROM budget_lines WHERE budget_version_id = ?', [req.params.id]) as any[]
   res.json({ data: { schema: version.schema, vorgabe: VORGABE, ...auswertung(zeilen, version) }, error: null })
+})
+
+/**
+ * GET /api/projects/:projectId/budget-versions/vergleich?a=…&b=… - zwei
+ * Fassungen nebeneinander (AP E1); `format=csv` als Tabelle. Beide Fassungen
+ * müssen zum Projekt gehören, sonst 404.
+ */
+router.get('/projects/:projectId/budget-versions/vergleich', async (req, res) => {
+  const v = await fassungenVergleichen(Number(req.params.projectId), req.query.a, req.query.b)
+  if (!v) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
+  if (req.query.format === 'csv') {
+    const zeilen: unknown[][] = []
+    for (const g of v.gruppen) {
+      for (const z of g.zeilen) zeilen.push([g.name, z.description, z.a_cents === null ? '' : cents(z.a_cents), z.b_cents === null ? '' : cents(z.b_cents), cents(z.diff_cents), VERGLEICH_ART[z.art]])
+      zeilen.push([g.name, `Summe ${g.name}`, cents(g.a_cents), cents(g.b_cents), cents(g.diff_cents), ''])
+    }
+    zeilen.push(['', 'Gesamt', cents(v.summe.a_cents), cents(v.summe.b_cents), cents(v.summe.diff_cents), ''])
+    const csv = schreibeCsv(['Kostenart', 'Zeile', v.a.name, v.b.name, 'Differenz', 'Stand'], zeilen as any)
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="vergleich-${dateiname(v.a.name)}-${dateiname(v.b.name)}.csv"`)
+    return res.send(csv)
+  }
+  res.json({ data: v, error: null })
 })
 
 // GET /api/budget-versions/:id/lines
@@ -283,6 +332,27 @@ router.post('/budget-versions/:id/lines', async (req, res) => {
     return result.id
   })
   res.status(201).json({ data: await db.get('SELECT * FROM budget_lines WHERE id = ?', [id]), error: null })
+})
+
+/**
+ * PUT /api/budget-lines/:id/prognose - "noch zu erwarten" einer Zeile setzen
+ * oder zurück auf die Vorgabe (`rest_cents: null`), und abschließen (AP E1).
+ * Wer und wann stehen daneben.
+ */
+router.put('/budget-lines/:id/prognose', async (req, res) => {
+  const zeile = await db.get('SELECT * FROM budget_lines WHERE id = ?', [req.params.id]) as any
+  if (!zeile) return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
+  const rest = req.body?.rest_cents
+  if (rest !== undefined && rest !== null && (!Number.isInteger(Number(rest)) || Number(rest) < 0 || Number(rest) > GELD_MAX_CENT)) {
+    return res.status(400).json({ data: null, error: 'Der Preis muss ein Betrag in ganzen Cent sein.' })
+  }
+  const abgeschlossen = req.body?.abgeschlossen === undefined ? zeile.closed === true : req.body.abgeschlossen === true
+  const neuerRest = rest === undefined ? zeile.forecast_rest_cents : rest === null ? null : Number(rest)
+  const gesetzt = rest !== undefined
+  await db.run(
+    `UPDATE budget_lines SET forecast_rest_cents = ?, closed = ?${gesetzt ? ', forecast_set_by = ?, forecast_set_at = ' + (neuerRest === null ? 'NULL' : 'NOW()') : ''} WHERE id = ?`,
+    gesetzt ? [neuerRest, abgeschlossen, neuerRest === null ? null : (req as any).user?.id ?? null, req.params.id] : [neuerRest, abgeschlossen, req.params.id])
+  res.json({ data: await db.get('SELECT * FROM budget_lines WHERE id = ?', [req.params.id]), error: null })
 })
 
 // PUT /api/budget-lines/:id

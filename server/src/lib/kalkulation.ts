@@ -1,4 +1,5 @@
 import { db } from '../db'
+import { kostenartName } from './ffaSchema'
 
 type Zugriff = { get: typeof db.get }
 
@@ -81,4 +82,160 @@ export function finanzierungsstand(eintraege: Geldgeber[], raten: Rate[], herste
     je_geldgeber: Object.fromEntries(jeGeldgeber),
     ueberfaellig: ueberfaellig.map((r) => ({ id: r.id, entry_id: Number(r.entry_id), amount_cents: betrag(r), due_on: tag(r.due_on) })),
   }
+}
+
+// ─── Kostenstand mit Endstand, Vergleich zweier Fassungen (AP E1) ───────────
+
+export type StandZeile = {
+  id: number
+  gruppe: string
+  description?: string | null
+  total_cents: unknown
+  forecast_rest_cents?: unknown
+  closed?: unknown
+  forecast_set_by_name?: string | null
+  forecast_set_at?: unknown
+}
+export type StandBeleg = { budget_line_id?: unknown; gruppe: string; amount_cents: unknown }
+
+/** Kalkulation, Ist, noch zu erwarten, Endstand und die Abweichung des Endstands. */
+export function vierZahlen(soll: number, ist: number, rest: number) {
+  const endstand = ist + rest
+  const abweichung = endstand - soll
+  return {
+    soll_cents: soll,
+    ist_cents: ist,
+    rest_cents: rest,
+    endstand_cents: endstand,
+    abweichung_cents: abweichung,
+    abweichung_prozent: soll !== 0 ? Math.round((abweichung / soll) * 1000) / 10 : null,
+    ueber: abweichung > 0,
+    // Soll minus Ist, wie vor AP E1 - für Frühwarnung und Summenkarten
+    diff_cents: soll - ist,
+  }
+}
+
+const zahlOder0 = (w: unknown) => Number(w) || 0
+const istGesetzt = (w: unknown) => w !== null && w !== undefined && w !== ''
+
+/**
+ * Der Kostenstand je Gruppe (Kostenart oder Kategorie) und je Zeile.
+ *
+ * "Noch zu erwarten" ist ohne Eingabe Kalkulation minus Ist, nie unter null;
+ * überschreibt die Produktion den Wert, gilt ihrer; eine abgeschlossene Zeile
+ * erwartet nichts mehr. Ein Beleg mit Zeile zählt zur Gruppe seiner Zeile,
+ * einer ohne Zeile zur eigenen Gruppe, dort in der Zeile "Belege ohne Zeile"
+ * - er mindert keinen Rest. So sind die Summen je Gruppe die Summen der Zeilen.
+ */
+export function kostenstand(
+  zeilen: StandZeile[],
+  belege: StandBeleg[],
+  gruppen: Array<{ gruppe: string; zusatz?: { description: string; cents: number } }>,
+) {
+  const zeileVonId = new Map(zeilen.map((z) => [Number(z.id), z]))
+  const istJeZeile = new Map<number, number>()
+  const ohneZeile = new Map<string, number>()
+  for (const b of belege) {
+    const z = istGesetzt(b.budget_line_id) ? zeileVonId.get(Number(b.budget_line_id)) : undefined
+    if (z) istJeZeile.set(Number(z.id), (istJeZeile.get(Number(z.id)) ?? 0) + zahlOder0(b.amount_cents))
+    else ohneZeile.set(b.gruppe, (ohneZeile.get(b.gruppe) ?? 0) + zahlOder0(b.amount_cents))
+  }
+  const alleGruppen = [...gruppen]
+  for (const g of [...zeilen.map((z) => z.gruppe), ...ohneZeile.keys()]) {
+    if (!alleGruppen.some((x) => x.gruppe === g)) alleGruppen.push({ gruppe: g })
+  }
+  return alleGruppen.map((g) => {
+    const eigene = zeilen.filter((z) => z.gruppe === g.gruppe).map((z) => {
+      const soll = zahlOder0(z.total_cents)
+      const ist = istJeZeile.get(Number(z.id)) ?? 0
+      const abgeschlossen = z.closed === true
+      const gesetzt = istGesetzt(z.forecast_rest_cents)
+      const rest = abgeschlossen ? 0 : gesetzt ? Math.max(0, zahlOder0(z.forecast_rest_cents)) : Math.max(0, soll - ist)
+      return {
+        id: Number(z.id), description: String(z.description ?? ''), ...vierZahlen(soll, ist, rest),
+        abgeschlossen, rest_gesetzt: gesetzt && !abgeschlossen,
+        gesetzt_von: z.forecast_set_by_name ?? null, gesetzt_am: z.forecast_set_at ?? null,
+      }
+    })
+    // Zusatzkosten Gagen (AP B1): gerechnet, nicht ausgegeben - der Rest ist der ganze Betrag
+    if (g.zusatz) eigene.push({ id: 0, description: g.zusatz.description, ...vierZahlen(g.zusatz.cents, 0, g.zusatz.cents), abgeschlossen: false, rest_gesetzt: false, gesetzt_von: null, gesetzt_am: null })
+    const lose = ohneZeile.get(g.gruppe) ?? 0
+    if (lose !== 0) eigene.push({ id: 0, description: 'Belege ohne Zeile', ...vierZahlen(0, lose, 0), abgeschlossen: false, rest_gesetzt: false, gesetzt_von: null, gesetzt_am: null })
+    const summe = (k: 'soll_cents' | 'ist_cents' | 'rest_cents') => eigene.reduce((s, z) => s + z[k], 0)
+    return { gruppe: g.gruppe, ...vierZahlen(summe('soll_cents'), summe('ist_cents'), summe('rest_cents')), zeilen: eigene }
+  })
+}
+
+export const VERGLEICH_ART: Record<'beide' | 'nur_a' | 'nur_b', string> = { beide: '', nur_a: 'nur in A', nur_b: 'nur in B' }
+
+/**
+ * Zwei Fassungen eines Projekts laden und vergleichen (AP E1). Gruppe ist im
+ * FFA-Schema die Kostenart, sonst die Kategorie. null, wenn eine Fassung
+ * fehlt oder nicht zum Projekt gehört.
+ */
+export async function fassungenVergleichen(projectId: number, aId: unknown, bId: unknown, zugriff: { get: typeof db.get; all: typeof db.all } = db) {
+  const lade = async (id: unknown) => (Number.isInteger(Number(id))
+    ? (await zugriff.get('SELECT id, name, schema FROM budget_versions WHERE id = ? AND project_id = ?', [Number(id), projectId])) as any
+    : null)
+  const [va, vb] = [await lade(aId), await lade(bId)]
+  if (!va || !vb) return null
+  const zeilen = async (v: any) => ((await zugriff.all(
+    'SELECT id, source_key, description, total_cents, cost_group, category FROM budget_lines WHERE budget_version_id = ? ORDER BY sort_order, id', [v.id])) as any[])
+    .map((z) => ({
+      ...z,
+      gruppe: v.schema === 'ffa'
+        ? (Number(z.cost_group) >= 1 && Number(z.cost_group) <= 11 ? `${Number(z.cost_group)} ${kostenartName(Number(z.cost_group))}` : 'Ohne Kostenart')
+        : (String(z.category || '').trim() || 'Ohne Kategorie'),
+    }))
+  const v = vergleicheFassungen(await zeilen(va), await zeilen(vb))
+  // Kostenarten nach ihrer Nummer, Kategorien wie geschrieben; ohne Nummer ans Ende
+  const gruppen = v.gruppen.map((g) => ({ ...g, name: g.gruppe }))
+    .sort((x, y) => (parseInt(x.name, 10) || 1e9) - (parseInt(y.name, 10) || 1e9) || x.name.localeCompare(y.name, 'de'))
+  const summe = { a_cents: gruppen.reduce((s, g) => s + g.a_cents, 0), b_cents: gruppen.reduce((s, g) => s + g.b_cents, 0), diff_cents: 0 }
+  summe.diff_cents = summe.b_cents - summe.a_cents
+  return { a: { id: Number(va.id), name: String(va.name) }, b: { id: Number(vb.id), name: String(vb.name) }, gruppen, summe, unterschiede: v.unterschiede }
+}
+
+export type VergleichZeile = { id?: number; gruppe: string; source_key?: string | null; description?: string | null; total_cents: unknown }
+
+/**
+ * Zwei Fassungen nebeneinander: Zeilen finden über den Herkunftsschlüssel
+ * zueinander, sonst über Gruppe und Beschreibung (ohne Groß- und
+ * Kleinschreibung), je eine mit einer. Was nur in einer steht, heißt so.
+ */
+export function vergleicheFassungen(a: VergleichZeile[], b: VergleichZeile[]) {
+  const frei = new Set(b.map((_, i) => i))
+  const nimm = (pruefe: (z: VergleichZeile) => boolean) => {
+    for (const i of frei) if (pruefe(b[i])) { frei.delete(i); return b[i] }
+    return undefined
+  }
+  const text = (z: VergleichZeile) => String(z.description ?? '').trim().toLocaleLowerCase('de')
+  const paare: Array<{ a?: VergleichZeile; b?: VergleichZeile }> = a.map((za) => ({ a: za }))
+  // Erst der Herkunftsschlüssel, dann Gruppe und Beschreibung
+  for (const p of paare) {
+    const k = String(p.a!.source_key ?? '').trim()
+    if (k) p.b = nimm((zb) => String(zb.source_key ?? '').trim() === k)
+  }
+  for (const p of paare) {
+    if (!p.b) p.b = nimm((zb) => !String(zb.source_key ?? '').trim() || !String(p.a!.source_key ?? '').trim()
+      ? zb.gruppe === p.a!.gruppe && text(zb) === text(p.a!) : false)
+  }
+  for (const i of frei) paare.push({ b: b[i] })
+  const zeilen = paare.map(({ a: za, b: zb }) => {
+    const ac = za ? zahlOder0(za.total_cents) : null
+    const bc = zb ? zahlOder0(zb.total_cents) : null
+    return {
+      gruppe: (za ?? zb)!.gruppe,
+      description: String((za ?? zb)!.description ?? ''),
+      a_cents: ac, b_cents: bc, diff_cents: (bc ?? 0) - (ac ?? 0),
+      art: za && zb ? 'beide' as const : za ? 'nur_a' as const : 'nur_b' as const,
+    }
+  })
+  const gruppen = [...new Set(zeilen.map((z) => z.gruppe))].map((g) => {
+    const eigene = zeilen.filter((z) => z.gruppe === g)
+    const a_cents = eigene.reduce((s, z) => s + (z.a_cents ?? 0), 0)
+    const b_cents = eigene.reduce((s, z) => s + (z.b_cents ?? 0), 0)
+    return { gruppe: g, a_cents, b_cents, diff_cents: b_cents - a_cents, zeilen: eigene }
+  })
+  return { gruppen, unterschiede: zeilen.filter((z) => z.art !== 'beide' || z.diff_cents !== 0).length }
 }

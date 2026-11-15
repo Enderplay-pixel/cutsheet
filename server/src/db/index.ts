@@ -1678,6 +1678,14 @@ export async function initDatabase() {
   `)
   await db.exec(`CREATE INDEX IF NOT EXISTS financing_installments_eintrag_idx ON financing_installments (entry_id)`)
 
+  // Kostenstand mit Endstand (Plan Kino-Ausbau, AP E1, 16.11.2026): "noch zu
+  // erwarten" je Zeile, leer heißt Vorgabe (Kalkulation minus Ist); wer es
+  // wann gesetzt hat; abgeschlossene Zeilen erwarten nichts mehr.
+  await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS forecast_rest_cents BIGINT`)
+  await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS closed BOOLEAN NOT NULL DEFAULT false`)
+  await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS forecast_set_by INTEGER REFERENCES users(id) ON DELETE SET NULL`)
+  await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS forecast_set_at TIMESTAMPTZ`)
+
   // ── Rechnungen und Honorare ───────────────────────────────────────────────
   // Steuerart der Firma. Ein Einzelunternehmen nach Paragraf 19 UStG weist
   // keine Umsatzsteuer aus und muss das auf der Rechnung begruenden.

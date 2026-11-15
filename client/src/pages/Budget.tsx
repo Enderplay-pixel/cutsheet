@@ -23,7 +23,7 @@ import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
 import { NurProduktion } from '@/components/shared/NurProduktion'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Rechenwerk, NeueFassungDialog, UmstellenDialog } from '@/components/budget/Kalkulation'
+import { Rechenwerk, NeueFassungDialog, UmstellenDialog, VergleichDialog } from '@/components/budget/Kalkulation'
 import { kalkT as K, KOSTENART_TEXT, KOSTENARTEN } from '@/lib/texte/Kalkulation'
 import { finT as F, STAND_TEXT, STAENDE } from '@/lib/texte/Finanzierung'
 import { ChevronRight } from 'lucide-react'
@@ -424,6 +424,17 @@ function BudgetSeite() {
   const [neueKostenart, setNeueKostenart] = useState('3')
   const [neueFassungOffen, setNeueFassungOffen] = useState(false)
   const [umstellenOffen, setUmstellenOffen] = useState(false)
+  const [vergleichOffen, setVergleichOffen] = useState(false)
+  // Fassung kopieren, etwa als Grundlage der Abschlusskalkulation (AP E1)
+  const kopieren = useMutation({
+    mutationFn: () => api.budget.kopie(selectedVersionId!),
+    onSuccess: (v: any) => {
+      queryClient.invalidateQueries({ queryKey: ['budget-versions', pid] })
+      setSelectedVersionId(v.id)
+      toast({ title: tt(K.kopiert), description: v.name })
+    },
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(T.fehler), description: e.message }),
+  })
 
   const { data: versions } = useQuery({
     queryKey: ['budget-versions', pid],
@@ -660,6 +671,12 @@ function BudgetSeite() {
               {darf && currentVersion && !ffa && (
                 <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setUmstellenOffen(true)}>{tt(K.umstellen)}</Button>
               )}
+              {darf && currentVersion && (
+                <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => kopieren.mutate()} disabled={kopieren.isPending}>{tt(K.fassungKopieren)}</Button>
+              )}
+              {(versions?.length ?? 0) >= 2 && (
+                <Button variant="ghost" size="sm" className="h-8 text-xs" data-einfuehrung="vergleich" onClick={() => setVergleichOffen(true)}>{tt(K.vergleichen)}</Button>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-lg font-bold">{formatCurrency(totalBudget)}</span>
@@ -785,6 +802,7 @@ function BudgetSeite() {
           {ffa && currentVersion && <Rechenwerk version={currentVersion} auswertung={auswertung} darf={darf} />}
           <NeueFassungDialog pid={pid} offen={neueFassungOffen} onClose={() => setNeueFassungOffen(false)} onAngelegt={setSelectedVersionId} />
           {currentVersion && <UmstellenDialog version={currentVersion} lines={lines ?? []} offen={umstellenOffen} onClose={() => setUmstellenOffen(false)} />}
+          <VergleichDialog pid={pid} versionen={versions ?? []} offen={vergleichOffen} onClose={() => setVergleichOffen(false)} />
         </TabsContent>
 
         {/* ── FINANZIERUNGSPLAN ── */}

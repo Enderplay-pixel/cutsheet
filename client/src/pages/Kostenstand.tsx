@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -17,6 +17,66 @@ import { kalkT as K, KOSTENART_TEXT, KOSTENARTEN } from '@/lib/texte/Kalkulation
 import { ChevronRight } from 'lucide-react'
 
 // Kostenstand: Ist-Kosten (Belege) gegen die aktive Kalkulation - Soll/Ist je Kategorie
+
+/**
+ * "Noch zu erwarten" einer Zeile (AP E1): Vorgabe Kalkulation minus Ist,
+ * die Produktion überschreibt; abgeschlossen heißt, es kommt nichts mehr.
+ */
+function Prognose({ z, darf, onGespeichert }: { z: any; darf: boolean; onGespeichert: () => void }) {
+  const tt = useT()
+  const gs = useGebietsschema()
+  const { toast } = useToast()
+  const [text, setText] = useState(String((z.rest_cents ?? 0) / 100))
+  useEffect(() => setText(String((z.rest_cents ?? 0) / 100)), [z.rest_cents])
+  const speichern = useMutation({
+    mutationFn: (daten: { rest_cents?: number | null; abgeschlossen?: boolean }) => api.budget.prognose(z.id, daten),
+    onSuccess: onGespeichert,
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(T.nichtGespeichert), description: e?.message }),
+  })
+  const verlassen = () => {
+    const cent = betragInCent(text)
+    if (Number.isNaN(cent) || cent < 0) { setText(String((z.rest_cents ?? 0) / 100)); return }
+    if (cent !== z.rest_cents) speichern.mutate({ rest_cents: cent })
+  }
+  return (
+    <div className="flex flex-col items-end gap-0.5">
+      <div className="flex items-center gap-1">
+        <Input value={text} onChange={e => setText(e.target.value)} onBlur={verlassen} disabled={!darf || z.abgeschlossen}
+          inputMode="decimal" aria-label={tt(K.restVon).replace('{name}', z.description || '')}
+          title={z.rest_gesetzt ? '' : tt(K.restVorgabe)}
+          className={cn('h-7 w-28 text-right text-[13px] tabular-nums', z.rest_gesetzt && 'border-primary/50')} />
+        <span className="text-xs text-muted-foreground">€</span>
+      </div>
+      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+        {z.rest_gesetzt && z.gesetzt_von && (
+          <span>{tt(K.gesetztVon).replace('{name}', z.gesetzt_von).replace('{datum}', new Date(z.gesetzt_am).toLocaleDateString(gs))}</span>
+        )}
+        {z.rest_gesetzt && darf && (
+          <button type="button" className="underline hover:text-primary" title={tt(K.restZurueckLang)}
+            onClick={() => speichern.mutate({ rest_cents: null })}>{tt(K.restZurueck)}</button>
+        )}
+        <label className="inline-flex items-center gap-1">
+          <input type="checkbox" checked={!!z.abgeschlossen} disabled={!darf}
+            aria-label={tt(K.abgeschlossenLang).replace('{name}', z.description || '')}
+            onChange={e => speichern.mutate({ abgeschlossen: e.target.checked })} />
+          {tt(K.abgeschlossen)}
+        </label>
+      </div>
+    </div>
+  )
+}
+
+/** Abweichung des Endstands: Betrag und Prozent, Überschreitung markiert. */
+function Abweichung({ r }: { r: any }) {
+  const tt = useT()
+  return (
+    <span className={cn('tabular-nums', r.ueber ? 'text-danger font-semibold' : 'text-success')} title={r.ueber ? tt(K.ueberKalkulation) : undefined}>
+      {r.abweichung_cents > 0 ? '+' : r.abweichung_cents < 0 ? '−' : '±'}{formatCurrency(Math.abs(r.abweichung_cents))}
+      {r.abweichung_prozent !== null && r.abweichung_prozent !== undefined && <span className="text-[11px] ml-1">({r.abweichung_prozent > 0 ? '+' : ''}{String(r.abweichung_prozent).replace('.', ',')} %)</span>}
+      {r.ueber && <span className="sr-only"> {tt(K.ueberKalkulation)}</span>}
+    </span>
+  )
+}
 
 function KostenstandSeite() {
   const { darfSchreiben } = useSchreibrecht()
@@ -193,7 +253,7 @@ function KostenstandSeite() {
       })()}
 
       {/* Summen */}
-      <div data-einfuehrung="summen" className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-7 stagger-sm">
+      <div data-einfuehrung="summen" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-7 stagger-sm">
         <div className="stat-card">
           <p className="section-label mb-2">{tt(T.kalkuliert)}</p>
           <p className="text-2xl font-bold tabular-nums tracking-tight">{formatCurrency(totals.soll_cents)}</p>
@@ -218,25 +278,36 @@ function KostenstandSeite() {
             {formatCurrency(Math.abs(totals.diff_cents))}
           </p>
         </div>
+        {/* Reicht das Geld? Ist plus noch zu erwarten (AP E1) */}
+        <div data-einfuehrung="endstand" className={cn('stat-card', totals.ueber ? 'border-danger/30' : '')}>
+          <p className="section-label mb-2">{tt(K.endstandLang)}</p>
+          <p className="text-2xl font-bold tabular-nums tracking-tight">{formatCurrency(totals.endstand_cents ?? totals.ist_cents)}</p>
+          {totals.abweichung_cents !== undefined && <p className="text-[12px] mt-1"><Abweichung r={totals} /></p>}
+        </div>
       </div>
 
       {/* Soll/Ist je Kategorie - im FFA-Schema je Kostenart, aufklappbar je Zeile (AP B1) */}
       {sichtbar.length > 0 && (
         <div className="mb-8">
           <p className="section-label mb-3">{ffa ? `${tt(T.soll)}/${tt(T.ist)} · ${tt(K.kostenart)}` : tt(T.sollIstJe)}</p>
-          {ffa && (kostenstand?.hinweise ?? []).length > 0 && (
+          {(kostenstand?.hinweise ?? []).length > 0 && (
             <p role="status" className="text-xs text-amber-700 dark:text-amber-300 mb-2">{kostenstand.hinweise.join(' · ')}</p>
           )}
           <div className="overflow-x-auto">
-            <table className="data-table min-w-[480px]">
+            <table className="data-table min-w-[760px]">
               <thead>
-                <tr><th>{ffa ? tt(K.kostenart) : tt(T.kategorie)}</th><th className="text-right">{tt(T.soll)}</th><th className="text-right">{tt(T.ist)}</th><th className="text-right">{tt(T.differenz)}</th></tr>
+                <tr>
+                  <th>{ffa ? tt(K.kostenart) : tt(T.kategorie)}</th>
+                  <th className="text-right">{tt(K.kalkulation)}</th><th className="text-right">{tt(K.ist)}</th>
+                  <th className="text-right">{tt(K.nochZuErwarten)}</th><th className="text-right">{tt(K.endstand)}</th>
+                  <th className="text-right">{tt(K.abweichung)}</th>
+                </tr>
               </thead>
               <tbody>
                 {sichtbar.map((r: any) => {
                   const name = ffa && r.cost_group ? `${r.cost_group} ${tt(KOSTENART_TEXT[r.cost_group])}` : ffa && r.cost_group === null ? tt(K.ohneKostenart) : (r.category || tt(T.ohneKategorie))
                   const auf = !!offen[r.category]
-                  const mitZeilen = ffa && (r.zeilen ?? []).length > 0
+                  const mitZeilen = (r.zeilen ?? []).length > 0
                   return (
                     <Fragment key={r.category}>
                       <tr>
@@ -250,18 +321,20 @@ function KostenstandSeite() {
                         </td>
                         <td className="text-right tabular-nums">{r.cost_group === 11 && r.soll_cents ? '− ' : ''}{formatCurrency(r.soll_cents)}</td>
                         <td className="text-right tabular-nums">{formatCurrency(r.ist_cents)}</td>
-                        <td className={cn('text-right tabular-nums font-semibold', r.diff_cents < 0 ? 'text-danger' : 'text-success')}>
-                          {r.diff_cents < 0 ? '−' : '+'}{formatCurrency(Math.abs(r.diff_cents))}
-                        </td>
+                        <td className="text-right tabular-nums">{formatCurrency(r.rest_cents ?? 0)}</td>
+                        <td className="text-right tabular-nums font-semibold">{formatCurrency(r.endstand_cents ?? r.ist_cents)}</td>
+                        <td className="text-right"><Abweichung r={r} /></td>
                       </tr>
                       {auf && (r.zeilen ?? []).map((z: any, i: number) => (
-                        <tr key={`${r.category}-${z.id}-${i}`} className="text-muted-foreground text-[13px]">
+                        <tr key={`${r.category}-${z.id}-${i}`} className="text-muted-foreground text-[13px] align-top">
                           <td className="pl-8">{z.description || '-'}</td>
                           <td className="text-right tabular-nums">{formatCurrency(z.soll_cents)}</td>
                           <td className="text-right tabular-nums">{formatCurrency(z.ist_cents)}</td>
-                          <td className={cn('text-right tabular-nums', z.diff_cents < 0 ? 'text-danger' : '')}>
-                            {z.diff_cents < 0 ? '−' : '+'}{formatCurrency(Math.abs(z.diff_cents))}
+                          <td className="text-right">
+                            {z.id ? <Prognose z={z} darf={darfSchreiben} onGespeichert={invalidate} /> : <span className="tabular-nums">{formatCurrency(z.rest_cents ?? 0)}</span>}
                           </td>
+                          <td className="text-right tabular-nums">{formatCurrency(z.endstand_cents ?? z.ist_cents)}</td>
+                          <td className="text-right"><Abweichung r={z} /></td>
                         </tr>
                       ))}
                     </Fragment>

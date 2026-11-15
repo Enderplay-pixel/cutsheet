@@ -26,6 +26,7 @@ import { dauer, nettoDrehzeit } from '../lib/drehzeit'
 import { mitUeberschrift } from '../lib/szenenUeberschrift'
 import { dateiIdAus } from '../lib/dateien'
 import { kalkulationsAufbau } from '../lib/kalkulationsAufbau'
+import { fassungenVergleichen, VERGLEICH_ART } from '../lib/kalkulation'
 
 const router = Router()
 
@@ -862,6 +863,54 @@ router.get('/projects/:projectId/pdf/kalkulation/:versionId', async (req, res) =
   })
 
   await sendPdf(res, html, `kalkulation-${slug(version.name)}.pdf`)
+})
+
+// GET /api/projects/:projectId/pdf/kalkulation-vergleich?a=…&b=… - zwei Fassungen nebeneinander (AP E1)
+router.get('/projects/:projectId/pdf/kalkulation-vergleich', async (req, res) => {
+  const v = await fassungenVergleichen(Number(req.params.projectId), req.query.a, req.query.b)
+  if (!v) return res.status(404).json({ data: null, error: 'Kalkulation nicht gefunden' })
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]) as any
+  const { accentColor, currency } = await getProjectSettings(req.params.projectId)
+  const betrag = (c: number | null) => (c === null ? '-' : fmtMoney(c, currency))
+  const uebersicht = section('Übersicht', table({
+    columns: [
+      { header: 'Kostenart', value: (r: any) => r.name },
+      { header: v.a.name, value: (r: any) => fmtMoney(r.a_cents, currency), align: 'right', width: '18%' },
+      { header: v.b.name, value: (r: any) => fmtMoney(r.b_cents, currency), align: 'right', width: '18%' },
+      { header: 'Differenz', value: (r: any) => fmtMoney(r.diff_cents, currency), align: 'right', width: '18%' },
+    ],
+    rows: v.gruppen,
+    footer: [{ label: `Gesamt: ${fmtMoney(v.summe.a_cents, currency)} gegen ${fmtMoney(v.summe.b_cents, currency)}`, value: fmtMoney(v.summe.diff_cents, currency) }],
+  }), `${v.unterschiede} ${v.unterschiede === 1 ? 'Zeile unterscheidet sich' : 'Zeilen unterscheiden sich'}`)
+  const detail = v.gruppen.map((g) => section(g.name, table({
+    columns: [
+      { header: 'Zeile', value: (r: any) => r.description },
+      { header: v.a.name, value: (r: any) => betrag(r.a_cents), align: 'right', width: '16%' },
+      { header: v.b.name, value: (r: any) => betrag(r.b_cents), align: 'right', width: '16%' },
+      { header: 'Differenz', value: (r: any) => fmtMoney(r.diff_cents, currency), align: 'right', width: '16%' },
+      { header: '', value: (r: any) => VERGLEICH_ART[r.art as 'beide'], width: '11%' },
+    ],
+    rows: g.zeilen,
+    footer: [{ label: `Summe ${g.name}`, value: fmtMoney(g.diff_cents, currency) }],
+  }))).join('')
+  const html = renderDocument({
+    kind: 'Kalkulationsvergleich',
+    title: project?.title || 'Kalkulation',
+    project: project?.title,
+    accent: accentColor,
+    subtitle: `${v.a.name} gegen ${v.b.name}`,
+    meta: [
+      { label: 'A', value: v.a.name },
+      { label: 'B', value: v.b.name },
+      { label: 'Stand', value: fmtDate(new Date().toISOString()) },
+    ],
+    body: stats([
+      { label: v.a.name, value: fmtMoney(v.summe.a_cents, currency) },
+      { label: v.b.name, value: fmtMoney(v.summe.b_cents, currency) },
+      { label: 'Differenz', value: fmtMoney(v.summe.diff_cents, currency) },
+    ]) + uebersicht + detail,
+  })
+  await sendPdf(res, html, `vergleich-${slug(v.a.name)}-${slug(v.b.name)}.pdf`)
 })
 
 // GET /api/shoot-days/:dayId/pdf/tagesbericht

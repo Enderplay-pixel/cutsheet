@@ -50,6 +50,7 @@ beforeAll(async () => {
     '/api/projects/7/payroll/export.csv', '/api/projects/7/vertraege', '/api/projects/7/vertraege/4/pdf',
     '/api/projects/7/backup', '/api/projects/7/pdf/kalkulation/3', '/api/projects/7/foerderantrag/export',
     '/api/budget-versions/3/auswertung',
+    '/api/projects/7/budget-versions/vergleich', '/api/projects/7/pdf/kalkulation-vergleich',
   ]) app.get(pfad, (_req, res) => res.json({ data: 'offen', error: null }))
   app.get('/api/projects/7/jugendschutz', (_req, res) => res.json({ data: 'offen', error: null }))
   server = http.createServer(app)
@@ -135,6 +136,8 @@ describe('Regie', () => {
       '/api/projects/7/backup', '/api/projects/7/pdf/kalkulation/3', '/api/projects/7/foerderantrag/export',
       // Auswertung im FFA-Schema (AP B1)
       '/api/budget-versions/3/auswertung',
+      // Vergleich zweier Fassungen (AP E1)
+      '/api/projects/7/budget-versions/vergleich', '/api/projects/7/pdf/kalkulation-vergleich',
     ]) {
       const { status } = await hole(pfad)
       expect(status, pfad).toBe(403)
