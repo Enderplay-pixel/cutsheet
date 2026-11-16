@@ -178,7 +178,7 @@ Bewilligung.
 ### Geld
 
 **Budget** mit Versionen, Kostenstand, Ausgaben, Finanzierungsplan,
-Förderantrag-Export.
+Cashflowplan je Woche oder Monat, Förderantrag-Export.
 
 **Arbeitszeiten** je Drehtag und Person mit Überstunden, **Honorarübersicht**
 mit CSV-Export.

@@ -31,6 +31,8 @@ const EVENT_TYPES = [
   { value: 'Meeting', color: '#6366f1' },
   { value: 'Sperrtag', color: '#ef4444' },
   { value: 'Reise', color: '#ec4899' },
+  // Steht als Marke über dem Cashflowplan (AP E2)
+  { value: 'Meilenstein', color: '#0ea5e9' },
   { value: 'Sonstiges', color: '#6b7280' },
 ]
 

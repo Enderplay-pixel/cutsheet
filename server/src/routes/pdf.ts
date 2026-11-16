@@ -27,6 +27,8 @@ import { mitUeberschrift } from '../lib/szenenUeberschrift'
 import { dateiIdAus } from '../lib/dateien'
 import { kalkulationsAufbau } from '../lib/kalkulationsAufbau'
 import { fassungenVergleichen, VERGLEICH_ART } from '../lib/kalkulation'
+import { istRaster, type Raster } from '../lib/cashflow'
+import { ladeCashflow } from '../lib/cashflowProjekt'
 
 const router = Router()
 
@@ -911,6 +913,63 @@ router.get('/projects/:projectId/pdf/kalkulation-vergleich', async (req, res) =>
     ]) + uebersicht + detail,
   })
   await sendPdf(res, html, `vergleich-${slug(v.a.name)}-${slug(v.b.name)}.pdf`)
+})
+
+// GET /api/projects/:projectId/pdf/cashflow?raster=woche|monat - der Cashflowplan (AP E2)
+router.get('/projects/:projectId/pdf/cashflow', async (req, res) => {
+  const raster: Raster = istRaster(req.query.raster) ? req.query.raster : 'woche'
+  const cf = await ladeCashflow(Number(req.params.projectId), raster)
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]) as any
+  const { accentColor, currency } = await getProjectSettings(req.params.projectId)
+  const geld = (c: number) => fmtMoney(c, currency)
+  const zeitraum = (r: any) => (raster === 'woche' ? `${fmtDate(r.von)} bis ${fmtDate(r.bis)}` : r.schluessel.split('-').reverse().join('.'))
+  const tabelle = section(raster === 'woche' ? 'Je Woche' : 'Je Monat', table({
+    columns: [
+      // Gemessen am 16.11.2026: Ohne feste Breiten brach "Rohschnittabnahme" mitten im Wort
+      { header: raster === 'woche' ? 'Woche' : 'Monat', value: (r: any) => zeitraum(r), width: '15%' },
+      { header: 'Ereignisse', value: (r: any) => r.ereignisse.map((x: any) => x.titel).join(', ') },
+      { header: 'Einnahmen', value: (r: any) => geld(r.einnahmen_cents), align: 'right', width: '11%' },
+      { header: 'Ausgaben Plan', value: (r: any) => geld(r.ausgaben_plan_cents), align: 'right', width: '11%' },
+      { header: 'Ausgaben Belege', value: (r: any) => geld(r.ausgaben_ist_cents), align: 'right', width: '11%' },
+      { header: 'Saldo', value: (r: any) => geld(r.saldo_cents), align: 'right', width: '11%' },
+      { header: 'Aufgelaufen', value: (r: any) => geld(r.saldo_aufgelaufen_cents) + (r.unterdeckung ? ' Unterdeckung' : ''), align: 'right', width: '15%' },
+    ],
+    rows: cf.perioden,
+    footer: [{ label: `Summe: Einnahmen ${geld(cf.summen.einnahmen_cents)}, Ausgaben laut Plan ${geld(cf.summen.ausgaben_plan_cents)}`, value: geld(cf.summen.saldo_cents) }],
+  }), cf.erste_unterdeckung ? 'Mit Unterdeckung' : undefined)
+  const nt = cf.nicht_terminiert
+  const offen = [
+    ...nt.einnahmen.map((x) => ({ art: 'Einnahme', ...x })),
+    ...nt.ausgaben.map((x) => ({ art: 'Ausgabe laut Plan', ...x })),
+    ...nt.belege.map((x) => ({ art: 'Beleg ohne Datum', ...x })),
+  ]
+  const ohne = offen.length ? section('Nicht terminiert', table({
+    columns: [
+      { header: 'Art', value: (r: any) => r.art, width: '22%' },
+      { header: 'Posten', value: (r: any) => r.bezeichnung },
+      { header: 'Betrag', value: (r: any) => geld(r.cents), align: 'right', width: '18%' },
+    ],
+    rows: offen,
+  })) : ''
+  const html = renderDocument({
+    kind: 'Cashflowplan',
+    title: project?.title || 'Cashflow',
+    project: project?.title,
+    accent: accentColor,
+    subtitle: cf.kalkulation ? `Gegen ${cf.kalkulation.name}` : 'Ohne Kalkulation',
+    meta: [
+      { label: 'Raster', value: raster === 'woche' ? 'Woche' : 'Monat' },
+      ...(cf.drehzeit ? [{ label: 'Drehzeit', value: `${fmtDate(cf.drehzeit.von)} bis ${fmtDate(cf.drehzeit.bis)}` }] : []),
+      { label: 'Stand', value: fmtDate(new Date().toISOString()) },
+    ],
+    body: stats([
+      { label: 'Einnahmen', value: geld(cf.summen.einnahmen_cents) },
+      { label: 'Ausgaben laut Plan', value: geld(cf.summen.ausgaben_plan_cents) },
+      { label: 'Ausgaben laut Belegen', value: geld(cf.summen.ausgaben_ist_cents) },
+      { label: 'Nicht terminiert', value: geld(nt.ausgaben_cents) },
+    ]) + tabelle + ohne,
+  })
+  await sendPdf(res, html, `cashflow-${raster}.pdf`)
 })
 
 // GET /api/shoot-days/:dayId/pdf/tagesbericht

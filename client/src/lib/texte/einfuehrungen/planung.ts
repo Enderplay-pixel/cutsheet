@@ -168,11 +168,11 @@ export const planung: Record<string, Schritt[]> = {
       ziel: 'monat',
       titel: { de: 'Ein Tag', en: 'A day', fr: 'Un jour' },
       text: {
-        de: "Ein Klick auf einen Tag zeigt daneben, was dort ansteht, und legt dort einen Termin an: Casting, Besichtigung, Probe, Meeting, Reise oder Sonstiges. Ein Termin der Art \"Sperrtag\" ist nur eine Notiz - wann Darsteller nicht können, trägst du unter Sperrtage ein, nur dort prüft es der Konfliktradar.",
-        en: "Clicking a day shows next to it what is on and adds an appointment there: casting, recce, rehearsal, meeting, travel or other. An appointment of the kind \"blocked day\" is just a note - when actors are unavailable goes into Blocked days; only there does the conflict radar check it.",
-        fr: "Un clic sur un jour montre à côté ce qui est prévu et y ajoute un rendez-vous : casting, repérage, répétition, réunion, déplacement ou autre. Un rendez-vous de type « jour bloqué » n'est qu'une note - les indisponibilités des acteurs se saisissent dans Jours bloqués ; seul là le radar des conflits les vérifie.",
+        de: "Ein Klick auf einen Tag zeigt daneben, was dort ansteht, und legt dort einen Termin an: Casting, Besichtigung, Probe, Meeting, Reise, Meilenstein oder Sonstiges. Ein Meilenstein - etwa die Rohschnittabnahme - steht als Marke über dem Cashflow. Ein Termin der Art \"Sperrtag\" ist nur eine Notiz - wann Darsteller nicht können, trägst du unter Sperrtage ein, nur dort prüft es der Konfliktradar.",
+        en: "Clicking a day shows next to it what is on and adds an appointment there: casting, recce, rehearsal, meeting, travel, milestone or other. A milestone - say the rough cut approval - shows as a marker above the cash flow. An appointment of the kind \"blocked day\" is just a note - when actors are unavailable goes into Blocked days; only there does the conflict radar check it.",
+        fr: "Un clic sur un jour montre à côté ce qui est prévu et y ajoute un rendez-vous : casting, repérage, répétition, réunion, déplacement, jalon ou autre. Un jalon - par exemple la validation du premier montage - apparaît comme repère au-dessus de la trésorerie. Un rendez-vous de type « jour bloqué » n'est qu'une note - les indisponibilités des acteurs se saisissent dans Jours bloqués ; seul là le radar des conflits les vérifie.",
       },
-      wirktAuf: ['sperrtage'],
+      wirktAuf: ['sperrtage', 'cashflow'],
     },
     {
       ziel: 'aktionen',
@@ -591,6 +591,17 @@ export const planung: Record<string, Schritt[]> = {
       wirktAuf: ['besetzung', 'stabliste', 'equipment', 'motive', 'reise', 'versicherungen'],
     },
     {
+      ziel: 'zeitraum|kalkulation',
+      reiter: 'kalkulation',
+      titel: { de: 'Wann das Geld fließt', en: 'When the money flows', fr: "Quand l'argent circule" },
+      text: {
+        de: "Jede Zeile hat einen Zeitraum, über den sich ihr Betrag im Cashflow verteilt. Markierte Zeilen - einzeln, je Kostenart oder alle - setzt \"Zeitraum: Drehzeit\" auf den ersten bis letzten Drehtag. Eine Zeile ohne Zeitraum steht im Cashflow als nicht terminiert.",
+        en: "Each line has a period over which its amount is spread in the cash flow. \"Period: shoot\" sets selected lines - one by one, per cost group or all - to the first through last shoot day. A line without a period shows in the cash flow as not scheduled.",
+        fr: "Chaque ligne a une période sur laquelle son montant se répartit dans la trésorerie. « Période : tournage » règle les lignes sélectionnées - une à une, par catégorie ou toutes - du premier au dernier jour de tournage. Une ligne sans période figure dans la trésorerie comme non planifiée.",
+      },
+      wirktAuf: ['cashflow', 'drehplan'],
+    },
+    {
       ziel: 'finanzierung',
       reiter: 'finanzierung',
       titel: { de: 'Der Finanzierungsplan', en: 'The financing plan', fr: 'Le plan de financement' },
@@ -660,6 +671,47 @@ export const planung: Record<string, Schritt[]> = {
         de: "Eine Zeile je Beleg: Beschreibung, Kategorie - im FFA-Schema die Kostenart aus der Liste und freiwillig die Zeile der Kalkulation -, Betrag, Datum und Belegnummer. Darunter stehen alle Belege; ein Klick auf das Zeichen löscht einen.",
         en: "One line per receipt: description, category - in the FFA scheme the cost group from the list and optionally the budget line -, amount, date and receipt number. All receipts are listed below; one click on the icon deletes one.",
         fr: "Une ligne par justificatif : description, catégorie - dans le schéma FFA la catégorie de coûts dans la liste et, au choix, la ligne du budget -, montant, date et numéro. Tous les justificatifs sont listés en dessous ; un clic sur l'icône en supprime un.",
+      },
+    },
+  ],
+
+  cashflow: [
+    {
+      ziel: 'titel',
+      titel: { de: 'Ist das Geld da, wenn es gebraucht wird?', en: 'Is the money there when it is needed?', fr: "L'argent est-il là quand il le faut ?" },
+      text: {
+        de: "Je Woche oder je Monat: Einnahmen aus den Raten der Geldgeber, Ausgaben laut Plan aus den Zeilen der Kalkulation mit Zeitraum, daneben die Belege. Gerechnet wird gegen dieselbe Kalkulation und denselben Finanzierungsplan wie im Kostenstand.",
+        en: "Per week or per month: income from the funders' installments, planned expenses from the budget lines with a period, next to them the receipts. It uses the same budget and financing plan as the cost status.",
+        fr: "Par semaine ou par mois : recettes issues des échéances des financeurs, dépenses prévues issues des lignes du budget avec période, à côté les justificatifs. Le calcul utilise le même budget et le même plan de financement que l'état des coûts.",
+      },
+      wirktAuf: ['budget'],
+    },
+    {
+      ziel: 'tabelle|summen',
+      titel: { de: 'Saldo und Unterdeckung', en: 'Balance and shortfall', fr: 'Solde et découvert' },
+      text: {
+        de: "Der Saldo ist Einnahmen minus Ausgaben laut Plan; aufgelaufen zeigt er, was bis dahin fehlt oder übrig ist. Wo er unter null liegt, ist der Zeitraum rot markiert - eine Rate früher oder Ausgaben später schließt die Lücke. Eine Rate zählt am Eingang, sonst an ihrer Fälligkeit.",
+        en: "The balance is income minus planned expenses; the running balance shows what is missing or left by then. Where it drops below zero the period is marked red - an earlier installment or later expenses close the gap. An installment counts on receipt, otherwise on its due date.",
+        fr: "Le solde est recettes moins dépenses prévues ; cumulé, il montre ce qui manque ou reste à ce moment-là. Là où il passe sous zéro, la période est marquée en rouge - une échéance plus tôt ou des dépenses plus tard comblent l'écart. Une échéance compte à sa réception, sinon à son échéance.",
+      },
+    },
+    {
+      ziel: 'ereignisse|tabelle',
+      titel: { de: 'Marken', en: 'Markers', fr: 'Repères' },
+      text: {
+        de: "Drehbeginn und Drehende kommen aus dem Drehplan, ohne Sperr- und Reservetage; dazu jeder Termin der Art \"Meilenstein\" aus dem Kalender.",
+        en: "Start and end of shooting come from the schedule, without blocked and standby days; plus every appointment of the kind \"milestone\" from the calendar.",
+        fr: "Début et fin de tournage viennent du plan, sans jours bloqués ni de réserve ; s'y ajoute chaque rendez-vous de type « jalon » du calendrier.",
+      },
+      wirktAuf: ['drehplan', 'kalender'],
+    },
+    {
+      ziel: 'nicht-terminiert|aktionen',
+      titel: { de: 'Was kein Datum hat', en: 'What has no date', fr: "Ce qui n'a pas de date" },
+      text: {
+        de: "Zeilen ohne Zeitraum, Raten ohne Datum und Belege ohne Datum stehen unter der Tabelle mit ihrem Betrag - im FFA-Schema auch Handlungskosten, Reserve, Produzentenhonorar und Zusatzkosten Gagen. CSV und PDF haben den Aufbau der Tabelle.",
+        en: "Lines without a period, installments without a date and receipts without a date are listed below the table with their amount - in the FFA scheme also overheads, contingency, producer fee and additional wage costs. CSV and PDF have the layout of the table.",
+        fr: "Les lignes sans période, les échéances sans date et les justificatifs sans date figurent sous le tableau avec leur montant - dans le schéma FFA aussi frais généraux, réserve, rémunération du producteur et charges sur salaires. Le CSV et le PDF ont la structure du tableau.",
       },
     },
   ],

@@ -124,6 +124,7 @@ export const navT = {
   equipmentCal:    { en: 'Equipment Calendar', de: 'Equipment-Kalender',     fr: 'Calendrier matériel'    },
   catering:        { en: 'Catering',           de: 'Catering',               fr: 'Restauration'           },
   costStatus:      { en: 'Cost Status',        de: 'Kostenstand',            fr: 'Suivi des coûts'        },
+  cashflow:        { en: 'Cash Flow',          de: 'Cashflow',               fr: 'Trésorerie'             },
   insurances:      { en: 'Insurances',         de: 'Versicherungen',         fr: 'Assurances'             },
   checkinBoard:    { en: 'Check-in Board',     de: 'Check-in Board',         fr: 'Tableau de présence'    },
   setPlan:         { en: 'Set Plan',           de: 'Set-Plan',               fr: 'Plan de plateau'        },

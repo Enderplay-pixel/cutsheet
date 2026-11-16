@@ -13,6 +13,8 @@ import { wochentageAus } from '../lib/board'
 import { kalkulationsAufbau } from '../lib/kalkulationsAufbau'
 import { schreibeCsv, cents } from '../lib/tabelle'
 import { dateiname } from '../lib/dateiname'
+import { datumAus, istRaster, type Raster } from '../lib/cashflow'
+import { ladeCashflow, drehzeit } from '../lib/cashflowProjekt'
 
 const router = Router()
 
@@ -261,8 +263,8 @@ router.post('/budget-versions/:id/kopie', async (req, res) => {
       [alt.project_id, name, alt.schema, alt.hu_percent_bp, alt.hu_percent_above_bp, alt.hu_threshold_cents, alt.hu_cap_cents,
         alt.reserve_percent_bp, alt.producer_fee_percent_bp, alt.producer_fee_cap_cents, alt.social_percent_bp])
     await tx.run(
-      `INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, source_key, cost_group, social)
-       SELECT ?, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, source_key, cost_group, social
+      `INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, source_key, cost_group, social, spend_from, spend_until)
+       SELECT ?, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, source_key, cost_group, social, spend_from, spend_until
          FROM budget_lines WHERE budget_version_id = ?`, [v.id, alt.id])
     await recalcBudgetTotal(v.id, tx)
     return tx.get('SELECT * FROM budget_versions WHERE id = ?', [v.id])
@@ -365,17 +367,87 @@ router.put('/budget-lines/:id', async (req, res) => {
   const zeile = pruefeBudgetzeile(quantity, unit_price_cents)
   if ('fehler' in zeile) return res.status(400).json({ data: null, error: zeile.fehler })
   // Kostenart und Sozialversicherung (AP B1): ohne Angabe bleibt, was war
-  const alt = await db.get('SELECT cost_group, social FROM budget_lines WHERE id = ?', [req.params.id]) as any
+  const alt = await db.get('SELECT cost_group, social, spend_from, spend_until FROM budget_lines WHERE id = ?', [req.params.id]) as any
   const kostenart = req.body?.cost_group === undefined ? (alt?.cost_group ?? null) : kostenartAus(req.body.cost_group)
   if (kostenart === undefined) return res.status(400).json({ data: null, error: 'Unbekannte Kostenart' })
   const social = req.body?.social === undefined ? alt?.social === true : req.body.social === true
+  const zeitraum = zeitraumAngaben(req.body, alt)
+  if ('fehler' in zeitraum) return res.status(400).json({ data: null, error: zeitraum.fehler })
   const line = await db.transaction(async (tx) => {
-    await tx.run('UPDATE budget_lines SET category=?, account_code=?, description=?, unit=?, quantity=?, unit_price_cents=?, total_cents=?, notes=?, cost_group=?, social=? WHERE id=?', [category, account_code, description, unit, zeile.quantity, zeile.unit_price_cents, zeile.total_cents, notes, kostenart, social, req.params.id])
+    await tx.run('UPDATE budget_lines SET category=?, account_code=?, description=?, unit=?, quantity=?, unit_price_cents=?, total_cents=?, notes=?, cost_group=?, social=?, spend_from=?, spend_until=? WHERE id=?', [category, account_code, description, unit, zeile.quantity, zeile.unit_price_cents, zeile.total_cents, notes, kostenart, social, zeitraum.von, zeitraum.bis, req.params.id])
     const zeileNeu = await tx.get('SELECT * FROM budget_lines WHERE id = ?', [req.params.id]) as any
     if (zeileNeu) await recalcBudgetTotal(zeileNeu.budget_version_id, tx)
     return zeileNeu
   })
   res.json({ data: line, error: null })
+})
+
+/**
+ * Zeitraum einer Budgetzeile aus der Anfrage (AP E2): beide Enden oder
+ * keins, das Ende nicht vor dem Anfang. Was nicht mitkommt, bleibt.
+ */
+function zeitraumAngaben(body: any, vorher: any): { von: string | null; bis: string | null } | { fehler: string } {
+  const feld = (w: unknown, alt: unknown): string | null | undefined => {
+    if (w === undefined) return datumAus(alt)
+    if (w === null || w === '') return null
+    return datumAus(w) ?? undefined
+  }
+  const von = feld(body?.spend_from, vorher?.spend_from)
+  const bis = feld(body?.spend_until, vorher?.spend_until)
+  if (von === undefined || bis === undefined) return { fehler: 'Ungültiges Datum im Zeitraum' }
+  if ((von === null) !== (bis === null)) return { fehler: 'Ein Zeitraum braucht Anfang und Ende' }
+  if (von !== null && bis !== null && bis < von) return { fehler: 'Das Ende des Zeitraums liegt vor dem Anfang' }
+  return { von, bis }
+}
+
+/**
+ * POST /api/budget-versions/:id/zeitraum - den Zeitraum mehrerer Zeilen auf
+ * eine Phase setzen (AP E2). Bisher kennt das Projekt nur die Drehzeit:
+ * erster bis letzter Drehtag ohne Sperr-, Ausfall- und Reservetage.
+ */
+router.post('/budget-versions/:id/zeitraum', async (req, res) => {
+  const version = await db.get('SELECT id, project_id FROM budget_versions WHERE id = ?', [req.params.id]) as any
+  if (!version) return res.status(404).json({ data: null, error: 'Version nicht gefunden' })
+  const ids = Array.isArray(req.body?.ids) ? [...new Set(req.body.ids.map(Number).filter((n: number) => Number.isInteger(n) && n > 0))] as number[] : []
+  if (!ids.length) return res.status(400).json({ data: null, error: 'Keine Zeile markiert' })
+  if (req.body?.phase !== 'drehzeit') return res.status(400).json({ data: null, error: 'Unbekannte Phase' })
+  const zeit = await drehzeit(Number(version.project_id))
+  if (!zeit) return res.status(400).json({ data: null, error: 'Noch kein Drehtag - die Drehzeit ist unbekannt' })
+  const r = await db.run(
+    'UPDATE budget_lines SET spend_from = ?, spend_until = ? WHERE budget_version_id = ? AND id = ANY(?::int[])',
+    [zeit.von, zeit.bis, version.id, ids])
+  res.json({ data: { geaendert: r.changes ?? 0, von: zeit.von, bis: zeit.bis }, error: null })
+})
+
+/**
+ * GET /api/projects/:projectId/cashflow?raster=woche|monat - Einnahmen,
+ * Ausgaben laut Plan und laut Belegen, Saldo und Saldo aufgelaufen je Woche
+ * oder Monat (AP E2); `format=csv` als Tabelle.
+ */
+router.get('/projects/:projectId/cashflow', async (req, res) => {
+  const raster: Raster = istRaster(req.query.raster) ? req.query.raster : 'woche'
+  const cf = await ladeCashflow(Number(req.params.projectId), raster)
+  if (req.query.format === 'csv') {
+    const zeilen: Array<Array<string | number | null>> = cf.perioden.map((p) => [
+      raster === 'woche' ? `${p.von} bis ${p.bis}` : p.schluessel,
+      p.ereignisse.map((x) => x.titel).join(', '),
+      cents(p.einnahmen_cents), cents(p.ausgaben_plan_cents), cents(p.ausgaben_ist_cents),
+      cents(p.saldo_cents), cents(p.saldo_aufgelaufen_cents), p.unterdeckung ? 'Unterdeckung' : '',
+    ])
+    zeilen.push(['Summe', '', cents(cf.summen.einnahmen_cents), cents(cf.summen.ausgaben_plan_cents), cents(cf.summen.ausgaben_ist_cents), cents(cf.summen.saldo_cents), '', ''])
+    const nt = cf.nicht_terminiert
+    if (nt.einnahmen.length || nt.ausgaben.length || nt.belege.length) {
+      zeilen.push(['Nicht terminiert', '', cents(nt.einnahmen_cents), cents(nt.ausgaben_cents), cents(nt.belege_cents), '', '', ''])
+      for (const x of nt.einnahmen) zeilen.push(['Nicht terminiert', x.bezeichnung, cents(x.cents), '', '', '', '', ''])
+      for (const x of nt.ausgaben) zeilen.push(['Nicht terminiert', x.bezeichnung, '', cents(x.cents), '', '', '', ''])
+      for (const x of nt.belege) zeilen.push(['Nicht terminiert', x.bezeichnung, '', '', cents(x.cents), '', '', ''])
+    }
+    const csv = schreibeCsv([raster === 'woche' ? 'Woche' : 'Monat', 'Ereignisse', 'Einnahmen', 'Ausgaben laut Plan', 'Ausgaben laut Belegen', 'Saldo', 'Saldo aufgelaufen', 'Stand'], zeilen)
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="cashflow-${raster}.csv"`)
+    return res.send(csv)
+  }
+  res.json({ data: cf, error: null })
 })
 
 // DELETE /api/budget-lines/:id

@@ -12,6 +12,7 @@ export const terminTypT = {
   Meeting:       { de: 'Meeting', en: 'Meeting', fr: 'Réunion' },
   Sperrtag:      { de: 'Sperrtag', en: 'Blocked day', fr: 'Jour bloqué' },
   Reise:         { de: 'Reise', en: 'Travel', fr: 'Voyage' },
+  Meilenstein:   { de: 'Meilenstein', en: 'Milestone', fr: 'Jalon' },
   Sonstiges:     { de: 'Sonstiges', en: 'Other', fr: 'Autre' },
 } satisfies Record<string, Text>
 

@@ -28,6 +28,9 @@ import { kalkT as K, KOSTENART_TEXT, KOSTENARTEN } from '@/lib/texte/Kalkulation
 import { finT as F, STAND_TEXT, STAENDE } from '@/lib/texte/Finanzierung'
 import { ChevronRight } from 'lucide-react'
 import { heuteISO } from '@/lib/utils'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { useGebietsschema } from '@/lib/useT'
+import { zeitraumT as Z } from '@/lib/texte/Cashflow'
 
 const UNITS = ['Pauschal', 'Tage', 'Stunden', 'Wochen', 'Monate', 'Stück']
 const CATEGORIES = [
@@ -51,7 +54,78 @@ const euro = (c: any) => (c === '' || c == null ? '' : c / 100)
 const leer = (...werte: any[]) => werte.some(w => w === '')
 const loeschenBestaetigt = (frage: string, name: string) => window.confirm(frage.replace('{name}', name))
 
-function BudgetLineRow({ line, onDelete, darf, ffa = false }: { line: any; onDelete: () => void; darf: boolean; ffa?: boolean }) {
+/** Ein Tag kurz: "02.03.26", ohne Jahr "02.03.". */
+function kurzDatum(iso: string, gs: string, mitJahr = true) {
+  return new Date(`${iso}T12:00:00Z`).toLocaleDateString(gs, { day: '2-digit', month: '2-digit', ...(mitJahr ? { year: '2-digit' } : {}), timeZone: 'UTC' })
+}
+
+/**
+ * Zeitraum einer Budgetzeile (AP E2): über ihn verteilt sich der Betrag im
+ * Cashflow. Gespeichert wird mit "Speichern" - ein halber Zeitraum ist kein
+ * Zwischenstand, den der Server annimmt.
+ */
+function ZeitraumFeld({ line, darf, speichern }: { line: any; darf: boolean; speichern: (von: string | null, bis: string | null) => Promise<void> }) {
+  const tt = useT()
+  const gs = useGebietsschema()
+  const [offen, setOffen] = useState(false)
+  const [von, setVon] = useState('')
+  const [bis, setBis] = useState('')
+  const [fehler, setFehler] = useState('')
+  const [laeuft, setLaeuft] = useState(false)
+  const oeffnen = (o: boolean) => {
+    if (o) { setVon(line.spend_from ?? ''); setBis(line.spend_until ?? ''); setFehler('') }
+    setOffen(o)
+  }
+  const sichern = async (a: string | null, b: string | null) => {
+    if ((a === null) !== (b === null)) { setFehler(tt(Z.beideEnden)); return }
+    if (a && b && b < a) { setFehler(tt(Z.endeVorAnfang)); return }
+    setLaeuft(true)
+    try { await speichern(a, b); setOffen(false) } catch (e: any) { setFehler(String(e?.message || '')) } finally { setLaeuft(false) }
+  }
+  // In der Spalte ohne Jahr - sie ist schmal, damit die Beschreibung Platz
+  // behält (gemessen am 16.11.2026 bei 1280 px: 98 px); der volle Zeitraum
+  // steht im Titel und im Feld
+  const gesetzt = line.spend_from && line.spend_until
+  const text = gesetzt
+    ? `${kurzDatum(line.spend_from, gs)} ${tt(Z.bis).toLowerCase()} ${kurzDatum(line.spend_until, gs)}`
+    : tt(Z.nichtTerminiert)
+  const kurz = gesetzt
+    ? `${kurzDatum(line.spend_from, gs, false)} ${tt(Z.bis).toLowerCase()} ${kurzDatum(line.spend_until, gs, false)}`
+    : text
+  return (
+    <Popover open={offen} onOpenChange={oeffnen}>
+      <PopoverTrigger asChild>
+        <button type="button" disabled={!darf} aria-label={`${tt(Z.zeitraumVon).replace('{name}', line.description || '')}: ${text}`} title={text}
+          className={`h-7 w-full rounded-md px-1 text-left text-[11px] tabular-nums whitespace-nowrap hover:bg-muted/40 disabled:hover:bg-transparent ${line.spend_from ? '' : 'text-muted-foreground italic'}`}>
+          {kurz}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 space-y-2">
+        <p className="text-xs font-medium">{tt(Z.zeitraumVon).replace('{name}', line.description || '')}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-[11px] text-muted-foreground space-y-1">
+            <span>{tt(Z.von)}</span>
+            <Input type="date" value={von} onChange={e => setVon(e.target.value)} className="h-8 text-xs" />
+          </label>
+          <label className="text-[11px] text-muted-foreground space-y-1">
+            <span>{tt(Z.bis)}</span>
+            <Input type="date" value={bis} onChange={e => setBis(e.target.value)} className="h-8 text-xs" />
+          </label>
+        </div>
+        <p className="text-[11px] text-muted-foreground">{tt(Z.hilfe)}</p>
+        {fehler && <p role="alert" className="text-[11px] text-destructive">{fehler}</p>}
+        <div className="flex justify-between gap-2">
+          <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" disabled={laeuft || !line.spend_from} onClick={() => sichern(null, null)}>{tt(Z.entfernen)}</Button>
+          <Button type="button" size="sm" className="h-7 text-xs" disabled={laeuft} onClick={() => sichern(von || null, bis || null)}>{tt(Z.speichern)}</Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function BudgetLineRow({ line, onDelete, darf, ffa = false, markiert, onMarkieren }: {
+  line: any; onDelete: () => void; darf: boolean; ffa?: boolean; markiert: boolean; onMarkieren: (an: boolean) => void
+}) {
   const [form, setForm] = useState(line)
   const queryClient = useQueryClient()
   const tt = useT()
@@ -92,7 +166,18 @@ function BudgetLineRow({ line, onDelete, darf, ffa = false }: { line: any; onDel
     offen.current = true
     debouncedUpdate(leer(next.quantity, next.unit_price_cents)
       ? null
-      : { ...next, quantity: Number(next.quantity), unit_price_cents: Number(next.unit_price_cents), total_cents: summe(next) })
+      : ohneZeitraum({ ...next, quantity: Number(next.quantity), unit_price_cents: Number(next.unit_price_cents), total_cents: summe(next) }))
+  }
+  // Den Zeitraum schickt nur das Zeitraum-Feld. Sonst schriebe eine Eingabe,
+  // die vor dem Neuladen der Liste losgeht, den alten Zeitraum zurück.
+  const ohneZeitraum = ({ spend_from: _von, spend_until: _bis, ...rest }: any) => rest
+  const zeitraumSpeichern = async (von: string | null, bis: string | null) => {
+    const basis = leer(form.quantity, form.unit_price_cents) ? line : form
+    await api.budget.updateLine(line.id, {
+      ...basis, quantity: Number(basis.quantity), unit_price_cents: Number(basis.unit_price_cents), total_cents: summe(basis),
+      spend_from: von, spend_until: bis,
+    })
+    queryClient.invalidateQueries({ queryKey: ['budget-lines'] })
   }
   const zuruecksetzenWennLeer = () => {
     if (!leer(form.quantity, form.unit_price_cents)) return
@@ -107,9 +192,14 @@ function BudgetLineRow({ line, onDelete, darf, ffa = false }: { line: any; onDel
 
   return (
     <Fragment>
-    <tr className={`hover:bg-muted/10 group ${fehler ? '' : 'border-b border-border/20'}`}>
+    <tr className={`hover:bg-muted/10 group ${fehler ? '' : 'border-b border-border/20'} ${markiert ? 'bg-primary/5' : ''}`}>
+      {darf && (
+        <td className="py-1.5 pl-3 w-6">
+          <Checkbox checked={markiert} onCheckedChange={v => onMarkieren(v === true)} aria-label={tt(Z.markieren).replace('{name}', line.description || line.account_code || '')} />
+        </td>
+      )}
       <td className="py-1.5 pl-4 pr-2 w-8 text-xs text-muted-foreground font-mono">{line.account_code}</td>
-      <td className="py-1.5 px-2 flex-1">
+      <td className="py-1.5 px-2 flex-1 min-w-[150px]">
         <Input value={form.description || ''} onChange={e => update('description', e.target.value)}
           disabled={!darf} aria-label={tt(T.beschreibungPos)}
           className="h-7 text-sm border-0 bg-transparent focus-visible:ring-1" />
@@ -138,6 +228,9 @@ function BudgetLineRow({ line, onDelete, darf, ffa = false }: { line: any; onDel
           niemand für den gespeicherten Stand hält. */}
       <td className={`py-1.5 px-2 w-28 text-right font-mono text-sm font-medium ${fehler ? 'line-through text-muted-foreground' : ''}`}>
         {formatCurrency(total)}
+      </td>
+      <td className="py-1.5 px-1 w-24">
+        <ZeitraumFeld line={line} darf={darf} speichern={zeitraumSpeichern} />
       </td>
       {/* FFA-Schema (AP B1): Kostenart der Zeile, bei Gagen der Haken SV */}
       {ffa && (
@@ -169,7 +262,7 @@ function BudgetLineRow({ line, onDelete, darf, ffa = false }: { line: any; onDel
     </tr>
     {fehler && (
       <tr className="border-b border-border/20">
-        <td colSpan={ffa ? 8 : 7} role="alert" className="pb-2 pl-4 pr-3 text-xs text-destructive">
+        <td colSpan={(ffa ? 9 : 8) + (darf ? 1 : 0)} role="alert" className="pb-2 pl-4 pr-3 text-xs text-destructive">
           {tt(T.nichtGespeichert)}: {fehler}
         </td>
       </tr>
@@ -414,6 +507,7 @@ function BudgetSeite() {
   const { toast } = useToast()
   const download = useDownload()
   const tt = useT()
+  const gs = useGebietsschema()
   // Budget und Finanzierung schreibt der Server erst ab Produktion
   // (ROUTE_OVERRIDES). Gemessen am 01.11.2026 mit einer Abteilungsleitung:
   // alle Felder und Knöpfe offen, jede Änderung 403.
@@ -425,6 +519,14 @@ function BudgetSeite() {
   const [neueFassungOffen, setNeueFassungOffen] = useState(false)
   const [umstellenOffen, setUmstellenOffen] = useState(false)
   const [vergleichOffen, setVergleichOffen] = useState(false)
+  // Markierte Zeilen für "Zeitraum: Drehzeit" (AP E2); gelten je Fassung
+  const [markiert, setMarkiert] = useState<Set<number>>(new Set())
+  useEffect(() => setMarkiert(new Set()), [selectedVersionId])
+  const markieren = (ids: number[], an: boolean) => setMarkiert(alt => {
+    const neu = new Set(alt)
+    for (const id of ids) { if (an) neu.add(id); else neu.delete(id) }
+    return neu
+  })
   // Fassung kopieren, etwa als Grundlage der Abschlusskalkulation (AP E1)
   const kopieren = useMutation({
     mutationFn: () => api.budget.kopie(selectedVersionId!),
@@ -509,6 +611,16 @@ function BudgetSeite() {
       queryClient.invalidateQueries({ queryKey: ['budget-auswertung'] })
     },
     onError: (e: any) => toast({ variant: 'destructive', title: tt(T.nichtGespeichert), description: e.message }),
+  })
+
+  const aufDrehzeit = useMutation({
+    mutationFn: () => api.budget.zeitraum(selectedVersionId!, [...markiert]),
+    onSuccess: (r) => {
+      setMarkiert(new Set())
+      queryClient.invalidateQueries({ queryKey: ['budget-lines'] })
+      toast({ title: tt(Z.gesetzt).replace('{n}', String(r.geaendert)).replace('{von}', kurzDatum(r.von, gs)).replace('{bis}', kurzDatum(r.bis, gs)) })
+    },
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(Z.fehler), description: e.message }),
   })
 
   const deleteLine = useMutation({
@@ -743,18 +855,36 @@ function BudgetSeite() {
 
             {/* Main table */}
             <div className="flex-1 overflow-x-auto">
+              {darf && (lines?.length ?? 0) > 0 && (
+                <div data-einfuehrung="zeitraum" className="flex flex-wrap items-center gap-2 mb-2 text-xs">
+                  <span className="text-muted-foreground tabular-nums">{tt(Z.markiert).replace('{n}', String(markiert.size))}</span>
+                  <Button variant="outline" size="sm" className="h-7 text-xs" title={tt(Z.aufDrehzeitLang)}
+                    disabled={markiert.size === 0 || aufDrehzeit.isPending} onClick={() => aufDrehzeit.mutate()}>{tt(Z.aufDrehzeit)}</Button>
+                  {markiert.size > 0 && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setMarkiert(new Set())}>{tt(Z.aufheben)}</Button>
+                  )}
+                </div>
+              )}
               {linesLoading ? (
                 <Skeleton className="h-64 w-full" />
               ) : (
-                <table className="w-full border rounded-lg overflow-hidden min-w-[560px]">
+                <table className="w-full border rounded-lg overflow-hidden min-w-[720px]">
                   <thead className="bg-muted/30">
                     <tr className="text-xs text-muted-foreground">
+                      {darf && (
+                        <th className="py-2 pl-3 w-6">
+                          <Checkbox checked={(lines?.length ?? 0) > 0 && markiert.size === lines!.length}
+                            onCheckedChange={v => v === true ? setMarkiert(new Set(lines!.map((l: any) => l.id))) : setMarkiert(new Set())}
+                            aria-label={tt(Z.alleMarkieren)} />
+                        </th>
+                      )}
                       <th className="text-left py-2 pl-4 w-8">{tt(T.kto)}</th>
                       <th className="text-left py-2 px-2">{tt(T.beschreibung)}</th>
                       <th className="text-left py-2 px-2 w-24">{tt(T.einheit)}</th>
                       <th className="text-right py-2 px-2 w-16">{tt(T.menge)}</th>
                       <th className="text-right py-2 px-2 w-28">{tt(T.einzelpreis)}</th>
                       <th className="text-right py-2 px-2 w-28">{tt(T.gesamt)}</th>
+                      <th className="text-left py-2 px-2 w-24">{tt(Z.spalte)}</th>
                       {ffa && <th className="text-left py-2 px-2 w-28">{tt(K.kostenart)}</th>}
                       <th className="w-8" />
                     </tr>
@@ -763,33 +893,44 @@ function BudgetSeite() {
                     {sichtbareGruppen.map(cat => (
                       <Fragment key={cat}>
                         <tr className="bg-muted/50">
+                          {darf && (
+                            <td className="py-1.5 pl-3 w-6">
+                              {(grouped[cat] || []).length > 0 && (
+                                <Checkbox checked={(grouped[cat] || []).every((l: any) => markiert.has(l.id))}
+                                  onCheckedChange={v => markieren((grouped[cat] || []).map((l: any) => l.id), v === true)}
+                                  aria-label={tt(Z.markieren).replace('{name}', ffa ? gruppenName(cat) : cat)} />
+                              )}
+                            </td>
+                          )}
                           <td colSpan={5} className="py-1.5 pl-4 text-xs font-semibold text-muted-foreground">{ffa ? gruppenName(cat) : cat}</td>
                           <td className="py-1.5 pr-4 text-right text-xs font-mono font-semibold">{cat === 'k11' && catTotals[cat] ? '- ' : ''}{formatCurrency(catTotals[cat] || 0)}</td>
-                          <td colSpan={ffa ? 2 : 1} />
+                          <td colSpan={ffa ? 3 : 2} />
                         </tr>
                         {(grouped[cat] || []).map((line: any) => (
-                          <BudgetLineRow key={line.id} line={line} darf={darf} ffa={ffa} onDelete={() => positionLoeschen(line)} />
+                          <BudgetLineRow key={line.id} line={line} darf={darf} ffa={ffa} onDelete={() => positionLoeschen(line)}
+                            markiert={markiert.has(line.id)} onMarkieren={an => markieren([line.id], an)} />
                         ))}
                         {ffa && cat === 'k3' && auswertung?.zusatzkosten_gagen_cent != null && (
                           <tr className="border-b border-border/20 text-muted-foreground">
+                            {darf && <td />}
                             <td />
                             <td colSpan={4} className="py-1.5 px-2 text-sm italic">{tt(K.zusatzkosten)}</td>
                             <td className="py-1.5 px-2 text-right font-mono text-sm">{formatCurrency(auswertung.zusatzkosten_gagen_cent)}</td>
-                            <td colSpan={2} />
+                            <td colSpan={3} />
                           </tr>
                         )}
                       </Fragment>
                     ))}
                     {(!lines || lines.length === 0) && (
-                      <tr><td colSpan={ffa ? 8 : 7} className="py-8 text-center text-muted-foreground text-sm">{tt(T.keinePositionen)}</td></tr>
+                      <tr><td colSpan={(ffa ? 9 : 8) + (darf ? 1 : 0)} className="py-8 text-center text-muted-foreground text-sm">{tt(T.keinePositionen)}</td></tr>
                     )}
                   </tbody>
                   {lines && lines.length > 0 && (
                     <tfoot className="sticky bottom-0 bg-card border-t-2 border-border shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
                       <tr>
-                        <td colSpan={5} className="py-2.5 pl-4 text-sm font-bold uppercase tracking-wide">{ffa ? tt(K.herstellungskosten) : tt(T.gesamtbudget)}</td>
+                        <td colSpan={5 + (darf ? 1 : 0)} className="py-2.5 pl-4 text-sm font-bold uppercase tracking-wide">{ffa ? tt(K.herstellungskosten) : tt(T.gesamtbudget)}</td>
                         <td className="py-2.5 pr-4 text-right font-mono text-base font-black text-primary">{formatCurrency(totalBudget)}</td>
-                        <td colSpan={ffa ? 2 : 1} />
+                        <td colSpan={ffa ? 3 : 2} />
                       </tr>
                     </tfoot>
                   )}

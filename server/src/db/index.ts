@@ -1686,6 +1686,11 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS forecast_set_by INTEGER REFERENCES users(id) ON DELETE SET NULL`)
   await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS forecast_set_at TIMESTAMPTZ`)
 
+  // Cashflowplan (Plan Kino-Ausbau, AP E2, 16.11.2026): Zeitraum, über den
+  // sich der Betrag einer Zeile verteilt. Leer heißt "nicht terminiert".
+  await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS spend_from DATE`)
+  await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS spend_until DATE`)
+
   // ── Rechnungen und Honorare ───────────────────────────────────────────────
   // Steuerart der Firma. Ein Einzelunternehmen nach Paragraf 19 UStG weist
   // keine Umsatzsteuer aus und muss das auf der Rechnung begruenden.

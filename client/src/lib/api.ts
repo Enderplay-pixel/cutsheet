@@ -333,6 +333,9 @@ export const api = {
     vergleich: (projectId: number, a: number, b: number) => req<any>(`/projects/${projectId}/budget-versions/vergleich?a=${a}&b=${b}`),
     vergleichCsv: (projectId: number, a: number, b: number) => `/api/projects/${projectId}/budget-versions/vergleich?a=${a}&b=${b}&format=csv`,
     vergleichPdf: (projectId: number, a: number, b: number) => `/api/projects/${projectId}/pdf/kalkulation-vergleich?a=${a}&b=${b}`,
+    /** Zeitraum mehrerer Zeilen auf eine Phase setzen (AP E2) - bisher nur die Drehzeit. */
+    zeitraum: (versionId: number, ids: number[]) =>
+      req<{ geaendert: number; von: string; bis: string }>(`/budget-versions/${versionId}/zeitraum`, { method: 'POST', body: JSON.stringify({ ids, phase: 'drehzeit' }) }),
   },
 
   financing: {
@@ -1232,6 +1235,13 @@ export const api = {
     update: (id: number, data: any) => req<any>(`/expenses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: number) => req<any>(`/expenses/${id}`, { method: 'DELETE' }),
     kostenstand: (projectId: number) => req<any>(`/projects/${projectId}/kostenstand`),
+  },
+
+  // ─── Cashflowplan (AP E2) ──────────────────────────────────────────────────
+  cashflow: {
+    get: (projectId: number, raster: 'woche' | 'monat') => req<any>(`/projects/${projectId}/cashflow?raster=${raster}`),
+    csv: (projectId: number, raster: 'woche' | 'monat') => `/api/projects/${projectId}/cashflow?raster=${raster}&format=csv`,
+    pdf: (projectId: number, raster: 'woche' | 'monat') => `/api/projects/${projectId}/pdf/cashflow?raster=${raster}`,
   },
 
   // ─── Feedback ──────────────────────────────────────────────────────────────

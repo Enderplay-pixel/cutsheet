@@ -13,7 +13,7 @@
  * wird, und steht in der Seitenleiste fest ganz oben.
  */
 import type { LucideIcon } from 'lucide-react'
-import { Activity, AlertTriangle, Archive, BedDouble, BookUser, Briefcase, Building2, Calendar, CalendarClock, CalendarOff, Camera, Car, CheckCircle2, CheckSquare, Clapperboard, ClipboardList, Clock, DollarSign, FileCheck, FileEdit, FileSignature, FileSpreadsheet, FileText, Film, FolderOpen, History, Image, Layers, LayoutDashboard, LayoutGrid, ListChecks, Mail, MapPin, Megaphone, MessageSquare, Music, Package, Scissors, Search, Shield, ShieldCheck, StickyNote, TableProperties, Trash2, TrendingUp, Type, Users, UtensilsCrossed, Video, Wallet } from 'lucide-react'
+import { Activity, AlertTriangle, Archive, BedDouble, BookUser, Briefcase, Building2, Calendar, CalendarClock, CalendarOff, Camera, Car, CheckCircle2, CheckSquare, Clapperboard, ClipboardList, Clock, DollarSign, FileCheck, FileEdit, FileSignature, FileSpreadsheet, FileText, Film, FolderOpen, History, Image, Layers, LayoutDashboard, LayoutGrid, ListChecks, Mail, MapPin, Megaphone, MessageSquare, Music, Package, Scissors, Search, Shield, ShieldCheck, StickyNote, TableProperties, Trash2, TrendingUp, Type, Users, UtensilsCrossed, Video, Wallet, Banknote } from 'lucide-react'
 import { navT, type Lang } from '@/lib/i18n'
 import { sidebarT } from '@/lib/texte/komponenten/Layout'
 import { arbeitsplatzT } from '@/lib/texte/Arbeitsplatz'
@@ -73,6 +73,7 @@ const FILM: KategorieDef[] = [
     b('catering', navT.catering, UtensilsCrossed),
     b('budget', navT.budget, DollarSign),
     b('kostenstand', navT.costStatus, Wallet),
+    b('cashflow', navT.cashflow, Banknote),
     b('versicherungen', navT.insurances, Shield),
   ] },
   { id: 'drehtage', text: navT.shootDays, bereiche: [
@@ -236,7 +237,7 @@ export function istStandard(art: ArbeitsplatzArt, anordnung: Anordnung): boolean
 }
 
 /** Bereiche, die nur die Produktion öffnet (server/src/lib/gagenschutz.ts). */
-export const NUR_PRODUKTION = new Set(['budget', 'kostenstand'])
+export const NUR_PRODUKTION = new Set(['budget', 'kostenstand', 'cashflow'])
 
 /**
  * Was jemand in diesem Projekt sehen kann. Die Anordnung selbst bleibt

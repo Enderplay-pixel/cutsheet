@@ -4305,6 +4305,87 @@ describe('Finanzierungsplan mit Status, Lücke und Raten (AP B2)', () => {
   })
 })
 
+describe('Cashflowplan (AP E2)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+
+  it('zwei Zeilen auf "Drehzeit", eine ohne Zeitraum; zweite Rate nach Drehende - Unterdeckung, vorgezogen keine', async () => {
+    const firma = (await db.run("INSERT INTO companies (name, owner_id) VALUES ('Cashflow GmbH', ?)", [nutzerId])).id
+    const p = (await db.run('INSERT INTO projects (title, owner_id, company_id) VALUES (?, ?, ?)', ['Cashflow E2', nutzerId, firma])).id
+    // Drehzeit 02.03. bis 13.03.2026; der Reservetag am 15.03. zählt nicht
+    for (const [nr, datum, stand] of [[1, '2026-03-02', 'Geplant'], [2, '2026-03-13', 'Geplant'], [3, '2026-03-15', 'Reserve']] as const) {
+      await db.run('INSERT INTO shoot_days (project_id, day_number, date, status) VALUES (?, ?, ?, ?)', [p, nr, datum, stand])
+    }
+    await db.run("INSERT INTO project_events (project_id, title, start_date, type) VALUES (?, 'Rohschnittabnahme', '2026-03-27', 'Meilenstein')", [p])
+    const k = (await sende(`/api/projects/${p}/budget-versions`, { name: 'K', schema: 'frei' })).daten
+    const kamera = (await sende(`/api/budget-versions/${k.id}/lines`, { category: 'Technik', description: 'Kamera', quantity: 1, unit_price_cents: 3_000_000 })).daten
+    const gagen = (await sende(`/api/budget-versions/${k.id}/lines`, { category: 'Gagen', description: 'Gagen', quantity: 1, unit_price_cents: 6_000_000 })).daten
+    await sende(`/api/budget-versions/${k.id}/lines`, { category: 'Versicherung', description: 'Versicherung', quantity: 1, unit_price_cents: 500_000 })
+    const gesetzt = await sende(`/api/budget-versions/${k.id}/zeitraum`, { ids: [kamera.id, gagen.id], phase: 'drehzeit' })
+    expect(gesetzt.daten).toEqual({ geaendert: 2, von: '2026-03-02', bis: '2026-03-13' })
+
+    const plan = (await sende(`/api/projects/${p}/financing-versions`, { name: 'Plan' })).daten
+    const sender = (await sende(`/api/financing-versions/${plan.id}/entries`, { source: 'Sender', type: 'Förderung', amount_cents: 10_000_000, status: 'zugesagt' })).daten
+    await sende(`/api/financing-entries/${sender.id}/raten`, { label: 'Drehbeginn', due_on: '2026-03-02', amount_cents: 4_000_000 })
+    const zweite = (await sende(`/api/financing-entries/${sender.id}/raten`, { label: 'Abnahme', due_on: '2026-04-01', amount_cents: 6_000_000 })).daten
+
+    const cf = (await hole(`/api/projects/${p}/cashflow?raster=woche`, tokenInhaber)).daten
+    // 90.000 € über 12 Tage: 7 Tage in der ersten Woche, 5 in der zweiten
+    expect(cf.perioden.map((x: any) => [x.schluessel, x.einnahmen_cents, x.ausgaben_plan_cents, x.saldo_aufgelaufen_cents, x.unterdeckung])).toEqual([
+      ['2026-03-02', 4_000_000, 5_250_000, -1_250_000, true],
+      ['2026-03-09', 0, 3_750_000, -5_000_000, true],
+      ['2026-03-16', 0, 0, -5_000_000, true],
+      ['2026-03-23', 0, 0, -5_000_000, true],
+      ['2026-03-30', 6_000_000, 0, 1_000_000, false],
+    ])
+    expect(cf.perioden[0].ereignisse.map((x: any) => x.titel)).toEqual(['Drehbeginn'])
+    expect(cf.perioden[1].ereignisse.map((x: any) => x.titel)).toEqual(['Drehende'])
+    expect(cf.perioden[3].ereignisse.map((x: any) => x.titel)).toEqual(['Rohschnittabnahme'])
+    expect(cf.nicht_terminiert.ausgaben).toEqual([{ bezeichnung: 'Versicherung', cents: 500_000 }])
+    expect(cf.drehzeit).toEqual({ von: '2026-03-02', bis: '2026-03-13' })
+    // Im Monatsraster dieselben Summen
+    const monat = (await hole(`/api/projects/${p}/cashflow?raster=monat`, tokenInhaber)).daten
+    expect(monat.perioden.map((x: any) => x.schluessel)).toEqual(['2026-03', '2026-04'])
+    expect(monat.summen).toEqual(cf.summen)
+
+    // Zweite Rate vorziehen: das Minus verschwindet
+    expect((await sende(`/api/financing-raten/${zweite.id}`, { due_on: '2026-03-02' }, 'PUT')).status).toBe(200)
+    const danach = (await hole(`/api/projects/${p}/cashflow?raster=woche`, tokenInhaber)).daten
+    expect(danach.erste_unterdeckung).toBeNull()
+
+    // CSV im Aufbau der Tabelle
+    const csv = await (await fetch(`${basis}/api/projects/${p}/cashflow?raster=woche&format=csv`, { headers: { Authorization: `Bearer ${tokenInhaber}` } })).text()
+    const zeilen = csv.replace(/^\ufeff/, '').split(/\r?\n/)
+    expect(zeilen[0]).toBe('Woche;Ereignisse;Einnahmen;Ausgaben laut Plan;Ausgaben laut Belegen;Saldo;Saldo aufgelaufen;Stand')
+    expect(zeilen[1]).toBe('2026-03-02 bis 2026-03-08;Drehbeginn;100000,00;52500,00;0,00;47500,00;47500,00;')
+    expect(csv).toContain('Nicht terminiert;Versicherung;;5000,00;;;;')
+  })
+
+  it('der Zeitraum einer Zeile: beide Enden oder keins, Ende nicht vor Anfang; wer ihn nicht schickt, behält ihn', async () => {
+    const firma = (await db.run("INSERT INTO companies (name, owner_id) VALUES ('Zeitraum GmbH', ?)", [nutzerId])).id
+    const p = (await db.run('INSERT INTO projects (title, owner_id, company_id) VALUES (?, ?, ?)', ['Zeitraum E2', nutzerId, firma])).id
+    const k = (await sende(`/api/projects/${p}/budget-versions`, { name: 'K', schema: 'frei' })).daten
+    const z = (await sende(`/api/budget-versions/${k.id}/lines`, { category: 'Technik', description: 'Licht', quantity: 1, unit_price_cents: 100_000 })).daten
+    expect((await sende(`/api/budget-lines/${z.id}`, { ...z, spend_from: '2026-05-04' }, 'PUT')).status).toBe(400)
+    expect((await sende(`/api/budget-lines/${z.id}`, { ...z, spend_from: '2026-05-10', spend_until: '2026-05-04' }, 'PUT')).status).toBe(400)
+    expect((await sende(`/api/budget-lines/${z.id}`, { ...z, spend_from: '04.05.2026', spend_until: '2026-05-10' }, 'PUT')).status).toBe(400)
+    const ok = await sende(`/api/budget-lines/${z.id}`, { ...z, spend_from: '2026-05-04', spend_until: '2026-05-10' }, 'PUT')
+    expect(ok.daten).toMatchObject({ spend_from: '2026-05-04', spend_until: '2026-05-10' })
+    // Wie die Zeile vor AP E2: ohne die zwei Felder - der Zeitraum bleibt
+    const { spend_from: _a, spend_until: _b, ...ohne } = ok.daten
+    expect((await sende(`/api/budget-lines/${z.id}`, { ...ohne, description: 'Licht und Strom' }, 'PUT')).daten).toMatchObject({ description: 'Licht und Strom', spend_from: '2026-05-04' })
+    // Die Kopie einer Fassung übernimmt den Zeitraum
+    const kopie = (await sende(`/api/budget-versions/${k.id}/kopie`, {})).daten
+    const zeilen = (await hole(`/api/budget-versions/${kopie.id}/lines`, tokenInhaber)).daten as any[]
+    expect(zeilen[0]).toMatchObject({ spend_from: '2026-05-04', spend_until: '2026-05-10' })
+    // Leeren geht; ohne Drehtag gibt es keine Drehzeit
+    expect((await sende(`/api/budget-lines/${z.id}`, { ...ohne, spend_from: null, spend_until: '' }, 'PUT')).daten).toMatchObject({ spend_from: null, spend_until: null })
+    const ohneDreh = await sende(`/api/budget-versions/${k.id}/zeitraum`, { ids: [z.id], phase: 'drehzeit' })
+    expect(ohneDreh.status).toBe(400)
+    expect(ohneDreh.fehler).toMatch(/kein Drehtag/)
+  })
+})
+
 describe('Stundenzettel: Freigabe in Stufen (AP E8)', () => {
   /** Konto mit Rolle im Projekt; mit Abteilung steht es mit seiner E-Mail im Stab. */
   async function konto(p: number, rolle: string, abteilung = '') {

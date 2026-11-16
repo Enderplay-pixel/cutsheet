@@ -369,4 +369,11 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Vor- und Abwicklungstage sind ganze Zahlen von 0 bis 366': { en: 'Preparation and wrap days are whole numbers from 0 to 366', fr: 'Les jours de préparation et de clôture sont des nombres entiers de 0 à 366' },
   'Das Schema ist "frei" oder "ffa"': { en: 'The scheme is "frei" (free) or "ffa"', fr: 'Le schéma est « frei » (libre) ou « ffa »' },
   'Ein Satz liegt zwischen 0 und 99,99 %': { en: 'A rate is between 0 and 99.99 %', fr: 'Un taux est compris entre 0 et 99,99 %' },
+  // Cashflowplan: Zeitraum der Budgetzeilen (AP E2, 16.11.2026)
+  'Ungültiges Datum im Zeitraum': { en: 'Invalid date in the period', fr: 'Date invalide dans la période' },
+  'Ein Zeitraum braucht Anfang und Ende': { en: 'A period needs a start and an end', fr: 'Une période a besoin d’un début et d’une fin' },
+  'Das Ende des Zeitraums liegt vor dem Anfang': { en: 'The end of the period is before the start', fr: 'La fin de la période précède le début' },
+  'Keine Zeile markiert': { en: 'No line selected', fr: 'Aucune ligne sélectionnée' },
+  'Unbekannte Phase': { en: 'Unknown phase', fr: 'Phase inconnue' },
+  'Noch kein Drehtag - die Drehzeit ist unbekannt': { en: 'No shoot day yet - the shooting period is unknown', fr: 'Pas encore de jour de tournage - la période de tournage est inconnue' },
 }

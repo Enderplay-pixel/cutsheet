@@ -218,6 +218,7 @@ const router = createBrowserRouter([
           { path: 'kameraberichte', lazy: lazyPage(() => import('./pages/Kameraberichte')) },
           { path: 'aufgaben', lazy: lazyPage(() => import('./pages/Aufgaben')) },
           { path: 'kostenstand', lazy: lazyPage(() => import('./pages/Kostenstand')) },
+          { path: 'cashflow', lazy: lazyPage(() => import('./pages/Cashflow')) },
         ],
       },
     ],
