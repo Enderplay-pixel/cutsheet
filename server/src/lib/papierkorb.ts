@@ -34,6 +34,8 @@ export const BEOBACHTET: Record<string, { bezeichnung: string; titelfeld: string
   extras:         { bezeichnung: 'Komparserie',  titelfeld: 'name' },
   budget_lines:   { bezeichnung: 'Budgetposten', titelfeld: 'description' },
   shoot_day_banners: { bezeichnung: 'Banner im Drehplan', titelfeld: 'text' },
+  location_sets:  { bezeichnung: 'Set',          titelfeld: 'name' },
+  permits:        { bezeichnung: 'Genehmigung',  titelfeld: 'title' },
 }
 
 /**
@@ -45,6 +47,7 @@ export const BEOBACHTET: Record<string, { bezeichnung: string; titelfeld: string
 const PROJEKT_UEBER: Record<string, { spalte: string; sql: string }> = {
   budget_lines:    { spalte: 'budget_version_id', sql: 'SELECT project_id FROM budget_versions WHERE id = ?' },
   equipment_items: { spalte: 'equipment_list_id', sql: 'SELECT project_id FROM equipment_lists WHERE id = ?' },
+  location_sets:   { spalte: 'location_id', sql: 'SELECT project_id FROM locations WHERE id = ?' },
 }
 
 /** Name, wie er in der Tabelle steht - `cast` ist in Postgres reserviert. */

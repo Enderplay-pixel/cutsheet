@@ -32,6 +32,26 @@ export const planung: Record<string, Schritt[]> = {
       },
     },
     {
+      ziel: 'kennzeichen|motiv|neu',
+      titel: { de: 'Motiv und Sets', en: 'Location and sets', fr: 'Lieu et décors' },
+      text: {
+        de: "Ein Motiv ist der reale Ort mit Adresse, ein Set der Raum darin: \"WOHNUNG ANDI - KÜCHE\" legt das Motiv \"Wohnung Andi\" mit dem Set \"Küche\" an. Unter dem Namen stehen Szenen, Sets, der Stand des Vertrags und, wenn eine Genehmigung nötig ist, ob eine vorliegt. Aufgeklappt trägst du Krankenhaus, Basecamp, Crew-Parken und Anfahrt einmal ein; Sets lassen sich umbenennen und mit einer Notiz versehen.",
+        en: "A location is the real place with an address, a set the room within it: \"ANDI'S FLAT - KITCHEN\" creates the location \"Andi's Flat\" with the set \"Kitchen\". Below the name: scenes, sets, the contract status and, if a permit is required, whether one is granted. Opened, you enter hospital, base camp, crew parking and directions once; sets can be renamed and given a note.",
+        fr: "Un lieu est l'endroit réel avec une adresse, un décor la pièce qui s'y trouve : « APPART ANDI - CUISINE » crée le lieu « Appart Andi » avec le décor « Cuisine ». Sous le nom : scènes, décors, l'état du contrat et, si une autorisation est nécessaire, si elle est accordée. Déplié, tu saisis une fois hôpital, camp de base, parking équipe et accès ; les décors se renomment et prennent une note.",
+      },
+      wirktAuf: ['drehbuch', 'screenplay-editor'],
+    },
+    {
+      ziel: 'motiv|neu',
+      titel: { de: 'Genehmigungen und Sonnenstand', en: 'Permits and sun times', fr: 'Autorisations et soleil' },
+      text: {
+        de: "Mit \"Genehmigung nötig\" braucht jeder Drehtag hier eine Genehmigung mit Status \"liegt vor\", die das Datum abdeckt - sonst meldet der Konfliktradar es: mehr als 14 Tage vorher als Hinweis, darunter als Warnung, am Drehtag als Fehler. Je Genehmigung: Titel, Behörde, Status, Zeitraum, Auflagen und eine Datei aus der Ablage. Mit Koordinaten zeigt das Motiv Sonnenauf- und -untergang, vorbelegt mit dem ersten Drehtag hier.",
+        en: "With \"permit required\", every shoot day here needs a permit with status \"granted\" covering the date - otherwise the conflict radar reports it: more than 14 days ahead as a note, closer as a warning, on the day as an error. Each permit has title, authority, status, period, conditions and a file from the documents. With coordinates the location shows sunrise and sunset, preset to the first shoot day here.",
+        fr: "Avec « autorisation nécessaire », chaque jour de tournage ici a besoin d'une autorisation au statut « accordée » couvrant la date - sinon le radar des conflits le signale : plus de 14 jours avant en remarque, plus près en avertissement, le jour même en erreur. Chaque autorisation a titre, autorité, statut, période, conditions et un fichier des documents. Avec des coordonnées, le lieu affiche lever et coucher du soleil, préremplis avec le premier jour de tournage ici.",
+      },
+      wirktAuf: ['konfliktradar', 'ablage', 'tagesdispo'],
+    },
+    {
       ziel: 'motiv|neu',
       titel: { de: 'Der Motivvertrag', en: 'The location release', fr: 'Le contrat de décor' },
       text: {

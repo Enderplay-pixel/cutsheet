@@ -32,6 +32,7 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
     { table: 'budget_versions', column: 'project_id' },
     { table: 'budget_lines', column: null as unknown as string },
     { table: 'budget_line_regions', column: null as unknown as string },
+    { table: 'location_sets', column: null as unknown as string },
     { table: 'financing_plan_versions', column: 'project_id' },
     { table: 'financing_entries', column: null as unknown as string },
     { table: 'equipment_lists', column: 'project_id' },
@@ -139,6 +140,11 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
 
   backup['budget_lines'] = budgetVersionIds.length
     ? await db.all(`SELECT * FROM budget_lines WHERE budget_version_id IN ${inList(budgetVersionIds)}`)
+    : []
+  // Sets der Motive (AP C3)
+  const motivIds = ((backup['locations'] ?? []) as Array<{ id: number }>).map(r => r.id)
+  backup['location_sets'] = motivIds.length
+    ? await db.all(`SELECT * FROM location_sets WHERE location_id IN ${inList(motivIds)}`)
     : []
   // Anteile der Zeilen an den Regionen (AP E3)
   const budgetLineIds = (backup['budget_lines'] as Array<{ id: number }>).map(r => r.id)

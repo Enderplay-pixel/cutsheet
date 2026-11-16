@@ -24,12 +24,13 @@ import { tageZwischen } from '../lib/mahnwesen'
 import { alterAm, KIND_BIS_ALTER } from '../lib/jugendschutz'
 import { fristStand } from '../lib/dateien'
 import { heuteISO } from '../lib/datum'
+import { genehmigungsMeldungen } from '../lib/genehmigungen'
 
 const router = Router()
 
 export type Punkt = {
   /** Woher der Punkt kommt - für das Symbol und die Gruppierung. */
-  art: 'vertrag' | 'bewilligung' | 'rechnung' | 'casting' | 'ksk' | 'nachweis' | 'mail' | 'rate'
+  art: 'vertrag' | 'bewilligung' | 'rechnung' | 'casting' | 'ksk' | 'nachweis' | 'mail' | 'rate' | 'genehmigung'
   /** 'dringend' sperrt etwas oder kostet Geld. 'offen' will nur erledigt werden. */
   stufe: 'dringend' | 'offen'
   titel: string
@@ -259,6 +260,42 @@ router.get('/companies/:companyId/anliegen', requireAuth, erfordereFirma('mitarb
   }
 
   const mailsFehler = Number(mails?.anzahl ?? 0)
+  // Drehgenehmigungen (AP C3): ein Drehtag in den nächsten 14 Tagen oder
+  // heute ohne vorliegende Genehmigung; eine vorliegende, die bald abläuft,
+  // wie ein Nachweis mit Frist. Vergangene Drehtage stehen im Konfliktradar.
+  const laufende = await db.all('SELECT id, title FROM projects WHERE company_id = ? AND archived = 0', [companyId]) as any[]
+  const projektName = new Map(laufende.map((p) => [Number(p.id), String(p.title ?? '')]))
+  for (const [pid, meldungen] of await genehmigungsMeldungen([...projektName.keys()], heute)) {
+    for (const g of meldungen.filter((x) => x.tage_bis >= 0 && x.tage_bis <= 14)) {
+      punkte.push({
+        art: 'genehmigung',
+        stufe: g.tage_bis === 0 ? 'dringend' : 'offen',
+        titel: `Genehmigung für ${g.motiv} fehlt`,
+        text: `Drehtag ${g.day_number} ${g.tage_bis === 0 ? 'ist heute' : `in ${g.tage_bis} ${g.tage_bis === 1 ? 'Tag' : 'Tagen'}`}, keine Genehmigung liegt vor. ${projektName.get(pid)}.`,
+        pfad: `/projects/${pid}/motive`,
+        tage: g.tage_bis,
+      })
+    }
+  }
+  if (projektName.size) {
+    const ablaufend = await db.all(
+      `SELECT g.title, g.valid_until, g.project_id, l.name AS motiv FROM permits g JOIN locations l ON l.id = g.location_id
+        WHERE g.project_id = ANY(?::int[]) AND g.status = 'liegt vor' AND g.valid_until IS NOT NULL AND g.valid_until >= ?`,
+      [[...projektName.keys()], heute]) as any[]
+    for (const g of ablaufend) {
+      if (fristStand(String(g.valid_until).slice(0, 10), heute) !== 'laeuft_ab') continue
+      const tage = tageZwischen(heute, String(g.valid_until).slice(0, 10))
+      punkte.push({
+        art: 'genehmigung',
+        stufe: 'offen',
+        titel: `${g.title || 'Genehmigung'} (${g.motiv}): läuft ab`,
+        text: `Noch ${tage} Tage gültig. Verlängern dauert. ${projektName.get(Number(g.project_id))}.`,
+        pfad: `/projects/${g.project_id}/motive`,
+        tage,
+      })
+    }
+  }
+
   if (mailsFehler > 0) {
     punkte.push({
       art: 'mail',

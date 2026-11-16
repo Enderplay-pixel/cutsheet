@@ -51,6 +51,9 @@ const FREMDSCHLUESSEL: Record<string, string> = {
   accommodation_id: 'accommodations',
   // Regionaleffekt (AP E3): Anteile der Budgetzeilen und Geldgeber zeigen auf ihre Region
   region_id: 'regions',
+  // Motiv und Sets (AP C3): Szene zeigt auf ihr Set, Genehmigung auf ihre Datei
+  set_id: 'location_sets',
+  file_id: 'project_files',
 }
 
 /**

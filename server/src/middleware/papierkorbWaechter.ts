@@ -38,6 +38,9 @@ const PFAD_ZU_TABELLE: Record<string, string> = {
   extras: 'extras',
   'budget-lines': 'budget_lines',
   'shoot-day-banners': 'shoot_day_banners',
+  // Motiv: Sets und Genehmigungen (AP C3)
+  'location-sets': 'location_sets',
+  genehmigungen: 'permits',
 }
 
 /**

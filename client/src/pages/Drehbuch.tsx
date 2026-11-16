@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { drehortT as DT } from '@/lib/texte/MotivDrehort'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -159,7 +160,8 @@ function SceneRow({ scene, locations, characters, projectId, gesperrt }: { scene
     speichere(data)
   }, 500)).current
   const updateField = (key: string, value: any) => {
-    const next = { ...form, [key]: value }
+    // Ein Set gehört zum Motiv (AP C3): Wer das Motiv wechselt, lässt das Set los
+    const next = { ...form, [key]: value, ...(key === 'location_id' ? { set_id: null, set_name: null } : {}) }
     setForm(next)
     offen.current = true
     debouncedUpdate({ ...next, eighths: Number(next.eighths) || 8, estimated_minutes: Number(next.estimated_minutes) || 60 })
@@ -210,8 +212,8 @@ function SceneRow({ scene, locations, characters, projectId, gesperrt }: { scene
 
         {/* Location */}
         {scene.location_name && (
-          <span className="text-xs text-muted-foreground truncate max-w-[120px] hidden md:block">
-            {scene.location_name}
+          <span className="text-xs text-muted-foreground truncate max-w-[160px] hidden md:block" title={[scene.location_name, scene.set_name].filter(Boolean).join(' · ')}>
+            {scene.location_name}{scene.set_name ? ` · ${scene.set_name}` : ''}
           </span>
         )}
 
@@ -313,7 +315,7 @@ function SceneRow({ scene, locations, characters, projectId, gesperrt }: { scene
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <Label className="text-xs text-muted-foreground">{tt(scenesT.detailLocation)}</Label>
               <Select value={String(form.location_id || '__none__')} onValueChange={v => updateField('location_id', v === '__none__' ? null : Number(v))} disabled={!canEdit}>
@@ -321,6 +323,18 @@ function SceneRow({ scene, locations, characters, projectId, gesperrt }: { scene
                 <SelectContent>
                   <SelectItem value="__none__">{tt(scenesT.keinMotiv)}</SelectItem>
                   {locations.map(l => <SelectItem key={l.id} value={String(l.id)}>{l.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Set im Motiv (AP C3) */}
+            <div>
+              <Label className="text-xs text-muted-foreground">{tt(DT.sets)}</Label>
+              <Select value={String(form.set_id || '__none__')} onValueChange={v => updateField('set_id', v === '__none__' ? null : Number(v))}
+                disabled={!canEdit || !form.location_id}>
+                <SelectTrigger className="mt-1 h-8 text-xs" aria-label={tt(DT.sets)}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">-</SelectItem>
+                  {((locations.find((l: any) => l.id === form.location_id) as any)?.sets ?? []).map((st: any) => <SelectItem key={st.id} value={String(st.id)}>{st.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

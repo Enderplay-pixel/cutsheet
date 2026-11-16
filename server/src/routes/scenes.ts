@@ -5,7 +5,7 @@ import { db } from '../db'
 import { besetzungNachziehen } from '../lib/dispo'
 import { requireMember } from '../middleware/projectAuth'
 import { baueUeberschrift, leseUeberschrift } from '../lib/szenenUeberschrift'
-import { motivVerknuepfen, verwaistesMotivEntfernen } from '../lib/motive'
+import { motivVerknuepfen, verwaistesMotivEntfernen, verwaistesSetEntfernen } from '../lib/motive'
 
 const router = Router()
 
@@ -15,9 +15,10 @@ router.use('/projects/:projectId', requireMember)
 // GET /api/projects/:projectId/scenes
 router.get('/projects/:projectId/scenes', async (req, res) => {
   const scenes = await db.all(`
-    SELECT s.*, l.name as location_name
+    SELECT s.*, l.name as location_name, st.name as set_name
     FROM scenes s
     LEFT JOIN locations l ON s.location_id = l.id
+    LEFT JOIN location_sets st ON st.id = s.set_id
     WHERE s.project_id = ?
     ORDER BY s.sort_order ASC, s.scene_number ASC
   `, [req.params.projectId])
@@ -187,8 +188,23 @@ router.put('/scenes/:id', async (req, res) => {
     WHERE id=?
   `, [scene_number, title, description, location_id, int_ext, day_night, eighths, estimated_minutes, notes, sort_order ?? null, shot_status ?? null, req.params.id])
 
+  // Set (AP C3): mitgeschickt gewählt, sonst bleibt es - es gehört aber
+  // immer zum Motiv der Szene; ein Set eines anderen Motivs fällt weg
+  if (req.body?.set_id !== undefined) {
+    const setId = req.body.set_id === null || req.body.set_id === '' ? null : Number(req.body.set_id)
+    if (setId !== null && !(await db.get('SELECT st.id FROM location_sets st JOIN scenes s ON s.location_id = st.location_id WHERE st.id = ? AND s.id = ?', [setId, req.params.id]))) {
+      return res.status(404).json({ data: null, error: 'Set nicht gefunden' })
+    }
+    await db.run('UPDATE scenes SET set_id = ? WHERE id = ?', [setId, req.params.id])
+  }
+  await db.run(
+    `UPDATE scenes SET set_id = NULL WHERE id = ? AND set_id IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM location_sets st WHERE st.id = scenes.set_id AND st.location_id = scenes.location_id)`,
+    [req.params.id])
+
   const scene = await db.get(`
-    SELECT s.*, l.name as location_name FROM scenes s LEFT JOIN locations l ON s.location_id = l.id WHERE s.id = ?
+    SELECT s.*, l.name as location_name, st.name as set_name FROM scenes s LEFT JOIN locations l ON s.location_id = l.id
+      LEFT JOIN location_sets st ON st.id = s.set_id WHERE s.id = ?
   `, [req.params.id]) as any
 
   // Wer hier Innen/Außen, Titel oder Tageszeit ändert, ändert damit die
@@ -240,8 +256,10 @@ router.delete('/scenes/:id', async (req, res) => {
   const szene = await db.get('SELECT shoot_day_id FROM shoot_day_scenes WHERE scene_id = ?', [req.params.id]) as any
   // Ein Motiv, das nur als Hülle für diese Szene entstand, geht mit (lib/motive.ts)
   const verwaist = await verwaistesMotivEntfernen(db, Number(req.params.id))
+  const setWeg = await verwaistesSetEntfernen(db, Number(req.params.id))
   await db.run('DELETE FROM scenes WHERE id = ?', [req.params.id])
   if (verwaist) await db.run('DELETE FROM locations WHERE id = ?', [verwaist])
+  else if (setWeg) await db.run('DELETE FROM location_sets WHERE id = ?', [setWeg])
   if (szene?.shoot_day_id) {
     const bericht = await db.get(
       'SELECT id, scenes_completed, scenes_partial FROM daily_reports WHERE shoot_day_id = ?',

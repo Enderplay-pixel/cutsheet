@@ -391,4 +391,12 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Höchstens 4 Regionen je Zeile': { en: 'At most 4 regions per line', fr: 'Au plus 4 régions par ligne' },
   'Jede Region nur einmal je Zeile': { en: 'Each region only once per line', fr: 'Chaque région une seule fois par ligne' },
   'Ein Anteil liegt über 0 und höchstens bei 100 %': { en: 'A share is above 0 and at most 100 %', fr: 'Une part est supérieure à 0 et au plus de 100 %' },
+  // Motiv und Sets, Genehmigungen (AP C3, 16.11.2026)
+  'Set nicht gefunden': { en: 'Set not found', fr: 'Décor intérieur introuvable' },
+  'Ein Set braucht einen Namen': { en: 'A set needs a name', fr: 'Un décor intérieur a besoin d’un nom' },
+  'Dieses Set gibt es am Motiv schon': { en: 'This set already exists at the location', fr: 'Ce décor intérieur existe déjà sur ce lieu' },
+  'Genehmigung nicht gefunden': { en: 'Permit not found', fr: 'Autorisation introuvable' },
+  'Eine Genehmigung gehört zu einem Motiv': { en: 'A permit belongs to a location', fr: 'Une autorisation appartient à un lieu' },
+  'Unbekannter Status einer Genehmigung': { en: 'Unknown permit status', fr: 'Statut d’autorisation inconnu' },
+  'Die Genehmigung endet vor ihrem Beginn': { en: 'The permit ends before it starts', fr: 'L’autorisation se termine avant de commencer' },
 }

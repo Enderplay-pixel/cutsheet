@@ -185,6 +185,10 @@ beforeAll(async () => {
   // Förderantrag und Projektübersicht rechnen die Finanzierung mit (AP E4)
   const { default: foerderRouter } = await import('../routes/foerderantrag')
   app.use('/api', optionalAuth, foerderRouter)
+  // Motive, Sets und Genehmigungen (AP C3)
+  const { default: motivRouter } = await import('../routes/locations')
+  const { default: genehmigungRouter } = await import('../routes/permits')
+  app.use('/api', optionalAuth, motivRouter, genehmigungRouter)
   const { default: projekteRouter } = await import('../routes/projects')
   app.use('/api/projects', optionalAuth, projekteRouter)
   const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
@@ -4552,6 +4556,98 @@ describe('Regionaleffekt und deutsche Kosten (AP E3)', () => {
     const eintrag = (await papierkorb.inhalt(p)).find((e: any) => e.row_id === z.id)
     expect((await papierkorb.ausDemPapierkorb(eintrag.id, p)).wiederhergestellt).toBe(true)
     expect(await db.all('SELECT region_id, share_bp FROM budget_line_regions WHERE budget_line_id = ?', [z.id])).toEqual([{ region_id: nrw.id, share_bp: 7_500 }])
+  })
+})
+
+describe('Motiv und Sets, Drehort-Angaben, Genehmigungen (AP C3)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+  const inTagen = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
+  async function projektMitFirma(titel: string) {
+    const firma = (await db.run("INSERT INTO companies (name, owner_id) VALUES ('Motiv GmbH', ?)", [nutzerId])).id
+    return (await db.run('INSERT INTO projects (title, owner_id, company_id) VALUES (?, ?, ?)', [titel, nutzerId, firma])).id
+  }
+
+  it('die Überschrift legt Motiv und Set an, findet das Set wieder und heilt einen Tippfehler', async () => {
+    const { motivVerknuepfen } = await import('../lib/motive')
+    const p = await projektMitFirma('Sets C3')
+    const szene = async (titel: string) => {
+      const id = (await db.run('INSERT INTO scenes (project_id, scene_number, title) VALUES (?, ?, ?)', [p, String(Math.random()).slice(2, 6), titel])).id
+      await motivVerknuepfen(db, p, id, titel)
+      return db.get('SELECT s.location_id, s.set_id, l.name AS motiv, st.name AS set_name FROM scenes s LEFT JOIN locations l ON l.id = s.location_id LEFT JOIN location_sets st ON st.id = s.set_id WHERE s.id = ?', [id]) as Promise<any>
+    }
+    const a = await szene('DEICH - KRONE')
+    expect(a).toMatchObject({ motiv: 'Deich', set_name: 'Krone' })
+    const b = await szene('Deich - krone')
+    expect(b.set_id).toBe(a.set_id)
+    // Tippfehler im Set einer Szene, die es allein benutzt: das Set folgt
+    const c = await szene('DEICH - FUSS')
+    const cId = (await db.get('SELECT id FROM scenes WHERE set_id = ?', [c.set_id]) as any).id
+    await db.run('UPDATE scenes SET title = ? WHERE id = ?', ['DEICH - FUSSWEG', cId])
+    await motivVerknuepfen(db, p, cId, 'DEICH - FUSSWEG')
+    expect((await db.get('SELECT name FROM location_sets WHERE id = ?', [c.set_id]) as any).name).toBe('Fussweg')
+    // Auf ein vorhandenes Set korrigiert: die Szene wechselt, das leere Set geht
+    await motivVerknuepfen(db, p, cId, 'DEICH - KRONE')
+    expect((await db.get('SELECT set_id FROM scenes WHERE id = ?', [cId]) as any).set_id).toBe(a.set_id)
+    expect(await db.get('SELECT id FROM location_sets WHERE id = ?', [c.set_id])).toBeUndefined()
+    // In der Szenenliste steht das Set
+    const liste = (await hole(`/api/projects/${p}/scenes`, tokenInhaber)).daten as any[]
+    expect(liste.every((x) => x.set_name === 'Krone')).toBe(true)
+    // Ein Motiv mit Krankenhaus ist keine leere Hülle mehr: Es bleibt, wenn die Überschrift wechselt
+    const einzeln = (await db.run('INSERT INTO scenes (project_id, scene_number, title) VALUES (?, ?, ?)', [p, '99', 'MOLE - ENDE'])).id
+    await motivVerknuepfen(db, p, einzeln, 'MOLE - ENDE')
+    const mole = (await db.get('SELECT location_id FROM scenes WHERE id = ?', [einzeln]) as any).location_id
+    await db.run("UPDATE locations SET hospital_name = 'Klinikum Nord' WHERE id = ?", [mole])
+    await motivVerknuepfen(db, p, einzeln, 'HAFENMOLE - ENDE')
+    expect((await db.get('SELECT name FROM locations WHERE id = ?', [mole]) as any).name).toBe('Mole')
+  })
+
+  it('Sets von Hand: doppelt abgelehnt, umbenennen, löschen löst die Szenen; Drehort-Angaben bleiben, wenn sie nicht mitkommen', async () => {
+    const p = await projektMitFirma('Sets Hand C3')
+    const motiv = (await sende(`/api/projects/${p}/locations`, { name: 'Villa', hospital_name: 'St. Marien', basecamp: 'Parkplatz Süd', permit_required: true })).daten
+    expect(motiv).toMatchObject({ hospital_name: 'St. Marien', basecamp: 'Parkplatz Süd', permit_required: true })
+    const garten = (await sende(`/api/locations/${motiv.id}/sets`, { name: 'Garten' })).daten
+    expect((await sende(`/api/locations/${motiv.id}/sets`, { name: 'garten' })).status).toBe(400)
+    expect((await sende(`/api/location-sets/${garten.id}`, { name: 'Wintergarten', notes: 'Glasdach' }, 'PUT')).daten).toMatchObject({ name: 'Wintergarten', notes: 'Glasdach' })
+    const szene = (await db.run('INSERT INTO scenes (project_id, scene_number, title, location_id, set_id) VALUES (?, ?, ?, ?, ?)', [p, '1', 'VILLA', motiv.id, garten.id])).id
+    // Die alte Seite schickt die neuen Felder nicht mit - sie bleiben
+    const { hospital_name: _h, basecamp: _b, permit_required: _g, sets: _s, ...alt } = motiv
+    const geaendert = (await sende(`/api/locations/${motiv.id}`, { ...alt, notes: 'Schlüssel beim Nachbarn' }, 'PUT')).daten
+    expect(geaendert).toMatchObject({ hospital_name: 'St. Marien', basecamp: 'Parkplatz Süd', permit_required: true, notes: 'Schlüssel beim Nachbarn' })
+    const liste = (await hole(`/api/projects/${p}/locations`, tokenInhaber)).daten as any[]
+    expect(liste[0]).toMatchObject({ szenen_anzahl: 1, sets: [expect.objectContaining({ name: 'Wintergarten', szenen: 1 })] })
+    expect((await hole(`/api/location-sets/${garten.id}`, tokenInhaber, { method: 'DELETE' })).status).toBe(200)
+    expect((await db.get('SELECT set_id FROM scenes WHERE id = ?', [szene]) as any).set_id).toBeNull()
+  })
+
+  it('Genehmigung: Drehtag in zehn Tagen warnt, eine vorliegende über das Datum beendet es, gekürzt kommt es wieder', async () => {
+    const p = await projektMitFirma('Genehmigung C3')
+    const deich = (await sende(`/api/projects/${p}/locations`, { name: 'Deich', permit_required: true })).daten
+    const ohne = (await sende(`/api/projects/${p}/locations`, { name: 'Küche' })).daten
+    const tag = (await db.run('INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, ?)', [p, inTagen(10)])).id
+    for (const [nr, loc] of [['1', deich.id], ['2', ohne.id]] as const) {
+      const sz = (await db.run('INSERT INTO scenes (project_id, scene_number, title, location_id) VALUES (?, ?, ?, ?)', [p, nr, 'X', loc])).id
+      await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id) VALUES (?, ?)', [tag, sz])
+    }
+    const meldungen = async () => ((await hole(`/api/projects/${p}/conflicts`, tokenInhaber)).daten as any[]).filter((k) => /Genehmigung/.test(k.message))
+    expect((await meldungen()).map((k) => [k.severity, k.message])).toEqual([['warning', `Keine Genehmigung für „Deich" am ${inTagen(10).split('-').reverse().join('.')}`]])
+
+    const g = (await sende(`/api/projects/${p}/genehmigungen`, { location_id: deich.id, title: 'Sondernutzung Deich', authority: 'Deichverband', status: 'liegt vor', valid_from: inTagen(5), valid_until: inTagen(15) })).daten
+    expect(g).toMatchObject({ status: 'liegt vor', authority: 'Deichverband' })
+    expect(await meldungen()).toEqual([])
+    await sende(`/api/genehmigungen/${g.id}`, { valid_until: inTagen(8) }, 'PUT')
+    expect((await meldungen()).map((k) => k.severity)).toEqual(['warning'])
+    // Ungültiges abgelehnt: Status, Ende vor Beginn, Motiv eines anderen Projekts
+    expect((await sende(`/api/genehmigungen/${g.id}`, { status: 'erledigt' }, 'PUT')).status).toBe(400)
+    expect((await sende(`/api/genehmigungen/${g.id}`, { valid_from: inTagen(9) }, 'PUT')).status).toBe(400)
+    const fremd = await projektMitFirma('Fremd C3')
+    const fremdesMotiv = (await sende(`/api/projects/${fremd}/locations`, { name: 'Fremd' })).daten
+    expect((await sende(`/api/projects/${p}/genehmigungen`, { location_id: fremdesMotiv.id, title: 'X' })).status).toBe(400)
+    // Am Drehtag ohne Genehmigung: Fehler; im Abschluss steht ein gedrehter Tag ohne Genehmigung
+    await db.run('UPDATE shoot_days SET date = ? WHERE id = ?', [inTagen(-2), tag])
+    expect((await meldungen()).map((k) => k.severity)).toEqual(['error'])
+    const abschluss = (await hole(`/api/projects/${p}/abschluss`, tokenInhaber)).daten
+    expect(abschluss.punkte.find((x: any) => x.schluessel === 'genehmigungen')).toMatchObject({ anzahl: 1, blockiert: false })
   })
 })
 

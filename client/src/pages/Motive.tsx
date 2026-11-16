@@ -16,6 +16,7 @@ import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { locT, uiT } from '@/lib/i18n'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
+import { drehortT as DT, GENEHMIGUNG_STATUS, GENEHMIGUNG_STATUS_TEXT } from '@/lib/texte/MotivDrehort'
 
 // ─── Signature Canvas ────────────────────────────────────────────────────────
 
@@ -252,7 +253,183 @@ function LocationReleaseSection({ locId, locName }: { locId: number; locName: st
   )
 }
 
-function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]; onDelete: () => void }) {
+// ─── Sets, Genehmigungen, Sonnenstand am Motiv (AP C3) ────────────────────────
+
+/** Sets unter dem Motiv: Name und Notiz speichern beim Verlassen, Löschen geht in den Papierkorb. */
+function SetsAbschnitt({ loc }: { loc: any }) {
+  const tt = useT()
+  const queryClient = useQueryClient()
+  const { projectId } = useParams()
+  const pid = Number(projectId)
+  const { darfSchreiben } = useSchreibrecht()
+  const { toast } = useToast()
+  const [neu, setNeu] = useState('')
+  const neuLaden = () => { queryClient.invalidateQueries({ queryKey: ['locations', pid] }); queryClient.invalidateQueries({ queryKey: ['scenes', pid] }) }
+  const fehler = (e: any) => toast({ variant: 'destructive', title: tt(DT.fehler), description: e.message })
+  const anlegen = useMutation({ mutationFn: () => api.locations.setAnlegen(loc.id, { name: neu }), onSuccess: () => { setNeu(''); neuLaden() }, onError: fehler })
+  const aendern = useMutation({ mutationFn: ({ id, daten }: { id: number; daten: any }) => api.locations.setAendern(id, daten), onSuccess: neuLaden, onError: fehler })
+  const loeschen = useMutation({ mutationFn: (id: number) => api.locations.setLoeschen(id), onSuccess: neuLaden, onError: fehler })
+  const sets: any[] = loc.sets ?? []
+  return (
+    <div data-einfuehrung="sets" className="pt-3 border-t border-border/40 space-y-2">
+      <p className="text-xs font-medium">{tt(DT.sets)}</p>
+      <p className="text-[11px] text-muted-foreground">{tt(DT.setsHilfe)}</p>
+      {sets.length === 0 && <p className="text-[11px] italic text-muted-foreground">{tt(DT.keineSets)}</p>}
+      {sets.map((st) => (
+        <div key={`${st.id}-${st.name}-${st.notes}`} className="flex flex-wrap items-center gap-2">
+          <Input defaultValue={st.name} disabled={!darfSchreiben} aria-label={tt(DT.setName).replace('{name}', st.name)}
+            onBlur={e => { const v = e.target.value.trim(); if (v && v !== st.name) aendern.mutate({ id: st.id, daten: { name: v } }); else e.target.value = st.name }}
+            className="h-7 text-xs w-36" />
+          <Input defaultValue={st.notes} disabled={!darfSchreiben} aria-label={tt(DT.setNotiz).replace('{name}', st.name)}
+            onBlur={e => { if (e.target.value.trim() !== (st.notes ?? '')) aendern.mutate({ id: st.id, daten: { notes: e.target.value } }) }}
+            placeholder={tt(locT.notizenPh)} className="h-7 text-xs flex-1 min-w-[8rem]" />
+          <span className="text-[11px] text-muted-foreground whitespace-nowrap">{st.szenen === 1 ? tt(DT.szeneEins) : tt(DT.setSzenen).replace('{n}', String(st.szenen ?? 0))}</span>
+          {darfSchreiben && (
+            <button type="button" aria-label={tt(DT.setLoeschen).replace('{name}', st.name)} onClick={() => loeschen.mutate(st.id)}
+              className="text-muted-foreground/60 hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></button>
+          )}
+        </div>
+      ))}
+      {darfSchreiben && (
+        <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (neu.trim()) anlegen.mutate() }}>
+          <Input value={neu} onChange={e => setNeu(e.target.value)} placeholder={tt(DT.neuesSet)} aria-label={tt(DT.neuesSet)} className="h-7 text-xs w-48" />
+          <Button type="submit" size="sm" variant="outline" className="h-7 text-xs" disabled={!neu.trim() || anlegen.isPending}>
+            <Plus className="w-3 h-3 mr-1" />{tt(DT.anlegen)}
+          </Button>
+        </form>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Eine Genehmigung: Text speichert beim Verlassen, Auswahl sofort, ein Datum,
+ * sobald es vollständig dasteht - Chrome meldet ein halb getipptes Datum als
+ * leer, und Tab bleibt im Datumsfeld (gemessen in AP B2 an den Raten).
+ */
+function GenehmigungZeile({ g, dateien }: { g: any; dateien: any[] }) {
+  const tt = useT()
+  const queryClient = useQueryClient()
+  const { projectId } = useParams()
+  const pid = Number(projectId)
+  const { darfSchreiben } = useSchreibrecht()
+  const { toast } = useToast()
+  const speichern = useMutation({
+    mutationFn: (daten: any) => api.genehmigungen.update(g.id, daten),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['genehmigungen', pid] }); queryClient.invalidateQueries({ queryKey: ['locations', pid] }); queryClient.invalidateQueries({ queryKey: ['conflicts'] }) },
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(DT.fehler), description: e.message }),
+  })
+  const loeschen = useMutation({
+    mutationFn: () => api.genehmigungen.delete(g.id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['genehmigungen', pid] }); queryClient.invalidateQueries({ queryKey: ['locations', pid] }) },
+  })
+  const text = (k: string) => (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => { if (e.target.value.trim() !== (g[k] ?? '')) speichern.mutate({ [k]: e.target.value }) }
+  const datum = (k: 'valid_from' | 'valid_until') => ({
+    defaultValue: g[k] ? String(g[k]).slice(0, 10) : '',
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => { if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value) && e.target.value !== String(g[k] ?? '').slice(0, 10)) speichern.mutate({ [k]: e.target.value }) },
+    onBlur: (e: React.FocusEvent<HTMLInputElement>) => { if (e.target.value === '' && g[k]) speichern.mutate({ [k]: null }) },
+  })
+  const name = g.title || tt(DT.neueGenehmigung)
+  return (
+    <fieldset disabled={!darfSchreiben} className="rounded-lg border border-border/50 p-2.5 space-y-2 min-w-0">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <label className="text-[11px] text-muted-foreground space-y-1"><span>{tt(DT.titel)}</span>
+          <Input defaultValue={g.title} onBlur={text('title')} placeholder={tt(DT.titelPh)} className="h-7 text-xs" /></label>
+        <label className="text-[11px] text-muted-foreground space-y-1"><span>{tt(DT.behoerde)}</span>
+          <Input defaultValue={g.authority} onBlur={text('authority')} className="h-7 text-xs" /></label>
+        <label className="text-[11px] text-muted-foreground space-y-1"><span>{tt(DT.status)}</span>
+          <select value={g.status} onChange={e => speichern.mutate({ status: e.target.value })}
+            className={cn('h-7 w-full rounded-md border border-input bg-background px-2 text-xs', g.status === 'liegt vor' ? 'text-green-600 dark:text-green-400' : g.status === 'abgelehnt' ? 'text-destructive' : '')}>
+            {GENEHMIGUNG_STATUS.map(s => <option key={s} value={s}>{tt(GENEHMIGUNG_STATUS_TEXT[s])}</option>)}
+          </select></label>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <label className="text-[11px] text-muted-foreground space-y-1"><span>{tt(DT.gueltigVon)}</span>
+          <Input type="date" {...datum('valid_from')} className="h-7 text-xs" /></label>
+        <label className="text-[11px] text-muted-foreground space-y-1"><span>{tt(DT.gueltigBis)}</span>
+          <Input type="date" {...datum('valid_until')} className="h-7 text-xs" /></label>
+        <label className="text-[11px] text-muted-foreground space-y-1 col-span-2 sm:col-span-1"><span>{tt(DT.datei)}</span>
+          <select value={g.file_id ?? ''} onChange={e => speichern.mutate({ file_id: e.target.value ? Number(e.target.value) : null })}
+            className="h-7 w-full rounded-md border border-input bg-background px-2 text-xs">
+            <option value="">{tt(DT.keineDatei)}</option>
+            {dateien.map((d: any) => <option key={d.id} value={d.id}>{d.title || d.filename}</option>)}
+          </select></label>
+      </div>
+      <div className="flex items-start gap-2">
+        <label className="text-[11px] text-muted-foreground space-y-1 flex-1"><span>{tt(DT.auflagen)}</span>
+          <Textarea defaultValue={g.conditions} onBlur={text('conditions')} rows={2} className="text-xs resize-none" /></label>
+        {darfSchreiben && (
+          <button type="button" aria-label={tt(DT.genehmigungLoeschen).replace('{name}', name)} onClick={() => loeschen.mutate()}
+            className="mt-5 text-muted-foreground/60 hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></button>
+        )}
+      </div>
+    </fieldset>
+  )
+}
+
+function GenehmigungenAbschnitt({ loc, genehmigungen, dateien }: { loc: any; genehmigungen: any[]; dateien: any[] }) {
+  const tt = useT()
+  const queryClient = useQueryClient()
+  const { projectId } = useParams()
+  const pid = Number(projectId)
+  const { darfSchreiben } = useSchreibrecht()
+  const { toast } = useToast()
+  const anlegen = useMutation({
+    mutationFn: () => api.genehmigungen.create(pid, { location_id: loc.id, title: '', status: 'offen' }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['genehmigungen', pid] }); queryClient.invalidateQueries({ queryKey: ['locations', pid] }) },
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(DT.fehler), description: e.message }),
+  })
+  const eigene = genehmigungen.filter((g) => g.location_id === loc.id)
+  return (
+    <div data-einfuehrung="genehmigungen" className="pt-3 border-t border-border/40 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium">{tt(DT.genehmigungen)}</p>
+        {darfSchreiben && (
+          <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => anlegen.mutate()} disabled={anlegen.isPending}>
+            <Plus className="w-3 h-3 mr-1" />{tt(DT.neueGenehmigung)}
+          </Button>
+        )}
+      </div>
+      <p className="text-[11px] text-muted-foreground">{tt(DT.genehmigungenHilfe)}</p>
+      {eigene.length === 0 && <p className="text-[11px] italic text-muted-foreground">{tt(DT.keineGenehmigungen)}</p>}
+      {eigene.map((g) => <GenehmigungZeile key={g.id} g={g} dateien={dateien} />)}
+    </div>
+  )
+}
+
+/** Sonnenauf- und -untergang am Motiv, vorbelegt mit dem ersten Drehtag hier - dieselbe Rechnung wie die Tagesdispo. */
+function SonnenAbschnitt({ loc }: { loc: any }) {
+  const tt = useT()
+  const vorgabe = loc.erster_drehtag ? String(loc.erster_drehtag).slice(0, 10) : new Date().toISOString().slice(0, 10)
+  const [datum, setDatum] = useState(vorgabe)
+  const mitKoordinaten = loc.lat !== null && loc.lat !== undefined && loc.lng !== null && loc.lng !== undefined
+  const { data: sonne } = useQuery({
+    queryKey: ['sonne', loc.id, datum, loc.lat, loc.lng],
+    queryFn: () => api.sun.get(loc.id, datum),
+    enabled: mitKoordinaten && /^\d{4}-\d{2}-\d{2}$/.test(datum),
+  })
+  // Wie die Tagesdispo (pages/Tagesdispo.tsx): fest de-DE, 24 Stunden
+  const uhr = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '-'
+  return (
+    <div data-einfuehrung="sonne" className="pt-3 border-t border-border/40 space-y-2">
+      <p className="text-xs font-medium">{tt(DT.sonne)}</p>
+      {!mitKoordinaten ? <p className="text-[11px] text-muted-foreground">{tt(DT.sonneOhneKoordinaten)}</p> : (
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          <Input type="date" value={datum} onChange={e => setDatum(e.target.value)} aria-label={tt(DT.sonneDatum)} className="h-7 text-xs w-40" />
+          {sonne && (
+            <span data-sonne className="tabular-nums">
+              {tt(DT.aufgang).replace('{zeit}', uhr(sonne.sunrise))} · {tt(DT.untergang).replace('{zeit}', uhr(sonne.sunset))}
+              {sonne.golden_hour_evening_start && <span className="text-muted-foreground"> · {tt(DT.goldenHour).replace('{zeit}', uhr(sonne.golden_hour_evening_start))}</span>}
+            </span>
+          )}
+          {loc.erster_drehtag && datum === vorgabe && <span className="text-[11px] text-muted-foreground">({tt(DT.sonneErsterDrehtag)})</span>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LocationCard({ loc, shootDays, onDelete, genehmigungen, dateien }: { loc: any; shootDays: any[]; onDelete: () => void; genehmigungen: any[]; dateien: any[] }) {
   const [form, setForm] = useState(loc)
   const [expanded, setExpanded] = useState(false)
   const queryClient = useQueryClient()
@@ -299,6 +476,15 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
           <div className="text-sm font-semibold truncate">{form.name || tt(locT.keinName)}</div>
           <div className="text-xs text-muted-foreground mt-0.5 truncate">
             {[form.address, form.city].filter(Boolean).join(', ') || tt(locT.keineAdresse)}
+          </div>
+          {/* Sets, Szenen, Vertrag, Genehmigung (AP C3) */}
+          <div data-einfuehrung="kennzeichen" className="flex flex-wrap gap-1.5 mt-1.5 text-[10px]">
+            {loc.szenen_anzahl > 0 && <span className="px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{loc.szenen_anzahl === 1 ? tt(DT.szeneEins) : tt(DT.szenenKurz).replace('{n}', String(loc.szenen_anzahl))}</span>}
+            {(loc.sets ?? []).length > 0 && <span className="px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground" title={(loc.sets ?? []).map((st: any) => st.name).join(', ')}>{loc.sets.length === 1 ? tt(DT.setEins) : tt(DT.setsKurz).replace('{n}', String(loc.sets.length))}</span>}
+            {loc.vertrag_status && <span className="px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{tt(DT.vertrag).replace('{status}', locT.vertragStatus[loc.vertrag_status] ? tt(locT.vertragStatus[loc.vertrag_status]) : loc.vertrag_status)}</span>}
+            {loc.permit_required && (loc.genehmigungen?.liegt_vor > 0
+              ? <span className="px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-600 dark:text-green-400">{tt(DT.genehmigungLiegtVor)}</span>
+              : <span className="px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive">{tt(DT.genehmigungFehlt)}</span>)}
           </div>
         </div>
 
@@ -383,6 +569,46 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
             </div>
           </div>
 
+          {/* Drehort-Angaben (AP C3): einmal eintragen, überall benutzt */}
+          <div data-einfuehrung="drehort" className="pt-3 border-t border-border/40 space-y-3">
+            <div>
+              <p className="text-xs font-medium">{tt(DT.drehort)}</p>
+              <p className="text-[11px] text-muted-foreground">{tt(DT.drehortHilfe)}</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">{tt(DT.krankenhaus)}</Label>
+                <Input value={form.hospital_name || ''} onChange={e => update('hospital_name', e.target.value)} className="mt-1 h-8 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">{tt(DT.krankenhausAdresse)}</Label>
+                <Input value={form.hospital_address || ''} onChange={e => update('hospital_address', e.target.value)} className="mt-1 h-8 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">{tt(DT.krankenhausTelefon)}</Label>
+                <Input value={form.hospital_phone || ''} onChange={e => update('hospital_phone', e.target.value)} className="mt-1 h-8 text-xs" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">{tt(DT.basecamp)}</Label>
+                <Input value={form.basecamp || ''} onChange={e => update('basecamp', e.target.value)} className="mt-1 h-8 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">{tt(DT.parken)}</Label>
+                <Input value={form.parking_info || ''} onChange={e => update('parking_info', e.target.value)} className="mt-1 h-8 text-xs" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">{tt(DT.anfahrt)}</Label>
+              <Textarea value={form.directions || ''} onChange={e => update('directions', e.target.value)} rows={2} className="mt-1 text-xs resize-none" />
+            </div>
+            <div className="flex items-center gap-2.5">
+              <Switch checked={!!form.permit_required} onCheckedChange={v => update('permit_required', v)} id={`genehmigung-${loc.id}`} />
+              <Label htmlFor={`genehmigung-${loc.id}`} className="text-xs cursor-pointer">{tt(DT.genehmigungNoetig)}</Label>
+            </div>
+          </div>
+
           {daysAtLocation > 0 && form.rental_fee > 0 && (
             <div className="flex items-center justify-between pt-2 border-t border-border/40">
               <span className="text-xs text-muted-foreground">{tt(locT.tageMal).replace('{n}', String(daysAtLocation)).replace('{betrag}', formatCurrency(form.rental_fee))}</span>
@@ -396,6 +622,9 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
               rows={2} className="mt-1 text-xs resize-none" placeholder={tt(locT.notizenPh)} />
           </div>
           </fieldset>
+
+          <SetsAbschnitt loc={loc} />
+          <GenehmigungenAbschnitt loc={loc} genehmigungen={genehmigungen} dateien={dateien} />
 
           <LocationReleaseSection locId={loc.id} locName={form.name || tt(locT.motivFallback)} />
 
@@ -430,6 +659,7 @@ function LocationCard({ loc, shootDays, onDelete }: { loc: any; shootDays: any[]
               <ExternalLink className="w-3 h-3" />{tt(locT.osmSuchen)}
             </a>
           ) : null}
+          <SonnenAbschnitt loc={loc} />
         </div>
       )}
     </div>
@@ -453,6 +683,10 @@ export function Component() {
     queryKey: ['shoot-days', pid],
     queryFn: () => api.drehplan.listDays(pid),
   })
+  // Genehmigungen und die Dateien der Ablage zum Anhängen (AP C3)
+  const { data: genehmigungen } = useQuery({ queryKey: ['genehmigungen', pid], queryFn: () => api.genehmigungen.list(pid) })
+  const { data: ablage } = useQuery({ queryKey: ['dateien', pid, 'motive'], queryFn: () => api.dateien.liste(pid) })
+  const dateien: any[] = [...(ablage?.dateien ?? [])].sort((a: any, b: any) => (a.kind === 'genehmigung' ? 0 : 1) - (b.kind === 'genehmigung' ? 0 : 1))
 
   const createMutation = useMutation({
     mutationFn: () => api.locations.create(pid, { name: tt(locT.neuesMotivName), city: '', address: '' }),
@@ -496,7 +730,8 @@ export function Component() {
       ) : (
         <div className="space-y-2.5">
           {(locations || []).map((loc: any) => (
-            <LocationCard key={loc.id} loc={loc} shootDays={shootDays || []} onDelete={() => deleteMutation.mutate(loc.id)} />
+            <LocationCard key={loc.id} loc={loc} shootDays={shootDays || []} onDelete={() => deleteMutation.mutate(loc.id)}
+              genehmigungen={genehmigungen ?? []} dateien={dateien} />
           ))}
           {(!locations || locations.length === 0) && (
             <div className="text-center py-20 text-muted-foreground">

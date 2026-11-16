@@ -28,6 +28,7 @@ import scenesRouter from './routes/scenes'
 import charactersRouter from './routes/characters'
 import crewRouter from './routes/crew'
 import locationsRouter from './routes/locations'
+import permitsRouter from './routes/permits'
 import drehplanRouter from './routes/drehplan'
 import callsheetsRouter from './routes/callsheets'
 import dailyreportsRouter from './routes/dailyreports'
@@ -291,6 +292,8 @@ app.use('/api', einstellungenRouter)
 app.use('/api', charactersRouter)
 app.use('/api', crewRouter)
 app.use('/api', locationsRouter)
+// Drehgenehmigungen am Motiv (AP C3)
+app.use('/api', permitsRouter)
 app.use('/api', drehplanRouter)
 app.use('/api', callsheetsRouter)
 app.use('/api', dailyreportsRouter)

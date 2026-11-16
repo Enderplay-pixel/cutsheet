@@ -241,6 +241,18 @@ export const api = {
     create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/locations`, { method: 'POST', body: JSON.stringify(data) }),
     update: (id: number, data: any) => req<any>(`/locations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: number) => req<any>(`/locations/${id}`, { method: 'DELETE' }),
+    // Sets unter dem Motiv (AP C3)
+    setAnlegen: (locationId: number, data: { name: string; notes?: string }) => req<any>(`/locations/${locationId}/sets`, { method: 'POST', body: JSON.stringify(data) }),
+    setAendern: (setId: number, data: { name?: string; notes?: string }) => req<any>(`/location-sets/${setId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    setLoeschen: (setId: number) => req<any>(`/location-sets/${setId}`, { method: 'DELETE' }),
+  },
+
+  // ─── Drehgenehmigungen am Motiv (AP C3) ────────────────────────────────────
+  genehmigungen: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/genehmigungen`),
+    create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/genehmigungen`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: any) => req<any>(`/genehmigungen/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: number) => req<any>(`/genehmigungen/${id}`, { method: 'DELETE' }),
   },
 
   // ─── Drehplan ──────────────────────────────────────────────────────────────

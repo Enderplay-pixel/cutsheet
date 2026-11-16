@@ -1,10 +1,11 @@
 import { Router } from 'express'
+import { genehmigungsMeldungen } from '../lib/genehmigungen'
 import { arbeitszeitEinstellung } from '../lib/arbeitszeitProjekt'
 import { pruefeTag, pruefeRuhezeit } from '../lib/arbeitszeit'
 import { db } from '../db'
 import { requireMember } from '../middleware/projectAuth'
 import { ruhezeit } from '../lib/drehzeit'
-import { istIsoDatum } from '../lib/datum'
+import { istIsoDatum, heuteISO } from '../lib/datum'
 import { sperrtagKonflikte } from '../lib/sperrtage'
 import { ohneGagen } from '../lib/gagenschutz'
 import { massgeblicheKalkulation, massgeblicherFinanzierungsplan, finanzierungsstand, ausKalkulation } from '../lib/kalkulation'
@@ -370,6 +371,20 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
         message: `${k.cast_name} ist am ${datumText(k.shoot_day.date)} gesperrt`,
         detail: `Drehtag ${k.shoot_day.day_number}${k.blackout.reason ? ` - ${k.blackout.reason}` : ''}`,
         link: 'sperrtage',
+      })
+    }
+  })
+
+  // 13. Drehgenehmigungen (AP C3): Drehtag an einem Motiv mit "Genehmigung
+  // nötig" ohne vorliegende Genehmigung, die das Datum abdeckt
+  await pruefung('Genehmigungen', conflicts, async () => {
+    const meldungen = (await genehmigungsMeldungen([Number(pid)], heuteISO())).get(Number(pid)) ?? []
+    for (const m of meldungen) {
+      conflicts.push({
+        severity: m.schwere === 'fehler' ? 'error' : m.schwere === 'warnung' ? 'warning' : 'info', category: 'Motive',
+        message: `Keine Genehmigung für „${m.motiv}" am ${datumText(m.datum)}`,
+        detail: `Drehtag ${m.day_number}${m.tage_bis > 0 ? ` in ${m.tage_bis} ${m.tage_bis === 1 ? 'Tag' : 'Tagen'}` : m.tage_bis === 0 ? ', heute' : ''} - am Motiv ist eine Genehmigung nötig, keine mit Status „liegt vor" deckt das Datum.`,
+        link: 'motive',
       })
     }
   })

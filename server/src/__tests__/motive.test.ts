@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { motivAusTitel, alsMotivname } from '../lib/motive'
+import { motivAusTitel, alsMotivname, setAusTitel } from '../lib/motive'
 
 describe('motivAusTitel', () => {
   it('nimmt den Ort vor dem ersten Bindestrich - das Set dahinter gehört zum Motiv', () => {
@@ -29,5 +29,21 @@ describe('alsMotivname', () => {
   it('lässt einen gemischt geschriebenen Namen so, wie er geschrieben wurde', () => {
     expect(alsMotivname('Wohnküche von Andi')).toBe('Wohnküche von Andi')
     expect(alsMotivname('wohnküche')).toBe('wohnküche')
+  })
+})
+
+describe('setAusTitel (AP C3)', () => {
+  it('nimmt den Teil hinter dem ersten Bindestrich mit Leerzeichen', () => {
+    expect(setAusTitel('WOHNUNG ANDI - KÜCHE')).toBe('KÜCHE')
+    expect(setAusTitel('DEICH - KRONE')).toBe('KRONE')
+    expect(setAusTitel('HAUS - FLUR - OBEN')).toBe('FLUR - OBEN')
+    expect(setAusTitel('  STADTPARK  -   BANK ')).toBe('BANK')
+  })
+
+  it('ohne Bindestrich oder ohne Motiv kein Set; ein Bindestrich im Wort trennt nicht', () => {
+    expect(setAusTitel('HAFEN')).toBe('')
+    expect(setAusTitel('LAGERHALLE NORD-WEST')).toBe('')
+    expect(setAusTitel('SZENE 7')).toBe('')
+    expect(setAusTitel(null)).toBe('')
   })
 })

@@ -29,6 +29,7 @@ import { logAudit } from './audit'
 import { euro } from '../lib/rechnung'
 import { heuteISO } from '../lib/datum'
 import { massgeblicherFinanzierungsplan } from '../lib/kalkulation'
+import { genehmigungsMeldungen } from '../lib/genehmigungen'
 import { ohneGagen } from '../lib/gagenschutz'
 
 const router = Router()
@@ -133,6 +134,9 @@ router.get('/projects/:projectId/abschluss', requireAuth, requireMember, async (
       WHERE fe.financing_version_id = ? AND fi.due_on IS NOT NULL AND fi.due_on < ? AND fi.received_on IS NULL`,
     [plan.id, heute])) as any : null
 
+  // Gedrehte Tage ohne vorliegende Drehgenehmigung (AP C3)
+  const ohneGenehmigung = ((await genehmigungsMeldungen([projectId], heute)).get(projectId) ?? []).filter((g) => g.tage_bis < 0)
+
   const punkte: Punkt[] = [
     {
       schluessel: 'rechnungen',
@@ -212,6 +216,16 @@ router.get('/projects/:projectId/abschluss', requireAuth, requireMember, async (
       anzahl: zahl(fristen),
       text: 'Genehmigungen oder Versicherungen, deren Gültigkeit vorbei ist. Für die Akte ist das in Ordnung - prüfen, ob es das war.',
       pfad: `/projects/${projectId}/ablage`,
+      blockiert: false,
+    },
+    {
+      schluessel: 'genehmigungen',
+      titel: 'Drehtage ohne Genehmigung',
+      anzahl: ohneGenehmigung.length,
+      text: ohneGenehmigung.length > 0
+        ? `${ohneGenehmigung.map((g) => `${g.motiv} am ${g.datum.split('-').reverse().join('.')}`).join(', ')}: Am Motiv war eine Genehmigung nötig, keine lag vor. Für die Akte nachtragen, falls es sie gab.`
+        : 'Jeder Drehtag an einem Motiv mit Genehmigungspflicht war gedeckt.',
+      pfad: `/projects/${projectId}/motive`,
       blockiert: false,
     },
   ]

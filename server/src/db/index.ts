@@ -1725,6 +1725,25 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS german_spend BOOLEAN NOT NULL DEFAULT true`)
   await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS internal BOOLEAN NOT NULL DEFAULT false`)
 
+  // Motiv und Sets, Drehort-Angaben, Genehmigungen (Plan Kino-Ausbau, AP C3,
+  // 16.11.2026): Ein Motiv ist der reale Ort mit Adresse, ein Set der Raum
+  // darin - "WOHNUNG ANDI - KÜCHE" ist Motiv "Wohnung Andi", Set "Küche".
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS location_sets (
+      id SERIAL PRIMARY KEY,
+      location_id INTEGER NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+      name TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `)
+  await db.exec(`ALTER TABLE scenes ADD COLUMN IF NOT EXISTS set_id INTEGER REFERENCES location_sets(id) ON DELETE SET NULL`)
+  for (const spalte of ['hospital_name', 'hospital_address', 'hospital_phone', 'basecamp', 'directions']) {
+    await db.exec(`ALTER TABLE locations ADD COLUMN IF NOT EXISTS ${spalte} TEXT NOT NULL DEFAULT ''`)
+  }
+  await db.exec(`ALTER TABLE locations ADD COLUMN IF NOT EXISTS permit_required BOOLEAN NOT NULL DEFAULT false`)
+  await db.exec(`CREATE INDEX IF NOT EXISTS location_sets_motiv_idx ON location_sets (location_id)`)
+
   // ── Rechnungen und Honorare ───────────────────────────────────────────────
   // Steuerart der Firma. Ein Einzelunternehmen nach Paragraf 19 UStG weist
   // keine Umsatzsteuer aus und muss das auf der Rechnung begruenden.
@@ -1950,6 +1969,25 @@ export async function initDatabase() {
   await db.exec(`CREATE INDEX IF NOT EXISTS project_files_projekt_idx ON project_files (project_id, kind)`)
   await db.exec(`CREATE INDEX IF NOT EXISTS project_files_bezug_idx ON project_files (entity_type, entity_id)`)
   await db.exec(`CREATE INDEX IF NOT EXISTS project_files_frist_idx ON project_files (valid_until) WHERE valid_until IS NOT NULL`)
+
+  // Drehgenehmigungen am Motiv (AP C3, 16.11.2026) - nach der Ablage, weil
+  // eine Genehmigung freiwillig eine Datei daraus anhängt
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS permits (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      location_id INTEGER NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+      title TEXT NOT NULL DEFAULT '',
+      authority TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'offen',
+      valid_from DATE,
+      valid_until DATE,
+      conditions TEXT NOT NULL DEFAULT '',
+      file_id INTEGER REFERENCES project_files(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS permits_motiv_idx ON permits (location_id)`)
 
   // ── Unterkunft und Reise ──────────────────────────────────────────────────
   // Eine Produktion, die auswaerts dreht, bucht Zimmer und schuldet
