@@ -9,7 +9,7 @@ import { wochentageAus } from '../lib/board'
 import { BUNDESLAENDER } from '../services/holidays'
 import { SATZ_ARTEN } from '../lib/arbeitszeit'
 import { ueberstundenNeuRechnen } from '../lib/arbeitszeitProjekt'
-import { massgeblicheKalkulation, massgeblicherFinanzierungsplan } from '../lib/kalkulation'
+import { massgeblicheKalkulation, massgeblicherFinanzierungsplan, ausKalkulation } from '../lib/kalkulation'
 
 const router = Router()
 
@@ -497,7 +497,9 @@ router.get('/:id/stats', requireAuth, async (req: Request, res: Response) => {
   const budgetRow = { s: (await massgeblicheKalkulation(pid))?.total_cents ?? 0 }
   // Der Finanzierungsplan, der gilt - wie Konfliktradar und Kopf des Plans
   // (AP B2). Vorher die höchste Summe aller Fassungen.
-  const finRow = { s: (await massgeblicherFinanzierungsplan(pid))?.total_cents ?? 0 }
+  // Mit Rückstellungen und Beistellungen der Kalkulation (AP E4) - wie im Finanzierungsplan
+  const aus = await ausKalkulation(pid)
+  const finRow = { s: ((await massgeblicherFinanzierungsplan(pid))?.total_cents ?? 0) + aus.rueckstellungen_cents + aus.beistellungen_cents }
 
   // date ist Text: '' bei undatierten Tagen. Vorher date::date - ein einziger
   // undatierter Drehtag ließ die ganze Übersicht scheitern (gemessen am

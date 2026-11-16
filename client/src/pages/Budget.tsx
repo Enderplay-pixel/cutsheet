@@ -31,6 +31,7 @@ import { heuteISO } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useGebietsschema } from '@/lib/useT'
 import { zeitraumT as Z } from '@/lib/texte/Cashflow'
+import { betragInCent } from '@/lib/utils'
 
 const UNITS = ['Pauschal', 'Tage', 'Stunden', 'Wochen', 'Monate', 'Stück']
 const CATEGORIES = [
@@ -123,8 +124,71 @@ function ZeitraumFeld({ line, darf, speichern }: { line: any; darf: boolean; spe
   )
 }
 
-function BudgetLineRow({ line, onDelete, darf, ffa = false, markiert, onMarkieren }: {
-  line: any; onDelete: () => void; darf: boolean; ffa?: boolean; markiert: boolean; onMarkieren: (an: boolean) => void
+/**
+ * Rückstellung und Beistellung einer Zeile (AP E4): an der Zeile mit Betrag,
+ * gespeichert mit "Speichern". Zusammen höchstens die Zeilensumme.
+ */
+function AnteileFeld({ line, darf, summe, speichern }: { line: any; darf: boolean; summe: number; speichern: (zurueck: number, bei: number) => Promise<void> }) {
+  const tt = useT()
+  const [offen, setOffen] = useState(false)
+  const [zurueck, setZurueck] = useState('')
+  const [bei, setBei] = useState('')
+  const [fehler, setFehler] = useState('')
+  const [laeuft, setLaeuft] = useState(false)
+  const z = Number(line.deferred_cents) || 0
+  const b = Number(line.in_kind_cents) || 0
+  const alsText = (c: number) => (c ? String(c / 100).replace('.', ',') : '')
+  const oeffnen = (o: boolean) => {
+    if (o) { setZurueck(alsText(z)); setBei(alsText(b)); setFehler('') }
+    setOffen(o)
+  }
+  const sichern = async () => {
+    const zc = betragInCent(zurueck)
+    const bc = betragInCent(bei)
+    if (Number.isNaN(zc) || Number.isNaN(bc) || zc < 0 || bc < 0) { setFehler(tt(K.anteileUnlesbar)); return }
+    if (zc + bc > summe) { setFehler(tt(K.anteileZuViel).replace('{summe}', formatCurrency(summe))); return }
+    setLaeuft(true)
+    try { await speichern(zc, bc); setOffen(false) } catch (e: any) { setFehler(String(e?.message || '')) } finally { setLaeuft(false) }
+  }
+  if (!darf && !z && !b) return null
+  const name = line.description || line.account_code || ''
+  return (
+    <Popover open={offen} onOpenChange={oeffnen}>
+      <PopoverTrigger asChild>
+        <button type="button" disabled={!darf} aria-label={tt(K.anteile).replace('{name}', name)} title={z || b ? tt(K.anteileHilfe) : tt(K.anteileTitel)}
+          className={`block ml-auto text-[10px] leading-tight font-sans font-normal text-right ${z || b ? 'text-primary' : 'text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100'}`}>
+          {z || b ? (
+            <>
+              {z > 0 && <span className="block">{tt(K.zurueckKurz).replace('{betrag}', formatCurrency(z))}</span>}
+              {b > 0 && <span className="block">{tt(K.beiKurz).replace('{betrag}', formatCurrency(b))}</span>}
+            </>
+          ) : tt(K.anteileKurz)}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 space-y-2">
+        <p className="text-xs font-medium">{tt(K.anteile).replace('{name}', name)}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-[11px] text-muted-foreground space-y-1">
+            <span>{tt(K.zurueckgestellt)}</span>
+            <Input value={zurueck} onChange={e => setZurueck(e.target.value)} inputMode="decimal" className="h-8 text-xs text-right" />
+          </label>
+          <label className="text-[11px] text-muted-foreground space-y-1">
+            <span>{tt(K.beigestellt)}</span>
+            <Input value={bei} onChange={e => setBei(e.target.value)} inputMode="decimal" className="h-8 text-xs text-right" />
+          </label>
+        </div>
+        <p className="text-[11px] text-muted-foreground">{tt(K.anteileHilfe)}</p>
+        {fehler && <p role="alert" className="text-[11px] text-destructive">{fehler}</p>}
+        <div className="flex justify-end">
+          <Button type="button" size="sm" className="h-7 text-xs" disabled={laeuft} onClick={sichern}>{tt(K.anteileSpeichern)}</Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function BudgetLineRow({ line, onDelete, darf, ffa = false, markiert, onMarkieren, hervor = false }: {
+  line: any; onDelete: () => void; darf: boolean; ffa?: boolean; markiert: boolean; onMarkieren: (an: boolean) => void; hervor?: boolean
 }) {
   const [form, setForm] = useState(line)
   const queryClient = useQueryClient()
@@ -166,19 +230,23 @@ function BudgetLineRow({ line, onDelete, darf, ffa = false, markiert, onMarkiere
     offen.current = true
     debouncedUpdate(leer(next.quantity, next.unit_price_cents)
       ? null
-      : ohneZeitraum({ ...next, quantity: Number(next.quantity), unit_price_cents: Number(next.unit_price_cents), total_cents: summe(next) }))
+      : ohneEigeneFelder({ ...next, quantity: Number(next.quantity), unit_price_cents: Number(next.unit_price_cents), total_cents: summe(next) }))
   }
-  // Den Zeitraum schickt nur das Zeitraum-Feld. Sonst schriebe eine Eingabe,
-  // die vor dem Neuladen der Liste losgeht, den alten Zeitraum zurück.
-  const ohneZeitraum = ({ spend_from: _von, spend_until: _bis, ...rest }: any) => rest
-  const zeitraumSpeichern = async (von: string | null, bis: string | null) => {
+  // Zeitraum (AP E2), Rückstellung und Beistellung (AP E4) schickt nur ihr
+  // eigenes Feld. Sonst schriebe eine Eingabe, die vor dem Neuladen der Liste
+  // losgeht, den alten Wert zurück.
+  const ohneEigeneFelder = ({ spend_from: _von, spend_until: _bis, deferred_cents: _z, in_kind_cents: _b, ...rest }: any) => rest
+  const speichernMit = async (felder: Record<string, unknown>) => {
     const basis = leer(form.quantity, form.unit_price_cents) ? line : form
     await api.budget.updateLine(line.id, {
-      ...basis, quantity: Number(basis.quantity), unit_price_cents: Number(basis.unit_price_cents), total_cents: summe(basis),
-      spend_from: von, spend_until: bis,
+      ...ohneEigeneFelder(basis), quantity: Number(basis.quantity), unit_price_cents: Number(basis.unit_price_cents), total_cents: summe(basis),
+      ...felder,
     })
     queryClient.invalidateQueries({ queryKey: ['budget-lines'] })
+    queryClient.invalidateQueries({ queryKey: ['financing-stand'] })
   }
+  const zeitraumSpeichern = (von: string | null, bis: string | null) => speichernMit({ spend_from: von, spend_until: bis })
+  const anteileSpeichern = (zurueck: number, bei: number) => speichernMit({ deferred_cents: zurueck, in_kind_cents: bei })
   const zuruecksetzenWennLeer = () => {
     if (!leer(form.quantity, form.unit_price_cents)) return
     offen.current = false
@@ -192,7 +260,8 @@ function BudgetLineRow({ line, onDelete, darf, ffa = false, markiert, onMarkiere
 
   return (
     <Fragment>
-    <tr className={`hover:bg-muted/10 group ${fehler ? '' : 'border-b border-border/20'} ${markiert ? 'bg-primary/5' : ''}`}>
+    <tr data-anteile={Number(line.deferred_cents) > 0 || Number(line.in_kind_cents) > 0 ? `${Number(line.deferred_cents) > 0 ? 'rueckstellungen' : ''} ${Number(line.in_kind_cents) > 0 ? 'beistellungen' : ''}` : undefined}
+      className={`hover:bg-muted/10 group ${fehler ? '' : 'border-b border-border/20'} ${markiert ? 'bg-primary/5' : ''} ${hervor ? 'outline outline-2 outline-primary/60 -outline-offset-2' : ''}`}>
       {darf && (
         <td className="py-1.5 pl-3 w-6">
           <Checkbox checked={markiert} onCheckedChange={v => onMarkieren(v === true)} aria-label={tt(Z.markieren).replace('{name}', line.description || line.account_code || '')} />
@@ -228,6 +297,7 @@ function BudgetLineRow({ line, onDelete, darf, ffa = false, markiert, onMarkiere
           niemand für den gespeicherten Stand hält. */}
       <td className={`py-1.5 px-2 w-28 text-right font-mono text-sm font-medium ${fehler ? 'line-through text-muted-foreground' : ''}`}>
         {formatCurrency(total)}
+        <AnteileFeld line={line} darf={darf} summe={total} speichern={anteileSpeichern} />
       </td>
       <td className="py-1.5 px-1 w-24">
         <ZeitraumFeld line={line} darf={darf} speichern={zeitraumSpeichern} />
@@ -437,13 +507,14 @@ function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: num
           <SelectContent>{STAENDE.map(s => <SelectItem key={s} value={s} className="text-xs">{tt(STAND_TEXT[s])}</SelectItem>)}</SelectContent>
         </Select>
       </td>
-      <td className="py-2 pr-3 w-14">
+      <td className="py-2 pr-3 w-20">
         <div className="flex items-center gap-1">
           <button onClick={() => setAuf(!auf)} aria-expanded={auf} aria-label={tt(F.details).replace('{name}', form.source || '')}
             className="text-muted-foreground hover:text-primary inline-flex items-center gap-0.5 text-[10px]">
             <ChevronRight className={`w-3.5 h-3.5 transition-transform ${auf ? 'rotate-90' : ''}`} />
             {(form.raten ?? []).length > 0 && <span>{form.raten.length}</span>}
           </button>
+          {form.recoupment_rank && <span className="text-[10px] text-muted-foreground whitespace-nowrap" title={form.recoupment_terms || tt(F.rang)}>{tt(F.rangKurz).replace('{n}', String(form.recoupment_rank))}</span>}
           {darf && <button onClick={onDelete} aria-label={tt(T.finPostenLoeschen)} title={tt(T.postenLoeschen)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
             <Trash2 className="w-3.5 h-3.5" />
           </button>}
@@ -467,6 +538,16 @@ function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: num
             </label>
             <label className="space-y-1 flex-1 min-w-[10rem]"><span className="block text-muted-foreground">{tt(F.aktenzeichen)}</span>
               <Input value={form.reference || ''} disabled={!darf} onChange={e => update('reference', e.target.value)} className="h-7 text-xs" />
+            </label>
+          </div>
+          {/* Rückflussrang (AP E4): nur eine Angabe, gerechnet wird damit nicht */}
+          <div className="flex flex-wrap items-end gap-3 text-xs">
+            <label className="space-y-1"><span className="block text-muted-foreground">{tt(F.rang)}</span>
+              <Input type="number" min={1} step={1} value={form.recoupment_rank ?? ''} disabled={!darf}
+                onChange={e => update('recoupment_rank', e.target.value === '' ? null : Number(e.target.value))} className="h-7 text-xs w-24" />
+            </label>
+            <label className="space-y-1 flex-1 min-w-[12rem]"><span className="block text-muted-foreground">{tt(F.rangBedingungen)}</span>
+              <Input value={form.recoupment_terms || ''} disabled={!darf} onChange={e => update('recoupment_terms', e.target.value)} className="h-7 text-xs" />
             </label>
           </div>
           <div>
@@ -519,6 +600,15 @@ function BudgetSeite() {
   const [neueFassungOffen, setNeueFassungOffen] = useState(false)
   const [umstellenOffen, setUmstellenOffen] = useState(false)
   const [vergleichOffen, setVergleichOffen] = useState(false)
+  // Reiter gesteuert: Der Finanzierungsplan springt zu den Zeilen (AP E4)
+  const [reiter, setReiter] = useState('kalkulation')
+  const [hervor, setHervor] = useState<string | null>(null)
+  const zuDenZeilen = (art: string) => {
+    setReiter('kalkulation')
+    setHervor(art)
+    setTimeout(() => document.querySelector(`tr[data-anteile~="${art}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 150)
+    setTimeout(() => setHervor(null), 4000)
+  }
   // Markierte Zeilen für "Zeitraum: Drehzeit" (AP E2); gelten je Fassung
   const [markiert, setMarkiert] = useState<Set<number>>(new Set())
   useEffect(() => setMarkiert(new Set()), [selectedVersionId])
@@ -687,7 +777,9 @@ function BudgetSeite() {
   // Kostenart 3 enthält die Zusatzkosten Gagen - die Summen kommen vom Server
   if (ffa) for (const a of auswertung?.arten ?? []) catTotals[`k${a.nr}`] = a.summe_cent
 
-  const finTotal = (finEntries || []).reduce((sum: number, e: any) => sum + (e.amount_cents || 0), 0)
+  // Rückstellungen und Beistellungen der Kalkulation zählen mit (AP E4)
+  const ausKalk: any[] = finStand?.aus_kalkulation ?? []
+  const finTotal = [...(finEntries || []), ...ausKalk].reduce((sum: number, e: any) => sum + (Number(e.amount_cents) || 0), 0)
 
   // Positionen landen im Papierkorb (papierkorbWaechter, `budget-lines`) und
   // gehen ohne Rückfrage. Finanzierungsposten löscht der Server endgültig.
@@ -756,7 +848,7 @@ function BudgetSeite() {
         </div>
       )}
 
-      <Tabs defaultValue="kalkulation">
+      <Tabs value={reiter} onValueChange={setReiter}>
         <TabsList data-einfuehrung="reiter">
           <TabsTrigger value="kalkulation" data-einfuehrung="reiter-kalkulation" className="gap-2"><List className="w-4 h-4" />{tt(T.kalkulation)}</TabsTrigger>
           <TabsTrigger value="finanzierung" data-einfuehrung="reiter-finanzierung" className="gap-2"><PieChart className="w-4 h-4" />{tt(T.finanzierungsplan)}</TabsTrigger>
@@ -908,7 +1000,8 @@ function BudgetSeite() {
                         </tr>
                         {(grouped[cat] || []).map((line: any) => (
                           <BudgetLineRow key={line.id} line={line} darf={darf} ffa={ffa} onDelete={() => positionLoeschen(line)}
-                            markiert={markiert.has(line.id)} onMarkieren={an => markieren([line.id], an)} />
+                            markiert={markiert.has(line.id)} onMarkieren={an => markieren([line.id], an)}
+                            hervor={hervor === 'rueckstellungen' ? Number(line.deferred_cents) > 0 : hervor === 'beistellungen' ? Number(line.in_kind_cents) > 0 : false} />
                         ))}
                         {ffa && cat === 'k3' && auswertung?.zusatzkosten_gagen_cent != null && (
                           <tr className="border-b border-border/20 text-muted-foreground">
@@ -1020,18 +1113,32 @@ function BudgetSeite() {
                     <th className="text-right py-2 px-2 w-36">{tt(T.betrag)}</th>
                     <th className="text-right py-2 px-2 w-16">{tt(T.anteil)}</th>
                     <th className="text-left py-2 px-2 w-32">{tt(F.stand)}</th>
-                    <th className="w-14" />
+                    <th className="w-20" />
                   </tr>
                 </thead>
                 <tbody>
                   {(finEntries || []).map((e: any) => (
                     <FinancingRow key={e.id} entry={e} total={finTotal} darf={darf} onDelete={() => postenLoeschen(e)} />
                   ))}
-                  {(!finEntries || finEntries.length === 0) && (
+                  {/* Rechnen sich aus der Kalkulation (AP E4) - hier nicht änderbar */}
+                  {ausKalk.map((z: any) => (
+                    <tr key={z.art} data-einfuehrung="aus-kalkulation" className="border-b border-border/20 bg-muted/10" title={tt(F.selbstGerechnet)}>
+                      <td className="py-2 pl-4 pr-2 text-sm">
+                        {tt(z.art === 'rueckstellungen' ? F.rueckstellungen : F.beistellungen)}
+                        <button type="button" onClick={() => zuDenZeilen(z.art)} className="ml-2 text-xs text-primary underline underline-offset-2">{tt(F.zuDenZeilen)}</button>
+                      </td>
+                      <td className="py-2 px-2 text-xs text-muted-foreground">{tt(F.ausDerKalkulation)}</td>
+                      <td className="py-2 px-2 text-right text-sm font-mono">{formatCurrency(z.amount_cents)}</td>
+                      <td className="py-2 px-2 text-right text-sm text-muted-foreground font-mono">{finTotal > 0 ? (z.amount_cents / finTotal * 100).toFixed(1) : '0'}%</td>
+                      <td className="py-2 px-2 text-xs text-green-700 dark:text-green-400">{tt(STAND_TEXT.zugesagt)}</td>
+                      <td />
+                    </tr>
+                  ))}
+                  {(!finEntries || finEntries.length === 0) && ausKalk.length === 0 && (
                     <tr><td colSpan={6} className="py-8 text-center text-muted-foreground text-sm">{tt(T.keineEintraege)}</td></tr>
                   )}
                 </tbody>
-                {finEntries && finEntries.length > 0 && (
+                {((finEntries?.length ?? 0) > 0 || ausKalk.length > 0) && (
                   <tfoot className="bg-muted/30">
                     <tr>
                       <td colSpan={2} className="py-2 pl-4 text-sm font-semibold">{tt(T.gesamt)}</td>

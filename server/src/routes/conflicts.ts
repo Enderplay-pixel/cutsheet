@@ -7,7 +7,7 @@ import { ruhezeit } from '../lib/drehzeit'
 import { istIsoDatum } from '../lib/datum'
 import { sperrtagKonflikte } from '../lib/sperrtage'
 import { ohneGagen } from '../lib/gagenschutz'
-import { massgeblicheKalkulation, massgeblicherFinanzierungsplan, finanzierungsstand } from '../lib/kalkulation'
+import { massgeblicheKalkulation, massgeblicherFinanzierungsplan, finanzierungsstand, ausKalkulation } from '../lib/kalkulation'
 import { KEIN_DREHTAG_SQL } from '../lib/drehtage'
 
 const router = Router()
@@ -161,8 +161,10 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
     const kalkulation = await massgeblicheKalkulation(pid)
     const budget = kalkulation ? { t: kalkulation.total_cents } : null
     const plan = await massgeblicherFinanzierungsplan(pid)
-    const financing = { t: plan?.total_cents ?? 0 }
-    const gap = finanzierungsstand(plan ? [{ id: plan.id, amount_cents: plan.total_cents, status: 'geplant' }] : [], [], budget?.t || 0, '').luecke_cents
+    // Rückstellungen und Beistellungen der Kalkulation finanzieren mit (AP E4)
+    const aus = await ausKalkulation(pid)
+    const financing = { t: (plan?.total_cents ?? 0) + aus.rueckstellungen_cents + aus.beistellungen_cents }
+    const gap = finanzierungsstand([{ id: plan?.id ?? 0, amount_cents: financing.t, status: 'geplant' }], [], budget?.t || 0, '').luecke_cents
     if (gap > 5000) { // >50€ gap
       conflicts.push({
         severity: 'warning', category: 'Budget',

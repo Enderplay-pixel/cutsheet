@@ -4,7 +4,7 @@ import { drehtageBesetzung, drehtageStab, anzahl, KEIN_DREHTAG_SQL } from '../li
 import { ladeDood } from '../lib/dood'
 import { db, TxClient } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
-import { massgeblicheKalkulation, finanzierungsstand, istFinanzStatus, istZugesagt, fassungenVergleichen, VERGLEICH_ART } from '../lib/kalkulation'
+import { massgeblicheKalkulation, finanzierungsstand, istFinanzStatus, istZugesagt, fassungenVergleichen, VERGLEICH_ART, ausKalkulation, zeilenAusKalkulation } from '../lib/kalkulation'
 import { heuteISO } from '../lib/datum'
 import { pruefeBudgetzeile, pruefeGeldgeberBetrag, GELD_MAX_CENT } from '../lib/geld'
 import { auswertung, istKostenart, SCHEMATA, VORGABE, type Schema } from '../lib/ffaSchema'
@@ -263,8 +263,8 @@ router.post('/budget-versions/:id/kopie', async (req, res) => {
       [alt.project_id, name, alt.schema, alt.hu_percent_bp, alt.hu_percent_above_bp, alt.hu_threshold_cents, alt.hu_cap_cents,
         alt.reserve_percent_bp, alt.producer_fee_percent_bp, alt.producer_fee_cap_cents, alt.social_percent_bp])
     await tx.run(
-      `INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, source_key, cost_group, social, spend_from, spend_until)
-       SELECT ?, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, source_key, cost_group, social, spend_from, spend_until
+      `INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, source_key, cost_group, social, spend_from, spend_until, deferred_cents, in_kind_cents)
+       SELECT ?, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, source_key, cost_group, social, spend_from, spend_until, deferred_cents, in_kind_cents
          FROM budget_lines WHERE budget_version_id = ?`, [v.id, alt.id])
     await recalcBudgetTotal(v.id, tx)
     return tx.get('SELECT * FROM budget_versions WHERE id = ?', [v.id])
@@ -367,14 +367,16 @@ router.put('/budget-lines/:id', async (req, res) => {
   const zeile = pruefeBudgetzeile(quantity, unit_price_cents)
   if ('fehler' in zeile) return res.status(400).json({ data: null, error: zeile.fehler })
   // Kostenart und Sozialversicherung (AP B1): ohne Angabe bleibt, was war
-  const alt = await db.get('SELECT cost_group, social, spend_from, spend_until FROM budget_lines WHERE id = ?', [req.params.id]) as any
+  const alt = await db.get('SELECT cost_group, social, spend_from, spend_until, deferred_cents, in_kind_cents FROM budget_lines WHERE id = ?', [req.params.id]) as any
   const kostenart = req.body?.cost_group === undefined ? (alt?.cost_group ?? null) : kostenartAus(req.body.cost_group)
   if (kostenart === undefined) return res.status(400).json({ data: null, error: 'Unbekannte Kostenart' })
   const social = req.body?.social === undefined ? alt?.social === true : req.body.social === true
   const zeitraum = zeitraumAngaben(req.body, alt)
   if ('fehler' in zeitraum) return res.status(400).json({ data: null, error: zeitraum.fehler })
+  const anteile = anteileAngaben(req.body, alt, zeile.total_cents)
+  if ('fehler' in anteile) return res.status(400).json({ data: null, error: anteile.fehler })
   const line = await db.transaction(async (tx) => {
-    await tx.run('UPDATE budget_lines SET category=?, account_code=?, description=?, unit=?, quantity=?, unit_price_cents=?, total_cents=?, notes=?, cost_group=?, social=?, spend_from=?, spend_until=? WHERE id=?', [category, account_code, description, unit, zeile.quantity, zeile.unit_price_cents, zeile.total_cents, notes, kostenart, social, zeitraum.von, zeitraum.bis, req.params.id])
+    await tx.run('UPDATE budget_lines SET category=?, account_code=?, description=?, unit=?, quantity=?, unit_price_cents=?, total_cents=?, notes=?, cost_group=?, social=?, spend_from=?, spend_until=?, deferred_cents=?, in_kind_cents=? WHERE id=?', [category, account_code, description, unit, zeile.quantity, zeile.unit_price_cents, zeile.total_cents, notes, kostenart, social, zeitraum.von, zeitraum.bis, anteile.zurueck, anteile.bei, req.params.id])
     const zeileNeu = await tx.get('SELECT * FROM budget_lines WHERE id = ?', [req.params.id]) as any
     if (zeileNeu) await recalcBudgetTotal(zeileNeu.budget_version_id, tx)
     return zeileNeu
@@ -398,6 +400,25 @@ function zeitraumAngaben(body: any, vorher: any): { von: string | null; bis: str
   if ((von === null) !== (bis === null)) return { fehler: 'Ein Zeitraum braucht Anfang und Ende' }
   if (von !== null && bis !== null && bis < von) return { fehler: 'Das Ende des Zeitraums liegt vor dem Anfang' }
   return { von, bis }
+}
+
+/**
+ * Zurückgestellt und beigestellt einer Budgetzeile (AP E4): ganze Cent, nicht
+ * negativ, zusammen höchstens die Zeilensumme. Was nicht mitkommt, bleibt -
+ * es muss dann aber noch in die neue Zeilensumme passen.
+ */
+function anteileAngaben(body: any, vorher: any, summe: number): { zurueck: number; bei: number } | { fehler: string } {
+  const feld = (w: unknown, alt: unknown): number | undefined => {
+    if (w === undefined) return Number(alt) || 0
+    if (w === null || w === '') return 0
+    const n = Number(w)
+    return Number.isInteger(n) && n >= 0 && n <= GELD_MAX_CENT ? n : undefined
+  }
+  const zurueck = feld(body?.deferred_cents, vorher?.deferred_cents)
+  const bei = feld(body?.in_kind_cents, vorher?.in_kind_cents)
+  if (zurueck === undefined || bei === undefined) return { fehler: 'Zurückgestellt und beigestellt sind Beträge ab 0' }
+  if (zurueck + bei > Math.max(0, summe)) return { fehler: 'Zurückgestellt und beigestellt zusammen höchstens die Zeilensumme' }
+  return { zurueck, bei }
 }
 
 /**
@@ -597,10 +618,16 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
     }
     for (const g of plan.geaendert) {
       await tx.run(
+        // Rückstellung und Beistellung (AP E4) passen weiter in die Zeile:
+        // erst die Rückstellung kürzen, dann die Beistellung
         `UPDATE budget_lines SET category = ?, description = ?, unit = ?, quantity = ?,
-         unit_price_cents = ?, total_cents = ?, cost_group = ? WHERE id = ?`,
+         unit_price_cents = ?, total_cents = ?, cost_group = ?,
+         deferred_cents = LEAST(deferred_cents, GREATEST(?::bigint, 0)),
+         in_kind_cents = LEAST(in_kind_cents, GREATEST(?::bigint - LEAST(deferred_cents, GREATEST(?::bigint, 0)), 0))
+         WHERE id = ?`,
         [g.posten.kategorie, g.posten.beschreibung, g.posten.einheit, g.posten.menge,
-         g.posten.einzelpreis_cent, g.posten.gesamt_cent, g.posten.kostenart, g.id])
+         g.posten.einzelpreis_cent, g.posten.gesamt_cent, g.posten.kostenart,
+         g.posten.gesamt_cent, g.posten.gesamt_cent, g.posten.gesamt_cent, g.id])
     }
     for (const id of plan.entfallen) {
       await tx.run('DELETE FROM budget_lines WHERE id = ?', [id])
@@ -674,11 +701,20 @@ router.get('/financing-versions/:id/stand', requireMemberVia(projectIdFromTable(
   const entries = await db.all('SELECT id, amount_cents, status FROM financing_entries WHERE financing_version_id = ?', [req.params.id]) as any[]
   const raten = entries.length ? await db.all('SELECT * FROM financing_installments WHERE entry_id = ANY(?::int[])', [entries.map((e) => e.id)]) as any[] : []
   const kalkulation = await massgeblicheKalkulation(version.project_id)
-  res.json({ data: { ...finanzierungsstand(entries, raten, kalkulation?.total_cents ?? 0, heuteISO()), kalkulation: kalkulation ? { id: kalkulation.id, name: kalkulation.name } : null }, error: null })
+  // Rückstellungen und Beistellungen der Kalkulation zählen als zugesagt (AP E4)
+  const aus = zeilenAusKalkulation(await ausKalkulation(version.project_id))
+  res.json({
+    data: {
+      ...finanzierungsstand([...entries, ...aus], raten, kalkulation?.total_cents ?? 0, heuteISO()),
+      kalkulation: kalkulation ? { id: kalkulation.id, name: kalkulation.name } : null,
+      aus_kalkulation: aus.map((z) => ({ art: z.art, source: z.source, amount_cents: z.amount_cents })),
+    },
+    error: null,
+  })
 })
 
 /** Status und Angaben eines Geldgebers aus der Anfrage (AP B2); undefined heißt: bleibt. */
-function geldgeberAngaben(body: any, vorher: any): { werte: { status: string; applied_on: string | null; granted_on: string | null; reference: string } } | { fehler: string } {
+function geldgeberAngaben(body: any, vorher: any): { werte: { status: string; applied_on: string | null; granted_on: string | null; reference: string; recoupment_rank: number | null; recoupment_terms: string } } | { fehler: string } {
   let status = vorher?.status ?? 'geplant'
   if (body?.status !== undefined) {
     if (!istFinanzStatus(body.status)) return { fehler: 'Unbekannter Stand' }
@@ -696,7 +732,18 @@ function geldgeberAngaben(body: any, vorher: any): { werte: { status: string; ap
   const granted_on = datum(body?.granted_on, vorher?.granted_on)
   if (applied_on === undefined || granted_on === undefined) return { fehler: 'Ein Datum hat die Form JJJJ-MM-TT' }
   const reference = body?.reference === undefined ? String(vorher?.reference ?? '') : String(body.reference ?? '').trim()
-  return { werte: { status, applied_on, granted_on, reference } }
+  // Rückflussrang (AP E4): eine Angabe, gerechnet wird damit nicht
+  let recoupment_rank: number | null = vorher?.recoupment_rank ?? null
+  if (body?.recoupment_rank !== undefined) {
+    if (body.recoupment_rank === null || body.recoupment_rank === '') recoupment_rank = null
+    else {
+      const n = Number(body.recoupment_rank)
+      if (!Number.isInteger(n) || n < 1 || n > 999) return { fehler: 'Der Rückflussrang ist eine ganze Zahl von 1 bis 999' }
+      recoupment_rank = n
+    }
+  }
+  const recoupment_terms = body?.recoupment_terms === undefined ? String(vorher?.recoupment_terms ?? '') : String(body.recoupment_terms ?? '').trim()
+  return { werte: { status, applied_on, granted_on, reference, recoupment_rank, recoupment_terms } }
 }
 
 // POST /api/financing-versions/:id/entries
@@ -711,7 +758,7 @@ router.post('/financing-versions/:id/entries', async (req, res) => {
   const id = await db.transaction(async (tx) => {
     const maxSortRow = await tx.get('SELECT COALESCE(MAX(sort_order), 0) as m FROM financing_entries WHERE financing_version_id = ?', [req.params.id])
     const maxSort = (maxSortRow as any).m
-    const result = await tx.run('INSERT INTO financing_entries (financing_version_id, source, type, amount_cents, confirmed, notes, sort_order, status, applied_on, granted_on, reference) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.params.id, source, type, betrag.amount_cents, istZugesagt(a.status) ? 1 : 0, notes, maxSort + 1, a.status, a.applied_on, a.granted_on, a.reference])
+    const result = await tx.run('INSERT INTO financing_entries (financing_version_id, source, type, amount_cents, confirmed, notes, sort_order, status, applied_on, granted_on, reference, recoupment_rank, recoupment_terms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.params.id, source, type, betrag.amount_cents, istZugesagt(a.status) ? 1 : 0, notes, maxSort + 1, a.status, a.applied_on, a.granted_on, a.reference, a.recoupment_rank, a.recoupment_terms])
     await recalcFinancingTotal(parseInt(req.params.id), tx)
     return result.id
   })
@@ -734,7 +781,7 @@ router.put('/financing-entries/:id', async (req, res) => {
   if ('fehler' in angaben) return res.status(400).json({ data: null, error: angaben.fehler })
   const a = angaben.werte
   const entry = await db.transaction(async (tx) => {
-    await tx.run('UPDATE financing_entries SET source=?, type=?, amount_cents=?, confirmed=?, notes=?, status=?, applied_on=?, granted_on=?, reference=? WHERE id=?', [source, type, betrag.amount_cents, istZugesagt(a.status) ? 1 : 0, notes, a.status, a.applied_on, a.granted_on, a.reference, req.params.id])
+    await tx.run('UPDATE financing_entries SET source=?, type=?, amount_cents=?, confirmed=?, notes=?, status=?, applied_on=?, granted_on=?, reference=?, recoupment_rank=?, recoupment_terms=? WHERE id=?', [source, type, betrag.amount_cents, istZugesagt(a.status) ? 1 : 0, notes, a.status, a.applied_on, a.granted_on, a.reference, a.recoupment_rank, a.recoupment_terms, req.params.id])
     const eintrag = await tx.get('SELECT * FROM financing_entries WHERE id = ?', [req.params.id]) as any
     await recalcFinancingTotal(eintrag.financing_version_id, tx)
     return eintrag

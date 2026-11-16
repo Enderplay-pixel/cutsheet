@@ -36,7 +36,7 @@ export const GELD_MAX_TEXT = '999.999.999,99 €'
  */
 export const GELDSPALTEN: Record<string, string[]> = {
   budget_versions: ['total_cents', 'hu_threshold_cents', 'hu_cap_cents', 'producer_fee_cap_cents'],
-  budget_lines: ['unit_price_cents', 'total_cents', 'forecast_rest_cents'],
+  budget_lines: ['unit_price_cents', 'total_cents', 'forecast_rest_cents', 'deferred_cents', 'in_kind_cents'],
   financing_plan_versions: ['total_cents'],
   financing_entries: ['amount_cents'],
   financing_installments: ['amount_cents'],

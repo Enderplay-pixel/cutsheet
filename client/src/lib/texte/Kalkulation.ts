@@ -112,4 +112,21 @@ export const kalkT = {
   nach: { de: 'Nach', en: 'Wrap', fr: 'Fin' },
   vorLang: { de: 'Vorbereitungstage', en: 'Preparation days', fr: 'Jours de préparation' },
   nachLang: { de: 'Abwicklungstage', en: 'Wrap days', fr: 'Jours de clôture' },
+  // Rückstellungen und Beistellungen (AP E4)
+  anteile: { de: 'Rückstellung und Beistellung von {name}', en: 'Deferral and in-kind of {name}', fr: 'Report et apport en nature de {name}' },
+  anteileKurz: { de: 'R/B', en: 'D/K', fr: 'R/A' },
+  anteileTitel: { de: 'Rückstellung oder Beistellung eintragen', en: 'Enter a deferral or in-kind contribution', fr: 'Saisir un report ou un apport en nature' },
+  zurueckgestellt: { de: 'davon zurückgestellt', en: 'of which deferred', fr: 'dont reporté' },
+  beigestellt: { de: 'davon beigestellt', en: 'of which in kind', fr: 'dont apport en nature' },
+  zurueckKurz: { de: 'Rückst. {betrag}', en: 'Def. {betrag}', fr: 'Rep. {betrag}' },
+  beiKurz: { de: 'Beist. {betrag}', en: 'In kind {betrag}', fr: 'Nature {betrag}' },
+  anteileHilfe: {
+    de: 'Zurückgestellt fließt erst aus Erlösen, beigestellt kommt als Sachleistung. Beides steht im Finanzierungsplan als zugesagt, im Kostenstand wird dafür kein Beleg erwartet, im Cashflow fließt dafür kein Geld. Zusammen höchstens die Zeilensumme.',
+    en: 'Deferred is paid only from revenues, in kind comes as a contribution in goods or services. Both count as committed in the financing plan; no receipt is expected for them in the cost status, and no money flows for them in the cash flow. Together at most the line total.',
+    fr: "Le report n'est payé que sur les recettes, l'apport en nature vient en biens ou services. Les deux comptent comme accordés dans le plan de financement ; aucun justificatif n'est attendu dans l'état des coûts, aucun argent ne circule dans la trésorerie. Ensemble au plus le total de la ligne.",
+  },
+  anteileZuViel: { de: 'Zusammen höchstens {summe}.', en: 'Together at most {summe}.', fr: 'Ensemble au plus {summe}.' },
+  anteileUnlesbar: { de: 'Betrag nicht lesbar.', en: 'Amount not readable.', fr: 'Montant illisible.' },
+  anteileSpeichern: { de: 'Speichern', en: 'Save', fr: 'Enregistrer' },
+  anteileHinweis: { de: '{betrag} ohne Beleg: zurückgestellt oder beigestellt, im Endstand enthalten', en: '{betrag} without receipt: deferred or in kind, included in the final total', fr: '{betrag} sans justificatif : reporté ou en nature, inclus dans le total final' },
 } satisfies Record<string, Text>

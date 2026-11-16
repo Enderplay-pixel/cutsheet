@@ -43,6 +43,36 @@ export async function massgeblicherFinanzierungsplan(projectId: number | string,
   return zeile ? { id: Number(zeile.id), total_cents: Number(zeile.total_cents) || 0 } : null
 }
 
+// ─── Rückstellungen und Beistellungen (AP E4) ───────────────────────────────
+
+/**
+ * Was die maßgebliche Kalkulation zurückstellt und beigestellt bekommt. Beides
+ * ist Kosten und Finanzierung zugleich: Der Finanzierungsplan zählt es als
+ * zugesagt, der Kostenstand erwartet dafür keinen Beleg, der Cashflow keine
+ * Auszahlung.
+ */
+export async function ausKalkulation(projectId: number | string, zugriff: Zugriff = db): Promise<{ rueckstellungen_cents: number; beistellungen_cents: number; kalkulation_id: number | null }> {
+  const k = await massgeblicheKalkulation(projectId, zugriff)
+  if (!k) return { rueckstellungen_cents: 0, beistellungen_cents: 0, kalkulation_id: null }
+  const s = (await zugriff.get(
+    'SELECT COALESCE(SUM(deferred_cents), 0) AS r, COALESCE(SUM(in_kind_cents), 0) AS b FROM budget_lines WHERE budget_version_id = ?', [k.id]
+  )) as any
+  return { rueckstellungen_cents: Number(s?.r) || 0, beistellungen_cents: Number(s?.b) || 0, kalkulation_id: k.id }
+}
+
+export const AUS_KALKULATION = {
+  rueckstellungen: 'Rückstellungen (aus der Kalkulation)',
+  beistellungen: 'Beistellungen (aus der Kalkulation)',
+} as const
+
+/** Die zwei Zeilen des Finanzierungsplans, die sich selbst rechnen; nur mit Betrag. */
+export function zeilenAusKalkulation(a: { rueckstellungen_cents: number; beistellungen_cents: number }) {
+  return ([
+    { art: 'rueckstellungen', id: -1, source: AUS_KALKULATION.rueckstellungen, amount_cents: a.rueckstellungen_cents, status: 'zugesagt' },
+    { art: 'beistellungen', id: -2, source: AUS_KALKULATION.beistellungen, amount_cents: a.beistellungen_cents, status: 'zugesagt' },
+  ] as const).filter((z) => z.amount_cents > 0)
+}
+
 export type Geldgeber = { id: number; amount_cents: unknown; status: unknown }
 export type Rate = { id?: number; entry_id: number; amount_cents: unknown; due_on?: unknown; received_on?: unknown }
 
@@ -95,17 +125,24 @@ export type StandZeile = {
   closed?: unknown
   forecast_set_by_name?: string | null
   forecast_set_at?: unknown
+  deferred_cents?: unknown
+  in_kind_cents?: unknown
 }
 export type StandBeleg = { budget_line_id?: unknown; gruppe: string; amount_cents: unknown }
 
-/** Kalkulation, Ist, noch zu erwarten, Endstand und die Abweichung des Endstands. */
-export function vierZahlen(soll: number, ist: number, rest: number) {
-  const endstand = ist + rest
+/**
+ * Kalkulation, Ist, noch zu erwarten, Endstand und die Abweichung des
+ * Endstands. Zurückgestellt und beigestellt (AP E4) sind Kosten ohne Beleg:
+ * Sie stehen im Endstand, aber nicht in "noch zu erwarten".
+ */
+export function vierZahlen(soll: number, ist: number, rest: number, ohneZahlung = 0) {
+  const endstand = ist + rest + ohneZahlung
   const abweichung = endstand - soll
   return {
     soll_cents: soll,
     ist_cents: ist,
     rest_cents: rest,
+    ohne_zahlung_cents: ohneZahlung,
     endstand_cents: endstand,
     abweichung_cents: abweichung,
     abweichung_prozent: soll !== 0 ? Math.round((abweichung / soll) * 1000) / 10 : null,
@@ -150,19 +187,24 @@ export function kostenstand(
       const ist = istJeZeile.get(Number(z.id)) ?? 0
       const abgeschlossen = z.closed === true
       const gesetzt = istGesetzt(z.forecast_rest_cents)
-      const rest = abgeschlossen ? 0 : gesetzt ? Math.max(0, zahlOder0(z.forecast_rest_cents)) : Math.max(0, soll - ist)
+      // Zurückgestellt und beigestellt kommt nicht als Beleg (AP E4)
+      const zurueck = Math.max(0, zahlOder0(z.deferred_cents))
+      const bei = Math.max(0, zahlOder0(z.in_kind_cents))
+      const rest = abgeschlossen ? 0 : gesetzt ? Math.max(0, zahlOder0(z.forecast_rest_cents)) : Math.max(0, soll - zurueck - bei - ist)
       return {
-        id: Number(z.id), description: String(z.description ?? ''), ...vierZahlen(soll, ist, rest),
+        id: Number(z.id), description: String(z.description ?? ''), ...vierZahlen(soll, ist, rest, zurueck + bei),
+        zurueckgestellt_cents: zurueck, beigestellt_cents: bei,
         abgeschlossen, rest_gesetzt: gesetzt && !abgeschlossen,
         gesetzt_von: z.forecast_set_by_name ?? null, gesetzt_am: z.forecast_set_at ?? null,
       }
     })
     // Zusatzkosten Gagen (AP B1): gerechnet, nicht ausgegeben - der Rest ist der ganze Betrag
-    if (g.zusatz) eigene.push({ id: 0, description: g.zusatz.description, ...vierZahlen(g.zusatz.cents, 0, g.zusatz.cents), abgeschlossen: false, rest_gesetzt: false, gesetzt_von: null, gesetzt_am: null })
+    const ohneAnteile = { zurueckgestellt_cents: 0, beigestellt_cents: 0, abgeschlossen: false, rest_gesetzt: false, gesetzt_von: null, gesetzt_am: null }
+    if (g.zusatz) eigene.push({ id: 0, description: g.zusatz.description, ...vierZahlen(g.zusatz.cents, 0, g.zusatz.cents), ...ohneAnteile })
     const lose = ohneZeile.get(g.gruppe) ?? 0
-    if (lose !== 0) eigene.push({ id: 0, description: 'Belege ohne Zeile', ...vierZahlen(0, lose, 0), abgeschlossen: false, rest_gesetzt: false, gesetzt_von: null, gesetzt_am: null })
-    const summe = (k: 'soll_cents' | 'ist_cents' | 'rest_cents') => eigene.reduce((s, z) => s + z[k], 0)
-    return { gruppe: g.gruppe, ...vierZahlen(summe('soll_cents'), summe('ist_cents'), summe('rest_cents')), zeilen: eigene }
+    if (lose !== 0) eigene.push({ id: 0, description: 'Belege ohne Zeile', ...vierZahlen(0, lose, 0), ...ohneAnteile })
+    const summe = (k: 'soll_cents' | 'ist_cents' | 'rest_cents' | 'ohne_zahlung_cents') => eigene.reduce((s, z) => s + z[k], 0)
+    return { gruppe: g.gruppe, ...vierZahlen(summe('soll_cents'), summe('ist_cents'), summe('rest_cents'), summe('ohne_zahlung_cents')), zeilen: eigene }
   })
 }
 

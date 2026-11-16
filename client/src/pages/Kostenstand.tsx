@@ -327,7 +327,13 @@ function KostenstandSeite() {
                       </tr>
                       {auf && (r.zeilen ?? []).map((z: any, i: number) => (
                         <tr key={`${r.category}-${z.id}-${i}`} className="text-muted-foreground text-[13px] align-top">
-                          <td className="pl-8">{z.description || '-'}</td>
+                          <td className="pl-8">
+                            {z.description || '-'}
+                            {/* Rückstellung und Beistellung (AP E4): kein Beleg, aber im Endstand */}
+                            {(z.zurueckgestellt_cents > 0 || z.beigestellt_cents > 0) && (
+                              <span className="block text-[11px] text-primary">{tt(K.anteileHinweis).replace('{betrag}', formatCurrency((z.zurueckgestellt_cents ?? 0) + (z.beigestellt_cents ?? 0)))}</span>
+                            )}
+                          </td>
                           <td className="text-right tabular-nums">{formatCurrency(z.soll_cents)}</td>
                           <td className="text-right tabular-nums">{formatCurrency(z.ist_cents)}</td>
                           <td className="text-right">

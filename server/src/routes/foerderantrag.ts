@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express'
 import { db } from '../db'
 import { generatePdf } from './pdf'
 import { kalkulationsAufbau } from '../lib/kalkulationsAufbau'
+import { ausKalkulation, zeilenAusKalkulation } from '../lib/kalkulation'
 import {
   renderDocument, table, stats, section, definitions, badge, fmtMoney, fmtDate,
 } from '../lib/documentLayout'
@@ -34,7 +35,13 @@ router.get('/projects/:pid/foerderantrag/export', async (req: Request, res: Resp
   // Financing
   const finVersions = await db.all('SELECT * FROM financing_plan_versions WHERE project_id = ? ORDER BY created_at DESC LIMIT 1', [pid]) as any[]
   const finVersion = finVersions[0]
-  const finEntries = finVersion ? await db.all('SELECT * FROM financing_entries WHERE financing_version_id = ? ORDER BY sort_order ASC', [finVersion.id]) as any[] : []
+  const eigene = finVersion ? await db.all('SELECT * FROM financing_entries WHERE financing_version_id = ? ORDER BY sort_order ASC', [finVersion.id]) as any[] : []
+  // Rückstellungen und Beistellungen der Kalkulation stehen im Plan und gelten als zugesagt (AP E4)
+  const finEntries = [
+    ...eigene,
+    ...zeilenAusKalkulation(await ausKalkulation(pid)).map((z) => ({ source: z.source, type: 'aus der Kalkulation', amount_cents: z.amount_cents, confirmed: true, recoupment_rank: null, recoupment_terms: '' })),
+  ]
+  const finSumme = finEntries.reduce((s: number, e: any) => s + (Number(e.amount_cents) || 0), 0)
 
   // Schlüsselpositionen: die Leitung der Gewerke, keine Assistenzen.
   // Gemessen am 25.10.2026: Vorher zählte jede Rolle aus Regie und
@@ -95,8 +102,11 @@ router.get('/projects/:pid/foerderantrag/export', async (req: Request, res: Resp
       schema: aufbau?.schema ?? null,
     },
     financing: {
-      total_eur: finVersion ? (finVersion.total_cents / 100).toFixed(2) : '0.00',
-      entries: finEntries.map((e: any) => ({ source: e.source, type: e.type, amount_eur: (e.amount_cents / 100).toFixed(2), confirmed: !!e.confirmed })),
+      total_eur: (finSumme / 100).toFixed(2),
+      entries: finEntries.map((e: any) => ({
+        source: e.source, type: e.type, amount_eur: (e.amount_cents / 100).toFixed(2), confirmed: !!e.confirmed,
+        recoupment_rank: e.recoupment_rank ?? null, recoupment_terms: e.recoupment_terms ?? '',
+      })),
     },
     regional_impact: {
       cities: locationsByCity,
@@ -107,7 +117,7 @@ router.get('/projects/:pid/foerderantrag/export', async (req: Request, res: Resp
 
   if (format === 'pdf') {
     const budgetTotal = budgetVersion?.total_cents ?? null
-    const finTotal = finVersion?.total_cents ?? null
+    const finTotal = finVersion || finEntries.length ? finSumme : null
     // Finanzierungsluecke: die erste Frage jeder Foerderjury
     const gap = budgetTotal !== null && finTotal !== null ? budgetTotal - finTotal : null
     const confirmed = finEntries
@@ -187,7 +197,9 @@ router.get('/projects/:pid/foerderantrag/export', async (req: Request, res: Resp
         section('Finanzierungsplan', table({
           columns: [
             { header: 'Geldgeber', value: (r: any) => r.source },
-            { header: 'Art', value: (r: any) => r.type, width: '20%' },
+            { header: 'Art', value: (r: any) => r.type, width: '18%' },
+            // Rückflussrang (AP E4): Rang und Bedingungen, nur als Angabe
+            { header: 'Rückfluss', value: (r: any) => (r.recoupment_rank ? `Rang ${r.recoupment_rank}${r.recoupment_terms ? `: ${r.recoupment_terms}` : ''}` : (r.recoupment_terms || '-')), width: '18%' },
             { header: 'Status', value: (r: any) => (r.confirmed ? badge('Bestätigt', 'ok') : badge('Offen', 'warn')), html: true, align: 'center', width: '16%' },
             { header: 'Betrag', value: (r: any) => fmtMoney(r.amount_cents), align: 'right', width: '22%' },
           ],

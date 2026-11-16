@@ -42,4 +42,13 @@ export const finT = {
     fr: 'Les échéances totalisent {summe} - plus que le montant du financeur ({betrag}).',
   },
   keineRaten: { de: 'Noch keine Raten.', en: 'No installments yet.', fr: 'Pas encore d’échéances.' },
+  // Rückstellungen, Beistellungen, Rückflussrang (AP E4)
+  ausDerKalkulation: { de: 'aus der Kalkulation', en: 'from the budget', fr: 'du budget' },
+  rueckstellungen: { de: 'Rückstellungen (aus der Kalkulation)', en: 'Deferrals (from the budget)', fr: 'Reports (du budget)' },
+  beistellungen: { de: 'Beistellungen (aus der Kalkulation)', en: 'In-kind contributions (from the budget)', fr: 'Apports en nature (du budget)' },
+  zuDenZeilen: { de: 'Zu den Zeilen', en: 'To the lines', fr: 'Vers les lignes' },
+  selbstGerechnet: { de: 'Rechnet sich aus den Zeilen der Kalkulation und gilt als zugesagt - ändern lässt es sich dort.', en: 'Calculated from the budget lines and counts as committed - change it there.', fr: 'Calculé à partir des lignes du budget et compté comme accordé - à modifier là-bas.' },
+  rang: { de: 'Rückflussrang', en: 'Recoupment rank', fr: 'Rang de remboursement' },
+  rangKurz: { de: 'Rang {n}', en: 'Rank {n}', fr: 'Rang {n}' },
+  rangBedingungen: { de: 'Bedingungen des Rückflusses', en: 'Recoupment terms', fr: 'Conditions de remboursement' },
 } satisfies Record<string, Text>

@@ -14,6 +14,16 @@ describe('kostenstand', () => {
     expect(g.zeilen[1]).toMatchObject({ rest_cents: 0, endstand_cents: 1_500_000, abweichung_cents: 500_000, abweichung_prozent: 50, ueber: true })
   })
 
+  it('zurückgestellt und beigestellt (AP E4): kein Beleg erwartet, im Endstand enthalten', () => {
+    const [g] = kostenstand([zeile(1, 5_000_000, { deferred_cents: 2_000_000 }), zeile(2, 1_000_000, { in_kind_cents: 400_000 })], [
+      { budget_line_id: 2, gruppe: '5', amount_cents: 700_000 },
+    ], [{ gruppe: '5' }])
+    expect(g.zeilen[0]).toMatchObject({ rest_cents: 3_000_000, zurueckgestellt_cents: 2_000_000, endstand_cents: 5_000_000, abweichung_cents: 0 })
+    // 10.000 € kalkuliert, 4.000 € beigestellt, 7.000 € Ist: nichts mehr zu erwarten, 1.000 € drüber
+    expect(g.zeilen[1]).toMatchObject({ rest_cents: 0, beigestellt_cents: 400_000, endstand_cents: 1_100_000, abweichung_cents: 100_000, ueber: true })
+    expect(g).toMatchObject({ rest_cents: 3_000_000, ohne_zahlung_cents: 2_400_000, endstand_cents: 6_100_000 })
+  })
+
   it('überschriebener Rest gilt und trägt, wer ihn gesetzt hat; eine abgeschlossene Zeile erwartet nichts mehr', () => {
     const [g] = kostenstand([
       zeile(1, 10_000_000, { forecast_rest_cents: 5_500_000, forecast_set_by_name: 'Inhaberin', forecast_set_at: '2026-11-16' }),

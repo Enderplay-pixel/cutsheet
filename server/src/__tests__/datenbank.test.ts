@@ -182,6 +182,11 @@ beforeAll(async () => {
   const { default: kalenderRouter } = await import('../routes/calendar')
   const { default: besetzungRouter } = await import('../routes/characters')
   app.use('/api', optionalAuth, doodRouter, kalenderRouter, besetzungRouter)
+  // Förderantrag und Projektübersicht rechnen die Finanzierung mit (AP E4)
+  const { default: foerderRouter } = await import('../routes/foerderantrag')
+  app.use('/api', optionalAuth, foerderRouter)
+  const { default: projekteRouter } = await import('../routes/projects')
+  app.use('/api/projects', optionalAuth, projekteRouter)
   const { uebersetzeDatenbankfehler } = await import('../middleware/eingabe')
   app.use(uebersetzeDatenbankfehler)
   await new Promise<void>((aufloesen) => {
@@ -4383,6 +4388,93 @@ describe('Cashflowplan (AP E2)', () => {
     const ohneDreh = await sende(`/api/budget-versions/${k.id}/zeitraum`, { ids: [z.id], phase: 'drehzeit' })
     expect(ohneDreh.status).toBe(400)
     expect(ohneDreh.fehler).toMatch(/kein Drehtag/)
+  })
+})
+
+describe('Rückstellungen, Beistellungen, Rückflussrang (AP E4)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+  async function projektMitFirma(titel: string) {
+    const firma = (await db.run("INSERT INTO companies (name, owner_id) VALUES ('Rückstellung GmbH', ?)", [nutzerId])).id
+    return (await db.run('INSERT INTO projects (title, owner_id, company_id) VALUES (?, ?, ?)', [titel, nutzerId, firma])).id
+  }
+
+  it('50.000 €, davon 20.000 € zurückgestellt: Finanzierungsplan, Lücke, Kostenstand, Cashflow; 60.000 € abgelehnt', async () => {
+    const p = await projektMitFirma('Rückstellung E4')
+    const k = (await sende(`/api/projects/${p}/budget-versions`, { name: 'K', schema: 'frei' })).daten
+    const z = (await sende(`/api/budget-versions/${k.id}/lines`, { category: 'Gagen', description: 'Regie', quantity: 1, unit_price_cents: 5_000_000 })).daten
+    const plan = (await sende(`/api/projects/${p}/financing-versions`, { name: 'Plan' })).daten
+    await sende(`/api/financing-versions/${plan.id}/entries`, { source: 'Sender', type: 'Förderung', amount_cents: 1_000_000, status: 'zugesagt' })
+    const vorher = (await hole(`/api/financing-versions/${plan.id}/stand`, tokenInhaber)).daten
+    expect(vorher.luecke_cents).toBe(4_000_000)
+
+    const gesetzt = await sende(`/api/budget-lines/${z.id}`, { ...z, deferred_cents: 2_000_000 }, 'PUT')
+    expect(gesetzt.daten).toMatchObject({ deferred_cents: 2_000_000, in_kind_cents: 0 })
+    const stand = (await hole(`/api/financing-versions/${plan.id}/stand`, tokenInhaber)).daten
+    expect(stand.aus_kalkulation).toEqual([{ art: 'rueckstellungen', source: 'Rückstellungen (aus der Kalkulation)', amount_cents: 2_000_000 }])
+    expect(stand).toMatchObject({ luecke_cents: 2_000_000, summe_cents: 3_000_000, zugesagt_cents: 3_000_000 })
+    // Dashboard und Konfliktradar rechnen genauso
+    expect((await hole(`/api/projects/${p}/stats`, tokenInhaber)).daten.financing_total_cents).toBe(3_000_000)
+
+    // Zusammen mehr als die Zeile: abgelehnt, auch über die Beistellung
+    expect((await sende(`/api/budget-lines/${z.id}`, { ...z, deferred_cents: 6_000_000 }, 'PUT')).status).toBe(400)
+    // 20.000 € zurückgestellt plus 35.000 € beigestellt sind mehr als 50.000 €
+    expect((await sende(`/api/budget-lines/${z.id}`, { ...gesetzt.daten, in_kind_cents: 3_500_000 }, 'PUT')).status).toBe(400)
+    expect((await sende(`/api/budget-lines/${z.id}`, { ...z, deferred_cents: -1 }, 'PUT')).status).toBe(400)
+    // Wer die Felder nicht schickt, behält sie
+    const { deferred_cents: _r, in_kind_cents: _b, ...ohne } = gesetzt.daten
+    expect((await sende(`/api/budget-lines/${z.id}`, { ...ohne, description: 'Regie und Buch' }, 'PUT')).daten.deferred_cents).toBe(2_000_000)
+    // Die Zeilensumme unter die Rückstellung senken geht nicht
+    expect((await sende(`/api/budget-lines/${z.id}`, { ...ohne, unit_price_cents: 1_000_000 }, 'PUT')).status).toBe(400)
+
+    // Kostenstand: noch zu erwarten 30.000 €, Endstand bleibt 50.000 €
+    const ks = (await hole(`/api/projects/${p}/kostenstand`, tokenInhaber)).daten
+    const zeile = ks.rows.flatMap((r: any) => r.zeilen).find((x: any) => x.id === z.id)
+    expect(zeile).toMatchObject({ rest_cents: 3_000_000, zurueckgestellt_cents: 2_000_000, endstand_cents: 5_000_000, abweichung_cents: 0 })
+    expect(ks.totals).toMatchObject({ rest_cents: 3_000_000, endstand_cents: 5_000_000 })
+
+    // Cashflow: 30.000 € fließen
+    await sende(`/api/budget-lines/${z.id}`, { ...ohne, description: 'Regie', spend_from: '2027-01-04', spend_until: '2027-01-10' }, 'PUT')
+    const cf = (await hole(`/api/projects/${p}/cashflow?raster=woche`, tokenInhaber)).daten
+    expect(cf.summen.ausgaben_plan_cents).toBe(3_000_000)
+  })
+
+  it('Rückflussrang je Geldgeber: Zahl und Bedingungen, im Förderantrag; ungültig abgelehnt', async () => {
+    const p = await projektMitFirma('Rang E4')
+    const plan = (await sende(`/api/projects/${p}/financing-versions`, { name: 'Plan' })).daten
+    const g = (await sende(`/api/financing-versions/${plan.id}/entries`, { source: 'Verleih', type: 'Verleih', amount_cents: 500_000, recoupment_rank: 1, recoupment_terms: 'Vorkosten zuerst' })).daten
+    expect(g).toMatchObject({ recoupment_rank: 1, recoupment_terms: 'Vorkosten zuerst' })
+    expect((await sende(`/api/financing-entries/${g.id}`, { ...g, recoupment_rank: 0 }, 'PUT')).status).toBe(400)
+    expect((await sende(`/api/financing-entries/${g.id}`, { ...g, recoupment_rank: 1.5 }, 'PUT')).status).toBe(400)
+    // Wer den Rang nicht schickt, behält ihn
+    const { recoupment_rank: _r, recoupment_terms: _t, ...ohne } = g
+    expect((await sende(`/api/financing-entries/${g.id}`, { ...ohne, amount_cents: 600_000 }, 'PUT')).daten).toMatchObject({ recoupment_rank: 1, recoupment_terms: 'Vorkosten zuerst' })
+    expect((await sende(`/api/financing-entries/${g.id}`, { ...g, recoupment_rank: null }, 'PUT')).daten.recoupment_rank).toBeNull()
+    await sende(`/api/financing-entries/${g.id}`, { ...g, recoupment_rank: 2 }, 'PUT')
+    const antrag = (await hole(`/api/projects/${p}/foerderantrag/export`, tokenInhaber)).daten
+    expect(antrag.financing.entries[0]).toMatchObject({ source: 'Verleih', recoupment_rank: 2, recoupment_terms: 'Vorkosten zuerst' })
+  })
+
+  it('Kosten übernehmen kürzt eine Rückstellung, die nicht mehr in die Zeile passt', async () => {
+    const p = await projektMitFirma('Kürzen E4')
+    const motiv = (await db.run("INSERT INTO locations (project_id, name, rental_fee) VALUES (?, 'Hafen', 50000)", [p])).id
+    const tage: number[] = []
+    for (let i = 0; i < 2; i++) {
+      const tag = (await db.run('INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, ?, ?)', [p, i + 1, `2027-02-0${i + 1}`])).id
+      const szene = (await db.run('INSERT INTO scenes (project_id, scene_number, location_id) VALUES (?, ?, ?)', [p, String(i + 1), motiv])).id
+      await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id) VALUES (?, ?)', [tag, szene])
+      tage.push(tag)
+    }
+    const k = (await sende(`/api/projects/${p}/budget-versions`, { name: 'K' })).daten
+    await sende(`/api/budget-versions/${k.id}/kosten-uebernehmen`, {})
+    let zeile = ((await hole(`/api/budget-versions/${k.id}/lines`, tokenInhaber)).daten as any[]).find((x) => x.source_key === `motiv:${motiv}`)
+    expect(zeile.total_cents).toBe(100_000)
+    await sende(`/api/budget-lines/${zeile.id}`, { ...zeile, deferred_cents: 70_000, in_kind_cents: 30_000 }, 'PUT')
+    // Ein Drehtag fällt weg: 50.000 Cent - die Rückstellung passt noch, die Beistellung nicht mehr
+    await db.run('DELETE FROM shoot_day_scenes WHERE shoot_day_id = ?', [tage[1]])
+    await sende(`/api/budget-versions/${k.id}/kosten-uebernehmen`, {})
+    zeile = ((await hole(`/api/budget-versions/${k.id}/lines`, tokenInhaber)).daten as any[]).find((x) => x.source_key === `motiv:${motiv}`)
+    expect(zeile).toMatchObject({ total_cents: 50_000, deferred_cents: 50_000, in_kind_cents: 0 })
   })
 })
 

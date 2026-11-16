@@ -602,13 +602,24 @@ export const planung: Record<string, Schritt[]> = {
       wirktAuf: ['cashflow', 'drehplan'],
     },
     {
+      ziel: 'kalkulation',
+      reiter: 'kalkulation',
+      titel: { de: 'Zurückgestellt und beigestellt', en: 'Deferred and in kind', fr: 'Reporté et en nature' },
+      text: {
+        de: "Unter dem Betrag einer Zeile trägst du ein, was davon zurückgestellt ist - erst aus Erlösen bezahlt - und was beigestellt wird, als Sachleistung eines Partners. Zusammen höchstens die Zeilensumme. Beides steht im Finanzierungsplan als zugesagt, im Kostenstand wird dafür kein Beleg erwartet, im Cashflow fließt dafür kein Geld.",
+        en: "Below a line's amount you enter how much of it is deferred - paid only from revenues - and how much comes in kind from a partner. Together at most the line total. Both count as committed in the financing plan; the cost status expects no receipt for them and no money flows for them in the cash flow.",
+        fr: "Sous le montant d'une ligne, tu indiques la part reportée - payée seulement sur les recettes - et la part apportée en nature par un partenaire. Ensemble au plus le total de la ligne. Les deux comptent comme accordés dans le plan de financement ; l'état des coûts n'attend pas de justificatif pour elles, et la trésorerie ne fait circuler aucun argent.",
+      },
+      wirktAuf: ['kostenstand', 'cashflow'],
+    },
+    {
       ziel: 'finanzierung',
       reiter: 'finanzierung',
       titel: { de: 'Der Finanzierungsplan', en: 'The financing plan', fr: 'Le plan de financement' },
       text: {
-        de: "Jeder Geldgeber mit Art, Betrag und Stand: geplant, beantragt, zugesagt, ausgezahlt; aufgeklappt Antrag, Zusage, Aktenzeichen und die Raten mit Fälligkeit und Eingang. Oben stehen Herstellungskosten, Finanzierung, davon zugesagt und ausgezahlt und die Lücke - eine Überfinanzierung als Hinweis. Überfällige Raten meldet die Abschlussprüfung.",
-        en: "Each funder with type, amount and status: planned, applied for, granted, paid out; expanded, application, grant, reference and the installments with due date and receipt. At the top: total production costs, financing, of which granted and paid out, and the gap - overfinancing as a note. The closing check reports overdue installments.",
-        fr: "Chaque financeur avec type, montant et statut : prévu, demandé, accordé, versé ; déplié, demande, accord, référence et les échéances avec date et réception. En haut : coût total, financement, dont accordé et versé, et l'écart - un surfinancement en remarque. Le bilan de clôture signale les échéances en retard.",
+        de: "Jeder Geldgeber mit Art, Betrag und Stand: geplant, beantragt, zugesagt, ausgezahlt; aufgeklappt Antrag, Zusage, Aktenzeichen und die Raten mit Fälligkeit und Eingang. Oben stehen Herstellungskosten, Finanzierung, davon zugesagt und ausgezahlt und die Lücke - eine Überfinanzierung als Hinweis. Rückstellungen und Beistellungen aus der Kalkulation stehen als eigene Zeilen darunter, zugesagt und nur dort änderbar. Aufgeklappt hat jeder Geldgeber auch seinen Rückflussrang mit Bedingungen. Überfällige Raten meldet die Abschlussprüfung.",
+        en: "Each funder with type, amount and status: planned, applied for, granted, paid out; expanded, application, grant, reference and the installments with due date and receipt. At the top: total production costs, financing, of which granted and paid out, and the gap - overfinancing as a note. Deferrals and in-kind contributions from the budget are listed as their own lines below, committed and editable only there. Expanded, each funder also has its recoupment rank with terms. The closing check reports overdue installments.",
+        fr: "Chaque financeur avec type, montant et statut : prévu, demandé, accordé, versé ; déplié, demande, accord, référence et les échéances avec date et réception. En haut : coût total, financement, dont accordé et versé, et l'écart - un surfinancement en remarque. Les reports et apports en nature du budget figurent en dessous comme lignes propres, accordés et modifiables seulement là-bas. Déplié, chaque financeur a aussi son rang de remboursement avec ses conditions. Le bilan de clôture signale les échéances en retard.",
       },
       wirktAuf: ['', 'konfliktradar'],
     },

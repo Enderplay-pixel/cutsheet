@@ -30,7 +30,7 @@ export async function ladeCashflow(projectId: number, raster: Raster) {
   const ffa = kalkulation?.schema === 'ffa'
   const zeilenRoh = kalkulation
     ? (await db.all(
-      `SELECT id, description, category, cost_group, social, total_cents, spend_from, spend_until
+      `SELECT id, description, category, cost_group, social, total_cents, spend_from, spend_until, deferred_cents, in_kind_cents
          FROM budget_lines WHERE budget_version_id = ? ORDER BY sort_order, id`, [kalkulation.id]
     )) as any[]
     : []
@@ -38,7 +38,8 @@ export async function ladeCashflow(projectId: number, raster: Raster) {
   const vorzeichen = (kostenart: unknown) => (ffa && Number(kostenart) === MINDERND ? -1 : 1)
   const zeilen: CfZeile[] = zeilenRoh.map((z) => ({
     bezeichnung: String(z.description || z.category || '').trim() || 'Ohne Beschreibung',
-    cents: vorzeichen(z.cost_group) * (Number(z.total_cents) || 0),
+    // Zurückgestellt und beigestellt fließt kein Geld (AP E4)
+    cents: vorzeichen(z.cost_group) * ((Number(z.total_cents) || 0) - (Number(z.deferred_cents) || 0) - (Number(z.in_kind_cents) || 0)),
     von: z.spend_from,
     bis: z.spend_until,
   }))

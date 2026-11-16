@@ -376,4 +376,8 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Keine Zeile markiert': { en: 'No line selected', fr: 'Aucune ligne sélectionnée' },
   'Unbekannte Phase': { en: 'Unknown phase', fr: 'Phase inconnue' },
   'Noch kein Drehtag - die Drehzeit ist unbekannt': { en: 'No shoot day yet - the shooting period is unknown', fr: 'Pas encore de jour de tournage - la période de tournage est inconnue' },
+  // Rückstellungen, Beistellungen, Rückflussrang (AP E4, 16.11.2026)
+  'Zurückgestellt und beigestellt sind Beträge ab 0': { en: 'Deferred and in-kind are amounts from 0', fr: 'Les montants différés et apportés en nature sont des montants à partir de 0' },
+  'Zurückgestellt und beigestellt zusammen höchstens die Zeilensumme': { en: 'Deferred and in-kind together at most the line total', fr: 'Différé et apport en nature ensemble au plus le total de la ligne' },
+  'Der Rückflussrang ist eine ganze Zahl von 1 bis 999': { en: 'The recoupment rank is a whole number from 1 to 999', fr: 'Le rang de remboursement est un nombre entier de 1 à 999' },
 }

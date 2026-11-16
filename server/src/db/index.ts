@@ -1691,6 +1691,14 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS spend_from DATE`)
   await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS spend_until DATE`)
 
+  // Rückstellungen, Beistellungen, Rückflussrang (Plan Kino-Ausbau, AP E4,
+  // 16.11.2026): der Teil einer Zeile, der erst aus Erlösen fließt oder als
+  // Sachleistung kommt - Kosten und Finanzierung zugleich.
+  await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS deferred_cents BIGINT NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS in_kind_cents BIGINT NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE financing_entries ADD COLUMN IF NOT EXISTS recoupment_rank INTEGER`)
+  await db.exec(`ALTER TABLE financing_entries ADD COLUMN IF NOT EXISTS recoupment_terms TEXT NOT NULL DEFAULT ''`)
+
   // ── Rechnungen und Honorare ───────────────────────────────────────────────
   // Steuerart der Firma. Ein Einzelunternehmen nach Paragraf 19 UStG weist
   // keine Umsatzsteuer aus und muss das auf der Rechnung begruenden.

@@ -108,7 +108,7 @@ router.get('/projects/:projectId/kostenstand', requireAuth, requireMember, async
   const ffa = activeVersion?.schema === 'ffa'
   const version = activeVersion ? await db.get('SELECT * FROM budget_versions WHERE id = ?', [activeVersion.id]) as any : null
   const zeilenRoh = activeVersion ? await db.all(
-    `SELECT bl.id, bl.cost_group, bl.social, bl.total_cents, bl.description, bl.category, bl.forecast_rest_cents, bl.closed,
+    `SELECT bl.id, bl.cost_group, bl.social, bl.total_cents, bl.description, bl.category, bl.forecast_rest_cents, bl.closed, bl.deferred_cents, bl.in_kind_cents,
             bl.forecast_set_at, u.name AS forecast_set_by_name
        FROM budget_lines bl LEFT JOIN users u ON u.id = bl.forecast_set_by
       WHERE bl.budget_version_id = ? ORDER BY bl.sort_order, bl.id`,
@@ -133,8 +133,8 @@ router.get('/projects/:projectId/kostenstand', requireAuth, requireMember, async
     : { ...g, category: g.gruppe })
   // Die Erträge (Kostenart 11) mindern - in der Summe wird abgezogen
   const vorzeichen = (r: any) => (ffa && r.cost_group === 11 ? -1 : 1)
-  const summe = (k: 'soll_cents' | 'ist_cents' | 'rest_cents') => rows.reduce((s, r: any) => s + vorzeichen(r) * r[k], 0)
-  const totals = vierZahlen(summe('soll_cents'), summe('ist_cents'), summe('rest_cents'))
+  const summe = (k: 'soll_cents' | 'ist_cents' | 'rest_cents' | 'ohne_zahlung_cents') => rows.reduce((s, r: any) => s + vorzeichen(r) * r[k], 0)
+  const totals = vierZahlen(summe('soll_cents'), summe('ist_cents'), summe('rest_cents'), summe('ohne_zahlung_cents'))
   const hinweise = [...(a?.hinweise ?? [])]
   if (stand.some((g) => g.zeilen.some((z) => z.description === 'Belege ohne Zeile'))) {
     hinweise.push('Belege ohne Zeile mindern keinen Rest - der Endstand kann zu hoch sein')
