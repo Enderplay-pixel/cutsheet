@@ -4478,6 +4478,83 @@ describe('Rückstellungen, Beistellungen, Rückflussrang (AP E4)', () => {
   })
 })
 
+describe('Regionaleffekt und deutsche Kosten (AP E3)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+  async function projektMitFirma(titel: string) {
+    const firma = (await db.run("INSERT INTO companies (name, owner_id) VALUES ('Region GmbH', ?)", [nutzerId])).id
+    return (await db.run('INSERT INTO projects (title, owner_id, company_id) VALUES (?, ?, ?)', [titel, nutzerId, firma])).id
+  }
+
+  it('Förderung 200.000 € mit 150 % in NRW: 250.000 € zugeordnet nicht erfüllt, weitere 50.000 € erfüllt', async () => {
+    const p = await projektMitFirma('Region E3')
+    const nrw = (await sende(`/api/projects/${p}/regionen`, { name: 'NRW' })).daten
+    const hh = (await sende(`/api/projects/${p}/regionen`, { name: 'Hamburg' })).daten
+    expect((await sende(`/api/projects/${p}/regionen`, { name: 'nrw' })).status).toBe(400)
+    const k = (await sende(`/api/projects/${p}/budget-versions`, { name: 'K', schema: 'frei' })).daten
+    const a = (await sende(`/api/budget-versions/${k.id}/lines`, { category: 'Gagen', description: 'Stab Köln', quantity: 1, unit_price_cents: 25_000_000 })).daten
+    const b = (await sende(`/api/budget-versions/${k.id}/lines`, { category: 'Technik', description: 'Licht', quantity: 1, unit_price_cents: 10_000_000 })).daten
+    expect((await sende(`/api/budget-lines/${a.id}/regionen`, { anteile: [{ region_id: nrw.id, share_bp: 10_000 }] }, 'PUT')).status).toBe(200)
+    // 60 % NRW und 50 % Hamburg: abgelehnt, mit Grund
+    const zuviel = await sende(`/api/budget-lines/${b.id}/regionen`, { anteile: [{ region_id: nrw.id, share_bp: 6_000 }, { region_id: hh.id, share_bp: 5_000 }] }, 'PUT')
+    expect(zuviel.status).toBe(400)
+    expect(zuviel.fehler).toBe('Die Anteile ergeben zusammen 110 % - höchstens 100 %')
+    // Eine Region aus einem fremden Projekt gilt nicht
+    const fremd = await projektMitFirma('Fremd E3')
+    const fremdeRegion = (await sende(`/api/projects/${fremd}/regionen`, { name: 'Bayern' })).daten
+    expect((await sende(`/api/budget-lines/${b.id}/regionen`, { anteile: [{ region_id: fremdeRegion.id, share_bp: 1_000 }] }, 'PUT')).status).toBe(400)
+
+    const plan = (await sende(`/api/projects/${p}/financing-versions`, { name: 'Plan' })).daten
+    const foerderung = (await sende(`/api/financing-versions/${plan.id}/entries`, { source: 'Film- und Medienstiftung NRW', type: 'Förderung', amount_cents: 20_000_000, region_id: nrw.id, regional_effect_bp: 15_000 })).daten
+    expect(foerderung).toMatchObject({ region_id: nrw.id, regional_effect_bp: 15_000 })
+    expect((await sende(`/api/financing-entries/${foerderung.id}`, { ...foerderung, region_id: fremdeRegion.id }, 'PUT')).status).toBe(400)
+
+    let u = (await hole(`/api/projects/${p}/regionen`, tokenInhaber)).daten.uebersicht
+    expect(u.regionen.find((r: any) => r.name === 'NRW')).toMatchObject({ geplant_cents: 25_000_000, gefordert_cents: 30_000_000, differenz_cents: -5_000_000, erfuellt: false })
+    expect(u.ohne_region.geplant_cents).toBe(10_000_000)
+    // Weitere 50.000 € nach NRW: erfüllt
+    await sende(`/api/budget-lines/${b.id}/regionen`, { anteile: [{ region_id: nrw.id, share_bp: 5_000 }, { region_id: hh.id, share_bp: 2_000 }] }, 'PUT')
+    u = (await hole(`/api/projects/${p}/regionen`, tokenInhaber)).daten.uebersicht
+    expect(u.regionen.map((r: any) => [r.name, r.geplant_cents, r.erfuellt])).toEqual([['NRW', 30_000_000, true], ['Hamburg', 2_000_000, null]])
+    // Ein Beleg erbt die Aufteilung seiner Zeile
+    await sende(`/api/projects/${p}/expenses`, { description: 'Lampen', amount_cents: 1_000_000, budget_line_id: b.id })
+    u = (await hole(`/api/projects/${p}/regionen`, tokenInhaber)).daten.uebersicht
+    expect(u.regionen.map((r: any) => r.bisher_cents)).toEqual([500_000, 200_000])
+    expect(u.ohne_region.bisher_cents).toBe(300_000)
+
+    // Die Zeilenliste trägt die Anteile, die Kopie nimmt sie und die Kennzeichen mit
+    await sende(`/api/budget-lines/${b.id}`, { ...b, german_spend: false, internal: true }, 'PUT')
+    const zeilen = (await hole(`/api/budget-versions/${k.id}/lines`, tokenInhaber)).daten as any[]
+    expect(zeilen.find((z) => z.id === b.id)).toMatchObject({ german_spend: false, internal: true, regionen: [{ region_id: nrw.id, share_bp: 5_000 }, { region_id: hh.id, share_bp: 2_000 }] })
+    expect(zeilen.find((z) => z.id === a.id)).toMatchObject({ german_spend: true, internal: false })
+    const kopie = (await sende(`/api/budget-versions/${k.id}/kopie`, {})).daten
+    const kopierte = (await hole(`/api/budget-versions/${kopie.id}/lines`, tokenInhaber)).daten as any[]
+    expect(kopierte.find((z) => z.description === 'Licht')).toMatchObject({ german_spend: false, internal: true, regionen: [{ region_id: nrw.id, share_bp: 5_000 }, { region_id: hh.id, share_bp: 2_000 }] })
+    // Wer die Kennzeichen nicht schickt, behält sie
+    const { german_spend: _d, internal: _i, regionen: _r, ...ohne } = zeilen.find((z) => z.id === b.id)
+    expect((await sende(`/api/budget-lines/${b.id}`, { ...ohne, description: 'Licht und Strom' }, 'PUT')).daten).toMatchObject({ german_spend: false, internal: true })
+
+    // Region löschen: Anteile gehen mit, der Geldgeber verliert die Region
+    expect((await hole(`/api/regionen/${hh.id}`, tokenInhaber, { method: 'DELETE' })).status).toBe(200)
+    expect((await db.all('SELECT * FROM budget_line_regions WHERE region_id = ?', [hh.id])).length).toBe(0)
+  })
+
+  it('Papierkorb: eine zurückgeholte Budgetzeile hat ihre Anteile wieder', async () => {
+    const papierkorb = await import('../lib/papierkorb')
+    const p = await projektMitFirma('Papierkorb E3')
+    const nrw = (await sende(`/api/projects/${p}/regionen`, { name: 'NRW' })).daten
+    const k = (await sende(`/api/projects/${p}/budget-versions`, { name: 'K', schema: 'frei' })).daten
+    const z = (await sende(`/api/budget-versions/${k.id}/lines`, { category: 'Gagen', description: 'Regie', quantity: 1, unit_price_cents: 1_000_000 })).daten
+    await sende(`/api/budget-lines/${z.id}/regionen`, { anteile: [{ region_id: nrw.id, share_bp: 7_500 }] }, 'PUT')
+    await papierkorb.inDenPapierkorb('budget_lines', z.id, { userId: nutzerId })
+    await db.run('DELETE FROM budget_lines WHERE id = ?', [z.id])
+    expect((await db.all('SELECT * FROM budget_line_regions WHERE budget_line_id = ?', [z.id])).length).toBe(0)
+    const eintrag = (await papierkorb.inhalt(p)).find((e: any) => e.row_id === z.id)
+    expect((await papierkorb.ausDemPapierkorb(eintrag.id, p)).wiederhergestellt).toBe(true)
+    expect(await db.all('SELECT region_id, share_bp FROM budget_line_regions WHERE budget_line_id = ?', [z.id])).toEqual([{ region_id: nrw.id, share_bp: 7_500 }])
+  })
+})
+
 describe('Stundenzettel: Freigabe in Stufen (AP E8)', () => {
   /** Konto mit Rolle im Projekt; mit Abteilung steht es mit seiner E-Mail im Stab. */
   async function konto(p: number, rolle: string, abteilung = '') {

@@ -31,6 +31,7 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
     { table: 'storyboard_frames', column: null as unknown as string },
     { table: 'budget_versions', column: 'project_id' },
     { table: 'budget_lines', column: null as unknown as string },
+    { table: 'budget_line_regions', column: null as unknown as string },
     { table: 'financing_plan_versions', column: 'project_id' },
     { table: 'financing_entries', column: null as unknown as string },
     { table: 'equipment_lists', column: 'project_id' },
@@ -138,6 +139,11 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
 
   backup['budget_lines'] = budgetVersionIds.length
     ? await db.all(`SELECT * FROM budget_lines WHERE budget_version_id IN ${inList(budgetVersionIds)}`)
+    : []
+  // Anteile der Zeilen an den Regionen (AP E3)
+  const budgetLineIds = (backup['budget_lines'] as Array<{ id: number }>).map(r => r.id)
+  backup['budget_line_regions'] = budgetLineIds.length
+    ? await db.all(`SELECT * FROM budget_line_regions WHERE budget_line_id IN ${inList(budgetLineIds)}`)
     : []
   backup['financing_entries'] = finVersionIds.length
     ? await db.all(`SELECT * FROM financing_entries WHERE financing_version_id IN ${inList(finVersionIds)}`)

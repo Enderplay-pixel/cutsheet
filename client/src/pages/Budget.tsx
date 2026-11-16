@@ -16,7 +16,7 @@ import { Progress } from '@/components/ui/progress'
 import { useToast } from '@/components/ui/use-toast'
 import { useDownload } from '@/lib/useDownload'
 import { formatCurrency, debounce } from '@/lib/utils'
-import { Plus, Trash2, TrendingUp, PieChart, List, CheckCircle, Circle, Download, Wand2 } from 'lucide-react'
+import { Plus, Trash2, TrendingUp, PieChart, List, CheckCircle, Circle, Download, Wand2, MapPin } from 'lucide-react'
 import { useT } from '@/lib/useT'
 import { budgetT as T, EINHEIT_TEXT, FINANZIERUNGSART_TEXT } from '@/lib/texte/Budget'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
@@ -31,6 +31,7 @@ import { heuteISO } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useGebietsschema } from '@/lib/useT'
 import { zeitraumT as Z } from '@/lib/texte/Cashflow'
+import { regionT as R } from '@/lib/texte/Regionen'
 import { betragInCent } from '@/lib/utils'
 
 const UNITS = ['Pauschal', 'Tage', 'Stunden', 'Wochen', 'Monate', 'Stück']
@@ -124,22 +125,46 @@ function ZeitraumFeld({ line, darf, speichern }: { line: any; darf: boolean; spe
   )
 }
 
+/** Prozent als Text "60" oder "12,5" in Basispunkten; NaN, wenn unlesbar. */
+const prozentInBp = (text: string) => {
+  const n = Number(String(text).trim().replace(',', '.'))
+  return text.trim() === '' || !Number.isFinite(n) ? NaN : Math.round(n * 100)
+}
+const bpAlsText = (bp: number) => String(bp / 100).replace('.', ',')
+
 /**
- * Rückstellung und Beistellung einer Zeile (AP E4): an der Zeile mit Betrag,
- * gespeichert mit "Speichern". Zusammen höchstens die Zeilensumme.
+ * Zuordnung einer Zeile, unter ihrem Betrag: Rückstellung und Beistellung
+ * (AP E4), Anteile an bis zu vier Regionen und die Kennzeichen "deutsche
+ * Herstellungskosten" und "interne Kosten" (AP E3). Gespeichert mit
+ * "Speichern"; an der Zeile steht, was gesetzt ist.
  */
-function AnteileFeld({ line, darf, summe, speichern }: { line: any; darf: boolean; summe: number; speichern: (zurueck: number, bei: number) => Promise<void> }) {
+function ZuordnungFeld({ line, darf, summe, regionen, speichern, regionenSpeichern }: {
+  line: any; darf: boolean; summe: number; regionen: any[]
+  speichern: (felder: Record<string, unknown>) => Promise<void>
+  regionenSpeichern: (anteile: Array<{ region_id: number; share_bp: number }>) => Promise<void>
+}) {
   const tt = useT()
   const [offen, setOffen] = useState(false)
   const [zurueck, setZurueck] = useState('')
   const [bei, setBei] = useState('')
+  const [anteile, setAnteile] = useState<Array<{ region_id: string; prozent: string }>>([])
+  const [deutsch, setDeutsch] = useState(true)
+  const [intern, setIntern] = useState(false)
   const [fehler, setFehler] = useState('')
   const [laeuft, setLaeuft] = useState(false)
   const z = Number(line.deferred_cents) || 0
   const b = Number(line.in_kind_cents) || 0
+  const zeilenAnteile: any[] = line.regionen ?? []
+  const istDeutsch = line.german_spend !== false
+  const istIntern = line.internal === true
   const alsText = (c: number) => (c ? String(c / 100).replace('.', ',') : '')
+  const regionsName = (id: number) => regionen.find((r: any) => r.id === id)?.name ?? '?'
   const oeffnen = (o: boolean) => {
-    if (o) { setZurueck(alsText(z)); setBei(alsText(b)); setFehler('') }
+    if (o) {
+      setZurueck(alsText(z)); setBei(alsText(b)); setFehler('')
+      setAnteile(zeilenAnteile.map((a) => ({ region_id: String(a.region_id), prozent: bpAlsText(a.share_bp) })))
+      setDeutsch(istDeutsch); setIntern(istIntern)
+    }
     setOffen(o)
   }
   const sichern = async () => {
@@ -147,26 +172,42 @@ function AnteileFeld({ line, darf, summe, speichern }: { line: any; darf: boolea
     const bc = betragInCent(bei)
     if (Number.isNaN(zc) || Number.isNaN(bc) || zc < 0 || bc < 0) { setFehler(tt(K.anteileUnlesbar)); return }
     if (zc + bc > summe) { setFehler(tt(K.anteileZuViel).replace('{summe}', formatCurrency(summe))); return }
+    const neu = anteile.map((a) => ({ region_id: Number(a.region_id), share_bp: prozentInBp(a.prozent) }))
+    if (neu.some((a) => Number.isNaN(a.share_bp) || a.share_bp <= 0 || a.share_bp > 10_000)) { setFehler(tt(R.anteilUnlesbar)); return }
+    if (neu.some((a) => !a.region_id) || new Set(neu.map((a) => a.region_id)).size !== neu.length) { setFehler(tt(R.anteilOhneRegion)); return }
+    const gesamt = neu.reduce((s, a) => s + a.share_bp, 0)
+    if (gesamt > 10_000) { setFehler(tt(R.anteileZuViel).replace('{summe}', bpAlsText(gesamt))); return }
     setLaeuft(true)
-    try { await speichern(zc, bc); setOffen(false) } catch (e: any) { setFehler(String(e?.message || '')) } finally { setLaeuft(false) }
+    try {
+      if (zc !== z || bc !== b || deutsch !== istDeutsch || intern !== istIntern) {
+        await speichern({ deferred_cents: zc, in_kind_cents: bc, german_spend: deutsch, internal: intern })
+      }
+      const vorher = JSON.stringify(zeilenAnteile.map((a) => [a.region_id, a.share_bp]))
+      if (JSON.stringify(neu.map((a) => [a.region_id, a.share_bp])) !== vorher) await regionenSpeichern(neu)
+      setOffen(false)
+    } catch (e: any) { setFehler(String(e?.message || '')) } finally { setLaeuft(false) }
   }
-  if (!darf && !z && !b) return null
+  const gesetzt = z > 0 || b > 0 || zeilenAnteile.length > 0 || !istDeutsch || istIntern
+  if (!darf && !gesetzt) return null
   const name = line.description || line.account_code || ''
+  const regionenText = zeilenAnteile.map((a) => `${regionsName(a.region_id)} ${bpAlsText(a.share_bp)} %`).join(' · ')
   return (
     <Popover open={offen} onOpenChange={oeffnen}>
       <PopoverTrigger asChild>
-        <button type="button" disabled={!darf} aria-label={tt(K.anteile).replace('{name}', name)} title={z || b ? tt(K.anteileHilfe) : tt(K.anteileTitel)}
-          className={`block ml-auto text-[10px] leading-tight font-sans font-normal text-right ${z || b ? 'text-primary' : 'text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100'}`}>
-          {z || b ? (
+        <button type="button" disabled={!darf} aria-label={tt(R.zuordnung).replace('{name}', name)} title={gesetzt ? [regionenText, tt(K.anteileHilfe)].filter(Boolean).join(' - ') : tt(K.anteileTitel)}
+          className={`block ml-auto max-w-[7rem] text-[10px] leading-tight font-sans font-normal text-right ${gesetzt ? 'text-primary' : 'text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100'}`}>
+          {gesetzt ? (
             <>
               {z > 0 && <span className="block">{tt(K.zurueckKurz).replace('{betrag}', formatCurrency(z))}</span>}
               {b > 0 && <span className="block">{tt(K.beiKurz).replace('{betrag}', formatCurrency(b))}</span>}
+              {regionenText && <span className="block truncate">{regionenText}</span>}
+              {(!istDeutsch || istIntern) && <span className="block">{[!istDeutsch ? tt(R.nichtDeutschKurz) : '', istIntern ? tt(R.internKurz) : ''].filter(Boolean).join(' · ')}</span>}
             </>
-          ) : tt(K.anteileKurz)}
+          ) : tt(R.zuordnungKurz)}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 space-y-2">
-        <p className="text-xs font-medium">{tt(K.anteile).replace('{name}', name)}</p>
+      <PopoverContent align="end" className="w-80 space-y-3">
+        <p className="text-xs font-medium">{tt(R.zuordnung).replace('{name}', name)}</p>
         <div className="grid grid-cols-2 gap-2">
           <label className="text-[11px] text-muted-foreground space-y-1">
             <span>{tt(K.zurueckgestellt)}</span>
@@ -178,6 +219,42 @@ function AnteileFeld({ line, darf, summe, speichern }: { line: any; darf: boolea
           </label>
         </div>
         <p className="text-[11px] text-muted-foreground">{tt(K.anteileHilfe)}</p>
+        <div className="space-y-1.5">
+          <p className="text-[11px] text-muted-foreground">{tt(R.anteile)}</p>
+          {regionen.length === 0 ? <p className="text-[11px] italic text-muted-foreground">{tt(R.keineRegionenZeile)}</p> : (
+            <>
+              {anteile.map((a, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <select value={a.region_id} aria-label={tt(R.regionWaehlen).replace('{n}', String(i + 1))}
+                    onChange={e => setAnteile(alt => alt.map((x, j) => j === i ? { ...x, region_id: e.target.value } : x))}
+                    className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-xs">
+                    <option value="">-</option>
+                    {regionen.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                  <Input value={a.prozent} inputMode="decimal" aria-label={tt(R.anteilVon).replace('{n}', String(i + 1))}
+                    onChange={e => setAnteile(alt => alt.map((x, j) => j === i ? { ...x, prozent: e.target.value } : x))}
+                    className="h-8 w-16 text-xs text-right" />
+                  <span className="text-xs text-muted-foreground">%</span>
+                  <button type="button" aria-label={tt(R.anteilWeg)} onClick={() => setAnteile(alt => alt.filter((_, j) => j !== i))}
+                    className="text-muted-foreground hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              ))}
+              {anteile.length < 4 && (
+                <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setAnteile(alt => [...alt, { region_id: '', prozent: '' }])}>
+                  <Plus className="w-3.5 h-3.5 mr-1" />{tt(R.regionDazu)}
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+        <div className="space-y-1">
+          <label className="flex items-center gap-2 text-xs">
+            <Checkbox checked={deutsch} onCheckedChange={v => setDeutsch(v === true)} />{tt(R.deutsch)}
+          </label>
+          <label className="flex items-center gap-2 text-xs">
+            <Checkbox checked={intern} onCheckedChange={v => setIntern(v === true)} />{tt(R.intern)}
+          </label>
+        </div>
         {fehler && <p role="alert" className="text-[11px] text-destructive">{fehler}</p>}
         <div className="flex justify-end">
           <Button type="button" size="sm" className="h-7 text-xs" disabled={laeuft} onClick={sichern}>{tt(K.anteileSpeichern)}</Button>
@@ -187,8 +264,8 @@ function AnteileFeld({ line, darf, summe, speichern }: { line: any; darf: boolea
   )
 }
 
-function BudgetLineRow({ line, onDelete, darf, ffa = false, markiert, onMarkieren, hervor = false }: {
-  line: any; onDelete: () => void; darf: boolean; ffa?: boolean; markiert: boolean; onMarkieren: (an: boolean) => void; hervor?: boolean
+function BudgetLineRow({ line, onDelete, darf, ffa = false, markiert, onMarkieren, hervor = false, regionen }: {
+  line: any; onDelete: () => void; darf: boolean; ffa?: boolean; markiert: boolean; onMarkieren: (an: boolean) => void; hervor?: boolean; regionen: any[]
 }) {
   const [form, setForm] = useState(line)
   const queryClient = useQueryClient()
@@ -235,7 +312,7 @@ function BudgetLineRow({ line, onDelete, darf, ffa = false, markiert, onMarkiere
   // Zeitraum (AP E2), Rückstellung und Beistellung (AP E4) schickt nur ihr
   // eigenes Feld. Sonst schriebe eine Eingabe, die vor dem Neuladen der Liste
   // losgeht, den alten Wert zurück.
-  const ohneEigeneFelder = ({ spend_from: _von, spend_until: _bis, deferred_cents: _z, in_kind_cents: _b, ...rest }: any) => rest
+  const ohneEigeneFelder = ({ spend_from: _von, spend_until: _bis, deferred_cents: _z, in_kind_cents: _b, german_spend: _d, internal: _i, regionen: _r, ...rest }: any) => rest
   const speichernMit = async (felder: Record<string, unknown>) => {
     const basis = leer(form.quantity, form.unit_price_cents) ? line : form
     await api.budget.updateLine(line.id, {
@@ -244,9 +321,14 @@ function BudgetLineRow({ line, onDelete, darf, ffa = false, markiert, onMarkiere
     })
     queryClient.invalidateQueries({ queryKey: ['budget-lines'] })
     queryClient.invalidateQueries({ queryKey: ['financing-stand'] })
+    queryClient.invalidateQueries({ queryKey: ['regionen'] })
   }
   const zeitraumSpeichern = (von: string | null, bis: string | null) => speichernMit({ spend_from: von, spend_until: bis })
-  const anteileSpeichern = (zurueck: number, bei: number) => speichernMit({ deferred_cents: zurueck, in_kind_cents: bei })
+  const regionenSpeichern = async (anteile: Array<{ region_id: number; share_bp: number }>) => {
+    await api.budget.zeilenRegionen(line.id, anteile)
+    queryClient.invalidateQueries({ queryKey: ['budget-lines'] })
+    queryClient.invalidateQueries({ queryKey: ['regionen'] })
+  }
   const zuruecksetzenWennLeer = () => {
     if (!leer(form.quantity, form.unit_price_cents)) return
     offen.current = false
@@ -297,7 +379,7 @@ function BudgetLineRow({ line, onDelete, darf, ffa = false, markiert, onMarkiere
           niemand für den gespeicherten Stand hält. */}
       <td className={`py-1.5 px-2 w-28 text-right font-mono text-sm font-medium ${fehler ? 'line-through text-muted-foreground' : ''}`}>
         {formatCurrency(total)}
-        <AnteileFeld line={line} darf={darf} summe={total} speichern={anteileSpeichern} />
+        <ZuordnungFeld line={line} darf={darf} summe={total} regionen={regionen} speichern={speichernMit} regionenSpeichern={regionenSpeichern} />
       </td>
       <td className="py-1.5 px-1 w-24">
         <ZeitraumFeld line={line} darf={darf} speichern={zeitraumSpeichern} />
@@ -434,7 +516,7 @@ function RateRow({ rate, darf }: { rate: any; darf: boolean }) {
   )
 }
 
-function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: number; onDelete: () => void; darf: boolean }) {
+function FinancingRow({ entry, total, onDelete, darf, regionen }: { entry: any; total: number; onDelete: () => void; darf: boolean; regionen: any[] }) {
   const [form, setForm] = useState(entry)
   const queryClient = useQueryClient()
   const tt = useT()
@@ -448,6 +530,7 @@ function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: num
       setFehler('')
       queryClient.invalidateQueries({ queryKey: ['financing-entries'] })
       queryClient.invalidateQueries({ queryKey: ['financing-stand'] })
+      queryClient.invalidateQueries({ queryKey: ['regionen'] })
     },
     onError: (e: any) => setFehler(String(e?.message || '')),
   })
@@ -540,6 +623,24 @@ function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: num
               <Input value={form.reference || ''} disabled={!darf} onChange={e => update('reference', e.target.value)} className="h-7 text-xs" />
             </label>
           </div>
+          {/* Regionaleffekt (AP E3): Region und geforderter Effekt in Prozent des Betrags */}
+          <div className="flex flex-wrap items-end gap-3 text-xs">
+            <label className="space-y-1"><span className="block text-muted-foreground">{tt(R.regionDesGeldgebers)}</span>
+              <select value={form.region_id ?? ''} disabled={!darf} onChange={e => update('region_id', e.target.value ? Number(e.target.value) : null)}
+                className="h-7 rounded-md border border-input bg-background px-2 text-xs w-40">
+                <option value="">{tt(R.keineRegion)}</option>
+                {regionen.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </label>
+            <label className="space-y-1"><span className="block text-muted-foreground">{tt(R.effektProzent)}</span>
+              <Input type="number" min={0} step="any" disabled={!darf}
+                value={form.regional_effect_bp === null || form.regional_effect_bp === undefined ? '' : form.regional_effect_bp / 100}
+                onChange={e => update('regional_effect_bp', e.target.value === '' ? null : Math.round(Number(e.target.value) * 100))} className="h-7 text-xs w-28" />
+            </label>
+            {form.region_id && form.regional_effect_bp != null && (
+              <span className="pb-1.5 text-muted-foreground">{tt(R.effektSumme).replace('{betrag}', formatCurrency(Math.round((Number(form.amount_cents) || 0) * form.regional_effect_bp / 10_000)))}</span>
+            )}
+          </div>
           {/* Rückflussrang (AP E4): nur eine Angabe, gerechnet wird damit nicht */}
           <div className="flex flex-wrap items-end gap-3 text-xs">
             <label className="space-y-1"><span className="block text-muted-foreground">{tt(F.rang)}</span>
@@ -578,6 +679,121 @@ function FinancingRow({ entry, total, onDelete, darf }: { entry: any; total: num
       </tr>
     )}
     </Fragment>
+  )
+}
+
+/**
+ * Regionaleffekt (AP E3): Regionen des Projekts, je Region geplant, bisher,
+ * gefordert und die Differenz; darunter die Forderungen je Geldgeber. Der
+ * Server rechnet gegen die maßgebliche Kalkulation und den maßgeblichen
+ * Finanzierungsplan.
+ */
+function RegionenReiter({ pid, darf }: { pid: number; darf: boolean }) {
+  const tt = useT()
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const [neu, setNeu] = useState('')
+  const { data } = useQuery({ queryKey: ['regionen', pid], queryFn: () => api.regionen.list(pid), staleTime: 0 })
+  const neuLaden = () => { queryClient.invalidateQueries({ queryKey: ['regionen', pid] }); queryClient.invalidateQueries({ queryKey: ['budget-lines'] }) }
+  const fehler = (e: any) => toast({ variant: 'destructive', title: tt(T.nichtGespeichert), description: e.message })
+  const anlegen = useMutation({ mutationFn: () => api.regionen.create(pid, neu), onSuccess: () => { setNeu(''); neuLaden() }, onError: fehler })
+  const umbenennen = useMutation({ mutationFn: ({ id, name }: { id: number; name: string }) => api.regionen.rename(id, name), onSuccess: neuLaden, onError: fehler })
+  const loeschen = useMutation({ mutationFn: (id: number) => api.regionen.delete(id), onSuccess: () => { neuLaden(); queryClient.invalidateQueries({ queryKey: ['financing-entries'] }) }, onError: fehler })
+  const regionen: any[] = data?.regionen ?? []
+  const u = data?.uebersicht
+  const name = (id: number) => regionen.find((r) => r.id === id)?.name ?? '?'
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="text-sm text-muted-foreground max-w-3xl">{tt(R.erklaerung)}</p>
+        {data?.kalkulation && <p className="text-xs text-muted-foreground mt-1">{tt(R.gegen).replace('{name}', data.kalkulation.name)}</p>}
+      </div>
+      <div data-einfuehrung="regionen" className="space-y-2">
+        <p className="section-label">{tt(R.regionen)}</p>
+        {regionen.length === 0 && <p className="text-xs text-muted-foreground">{tt(R.keineRegionen)}</p>}
+        <div className="flex flex-wrap gap-2">
+          {regionen.map((r) => (
+            <div key={r.id} className="flex items-center gap-1 rounded-md border px-1.5 py-1">
+              <Input defaultValue={r.name} disabled={!darf} aria-label={tt(R.umbenennen).replace('{name}', r.name)}
+                onBlur={e => { const v = e.target.value.trim(); if (v && v !== r.name) umbenennen.mutate({ id: r.id, name: v }); else e.target.value = r.name }}
+                className="h-7 w-32 text-xs border-0 bg-transparent focus-visible:ring-1" />
+              {darf && (
+                <button type="button" aria-label={tt(R.loeschen).replace('{name}', r.name)} className="text-muted-foreground hover:text-destructive"
+                  onClick={() => { if (window.confirm(tt(R.loeschenFrage).replace('{name}', r.name))) loeschen.mutate(r.id) }}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        {darf && (
+          <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (neu.trim()) anlegen.mutate() }}>
+            <Input value={neu} onChange={e => setNeu(e.target.value)} placeholder={tt(R.neueRegion)} aria-label={tt(R.neueRegion)} className="h-8 w-56 text-sm" />
+            <Button type="submit" size="sm" disabled={!neu.trim() || anlegen.isPending}><Plus className="w-4 h-4 mr-1" />{tt(R.anlegen)}</Button>
+          </form>
+        )}
+      </div>
+
+      {u && regionen.length > 0 && (
+        <div data-einfuehrung="regionaleffekt" className="overflow-x-auto">
+          <table className="w-full border rounded-lg overflow-hidden min-w-[640px]">
+            <thead className="bg-muted/30">
+              <tr className="text-xs text-muted-foreground">
+                <th className="text-left py-2 pl-4">{tt(R.region)}</th>
+                <th className="text-right py-2 px-2">{tt(R.geplant)}</th>
+                <th className="text-right py-2 px-2">{tt(R.bisher)}</th>
+                <th className="text-right py-2 px-2">{tt(R.gefordert)}</th>
+                <th className="text-right py-2 px-2">{tt(R.differenz)}</th>
+                <th className="text-left py-2 px-3">{tt(R.erfuellt)}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {u.regionen.map((r: any) => (
+                <tr key={r.id} className="border-b border-border/20 text-sm">
+                  <td className="py-2 pl-4 font-medium">{r.name}</td>
+                  <td className="py-2 px-2 text-right font-mono">{formatCurrency(r.geplant_cents)}</td>
+                  <td className="py-2 px-2 text-right font-mono text-muted-foreground">{formatCurrency(r.bisher_cents)}</td>
+                  <td className="py-2 px-2 text-right font-mono">{r.gefordert_cents ? formatCurrency(r.gefordert_cents) : '-'}</td>
+                  <td className={`py-2 px-2 text-right font-mono ${r.erfuellt === false ? 'text-destructive' : ''}`}>{r.gefordert_cents ? formatCurrency(r.differenz_cents) : '-'}</td>
+                  <td className={`py-2 px-3 text-xs font-semibold ${r.erfuellt === true ? 'text-green-700 dark:text-green-400' : r.erfuellt === false ? 'text-destructive' : 'text-muted-foreground'}`}>
+                    {r.erfuellt === true ? tt(R.ja) : r.erfuellt === false ? tt(R.nein) : '-'}
+                  </td>
+                </tr>
+              ))}
+              <tr className="text-sm text-muted-foreground">
+                <td className="py-2 pl-4 italic">{tt(R.ohneRegion)}</td>
+                <td className="py-2 px-2 text-right font-mono">{formatCurrency(u.ohne_region.geplant_cents)}</td>
+                <td className="py-2 px-2 text-right font-mono">{formatCurrency(u.ohne_region.bisher_cents)}</td>
+                <td colSpan={3} />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {u && regionen.length > 0 && (
+        <div className="space-y-2">
+          <p className="section-label">{tt(R.foerderungen)}</p>
+          {u.geldgeber.length === 0 ? <p className="text-xs text-muted-foreground">{tt(R.keineForderung)}</p> : (
+            <table className="w-full text-sm">
+              <thead><tr className="text-xs text-muted-foreground text-left">
+                <th className="font-medium pb-1">{tt(R.geldgeber)}</th><th className="font-medium pb-1">{tt(R.region)}</th>
+                <th className="font-medium pb-1 text-right">{tt(R.betrag)}</th><th className="font-medium pb-1 text-right">{tt(R.effekt)}</th>
+                <th className="font-medium pb-1 text-right">{tt(R.gefordert)}</th>
+              </tr></thead>
+              <tbody>{u.geldgeber.map((g: any) => (
+                <tr key={g.id}>
+                  <td className="py-1">{g.source}</td><td className="py-1">{name(g.region_id)}</td>
+                  <td className="py-1 text-right font-mono">{formatCurrency(g.amount_cents)}</td>
+                  <td className="py-1 text-right font-mono">{bpAlsText(g.effekt_bp)} %</td>
+                  <td className="py-1 text-right font-mono">{formatCurrency(g.gefordert_cents)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -642,6 +858,10 @@ function BudgetSeite() {
     if (versions?.length && !selectedVersionId) setSelectedVersionId(versions[0].id)
     if (finVersions?.length && !selectedFinVersionId) setSelectedFinVersionId(finVersions[0].id)
   }, [versions, finVersions])
+
+  // Regionen des Projekts für die Zuordnung der Zeilen und die Geldgeber (AP E3)
+  const { data: regionenDaten } = useQuery({ queryKey: ['regionen', pid], queryFn: () => api.regionen.list(pid) })
+  const regionen: any[] = regionenDaten?.regionen ?? []
 
   const { data: lines, isLoading: linesLoading } = useQuery({
     queryKey: ['budget-lines', selectedVersionId],
@@ -852,6 +1072,7 @@ function BudgetSeite() {
         <TabsList data-einfuehrung="reiter">
           <TabsTrigger value="kalkulation" data-einfuehrung="reiter-kalkulation" className="gap-2"><List className="w-4 h-4" />{tt(T.kalkulation)}</TabsTrigger>
           <TabsTrigger value="finanzierung" data-einfuehrung="reiter-finanzierung" className="gap-2"><PieChart className="w-4 h-4" />{tt(T.finanzierungsplan)}</TabsTrigger>
+          <TabsTrigger value="regionen" data-einfuehrung="reiter-regionen" className="gap-2"><MapPin className="w-4 h-4" />{tt(R.reiter)}</TabsTrigger>
         </TabsList>
 
         {/* ── KALKULATION ── */}
@@ -943,6 +1164,30 @@ function BudgetSeite() {
                   <span className="font-mono">{formatCurrency(totalBudget)}</span>
                 </div>
               )}
+              {/* Deutsche Herstellungskosten und interne Kosten (AP E3): aus den Zeilen,
+                  ohne die mindernden Erträge */}
+              {(() => {
+                const kosten = (lines ?? []).filter((l: any) => !(ffa && Number(l.cost_group) === 11))
+                const alle = kosten.reduce((s: number, l: any) => s + (Number(l.total_cents) || 0), 0)
+                if (!alle) return null
+                const deutsch = kosten.filter((l: any) => l.german_spend !== false).reduce((s: number, l: any) => s + (Number(l.total_cents) || 0), 0)
+                const intern = kosten.filter((l: any) => l.internal === true).reduce((s: number, l: any) => s + (Number(l.total_cents) || 0), 0)
+                return (
+                  <div data-einfuehrung="deutsch" className="text-xs p-2 rounded bg-muted/30 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">{tt(R.deutsch)}</span>
+                      <span className="font-mono font-medium shrink-0">{formatCurrency(deutsch)}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground text-right">{tt(R.deutschAnteil).replace('{anteil}', String(Math.round((deutsch / alle) * 1000) / 10).replace('.', ','))}</p>
+                    {intern > 0 && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-muted-foreground">{tt(R.intern)}</span>
+                        <span className="font-mono font-medium shrink-0">{formatCurrency(intern)}</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Main table */}
@@ -1000,7 +1245,7 @@ function BudgetSeite() {
                         </tr>
                         {(grouped[cat] || []).map((line: any) => (
                           <BudgetLineRow key={line.id} line={line} darf={darf} ffa={ffa} onDelete={() => positionLoeschen(line)}
-                            markiert={markiert.has(line.id)} onMarkieren={an => markieren([line.id], an)}
+                            markiert={markiert.has(line.id)} onMarkieren={an => markieren([line.id], an)} regionen={regionen}
                             hervor={hervor === 'rueckstellungen' ? Number(line.deferred_cents) > 0 : hervor === 'beistellungen' ? Number(line.in_kind_cents) > 0 : false} />
                         ))}
                         {ffa && cat === 'k3' && auswertung?.zusatzkosten_gagen_cent != null && (
@@ -1118,7 +1363,7 @@ function BudgetSeite() {
                 </thead>
                 <tbody>
                   {(finEntries || []).map((e: any) => (
-                    <FinancingRow key={e.id} entry={e} total={finTotal} darf={darf} onDelete={() => postenLoeschen(e)} />
+                    <FinancingRow key={e.id} entry={e} total={finTotal} darf={darf} onDelete={() => postenLoeschen(e)} regionen={regionen} />
                   ))}
                   {/* Rechnen sich aus der Kalkulation (AP E4) - hier nicht änderbar */}
                   {ausKalk.map((z: any) => (
@@ -1151,6 +1396,11 @@ function BudgetSeite() {
               </table>
             </div>
           )}
+        </TabsContent>
+
+        {/* ── REGIONALEFFEKT (AP E3) ── */}
+        <TabsContent value="regionen" className="mt-4">
+          <RegionenReiter pid={pid} darf={darf} />
         </TabsContent>
       </Tabs>
     </div>

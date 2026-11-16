@@ -333,6 +333,9 @@ export const api = {
     vergleich: (projectId: number, a: number, b: number) => req<any>(`/projects/${projectId}/budget-versions/vergleich?a=${a}&b=${b}`),
     vergleichCsv: (projectId: number, a: number, b: number) => `/api/projects/${projectId}/budget-versions/vergleich?a=${a}&b=${b}&format=csv`,
     vergleichPdf: (projectId: number, a: number, b: number) => `/api/projects/${projectId}/pdf/kalkulation-vergleich?a=${a}&b=${b}`,
+    /** Anteile einer Zeile an Regionen ersetzen (AP E3). */
+    zeilenRegionen: (lineId: number, anteile: Array<{ region_id: number; share_bp: number }>) =>
+      req<any>(`/budget-lines/${lineId}/regionen`, { method: 'PUT', body: JSON.stringify({ anteile }) }),
     /** Zeitraum mehrerer Zeilen auf eine Phase setzen (AP E2) - bisher nur die Drehzeit. */
     zeitraum: (versionId: number, ids: number[]) =>
       req<{ geaendert: number; von: string; bis: string }>(`/budget-versions/${versionId}/zeitraum`, { method: 'POST', body: JSON.stringify({ ids, phase: 'drehzeit' }) }),
@@ -1235,6 +1238,14 @@ export const api = {
     update: (id: number, data: any) => req<any>(`/expenses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: number) => req<any>(`/expenses/${id}`, { method: 'DELETE' }),
     kostenstand: (projectId: number) => req<any>(`/projects/${projectId}/kostenstand`),
+  },
+
+  // ─── Regionaleffekt (AP E3) ────────────────────────────────────────────────
+  regionen: {
+    list: (projectId: number) => req<any>(`/projects/${projectId}/regionen`),
+    create: (projectId: number, name: string) => req<any>(`/projects/${projectId}/regionen`, { method: 'POST', body: JSON.stringify({ name }) }),
+    rename: (id: number, name: string) => req<any>(`/regionen/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+    delete: (id: number) => req<any>(`/regionen/${id}`, { method: 'DELETE' }),
   },
 
   // ─── Cashflowplan (AP E2) ──────────────────────────────────────────────────

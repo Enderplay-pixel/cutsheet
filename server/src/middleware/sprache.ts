@@ -48,6 +48,9 @@ const MUSTER: Array<[RegExp, Record<Sprache, string>]> = [
   [/^Validierungsfehler: (.*)$/s, { en: 'Validation error: $1', fr: 'Erreur de validation : $1' }],
   [/^Einchecken geht erst am Drehtag \((.+)\)$/,
     { en: 'Check-in opens on the shoot day ($1)', fr: 'L’enregistrement ouvre le jour du tournage ($1)' }],
+  // Regionaleffekt (AP E3)
+  [/^Die Anteile ergeben zusammen ([\d,]+) % - höchstens 100 %$/,
+    { en: 'The shares add up to $1 % - at most 100 %', fr: 'Les parts totalisent $1 % - au plus 100 %' }],
   [/^Das Projekt hat schon (\d+) Szenen\. Der Import würde (\d+) weitere anhängen\.$/,
     { en: 'The project already has $1 scenes. The import would add $2 more.', fr: 'Le projet a déjà $1 scènes. L’import en ajouterait $2 de plus.' }],
 ]

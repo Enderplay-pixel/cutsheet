@@ -604,11 +604,11 @@ export const planung: Record<string, Schritt[]> = {
     {
       ziel: 'kalkulation',
       reiter: 'kalkulation',
-      titel: { de: 'Zurückgestellt und beigestellt', en: 'Deferred and in kind', fr: 'Reporté et en nature' },
+      titel: { de: 'Die Zuordnung einer Zeile', en: 'Allocating a line', fr: "L'affectation d'une ligne" },
       text: {
-        de: "Unter dem Betrag einer Zeile trägst du ein, was davon zurückgestellt ist - erst aus Erlösen bezahlt - und was beigestellt wird, als Sachleistung eines Partners. Zusammen höchstens die Zeilensumme. Beides steht im Finanzierungsplan als zugesagt, im Kostenstand wird dafür kein Beleg erwartet, im Cashflow fließt dafür kein Geld.",
-        en: "Below a line's amount you enter how much of it is deferred - paid only from revenues - and how much comes in kind from a partner. Together at most the line total. Both count as committed in the financing plan; the cost status expects no receipt for them and no money flows for them in the cash flow.",
-        fr: "Sous le montant d'une ligne, tu indiques la part reportée - payée seulement sur les recettes - et la part apportée en nature par un partenaire. Ensemble au plus le total de la ligne. Les deux comptent comme accordés dans le plan de financement ; l'état des coûts n'attend pas de justificatif pour elles, et la trésorerie ne fait circuler aucun argent.",
+        de: "Unter dem Betrag einer Zeile (\"Zuordnung\") trägst du ein, was davon zurückgestellt ist - erst aus Erlösen bezahlt - und was beigestellt wird, als Sachleistung eines Partners; zusammen höchstens die Zeilensumme. Beides steht im Finanzierungsplan als zugesagt, im Kostenstand wird dafür kein Beleg erwartet, im Cashflow fließt dafür kein Geld. Dort verteilst du die Zeile auch auf bis zu vier Regionen und markierst, ob sie zu den deutschen Herstellungskosten zählt und ob sie interne Kosten sind - die Summen stehen links unter der Gesamtsumme.",
+        en: "Below a line's amount (\"Allocation\") you enter how much of it is deferred - paid only from revenues - and how much comes in kind from a partner; together at most the line total. Both count as committed in the financing plan; the cost status expects no receipt for them and no money flows for them in the cash flow. There you also split the line across up to four regions and mark whether it counts as German production costs and whether it is internal - the totals are on the left below the grand total.",
+        fr: "Sous le montant d'une ligne (« Affectation »), tu indiques la part reportée - payée seulement sur les recettes - et la part apportée en nature par un partenaire ; ensemble au plus le total de la ligne. Les deux comptent comme accordés dans le plan de financement ; l'état des coûts n'attend pas de justificatif pour elles, et la trésorerie ne fait circuler aucun argent. Là aussi, tu répartis la ligne sur quatre régions au plus et tu indiques si elle compte parmi les coûts de production allemands et si ce sont des coûts internes - les totaux figurent à gauche sous le total général.",
       },
       wirktAuf: ['kostenstand', 'cashflow'],
     },
@@ -622,6 +622,16 @@ export const planung: Record<string, Schritt[]> = {
         fr: "Chaque financeur avec type, montant et statut : prévu, demandé, accordé, versé ; déplié, demande, accord, référence et les échéances avec date et réception. En haut : coût total, financement, dont accordé et versé, et l'écart - un surfinancement en remarque. Les reports et apports en nature du budget figurent en dessous comme lignes propres, accordés et modifiables seulement là-bas. Déplié, chaque financeur a aussi son rang de remboursement avec ses conditions. Le bilan de clôture signale les échéances en retard.",
       },
       wirktAuf: ['', 'konfliktradar'],
+    },
+    {
+      ziel: 'regionen|reiter-regionen',
+      reiter: 'regionen',
+      titel: { de: 'Regionaleffekt', en: 'Regional effect', fr: 'Effet régional' },
+      text: {
+        de: "Die Regionen heißen, wie sie im Bescheid stehen. Je Region: was die Kalkulation dort ausgibt (nach den Anteilen der Zeilen), was die Belege schon zeigen - ein Beleg erbt die Aufteilung seiner Zeile -, was die Geldgeber der Region fordern, und ob es reicht. Region und geforderten Effekt in Prozent trägst du aufgeklappt am Geldgeber ein; einen Vorgabewert gibt es nicht, ihn nennt die Richtlinie.",
+        en: "Regions are named as in the funding decision. Per region: what the budget spends there (by the lines' shares), what the receipts already show - a receipt inherits its line's split -, what the region's funders require, and whether it is enough. You enter region and required effect in percent at the expanded funder; there is no default, the guideline states it.",
+        fr: "Les régions portent le nom de la décision d'aide. Par région : ce que le budget y dépense (selon les parts des lignes), ce que montrent déjà les justificatifs - un justificatif hérite de la répartition de sa ligne -, ce qu'exigent les financeurs de la région, et si cela suffit. Région et effet exigé en pourcentage se saisissent au financeur déplié ; il n'y a pas de valeur par défaut, la directive l'indique.",
+      },
     },
     {
       ziel: 'foerderantrag',

@@ -1699,6 +1699,32 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE financing_entries ADD COLUMN IF NOT EXISTS recoupment_rank INTEGER`)
   await db.exec(`ALTER TABLE financing_entries ADD COLUMN IF NOT EXISTS recoupment_terms TEXT NOT NULL DEFAULT ''`)
 
+  // Regionaleffekt und deutsche Kosten (Plan Kino-Ausbau, AP E3,
+  // 16.11.2026): Regionen je Projekt als freie Liste, Anteile je Budgetzeile
+  // auf bis zu vier Regionen, geforderter Effekt je Geldgeber; Kennzeichen
+  // "deutsche Herstellungskosten" und "interne Kosten" je Zeile.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS regions (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      name TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS budget_line_regions (
+      id SERIAL PRIMARY KEY,
+      budget_line_id INTEGER NOT NULL REFERENCES budget_lines(id) ON DELETE CASCADE,
+      region_id INTEGER NOT NULL REFERENCES regions(id) ON DELETE CASCADE,
+      share_bp INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(budget_line_id, region_id)
+    )
+  `)
+  await db.exec(`ALTER TABLE financing_entries ADD COLUMN IF NOT EXISTS region_id INTEGER REFERENCES regions(id) ON DELETE SET NULL`)
+  await db.exec(`ALTER TABLE financing_entries ADD COLUMN IF NOT EXISTS regional_effect_bp INTEGER`)
+  await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS german_spend BOOLEAN NOT NULL DEFAULT true`)
+  await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS internal BOOLEAN NOT NULL DEFAULT false`)
+
   // ── Rechnungen und Honorare ───────────────────────────────────────────────
   // Steuerart der Firma. Ein Einzelunternehmen nach Paragraf 19 UStG weist
   // keine Umsatzsteuer aus und muss das auf der Rechnung begruenden.

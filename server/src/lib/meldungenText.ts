@@ -380,4 +380,15 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Zurückgestellt und beigestellt sind Beträge ab 0': { en: 'Deferred and in-kind are amounts from 0', fr: 'Les montants différés et apportés en nature sont des montants à partir de 0' },
   'Zurückgestellt und beigestellt zusammen höchstens die Zeilensumme': { en: 'Deferred and in-kind together at most the line total', fr: 'Différé et apport en nature ensemble au plus le total de la ligne' },
   'Der Rückflussrang ist eine ganze Zahl von 1 bis 999': { en: 'The recoupment rank is a whole number from 1 to 999', fr: 'Le rang de remboursement est un nombre entier de 1 à 999' },
+  // Regionaleffekt (AP E3, 16.11.2026)
+  'Region nicht gefunden': { en: 'Region not found', fr: 'Région introuvable' },
+  'Unbekannte Region': { en: 'Unknown region', fr: 'Région inconnue' },
+  'Anteile fehlen': { en: 'Shares missing', fr: 'Parts manquantes' },
+  'Eine Region braucht einen Namen': { en: 'A region needs a name', fr: 'Une région a besoin d’un nom' },
+  'Der Name einer Region hat höchstens 100 Zeichen': { en: 'A region name has at most 100 characters', fr: 'Le nom d’une région compte au plus 100 caractères' },
+  'Diese Region gibt es im Projekt schon': { en: 'This region already exists in the project', fr: 'Cette région existe déjà dans le projet' },
+  'Der Regionaleffekt liegt zwischen 0 und 10.000 %': { en: 'The regional effect is between 0 and 10,000 %', fr: 'L’effet régional est compris entre 0 et 10 000 %' },
+  'Höchstens 4 Regionen je Zeile': { en: 'At most 4 regions per line', fr: 'Au plus 4 régions par ligne' },
+  'Jede Region nur einmal je Zeile': { en: 'Each region only once per line', fr: 'Chaque région une seule fois par ligne' },
+  'Ein Anteil liegt über 0 und höchstens bei 100 %': { en: 'A share is above 0 and at most 100 %', fr: 'Une part est supérieure à 0 et au plus de 100 %' },
 }

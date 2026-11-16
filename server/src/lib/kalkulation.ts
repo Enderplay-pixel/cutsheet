@@ -281,3 +281,94 @@ export function vergleicheFassungen(a: VergleichZeile[], b: VergleichZeile[]) {
   })
   return { gruppen, unterschiede: zeilen.filter((z) => z.art !== 'beide' || z.diff_cents !== 0).length }
 }
+
+// ─── Regionaleffekt (AP E3) ─────────────────────────────────────────────────
+
+export type RegionAnteil = { budget_line_id: unknown; region_id: unknown; share_bp: unknown }
+export type RegionZeile = { id: number; total_cents: unknown; mindernd?: boolean }
+export type RegionBeleg = { budget_line_id?: unknown; amount_cents: unknown }
+export type RegionGeldgeber = { id: number; source?: string | null; amount_cents: unknown; region_id?: unknown; regional_effect_bp?: unknown }
+
+export const ANTEILE_MAX = 4
+
+/**
+ * Anteile einer Zeile an bis zu vier Regionen prüfen: ganze Basispunkte über
+ * null, jede Region einmal, zusammen höchstens 100 %. Gibt den Grund zurück
+ * oder null.
+ */
+export function anteileFehler(anteile: Array<{ region_id: number; share_bp: number }>): string | null {
+  if (anteile.length > ANTEILE_MAX) return `Höchstens ${ANTEILE_MAX} Regionen je Zeile`
+  if (new Set(anteile.map((a) => a.region_id)).size !== anteile.length) return 'Jede Region nur einmal je Zeile'
+  if (anteile.some((a) => !Number.isInteger(a.share_bp) || a.share_bp <= 0 || a.share_bp > 10_000)) return 'Ein Anteil liegt über 0 und höchstens bei 100 %'
+  const summe = anteile.reduce((s, a) => s + a.share_bp, 0)
+  if (summe > 10_000) return `Die Anteile ergeben zusammen ${String(summe / 100).replace('.', ',')} % - höchstens 100 %`
+  return null
+}
+
+/** Ein Betrag nach Anteilen (Basispunkte) auf Regionen; der Rest ist "ohne Region". */
+function aufteilen(cents: number, anteile: Array<{ region: number; bp: number }>, ziel: Map<number, number>) {
+  let verteilt = 0
+  for (const a of anteile) {
+    const teil = Math.round((cents * a.bp) / 10_000)
+    ziel.set(a.region, (ziel.get(a.region) ?? 0) + teil)
+    verteilt += teil
+  }
+  ziel.set(0, (ziel.get(0) ?? 0) + cents - verteilt)
+}
+
+/**
+ * Regionaleffekt je Region: geplant aus den Zeilen der Kalkulation nach ihren
+ * Anteilen, bisher aus den Belegen (ein Beleg erbt die Aufteilung seiner
+ * Zeile, einer ohne Zeile ist "ohne Region"), gefordert als Summe über die
+ * Geldgeber der Region (Betrag mal Effekt), Differenz und erfüllt. Zeilen,
+ * die die Kosten mindern (Kostenart 11), sind keine Ausgabe in einer Region.
+ */
+export function regionaleffekt(
+  regionen: Array<{ id: number; name: string }>,
+  zeilen: RegionZeile[],
+  anteile: RegionAnteil[],
+  belege: RegionBeleg[],
+  geldgeber: RegionGeldgeber[],
+) {
+  const jeZeile = new Map<number, Array<{ region: number; bp: number }>>()
+  for (const a of anteile) {
+    const z = Number(a.budget_line_id)
+    jeZeile.set(z, [...(jeZeile.get(z) ?? []), { region: Number(a.region_id), bp: Number(a.share_bp) || 0 }])
+  }
+  const zeileVonId = new Map(zeilen.map((z) => [Number(z.id), z]))
+  const geplant = new Map<number, number>()
+  const bisher = new Map<number, number>()
+  for (const z of zeilen) {
+    if (z.mindernd) continue
+    aufteilen(Number(z.total_cents) || 0, jeZeile.get(Number(z.id)) ?? [], geplant)
+  }
+  for (const b of belege) {
+    const z = istGesetzt(b.budget_line_id) ? zeileVonId.get(Number(b.budget_line_id)) : undefined
+    if (z?.mindernd) continue
+    aufteilen(Number(b.amount_cents) || 0, z ? jeZeile.get(Number(z.id)) ?? [] : [], bisher)
+  }
+  const forderungen = geldgeber
+    .filter((g) => istGesetzt(g.region_id) && istGesetzt(g.regional_effect_bp))
+    .map((g) => ({
+      id: g.id, source: String(g.source ?? ''), region_id: Number(g.region_id), effekt_bp: Number(g.regional_effect_bp) || 0,
+      amount_cents: Number(g.amount_cents) || 0,
+      gefordert_cents: Math.round(((Number(g.amount_cents) || 0) * (Number(g.regional_effect_bp) || 0)) / 10_000),
+    }))
+  const zeilenJeRegion = regionen.map((r) => {
+    const gefordert = forderungen.filter((f) => f.region_id === r.id).reduce((s, f) => s + f.gefordert_cents, 0)
+    const g = geplant.get(r.id) ?? 0
+    return {
+      id: r.id, name: r.name,
+      geplant_cents: g,
+      bisher_cents: bisher.get(r.id) ?? 0,
+      gefordert_cents: gefordert,
+      differenz_cents: g - gefordert,
+      erfuellt: gefordert > 0 ? g >= gefordert : null,
+    }
+  })
+  return {
+    regionen: zeilenJeRegion,
+    ohne_region: { geplant_cents: geplant.get(0) ?? 0, bisher_cents: bisher.get(0) ?? 0 },
+    geldgeber: forderungen,
+  }
+}

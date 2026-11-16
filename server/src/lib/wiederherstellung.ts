@@ -49,6 +49,8 @@ const FREMDSCHLUESSEL: Record<string, string> = {
   group_id: 'email_groups',
   cut_id: 'cuts',
   accommodation_id: 'accommodations',
+  // Regionaleffekt (AP E3): Anteile der Budgetzeilen und Geldgeber zeigen auf ihre Region
+  region_id: 'regions',
 }
 
 /**

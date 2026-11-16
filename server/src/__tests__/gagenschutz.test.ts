@@ -52,6 +52,7 @@ beforeAll(async () => {
     '/api/budget-versions/3/auswertung',
     '/api/projects/7/budget-versions/vergleich', '/api/projects/7/pdf/kalkulation-vergleich',
     '/api/projects/7/cashflow', '/api/projects/7/pdf/cashflow',
+    '/api/projects/7/regionen', '/api/regionen/3',
   ]) app.get(pfad, (_req, res) => res.json({ data: 'offen', error: null }))
   app.get('/api/projects/7/jugendschutz', (_req, res) => res.json({ data: 'offen', error: null }))
   server = http.createServer(app)
@@ -141,6 +142,8 @@ describe('Regie', () => {
       '/api/projects/7/budget-versions/vergleich', '/api/projects/7/pdf/kalkulation-vergleich',
       // Cashflowplan (AP E2)
       '/api/projects/7/cashflow', '/api/projects/7/pdf/cashflow',
+      // Regionaleffekt (AP E3)
+      '/api/projects/7/regionen', '/api/regionen/3',
     ]) {
       const { status } = await hole(pfad)
       expect(status, pfad).toBe(403)

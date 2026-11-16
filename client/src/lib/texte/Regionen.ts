@@ -1,0 +1,61 @@
+import type { Lang } from '@/lib/i18n'
+
+type Text = Record<Lang, string>
+
+/** Texte zu Regionaleffekt und deutschen Kosten (Plan Kino-Ausbau, AP E3). */
+export const regionT = {
+  reiter: { de: 'Regionaleffekt', en: 'Regional effect', fr: 'Effet régional' },
+  erklaerung: {
+    de: 'Je Region: was die Kalkulation dort ausgibt, was die Belege schon zeigen, und was die Geldgeber der Region als Effekt fordern. Die Regionen benennst du so, wie sie im Bescheid stehen.',
+    en: 'Per region: what the budget spends there, what the receipts already show, and what the region’s funders require as effect. Name the regions as they appear in the funding decision.',
+    fr: 'Par région : ce que le budget y dépense, ce que montrent déjà les justificatifs, et l’effet exigé par les financeurs de la région. Nomme les régions comme dans la décision d’aide.',
+  },
+  gegen: { de: 'Gerechnet gegen „{name}“', en: 'Calculated against "{name}"', fr: 'Calculé par rapport à « {name} »' },
+  regionen: { de: 'Regionen', en: 'Regions', fr: 'Régions' },
+  neueRegion: { de: 'Neue Region, z. B. NRW', en: 'New region, e.g. NRW', fr: 'Nouvelle région, p. ex. NRW' },
+  anlegen: { de: 'Region anlegen', en: 'Add region', fr: 'Ajouter la région' },
+  umbenennen: { de: 'Name der Region {name}', en: 'Name of region {name}', fr: 'Nom de la région {name}' },
+  loeschen: { de: 'Region {name} löschen', en: 'Delete region {name}', fr: 'Supprimer la région {name}' },
+  loeschenFrage: {
+    de: 'Region „{name}“ löschen? Die Anteile der Zeilen an ihr gehen mit, Geldgeber verlieren die Region.',
+    en: 'Delete region "{name}"? The lines’ shares in it go too, funders lose the region.',
+    fr: 'Supprimer la région « {name} » ? Les parts des lignes partent aussi, les financeurs perdent la région.',
+  },
+  keineRegionen: { de: 'Noch keine Region. Lege die Regionen an, deren Förderung einen Effekt verlangt.', en: 'No region yet. Add the regions whose funding requires an effect.', fr: 'Pas encore de région. Ajoute les régions dont l’aide exige un effet.' },
+  region: { de: 'Region', en: 'Region', fr: 'Région' },
+  geplant: { de: 'Geplant', en: 'Planned', fr: 'Prévu' },
+  bisher: { de: 'Bisher (Belege)', en: 'So far (receipts)', fr: 'Jusqu’ici (justificatifs)' },
+  gefordert: { de: 'Gefordert', en: 'Required', fr: 'Exigé' },
+  differenz: { de: 'Differenz', en: 'Difference', fr: 'Écart' },
+  erfuellt: { de: 'Erfüllt', en: 'Met', fr: 'Atteint' },
+  ja: { de: 'ja', en: 'yes', fr: 'oui' },
+  nein: { de: 'nein', en: 'no', fr: 'non' },
+  ohneRegion: { de: 'ohne Region', en: 'no region', fr: 'sans région' },
+  foerderungen: { de: 'Geforderte Effekte je Geldgeber', en: 'Required effects per funder', fr: 'Effets exigés par financeur' },
+  keineForderung: { de: 'Noch kein Geldgeber mit Region und Effekt - beides steht im Finanzierungsplan, aufgeklappt am Geldgeber.', en: 'No funder with region and effect yet - both are in the financing plan, expanded at the funder.', fr: 'Pas encore de financeur avec région et effet - les deux se trouvent dans le plan de financement, déplié au financeur.' },
+  geldgeber: { de: 'Geldgeber', en: 'Funder', fr: 'Financeur' },
+  effekt: { de: 'Effekt', en: 'Effect', fr: 'Effet' },
+  betrag: { de: 'Betrag', en: 'Amount', fr: 'Montant' },
+  // Am Geldgeber
+  regionDesGeldgebers: { de: 'Region', en: 'Region', fr: 'Région' },
+  effektProzent: { de: 'Geforderter Effekt in %', en: 'Required effect in %', fr: 'Effet exigé en %' },
+  effektSumme: { de: 'gefordert {betrag}', en: 'required {betrag}', fr: 'exigé {betrag}' },
+  keineRegion: { de: 'keine', en: 'none', fr: 'aucune' },
+  // In der Zeile
+  zuordnung: { de: 'Zuordnung von {name}', en: 'Allocation of {name}', fr: 'Affectation de {name}' },
+  zuordnungKurz: { de: 'Zuordnung', en: 'Allocation', fr: 'Affectation' },
+  anteile: { de: 'Anteile an Regionen (höchstens vier, zusammen höchstens 100 %)', en: 'Shares in regions (at most four, together at most 100 %)', fr: 'Parts par région (quatre au plus, 100 % au plus au total)' },
+  anteilVon: { de: 'Anteil in % für Region {n}', en: 'Share in % for region {n}', fr: 'Part en % pour la région {n}' },
+  regionWaehlen: { de: 'Region {n} wählen', en: 'Choose region {n}', fr: 'Choisir la région {n}' },
+  regionDazu: { de: 'Region dazu', en: 'Add region', fr: 'Ajouter une région' },
+  anteilWeg: { de: 'Anteil entfernen', en: 'Remove share', fr: 'Retirer la part' },
+  keineRegionenZeile: { de: 'Regionen legst du im Reiter Regionaleffekt an.', en: 'You add regions in the Regional effect tab.', fr: 'Les régions se créent dans l’onglet Effet régional.' },
+  deutsch: { de: 'Deutsche Herstellungskosten', en: 'German production costs', fr: 'Coûts de production allemands' },
+  intern: { de: 'Interne Kosten', en: 'Internal costs', fr: 'Coûts internes' },
+  nichtDeutschKurz: { de: 'nicht DE', en: 'not DE', fr: 'hors DE' },
+  internKurz: { de: 'intern', en: 'internal', fr: 'interne' },
+  anteilUnlesbar: { de: 'Ein Anteil liegt über 0 und höchstens bei 100 %.', en: 'A share is above 0 and at most 100 %.', fr: 'Une part est supérieure à 0 et au plus de 100 %.' },
+  anteilOhneRegion: { de: 'Jeder Anteil braucht eine Region, jede Region nur einmal.', en: 'Each share needs a region, each region only once.', fr: 'Chaque part a besoin d’une région, chaque région une seule fois.' },
+  anteileZuViel: { de: 'Die Anteile ergeben zusammen {summe} % - höchstens 100 %.', en: 'The shares add up to {summe} % - at most 100 %.', fr: 'Les parts totalisent {summe} % - au plus 100 %.' },
+  deutschAnteil: { de: '{anteil} % der Zeilen', en: '{anteil} % of the lines', fr: '{anteil} % des lignes' },
+} satisfies Record<string, Text>

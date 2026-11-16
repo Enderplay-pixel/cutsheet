@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { kostenstand, vergleicheFassungen } from '../lib/kalkulation'
+import { kostenstand, vergleicheFassungen, regionaleffekt, anteileFehler } from '../lib/kalkulation'
 
 /** Kostenstand mit Endstand und Vergleich zweier Fassungen (Plan Kino-Ausbau, AP E1). Beträge in Cent. */
 describe('kostenstand', () => {
@@ -77,5 +77,43 @@ describe('vergleicheFassungen', () => {
     ])
     expect(v.unterschiede).toBe(3)
     expect(v.gruppen.find((g) => g.gruppe === '3')).toMatchObject({ a_cents: 1_250_000, b_cents: 1_500_000, diff_cents: 250_000 })
+  })
+})
+
+/** Regionaleffekt (Plan Kino-Ausbau, AP E3). Beträge in Cent, Anteile in Basispunkten. */
+describe('regionaleffekt', () => {
+  const regionen = [{ id: 1, name: 'NRW' }, { id: 2, name: 'Hamburg' }]
+
+  it('100.000 € zu 60 % NRW und 40 % Hamburg ergibt 60.000 € und 40.000 €; ein Beleg erbt die Aufteilung', () => {
+    const r = regionaleffekt(regionen, [{ id: 10, total_cents: 10_000_000 }, { id: 11, total_cents: 500_000 }],
+      [{ budget_line_id: 10, region_id: 1, share_bp: 6_000 }, { budget_line_id: 10, region_id: 2, share_bp: 4_000 }],
+      [{ budget_line_id: 10, amount_cents: 1_000_000 }, { amount_cents: 300_000 }], [])
+    expect(r.regionen.map((x) => [x.name, x.geplant_cents, x.bisher_cents])).toEqual([['NRW', 6_000_000, 600_000], ['Hamburg', 4_000_000, 400_000]])
+    // Zeile ohne Anteile und Beleg ohne Zeile: ohne Region
+    expect(r.ohne_region).toEqual({ geplant_cents: 500_000, bisher_cents: 300_000 })
+  })
+
+  it('gefordert: Betrag mal Effekt je Geldgeber der Region; Differenz und erfüllt', () => {
+    const zeilen = [{ id: 1, total_cents: 25_000_000 }, { id: 2, total_cents: 5_000_000 }]
+    const geldgeber = [{ id: 7, source: 'Film- und Medienstiftung', amount_cents: 20_000_000, region_id: 1, regional_effect_bp: 15_000 }]
+    const nicht = regionaleffekt(regionen, zeilen, [{ budget_line_id: 1, region_id: 1, share_bp: 10_000 }], [], geldgeber)
+    expect(nicht.regionen[0]).toMatchObject({ geplant_cents: 25_000_000, gefordert_cents: 30_000_000, differenz_cents: -5_000_000, erfuellt: false })
+    expect(nicht.regionen[1]).toMatchObject({ gefordert_cents: 0, erfuellt: null })
+    expect(nicht.geldgeber).toEqual([expect.objectContaining({ id: 7, gefordert_cents: 30_000_000, effekt_bp: 15_000 })])
+    const ja = regionaleffekt(regionen, zeilen, [{ budget_line_id: 1, region_id: 1, share_bp: 10_000 }, { budget_line_id: 2, region_id: 1, share_bp: 10_000 }], [], geldgeber)
+    expect(ja.regionen[0]).toMatchObject({ geplant_cents: 30_000_000, differenz_cents: 0, erfuellt: true })
+  })
+
+  it('mindernde Zeilen sind keine Ausgabe in einer Region', () => {
+    const r = regionaleffekt(regionen, [{ id: 1, total_cents: 1_000_000, mindernd: true }], [{ budget_line_id: 1, region_id: 1, share_bp: 10_000 }], [], [])
+    expect(r.regionen[0].geplant_cents).toBe(0)
+  })
+
+  it('Anteile: höchstens vier Regionen, jede einmal, zusammen höchstens 100 % - mit Grund', () => {
+    expect(anteileFehler([{ region_id: 1, share_bp: 6_000 }, { region_id: 2, share_bp: 4_000 }])).toBeNull()
+    expect(anteileFehler([{ region_id: 1, share_bp: 6_000 }, { region_id: 2, share_bp: 5_000 }])).toBe('Die Anteile ergeben zusammen 110 % - höchstens 100 %')
+    expect(anteileFehler([1, 2, 3, 4, 5].map((id) => ({ region_id: id, share_bp: 1_000 })))).toBe('Höchstens 4 Regionen je Zeile')
+    expect(anteileFehler([{ region_id: 1, share_bp: 1_000 }, { region_id: 1, share_bp: 1_000 }])).toBe('Jede Region nur einmal je Zeile')
+    expect(anteileFehler([{ region_id: 1, share_bp: 0 }])).toBe('Ein Anteil liegt über 0 und höchstens bei 100 %')
   })
 })

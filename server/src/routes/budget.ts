@@ -4,7 +4,7 @@ import { drehtageBesetzung, drehtageStab, anzahl, KEIN_DREHTAG_SQL } from '../li
 import { ladeDood } from '../lib/dood'
 import { db, TxClient } from '../db'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
-import { massgeblicheKalkulation, finanzierungsstand, istFinanzStatus, istZugesagt, fassungenVergleichen, VERGLEICH_ART, ausKalkulation, zeilenAusKalkulation } from '../lib/kalkulation'
+import { massgeblicheKalkulation, massgeblicherFinanzierungsplan, finanzierungsstand, istFinanzStatus, istZugesagt, fassungenVergleichen, VERGLEICH_ART, ausKalkulation, zeilenAusKalkulation, regionaleffekt, anteileFehler } from '../lib/kalkulation'
 import { heuteISO } from '../lib/datum'
 import { pruefeBudgetzeile, pruefeGeldgeberBetrag, GELD_MAX_CENT } from '../lib/geld'
 import { auswertung, istKostenart, SCHEMATA, VORGABE, type Schema } from '../lib/ffaSchema'
@@ -262,10 +262,15 @@ router.post('/budget-versions/:id/kopie', async (req, res) => {
        VALUES (?, ?, 'Entwurf', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [alt.project_id, name, alt.schema, alt.hu_percent_bp, alt.hu_percent_above_bp, alt.hu_threshold_cents, alt.hu_cap_cents,
         alt.reserve_percent_bp, alt.producer_fee_percent_bp, alt.producer_fee_cap_cents, alt.social_percent_bp])
-    await tx.run(
-      `INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, source_key, cost_group, social, spend_from, spend_until, deferred_cents, in_kind_cents)
-       SELECT ?, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, source_key, cost_group, social, spend_from, spend_until, deferred_cents, in_kind_cents
-         FROM budget_lines WHERE budget_version_id = ?`, [v.id, alt.id])
+    // Zeile für Zeile, damit die Anteile an Regionen (AP E3) mitkommen
+    const zeilen = await tx.all('SELECT id FROM budget_lines WHERE budget_version_id = ? ORDER BY id', [alt.id]) as Array<{ id: number }>
+    for (const z of zeilen) {
+      const neu = await tx.run(
+        `INSERT INTO budget_lines (budget_version_id, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, source_key, cost_group, social, spend_from, spend_until, deferred_cents, in_kind_cents, german_spend, internal)
+         SELECT ?, category, account_code, description, unit, quantity, unit_price_cents, total_cents, notes, sort_order, source_key, cost_group, social, spend_from, spend_until, deferred_cents, in_kind_cents, german_spend, internal
+           FROM budget_lines WHERE id = ?`, [v.id, z.id])
+      await tx.run('INSERT INTO budget_line_regions (budget_line_id, region_id, share_bp) SELECT ?, region_id, share_bp FROM budget_line_regions WHERE budget_line_id = ?', [neu.id, z.id])
+    }
     await recalcBudgetTotal(v.id, tx)
     return tx.get('SELECT * FROM budget_versions WHERE id = ?', [v.id])
   })
@@ -313,8 +318,12 @@ router.get('/budget-versions/:id/lines', requireMemberVia(projectIdFromTable('bu
     if ((await getUserProjectRole(user.id, version.project_id)) === null)
       return res.status(403).json({ data: null, error: 'Kein Zugriff auf dieses Projekt' })
   }
-  const lines = await db.all('SELECT * FROM budget_lines WHERE budget_version_id = ? ORDER BY sort_order ASC, account_code ASC', [req.params.id])
-  res.json({ data: lines, error: null })
+  const lines = await db.all('SELECT * FROM budget_lines WHERE budget_version_id = ? ORDER BY sort_order ASC, account_code ASC', [req.params.id]) as any[]
+  // Anteile an Regionen je Zeile (AP E3)
+  const anteile = lines.length
+    ? await db.all('SELECT budget_line_id, region_id, share_bp FROM budget_line_regions WHERE budget_line_id = ANY(?::int[]) ORDER BY id', [lines.map((l) => l.id)]) as any[]
+    : []
+  res.json({ data: lines.map((l) => ({ ...l, regionen: anteile.filter((a) => a.budget_line_id === l.id).map((a) => ({ region_id: a.region_id, share_bp: a.share_bp })) })), error: null })
 })
 
 // POST /api/budget-versions/:id/lines
@@ -367,7 +376,10 @@ router.put('/budget-lines/:id', async (req, res) => {
   const zeile = pruefeBudgetzeile(quantity, unit_price_cents)
   if ('fehler' in zeile) return res.status(400).json({ data: null, error: zeile.fehler })
   // Kostenart und Sozialversicherung (AP B1): ohne Angabe bleibt, was war
-  const alt = await db.get('SELECT cost_group, social, spend_from, spend_until, deferred_cents, in_kind_cents FROM budget_lines WHERE id = ?', [req.params.id]) as any
+  const alt = await db.get('SELECT cost_group, social, spend_from, spend_until, deferred_cents, in_kind_cents, german_spend, internal FROM budget_lines WHERE id = ?', [req.params.id]) as any
+  // Kennzeichen (AP E3): ohne Angabe bleibt, was war
+  const deutsch = req.body?.german_spend === undefined ? alt?.german_spend !== false : req.body.german_spend !== false
+  const intern = req.body?.internal === undefined ? alt?.internal === true : req.body.internal === true
   const kostenart = req.body?.cost_group === undefined ? (alt?.cost_group ?? null) : kostenartAus(req.body.cost_group)
   if (kostenart === undefined) return res.status(400).json({ data: null, error: 'Unbekannte Kostenart' })
   const social = req.body?.social === undefined ? alt?.social === true : req.body.social === true
@@ -376,7 +388,7 @@ router.put('/budget-lines/:id', async (req, res) => {
   const anteile = anteileAngaben(req.body, alt, zeile.total_cents)
   if ('fehler' in anteile) return res.status(400).json({ data: null, error: anteile.fehler })
   const line = await db.transaction(async (tx) => {
-    await tx.run('UPDATE budget_lines SET category=?, account_code=?, description=?, unit=?, quantity=?, unit_price_cents=?, total_cents=?, notes=?, cost_group=?, social=?, spend_from=?, spend_until=?, deferred_cents=?, in_kind_cents=? WHERE id=?', [category, account_code, description, unit, zeile.quantity, zeile.unit_price_cents, zeile.total_cents, notes, kostenart, social, zeitraum.von, zeitraum.bis, anteile.zurueck, anteile.bei, req.params.id])
+    await tx.run('UPDATE budget_lines SET category=?, account_code=?, description=?, unit=?, quantity=?, unit_price_cents=?, total_cents=?, notes=?, cost_group=?, social=?, spend_from=?, spend_until=?, deferred_cents=?, in_kind_cents=?, german_spend=?, internal=? WHERE id=?', [category, account_code, description, unit, zeile.quantity, zeile.unit_price_cents, zeile.total_cents, notes, kostenart, social, zeitraum.von, zeitraum.bis, anteile.zurueck, anteile.bei, deutsch, intern, req.params.id])
     const zeileNeu = await tx.get('SELECT * FROM budget_lines WHERE id = ?', [req.params.id]) as any
     if (zeileNeu) await recalcBudgetTotal(zeileNeu.budget_version_id, tx)
     return zeileNeu
@@ -420,6 +432,98 @@ function anteileAngaben(body: any, vorher: any, summe: number): { zurueck: numbe
   if (zurueck + bei > Math.max(0, summe)) return { fehler: 'Zurückgestellt und beigestellt zusammen höchstens die Zeilensumme' }
   return { zurueck, bei }
 }
+
+// ─── Regionaleffekt (AP E3) ─────────────────────────────────────────────────
+
+/** Regionen des Projekts und die Übersicht je Region gegen maßgebliche Kalkulation und Finanzierungsplan. */
+async function regionenMitUebersicht(projectId: number) {
+  const regionen = await db.all('SELECT id, name, sort_order FROM regions WHERE project_id = ? ORDER BY sort_order, id', [projectId]) as any[]
+  const kalkulation = await massgeblicheKalkulation(projectId)
+  const zeilen = kalkulation
+    ? await db.all('SELECT id, total_cents, cost_group FROM budget_lines WHERE budget_version_id = ?', [kalkulation.id]) as any[]
+    : []
+  const anteile = zeilen.length
+    ? await db.all('SELECT budget_line_id, region_id, share_bp FROM budget_line_regions WHERE budget_line_id = ANY(?::int[])', [zeilen.map((z) => z.id)]) as any[]
+    : []
+  const belege = await db.all('SELECT budget_line_id, amount_cents FROM expenses WHERE project_id = ?', [projectId]) as any[]
+  const plan = await massgeblicherFinanzierungsplan(projectId)
+  const geldgeber = plan
+    ? await db.all('SELECT id, source, amount_cents, region_id, regional_effect_bp FROM financing_entries WHERE financing_version_id = ? ORDER BY sort_order, id', [plan.id]) as any[]
+    : []
+  const ffa = kalkulation?.schema === 'ffa'
+  return {
+    regionen,
+    uebersicht: regionaleffekt(regionen, zeilen.map((z) => ({ id: z.id, total_cents: z.total_cents, mindernd: ffa && Number(z.cost_group) === 11 })), anteile, belege, geldgeber),
+    kalkulation: kalkulation ? { id: kalkulation.id, name: kalkulation.name } : null,
+  }
+}
+
+// GET /api/projects/:projectId/regionen - Regionen und Übersicht je Region
+router.get('/projects/:projectId/regionen', async (req, res) => {
+  res.json({ data: await regionenMitUebersicht(Number(req.params.projectId)), error: null })
+})
+
+/** Name einer Region: was im Bescheid steht, nicht leer, im Projekt einmalig. */
+async function regionsName(projectId: number, name: unknown, ausser: number | null): Promise<{ name: string } | { fehler: string }> {
+  const n = String(name ?? '').trim()
+  if (!n) return { fehler: 'Eine Region braucht einen Namen' }
+  if (n.length > 100) return { fehler: 'Der Name einer Region hat höchstens 100 Zeichen' }
+  const doppelt = await db.get('SELECT id FROM regions WHERE project_id = ? AND lower(name) = lower(?) AND id <> ?', [projectId, n, ausser ?? 0])
+  if (doppelt) return { fehler: 'Diese Region gibt es im Projekt schon' }
+  return { name: n }
+}
+
+// POST /api/projects/:projectId/regionen
+router.post('/projects/:projectId/regionen', async (req, res) => {
+  const pid = Number(req.params.projectId)
+  const n = await regionsName(pid, req.body?.name, null)
+  if ('fehler' in n) return res.status(400).json({ data: null, error: n.fehler })
+  const sort = Number(((await db.get('SELECT COALESCE(MAX(sort_order), 0) AS m FROM regions WHERE project_id = ?', [pid])) as any)?.m ?? 0) + 1
+  const neu = await db.run('INSERT INTO regions (project_id, name, sort_order) VALUES (?, ?, ?)', [pid, n.name, sort])
+  res.status(201).json({ data: await db.get('SELECT * FROM regions WHERE id = ?', [neu.id]), error: null })
+})
+
+// PUT /api/regionen/:id - umbenennen
+router.put('/regionen/:id', async (req, res) => {
+  const region = await db.get('SELECT * FROM regions WHERE id = ?', [req.params.id]) as any
+  if (!region) return res.status(404).json({ data: null, error: 'Region nicht gefunden' })
+  const n = await regionsName(region.project_id, req.body?.name, region.id)
+  if ('fehler' in n) return res.status(400).json({ data: null, error: n.fehler })
+  await db.run('UPDATE regions SET name = ? WHERE id = ?', [n.name, region.id])
+  res.json({ data: await db.get('SELECT * FROM regions WHERE id = ?', [region.id]), error: null })
+})
+
+// DELETE /api/regionen/:id - die Anteile der Zeilen gehen mit, Geldgeber verlieren die Region
+router.delete('/regionen/:id', async (req, res) => {
+  const region = await db.get('SELECT id FROM regions WHERE id = ?', [req.params.id])
+  if (!region) return res.status(404).json({ data: null, error: 'Region nicht gefunden' })
+  await db.run('DELETE FROM regions WHERE id = ?', [req.params.id])
+  res.json({ data: { ok: true }, error: null })
+})
+
+/**
+ * PUT /api/budget-lines/:id/regionen - die Anteile einer Zeile ersetzen:
+ * `{ anteile: [{ region_id, share_bp }] }`, bis zu vier Regionen des eigenen
+ * Projekts, zusammen höchstens 100 %. Der Rest ist "ohne Region".
+ */
+router.put('/budget-lines/:id/regionen', async (req, res) => {
+  const zeile = await db.get('SELECT bl.id, bv.project_id FROM budget_lines bl JOIN budget_versions bv ON bv.id = bl.budget_version_id WHERE bl.id = ?', [req.params.id]) as any
+  if (!zeile) return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
+  const roh = Array.isArray(req.body?.anteile) ? req.body.anteile : null
+  if (!roh) return res.status(400).json({ data: null, error: 'Anteile fehlen' })
+  const anteile = roh.map((a: any) => ({ region_id: Number(a?.region_id), share_bp: Number(a?.share_bp) }))
+  const grund = anteileFehler(anteile)
+  if (grund) return res.status(400).json({ data: null, error: grund })
+  if (anteile.length) {
+    const eigene = await db.all('SELECT id FROM regions WHERE project_id = ? AND id = ANY(?::int[])', [zeile.project_id, anteile.map((a: any) => a.region_id)]) as any[]
+    if (eigene.length !== anteile.length) return res.status(400).json({ data: null, error: 'Unbekannte Region' })
+  }
+  await db.transaction(async (tx) => {
+    await tx.run('DELETE FROM budget_line_regions WHERE budget_line_id = ?', [zeile.id])
+    for (const a of anteile) await tx.run('INSERT INTO budget_line_regions (budget_line_id, region_id, share_bp) VALUES (?, ?, ?)', [zeile.id, a.region_id, a.share_bp])
+  })
+  res.json({ data: anteile, error: null })
+})
 
 /**
  * POST /api/budget-versions/:id/zeitraum - den Zeitraum mehrerer Zeilen auf
@@ -714,7 +818,7 @@ router.get('/financing-versions/:id/stand', requireMemberVia(projectIdFromTable(
 })
 
 /** Status und Angaben eines Geldgebers aus der Anfrage (AP B2); undefined heißt: bleibt. */
-function geldgeberAngaben(body: any, vorher: any): { werte: { status: string; applied_on: string | null; granted_on: string | null; reference: string; recoupment_rank: number | null; recoupment_terms: string } } | { fehler: string } {
+function geldgeberAngaben(body: any, vorher: any): { werte: { status: string; applied_on: string | null; granted_on: string | null; reference: string; recoupment_rank: number | null; recoupment_terms: string; region_id: number | null; regional_effect_bp: number | null } } | { fehler: string } {
   let status = vorher?.status ?? 'geplant'
   if (body?.status !== undefined) {
     if (!istFinanzStatus(body.status)) return { fehler: 'Unbekannter Stand' }
@@ -743,7 +847,34 @@ function geldgeberAngaben(body: any, vorher: any): { werte: { status: string; ap
     }
   }
   const recoupment_terms = body?.recoupment_terms === undefined ? String(vorher?.recoupment_terms ?? '') : String(body.recoupment_terms ?? '').trim()
-  return { werte: { status, applied_on, granted_on, reference, recoupment_rank, recoupment_terms } }
+  // Regionaleffekt (AP E3): Region und geforderter Effekt in Prozent des Betrags
+  // (Basispunkte) - kein Vorgabewert, die Richtlinie des Förderers nennt ihn
+  let region_id: number | null = vorher?.region_id ?? null
+  if (body?.region_id !== undefined) {
+    if (body.region_id === null || body.region_id === '') region_id = null
+    else {
+      const n = Number(body.region_id)
+      if (!Number.isInteger(n) || n <= 0) return { fehler: 'Unbekannte Region' }
+      region_id = n
+    }
+  }
+  let regional_effect_bp: number | null = vorher?.regional_effect_bp ?? null
+  if (body?.regional_effect_bp !== undefined) {
+    if (body.regional_effect_bp === null || body.regional_effect_bp === '') regional_effect_bp = null
+    else {
+      const n = Number(body.regional_effect_bp)
+      if (!Number.isInteger(n) || n < 0 || n > 1_000_000) return { fehler: 'Der Regionaleffekt liegt zwischen 0 und 10.000 %' }
+      regional_effect_bp = n
+    }
+  }
+  return { werte: { status, applied_on, granted_on, reference, recoupment_rank, recoupment_terms, region_id, regional_effect_bp } }
+}
+
+/** Gehört die Region zum Projekt des Finanzierungsplans? (AP E3) */
+async function regionImPlan(regionId: number | null, planId: unknown): Promise<boolean> {
+  if (regionId === null) return true
+  return !!(await db.get(
+    'SELECT r.id FROM regions r JOIN financing_plan_versions fv ON fv.project_id = r.project_id WHERE r.id = ? AND fv.id = ?', [regionId, planId]))
 }
 
 // POST /api/financing-versions/:id/entries
@@ -755,10 +886,11 @@ router.post('/financing-versions/:id/entries', async (req, res) => {
   const angaben = geldgeberAngaben(req.body, null)
   if ('fehler' in angaben) return res.status(400).json({ data: null, error: angaben.fehler })
   const a = angaben.werte
+  if (!(await regionImPlan(a.region_id, req.params.id))) return res.status(400).json({ data: null, error: 'Unbekannte Region' })
   const id = await db.transaction(async (tx) => {
     const maxSortRow = await tx.get('SELECT COALESCE(MAX(sort_order), 0) as m FROM financing_entries WHERE financing_version_id = ?', [req.params.id])
     const maxSort = (maxSortRow as any).m
-    const result = await tx.run('INSERT INTO financing_entries (financing_version_id, source, type, amount_cents, confirmed, notes, sort_order, status, applied_on, granted_on, reference, recoupment_rank, recoupment_terms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.params.id, source, type, betrag.amount_cents, istZugesagt(a.status) ? 1 : 0, notes, maxSort + 1, a.status, a.applied_on, a.granted_on, a.reference, a.recoupment_rank, a.recoupment_terms])
+    const result = await tx.run('INSERT INTO financing_entries (financing_version_id, source, type, amount_cents, confirmed, notes, sort_order, status, applied_on, granted_on, reference, recoupment_rank, recoupment_terms, region_id, regional_effect_bp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.params.id, source, type, betrag.amount_cents, istZugesagt(a.status) ? 1 : 0, notes, maxSort + 1, a.status, a.applied_on, a.granted_on, a.reference, a.recoupment_rank, a.recoupment_terms, a.region_id, a.regional_effect_bp])
     await recalcFinancingTotal(parseInt(req.params.id), tx)
     return result.id
   })
@@ -780,8 +912,9 @@ router.put('/financing-entries/:id', async (req, res) => {
   const angaben = geldgeberAngaben(req.body, vorher)
   if ('fehler' in angaben) return res.status(400).json({ data: null, error: angaben.fehler })
   const a = angaben.werte
+  if (!(await regionImPlan(a.region_id, vorher.financing_version_id))) return res.status(400).json({ data: null, error: 'Unbekannte Region' })
   const entry = await db.transaction(async (tx) => {
-    await tx.run('UPDATE financing_entries SET source=?, type=?, amount_cents=?, confirmed=?, notes=?, status=?, applied_on=?, granted_on=?, reference=?, recoupment_rank=?, recoupment_terms=? WHERE id=?', [source, type, betrag.amount_cents, istZugesagt(a.status) ? 1 : 0, notes, a.status, a.applied_on, a.granted_on, a.reference, a.recoupment_rank, a.recoupment_terms, req.params.id])
+    await tx.run('UPDATE financing_entries SET source=?, type=?, amount_cents=?, confirmed=?, notes=?, status=?, applied_on=?, granted_on=?, reference=?, recoupment_rank=?, recoupment_terms=?, region_id=?, regional_effect_bp=? WHERE id=?', [source, type, betrag.amount_cents, istZugesagt(a.status) ? 1 : 0, notes, a.status, a.applied_on, a.granted_on, a.reference, a.recoupment_rank, a.recoupment_terms, a.region_id, a.regional_effect_bp, req.params.id])
     const eintrag = await tx.get('SELECT * FROM financing_entries WHERE id = ?', [req.params.id]) as any
     await recalcFinancingTotal(eintrag.financing_version_id, tx)
     return eintrag
