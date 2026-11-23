@@ -551,11 +551,12 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
   // Vorher standen auf jeder Dispo die ersten 30 Komparsen des Projekts ohne
   // Call-Zeit - eine Zuordnung zum Drehtag gab es nicht.
   const komparsenNamen = komparsen.length
-    ? await db.all('SELECT id, name, tariff_group FROM extras WHERE id = ANY(?::int[])', [komparsen.map(k => Number(k.person_id))]) as any[]
+    ? await db.all('SELECT id, name, tariff_group, is_group FROM extras WHERE id = ANY(?::int[])', [komparsen.map(k => Number(k.person_id))]) as any[]
     : []
+  // Eine Gruppe steht mit ihrer Kopfzahl des Tages (AP C1)
   const background = komparsen.map(k => {
     const p = komparsenNamen.find(n => Number(n.id) === Number(k.person_id))
-    return { name: p?.name || '', role: p?.tariff_group || '', call_time: k.call_time }
+    return { name: p?.name || '', role: p?.tariff_group || '', call_time: k.call_time, qty: p?.is_group ? Number(k.headcount) || 1 : 1 }
   })
 
   const loadScenes = async (id: number | string) => {

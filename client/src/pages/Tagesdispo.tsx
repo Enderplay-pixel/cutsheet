@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { komparsenT as KP } from '@/lib/texte/Komparsen'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -480,10 +481,11 @@ function PersonSection({
             {entries.map((entry: any) => (
               <tr key={entry.id} className="border-b border-border/20 last:border-0 hover:bg-muted/10 transition-colors group">
                 <td className="py-2.5 pl-4 pr-2">
-                  <span className="font-semibold text-sm">{entry.person_name || '-'}</span>
+                  {/* Eine Gruppe steht mit ihrer Kopfzahl des Tages (AP C1) */}
+                  <span className="font-semibold text-sm">{entry.gruppe ? tt(KP.gruppeZeile).replace('{n}', String(entry.headcount)).replace('{name}', entry.person_name || '-') : (entry.person_name || '-')}</span>
                 </td>
                 <td className="py-2.5 px-2">
-                  <span className="text-sm text-muted-foreground">{entry.role || '-'}</span>
+                  <span className="text-sm text-muted-foreground">{entry.gruppe ? `${entry.role || ''} (${tt(KP.komparserie)})`.trim() : (entry.role || '-')}</span>
                 </td>
                 <td className="py-2.5 px-2">
                   <TimeInput disabled={!darfSchreiben}

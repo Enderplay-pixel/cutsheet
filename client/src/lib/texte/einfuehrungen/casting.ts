@@ -122,20 +122,30 @@ export const casting: Record<string, Schritt[]> = {
       ziel: 'neu',
       titel: { de: 'Einen Komparsen anlegen', en: 'Add an extra', fr: 'Ajouter un figurant' },
       text: {
-        de: 'Name, Telefon, Mail, Tarifgruppe und Notizen - direkt in einer Tabellenzeile.',
-        en: 'Name, phone, email, rate group and notes - right in a table row.',
-        fr: 'Nom, téléphone, e-mail, groupe tarifaire et notes - directement dans une ligne du tableau.',
+        de: 'Eine Person oder eine Gruppe ("Deicharbeiter", 40 Köpfe) - mit Telefon, Mail, Art, Agentur, Tagessatz und Notizen, direkt in einer Tabellenzeile. Eine Gruppe mit Kindern bekommt "mit Minderjährigen"; die Kinder erfasst ihr für den Jugendschutz einzeln.',
+        en: 'A person or a group ("dyke workers", 40 heads) - with phone, email, type, agency, daily rate and notes, right in a table row. A group with children gets "with minors"; for child protection you add the children individually.',
+        fr: 'Une personne ou un groupe (« ouvriers de la digue », 40 personnes) - avec téléphone, e-mail, type, agence, tarif journalier et notes, directement dans une ligne du tableau. Un groupe avec enfants reçoit « avec mineurs » ; pour la protection des mineurs, les enfants s’enregistrent un par un.',
       },
+    },
+    {
+      ziel: 'einfuegen|neu',
+      titel: { de: 'Viele auf einmal', en: 'Many at once', fr: 'Plusieurs à la fois' },
+      text: {
+        de: '"Namen einfügen" nimmt eine Liste - ein Name je Zeile, aus einer Mail oder Tabelle kopiert - und legt je Zeile eine Person an. Der Listenimport mit Spalten bleibt unter Listen.',
+        en: '"Paste names" takes a list - one name per line, copied from an email or spreadsheet - and creates one person per line. The column import stays under Lists.',
+        fr: '« Coller des noms » prend une liste - un nom par ligne, copiée d’un e-mail ou d’un tableau - et crée une personne par ligne. L’import en colonnes reste sous Listes.',
+      },
+      wirktAuf: ['listen'],
     },
     {
       ziel: 'liste',
       titel: { de: 'Ein Drehtag genügt', en: 'One shoot day is enough', fr: 'Un jour de tournage suffit' },
       text: {
-        de: 'Ein Klick auf einen Drehtag in der Zeile trägt den Komparsen in die Dispo dieses Tages ein, mit der Call-Zeit des Tages; gibt es die Dispo noch nicht, entsteht sie dabei. Von dort kennen ihn Check-in, Verpflegung, Vertrag und Jugendschutz. Abwählen nimmt ihn wieder heraus.',
+        de: 'Ein Klick auf einen Drehtag in der Zeile trägt den Komparsen in die Dispo dieses Tages ein, mit der Call-Zeit des Tages; gibt es die Dispo noch nicht, entsteht sie dabei. Bei einer Gruppe steht daneben, wie viele Köpfe an dem Tag kommen - an Tag 4 alle 40, an Tag 7 nur 12. Von dort kennen sie Check-in, Verpflegung, Vertrag, Jugendschutz und "Kosten übernehmen" in der Kalkulation (Köpfe mal Satz). Abwählen nimmt sie wieder heraus.',
         en: 'One click on a shoot day in the row adds the extra to that day’s call sheet, with the day’s call time; if the call sheet doesn’t exist yet, it is created. From there, check-in, catering, contract and youth protection know about them. Deselecting removes them again.',
         fr: "Un clic sur un jour dans la ligne inscrit le figurant sur la feuille de service de ce jour, avec l'heure de convocation du jour ; si elle n'existe pas encore, elle est créée. De là, l'accueil, la restauration, le contrat et la protection des mineurs le connaissent. Décocher le retire.",
       },
-      wirktAuf: ['tagesdispo', 'checkin', 'catering', 'vertraege'],
+      wirktAuf: ['tagesdispo', 'checkin', 'catering', 'vertraege', 'budget'],
     },
   ],
 

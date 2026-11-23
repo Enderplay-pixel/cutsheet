@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { komparsenT as KP } from '@/lib/texte/Komparsen'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -23,6 +24,9 @@ interface Person {
   id: number
   name: string
   person_type: 'cast' | 'crew' | 'extra'
+  /** Eine Gruppe zählt mit ihrer Kopfzahl (AP C1) */
+  is_group?: boolean
+  headcount?: number
 }
 
 interface CateringPref {
@@ -46,6 +50,9 @@ interface CateringListEntry {
   dietary: string
   allergies: string
   notes: string
+  /** Köpfe: eine Gruppe isst mit ihrer Kopfzahl des Tages (AP C1) */
+  anzahl?: number
+  gruppe?: boolean
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -141,7 +148,7 @@ function PrefRow({ person, pref, pid, isEven }: { person: Person; pref: Catering
 
   return (
     <tr className={`border-b border-border/40 hover:bg-muted/20 transition-colors ${isEven ? '' : 'bg-muted/10'}`}>
-      <td className="px-4 py-2.5 font-medium text-sm">{person.name}</td>
+      <td className="px-4 py-2.5 font-medium text-sm">{person.is_group ? tt(KP.gruppeZeile).replace('{n}', String(person.headcount ?? 0)).replace('{name}', person.name) : person.name}</td>
       <td className="px-4 py-2.5">
         <Badge variant={person.person_type === 'cast' ? 'purple' : person.person_type === 'extra' ? 'cyan' : 'blue'} className="text-[10px]">
           {person.person_type === 'cast' ? tt(cateringListeT.darsteller) : person.person_type === 'extra' ? tt(cateringListeT.komparse) : tt(cateringListeT.crew)}
@@ -252,7 +259,7 @@ export function Component() {
       // erwartet eine Liste mit name
       const data = (await res.json()).data
       const entries: any[] = Array.isArray(data) ? data : (data?.entries ?? [])
-      return entries.map(e => ({ ...e, name: e.name ?? e.person_name ?? '' }))
+      return entries.map(e => ({ ...e, name: e.gruppe ? tt(KP.gruppeZeile).replace('{n}', String(e.anzahl)).replace('{name}', e.person_name ?? '') : (e.name ?? e.person_name ?? '') }))
     },
     enabled: !!selectedDayId,
   })
@@ -277,12 +284,13 @@ export function Component() {
   // Summary chips for Tagesliste
   const dietarySummary = (cateringList ?? []).reduce((acc, e) => {
     if (e.dietary && e.dietary !== 'keine') {
-      acc[e.dietary] = (acc[e.dietary] ?? 0) + 1
+      acc[e.dietary] = (acc[e.dietary] ?? 0) + (e.anzahl ?? 1)
     }
     return acc
   }, {} as Record<string, number>)
 
-  const totalPersons = allPersons.length
+  // Köpfe, nicht Einträge: eine Gruppe zählt mit ihrer Kopfzahl (AP C1)
+  const totalPersons = allPersons.reduce((s, p) => s + (p.is_group ? Number(p.headcount) || 0 : 1), 0)
 
   // Vorher stand hier ein dauerhaft gesperrter Knopf "PDF exportieren" - einen
   // PDF-Weg gibt es nicht. Die Tagesliste geht als CSV an das Catering.
@@ -458,7 +466,7 @@ export function Component() {
                 <>
                   <div className="mb-2">
                     <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/40">
-                      {tt(cateringListeT.anzahlPersonen).replace('{n}', String((cateringList ?? []).length))}
+                      {tt(cateringListeT.anzahlPersonen).replace('{n}', String((cateringList ?? []).reduce((s, e) => s + (e.anzahl ?? 1), 0)))}
                     </span>
                   </div>
                   <div className="rounded-xl border border-border/60 bg-card overflow-hidden">

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { komparsenT as KP } from '@/lib/texte/Komparsen'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -31,6 +32,10 @@ interface CallSheetEntry {
   call_time?: number | string | null // Minuten seit Mitternacht (Datenbank), aeltere Daten HH:MM
   checked_in: boolean
   checked_in_at?: string
+  // Gruppe (AP C1): Kopfzahl des Tages und wie viele da sind
+  gruppe?: boolean
+  headcount?: number
+  checked_in_count?: number | null
 }
 
 interface CallSheet {
@@ -116,27 +121,32 @@ export function Component() {
   // Ein- und Auschecken. Auschecken konnte der Server schon, die Tafel bot es
   // nicht an - ein Fehltipp am Set ließ sich nicht zurücknehmen.
   const checkinMutation = useMutation({
-    mutationFn: async ({ entryId, checkedIn }: { entryId: number; checkedIn: boolean }) => {
+    mutationFn: async ({ entryId, checkedIn, anzahl }: { entryId: number; checkedIn: boolean; anzahl?: number }) => {
       const res = await fetch(`/api/call-sheet-entries/${entryId}/checkin`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ checked_in: checkedIn }),
+        body: JSON.stringify({ checked_in: checkedIn, ...(anzahl !== undefined ? { anzahl } : {}) }),
       })
-      if (!res.ok) throw new Error('Fehler beim Einchecken')
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || 'Fehler beim Einchecken')
       return (await res.json()).data
     },
     onSuccess: (_daten, { checkedIn }) => {
       queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })
       toast({ title: tt(checkedIn ? ct.erfolgreich : ct.ausgecheckt) })
     },
-    onError: () => {
-      toast({ variant: 'destructive', title: tt(ct.fehlerEinchecken) })
+    onError: (e: any) => {
+      toast({ variant: 'destructive', title: tt(ct.fehlerEinchecken), description: e?.message })
     },
   })
+  // Was in das Zahlfeld einer Gruppe getippt ist, je Eintrag
+  const [anzahlFeld, setAnzahlFeld] = useState<Record<number, string>>({})
 
   const entries = callSheet?.entries ?? []
-  const checkedIn = entries.filter(e => e.checked_in).length
-  const total = entries.length
+  // Gezählt werden Köpfe: eine Gruppe mit ihrer Kopfzahl (AP C1)
+  const koepfe = (e: CallSheetEntry) => (e.gruppe ? Number(e.headcount) || 0 : 1)
+  const da = (e: CallSheetEntry) => (e.gruppe ? (e.checked_in_count ?? (e.checked_in ? Number(e.headcount) : 0)) : e.checked_in ? 1 : 0)
+  const checkedIn = entries.reduce((s, e) => s + da(e), 0)
+  const total = entries.reduce((s, e) => s + koepfe(e), 0)
   const progressPct = total > 0 ? Math.round((checkedIn / total) * 100) : 0
 
   const selectedDay = shootDays?.find(d => d.id === selectedDayId)
@@ -282,7 +292,7 @@ export function Component() {
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-[0.95rem]">{entry.person_name ?? entry.name}</span>
+                    <span className="font-semibold text-[0.95rem]">{entry.gruppe ? tt(KP.gruppeZeile).replace('{n}', String(entry.headcount)).replace('{name}', entry.person_name ?? entry.name ?? '') : (entry.person_name ?? entry.name)}</span>
                     <Badge variant={entry.person_type === 'cast' ? 'purple' : entry.person_type === 'extra' ? 'cyan' : 'blue'} className="text-[10px]">
                       {entry.person_type === 'cast' ? tt(ct.darsteller) : entry.person_type === 'extra' ? tt(ct.komparse) : tt(ct.crew)}
                     </Badge>
@@ -305,7 +315,27 @@ export function Component() {
 
                 {/* Status pill + action */}
                 <div className="shrink-0 flex items-center gap-3">
-                  {entry.checked_in ? (
+                  {entry.gruppe ? (
+                    // Eine Gruppe checkt mit Zahl ein: "23 von 25 da" (AP C1)
+                    <>
+                      <Badge variant={da(entry) > 0 ? 'green' : 'secondary'} className="text-[11px] px-2.5 py-0.5 tabular-nums">
+                        {tt(KP.daVon).replace('{da}', String(da(entry))).replace('{von}', String(entry.headcount ?? 0))}
+                      </Badge>
+                      {darfSchreiben && (
+                        <>
+                          <input type="number" min={0} max={entry.headcount ?? undefined} inputMode="numeric"
+                            value={anzahlFeld[entry.id] ?? String(entry.checked_in_count ?? entry.headcount ?? '')}
+                            onChange={e => setAnzahlFeld(a => ({ ...a, [entry.id]: e.target.value }))}
+                            aria-label={tt(KP.anzahlDa).replace('{name}', entry.person_name ?? '')}
+                            className="h-8 w-16 rounded-md border border-input bg-background px-2 text-sm tabular-nums" />
+                          <Button size="sm" className="shrink-0" disabled={checkinMutation.isPending}
+                            onClick={() => checkinMutation.mutate({ entryId: entry.id, checkedIn: true, anzahl: Number(anzahlFeld[entry.id] ?? entry.checked_in_count ?? entry.headcount ?? 0) })}>
+                            {tt(ct.einchecken)}
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  ) : entry.checked_in ? (
                     <>
                       <Badge variant="green" className="text-[11px] px-2.5 py-0.5">{tt(ct.eingecheckt)}</Badge>
                       {darfSchreiben && (

@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   zahl, gagenPosten, equipmentPosten, versicherungsPosten, abgleiche, motivPosten, reisePosten, unterkunftPosten,
-  type Kostenposten,
-} from '../lib/kostenquellen'
+  type Kostenposten, komparsenPosten } from '../lib/kostenquellen'
 
 describe('zahl', () => {
   it('unterscheidet "nicht erfasst" von echter Null', () => {
@@ -177,5 +176,19 @@ describe('Abgleich mit der Kalkulation', () => {
     expect(zweite.geaendert).toEqual([])
     expect(zweite.entfallen).toEqual([])
     expect(zweite.unveraendert).toBe(2)
+  })
+})
+
+describe('komparsenPosten (AP C1)', () => {
+  it('Köpfe mal Satz über die abgerufenen Tage; ohne Satz oder Abruf kein Posten', () => {
+    const p = komparsenPosten([
+      { id: 1, name: 'Deicharbeiter', is_group: true, fee_per_day: 10_000 },
+      { id: 2, name: 'Anna', is_group: false, fee_per_day: 12_000 },
+      { id: 3, name: 'Ohne Satz', is_group: false, fee_per_day: 0 },
+      { id: 4, name: 'Ohne Tag', is_group: false, fee_per_day: 9_000 },
+    ], new Map([[1, 52], [2, 3], [3, 2]]))
+    expect(p.map((x) => [x.schluessel, x.einheit, x.menge, x.gesamt_cent, x.kostenart])).toEqual([
+      ['extra:1', 'Kopftag', 52, 520_000, 3], ['extra:2', 'Tag', 3, 36_000, 3],
+    ])
   })
 })

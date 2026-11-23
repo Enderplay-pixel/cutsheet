@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { komparsenT as KP } from '@/lib/texte/Komparsen'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -623,6 +624,14 @@ function Jugendschutz({ pid }: { pid: number }) {
             <strong>{data.verstoesse}</strong>{' '}
             {data.verstoesse === 1 ? 'Punkt steht' : 'Punkte stehen'} der Mitwirkung entgegen.
           </span>
+        </div>
+      )}
+
+      {/* Eine Gruppe hat kein Geburtsdatum; mit Minderjährigen gehören die Kinder einzeln erfasst (AP C1) */}
+      {(data?.gruppen_mit_minderjaehrigen ?? []).length > 0 && (
+        <div role="status" className="text-xs p-3 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{tt(KP.gruppenJugendschutz).replace('{namen}', data.gruppen_mit_minderjaehrigen.map((g: any) => g.name).join(', '))}</span>
         </div>
       )}
 

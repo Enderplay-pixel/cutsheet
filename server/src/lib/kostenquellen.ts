@@ -128,6 +128,28 @@ export function gagenPosten(
 
 // ─── Equipment ──────────────────────────────────────────────────────────────
 
+// ─── Komparserie (AP C1) ─────────────────────────────────────────────────────
+
+export type Komparse = { id: number; name?: string | null; is_group?: unknown; fee_per_day?: unknown }
+
+/**
+ * Ein Posten je Komparsen-Eintrag: Köpfe mal Satz über alle abgerufenen
+ * Tage, in den Gagen. Eine Person zählt Tage, eine Gruppe Kopftage. Ohne
+ * Satz oder ohne Abruf: kein Posten.
+ */
+export function komparsenPosten(eintraege: Komparse[], kopftage: Map<number, number>): Kostenposten[] {
+  const out: Kostenposten[] = []
+  for (const e of eintraege) {
+    const satz = zahl(e.fee_per_day)
+    const menge = kopftage.get(Number(e.id)) ?? 0
+    if (satz === null || satz <= 0 || menge <= 0) continue
+    const name = String(e.name ?? '').trim() || 'Ohne Namen'
+    const gruppe = e.is_group === true
+    out.push(posten(`extra:${e.id}`, 'Komparserie', gruppe ? `${name} (Gruppe)` : `Komparse ${name}`, gruppe ? 'Kopftag' : 'Tag', menge, satz, KOSTENART.gagen))
+  }
+  return out
+}
+
 export type EquipmentPosten = {
   id: number
   name?: string | null

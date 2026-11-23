@@ -105,7 +105,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
 | **Besetzung** | `/projects/:id/besetzung` | Figuren und ihre Darsteller, Gage, Agentur, Mail, Geburtsdatum, Foto. | Sobald die Besetzung steht. |
-| **Komparsen** | `/projects/:id/komparsen` | Komparserie mit Tarifgruppe und Kontakt. | Bei Massenszenen. |
+| **Komparsen** | `/projects/:id/komparsen` | Komparserie als Person oder Gruppe mit Kopfzahl, Tagessatz, Agentur und Abruf je Drehtag mit Anzahl; viele Namen auf einmal einfügen. Die Kopfzahl geht in Dispo, Verpflegung, Check-in und Kalkulation. | Bei Massenszenen. |
 | **Stabliste** | `/projects/:id/stabliste` | Der Stab nach Gewerk, mit Tages- oder Wochengage, Vor- und Abwicklungstagen, als PDF. | Beim Aufbau der Crew. |
 | **Kontaktliste** | `/projects/:id/kontakte` | Alle Beteiligten an einem Ort, Export als CSV und **vCard** fürs Telefon. | Vor dem ersten Drehtag - damit alle Nummern im Telefon sind. |
 | **SperrtageKalender** | `/projects/:id/sperrtage` | Wann wer nicht kann. Fließt in den Konfliktradar. | Direkt nach der Besetzung, vor der Drehplanung. |
@@ -137,7 +137,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 | **Equipment** | `/projects/:id/equipment` | Equipmentlisten je Drehtag oder Gewerk, mit Mietpreis je Tag, Woche oder pauschal und Status. | In der Vorbereitung, dann beim Packen. |
 | **EquipmentKalender** | `/projects/:id/equipment-kalender` | Wann welches Gerät wo ist - findet Doppelbuchungen. | Wenn mehrere Projekte sich Technik teilen. |
 | **Fahrzeuge** | `/projects/:id/fahrzeuge` | Fahrzeuge mit Kennzeichen, Plätzen und Fahrer. | Bei Fahrgemeinschaften und auswärtigen Drehs. |
-| **CateringListe** | `/projects/:id/catering` | Wer isst was nicht - Unverträglichkeiten und Vorlieben, je Drehtag ausgewertet. | Vor der Bestellung beim Caterer. |
+| **CateringListe** | `/projects/:id/catering` | Wer isst was nicht - Unverträglichkeiten und Vorlieben, je Drehtag ausgewertet. Eine Komparsengruppe zählt mit ihrer Kopfzahl des Tages. | Vor der Bestellung beim Caterer. |
 | **Versicherungen** | `/projects/:id/versicherungen` | Policen mit Nummer, Laufzeit und Deckung. | Vor dem ersten Drehtag, und wenn ein Motiv den Nachweis verlangt. |
 
 ---
@@ -147,7 +147,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
 | **Tagesdispo** | `/projects/:id/tagesdispo`, `/tagesdispo/:dayId` | Die Disposition: General Call, geplanter Drehschluss mit Arbeitszeit-Befund, persönliche Zeiten, Szenen, Motiv, Wetter; Krankenhaus, Basecamp und Parken vom Motiv, Frühstück, Mittag, Temperaturen, Funkkanäle; Abteilungszeilen aus dem Breakdown. Versand per Mail mit persönlichem Bestätigungslink, Links auch ohne Mail kopierbar; Zeiten geschlossen verschieben. | Am Vortag, meist abends. |
-| **CheckinBoard** | `/projects/:id/checkin` | Wer ist da: alle von der Dispo des Tages, am Set abzuhaken. (Selbst einchecken über einen Link gibt es nicht, siehe Fund 79.) | Morgens am Set. |
+| **CheckinBoard** | `/projects/:id/checkin` | Wer ist da: alle von der Dispo des Tages, am Set abzuhaken; eine Komparsengruppe checkt mit Zahl ein ("38 von 40 da"). (Selbst einchecken über einen Link gibt es nicht, siehe Fund 79.) | Morgens am Set. |
 | **Tagesbericht** | `/projects/:id/tagesbericht` | Was wirklich gedreht wurde: Szenen, Seiten, Zeiten, Pausen, Vorkommnisse. Als PDF. | Abends nach Drehschluss. |
 | **Kameraberichte** | `/projects/:id/kameraberichte` | Takes je Einstellung mit Bewertung, Karten und Speicherplatz. | Am Set durch die Kamera-Assistenz. |
 | **Continuity** | `/projects/:id/continuity` | Anschlüsse: Kostüm, Maske, Requisite je Szene, mit Foto. | Am Set durch die Script/Continuity. |

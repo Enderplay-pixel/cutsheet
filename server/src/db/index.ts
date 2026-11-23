@@ -1742,6 +1742,17 @@ export async function initDatabase() {
     await db.exec(`ALTER TABLE locations ADD COLUMN IF NOT EXISTS ${spalte} TEXT NOT NULL DEFAULT ''`)
   }
   await db.exec(`ALTER TABLE locations ADD COLUMN IF NOT EXISTS permit_required BOOLEAN NOT NULL DEFAULT false`)
+
+  // Komparserie als Gruppen mit Anzahl, Satz und Abruf (Plan Kino-Ausbau,
+  // AP C1, 23.11.2026): Ein Eintrag ist eine Person oder eine Gruppe mit
+  // Kopfzahl; der Abruf je Tag ist der Dispo-Eintrag mit Kopfzahl.
+  await db.exec(`ALTER TABLE extras ADD COLUMN IF NOT EXISTS is_group BOOLEAN NOT NULL DEFAULT false`)
+  await db.exec(`ALTER TABLE extras ADD COLUMN IF NOT EXISTS headcount INTEGER NOT NULL DEFAULT 1`)
+  await db.exec(`ALTER TABLE extras ADD COLUMN IF NOT EXISTS fee_per_day BIGINT NOT NULL DEFAULT 0`)
+  await db.exec(`ALTER TABLE extras ADD COLUMN IF NOT EXISTS agency TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE extras ADD COLUMN IF NOT EXISTS minors_included BOOLEAN NOT NULL DEFAULT false`)
+  await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS headcount INTEGER NOT NULL DEFAULT 1`)
+  await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS checked_in_count INTEGER`)
   await db.exec(`CREATE INDEX IF NOT EXISTS location_sets_motiv_idx ON location_sets (location_id)`)
 
   // ── Rechnungen und Honorare ───────────────────────────────────────────────

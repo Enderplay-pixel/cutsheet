@@ -92,7 +92,7 @@ router.get('/shoot-days/:dayId/catering-list', async (req: Request, res: Respons
   let callEntries: any[] = []
   if (sheet) {
     callEntries = await db.all(
-      'SELECT DISTINCT person_type, person_id FROM call_sheet_entries WHERE call_sheet_id = ?',
+      'SELECT person_type, person_id, MAX(headcount) AS headcount FROM call_sheet_entries WHERE call_sheet_id = ? GROUP BY person_type, person_id',
       [sheet.id]
     ) as any[]
   }
@@ -100,7 +100,10 @@ router.get('/shoot-days/:dayId/catering-list', async (req: Request, res: Respons
   // For each person, look up catering preference and name
   const entries = await Promise.all(callEntries.map(async (e: any) => {
     // Komparsen essen mit: Sie zählen für die Verpflegung des Tages
-    const person_name = (await personAngaben(e.person_type, e.person_id))?.name || ''
+    const person = await personAngaben(e.person_type, e.person_id)
+    const person_name = person?.name || ''
+    // Eine Gruppe isst mit ihrer Kopfzahl (AP C1)
+    const anzahl = person?.gruppe === true ? Number(e.headcount) || 1 : 1
 
     const pref = await db.get(
       'SELECT * FROM catering_preferences WHERE project_id = ? AND person_type = ? AND person_id = ?',
@@ -115,6 +118,8 @@ router.get('/shoot-days/:dayId/catering-list', async (req: Request, res: Respons
       allergies: pref?.allergies || '',
       notes: pref?.notes || '',
       catering_preference_id: pref?.id || null,
+      anzahl,
+      gruppe: person?.gruppe === true,
     }
   }))
 
@@ -122,7 +127,7 @@ router.get('/shoot-days/:dayId/catering-list', async (req: Request, res: Respons
   const summary: Record<string, number> = {}
   for (const entry of entries) {
     const key = entry.dietary || 'keine'
-    summary[key] = (summary[key] || 0) + 1
+    summary[key] = (summary[key] || 0) + entry.anzahl
   }
 
   return res.json({ data: { entries, summary }, error: null })

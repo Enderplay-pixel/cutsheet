@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, Trash2, Pencil, Check, X, Users } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Plus, Trash2, Pencil, Check, X, Users, ClipboardPaste } from 'lucide-react'
+import { cn, formatCurrency, betragInCent } from '@/lib/utils'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useT } from '@/lib/useT'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
 import { komparsenT as k } from '@/lib/texte/Komparsen'
@@ -34,11 +36,22 @@ interface Extra {
   notes: string
   /** Drehtage, in deren Dispo der Komparse steht */
   drehtage: number[]
+  // Gruppen mit Kopfzahl, Satz, Agentur, Abruf je Tag (AP C1)
+  is_group: boolean
+  headcount: number
+  /** Cent; null für Rollen ohne Gagenrecht (server/src/lib/gagenschutz.ts) */
+  fee_per_day: number | null
+  agency: string
+  minors_included: boolean
+  abrufe: Array<{ tag: number; anzahl: number }>
 }
 
 type Drehtag = { id: number; day_number: number; date: string }
 
-const EMPTY_EXTRA = { name: '', phone: '', email: '', tariff_group: 'Standard', notes: '', drehtage: [] as number[] }
+const EMPTY_EXTRA = {
+  name: '', phone: '', email: '', tariff_group: 'Standard', notes: '', drehtage: [] as number[],
+  is_group: false, headcount: 1, fee_per_day: 0 as number | null, agency: '', minors_included: false, abrufe: [] as Array<{ tag: number; anzahl: number }>,
+}
 
 function tagText(tag: Drehtag, tt: ReturnType<typeof useT>) {
   const datum = tag.date ? ` · ${tag.date.slice(8, 10)}.${tag.date.slice(5, 7)}.` : ''
@@ -49,7 +62,8 @@ function ExtraRow({ extra, pid, tage, onEdit }: { extra: Extra; pid: number; tag
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const tt = useT()
-  const { darfSchreiben } = useSchreibrecht()
+  const { darfSchreiben, siehtGagen } = useSchreibrecht()
+  const anzahlAm = (tagId: number) => (extra.abrufe ?? []).find(a => a.tag === tagId)?.anzahl
 
   const deleteMutation = useMutation({
     mutationFn: () => api.extras.delete(pid, extra.id),
@@ -65,7 +79,14 @@ function ExtraRow({ extra, pid, tage, onEdit }: { extra: Extra; pid: number; tag
 
   return (
     <tr className="border-b border-border/40 hover:bg-muted/30 transition-colors group">
-      <td className="py-2.5 px-4 text-sm font-medium">{extra.name || '-'}</td>
+      <td className="py-2.5 px-4 text-sm font-medium">
+        {extra.name || '-'}
+        {extra.is_group && (
+          <span className="ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 whitespace-nowrap">
+            {tt(k.gruppe)} · {tt(k.koepfeKurz).replace('{n}', String(extra.headcount))}{extra.minors_included ? ` · ${tt(k.minderjaehrige)}` : ''}
+          </span>
+        )}
+      </td>
       <td className="py-2.5 px-4 text-sm text-muted-foreground">{extra.phone || '-'}</td>
       <td className="py-2.5 px-4 text-sm text-muted-foreground">{extra.email || '-'}</td>
       <td className="py-2.5 px-4">
@@ -73,6 +94,8 @@ function ExtraRow({ extra, pid, tage, onEdit }: { extra: Extra; pid: number; tag
           {extra.tariff_group || '-'}
         </span>
       </td>
+      <td className="py-2.5 px-4 text-sm text-muted-foreground">{extra.agency || '-'}</td>
+      {siehtGagen && <td className="py-2.5 px-4 text-sm text-right tabular-nums">{extra.fee_per_day ? formatCurrency(extra.fee_per_day) : '-'}</td>}
       <td className="py-2.5 px-4">
         {eigene.length === 0 ? (
           <span className="text-xs text-muted-foreground/60">-</span>
@@ -80,7 +103,7 @@ function ExtraRow({ extra, pid, tage, onEdit }: { extra: Extra; pid: number; tag
           <div className="flex flex-wrap gap-1">
             {eigene.map(t => (
               <span key={t.id} className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground tabular-nums">
-                {tagText(t, tt)}
+                {tagText(t, tt)}{extra.is_group && anzahlAm(t.id) ? ` · ${anzahlAm(t.id)}` : ''}
               </span>
             ))}
           </div>
@@ -130,17 +153,27 @@ function ExtraFormRow({
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const tt = useT()
+  const { siehtGagen } = useSchreibrecht()
   const [form, setForm] = useState(initial ? { ...initial, drehtage: initial.drehtage ?? [] } : { ...EMPTY_EXTRA })
+  // Kopfzahl je abgerufenem Tag; ohne Angabe die ganze Gruppe (AP C1)
+  const [anzahl, setAnzahl] = useState<Record<number, string>>(
+    Object.fromEntries((initial?.abrufe ?? []).map(a => [a.tag, String(a.anzahl)])))
+  const [satzText, setSatzText] = useState(initial?.fee_per_day ? String(initial.fee_per_day / 100).replace('.', ',') : '')
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const { drehtage, ...stamm } = form
+      const { drehtage, abrufe: _a, ...stamm } = form
+      const satz = satzText.trim() ? betragInCent(satzText) : 0
+      const daten: any = { ...stamm, headcount: form.is_group ? Number(form.headcount) || 1 : 1 }
+      if (siehtGagen && !Number.isNaN(satz)) daten.fee_per_day = satz
+      else delete daten.fee_per_day
       const gespeichert = initial // texte-ok
-        ? await api.extras.update(pid, initial.id, stamm)
-        : await api.extras.create(pid, stamm)
-      const vorher = [...(initial?.drehtage ?? [])].sort().join(',')
-      if ([...drehtage].sort().join(',') !== vorher) {
-        await api.extras.setDrehtage(pid, gespeichert.id, drehtage)
+        ? await api.extras.update(pid, initial.id, daten)
+        : await api.extras.create(pid, daten)
+      const abruf = drehtage.map(t => ({ tag: t, anzahl: form.is_group ? Number(anzahl[t] || form.headcount) || 1 : 1 }))
+      const vorher = JSON.stringify([...(initial?.abrufe ?? [])].map(a => [a.tag, a.anzahl]).sort())
+      if (JSON.stringify(abruf.map(a => [a.tag, a.anzahl]).sort()) !== vorher) {
+        await api.extras.setDrehtage(pid, gespeichert.id, abruf)
       }
     },
     onSuccess: () => {
@@ -151,10 +184,10 @@ function ExtraFormRow({
       toast({ title: initial ? tt(k.aktualisiert) : tt(k.hinzugefuegt) })
       onDone()
     },
-    onError: () => toast({ variant: 'destructive', title: tt(k.fehlerSpeichern) }),
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(k.fehlerSpeichern), description: e?.message }),
   })
 
-  const set = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }))
+  const set = (key: string, value: any) => setForm(f => ({ ...f, [key]: value }))
   const umschalten = (tagId: number) => setForm(f => ({
     ...f,
     drehtage: f.drehtage.includes(tagId) ? f.drehtage.filter(t => t !== tagId) : [...f.drehtage, tagId],
@@ -165,7 +198,28 @@ function ExtraFormRow({
 
   return (
     <tr className="border-b border-primary/20 bg-primary/5">
-      <td className={colClass}><Input className={inputClass} placeholder={tt(k.name)} aria-label={tt(k.name)} value={form.name} onChange={e => set('name', e.target.value)} /></td>
+      <td className={colClass}>
+        <Input className={inputClass} placeholder={tt(k.name)} aria-label={tt(k.name)} value={form.name} onChange={e => set('name', e.target.value)} />
+        {/* Person oder Gruppe (AP C1) */}
+        <div role="group" aria-label={tt(k.artDesEintrags)} className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px]">
+          {([false, true] as const).map(g => (
+            <button key={String(g)} type="button" aria-pressed={form.is_group === g} onClick={() => set('is_group', g)}
+              className={cn('px-1.5 py-0.5 rounded border', form.is_group === g ? 'border-primary bg-primary/15 text-primary font-semibold' : 'border-border/60 text-muted-foreground')}>
+              {tt(g ? k.gruppe : k.person)}
+            </button>
+          ))}
+          {form.is_group && (
+            <>
+              <Input type="number" min={1} value={form.headcount} onChange={e => set('headcount', e.target.value === '' ? '' : Number(e.target.value))}
+                aria-label={tt(k.koepfe)} className="h-6 w-16 text-xs" />
+              <span className="text-muted-foreground">{tt(k.koepfe)}</span>
+              <label className="inline-flex items-center gap-1" title={tt(k.minderjaehrigeHilfe)}>
+                <Checkbox checked={form.minors_included} onCheckedChange={v => set('minors_included', v === true)} />{tt(k.minderjaehrige)}
+              </label>
+            </>
+          )}
+        </div>
+      </td>
       <td className={colClass}><Input className={inputClass} placeholder="+49…" aria-label={tt(k.telefon)} value={form.phone} onChange={e => set('phone', e.target.value)} /></td>
       <td className={colClass}><Input className={inputClass} placeholder={tt(k.mailPlatzh)} aria-label={tt(k.email)} type="email" value={form.email} onChange={e => set('email', e.target.value)} /></td>
       <td className={colClass}>
@@ -174,26 +228,38 @@ function ExtraFormRow({
           {tarife.map(t => <option key={t} value={t} />)}
         </datalist>
       </td>
+      <td className={colClass}><Input className={inputClass} aria-label={tt(k.agentur)} value={form.agency} onChange={e => set('agency', e.target.value)} /></td>
+      {siehtGagen && (
+        <td className={colClass}>
+          <Input className={cn(inputClass, 'w-24 text-right')} inputMode="decimal" aria-label={tt(k.satz)} placeholder="0,00" value={satzText} onChange={e => setSatzText(e.target.value)} />
+        </td>
+      )}
       <td className={colClass}>
         {tage.length === 0 ? (
           <span className="text-xs text-muted-foreground">{tt(k.keineDrehtage)}</span>
         ) : (
-          <div className="flex flex-wrap gap-1 min-w-[160px]" role="group" aria-label={tt(k.drehtage)}>
+          <div className="flex flex-wrap gap-1 min-w-[160px]" role="group" aria-label={tt(k.drehtage)} title={form.is_group ? tt(k.abrufHilfe) : undefined}>
             {tage.map(t => {
               const an = form.drehtage.includes(t.id)
               return (
-                <button
-                  key={t.id}
-                  type="button"
-                  aria-pressed={an}
-                  onClick={() => umschalten(t.id)}
-                  className={cn(
-                    'text-[11px] px-1.5 py-0.5 rounded border tabular-nums transition-colors',
-                    an ? 'border-primary bg-primary/15 text-primary font-semibold' : 'border-border/60 text-muted-foreground hover:border-primary/40',
+                <span key={t.id} className="inline-flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    aria-pressed={an}
+                    onClick={() => umschalten(t.id)}
+                    className={cn(
+                      'text-[11px] px-1.5 py-0.5 rounded border tabular-nums transition-colors',
+                      an ? 'border-primary bg-primary/15 text-primary font-semibold' : 'border-border/60 text-muted-foreground hover:border-primary/40',
+                    )}
+                  >
+                    {tagText(t, tt)}
+                  </button>
+                  {an && form.is_group && (
+                    <Input type="number" min={1} max={Number(form.headcount) || undefined} value={anzahl[t.id] ?? String(form.headcount)}
+                      onChange={e => setAnzahl(a => ({ ...a, [t.id]: e.target.value }))}
+                      aria-label={tt(k.anzahlAm).replace('{tag}', tagText(t, tt))} className="h-6 w-14 text-[11px] px-1" />
                   )}
-                >
-                  {tagText(t, tt)}
-                </button>
+                </span>
               )
             })}
           </div>
@@ -232,7 +298,25 @@ export function Component() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [filterTarif, setFilterTarif] = useState<string>('alle')
   const tt = useT()
-  const { darfSchreiben } = useSchreibrecht()
+  const { darfSchreiben, siehtGagen } = useSchreibrecht()
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  // Schnell erfassen: Namen untereinander (AP C1)
+  const [einfuegen, setEinfuegen] = useState(false)
+  const [namenText, setNamenText] = useState('')
+  const [namenArt, setNamenArt] = useState('Standard')
+  const [namenAgentur, setNamenAgentur] = useState('')
+  const namen = namenText.split('\n').map(n => n.trim()).filter(Boolean)
+  const mehrere = useMutation({
+    mutationFn: () => api.extras.mehrere(pid, { namen, tariff_group: namenArt, agency: namenAgentur }),
+    onSuccess: (neu) => {
+      queryClient.invalidateQueries({ queryKey: ['extras', pid] })
+      toast({ title: tt(k.namenAngelegt).replace('{n}', String(neu.length)) })
+      setNamenText(''); setEinfuegen(false)
+    },
+    onError: (e: any) => toast({ variant: 'destructive', title: tt(k.fehlerSpeichern), description: e?.message }),
+  })
+  const spalten = siehtGagen ? 9 : 8
 
   const { data: extras = [], isLoading } = useQuery<Extra[]>({
     queryKey: ['extras', pid],
@@ -271,6 +355,12 @@ export function Component() {
             </SelectContent>
           </Select>
           {darfSchreiben && (
+            <Button variant="outline" data-einfuehrung="einfuegen" onClick={() => setEinfuegen(v => !v)}>
+              <ClipboardPaste className="w-4 h-4 mr-2" />
+              {tt(k.namenEinfuegen)}
+            </Button>
+          )}
+          {darfSchreiben && (
             <Button data-einfuehrung="neu" onClick={() => { setAdding(true); setEditingId(null) }} disabled={adding}>
               <Plus className="w-4 h-4 mr-2" />
               {tt(k.hinzufuegen)}
@@ -278,18 +368,39 @@ export function Component() {
           )}
         </div>
       </div>
+      {einfuegen && darfSchreiben && (
+        <div className="mb-4 rounded-xl border border-border/60 bg-card p-4 space-y-2">
+          <p className="text-xs text-muted-foreground">{tt(k.namenHilfe)}</p>
+          <Textarea value={namenText} onChange={e => setNamenText(e.target.value)} rows={6} aria-label={tt(k.namenEinfuegen)}
+            className="text-sm font-mono" placeholder={'Anna Berg\nBen Claus\n…'} />
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="text-[11px] text-muted-foreground space-y-1"><span className="block">{tt(k.artSpalte)}</span>
+              <Input value={namenArt} onChange={e => setNamenArt(e.target.value)} className="h-8 w-40 text-sm" list="tarife-mehrere" />
+              <datalist id="tarife-mehrere">{tarife.map(t => <option key={t} value={t} />)}</datalist>
+            </label>
+            <label className="text-[11px] text-muted-foreground space-y-1"><span className="block">{tt(k.agentur)}</span>
+              <Input value={namenAgentur} onChange={e => setNamenAgentur(e.target.value)} className="h-8 w-48 text-sm" />
+            </label>
+            <Button size="sm" disabled={namen.length === 0 || mehrere.isPending} onClick={() => mehrere.mutate()}>
+              {tt(k.namenAnlegen).replace('{n}', String(namen.length))}
+            </Button>
+          </div>
+        </div>
+      )}
       <p className="text-xs text-muted-foreground mb-3">{tt(k.drehtageHinweis)}</p>
 
       {/* Table */}
       <div data-einfuehrung="liste" className="bg-card border border-border/60 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px]">
+          <table className="w-full min-w-[980px]">
             <thead>
               <tr className="border-b border-border/60 bg-muted/30">
                 <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(k.name)}</th>
                 <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(k.telefon)}</th>
                 <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(k.email)}</th>
                 <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(k.tarifgruppe)}</th>
+                <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(k.agentur)}</th>
+                {siehtGagen && <th className="text-right py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(k.satz)}</th>}
                 <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(k.drehtage)}</th>
                 <th className="text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tt(k.notizen)}</th>
                 <th className="w-20" />
@@ -302,7 +413,7 @@ export function Component() {
               {isLoading ? (
                 [1,2,3].map(i => (
                   <tr key={i} className="border-b border-border/40">
-                    {[1,2,3,4,5,6,7].map(j => (
+                    {Array.from({ length: spalten }, (_, j) => j).map(j => (
                       <td key={j} className="py-2.5 px-4">
                         <div className="h-4 bg-muted rounded animate-pulse" />
                       </td>
@@ -311,7 +422,7 @@ export function Component() {
                 ))
               ) : filtered.length === 0 && !adding ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-muted-foreground text-sm">
+                  <td colSpan={spalten} className="py-16 text-center text-muted-foreground text-sm">
                     {filterTarif === 'alle'
                       ? tt(k.leer)
                       : tt(k.leerGruppe).replace('{gruppe}', filterTarif)}

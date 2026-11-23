@@ -677,9 +677,18 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
         AND NOT EXISTS (SELECT 1 FROM shoot_day_scenes sds WHERE sds.shoot_day_id = sd.id)
       ORDER BY sd.day_number ASC`, [pid]) as any[]
 
+  // Komparserie (AP C1): Köpfe je abgerufenem Drehtag, ohne Sperr-, Ausfall- und Reservetage
+  const komparsen = await db.all('SELECT id, name, is_group, fee_per_day FROM extras WHERE project_id = ?', [pid]) as any[]
+  const kopftageRoh = await db.all(
+    `SELECT cse.person_id, SUM(cse.headcount) AS koepfe
+       FROM call_sheet_entries cse JOIN call_sheets cs ON cs.id = cse.call_sheet_id JOIN shoot_days sd ON sd.id = cs.shoot_day_id
+      WHERE cse.person_type = 'extra' AND sd.project_id = ? AND sd.status NOT IN ${KEIN_DREHTAG_SQL}
+      GROUP BY cse.person_id`, [pid]) as any[]
+  const kopftage = new Map(kopftageRoh.map((r) => [Number(r.person_id), Number(r.koepfe) || 0]))
   const soll = [
     ...kosten.gagenPosten(besetzung, castTage, 'cast'),
     ...kosten.haltePosten(haltende, halteTage),
+    ...kosten.komparsenPosten(komparsen, kopftage),
     ...kosten.gagenPosten(stab, stabTage, 'crew', tageJeWoche),
     ...kosten.equipmentPosten(equipment),
     ...kosten.motivPosten(motive, motivTage, motivvertraege),

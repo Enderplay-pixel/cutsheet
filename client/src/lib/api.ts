@@ -476,7 +476,10 @@ export const api = {
     create: (projectId: number, data: any) => req<any>(`/projects/${projectId}/extras`, { method: 'POST', body: JSON.stringify(data) }),
     update: (projectId: number, id: number, data: any) => req<any>(`/projects/${projectId}/extras/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (projectId: number, id: number) => req<void>(`/projects/${projectId}/extras/${id}`, { method: 'DELETE' }),
-    setDrehtage: (projectId: number, id: number, drehtage: number[]) => req<any>(`/projects/${projectId}/extras/${id}/drehtage`, { method: 'PUT', body: JSON.stringify({ drehtage }) }),
+    // Mit Kopfzahl je Tag für Gruppen (AP C1): [{ tag, anzahl }]
+    setDrehtage: (projectId: number, id: number, drehtage: Array<number | { tag: number; anzahl: number }>) => req<any>(`/projects/${projectId}/extras/${id}/drehtage`, { method: 'PUT', body: JSON.stringify({ drehtage }) }),
+    /** Schnell erfassen: je Name eine Person (AP C1) */
+    mehrere: (projectId: number, data: { namen: string[]; tariff_group?: string; agency?: string }) => req<any[]>(`/projects/${projectId}/extras/mehrere`, { method: 'POST', body: JSON.stringify(data) }),
   },
 
   // ─── Camera Presets ────────────────────────────────────────────────────────

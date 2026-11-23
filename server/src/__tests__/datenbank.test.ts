@@ -185,6 +185,10 @@ beforeAll(async () => {
   // Förderantrag und Projektübersicht rechnen die Finanzierung mit (AP E4)
   const { default: foerderRouter } = await import('../routes/foerderantrag')
   app.use('/api', optionalAuth, foerderRouter)
+  // Check-in und Verpflegung zählen Köpfe (AP C1)
+  const { default: checkinRouter } = await import('../routes/checkin')
+  const { default: cateringRouter } = await import('../routes/catering')
+  app.use('/api', optionalAuth, checkinRouter, cateringRouter)
   // Motive, Sets und Genehmigungen (AP C3)
   const { default: motivRouter } = await import('../routes/locations')
   const { default: genehmigungRouter } = await import('../routes/permits')
@@ -4700,6 +4704,64 @@ describe('Dispo-Kopf vollständig, Breakdown in die Dispo (AP C4)', () => {
     const leser = (await hole(`/api/shoot-days/${tag}/call-sheet`, tokenFremd)).daten
     expect(leser.entries).toHaveLength(1)
     expect('public_token' in leser.entries[0]).toBe(false)
+  })
+})
+
+describe('Komparserie als Gruppen mit Anzahl, Satz und Abruf (AP C1)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+  const heute = () => new Date().toISOString().slice(0, 10)
+
+  it('Gruppe mit 40 Köpfen an zwei Tagen (40 und 12), 100 €: Kalkulation 5.200 €, Catering 12, Abruf 50 abgelehnt, Check-in 38 von 40', async () => {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Komparserie C1', nutzerId])).id
+    const t1 = (await db.run('INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, ?)', [p, heute()])).id
+    const t2 = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 2, '2027-05-02')", [p])).id
+    const gruppe = (await sende(`/api/projects/${p}/extras`, { name: 'Deicharbeiter', is_group: true, headcount: 40, fee_per_day: 10_000, agency: 'Komparsen Nord', tariff_group: 'Komparse' })).daten
+    expect(gruppe).toMatchObject({ is_group: true, headcount: 40, fee_per_day: 10_000, agency: 'Komparsen Nord' })
+    expect((await sende(`/api/projects/${p}/extras/${gruppe.id}/drehtage`, { drehtage: [{ tag: t1, anzahl: 50 }] }, 'PUT')).status).toBe(400)
+    const abgerufen = (await sende(`/api/projects/${p}/extras/${gruppe.id}/drehtage`, { drehtage: [{ tag: t1, anzahl: 40 }, { tag: t2, anzahl: 12 }] }, 'PUT')).daten
+    expect(abgerufen.abrufe.map((x: any) => [x.tag, x.anzahl])).toEqual([[t1, 40], [t2, 12]])
+    // Weniger Köpfe als abgerufen: abgelehnt
+    expect((await sende(`/api/projects/${p}/extras/${gruppe.id}`, { headcount: 30 }, 'PUT')).status).toBe(400)
+
+    // Kalkulation: (40 + 12) Kopftage mal 100 €
+    const k = (await sende(`/api/projects/${p}/budget-versions`, { name: 'K' })).daten
+    await sende(`/api/budget-versions/${k.id}/kosten-uebernehmen`, {})
+    const zeile = ((await hole(`/api/budget-versions/${k.id}/lines`, tokenInhaber)).daten as any[]).find((z) => z.source_key === `extra:${gruppe.id}`)
+    expect(zeile).toMatchObject({ total_cents: 520_000, quantity: 52, unit: 'Kopftag', cost_group: 3 })
+
+    // Verpflegung: Tag 2 zählt 12
+    const catering = (await hole(`/api/shoot-days/${t2}/catering-list`, tokenInhaber)).daten
+    expect(catering.entries.find((e: any) => e.person_type === 'extra')).toMatchObject({ anzahl: 12, gruppe: true })
+    expect(Object.values(catering.summary).reduce((a: number, b: any) => a + Number(b), 0)).toBe(12)
+
+    // Dispo von Tag 1: ein Eintrag mit 40 Köpfen; Check-in am Drehtag mit Zahl
+    const dispo = (await hole(`/api/shoot-days/${t1}/call-sheet`, tokenInhaber)).daten
+    const eintrag = dispo.entries.find((e: any) => e.person_type === 'extra')
+    expect(eintrag).toMatchObject({ headcount: 40, gruppe: true, person_name: 'Deicharbeiter' })
+    expect((await sende(`/api/call-sheet-entries/${eintrag.id}/checkin`, { checked_in: true, anzahl: 41 })).status).toBe(400)
+    expect((await sende(`/api/call-sheet-entries/${eintrag.id}/checkin`, { checked_in: true, anzahl: 38 })).daten).toMatchObject({ checked_in: true, checked_in_count: 38 })
+    const stand = (await hole(`/api/call-sheets/${dispo.id}/checkin-status`, tokenInhaber)).daten
+    expect(stand.summary).toMatchObject({ total: 40, checked_in: 38 })
+
+    // Für eine Gruppe gibt es keinen Vertrag
+    expect((await sende(`/api/projects/${p}/vertraege`, { person_type: 'extra', person_id: gruppe.id, body: 'Vertrag' })).status).toBe(400)
+  })
+
+  it('zehn Namen auf einmal: zehn Personen; eine Gruppe mit Minderjährigen meldet sich im Jugendschutz', async () => {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Namen C1', nutzerId])).id
+    const namen = ['Anna', 'Ben', ' ', 'Cem', 'Dana', 'Emil', 'Fiona', 'Gero', 'Hanna', 'Ilse', 'Jonas']
+    const neu = await sende(`/api/projects/${p}/extras/mehrere`, { namen, agency: 'Komparsen Nord' })
+    expect(neu.status).toBe(201)
+    expect(neu.daten).toHaveLength(10)
+    expect(neu.daten.every((e: any) => e.is_group === false && e.headcount === 1 && e.agency === 'Komparsen Nord')).toBe(true)
+    // Eine Person zählt immer 1, auch wenn mehr geschickt wird
+    const person = neu.daten[0]
+    expect((await sende(`/api/projects/${p}/extras/${person.id}`, { headcount: 5 }, 'PUT')).daten.headcount).toBe(1)
+    await sende(`/api/projects/${p}/extras`, { name: 'Schulklasse', is_group: true, headcount: 25, minors_included: true })
+    const js = (await hole(`/api/projects/${p}/jugendschutz`, tokenInhaber)).daten
+    expect(js.gruppen_mit_minderjaehrigen).toEqual([expect.objectContaining({ name: 'Schulklasse', headcount: 25 })])
+    expect(js.ohne_geburtsdatum_liste.some((x: any) => x.name === 'Schulklasse')).toBe(false)
   })
 })
 

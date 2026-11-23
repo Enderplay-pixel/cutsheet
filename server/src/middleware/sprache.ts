@@ -48,6 +48,13 @@ const MUSTER: Array<[RegExp, Record<Sprache, string>]> = [
   [/^Validierungsfehler: (.*)$/s, { en: 'Validation error: $1', fr: 'Erreur de validation : $1' }],
   [/^Einchecken geht erst am Drehtag \((.+)\)$/,
     { en: 'Check-in opens on the shoot day ($1)', fr: 'L’enregistrement ouvre le jour du tournage ($1)' }],
+  // Komparserie als Gruppen (AP C1)
+  [/^Abgerufen sind (\d+) - eingecheckt werden 0 bis (\d+)$/,
+    { en: '$1 are called - check in 0 to $2', fr: '$1 convoqués - enregistrer de 0 à $2' }],
+  [/^Die Gruppe hat (\d+) Köpfe - (\d+) lassen sich nicht abrufen$/,
+    { en: 'The group has $1 heads - $2 cannot be called', fr: 'Le groupe compte $1 personnes - impossible d’en convoquer $2' }],
+  [/^An einem Drehtag sind (\d+) Köpfe abgerufen - die Gruppe braucht mindestens so viele$/,
+    { en: '$1 heads are called on a shoot day - the group needs at least as many', fr: '$1 personnes sont convoquées un jour de tournage - le groupe en a besoin d’au moins autant' }],
   // Regionaleffekt (AP E3)
   [/^Die Anteile ergeben zusammen ([\d,]+) % - höchstens 100 %$/,
     { en: 'The shares add up to $1 % - at most 100 %', fr: 'Les parts totalisent $1 % - au plus 100 %' }],

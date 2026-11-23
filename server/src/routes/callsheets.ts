@@ -43,7 +43,7 @@ async function getCallSheet(id: number, mitLinks = true) {
   // Name und Funktion dazu - für Stab, Besetzung und Komparserie
   const enriched = await Promise.all(entries.map(async (e: any) => {
     const person = await personAngaben(e.person_type, e.person_id)
-    return { ...e, person_name: person?.name || '', role: person?.rolle || '' }
+    return { ...e, person_name: person?.name || '', role: person?.rolle || '', gruppe: person?.gruppe === true }
   }))
 
   // Arbeitszeit nach eingestellter Regel im Kopf der Dispo (AP B3): Call der

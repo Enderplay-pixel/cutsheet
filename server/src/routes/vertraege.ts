@@ -301,7 +301,8 @@ router.get('/projects/:projectId/vertraege', requireAuth, requireMember, async (
     db.all('SELECT * FROM contracts WHERE project_id = ? ORDER BY created_at DESC', [projectId]) as Promise<any[]>,
     db.all('SELECT id, actor_name AS name, birthdate FROM "cast" WHERE project_id = ? ORDER BY actor_name', [projectId]) as Promise<any[]>,
     db.all('SELECT id, name, birthdate FROM crew WHERE project_id = ? ORDER BY name', [projectId]) as Promise<any[]>,
-    db.all('SELECT id, name, birthdate FROM extras WHERE project_id = ? ORDER BY name', [projectId]) as Promise<any[]>,
+    // Für eine Gruppe gibt es keinen Vertrag (AP C1)
+    db.all('SELECT id, name, birthdate FROM extras WHERE project_id = ? AND NOT is_group ORDER BY name', [projectId]) as Promise<any[]>,
     // Unterschriebene Exemplare aus der Ablage (AP A5): das neueste je Vertrag
     db.all(
       `SELECT DISTINCT ON (entity_id) entity_id, id, filename, created_at FROM project_files
@@ -374,6 +375,7 @@ router.post('/projects/:projectId/vertraege', requireAuth, requireMember, async 
   const personId = Number(req.body?.person_id)
   const daten = await werteFuer(projectId, art, personId)
   if (!daten) return res.status(404).json({ data: null, error: 'Person nicht gefunden' })
+  if (art === 'extra' && daten.person.is_group === true) return res.status(400).json({ data: null, error: 'Für eine Gruppe gibt es keinen Vertrag - Verträge schließt jede Person einzeln' })
 
   const text = String(req.body?.body || '')
   if (!text.trim()) return res.status(400).json({ data: null, error: 'Ohne Text kein Vertrag' })
@@ -915,15 +917,19 @@ router.get('/projects/:projectId/jugendschutz', requireAuth, requireMember, asyn
   const ohneGeburtsdatum = await db.all(
     `SELECT 'cast' AS person_type, id AS person_id, actor_name AS name FROM "cast" WHERE project_id = ? AND birthdate IS NULL
      UNION ALL
-     SELECT 'extra', id, name FROM extras WHERE project_id = ? AND birthdate IS NULL
+     SELECT 'extra', id, name FROM extras WHERE project_id = ? AND birthdate IS NULL AND NOT is_group
      ORDER BY name`,
     [projectId, projectId]
   ) as Array<{ person_type: string; person_id: number; name: string }>
+  // Eine Gruppe hat kein Geburtsdatum; mit Minderjährigen gehören die Kinder einzeln erfasst (AP C1)
+  const gruppenMitMinderjaehrigen = await db.all(
+    'SELECT id, name, headcount FROM extras WHERE project_id = ? AND is_group AND minors_included ORDER BY name', [projectId]) as any[]
   return res.json({
     data: {
       personen: ergebnisse,
       ohne_geburtsdatum: ohneGeburtsdatum.length,
       ohne_geburtsdatum_liste: ohneGeburtsdatum,
+      gruppen_mit_minderjaehrigen: gruppenMitMinderjaehrigen,
       verstoesse: ergebnisse.reduce((s, e) => s + e.verstoesse, 0),
       unterlagen: ANTRAGSUNTERLAGEN,
     },

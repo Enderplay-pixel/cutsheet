@@ -402,4 +402,11 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   // Dispo-Kopf (AP C4, 16.11.2026)
   'Frühstück ist eine Uhrzeit': { en: 'Breakfast is a time of day', fr: 'Le petit-déjeuner est une heure' },
   'Mittag ist eine Uhrzeit': { en: 'Lunch is a time of day', fr: 'Le déjeuner est une heure' },
+  // Komparserie als Gruppen (AP C1, 23.11.2026)
+  'Abgerufen wird mindestens ein Kopf': { en: 'At least one head is called', fr: 'Au moins une personne est convoquée' },
+  'Keine Namen': { en: 'No names', fr: 'Aucun nom' },
+  'Höchstens 500 Namen auf einmal': { en: 'At most 500 names at once', fr: 'Au plus 500 noms à la fois' },
+  'Für eine Gruppe gibt es keinen Vertrag - Verträge schließt jede Person einzeln': { en: 'A group has no contract - each person signs their own', fr: 'Un groupe n’a pas de contrat - chaque personne signe le sien' },
+  'Eine Gruppe hat 1 bis 10.000 Köpfe': { en: 'A group has 1 to 10,000 heads', fr: 'Un groupe compte de 1 à 10 000 personnes' },
+  'Der Tagessatz ist ein Betrag ab 0': { en: 'The daily rate is an amount from 0', fr: 'Le tarif journalier est un montant à partir de 0' },
 }

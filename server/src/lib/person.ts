@@ -17,7 +17,7 @@ export function istPersonenart(wert: unknown): wert is Personenart {
   return wert === 'crew' || wert === 'cast' || wert === 'extra'
 }
 
-export type Personangaben = { name: string; rolle: string; email: string; telefon: string }
+export type Personangaben = { name: string; rolle: string; email: string; telefon: string; gruppe?: boolean }
 
 /**
  * Name, Funktion und Kontakt einer Person aus der Dispo - eine Stelle für
@@ -35,11 +35,11 @@ export async function personAngaben(art: string, personId: number | string): Pro
       : art === 'crew'
         ? 'SELECT name, role AS rolle, email, phone AS telefon FROM crew WHERE id = ?'
         : art === 'extra'
-          ? 'SELECT name, tariff_group AS rolle, email, phone AS telefon FROM extras WHERE id = ?'
+          ? 'SELECT name, tariff_group AS rolle, email, phone AS telefon, is_group AS gruppe FROM extras WHERE id = ?'
           : null
   if (!sql) return null
   const p = (await db.get(sql, [personId])) as any
-  return p ? { name: p.name || '', rolle: p.rolle || '', email: p.email || '', telefon: p.telefon || '' } : null
+  return p ? { name: p.name || '', rolle: p.rolle || '', email: p.email || '', telefon: p.telefon || '', ...(p.gruppe === true ? { gruppe: true } : {}) } : null
 }
 
 /**

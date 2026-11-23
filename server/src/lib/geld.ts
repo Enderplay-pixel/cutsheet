@@ -48,6 +48,7 @@ export const GELDSPALTEN: Record<string, string[]> = {
   equipment_items: ['rental_per_day_cents', 'total_cents'],
   insurances: ['coverage_amount_cents', 'premium_cents'],
   cast: ['fee_per_day', 'hold_fee_per_day'],
+  extras: ['fee_per_day'],          // Komparserie: Tagessatz (AP C1)
   crew: ['fee_per_day', 'fee_per_week'],
   locations: ['rental_fee'],
   location_releases: ['fee_cents'],

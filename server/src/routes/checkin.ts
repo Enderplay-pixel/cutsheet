@@ -36,9 +36,21 @@ router.post('/call-sheet-entries/:id/checkin', async (req: Request, res: Respons
     }
   }
 
+  // Eine Gruppe checkt mit Zahl ein (AP C1): "23 von 25 da"
+  let anzahl: number | null = null
+  if (entry.person_type === 'extra') {
+    const gruppe = await db.get('SELECT is_group FROM extras WHERE id = ?', [entry.person_id]) as any
+    if (gruppe?.is_group === true) {
+      const roh = (req.body as any)?.anzahl
+      anzahl = !checkedIn ? null : roh === undefined ? Number(entry.headcount) : Number(roh)
+      if (anzahl !== null && (!Number.isInteger(anzahl) || anzahl < 0 || anzahl > Number(entry.headcount))) {
+        return res.status(400).json({ data: null, error: `Abgerufen sind ${entry.headcount} - eingecheckt werden 0 bis ${entry.headcount}` })
+      }
+    }
+  }
   await db.run(
-    'UPDATE call_sheet_entries SET checked_in = ?, checked_in_at = ? WHERE id = ?',
-    [checkedIn, checkedIn ? new Date() : null, req.params.id]
+    'UPDATE call_sheet_entries SET checked_in = ?, checked_in_at = ?, checked_in_count = ? WHERE id = ?',
+    [checkedIn && anzahl !== 0, checkedIn && anzahl !== 0 ? new Date() : null, anzahl, req.params.id]
   )
 
   const updated = await db.get('SELECT * FROM call_sheet_entries WHERE id = ?', [req.params.id]) as any
@@ -60,11 +72,14 @@ router.get('/call-sheets/:id/checkin-status', async (req: Request, res: Response
 
   const enriched = await Promise.all(entries.map(async (e: any) => {
     const person = await personAngaben(e.person_type, e.person_id)
-    return { ...e, person_name: person?.name || '', role: person?.rolle || '' }
+    return { ...e, person_name: person?.name || '', role: person?.rolle || '', gruppe: person?.gruppe === true }
   }))
 
-  const total = enriched.length
-  const checked_in_count = enriched.filter((e: any) => e.checked_in).length
+  // Gezählt werden Köpfe: Eine Gruppe zählt mit ihrer Kopfzahl (AP C1)
+  const koepfe = (e: any) => (e.gruppe ? Number(e.headcount) || 0 : 1)
+  const da = (e: any) => (e.gruppe ? (e.checked_in_count ?? (e.checked_in ? Number(e.headcount) : 0)) : e.checked_in ? 1 : 0)
+  const total = enriched.reduce((s: number, e: any) => s + koepfe(e), 0)
+  const checked_in_count = enriched.reduce((s: number, e: any) => s + da(e), 0)
 
   return res.json({
     data: {

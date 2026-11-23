@@ -55,7 +55,8 @@ const SPALTEN: Record<Art, Record<string, string[]>> = {
     name:         ['name', 'komparse', 'komparsin', 'person'],
     email:        ['e-mail', 'email', 'mail'],
     phone:        ['telefon', 'handy', 'mobil', 'phone'],
-    tariff_group: ['tarifgruppe', 'tarif', 'gruppe'],
+    tariff_group: ['tarifgruppe', 'tarif', 'gruppe', 'art'],
+    agency:       ['agentur', 'agency'],
   },
 }
 
@@ -97,7 +98,7 @@ async function verarbeite(
 
   // Die Gage heisst je nach Tabelle anders. Wer keine Gagen sieht, setzt auch
   // keine - die Spalte wird dann überlesen (lib/gagenschutz.ts).
-  const gagenfeld = !mitGage ? null : art === 'crew' ? 'fee_per_day' : art === 'cast' ? 'fee_per_day' : null
+  const gagenfeld = !mitGage ? null : art === 'crew' || art === 'cast' || art === 'extras' ? 'fee_per_day' : null
 
   for (let i = 0; i < zeilen.length; i++) {
     const zeile = zeilen[i]
@@ -223,8 +224,8 @@ router.get('/import/:art/vorlage.csv', (req: Request, res: Response) => {
       beispiel: ['Felix Wagner', 'felix@beispiel.test', '0171 2345678', 'Agentur Nord', '600,00'],
     },
     extras: {
-      kopf: ['Name', 'E-Mail', 'Telefon', 'Tarifgruppe'],
-      beispiel: ['Thomas Meier', 'thomas@beispiel.test', '0160 1112233', 'Standard'],
+      kopf: ['Name', 'E-Mail', 'Telefon', 'Tarifgruppe', 'Agentur', 'Tagessatz'],
+      beispiel: ['Thomas Meier', 'thomas@beispiel.test', '0160 1112233', 'Standard', 'Komparsen Nord', '120,00'],
     },
   }
   const vorlage = vorlagen[art]
@@ -265,6 +266,15 @@ router.get('/projects/:projectId/export/:art.csv', requireAuth, async (req: Requ
     )) as any[]
     zeilen = daten.map((z) => [z.actor_name, z.rolle, z.email, z.phone, ...(mitGage ? [cents(z.fee_per_day)] : [])])
     name = 'besetzung'
+  } else if (art === 'extras') {
+    // Komparserie (AP C1): Personen und Gruppen, der Satz nur mit Gagenrecht
+    kopf = ['Name', 'Gruppe', 'Köpfe', 'Tarifgruppe', 'Agentur', 'E-Mail', 'Telefon', ...(mitGage ? ['Tagessatz'] : [])]
+    const daten = (await db.all(
+      'SELECT name, is_group, headcount, tariff_group, agency, email, phone, fee_per_day FROM extras WHERE project_id = ? ORDER BY name',
+      [projectId]
+    )) as any[]
+    zeilen = daten.map((z) => [z.name, z.is_group ? 'ja' : 'nein', z.headcount, z.tariff_group, z.agency, z.email, z.phone, ...(mitGage ? [cents(z.fee_per_day)] : [])])
+    name = 'komparserie'
   } else if (art === 'scenes') {
     kopf = ['Nummer', 'Titel', 'INT/EXT', 'Tageszeit', 'Motiv', 'Achtel', 'Minuten']
     const daten = (await db.all(
