@@ -146,7 +146,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
-| **Tagesdispo** | `/projects/:id/tagesdispo`, `/tagesdispo/:dayId` | Die Disposition: General Call, geplanter Drehschluss mit Arbeitszeit-Befund, persönliche Zeiten, Szenen, Motiv, Wetter. Versand per Mail mit persönlichem Bestätigungslink; Zeiten geschlossen verschieben. | Am Vortag, meist abends. |
+| **Tagesdispo** | `/projects/:id/tagesdispo`, `/tagesdispo/:dayId` | Die Disposition: General Call, geplanter Drehschluss mit Arbeitszeit-Befund, persönliche Zeiten, Szenen, Motiv, Wetter; Krankenhaus, Basecamp und Parken vom Motiv, Frühstück, Mittag, Temperaturen, Funkkanäle; Abteilungszeilen aus dem Breakdown. Versand per Mail mit persönlichem Bestätigungslink, Links auch ohne Mail kopierbar; Zeiten geschlossen verschieben. | Am Vortag, meist abends. |
 | **CheckinBoard** | `/projects/:id/checkin` | Wer ist da: alle von der Dispo des Tages, am Set abzuhaken. (Selbst einchecken über einen Link gibt es nicht, siehe Fund 79.) | Morgens am Set. |
 | **Tagesbericht** | `/projects/:id/tagesbericht` | Was wirklich gedreht wurde: Szenen, Seiten, Zeiten, Pausen, Vorkommnisse. Als PDF. | Abends nach Drehschluss. |
 | **Kameraberichte** | `/projects/:id/kameraberichte` | Takes je Einstellung mit Bewertung, Karten und Speicherplatz. | Am Set durch die Kamera-Assistenz. |

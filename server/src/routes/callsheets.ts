@@ -3,13 +3,14 @@ import { arbeitszeitEinstellung, feiertageFuer } from '../lib/arbeitszeitProjekt
 import { pruefeTag, sonnFeiertag } from '../lib/arbeitszeit'
 import crypto from 'crypto'
 import { db } from '../db'
-import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
+import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable, ROLE_RANK } from '../middleware/projectAuth'
 import { sendEmail, isSmtpConfigured, appBaseUrl } from './emailService'
 import { reiheEin, sendeFaellige, versandMoeglich } from '../lib/mailversand'
 import { maskiere } from '../lib/mailvorlagen'
 import { sendPushToUser } from './push'
 import { personAngaben, istPersonenart, PERSONEN_TABELLE } from '../lib/person'
-import { dispoFuellen, drehortDesTages } from '../lib/dispo'
+import { dispoFuellen, drehortDesTages, vomMotiv } from '../lib/dispo'
+import { abteilungszeilen } from '../lib/callSheetLayout'
 
 const router = Router()
 
@@ -34,7 +35,7 @@ export async function notifyProjectMembers(projectId: number, actorUserId: numbe
 const fmtCallTime = (mins: number | null) =>
   mins == null ? '-' : `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')} Uhr`
 
-async function getCallSheet(id: number) {
+async function getCallSheet(id: number, mitLinks = true) {
   const sheet = await db.get('SELECT cs.*, l.name as location_name FROM call_sheets cs LEFT JOIN locations l ON cs.location_id = l.id WHERE cs.id = ?', [id]) as any
   if (!sheet) return null
   const entries = await db.all('SELECT * FROM call_sheet_entries WHERE call_sheet_id = ? ORDER BY sort_order ASC', [id]) as any[]
@@ -65,7 +66,24 @@ async function getCallSheet(id: number) {
     for (const b of sonnFeiertag(String(tag.date ?? ''), feiertageFuer(einstellung.land, [String(tag.date ?? '')]), einstellung.regel)) befunde.push({ ...b, personen: [] })
   }
 
-  return { ...sheet, entries: enriched, arbeitszeit: { wrap, regel: einstellung?.regel ?? 'gesetz', befunde } }
+  // Was die Dispo vom Motiv übernehmen kann, und die Abteilungszeilen aus dem
+  // Breakdown der Szenen des Tages - als Vorschlag (AP C4)
+  const ort = await drehortDesTages(sheet.shoot_day_id, sheet.location_id)
+  const szenen = await db.all(
+    `SELECT s.id, s.scene_number FROM shoot_day_scenes sds JOIN scenes s ON s.id = sds.scene_id
+      WHERE sds.shoot_day_id = ? AND NOT s.omitted ORDER BY sds.sort_order, sds.id`, [sheet.shoot_day_id]) as any[]
+  const inventar = szenen.length
+    ? await db.all('SELECT scene_id, item, category, quantity FROM scene_inventory WHERE scene_id = ANY(?::int[]) ORDER BY id', [szenen.map((s) => s.id)]) as any[]
+    : []
+
+  // Den Bestätigungslink einer Person sieht nur, wer schreiben darf - ein
+  // Nur-lesen-Mitglied bekam ihn vorher mit jeder Zeile (AP C4)
+  const eintraege = mitLinks ? enriched : enriched.map(({ public_token: _t, ...rest }: any) => rest)
+  return {
+    ...sheet, entries: eintraege, arbeitszeit: { wrap, regel: einstellung?.regel ?? 'gesetz', befunde },
+    vom_motiv: ort ? { motiv: ort.name, ...vomMotiv(ort) } : null,
+    dept_vorschlag: abteilungszeilen(szenen, inventar),
+  }
 }
 
 // GET /api/shoot-days/:dayId/call-sheet
@@ -79,7 +97,13 @@ router.get('/shoot-days/:dayId/call-sheet', requireMemberVia(projectIdFromTable(
   }
   const sheet = await db.get('SELECT * FROM call_sheets WHERE shoot_day_id = ?', [req.params.dayId]) as any
   if (!sheet) return res.json({ data: null, error: null })
-  res.json({ data: await getCallSheet(sheet.id), error: null })
+  let mitLinks = user.role === 'admin'
+  if (!mitLinks) {
+    const day = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [req.params.dayId]) as any
+    const rolle = day ? await getUserProjectRole(user.id, day.project_id) : null
+    mitLinks = (ROLE_RANK[rolle ?? ''] ?? 0) >= ROLE_RANK.dept_head
+  }
+  res.json({ data: await getCallSheet(sheet.id, mitLinks), error: null })
 })
 
 // POST /api/shoot-days/:dayId/call-sheet
@@ -91,29 +115,41 @@ router.post('/shoot-days/:dayId/call-sheet', async (req, res) => {
     : null
   const settingsCallTime = settings?.default_call_time ?? 480
 
-  const {
-    general_call = settingsCallTime,
-    shooting_call = settingsCallTime + 30,
-    location_id = null,
-    weather_forecast = '',
-    sunrise = '',
-    sunset = '',
-    notes = '',
-    // Felder des Call Sheets im Branchenstandard
-    hospital_name = '',
-    hospital_address = '',
-    crew_parking = '',
-    basecamp = '',
-    breakfast_call = 0,
-    lunch_call = 0,
-    weather_high = '',
-    weather_low = '',
-    walkie_channels = '',
-    dept_notes = '',
-  } = req.body
+  // Was nicht mitkommt, bleibt bei einer bestehenden Dispo (AP C4). Vorher
+  // setzte jedes Speichern ohne ein Feld es auf leer - eine Seite, die
+  // Krankenhaus und Basecamp nicht kannte, hätte sie bei jedem Tippen gelöscht.
+  const vorher = await db.get('SELECT * FROM call_sheets WHERE shoot_day_id = ?', [req.params.dayId]) as any
+  const wert = <T,>(k: string, vorgabe: T): T => (req.body?.[k] !== undefined ? req.body[k] : vorher?.[k] !== undefined && vorher?.[k] !== null ? vorher[k] : vorgabe)
+  const general_call = wert('general_call', settingsCallTime)
+  const shooting_call = wert('shooting_call', settingsCallTime + 30)
+  const location_id = wert<number | null>('location_id', null)
+  const weather_forecast = wert('weather_forecast', '')
+  const sunrise = wert('sunrise', '')
+  const sunset = wert('sunset', '')
+  const notes = wert('notes', '')
+  // Felder des Call Sheets im Branchenstandard; Krankenhaus, Basecamp und
+  // Parken beim Anlegen und beim Wechsel des Motivs vom Motiv (AP C4)
+  const motivWechsel = !vorher || (req.body?.location_id !== undefined && Number(req.body.location_id || 0) !== Number(vorher.location_id || 0))
+  const vomOrt = motivWechsel ? vomMotiv(await drehortDesTages(req.params.dayId, location_id)) : null
+  const ausMotiv = (k: 'hospital_name' | 'hospital_address' | 'crew_parking' | 'basecamp') =>
+    vorher && vomOrt ? vomOrt[k] : !vorher && req.body?.[k] === undefined ? (vomOrt?.[k] ?? '') : wert(k, '')
+  const hospital_name = ausMotiv('hospital_name')
+  const hospital_address = ausMotiv('hospital_address')
+  const crew_parking = ausMotiv('crew_parking')
+  const basecamp = ausMotiv('basecamp')
+  const breakfast_call = wert('breakfast_call', 0)
+  const lunch_call = wert('lunch_call', 0)
+  const weather_high = wert('weather_high', '')
+  const weather_low = wert('weather_low', '')
+  const walkie_channels = wert('walkie_channels', '')
+  const dept_notes = wert('dept_notes', '')
+  for (const [k, v] of [['breakfast_call', breakfast_call], ['lunch_call', lunch_call]] as const) {
+    if (!(Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) < 1440)) {
+      return res.status(400).json({ data: null, error: k === 'breakfast_call' ? 'Frühstück ist eine Uhrzeit' : 'Mittag ist eine Uhrzeit' })
+    }
+  }
   // Geplanter Drehschluss (AP B3): ohne Angabe bleibt der bisherige stehen
-  const bisher = await db.get('SELECT planned_wrap FROM call_sheets WHERE shoot_day_id = ?', [req.params.dayId]) as any
-  const plannedWrapRoh = req.body.planned_wrap === undefined ? (bisher?.planned_wrap ?? null) : req.body.planned_wrap
+  const plannedWrapRoh = req.body.planned_wrap === undefined ? (vorher?.planned_wrap ?? null) : req.body.planned_wrap
   const planned_wrap = plannedWrapRoh === null || plannedWrapRoh === '' ? null : Number(plannedWrapRoh)
   if (planned_wrap !== null && !(Number.isInteger(planned_wrap) && planned_wrap >= 0 && planned_wrap < 1440)) {
     return res.status(400).json({ data: null, error: 'Der geplante Drehschluss ist eine Uhrzeit' })
@@ -165,6 +201,23 @@ router.post('/shoot-days/:dayId/call-sheet', async (req, res) => {
   }
 
   res.json({ data: await getCallSheet(sheetId), error: null })
+})
+
+/**
+ * POST /api/call-sheet-entries/:id/link - der persönliche Bestätigungslink
+ * einer Person (AP C4). Vorher entstand er nur beim Versand: Ohne Mailserver
+ * erreichte niemand seine Bestätigungsseite. Schreiben dürfen ab
+ * Abteilungsleitung (projectWriteGuard), wie beim Versand.
+ */
+router.post('/call-sheet-entries/:id/link', async (req, res) => {
+  const eintrag = await db.get('SELECT id, public_token FROM call_sheet_entries WHERE id = ?', [req.params.id]) as any
+  if (!eintrag) return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
+  let token = eintrag.public_token
+  if (!token) {
+    token = crypto.randomBytes(20).toString('hex')
+    await db.run('UPDATE call_sheet_entries SET public_token = ? WHERE id = ?', [token, eintrag.id])
+  }
+  res.json({ data: { token, pfad: `/dispo/${token}` }, error: null })
 })
 
 // PUT /api/call-sheets/:id/entries

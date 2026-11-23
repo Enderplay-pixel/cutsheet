@@ -23,6 +23,16 @@ export const dreh: Record<string, Schritt[]> = {
       wirktAuf: ['motive', 'stammdaten', 'konfliktradar'],
     },
     {
+      ziel: 'versorgung|kopf',
+      titel: { de: 'Drehort und Versorgung', en: 'Location and logistics', fr: 'Lieu et logistique' },
+      text: {
+        de: "Nächstes Krankenhaus, Basecamp und Crew-Parken kommen beim Anlegen vom Motiv; am Tag geändert, bleibt es am Tag, \"vom Motiv übernehmen\" holt den Stand neu. Dazu Frühstück und Mittag, Temperaturen und Funkkanäle - alles steht im PDF.",
+        en: "Nearest hospital, base camp and crew parking come from the location when the call sheet is created; changed for the day, it stays for the day, \"take from location\" fetches it again. Plus breakfast and lunch, temperatures and walkie channels - all of it is printed in the PDF.",
+        fr: "Hôpital le plus proche, camp de base et parking équipe viennent du lieu à la création ; modifiés pour le jour, ils restent pour le jour, « reprendre du lieu » les récupère à nouveau. S'y ajoutent petit-déjeuner et déjeuner, températures et canaux radio - tout figure dans le PDF.",
+      },
+      wirktAuf: ['motive'],
+    },
+    {
       ziel: 'szenen',
       titel: { de: 'Die Szenen des Tages', en: 'The day’s scenes', fr: 'Les scènes du jour' },
       text: {
@@ -50,6 +60,25 @@ export const dreh: Record<string, Schritt[]> = {
         en: "After sending, each person shows when the email went out, when they opened the call sheet and when they confirmed. Anyone with an account can open the whole project read-only through their link.",
         fr: "Après l'envoi, chaque personne indique quand l'e-mail est parti, quand elle a ouvert la feuille et quand elle a confirmé. Qui a un compte peut ouvrir tout le projet en lecture via son lien.",
       },
+    },
+    {
+      ziel: 'links|personen',
+      titel: { de: 'Bestätigung ohne Mail', en: 'Confirmation without email', fr: 'Confirmation sans e-mail' },
+      text: {
+        de: "Das Kettensymbol in einer Zeile kopiert den persönlichen Bestätigungslink dieser Person, \"Alle Links kopieren\" die ganze Liste als \"Name: Link\" für den Messenger - auch wenn nie eine Mail hinausging. Die Links sieht nur, wer die Dispo bearbeiten darf.",
+        en: "The chain icon in a row copies that person's personal confirmation link, \"Copy all links\" the whole list as \"Name: link\" for the messenger - even if no email ever went out. Only those who may edit the call sheet see the links.",
+        fr: "L'icône de chaîne d'une ligne copie le lien de confirmation personnel de cette personne, « Copier tous les liens » toute la liste en « Nom : lien » pour la messagerie - même si aucun e-mail n'est parti. Seuls ceux qui peuvent modifier la feuille voient les liens.",
+      },
+    },
+    {
+      ziel: 'abteilungen',
+      titel: { de: 'Abteilungen aus dem Breakdown', en: 'Departments from the breakdown', fr: 'Départements du dépouillement' },
+      text: {
+        de: "Was die Szenen des Tages laut Breakdown brauchen, steht je Abteilung als Vorschlag - \"Sturmlaterne (Sz. 12), Sandsäcke ×40 (Sz. 13)\". \"Übernehmen\" schreibt ihn in die Abteilungsnotizen, die so im PDF stehen; eigener Text wird nur nach Rückfrage ersetzt.",
+        en: "What the day's scenes need according to the breakdown appears per department as a suggestion - \"storm lantern (sc. 12), sandbags ×40 (sc. 13)\". \"Take over\" writes it into the department notes printed in the PDF; your own text is replaced only after asking.",
+        fr: "Ce dont les scènes du jour ont besoin selon le dépouillement apparaît par département comme proposition - « lanterne (sc. 12), sacs de sable ×40 (sc. 13) ». « Reprendre » l'écrit dans les notes de département imprimées dans le PDF ; ton propre texte n'est remplacé qu'après confirmation.",
+      },
+      wirktAuf: ['drehbuch'],
     },
     {
       ziel: 'zeiten',

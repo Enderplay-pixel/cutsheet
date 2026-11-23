@@ -13,7 +13,7 @@ import { formatDate, formatDateLong, debounce, cn, eighthsToString, szenenArt, S
 import {
   ChevronLeft, ChevronRight, MapPin, Clock, Users,
   Plus, Minus, ClipboardList, Save, Download, Trash2, Clapperboard,
-  CloudSun, Sunrise, Sunset, Film, Send, Eye, CheckCircle2, AlertTriangle, FileText
+  CloudSun, Sunrise, Sunset, Film, Send, Eye, CheckCircle2, AlertTriangle, FileText, Link2, HeartPulse
 } from 'lucide-react'
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
@@ -26,6 +26,7 @@ import { track } from '@/lib/analytics'
 import { useSchreibrecht } from '@/lib/useSchreibrecht'
 import { SeitenBloecke } from '@/components/arbeitsplatz/SeitenBloecke'
 import { bloeckeT } from '@/lib/texte/Arbeitsplatz'
+import { kopfT as KT } from '@/lib/texte/DispoKopf'
 
 // ─── Dispo versenden ─────────────────────────────────────────────────────────
 
@@ -299,16 +300,135 @@ function AddPersonPanel({
   )
 }
 
+// ─── Kopf, Abteilungen, Links (AP C4) ─────────────────────────────────────────
+
+/** Eine Uhrzeit, die auch fehlen darf: leer heißt keine Angabe (gespeichert als 0). */
+function OptionaleZeit({ value, onChange, label, disabled }: { value: number; onChange: (v: number) => void; label: string; disabled?: boolean }) {
+  const tt = useT()
+  const { toast } = useToast()
+  const [text, setText] = useState(value ? formatTime(value) : '')
+  useEffect(() => setText(value ? formatTime(value) : ''), [value])
+  const verlassen = () => {
+    const roh = text.trim()
+    if (!roh) { if (value) onChange(0); return }
+    const minuten = parseTime(roh)
+    if (Number.isNaN(minuten)) {
+      setText(value ? formatTime(value) : '')
+      toast({ variant: 'destructive', title: tt(KT.keineZeit).replace('{x}', roh) })
+      return
+    }
+    setText(formatTime(minuten))
+    if (minuten !== value) onChange(minuten)
+  }
+  return (
+    <Input value={text} onChange={e => setText(e.target.value)} onBlur={verlassen} onKeyDown={e => { if (e.key === 'Enter') verlassen() }}
+      disabled={disabled} aria-label={label} placeholder="--:--" className="h-8 text-sm font-mono w-24" />
+  )
+}
+
+/** Abteilungsnotizen lesen wie der Server (lib/callSheetLayout.ts, parseDeptNotes) - in ihrer Reihenfolge. */
+function leseAbteilungen(roh: string | null | undefined): Array<[string, string]> {
+  const liste: Array<[string, string]> = []
+  for (const zeile of String(roh ?? '').split('\n')) {
+    const m = /^\s*([A-Za-zÄÖÜäöü/ .-]{2,20}?)\s*:\s*(.*)$/.exec(zeile)
+    if (m) {
+      const k = m[1].trim().toUpperCase()
+      const da = liste.find(([x]) => x === k)
+      if (da) da[1] = (da[1] ? da[1] + ' ' : '') + m[2].trim()
+      else liste.push([k, m[2].trim()])
+    } else if (liste.length && zeile.trim()) {
+      liste[liste.length - 1][1] += ' ' + zeile.trim()
+    }
+  }
+  return liste
+}
+const schreibeAbteilungen = (liste: Array<[string, string]>) => liste.map(([k, v]) => `${k}: ${v}`).join('\n')
+
+/** Den Link der Bestätigungsseite in die Zwischenablage; geht das nicht, steht er in der Meldung. */
+async function inZwischenablage(text: string, titel: string, toast: ReturnType<typeof useToast>['toast'], tt: ReturnType<typeof useT>) {
+  try {
+    await navigator.clipboard.writeText(text)
+    toast({ title: titel, description: text.length < 160 ? text : undefined })
+  } catch {
+    toast({ title: tt(KT.nichtKopiert), description: text })
+  }
+}
+const dispoLink = (token: string) => `${window.location.origin}/dispo/${token}`
+
+/**
+ * Was die Szenen des Tages laut Breakdown brauchen, je Abteilung (AP C4) - als
+ * Vorschlag neben den Abteilungsnotizen. Übernommen wird je Abteilung; eigener
+ * Text wird nur nach Rückfrage ersetzt.
+ */
+function AbteilungenBlock({ callSheet, notizen, setzen, darf }: { callSheet: any; notizen: string; setzen: (text: string) => void; darf: boolean }) {
+  const tt = useT()
+  const vorschlag: Record<string, string> = callSheet?.dept_vorschlag ?? {}
+  const liste = leseAbteilungen(notizen)
+  const aktuell = (k: string) => liste.find(([x]) => x === k)?.[1] ?? ''
+  const abteilungen = Object.keys(vorschlag)
+  const uebernehmen = (welche: string[]) => {
+    const eigene = welche.filter((k) => aktuell(k) && aktuell(k) !== vorschlag[k])
+    if (eigene.length && !window.confirm(tt(KT.ersetzenFrage).replace('{abteilungen}', eigene.join(', ')))) return
+    const neu = leseAbteilungen(notizen)
+    for (const k of welche) {
+      const da = neu.find(([x]) => x === k)
+      if (da) da[1] = vorschlag[k]
+      else neu.push([k, vorschlag[k]])
+    }
+    setzen(schreibeAbteilungen(neu))
+  }
+  const offen = abteilungen.filter((k) => aktuell(k) !== vorschlag[k])
+  return (
+    <div data-einfuehrung="abteilungen" className="bg-card border border-border/60 rounded-xl p-4 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{tt(KT.abteilungen)}</p>
+        {darf && offen.length > 1 && <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => uebernehmen(offen)}>{tt(KT.alleUebernehmen)}</Button>}
+      </div>
+      <p className="text-[11px] text-muted-foreground">{tt(KT.abteilungenHilfe)}</p>
+      {abteilungen.length === 0 ? <p className="text-xs italic text-muted-foreground">{tt(KT.keinVorschlag)}</p> : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs min-w-[520px]">
+            <thead><tr className="text-[10px] text-muted-foreground text-left">
+              <th className="font-semibold pb-1 w-28">{tt(KT.abteilungen)}</th><th className="font-semibold pb-1">{tt(KT.vorschlag)}</th>
+              <th className="font-semibold pb-1">{tt(KT.aufDerDispo)}</th><th className="w-24" />
+            </tr></thead>
+            <tbody>{abteilungen.map((k) => (
+              <tr key={k} className="border-t border-border/30 align-top">
+                <td className="py-1.5 font-semibold">{k}</td>
+                <td className="py-1.5 pr-2">{vorschlag[k]}</td>
+                <td className="py-1.5 pr-2 text-muted-foreground">{aktuell(k) || '-'}</td>
+                <td className="py-1.5 text-right">
+                  {aktuell(k) === vorschlag[k]
+                    ? <span className="text-[11px] text-success">{tt(KT.uebernommen)}</span>
+                    : darf && <Button variant="ghost" size="sm" className="h-6 text-[11px]" onClick={() => uebernehmen([k])}>{tt(KT.uebernehmen)}</Button>}
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+      <div>
+        <p className="text-[11px] font-semibold text-muted-foreground mb-1">{tt(KT.notizen)}</p>
+        <Textarea disabled={!darf} value={notizen} onChange={e => setzen(e.target.value)} rows={4} aria-label={tt(KT.notizen)}
+          className="text-xs font-mono resize-y" placeholder="PROPS: …" />
+        <p className="text-[10px] text-muted-foreground mt-1">{tt(KT.notizenHilfe)}</p>
+      </div>
+    </div>
+  )
+}
+
 // ─── Cast / Crew section table ────────────────────────────────────────────────
 
 function PersonSection({
-  title, entries, onUpdate, onDelete, isCast
+  title, entries, onUpdate, onDelete, isCast, onLink
 }: {
   title: string
   entries: any[]
   onUpdate: (idx: number, key: string, value: any) => void
   onDelete: (id: number) => void
   isCast: boolean
+  /** Bestätigungslink kopieren (AP C4); nur mit Schreibrecht */
+  onLink?: (entry: any) => void
 }) {
   const { darfSchreiben } = useSchreibrecht()
   const tt = useT()
@@ -353,7 +473,7 @@ function PersonSection({
               <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-24">
                 {tt(D.status)}
               </th>
-              <th className="py-2 pr-4 w-8" />
+              <th className="py-2 pr-4 w-16" />
             </tr>
           </thead>
           <tbody>
@@ -411,12 +531,18 @@ function PersonSection({
                     )
                   })()}
                 </td>
-                <td className="py-2.5 pr-4">
+                <td className="py-2.5 pr-4 whitespace-nowrap">
+                  {darfSchreiben && onLink && (
+                    <button onClick={() => onLink(entry)} aria-label={tt(KT.linkVon).replace('{name}', wer(entry))} title={tt(KT.linkKopieren)}
+                      className="w-6 h-6 inline-flex items-center justify-center rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors">
+                      <Link2 className="w-3 h-3" />
+                    </button>
+                  )}
                   <button
                     onClick={() => onDelete(entry.id)}
                     aria-label={tt(D.ausDispo).replace('{name}', wer(entry))}
                     title={tt(D.ausDispoKurz)}
-                    className="w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                    className="w-6 h-6 inline-flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -483,6 +609,30 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
   const crewEntries = entries.filter(e => e.person_type === 'crew')
   const extraEntries = entries.filter(e => e.person_type === 'extra')
 
+  // Bestätigungslinks ohne Versand (AP C4): fehlt das Token, legt der Server es an
+  const { toast } = useToast()
+  const { darfSchreiben } = useSchreibrecht()
+  const tokenVon = async (e: any) => e.public_token || (await api.callSheets.link(e.id)).token
+  const linkKopieren = async (e: any) => {
+    try {
+      const token = await tokenVon(e)
+      if (!e.public_token) onRefresh()
+      await inZwischenablage(dispoLink(token), tt(KT.kopiert), toast, tt)
+    } catch (err: any) { toast({ variant: 'destructive', title: tt(D.nichtGespeichert), description: err?.message }) }
+  }
+  const alleLinks = async () => {
+    try {
+      const zeilen: string[] = []
+      let neu = false
+      for (const e of entries) {
+        if (!e.public_token) neu = true
+        zeilen.push(`${e.person_name || '-'}: ${dispoLink(await tokenVon(e))}`)
+      }
+      if (neu) onRefresh()
+      await inZwischenablage(zeilen.join('\n'), tt(KT.alleKopiert).replace('{n}', String(zeilen.length)), toast, tt)
+    } catch (err: any) { toast({ variant: 'destructive', title: tt(D.nichtGespeichert), description: err?.message }) }
+  }
+
   return (
     <div data-einfuehrung="personen" className="bg-card border border-border/60 rounded-xl overflow-hidden">
       {/* Block header */}
@@ -495,6 +645,11 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
           {hasChanges && (
             <Button size="sm" onClick={() => onSaveEntries(entries.map(({ _idx, ...rest }) => rest)).then(() => { offen.current = {} }, () => {})}>
               <Save className="w-3.5 h-3.5 mr-1.5" />{tt(uiT.save)}
+            </Button>
+          )}
+          {darfSchreiben && entries.length > 0 && (
+            <Button variant="outline" size="sm" onClick={alleLinks} data-einfuehrung="links">
+              <Link2 className="w-3.5 h-3.5 mr-1.5" />{tt(KT.alleLinks)}
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={() => setShowAdd(v => !v)}>
@@ -521,6 +676,7 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
         isCast={true}
         onUpdate={updateEntry}
         onDelete={(id) => deleteEntryMutation.mutate(id)}
+        onLink={linkKopieren}
       />
 
       {/* Divider between sections */}
@@ -535,6 +691,7 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
         isCast={false}
         onUpdate={updateEntry}
         onDelete={(id) => deleteEntryMutation.mutate(id)}
+        onLink={linkKopieren}
       />
 
       {(castEntries.length > 0 || crewEntries.length > 0) && extraEntries.length > 0 && (
@@ -548,6 +705,7 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
         isCast={false}
         onUpdate={updateEntry}
         onDelete={(id) => deleteEntryMutation.mutate(id)}
+        onLink={linkKopieren}
       />
 
       {castEntries.length === 0 && crewEntries.length === 0 && extraEntries.length === 0 && (
@@ -1100,6 +1258,51 @@ export function Component() {
                 />
               </div>
             </div>
+
+            {/* ── Drehort und Versorgung (AP C4): Krankenhaus, Basecamp, Parken
+                vom Motiv vorbelegt, dazu Frühstück, Mittag, Temperaturen, Funk ── */}
+            <div data-einfuehrung="versorgung" className="bg-muted/30 border border-border/50 rounded-lg px-3 py-3 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <HeartPulse className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{tt(KT.versorgung)}</span>
+                {darfSchreiben && callSheet?.vom_motiv && (
+                  <button type="button" className="ml-auto text-[11px] text-primary hover:underline"
+                    title={tt(KT.vomMotivTitel).replace('{motiv}', callSheet.vom_motiv.motiv)}
+                    onClick={() => {
+                      const m = callSheet.vom_motiv
+                      aendereKopf({ hospital_name: m.hospital_name, hospital_address: m.hospital_address, basecamp: m.basecamp, crew_parking: m.crew_parking })
+                      toast({ title: tt(KT.vomMotivErledigt) })
+                    }}>
+                    {tt(KT.vomMotiv)}
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {([['hospital_name', KT.krankenhaus], ['hospital_address', KT.krankenhausAdresse], ['basecamp', KT.basecamp], ['crew_parking', KT.parken]] as const).map(([k, text]) => (
+                  <label key={k} className="space-y-1 text-[11px] text-muted-foreground">
+                    <span>{tt(text)}</span>
+                    <Input disabled={!darfSchreiben} value={headerForm[k] || ''} onChange={e => updateHeader(k, e.target.value)} className="h-8 text-sm text-foreground" />
+                  </label>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="space-y-1 text-[11px] text-muted-foreground"><span className="block">{tt(KT.fruehstueck)}</span>
+                  <OptionaleZeit value={headerForm.breakfast_call || 0} onChange={v => updateHeader('breakfast_call', v)} label={tt(KT.fruehstueck)} disabled={!darfSchreiben} />
+                </label>
+                <label className="space-y-1 text-[11px] text-muted-foreground"><span className="block">{tt(KT.mittag)}</span>
+                  <OptionaleZeit value={headerForm.lunch_call || 0} onChange={v => updateHeader('lunch_call', v)} label={tt(KT.mittag)} disabled={!darfSchreiben} />
+                </label>
+                <label className="space-y-1 text-[11px] text-muted-foreground"><span className="block">{tt(KT.tempHoch)}</span>
+                  <Input disabled={!darfSchreiben} value={headerForm.weather_high || ''} onChange={e => updateHeader('weather_high', e.target.value)} placeholder="14 °C" className="h-8 text-sm w-24 text-foreground" />
+                </label>
+                <label className="space-y-1 text-[11px] text-muted-foreground"><span className="block">{tt(KT.tempTief)}</span>
+                  <Input disabled={!darfSchreiben} value={headerForm.weather_low || ''} onChange={e => updateHeader('weather_low', e.target.value)} placeholder="6 °C" className="h-8 text-sm w-24 text-foreground" />
+                </label>
+                <label className="space-y-1 text-[11px] text-muted-foreground flex-1 min-w-[12rem]"><span className="block">{tt(KT.funk)}</span>
+                  <Input disabled={!darfSchreiben} value={headerForm.walkie_channels || ''} onChange={e => updateHeader('walkie_channels', e.target.value)} placeholder={tt(KT.funkPh)} className="h-8 text-sm text-foreground" />
+                </label>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -1139,6 +1342,13 @@ export function Component() {
               )}
             </>
       
+            ),
+          },
+          {
+            // Abteilungen aus dem Breakdown (AP C4)
+            id: 'abteilungen', titel: bloeckeT.abteilungen, inhalt: !isLoading && headerForm && callSheet?.id && (
+              <AbteilungenBlock callSheet={callSheet} notizen={headerForm.dept_notes || ''} darf={darfSchreiben}
+                setzen={text => updateHeader('dept_notes', text)} />
             ),
           },
           {

@@ -589,9 +589,11 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
 
   // Vorschau auf die naechsten beiden Drehtage - steht im Standard unten auf
   // Seite 1, damit die Crew weiss, was auf sie zukommt
+  // Nur dieselbe Unit (AP C4): Bei zwei Units stand vorher der nächste Tag
+  // der anderen Unit als Vorschau da
   const nextDays = await db.all(
-    'SELECT * FROM shoot_days WHERE project_id = ? AND day_number > ? ORDER BY day_number ASC LIMIT 2',
-    [day.project_id, day.day_number]
+    'SELECT * FROM shoot_days WHERE project_id = ? AND day_number > ? AND unit = ? ORDER BY day_number ASC LIMIT 2',
+    [day.project_id, day.day_number, day.unit ?? 'Haupteinheit']
   ) as any[]
   const advance = await Promise.all(nextDays.map(async d => ({ day: d, scenes: await loadScenes(d.id) })))
 

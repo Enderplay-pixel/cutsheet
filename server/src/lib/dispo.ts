@@ -90,9 +90,12 @@ export async function dispoFuerDrehtag(dayId: number): Promise<{ id: number; gen
   if (!tag) return null
   const settings = await db.get('SELECT default_call_time FROM project_settings WHERE project_id = ?', [tag.project_id]) as any
   const call = Number(settings?.default_call_time ?? 480)
+  // Krankenhaus, Basecamp und Parken vom Motiv des Tages (AP C4)
+  const m = vomMotiv(await drehortDesTages(dayId, null))
   const neu = await db.run(
-    'INSERT INTO call_sheets (shoot_day_id, general_call, shooting_call) VALUES (?, ?, ?) ON CONFLICT (shoot_day_id) DO NOTHING',
-    [dayId, call, call + 30]
+    `INSERT INTO call_sheets (shoot_day_id, general_call, shooting_call, hospital_name, hospital_address, crew_parking, basecamp)
+     VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (shoot_day_id) DO NOTHING`,
+    [dayId, call, call + 30, m.hospital_name, m.hospital_address, m.crew_parking, m.basecamp]
   )
   // Gleichzeitig angelegt: die andere Anfrage hat die Dispo schon gefüllt
   if (!neu.id) return await db.get('SELECT id, general_call FROM call_sheets WHERE shoot_day_id = ?', [dayId]) as any
@@ -100,16 +103,37 @@ export async function dispoFuerDrehtag(dayId: number): Promise<{ id: number; gen
   return { id: neu.id, general_call: call }
 }
 
+export type Drehort = {
+  id: number; name: string; address: string; zip: string; city: string
+  hospital_name: string; hospital_address: string; parking_info: string; basecamp: string
+}
+
+/**
+ * Was die Dispo vom Motiv übernimmt (AP C4): Krankenhaus, Basecamp, Parken -
+ * am Motiv einmal eingetragen (AP C3). Am Tag geändert, bleibt die Änderung
+ * am Tag; "vom Motiv übernehmen" holt den Stand neu.
+ */
+export function vomMotiv(ort: Drehort | null) {
+  return {
+    hospital_name: ort?.hospital_name ?? '',
+    hospital_address: ort?.hospital_address ?? '',
+    crew_parking: ort?.parking_info ?? '',
+    basecamp: ort?.basecamp ?? '',
+  }
+}
+
+const DREHORT_SPALTEN = 'l.id, l.name, l.address, l.zip, l.city, l.hospital_name, l.hospital_address, l.parking_info, l.basecamp'
+
 /** Der Drehort eines Tages: das in der Dispo gewählte Motiv, sonst das der ersten Szene. */
 export async function drehortDesTages(
   dayId: number | string,
   gewaehlt: number | null | undefined
-): Promise<{ id: number; name: string; address: string; zip: string; city: string } | null> {
+): Promise<Drehort | null> {
   if (gewaehlt) {
-    return (await db.get('SELECT id, name, address, zip, city FROM locations WHERE id = ?', [gewaehlt])) ?? null
+    return (await db.get(`SELECT ${DREHORT_SPALTEN} FROM locations l WHERE l.id = ?`, [gewaehlt])) ?? null
   }
   return (await db.get(
-    `SELECT l.id, l.name, l.address, l.zip, l.city
+    `SELECT ${DREHORT_SPALTEN}
        FROM shoot_day_scenes sds JOIN scenes s ON s.id = sds.scene_id JOIN locations l ON l.id = s.location_id
       WHERE sds.shoot_day_id = ? ORDER BY sds.sort_order ASC, sds.id ASC LIMIT 1`,
     [dayId]

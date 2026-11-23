@@ -4651,6 +4651,58 @@ describe('Motiv und Sets, Drehort-Angaben, Genehmigungen (AP C3)', () => {
   })
 })
 
+describe('Dispo-Kopf vollständig, Breakdown in die Dispo (AP C4)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST', token = tokenInhaber) =>
+    hole(pfad, token, { method: methode, body: JSON.stringify(koerper) })
+
+  it('neue Dispo trägt Krankenhaus, Basecamp und Parken des Motivs; später am Motiv geändert, bleibt die Dispo', async () => {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Dispo C4', nutzerId])).id
+    const deich = (await db.run(
+      "INSERT INTO locations (project_id, name, hospital_name, hospital_address, basecamp, parking_info) VALUES (?, 'Deich', 'Klinikum Husum', 'Erichsenweg 16', 'Deichtor', 'Wiese am Sielzug') RETURNING id", [p])).id
+    const tag = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, '2027-03-01')", [p])).id
+    const szene = (await db.run("INSERT INTO scenes (project_id, scene_number, title, location_id) VALUES (?, '12', 'DEICH', ?)", [p, deich])).id
+    await db.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id) VALUES (?, ?)', [tag, szene])
+    for (const [ding, art, menge] of [['Sturmlaterne', 'Requisite', 1], ['Sandsäcke', 'Requisite', 40], ['Ölzeug', 'Kostüm', 2]] as const) {
+      await db.run('INSERT INTO scene_inventory (scene_id, item, category, quantity) VALUES (?, ?, ?, ?)', [szene, ding, art, menge])
+    }
+    // Wie die Seite: nur die Felder, die sie kennt
+    const dispo = (await sende(`/api/shoot-days/${tag}/call-sheet`, { general_call: 420, shooting_call: 450 })).daten
+    expect(dispo).toMatchObject({ hospital_name: 'Klinikum Husum', hospital_address: 'Erichsenweg 16', basecamp: 'Deichtor', crew_parking: 'Wiese am Sielzug' })
+    expect(dispo.vom_motiv).toMatchObject({ motiv: 'Deich', hospital_name: 'Klinikum Husum' })
+    expect(dispo.dept_vorschlag).toEqual({ PROPS: 'Sturmlaterne (Sz. 12), Sandsäcke ×40 (Sz. 12)', KOSTÜM: 'Ölzeug ×2 (Sz. 12)' })
+    // Am Tag geändert bleibt am Tag; ein Speichern ohne das Feld löscht es nicht
+    await sende(`/api/shoot-days/${tag}/call-sheet`, { hospital_name: 'Notaufnahme Nord', breakfast_call: 390, walkie_channels: '1 Regie, 2 Technik' })
+    const nachher = (await sende(`/api/shoot-days/${tag}/call-sheet`, { general_call: 430 })).daten
+    expect(nachher).toMatchObject({ hospital_name: 'Notaufnahme Nord', basecamp: 'Deichtor', breakfast_call: 390, walkie_channels: '1 Regie, 2 Technik', general_call: 430 })
+    // Später am Motiv geändert: die Dispo bleibt
+    await db.run("UPDATE locations SET basecamp = 'Hafen' WHERE id = ?", [deich])
+    expect((await hole(`/api/shoot-days/${tag}/call-sheet`, tokenInhaber)).daten).toMatchObject({ basecamp: 'Deichtor', vom_motiv: expect.objectContaining({ basecamp: 'Hafen' }) })
+    expect((await sende(`/api/shoot-days/${tag}/call-sheet`, { lunch_call: 2000 })).status).toBe(400)
+  })
+
+  it('Bestätigungslink je Person ohne Versand; ein Nur-lesen-Mitglied bekommt keine Links', async () => {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Link C4', nutzerId])).id
+    await db.run("INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, 'read_only')", [p, fremdeId])
+    const tag = (await db.run("INSERT INTO shoot_days (project_id, day_number, date) VALUES (?, 1, '2027-03-02')", [p])).id
+    await db.run("INSERT INTO crew (project_id, name, role) VALUES (?, 'Mia Licht', 'Oberbeleuchterin')", [p])
+    const dispo = (await sende(`/api/shoot-days/${tag}/call-sheet`, {})).daten
+    const eintrag = dispo.entries[0]
+    expect(eintrag.public_token ?? null).toBeNull()
+    const link = (await sende(`/api/call-sheet-entries/${eintrag.id}/link`)).daten
+    expect(link.pfad).toBe(`/dispo/${link.token}`)
+    expect(link.token).toMatch(/^[0-9a-f]{40}$/)
+    // Ein zweites Mal derselbe Link
+    expect((await sende(`/api/call-sheet-entries/${eintrag.id}/link`)).daten.token).toBe(link.token)
+    // Die Bestätigungsseite kennt ihn
+    expect((await hole(`/api/cse/t/${link.token}`, '')).status).toBe(200)
+    // Lesen: Inhaber mit Token, Nur-lesen ohne
+    expect((await hole(`/api/shoot-days/${tag}/call-sheet`, tokenInhaber)).daten.entries[0].public_token).toBe(link.token)
+    const leser = (await hole(`/api/shoot-days/${tag}/call-sheet`, tokenFremd)).daten
+    expect(leser.entries).toHaveLength(1)
+    expect('public_token' in leser.entries[0]).toBe(false)
+  })
+})
+
 describe('Stundenzettel: Freigabe in Stufen (AP E8)', () => {
   /** Konto mit Rolle im Projekt; mit Abteilung steht es mit seiner E-Mail im Stab. */
   async function konto(p: number, rolle: string, abteilung = '') {

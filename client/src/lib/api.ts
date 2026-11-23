@@ -296,6 +296,8 @@ export const api = {
     addEntry: (id: number, data: { person_type: string; person_id: number; call_time?: number }) => req<any>(`/call-sheets/${id}/entries/add`, { method: 'POST', body: JSON.stringify(data) }),
     deleteEntry: (sheetId: number, entryId: number) => req<any>(`/call-sheets/${sheetId}/entries/${entryId}`, { method: 'DELETE' }),
     shiftTimes: (id: number, minutes: number) => req<any>(`/call-sheets/${id}/shift-times`, { method: 'POST', body: JSON.stringify({ minutes }) }),
+    /** Persönlicher Bestätigungslink einer Person, ohne Versand (AP C4). */
+    link: (entryId: number) => req<{ token: string; pfad: string }>(`/call-sheet-entries/${entryId}/link`, { method: 'POST' }),
   },
 
   // ─── Daily Reports ─────────────────────────────────────────────────────────

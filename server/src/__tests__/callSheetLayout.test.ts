@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   fmtCallTime, fmtEighths, sumEighths, dayNightCode, fmtSheetDate,
   groupByDepartment, balanceColumns, parseDeptNotes, renderCallSheetHtml,
-  DEPARTMENT_ORDER, szenenArt,
+  DEPARTMENT_ORDER, szenenArt, abteilungszeilen,
 } from '../lib/callSheetLayout'
 
 describe('fmtCallTime', () => {
@@ -303,5 +303,35 @@ describe('renderCallSheetHtml', () => {
     } as any)
     expect(leer).toContain('noch keine Szenen')
     expect(leer).toContain('Keine Darsteller')
+  })
+})
+
+describe('abteilungszeilen (AP C4)', () => {
+  const szenen = [{ id: 1, scene_number: '12' }, { id: 2, scene_number: '13' }, { id: 3, scene_number: '13A' }]
+  it('je Abteilung, was die Szenen brauchen - Mengen, mehrere Szenen, dasselbe Ding einmal', () => {
+    const z = abteilungszeilen(szenen, [
+      { scene_id: 1, item: 'Sturmlaterne', category: 'Requisite', quantity: 1 },
+      { scene_id: 2, item: 'Sandsäcke', category: 'Requisite', quantity: 40 },
+      { scene_id: 3, item: 'sandsäcke', category: 'Requisite', quantity: 20 },
+      { scene_id: 2, item: 'Ölzeug', category: 'Kostüm', quantity: 2 },
+      { scene_id: 3, item: 'Traktor', category: 'Fahrzeuge', quantity: 1 },
+    ])
+    expect(z).toEqual({
+      PROPS: 'Sturmlaterne (Sz. 12), Sandsäcke ×40 (Sz. 13, 13A)',
+      KOSTÜM: 'Ölzeug ×2 (Sz. 13)',
+      FAHRZEUGE: 'Traktor (Sz. 13A)',
+    })
+  })
+  it('leere Kategorien und Einträge ohne Namen fehlen; unbekannte Kategorie ist Sonstiges', () => {
+    expect(abteilungszeilen(szenen, [])).toEqual({})
+    expect(abteilungszeilen(szenen, [{ scene_id: 1, item: '  ', category: 'Maske' }, { scene_id: 1, item: 'Funkgerät', category: 'Technik' }])).toEqual({ SONSTIGES: 'Funkgerät (Sz. 12)' })
+  })
+  it('das PDF druckt eine Abteilung ohne feste Zeile hinten an', () => {
+    const html = renderCallSheetHtml({
+      project: { title: 'X' }, day: { day_number: 1, date: '2027-03-01' }, sheet: { dept_notes: 'PROPS: Laterne\nFAHRZEUGE: Traktor (Sz. 13A)' },
+      scenes: [], cast: [], background: [], crew: [], advance: [], totalDays: 1,
+    } as any)
+    expect(html).toContain('FAHRZEUGE')
+    expect(html).toContain('Traktor (Sz. 13A)')
   })
 })

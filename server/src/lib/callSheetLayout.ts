@@ -241,7 +241,10 @@ export function renderCallSheetHtml(data: CallSheetData): string {
   </tr>`).join('')
 
   const deptNotes = parseDeptNotes(s.dept_notes)
-  const deptRows = DEPT_NOTE_ROWS.map(label => `<tr>
+  // Abteilungen außerhalb der festen Zeilen (etwa FAHRZEUGE aus dem
+  // Breakdown, AP C4) hängen hinten an, statt still zu fehlen
+  const deptLabels = [...DEPT_NOTE_ROWS, ...Object.keys(deptNotes).filter((k) => !DEPT_NOTE_ROWS.includes(k) && deptNotes[k])]
+  const deptRows = deptLabels.map(label => `<tr>
     <td class="dept">${esc(label)}</td>
     <td>${esc(deptNotes[label] || '')}</td>
   </tr>`).join('')
@@ -481,4 +484,60 @@ export function parseDeptNotes(raw: string | null | undefined): Record<string, s
     }
   }
   return out
+}
+
+// ─── Abteilungen aus dem Breakdown (AP C4) ──────────────────────────────────
+
+/**
+ * Welche Abteilungszeile der Dispo eine Kategorie des Breakdowns füllt. Die
+ * Namen sind die Zeilen des PDFs (`DEPT_NOTE_ROWS`); was dort keine Zeile hat,
+ * hängt das PDF hinten an.
+ */
+export const BREAKDOWN_ABTEILUNG: Record<string, string> = {
+  Requisite: 'PROPS',
+  Kostüm: 'KOSTÜM',
+  Maske: 'MASKE/HAARE',
+  SFX: 'SFX',
+  VFX: 'VFX',
+  Waffen: 'WAFFEN',
+  Stunts: 'STUNTS',
+  Fahrzeuge: 'FAHRZEUGE',
+  Tiere: 'TIERE',
+  Sonstiges: 'SONSTIGES',
+}
+
+/**
+ * Je Abteilung, was die Szenen des Tages brauchen: "Sturmlaterne (Sz. 12),
+ * Sandsäcke ×40 (Sz. 13, 13A)". Dasselbe Ding in mehreren Szenen steht
+ * einmal, mit allen Szenen und der größten Menge. Abteilungen ohne Eintrag
+ * fehlen.
+ */
+export function abteilungszeilen(
+  szenen: Array<{ id: number; scene_number: string | null }>,
+  inventar: Array<{ scene_id: number; item: string | null; category: string | null; quantity?: number | null }>,
+): Record<string, string> {
+  const nummer = new Map(szenen.map((s) => [Number(s.id), String(s.scene_number ?? '').trim()]))
+  const je = new Map<string, Map<string, { name: string; menge: number; szenen: string[] }>>()
+  for (const szene of szenen) {
+    for (const e of inventar.filter((x) => Number(x.scene_id) === Number(szene.id))) {
+      const name = String(e.item ?? '').trim()
+      if (!name) continue
+      const abteilung = BREAKDOWN_ABTEILUNG[String(e.category ?? '')] ?? 'SONSTIGES'
+      const dinge = je.get(abteilung) ?? new Map()
+      const schluessel = name.toLocaleLowerCase('de-DE')
+      const ding = dinge.get(schluessel) ?? { name, menge: 0, szenen: [] }
+      ding.menge = Math.max(ding.menge, Number(e.quantity) || 1)
+      const nr = nummer.get(Number(szene.id)) ?? ''
+      if (nr && !ding.szenen.includes(nr)) ding.szenen.push(nr)
+      dinge.set(schluessel, ding)
+      je.set(abteilung, dinge)
+    }
+  }
+  const zeilen: Record<string, string> = {}
+  for (const [abteilung, dinge] of je) {
+    zeilen[abteilung] = [...dinge.values()]
+      .map((d) => `${d.name}${d.menge > 1 ? ` ×${d.menge}` : ''}${d.szenen.length ? ` (Sz. ${d.szenen.join(', ')})` : ''}`)
+      .join(', ')
+  }
+  return zeilen
 }

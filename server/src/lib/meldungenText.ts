@@ -399,4 +399,7 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Eine Genehmigung gehört zu einem Motiv': { en: 'A permit belongs to a location', fr: 'Une autorisation appartient à un lieu' },
   'Unbekannter Status einer Genehmigung': { en: 'Unknown permit status', fr: 'Statut d’autorisation inconnu' },
   'Die Genehmigung endet vor ihrem Beginn': { en: 'The permit ends before it starts', fr: 'L’autorisation se termine avant de commencer' },
+  // Dispo-Kopf (AP C4, 16.11.2026)
+  'Frühstück ist eine Uhrzeit': { en: 'Breakfast is a time of day', fr: 'Le petit-déjeuner est une heure' },
+  'Mittag ist eine Uhrzeit': { en: 'Lunch is a time of day', fr: 'Le déjeuner est une heure' },
 }
