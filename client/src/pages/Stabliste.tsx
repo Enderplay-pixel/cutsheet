@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
+import { useUnits } from '@/lib/units'
+import { unitsT as U } from '@/lib/texte/Units'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { csvHerunterladen, betragCsv } from '@/lib/csv'
@@ -36,10 +38,16 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
   const { canEdit } = useProjectPerms()
   const tt = useT()
   const von = (feld: string) => (form.name ? tt(crewT.feldVon).replace('{feld}', feld).replace('{name}', form.name) : feld)
+  // Unit der Person (AP C2) - erst sichtbar, wenn das Projekt mehr als eine hat
+  const { data: units } = useUnits(pid)
+  const hauptId = units?.find((u) => u.is_main)?.id
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.crew.update(member.id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crew', pid] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['crew', pid] })
+      queryClient.invalidateQueries({ queryKey: ['units', pid] })
+    },
   })
   const debouncedUpdate = useRef(debounce((data: any) => mutation.mutate(data), 500)).current
   const update = (key: string, value: any) => {
@@ -83,6 +91,21 @@ function CrewRow({ member, onDelete }: { member: any; onDelete: () => void }) {
           aria-label={von(tt(uiT.phone))}
           className="h-7 text-xs w-24 lg:w-28 bg-transparent border-transparent hover:border-border focus:border-border transition-colors" placeholder="+49…" />
       </div>
+
+      {(units?.length ?? 0) > 1 && (
+        <select disabled={!darfSchreiben} value={form.all_units ? 'alle' : String(form.unit_id ?? hauptId ?? '')}
+          onChange={e => {
+            const w = e.target.value
+            const next = w === 'alle' ? { ...form, all_units: true, unit_id: null } : { ...form, all_units: false, unit_id: Number(w) }
+            setForm(next)
+            debouncedUpdate(next)
+          }}
+          aria-label={tt(U.stabUnitVon).replace('{name}', form.name || tt(crewT.eintrag))}
+          className="h-7 text-[11px] rounded-md bg-transparent border border-transparent hover:border-border focus:border-border text-muted-foreground shrink-0 ml-9 sm:ml-0">
+          {(units ?? []).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          <option value="alle">{tt(U.alleUnits)}</option>
+        </select>
+      )}
 
       {/* Vor- und Abwicklungstage zählen in der Kalkulation mit (AP B1) */}
       <div className="flex items-center gap-1 shrink-0 pl-9 sm:pl-0">
@@ -215,6 +238,7 @@ export function Component() {
   const download = useDownload()
   const { siehtGagen } = useSchreibrecht()
   const { canEdit } = useProjectPerms()
+  const { data: units } = useUnits(pid)
   const [newDept, setNewDept] = useState('Kamera')
   const [deptFilter, setDeptFilter] = useState<string>('all')
 
@@ -274,6 +298,7 @@ export function Component() {
             {tt(crewT.subtitle).replace('{n}', String(crew?.length || 0))}
             {totalGage > 0 && ` · ${formatCurrency(totalGage)} ${tt(crewT.totalFee)}`}
           </p>
+          {(units?.length ?? 0) > 1 && <p className="text-xs text-muted-foreground mt-1">{tt(U.stabHinweis)}</p>}
         </div>
         <div data-einfuehrung="aktionen" className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={exportCsv}>

@@ -18,6 +18,7 @@
  *    stand "Drehort" deshalb bei jeder neuen Dispo leer.
  */
 import { db } from '../db'
+import { stabDerUnit } from './units'
 
 /** Was zum Lesen und Schreiben gebraucht wird - die Datenbank oder eine Transaktion. */
 type Zugriff = {
@@ -66,9 +67,16 @@ export async function besetzungNachziehen(
   return neu.changes
 }
 
-/** Eine neue Dispo füllen: der ganze Stab, dazu die Besetzung der Szenen des Tages. */
+/**
+ * Eine neue Dispo füllen: der Stab der Unit des Tages (und wer zu allen
+ * Units gehört, AP C2), dazu die Besetzung der Szenen des Tages.
+ */
 export async function dispoFuellen(z: Zugriff, sheetId: number, projectId: number, dayId: number, call: number) {
-  const crew = await z.all('SELECT id FROM crew WHERE project_id = ? ORDER BY sort_order ASC, id ASC', [projectId])
+  const crew = await z.all(
+    `SELECT c.id FROM crew c JOIN shoot_days sd ON sd.id = ?
+      WHERE c.project_id = ? AND ${stabDerUnit('c', 'sd')}
+      ORDER BY c.sort_order ASC, c.id ASC`,
+    [dayId, projectId])
   for (const [i, c] of crew.entries()) {
     await z.run(
       'INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, call_time, sort_order) VALUES (?, ?, ?, ?, ?)',

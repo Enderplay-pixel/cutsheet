@@ -1,5 +1,6 @@
 import { dateiname } from '../lib/dateiname'
 import { fassungsName } from '../lib/fassungen'
+import { effektiveUnit, stabDerUnit } from '../lib/units'
 import { Router, Request, Response } from 'express'
 import { resolveAccent } from '../lib/pdfFonts'
 import { db } from '../db'
@@ -486,8 +487,14 @@ router.get('/projects/:projectId/pdf/drehplan', async (req: Request, res: Respon
 
 // Tagesdispo-HTML - geteilt zwischen PDF-Download-Route und Dispo-Versand
 export async function buildTagesdispoHtml(dayId: number | string): Promise<{ html: string; day: any; sheet: any } | null> {
+  // Mit der Unit des Tages (AP C2): Name, Kürzel und ob es die Haupteinheit ist
   const day = await db.get(
-    'SELECT sd.*, p.title as project_title, p.id as project_id FROM shoot_days sd JOIN projects p ON sd.project_id = p.id WHERE sd.id = ?',
+    `SELECT sd.*, p.title as project_title, p.id as project_id, ${effektiveUnit('sd')} AS eff_unit,
+            u.name AS unit_name, u.short AS unit_short, COALESCE(u.is_main, true) AS unit_is_main,
+            (SELECT COUNT(*)::int FROM units u2 WHERE u2.project_id = sd.project_id) AS units_anzahl
+       FROM shoot_days sd JOIN projects p ON sd.project_id = p.id
+       LEFT JOIN units u ON u.id = ${effektiveUnit('sd')}
+      WHERE sd.id = ?`,
     [dayId]
   ) as any
   if (!day) return null
@@ -539,11 +546,16 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
   // Nach Rollennummer, wie auf jeder Dispo - ohne Rolle ans Ende
   cast.sort((a, b) => (Number(a.cast_no) || Infinity) - (Number(b.cast_no) || Infinity))
 
-  // Ganze Crew des Projekts zeigen, nicht nur die disponierte: Auf dem Blatt
-  // steht die Abteilung vollstaendig, Call-Zeiten nur wo disponiert.
+  // Ganze Crew zeigen, nicht nur die disponierte: Auf dem Blatt steht die
+  // Abteilung vollstaendig, Call-Zeiten nur wo disponiert. Seit AP C2 die
+  // Crew der Unit des Tages (und wer zu allen gehoert) - die Dispo der 2. Unit
+  // druckte vorher auch den Stab der Haupteinheit. Wer auf der Dispo steht,
+  // steht immer da.
   const crewRows = await db.all(
-    'SELECT id, name, role, department, phone FROM crew WHERE project_id = ? ORDER BY sort_order ASC, id ASC',
-    [day.project_id]
+    `SELECT c.id, c.name, c.role, c.department, c.phone FROM crew c JOIN shoot_days sd ON sd.id = ?
+      WHERE c.project_id = ? AND (${stabDerUnit('c', 'sd')} OR c.id = ANY(?::int[]))
+      ORDER BY c.sort_order ASC, c.id ASC`,
+    [dayId, day.project_id, [...crewCalls.keys()].map(Number)]
   ) as any[]
   const crew = crewRows.map(c => ({ ...c, call_time: crewCalls.get(c.id) ?? null }))
 
@@ -592,14 +604,19 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
   // Seite 1, damit die Crew weiss, was auf sie zukommt
   // Nur dieselbe Unit (AP C4): Bei zwei Units stand vorher der nächste Tag
   // der anderen Unit als Vorschau da
+  // Seit AP C2 über die Unit-Tabelle statt über den Text
   const nextDays = await db.all(
-    'SELECT * FROM shoot_days WHERE project_id = ? AND day_number > ? AND unit = ? ORDER BY day_number ASC LIMIT 2',
-    [day.project_id, day.day_number, day.unit ?? 'Haupteinheit']
+    `SELECT d.*, ? AS unit_name, ? AS unit_short, ?::boolean AS unit_is_main FROM shoot_days d
+      WHERE d.project_id = ? AND d.day_number > ? AND ${effektiveUnit('d')} IS NOT DISTINCT FROM ?
+      ORDER BY d.day_number ASC LIMIT 2`,
+    [day.unit_name, day.unit_short, day.unit_is_main, day.project_id, day.day_number, day.eff_unit]
   ) as any[]
   const advance = await Promise.all(nextDays.map(async d => ({ day: d, scenes: await loadScenes(d.id) })))
 
+  // "Tag 3 von 5" zählt die Tage der eigenen Unit
   const totalRow = await db.get(
-    'SELECT COUNT(*) as c FROM shoot_days WHERE project_id = ?', [day.project_id]
+    `SELECT COUNT(*) as c FROM shoot_days d WHERE d.project_id = ? AND ${effektiveUnit('d')} IS NOT DISTINCT FROM ?`,
+    [day.project_id, day.eff_unit]
   ) as { c: number }
 
   // Pflichtangaben einer Dispo, soweit sie in CutSheet stehen: Anschrift und
@@ -625,6 +642,8 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
     crew,
     advance,
     totalDays: Number(totalRow?.c) || 1,
+    // Die Unit steht im Kopf, sobald das Projekt mehr als eine hat
+    unit: Number(day.units_anzahl) > 1 ? day.unit_name : null,
     accent: (await getProjectSettings(day.project_id)).accentColor,
   })
 

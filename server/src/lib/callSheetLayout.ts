@@ -12,6 +12,7 @@
  * Anschrift und Kontakt der Produktion, Produktionsvertretung am Set.
  */
 import { pdfFontFaces, PDF_SANS, resolveAccent } from './pdfFonts'
+import { drehtagName } from './units'
 
 // ─── Formatierung ─────────────────────────────────────────────────────────────
 
@@ -187,6 +188,8 @@ export interface CallSheetData {
   /** Die naechsten Drehtage fuer die Vorschau. */
   advance: Array<{ day: any; scenes: any[] }>
   totalDays: number
+  /** Name der Unit, wenn das Projekt mehr als eine hat (AP C2). */
+  unit?: string | null
   /** Kopffarbe des Projekts; ohne Angabe der Standard. */
   accent?: string
   /** Die Produktionsfirma, wenn das Projekt einer zugeordnet ist. */
@@ -206,6 +209,7 @@ const DEPT_NOTE_ROWS = [
 export function renderCallSheetHtml(data: CallSheetData): string {
   const accent = resolveAccent(data.accent)
   const { project, day, sheet, scenes, cast, background, crew, advance, totalDays, firma, drehschluss, aufnahmeleitung } = data
+  const unitZeile = data.unit ? `<div class="n">${esc(data.unit)}</div>` : ''
   const s = sheet ?? {}
 
   const sceneRows = scenes.map((sc) => `<tr>
@@ -251,7 +255,7 @@ export function renderCallSheetHtml(data: CallSheetData): string {
 
   const advanceBlocks = advance.map(a => `
     <tr class="advhead"><td colspan="7">
-      Drehtag ${esc(a.day.day_number)} - ${esc(fmtSheetDate(a.day.date))}
+      ${esc(drehtagName(a.day))} - ${esc(fmtSheetDate(a.day.date))}
     </td></tr>
     ${a.scenes.map((sc) => `<tr>
       <td class="c b">${esc(sc.scene_number)}</td>
@@ -286,7 +290,7 @@ export function renderCallSheetHtml(data: CallSheetData): string {
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Call Sheet - ${esc(project?.title)} - Drehtag ${esc(day?.day_number)}</title>
+<title>Call Sheet - ${esc(project?.title)} - ${esc(drehtagName(day ?? {}))}</title>
 <style>
   ${pdfFontFaces()}
   @page { size: A4 portrait; margin: 8mm; }
@@ -373,7 +377,7 @@ export function renderCallSheetHtml(data: CallSheetData): string {
     </td>
     <td class="datebox">
       <div class="d">${esc(fmtSheetDate(day?.date))}</div>
-      <div class="n">Drehtag ${esc(day?.day_number)} von ${esc(totalDays)}</div>
+      ${unitZeile}<div class="n">${esc(drehtagName(day ?? {}))} von ${esc(totalDays)}</div>
       <table class="times" style="margin-top:3pt">
         ${s.breakfast_call ? `<tr><td class="lbl">Frühstück</td><td class="c b">${esc(fmtCallTime(s.breakfast_call))}</td></tr>` : ''}
         <tr><td class="lbl">Drehbeginn</td><td class="c b">${esc(fmtCallTime(s.shooting_call))}</td></tr>
@@ -453,7 +457,7 @@ ${advanceBlocks ? `<table style="margin-top:4pt">
     <tr>
       <td class="prod"><b>${esc(project?.title)}</b></td>
       <td class="c b">${esc(fmtSheetDate(day?.date))}</td>
-      <td class="datebox"><div class="n">Drehtag ${esc(day?.day_number)} von ${esc(totalDays)}</div></td>
+      <td class="datebox">${unitZeile}<div class="n">${esc(drehtagName(day ?? {}))} von ${esc(totalDays)}</div></td>
     </tr>
   </table>
 

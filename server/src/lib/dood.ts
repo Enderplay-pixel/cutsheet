@@ -10,6 +10,7 @@
  * `ladeDood` holt die Daten und ruft es für jede Person der Besetzung.
  */
 import { drehtageBesetzung, KEIN_DREHTAG } from './drehtage'
+import { effektiveUnit } from './units'
 
 /** Eine Spalte des Berichts: ein Kalendertag, oder ein Drehtag ohne Datum. */
 export type DoodTag = {
@@ -117,7 +118,11 @@ export function berechneDood(tage: DoodTag[], einsatz: DoodEinsatz, regeln: Dood
 
 type Lesen = { all: (sql: string, werte?: any[]) => Promise<any[]> }
 
-export type DoodSpalte = { datum: string; day_number: number | null; frei: boolean; status: string }
+/**
+ * `bezeichnung`: die Drehtage der Spalte, "4" in der Haupteinheit, "2U 1" in
+ * einer anderen - an einem Datum mit parallelen Units beide (AP C2).
+ */
+export type DoodSpalte = { datum: string; day_number: number | null; frei: boolean; status: string; bezeichnung: string }
 
 export type DoodZeile = {
   id: number
@@ -128,7 +133,7 @@ export type DoodZeile = {
   hold_allowed: boolean
   drop_allowed: boolean
   drop_min_days: number
-  days: Array<{ date: string; day_number: number | null; code: string; frei: boolean }>
+  days: Array<{ date: string; day_number: number | null; code: string; frei: boolean; bezeichnung: string }>
   total_work_days: number
   total_worked_days: number
   total_hold_days: number
@@ -170,9 +175,13 @@ export async function ladeDood(z: Lesen, projectId: number): Promise<{ spalten: 
          FROM "cast" c LEFT JOIN characters ch ON c.character_id = ch.id
         WHERE c.project_id = ?
         ORDER BY ch.sort_order ASC, c.id ASC`, [projectId]),
+    // Alle Units (AP C2): Arbeitet eine Figur an einem Datum in irgendeiner
+    // Unit, ist das ein Arbeitstag - die Spalte ist das Datum, nicht der Tag
     z.all(
-      `SELECT id, date, day_number, status FROM shoot_days WHERE project_id = ?
-        ORDER BY (date = '') ASC, date ASC, day_number ASC`, [projectId]),
+      `SELECT d.id, d.date, d.day_number, d.status, COALESCE(u.is_main, true) AS unit_is_main, u.short AS unit_short, u.name AS unit_name
+         FROM shoot_days d LEFT JOIN units u ON u.id = ${effektiveUnit('d')}
+        WHERE d.project_id = ?
+        ORDER BY (d.date = '') ASC, d.date ASC, COALESCE(u.is_main, true) DESC, u.sort_order ASC, d.day_number ASC`, [projectId]),
     drehtageBesetzung(z, projectId),
     // Reisetage: An- und Abreise, bei einer eintägigen Reise der Tag selbst
     z.all(
@@ -209,16 +218,18 @@ export async function ladeDood(z: Lesen, projectId: number): Promise<{ spalten: 
   const kalendertage = alleDaten.length ? zeitraum(alleDaten[0], alleDaten[alleDaten.length - 1]) : []
 
   const zaehlt = (status: string) => !(KEIN_DREHTAG as readonly string[]).includes(status)
+  const kurz = (d: any) => (d.unit_is_main === false ? `${d.unit_short || d.unit_name || ''} ${d.day_number}`.trim() : String(d.day_number))
   const spalten: DoodSpalte[] = []
   const tage: DoodTag[] = []
   for (const datum of kalendertage) {
     const amTag = datiert.filter(d => d.date === datum)
     const aktiv = amTag.filter(d => zaehlt(d.status))
-    spalten.push({ datum, day_number: (aktiv[0] ?? amTag[0])?.day_number ?? null, frei: aktiv.length === 0, status: (aktiv[0] ?? amTag[0])?.status ?? '' })
+    spalten.push({ datum, day_number: (aktiv[0] ?? amTag[0])?.day_number ?? null, frei: aktiv.length === 0, status: (aktiv[0] ?? amTag[0])?.status ?? '',
+      bezeichnung: (aktiv.length ? aktiv : amTag).map(kurz).join(' · ') })
     tage.push({ datum, drehtagIds: aktiv.map(d => Number(d.id)), frei: aktiv.length === 0 })
   }
   for (const d of drehtage.filter(x => !istDatum(x.date))) {
-    spalten.push({ datum: '', day_number: d.day_number, frei: !zaehlt(d.status), status: d.status })
+    spalten.push({ datum: '', day_number: d.day_number, frei: !zaehlt(d.status), status: d.status, bezeichnung: kurz(d) })
     tage.push({ datum: '', drehtagIds: zaehlt(d.status) ? [Number(d.id)] : [], frei: !zaehlt(d.status) })
   }
 
@@ -243,7 +254,7 @@ export async function ladeDood(z: Lesen, projectId: number): Promise<{ spalten: 
       hold_allowed: regeln.haltetage,
       drop_allowed: Boolean(c.drop_allowed),
       drop_min_days: regeln.dropMinTage,
-      days: spalten.map((s, i) => ({ date: s.datum, day_number: s.day_number, code: r.codes[i], frei: s.frei })),
+      days: spalten.map((s, i) => ({ date: s.datum, day_number: s.day_number, code: r.codes[i], frei: s.frei, bezeichnung: s.bezeichnung })),
       total_work_days: r.summen.drehtage,
       total_worked_days: r.summen.arbeit,
       total_hold_days: r.summen.halt,

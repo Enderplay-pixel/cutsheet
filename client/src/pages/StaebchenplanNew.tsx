@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
+import { useUnits, tageNachUnit, tagNummer, unitKuerzel, type Unit } from '@/lib/units'
+import { UnitWaehler, UnitMarke } from '@/components/drehplan/Units'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors,
@@ -68,6 +70,12 @@ interface ShootDay {
   status: string
   scenes: DayScene[]
   banner: Banner[]
+  // Unit des Tages (AP C2)
+  unit_id?: number | null
+  unit_name?: string | null
+  unit_short?: string | null
+  unit_color?: string | null
+  unit_is_main?: boolean | null
 }
 
 type SortFeld = '' | 'motiv' | 'ie' | 'tn' | 'nummer'
@@ -214,13 +222,17 @@ function GrenzeZeile({ zeile, tag, achtel, minuten, tageslaenge, sonne, darf, zi
   return (
     <div
       ref={setNodeRef}
-      data-einfuehrung={tag.day_number === 1 ? 'tagesgrenze' : undefined}
-      aria-label={tt(T.tagesgrenzeName).replace('{n}', String(tag.day_number))}
+      data-einfuehrung={tag.day_number === 1 && tag.unit_is_main !== false ? 'tagesgrenze' : undefined}
+      aria-label={tt(T.tagesgrenzeName).replace('{n}', tagNummer(tag))}
       role="group"
       className="relative flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-muted px-3 py-2 mb-2 text-xs"
     >
       {ziel?.key === zeile.key && <ZielLinie unten={ziel.unten} />}
-      <span className="font-semibold text-sm">{tt(T.tag).replace('{n}', String(tag.day_number))}</span>
+      {/* Jede Unit ist eine eigene Folge von Tagen (AP C2) */}
+      <span className="font-semibold text-sm inline-flex items-center gap-1.5">
+        <UnitMarke kuerzel={unitKuerzel(tag)} farbe={tag.unit_color} />
+        {tt(T.tag).replace('{n}', String(tag.day_number))}
+      </span>
       <span>{tag.date ? `${wochentag} ${formatDate(tag.date)}` : tt(T.ohneDatum)}</span>
       <span className="font-mono">{tt(T.seiten).replace('{s}', eighthsToString(achtel))}</span>
       <span className={cn('font-mono', zuLang && 'text-amber-700 dark:text-amber-400 font-semibold')}>
@@ -244,12 +256,12 @@ function GrenzeZeile({ zeile, tag, achtel, minuten, tageslaenge, sonne, darf, zi
       {darf && (
         <span className="ml-auto flex items-center gap-1">
           <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onBanner}
-            aria-label={tt(T.bannerNeuName).replace('{n}', String(tag.day_number))}>
+            aria-label={tt(T.bannerNeuName).replace('{n}', tagNummer(tag))}>
             <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />{tt(T.bannerNeu)}
           </Button>
           {!istLetzter && (
             <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onEntfernen}
-              aria-label={tt(T.grenzeEntfernenName).replace(/\{n\}/g, String(tag.day_number)).replace('{m}', String(tag.day_number + 1))}>
+              aria-label={tt(T.grenzeEntfernenName).replace(/\{n\}/g, tagNummer(tag)).replace('{m}', tagNummer({ ...tag, day_number: tag.day_number + 1 }))}>
               <Merge className="w-3.5 h-3.5 mr-1" aria-hidden="true" />{tt(T.grenzeEntfernen)}
             </Button>
           )}
@@ -339,8 +351,8 @@ function BannerDialog({ offen, tagNummer, banner, onSchliessen, onSpeichern }: {
   )
 }
 
-function EinteilenDialog({ offen, pid, ablage, onSchliessen, onFertig }: {
-  offen: boolean; pid: number; ablage: number[]; onSchliessen: () => void; onFertig: (tage: number) => void
+function EinteilenDialog({ offen, pid, ablage, unit, onSchliessen, onFertig }: {
+  offen: boolean; pid: number; ablage: number[]; unit: Unit | null; onSchliessen: () => void; onFertig: (tage: number) => void
 }) {
   const tt = useT()
   const { toast } = useToast()
@@ -359,7 +371,7 @@ function EinteilenDialog({ offen, pid, ablage, onSchliessen, onFertig }: {
   const rufe = async (nurZeigen: boolean) => {
     setLaeuft(true)
     try {
-      const r = await api.drehplan.einteilen(pid, { nach, hoechstens, start, nurZeigen, szenen: ablage })
+      const r = await api.drehplan.einteilen(pid, { nach, hoechstens, start, nurZeigen, szenen: ablage, ...(unit ? { unit_id: unit.id } : {}) })
       if (nurZeigen) setErgebnis(r)
       else onFertig(r.tage)
     } catch (e: any) {
@@ -447,6 +459,10 @@ export function Component() {
   const { data: rollen } = useQuery<any[]>({ queryKey: ['characters', pid], queryFn: () => api.characters.list(pid), enabled: !!pid })
   const { data: motive } = useQuery<any[]>({ queryKey: ['locations', pid], queryFn: () => api.locations.list(pid), enabled: !!pid })
   const { data: projekt } = useQuery<any>({ queryKey: ['project', pid], queryFn: () => api.projects.get(pid), enabled: !!pid })
+  // Unit-Wähler (AP C2): alle Units, jede als eigene Folge, oder eine
+  const { data: units } = useUnits(pid)
+  const [unitFilter, setUnitFilter] = useState<number | 'alle'>('alle')
+  const einteilenUnit = units?.find((u) => (unitFilter === 'alle' ? u.is_main : u.id === unitFilter)) ?? null
 
   const [markiert, setMarkiert] = useState<number[]>([])
   const [anker, setAnker] = useState<number | null>(null)
@@ -463,7 +479,14 @@ export function Component() {
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
   )
 
-  const tage = useMemo(() => (days ?? []).slice().sort((a, b) => a.day_number - b.day_number), [days])
+  const tage = useMemo(() => tageNachUnit(days ?? [], units, unitFilter), [days, units, unitFilter])
+  /** Der nächste Tag derselben Unit - eine Tagesgrenze trennt nur Tage einer Folge. */
+  const naechsterDerUnit = (tag: ShootDay) => {
+    const i = tage.findIndex((t) => t.id === tag.id)
+    const n = tage[i + 1]
+    const haupt = units?.find((u) => u.is_main)?.id ?? null
+    return n && (n.unit_id ?? haupt) === (tag.unit_id ?? haupt) ? n : undefined
+  }
   const szeneNachId = useMemo(() => new Map((allScenes ?? []).map((s) => [Number(s.id), s])), [allScenes])
   const motivNachId = useMemo(() => new Map((motive ?? []).map((m) => [Number(m.id), m])), [motive])
 
@@ -579,7 +602,7 @@ export function Component() {
     if (ziel.zielTag === null) return tt(T.ansageAblage).replace('{was}', was)
     const tag = neueTage.find((t) => t.id === ziel.zielTag)
     const stelle = tag ? eintraegeDesTags(tag).findIndex((e) => e.art === 'szene' && e.id === szenen[0]) + 1 : 0
-    return tt(T.ansageTag).replace('{was}', was).replace('{n}', String(tag?.day_number ?? '')).replace('{stelle}', String(stelle))
+    return tt(T.ansageTag).replace('{was}', was).replace('{n}', tag ? tagNummer(tag) : '').replace('{stelle}', String(stelle))
   }
 
   // Optimistisch umsortieren, bei Fehler zurück und die Meldung mit dem Grund
@@ -624,7 +647,7 @@ export function Component() {
     }
     // Ein Reservetag zählt für niemanden. Nicht still umstellen (AP A1).
     if (tag?.status === 'Reserve') {
-      if (!confirm(tt(drehplanT.reserveZiel).replace('{n}', String(tag.day_number)))) return
+      if (!confirm(tt(drehplanT.reserveZiel).replace('{n}', tagNummer(tag)))) return
       try {
         await api.drehplan.updateDay(tag.id, { status: 'Geplant' })
       } catch (e: any) {
@@ -747,7 +770,7 @@ export function Component() {
   }
 
   const grenzeEntfernen = async (tag: ShootDay) => {
-    const folgender = tage[tage.findIndex((t) => t.id === tag.id) + 1]
+    const folgender = naechsterDerUnit(tag)
     if (!folgender) return
     try {
       try {
@@ -758,7 +781,7 @@ export function Component() {
         if (!confirm(tt(shootDayColumnT.loeschenFrage).replace('{n}', String(e.daten.tag)))) return
         await api.drehplan.tagesgrenzeEntfernen(pid, tag.id, true)
       }
-      toast({ title: tt(T.grenzeEntfernt).replace('{m}', String(folgender.day_number)).replace('{n}', String(tag.day_number)) })
+      toast({ title: tt(T.grenzeEntfernt).replace('{m}', tagNummer(folgender)).replace('{n}', tagNummer(tag)) })
     } catch (e: any) {
       toast({ title: tt(T.fehler), description: e.message, variant: 'destructive' })
     } finally {
@@ -813,7 +836,7 @@ export function Component() {
       const { achtel, minuten } = summen(tag)
       return (
         <GrenzeZeile key={zeile.key} zeile={zeile} tag={tag} achtel={achtel} minuten={minuten} tageslaenge={tageslaenge}
-          sonne={sonneFuer(tag.id)} darf={darf} ziel={ziel} istLetzter={tage[tage.length - 1]?.id === tag.id}
+          sonne={sonneFuer(tag.id)} darf={darf} ziel={ziel} istLetzter={!naechsterDerUnit(tag)}
           onBanner={() => setBannerDialog({ tag, banner: null })} onEntfernen={() => grenzeEntfernen(tag)} />
       )
     }
@@ -834,6 +857,7 @@ export function Component() {
             <p className="text-sm text-muted-foreground">{tt(T.untertitel)}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <UnitWaehler units={units} wert={unitFilter} onChange={setUnitFilter} />
             {SZENEN_ARTEN.map((art) => (
               <div key={art} className="flex items-center gap-1.5">
                 <div className={cn('w-5 h-5 rounded-sm', `strip-${art}`)} aria-hidden="true" />
@@ -881,7 +905,7 @@ export function Component() {
                     <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
                       {tage.map((t) => (
                         <DropdownMenuItem key={t.id} disabled={t.status === 'Sperrtag'} onSelect={() => verschiebe(auswahl, { zielTag: t.id, vor: null })}>
-                          {tt(T.menuTag).replace('{n}', String(t.day_number)).replace('{datum}', t.date ? formatDate(t.date) : tt(T.ohneDatum))}
+                          {tt(T.menuTag).replace('{n}', tagNummer(t)).replace('{datum}', t.date ? formatDate(t.date) : tt(T.ohneDatum))}
                         </DropdownMenuItem>
                       ))}
                       <DropdownMenuItem onSelect={() => verschiebe(auswahl, { zielTag: null, vor: null })}>{tt(T.ablage)}</DropdownMenuItem>
@@ -951,7 +975,7 @@ export function Component() {
 
       <BannerDialog offen={!!bannerDialog} tagNummer={bannerDialog?.tag?.day_number ?? null} banner={bannerDialog?.banner ?? null}
         onSchliessen={() => setBannerDialog(null)} onSpeichern={bannerSpeichern} />
-      <EinteilenDialog offen={einteilenOffen} pid={pid} ablage={ablage} onSchliessen={() => setEinteilenOffen(false)}
+      <EinteilenDialog offen={einteilenOffen} pid={pid} ablage={ablage} unit={(units?.length ?? 0) > 1 ? einteilenUnit : null} onSchliessen={() => setEinteilenOffen(false)}
         onFertig={(n) => {
           setEinteilenOffen(false)
           toast({ title: tt(T.eingeteilt).replace('{n}', String(n)) })

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { komparsenT as KP } from '@/lib/texte/Komparsen'
+import { useUnits, mitUnit } from '@/lib/units'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -834,6 +835,10 @@ export function Component() {
 
   const selectedDayId = dayId ? Number(dayId) : allDays?.[0]?.id
   const currentDay = allDays?.find((d: any) => d.id === selectedDayId)
+  // Die Unit des Tages im Kopf (AP C2); "Tag 3 von 5" zählt die Tage der eigenen Unit
+  const { data: units } = useUnits(pid)
+  const hauptUnitId = units?.find((u) => u.is_main)?.id
+  const tageDerUnit = (allDays ?? []).filter((d: any) => (d.unit_id ?? hauptUnitId) === (currentDay?.unit_id ?? hauptUnitId)).length
   const currentIndex = allDays?.findIndex((d: any) => d.id === selectedDayId) ?? -1
 
   const { data: callSheet, isLoading } = useQuery({
@@ -1046,7 +1051,7 @@ export function Component() {
             <SelectContent>
               {allDays.map((d: any) => (
                 <SelectItem key={d.id} value={String(d.id)} className="text-xs">
-                  {tt(dispoT.dayLabel)} {d.day_number} - {formatDate(d.date)}
+                  {mitUnit(`${tt(dispoT.dayLabel)} ${d.day_number}`, d)} - {formatDate(d.date)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1106,7 +1111,7 @@ export function Component() {
             </h1>
             {currentDay && (
               <span className="text-xs text-muted-foreground font-medium ml-1 whitespace-nowrap">
-                · {tt(dispoT.dayLabel)} {tt(D.vonGesamt).replace('{n}', String(currentDay.day_number)).replace('{gesamt}', String(allDays.length))}
+                · {(units?.length ?? 0) > 1 && currentDay.unit_name ? `${currentDay.unit_name} · ` : ''}{mitUnit(tt(dispoT.dayLabel), currentDay)} {tt(D.vonGesamt).replace('{n}', String(currentDay.day_number)).replace('{gesamt}', String(tageDerUnit))}
               </span>
             )}
           </div>

@@ -7,6 +7,7 @@ import { KEIN_DREHTAG } from '../lib/drehtage'
 import { teileEin, wochentageAus, naechsterArbeitstag, folgetageVerschieben, plaetzeAb, arbeitstageAb, plusTage } from '../lib/board'
 import { getHolidays } from '../services/holidays'
 import { inDenPapierkorb } from '../lib/papierkorb'
+import { hauptUnit, unitDesProjekts, effektiveUnit } from '../lib/units'
 
 const router = Router()
 
@@ -28,21 +29,34 @@ type Zugriff = Pick<TxClient, 'get' | 'all' | 'run'>
  * ('' aus der Zeit, bevor es Pflicht war) kommen ans Ende - gemessen am
  * 25.10.2026 wurde so ein Tag "Drehtag 1" und schob den echten ersten Tag
  * auf Nummer 2.
+ *
+ * Gezählt wird je Unit (AP C2): "Tag 5" der Haupteinheit und "2U Tag 3"
+ * können auf demselben Datum liegen.
  */
 export async function nummeriereDrehtage(projectId: number | string, tx?: TxClient) {
   const zaehlen = async (z: Zugriff) => {
-    const tage = await z.all(
-      "SELECT id FROM shoot_days WHERE project_id = ? ORDER BY (date = '') ASC, date ASC, id ASC",
+    await z.run(
+      `UPDATE shoot_days sd SET day_number = n.nr
+         FROM (SELECT d.id, ROW_NUMBER() OVER (PARTITION BY ${effektiveUnit('d')} ORDER BY (d.date = '') ASC, d.date ASC, d.id ASC) AS nr
+                 FROM shoot_days d WHERE d.project_id = ?) n
+        WHERE n.id = sd.id AND sd.day_number IS DISTINCT FROM n.nr`,
       [projectId]
-    ) as any[]
-    for (let i = 0; i < tage.length; i++) {
-      await z.run('UPDATE shoot_days SET day_number = ? WHERE id = ?', [i + 1, tage[i].id])
-    }
+    )
   }
   // In einer laufenden Transaktion mitzählen, sonst in einer eigenen
   if (tx) await zaehlen(tx)
   else await db.transaction(zaehlen)
 }
+
+/**
+ * Die Unit, der ein neuer Tag gehört: die genannte, sonst die Haupteinheit.
+ * null heißt: genannt, aber nicht in diesem Projekt.
+ */
+async function unitFuerNeuenTag(projectId: number | string, unitId: unknown) {
+  if (unitId === undefined || unitId === null || unitId === '') return hauptUnit(db, projectId)
+  return unitDesProjekts(db, projectId, unitId)
+}
+const UNIT_FEHLT = 'Die Unit gehört nicht zu diesem Projekt'
 
 /**
  * Szenen und Banner eines Tages zusammenrechnen. Ein Banner ("Umzug zum
@@ -60,8 +74,12 @@ function tagMitSummen(day: any, scenes: any[], banner: any[]) {
   }
 }
 
+/** Die Unit eines Tages kommt mit (AP C2): Name, Kürzel, Farbe, Haupteinheit. */
+const UNIT_SPALTEN = `u.name AS unit_name, u.short AS unit_short, u.color AS unit_color, COALESCE(u.is_main, true) AS unit_is_main`
+const UNIT_JOIN = (d: string) => `LEFT JOIN units u ON u.id = ${effektiveUnit(d)}`
+
 async function getShootDayWithScenes(dayId: number | bigint) {
-  const day = await db.get('SELECT * FROM shoot_days WHERE id = ?', [dayId]) as any
+  const day = await db.get(`SELECT d.*, ${UNIT_SPALTEN} FROM shoot_days d ${UNIT_JOIN('d')} WHERE d.id = ?`, [dayId]) as any
   if (!day) return null
   // sds.id als zweite Ordnung: Die Spaltenansicht legt jede gezogene Szene
   // mit sort_order 0 ab - ohne zweite Ordnung war die Reihenfolge Zufall.
@@ -91,8 +109,8 @@ export async function ladeDrehtageMitSzenen(projectId: number | string) {
   // Die Banner der Tage (AP A2) kommen in derselben Abfrage mit, als Liste je
   // Tag - eine dritte Abfrage hätte die Regel oben gebrochen.
   const tage = (await db.all(
-    `SELECT d.*, COALESCE((SELECT json_agg(b ORDER BY b.sort_order, b.id) FROM shoot_day_banners b WHERE b.shoot_day_id = d.id), '[]'::json) AS banner
-       FROM shoot_days d WHERE d.project_id = ? ORDER BY (d.date = '') ASC, d.date ASC, d.id ASC`,
+    `SELECT d.*, ${UNIT_SPALTEN}, COALESCE((SELECT json_agg(b ORDER BY b.sort_order, b.id) FROM shoot_day_banners b WHERE b.shoot_day_id = d.id), '[]'::json) AS banner
+       FROM shoot_days d ${UNIT_JOIN('d')} WHERE d.project_id = ? ORDER BY (d.date = '') ASC, d.date ASC, d.id ASC`,
     [projectId]
   )) as any[]
   if (tage.length === 0) return []
@@ -129,9 +147,11 @@ router.get('/projects/:projectId/shoot-days', async (req, res) => {
 const DREHTAG_DATUM_FEHLER = 'Ein Drehtag braucht ein Datum (JJJJ-MM-TT)'
 
 router.post('/projects/:projectId/shoot-days', async (req, res) => {
-  const { date, status = 'Geplant', unit = 'Haupteinheit', notes = '' } = req.body
+  const { date, status = 'Geplant', notes = '' } = req.body
   if (!istIsoDatum(date)) return res.status(400).json({ data: null, error: DREHTAG_DATUM_FEHLER })
-  const result = await db.run('INSERT INTO shoot_days (project_id, day_number, date, status, unit, notes) VALUES (?, ?, ?, ?, ?, ?)', [req.params.projectId, 0, date, status, unit, notes])
+  const unit = await unitFuerNeuenTag(req.params.projectId, req.body?.unit_id)
+  if (!unit) return res.status(400).json({ data: null, error: UNIT_FEHLT })
+  const result = await db.run('INSERT INTO shoot_days (project_id, day_number, date, status, unit, unit_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?)', [req.params.projectId, 0, date, status, unit.name, unit.id, notes])
   await nummeriereDrehtage(req.params.projectId)
   res.status(201).json({ data: await getShootDayWithScenes(result.id), error: null })
 })
@@ -142,12 +162,14 @@ router.post('/projects/:projectId/shoot-days/batch', async (req, res) => {
   if (!Array.isArray(dates) || dates.length === 0)
     return res.status(400).json({ data: null, error: 'dates ist eine Liste von Daten (JJJJ-MM-TT)' })
   if (!dates.every(istIsoDatum)) return res.status(400).json({ data: null, error: DREHTAG_DATUM_FEHLER })
+  const unit = await unitFuerNeuenTag(req.params.projectId, req.body?.unit_id)
+  if (!unit) return res.status(400).json({ data: null, error: UNIT_FEHLT })
 
   const neueIds: any[] = []
   for (const date of dates) {
     const result = await db.run(
-      'INSERT INTO shoot_days (project_id, day_number, date, status, unit, notes) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.params.projectId, 0, date, 'Geplant', 'Haupteinheit', '']
+      'INSERT INTO shoot_days (project_id, day_number, date, status, unit, unit_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [req.params.projectId, 0, date, 'Geplant', unit.name, unit.id, '']
     )
     neueIds.push(result.id)
   }
@@ -164,16 +186,23 @@ router.post('/projects/:projectId/shoot-days/batch', async (req, res) => {
 // PUT /api/shoot-days/:id
 router.put('/shoot-days/:id', async (req, res) => {
   // Gemessen am 25.10.2026: Ein Tag, den es nicht gibt, ergab 200 ohne Daten.
-  if (!(await db.get('SELECT id FROM shoot_days WHERE id = ?', [req.params.id]))) {
+  const vorher = await db.get('SELECT id, project_id FROM shoot_days WHERE id = ?', [req.params.id]) as any
+  if (!vorher) {
     return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
   }
-  const { date, status, unit, notes, catering_count } = req.body
+  const { date, status, notes, catering_count } = req.body
   if (date !== undefined && date !== null && !istIsoDatum(date)) {
     return res.status(400).json({ data: null, error: DREHTAG_DATUM_FEHLER })
   }
-  await db.run('UPDATE shoot_days SET date=COALESCE(?,date), status=COALESCE(?,status), unit=COALESCE(?,unit), notes=COALESCE(?,notes), catering_count=COALESCE(?,catering_count) WHERE id=?',
-    [date ?? null, status ?? null, unit ?? null, notes ?? null, catering_count ?? null, req.params.id])
-  if (date) {
+  // Die Unit wechseln (AP C2): der Tag zählt dann in ihrer Folge
+  let unit: { id: number; name: string } | null = null
+  if (req.body?.unit_id !== undefined && req.body.unit_id !== null) {
+    unit = await unitDesProjekts(db, vorher.project_id, req.body.unit_id)
+    if (!unit) return res.status(400).json({ data: null, error: UNIT_FEHLT })
+  }
+  await db.run('UPDATE shoot_days SET date=COALESCE(?,date), status=COALESCE(?,status), unit=COALESCE(?,unit), unit_id=COALESCE(?,unit_id), notes=COALESCE(?,notes), catering_count=COALESCE(?,catering_count) WHERE id=?',
+    [date ?? null, status ?? null, unit?.name ?? null, unit?.id ?? null, notes ?? null, catering_count ?? null, req.params.id])
+  if (date || unit) {
     // Ein verschobener Tag aendert die Reihenfolge des ganzen Plans.
     const tag = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [req.params.id]) as any
     if (tag) await nummeriereDrehtage(tag.project_id)
@@ -444,7 +473,7 @@ router.post('/projects/:projectId/drehplan/tagesgrenze', async (req, res) => {
   const nachSzene = Number(req.body?.nachSzene)
   if (!Number.isInteger(nachSzene) || nachSzene <= 0) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
   const tag = (await db.get(
-    `SELECT d.id, d.date, d.unit FROM shoot_day_scenes sds JOIN shoot_days d ON d.id = sds.shoot_day_id
+    `SELECT d.id, d.date, d.unit, ${effektiveUnit('d')} AS eff_unit FROM shoot_day_scenes sds JOIN shoot_days d ON d.id = sds.shoot_day_id
       WHERE sds.scene_id = ? AND d.project_id = ? ORDER BY d.id LIMIT 1`,
     [nachSzene, pid])) as any
   if (!tag) {
@@ -460,9 +489,12 @@ router.post('/projects/:projectId/drehplan/tagesgrenze', async (req, res) => {
   const neuesDatum = naechsterArbeitstag(tag.date, wochentage, feiertage)
   if (!neuesDatum) return res.status(400).json({ data: null, error: 'In den Arbeitstagen des Projekts ist kein Wochentag eingestellt' })
 
+  // Belegt und verschoben wird nur in der Folge der eigenen Unit (AP C2)
   const tage = (await db.all(
-    "SELECT id, day_number, date, status FROM shoot_days WHERE project_id = ? AND date <> '' ORDER BY date ASC, id ASC",
-    [pid])) as any[]
+    `SELECT d.id, d.day_number, d.date, d.status FROM shoot_days d
+      WHERE d.project_id = ? AND d.date <> '' AND ${effektiveUnit('d')} IS NOT DISTINCT FROM ?
+      ORDER BY d.date ASC, d.id ASC`,
+    [pid, tag.eff_unit])) as any[]
   const belegt = tage.find((t) => t.date === neuesDatum)
   // Verschoben werden alle Tage nach dem geteilten - nur wenn der nächste
   // Arbeitstag schon belegt ist und die Seite ausdrücklich zustimmt.
@@ -488,8 +520,8 @@ router.post('/projects/:projectId/drehplan/tagesgrenze', async (req, res) => {
   const neuerTag = await db.transaction(async (tx) => {
     for (const [i, t] of folgetage.entries()) await tx.run('UPDATE shoot_days SET date = ? WHERE id = ?', [neueDaten[i], t.id])
     const neu = (await tx.run(
-      "INSERT INTO shoot_days (project_id, day_number, date, status, unit, notes) VALUES (?, 0, ?, 'Geplant', ?, '')",
-      [pid, neuesDatum, tag.unit || 'Haupteinheit'])).id
+      "INSERT INTO shoot_days (project_id, day_number, date, status, unit, unit_id, notes) VALUES (?, 0, ?, 'Geplant', ?, ?, '')",
+      [pid, neuesDatum, tag.unit || 'Haupteinheit', tag.eff_unit ?? null])).id
     const eintraege = await eintraegeDesTags(tx, tagId)
     const rest = eintraege.slice(eintraege.findIndex((e) => e.art === 'szene' && e.id === nachSzene) + 1)
     const restSzenen = rest.filter((e) => e.art === 'szene').map((e) => e.id)
@@ -511,12 +543,16 @@ router.post('/projects/:projectId/drehplan/tagesgrenze', async (req, res) => {
 router.delete('/projects/:projectId/drehplan/tagesgrenze/:dayId', async (req, res) => {
   const pid = Number(req.params.projectId)
   const dayId = Number(req.params.dayId)
+  // Der folgende Tag derselben Unit (AP C2), nicht der einer parallelen
   const tage = (await db.all(
-    "SELECT id, day_number FROM shoot_days WHERE project_id = ? ORDER BY (date = '') ASC, date ASC, id ASC",
+    `SELECT d.id, d.day_number, ${effektiveUnit('d')} AS eff_unit FROM shoot_days d
+      WHERE d.project_id = ? ORDER BY (d.date = '') ASC, d.date ASC, d.id ASC`,
     [pid])) as any[]
-  const i = tage.findIndex((t) => Number(t.id) === dayId)
-  if (i < 0) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
-  const folgender = tage[i + 1]
+  const eigener = tage.find((t) => Number(t.id) === dayId)
+  if (!eigener) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+  const folge = tage.filter((t) => t.eff_unit === eigener.eff_unit)
+  const i = folge.findIndex((t) => Number(t.id) === dayId)
+  const folgender = folge[i + 1]
   if (!folgender) return res.status(400).json({ data: null, error: 'Nach dem letzten Drehtag gibt es keinen Tag zum Zusammenlegen' })
   const fid = Number(folgender.id)
 
@@ -571,6 +607,9 @@ router.post('/projects/:projectId/drehplan/einteilen', async (req, res) => {
   if (nach !== 'achtel' && nach !== 'minuten') return res.status(400).json({ data: null, error: 'Eingeteilt wird nach Achteln oder nach Minuten' })
   if (!Number.isFinite(hoechstens) || hoechstens <= 0) return res.status(400).json({ data: null, error: 'Die Grenze je Tag muss größer als 0 sein' })
   if (!istIsoDatum(start)) return res.status(400).json({ data: null, error: 'Der Start braucht ein Datum (JJJJ-MM-TT)' })
+  // Eingeteilt wird in die Tage einer Unit, ohne Angabe die Haupteinheit (AP C2)
+  const unit = await unitFuerNeuenTag(pid, req.body?.unit_id)
+  if (!unit) return res.status(400).json({ data: null, error: UNIT_FEHLT })
 
   let ablage = (await db.all(
     `SELECT s.id, s.eighths, s.estimated_minutes FROM scenes s
@@ -593,8 +632,8 @@ router.post('/projects/:projectId/drehplan/einteilen', async (req, res) => {
   const { wochentage, feiertage } = await kalenderDesProjekts(pid, Number(start.slice(0, 4)))
   const vorhanden = (await db.all(
     `SELECT d.id, d.date, d.status, EXISTS (SELECT 1 FROM shoot_day_scenes sds WHERE sds.shoot_day_id = d.id) AS hat_szenen
-       FROM shoot_days d WHERE d.project_id = ? AND d.date >= ?`,
-    [pid, start])) as any[]
+       FROM shoot_days d WHERE d.project_id = ? AND d.date >= ? AND ${effektiveUnit('d')} = ?`,
+    [pid, start, unit.id])) as any[]
   // Leer und planbar: keine Szene, nicht abgedreht, kein Sperr-, Ausfall- oder Reservetag
   const nichtPlanbar: readonly string[] = [...KEIN_DREHTAG, 'Abgedreht']
   const plaetze = plaetzeAb(gruppen.length, start,
@@ -634,8 +673,8 @@ router.post('/projects/:projectId/drehplan/einteilen', async (req, res) => {
       const vorhandeneEintraege = v.tag_id === null ? [] : await eintraegeDesTags(tx, v.tag_id)
       if (v.tag_id === null) {
         v.tag_id = (await tx.run(
-          "INSERT INTO shoot_days (project_id, day_number, date, status, unit, notes) VALUES (?, 0, ?, 'Geplant', 'Haupteinheit', '')",
-          [pid, v.datum])).id
+          "INSERT INTO shoot_days (project_id, day_number, date, status, unit, unit_id, notes) VALUES (?, 0, ?, 'Geplant', ?, ?, '')",
+          [pid, v.datum, unit.name, unit.id])).id
       }
       await schreibeReihenfolge(tx, Number(v.tag_id), [...vorhandeneEintraege, ...v.szenen.map((id) => ({ art: 'szene' as const, id }))])
     }
@@ -751,6 +790,8 @@ router.post('/projects/:projectId/drehplan/restore/:versionId', async (req, res)
   }))
   const pid = req.params.projectId
   const aktuell = await ladeDrehtageMitSzenen(pid)
+  // Nummern zählen je Unit (AP C2): Eine Version ohne Unit gehört der Haupteinheit
+  const haupt = await hauptUnit(db, pid)
 
   // Alles oder nichts: Vorher lief jeder Schritt einzeln - scheiterte das
   // Einlesen, waren die Zuordnungen schon gelöscht und der Plan stand leer da.
@@ -779,7 +820,9 @@ router.post('/projects/:projectId/drehplan/restore/:versionId', async (req, res)
 
     // Zuordnungen aus der Version, Tage über ihre Nummer gefunden
     for (const snapDay of snapshot) {
-      const liveDay = await tx.get('SELECT id FROM shoot_days WHERE project_id = ? AND day_number = ?', [pid, snapDay.day_number]) as any
+      const liveDay = await tx.get(
+        `SELECT d.id FROM shoot_days d WHERE d.project_id = ? AND d.day_number = ? AND ${effektiveUnit('d')} = ?`,
+        [pid, snapDay.day_number, Number(snapDay.unit_id ?? haupt.id)]) as any
       if (!liveDay) continue
       for (const [i, sz] of (snapDay.scenes || []).entries()) {
         const sceneId = sz.scene_id || sz.id

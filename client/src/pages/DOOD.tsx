@@ -23,6 +23,8 @@ interface Spalte {
   day_number: number | null
   frei: boolean
   status: string
+  /** "4" oder, mit parallelen Units, "4 · 2U 1" (AP C2) */
+  bezeichnung?: string
 }
 
 interface Zeile {
@@ -78,7 +80,7 @@ function zelle(code: string, frei: boolean) {
 }
 
 function kopf(s: Spalte, tt: Tt, gebietsschema: string) {
-  const tag = s.day_number != null && !s.frei ? tt(T.dt).replace('{n}', String(s.day_number)) : ''
+  const tag = s.day_number != null && !s.frei ? tt(T.dt).replace('{n}', s.bezeichnung || String(s.day_number)) : ''
   if (!s.datum) return { tag, wochentag: '', datum: '' }
   const d = parseISO(s.datum)
   return {

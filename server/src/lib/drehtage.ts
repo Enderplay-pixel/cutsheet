@@ -13,13 +13,16 @@
  * auf einer Dispo steht (von Hand dazugesetzt, oder die Szene ist inzwischen
  * verschoben - die Dispo nimmt dann niemanden mit, siehe lib/dispo.ts).
  *
- * Stab: Tage, an denen die Person auf einer Dispo steht, dazu jeder Tag, der
- * noch keine Dispo hat - eine neue Dispo ruft den ganzen Stab.
+ * Stab: Tage, an denen die Person auf einer Dispo steht, dazu jeder Tag ihrer
+ * Unit, der noch keine Dispo hat - eine neue Dispo ruft den Stab ihrer Unit
+ * (AP C2; wer zu allen Units gehört, zählt jeden solchen Tag).
  *
  * Ein Sperrtag ist kein Drehtag: An ihm wird nicht gedreht und niemand
  * bezahlt. Gemessen im Testbericht SALZWIND (09.11.2026): Die Kalkulation
  * rechnete die Stabgagen auch für den Sperrtag.
  */
+
+import { stabDerUnit } from './units'
 
 /**
  * Status, an denen nicht gedreht wird - kein Drehtag für niemanden.
@@ -76,6 +79,7 @@ export async function drehtageStab(z: Lesen, projectId: number): Promise<Map<num
        FROM crew c
        JOIN shoot_days sd ON sd.project_id = c.project_id
       WHERE c.project_id = ? AND sd.status NOT IN ${KEIN_DREHTAG_SQL}
+        AND ${stabDerUnit('c', 'sd')}
         AND NOT EXISTS (SELECT 1 FROM call_sheets cs WHERE cs.shoot_day_id = sd.id)`,
     [projectId, projectId]
   ))

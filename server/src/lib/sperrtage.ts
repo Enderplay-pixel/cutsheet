@@ -8,7 +8,7 @@
  * Tage mit einer Szene der Rolle: Wer von Hand auf der Dispo stand, fiel
  * durch. Jetzt gilt die gemeinsame Zählung aus lib/drehtage.ts.
  */
-import { drehtageBesetzung } from './drehtage'
+import { drehtageBesetzung, KEIN_DREHTAG_SQL } from './drehtage'
 import { istIsoDatum } from './datum'
 
 type Lesen = { all: (sql: string, werte?: any[]) => Promise<any[]> }
@@ -17,11 +17,11 @@ export type SperrtagKonflikt = { shoot_day: any; cast_name: string; blackout: an
 
 export async function sperrtagKonflikte(z: Lesen, projectId: number): Promise<SperrtagKonflikt[]> {
   const [tage, sperren, tageJePerson] = await Promise.all([
-    // Ausgefallene und drehfreie Tage brauchen niemanden
+    // Sperr-, Ausfall- und Reservetage brauchen niemanden (eine Liste, AP C2)
     z.all(
       `SELECT * FROM shoot_days
         WHERE project_id = ? AND date IS NOT NULL AND date <> ''
-          AND status NOT IN ('Sperrtag', 'Drehfrei', 'Ausgefallen')
+          AND status NOT IN ${KEIN_DREHTAG_SQL}
         ORDER BY date ASC`,
       [projectId]
     ),

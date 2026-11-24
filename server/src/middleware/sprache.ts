@@ -55,6 +55,11 @@ const MUSTER: Array<[RegExp, Record<Sprache, string>]> = [
     { en: 'The group has $1 heads - $2 cannot be called', fr: 'Le groupe compte $1 personnes - impossible d’en convoquer $2' }],
   [/^An einem Drehtag sind (\d+) Köpfe abgerufen - die Gruppe braucht mindestens so viele$/,
     { en: '$1 heads are called on a shoot day - the group needs at least as many', fr: '$1 personnes sont convoquées un jour de tournage - le groupe en a besoin d’au moins autant' }],
+  // Units und parallele Drehtage (AP C2)
+  [/^Eine Unit „(.+)" gibt es schon$/,
+    { en: 'A unit "$1" already exists', fr: 'Une unité « $1 » existe déjà' }],
+  [/^Die Unit hat (\d+) \S+ - beim Löschen wandern sie zur Haupteinheit\.$/,
+    { en: 'The unit has $1 shoot day(s) - deleting moves them to the main unit.', fr: 'L’unité a $1 jour(s) de tournage - la suppression les déplace vers l’unité principale.' }],
   // Regionaleffekt (AP E3)
   [/^Die Anteile ergeben zusammen ([\d,]+) % - höchstens 100 %$/,
     { en: 'The shares add up to $1 % - at most 100 %', fr: 'Les parts totalisent $1 % - au plus 100 %' }],

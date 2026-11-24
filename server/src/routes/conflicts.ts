@@ -10,6 +10,7 @@ import { sperrtagKonflikte } from '../lib/sperrtage'
 import { ohneGagen } from '../lib/gagenschutz'
 import { massgeblicheKalkulation, massgeblicherFinanzierungsplan, finanzierungsstand, ausKalkulation } from '../lib/kalkulation'
 import { KEIN_DREHTAG_SQL } from '../lib/drehtage'
+import { effektiveUnit, drehtagNameSql } from '../lib/units'
 
 const router = Router()
 
@@ -51,6 +52,21 @@ async function pruefung(name: string, ziel: any[], fn: () => Promise<void>) {
     })
   }
 }
+
+/**
+ * Die aktiven Drehtage mit Datum, je mit ihrer Unit und ihrem Namen ("Drehtag
+ * 4", "2U Tag 3") - Grundlage der Prüfungen zwischen Units (AP C2). Erwartet
+ * die Projektkennung als ersten Wert.
+ */
+const AKTIVE_TAGE = `
+  WITH tage AS (
+    SELECT sd.id, sd.date, sd.day_number, ${effektiveUnit('sd')} AS unit_id
+      FROM shoot_days sd
+     WHERE sd.project_id = ? AND sd.date <> '' AND sd.status NOT IN ${KEIN_DREHTAG_SQL}
+  ), benannt AS (
+    SELECT t.*, u.name AS unit_name, COALESCE(u.is_main, true) AS unit_is_main, ${drehtagNameSql('t', 'u')} AS name
+      FROM tage t LEFT JOIN units u ON u.id = t.unit_id
+  )`
 
 router.get('/projects/:projectId/conflicts', async (req, res) => {
   const pid = req.params.projectId
@@ -102,18 +118,18 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
   // 3. Empty shoot days
   await pruefung('Leere Drehtage', conflicts, async () => {
     const emptyDays = await db.all(`
-      SELECT sd.day_number, sd.date FROM shoot_days sd
+      SELECT ${drehtagNameSql('sd', 'u')} AS name, sd.date FROM shoot_days sd
+      LEFT JOIN units u ON u.id = ${effektiveUnit('sd')}
       WHERE sd.project_id = ?
       AND sd.id NOT IN (SELECT DISTINCT shoot_day_id FROM shoot_day_scenes)
       AND sd.status NOT IN ${KEIN_DREHTAG_SQL}
-      -- Werte, die niemand setzen kann - bis AP C2 sie aufräumt
-      AND sd.status NOT IN ('Drehfrei', 'Reisetag', 'Feiertag')
+      ORDER BY sd.date, sd.day_number
     `, [pid]) as any[]
 
     emptyDays.forEach(d => {
       conflicts.push({
         severity: 'warning', category: 'Drehplan',
-        message: `Drehtag ${d.day_number} (${datumText(d.date)}) enthält keine Szenen`,
+        message: `${d.name} (${datumText(d.date)}) enthält keine Szenen`,
         link: 'drehplan'
       })
     })
@@ -342,24 +358,91 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
     }
   })
 
-  // 11. Shoot days that overlap with each other on same date
+  // 11. Zwei Tage derselben Unit am selben Datum. Parallele Tage
+  // verschiedener Units sind erlaubt (AP C2). Tage ohne Datum sind noch nicht
+  // terminiert, kein Konflikt - vorher meldete der Radar für zwei davon
+  // "Mehrere Drehtage am ".
   await pruefung('Mehrere Drehtage am selben Datum', conflicts, async () => {
-    const sameDateDays = await db.all(`
-      SELECT date, COUNT(*) as c FROM shoot_days
-      WHERE project_id = ? AND status NOT IN ('Sperrtag', 'Drehfrei', 'Ausgefallen')
-        -- Tage ohne Datum sind noch nicht terminiert, kein Konflikt. Vorher
-        -- meldete der Radar für zwei davon "Mehrere Drehtage am ".
-        AND date <> ''
-      GROUP BY date HAVING COUNT(*) > 1
+    const sameDateDays = await db.all(`${AKTIVE_TAGE}
+      SELECT date, MAX(unit_name) AS unit_name, BOOL_AND(unit_is_main) AS haupt, COUNT(*) AS c
+        FROM benannt GROUP BY date, unit_id HAVING COUNT(*) > 1 ORDER BY date
     `, [pid]) as any[]
     sameDateDays.forEach(d => {
       conflicts.push({
         severity: 'warning', category: 'Drehplan',
-        message: `Mehrere Drehtage am ${datumText(d.date)}`,
-        detail: `${d.c} aktive Drehtage am selben Datum - Terminkonflikt prüfen.`,
+        message: `Mehrere Drehtage am ${datumText(d.date)}${d.haupt ? '' : ` (${d.unit_name})`}`,
+        detail: `${d.c} aktive Drehtage derselben Unit am selben Datum - Terminkonflikt prüfen.`,
         link: 'drehplan'
       })
     })
+  })
+
+  // 11a. Dieselbe Figur am selben Datum in zwei Units (AP C2, R3): Niemand
+  // steht an zwei Sets zugleich.
+  await pruefung('Figur in zwei Units', conflicts, async () => {
+    const doppelt = await db.all(`${AKTIVE_TAGE}
+      SELECT ch.name AS figur, b.date, string_agg(DISTINCT b.name, ', ') AS tage
+        FROM benannt b
+        JOIN shoot_day_scenes sds ON sds.shoot_day_id = b.id
+        JOIN scene_characters sc ON sc.scene_id = sds.scene_id
+        JOIN characters ch ON ch.id = sc.character_id
+       GROUP BY ch.id, ch.name, b.date
+      HAVING COUNT(DISTINCT b.unit_id) > 1
+       ORDER BY b.date, ch.name
+    `, [pid]) as any[]
+    for (const d of doppelt) {
+      conflicts.push({
+        severity: 'error', category: 'Drehplan',
+        message: `${d.figur} dreht am ${datumText(d.date)} in zwei Units`,
+        detail: `${d.tage} - dieselbe Figur kann nicht an zwei Sets zugleich spielen.`,
+        link: 'drehplan',
+      })
+    }
+  })
+
+  // 11b. Dasselbe Motiv am selben Datum in zwei Units: oft gewollt (Second
+  // Unit dreht Totalen am selben Ort), deshalb nur ein Hinweis.
+  await pruefung('Motiv in zwei Units', conflicts, async () => {
+    const doppelt = await db.all(`${AKTIVE_TAGE}
+      SELECT l.name AS motiv, b.date, string_agg(DISTINCT b.name, ', ') AS tage
+        FROM benannt b
+        JOIN shoot_day_scenes sds ON sds.shoot_day_id = b.id
+        JOIN scenes s ON s.id = sds.scene_id
+        JOIN locations l ON l.id = s.location_id
+       GROUP BY l.id, l.name, b.date
+      HAVING COUNT(DISTINCT b.unit_id) > 1
+       ORDER BY b.date, l.name
+    `, [pid]) as any[]
+    for (const d of doppelt) {
+      conflicts.push({
+        severity: 'info', category: 'Motive',
+        message: `Motiv „${d.motiv}" am ${datumText(d.date)} in zwei Units`,
+        detail: `${d.tage} - beide Units am selben Ort: Platz, Parken und Ton absprechen.`,
+        link: 'drehplan',
+      })
+    }
+  })
+
+  // 11c. Dieselbe Person des Stabs auf zwei Dispos am selben Datum
+  await pruefung('Stab auf zwei Dispos', conflicts, async () => {
+    const doppelt = await db.all(`${AKTIVE_TAGE}
+      SELECT c.name, b.date, string_agg(DISTINCT b.name, ', ') AS tage
+        FROM benannt b
+        JOIN call_sheets cs ON cs.shoot_day_id = b.id
+        JOIN call_sheet_entries e ON e.call_sheet_id = cs.id AND e.person_type = 'crew'
+        JOIN crew c ON c.id = e.person_id
+       GROUP BY c.id, c.name, b.date
+      HAVING COUNT(DISTINCT b.id) > 1
+       ORDER BY b.date, c.name
+    `, [pid]) as any[]
+    for (const d of doppelt) {
+      conflicts.push({
+        severity: 'error', category: 'Stab',
+        message: `${d.name} steht am ${datumText(d.date)} auf zwei Dispos`,
+        detail: `${d.tage} - aus einer der Dispos nehmen oder die Unit der Person prüfen.`,
+        link: 'tagesdispo',
+      })
+    }
   })
 
   // 12. Besetzung an einem Drehtag, an dem sie gesperrt ist. Vorher sah das

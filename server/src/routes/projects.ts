@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { KEIN_DREHTAG_SQL } from '../lib/drehtage'
 import { validate } from '../middleware/validate'
 import { ProjectSchema } from '../schemas'
 import { getUserProjectRole, requireMember, ROLE_RANK } from '../middleware/projectAuth'
@@ -505,7 +506,7 @@ router.get('/:id/stats', requireAuth, async (req: Request, res: Response) => {
   // undatierter Drehtag ließ die ganze Übersicht scheitern (gemessen am
   // 25.10.2026). "Heute" in deutscher Zeit, nicht in der der Datenbank.
   const next_shoot_day = await db.get(`
-    SELECT * FROM shoot_days WHERE project_id = ? AND date <> '' AND date >= ? AND status != 'Ausgefallen'
+    SELECT * FROM shoot_days WHERE project_id = ? AND date <> '' AND date >= ? AND status NOT IN ${KEIN_DREHTAG_SQL}
     ORDER BY date ASC LIMIT 1
   `, [pid, heuteISO()])
 

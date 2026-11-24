@@ -369,12 +369,15 @@ export async function seedGrossproduktion(
     // Drehtage: Szenen nach Motiv sortiert, ~3,4 Szenen pro Tag, 6 bleiben ungeplant
     const reihenfolge = sceneIds.map((id, i) => ({ id, i })).sort((a, b) => szenenMeta[a.i].loc - szenenMeta[b.i].loc || a.i - b.i)
     const geplant = reihenfolge.slice(0, reihenfolge.length - 6)
+    // Zwei Units (AP C2): die letzten Tage dreht die 2nd Unit, Nummern je Unit
+    const [hauptteam, zweite] = await insertMany(tx, 'units', ['project_id', 'name', 'short', 'color', 'is_main', 'sort_order'],
+      [[pid, 'Hauptteam', '', '', true, 0], [pid, '2nd Unit', '2U', '#0ea5e9', false, 1]])
     const tagZeilen = daten.map((d, i) => {
       const vergangen = d < heute
-      return [pid, i + 1, d, vergangen ? 'Abgedreht' : d === heute ? 'Bestätigt' : (i === 40 ? 'Ausgefallen' : 'Geplant'),
-        i >= 38 ? '2nd Unit' : 'Hauptteam', `Drehtag ${i + 1}`, between(95, 165), i % 9 === 3 ? 'Nachtdreh, Ruhezeit 11 h einhalten' : '']
+      return [pid, i >= 38 ? i - 37 : i + 1, d, vergangen ? 'Abgedreht' : d === heute ? 'Bestätigt' : (i === 40 ? 'Ausgefallen' : 'Geplant'),
+        i >= 38 ? '2nd Unit' : 'Hauptteam', i >= 38 ? zweite : hauptteam, i >= 38 ? `2nd Unit, Tag ${i - 37}` : `Drehtag ${i + 1}`, between(95, 165), i % 9 === 3 ? 'Nachtdreh, Ruhezeit 11 h einhalten' : '']
     })
-    const dayIds = await insertMany(tx, 'shoot_days', ['project_id', 'day_number', 'date', 'status', 'unit', 'notes', 'catering_count', 'risk_notes'], tagZeilen)
+    const dayIds = await insertMany(tx, 'shoot_days', ['project_id', 'day_number', 'date', 'status', 'unit', 'unit_id', 'notes', 'catering_count', 'risk_notes'], tagZeilen)
     zahlen.drehtage = dayIds.length
     const szenenJeTag: number[][] = dayIds.map(() => [])
     geplant.forEach((s, k) => { szenenJeTag[Math.min(dayIds.length - 1, Math.floor(k * dayIds.length / geplant.length))].push(s.i) })

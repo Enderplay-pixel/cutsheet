@@ -259,7 +259,7 @@ export const api = {
   drehplan: {
     listDays: (projectId: number) => req<any[]>(`/projects/${projectId}/shoot-days`),
     createDay: (projectId: number, data: any) => req<any>(`/projects/${projectId}/shoot-days`, { method: 'POST', body: JSON.stringify(data) }),
-    createDaysBatch: (projectId: number, dates: string[]) => req<any[]>(`/projects/${projectId}/shoot-days/batch`, { method: 'POST', body: JSON.stringify({ dates }) }),
+    createDaysBatch: (projectId: number, dates: string[], unitId?: number) => req<any[]>(`/projects/${projectId}/shoot-days/batch`, { method: 'POST', body: JSON.stringify({ dates, ...(unitId ? { unit_id: unitId } : {}) }) }),
     updateDay: (id: number, data: any) => req<any>(`/shoot-days/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteDay: (id: number) => req<any>(`/shoot-days/${id}`, { method: 'DELETE' }),
     addScene: (dayId: number, data: any) => req<any>(`/shoot-days/${dayId}/scenes`, { method: 'POST', body: JSON.stringify(data) }),
@@ -277,7 +277,7 @@ export const api = {
       req<any>(`/projects/${projectId}/drehplan/tagesgrenze`, { method: 'POST', body: JSON.stringify({ nachSzene, folgetageVerschieben }) }),
     tagesgrenzeEntfernen: (projectId: number, dayId: number, bestaetigt = false) =>
       req<any>(`/projects/${projectId}/drehplan/tagesgrenze/${dayId}${bestaetigt ? '?bestaetigt=1' : ''}`, { method: 'DELETE' }),
-    einteilen: (projectId: number, data: { nach: 'achtel' | 'minuten'; hoechstens: number; start: string; nurZeigen: boolean; szenen?: number[] }) =>
+    einteilen: (projectId: number, data: { nach: 'achtel' | 'minuten'; hoechstens: number; start: string; nurZeigen: boolean; szenen?: number[]; unit_id?: number }) =>
       req<any>(`/projects/${projectId}/drehplan/einteilen`, { method: 'POST', body: JSON.stringify(data) }),
     arbeitstage: (projectId: number, von: string, bis: string, wochenenden: boolean) =>
       req<string[]>(`/projects/${projectId}/drehplan/arbeitstage?von=${von}&bis=${bis}${wochenenden ? '&wochenenden=1' : ''}`),
@@ -1255,6 +1255,17 @@ export const api = {
     update: (id: number, data: any) => req<any>(`/expenses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: number) => req<any>(`/expenses/${id}`, { method: 'DELETE' }),
     kostenstand: (projectId: number) => req<any>(`/projects/${projectId}/kostenstand`),
+  },
+
+  // ─── Units und parallele Drehtage (AP C2) ───────────────────────────────────
+  units: {
+    list: (projectId: number) => req<any[]>(`/projects/${projectId}/units`),
+    create: (projectId: number, data: { name: string; short?: string; color?: string }) =>
+      req<any>(`/projects/${projectId}/units`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: number, data: { name?: string; short?: string; color?: string; sort_order?: number }) =>
+      req<any>(`/units/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    /** Mit Drehtagen erst nach Rückfrage: ohne `bestaetigt` kommt 409 mit der Zahl der Tage. */
+    delete: (id: number, bestaetigt = false) => req<any>(`/units/${id}${bestaetigt ? '?bestaetigt=1' : ''}`, { method: 'DELETE' }),
   },
 
   // ─── Regionaleffekt (AP E3) ────────────────────────────────────────────────

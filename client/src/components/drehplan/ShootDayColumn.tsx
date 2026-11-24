@@ -8,6 +8,8 @@ import { api } from '@/lib/api'
 import { useDownload } from '@/lib/useDownload'
 import { useT } from '@/lib/useT'
 import { shootDayColumnT, drehtagStatusT } from '@/lib/texte/komponenten/Drehplan'
+import { tagNummer, unitKuerzel } from '@/lib/units'
+import { UnitMarke } from './Units'
 
 interface ShootDayColumnProps {
   day: any
@@ -46,20 +48,24 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
         'flex flex-col shrink-0 w-[200px] border rounded-lg overflow-hidden',
         isSperrtag ? 'border-yellow-500/30 bg-yellow-500/5' : isReserve ? 'border-dashed border-border bg-muted/30' : 'border-border bg-card'
       )}
-      aria-label={tt(shootDayColumnT.drehtagDatum).replace('{n}', String(day.day_number)).replace('{d}', formatDate(day.date))}
+      aria-label={tt(shootDayColumnT.drehtagDatum).replace('{n}', tagNummer(day)).replace('{d}', formatDate(day.date))}
     >
       {/* Header */}
       <div className={cn('px-3 py-2 border-b border-border', isSperrtag && 'bg-yellow-500/10')}>
         <div className="flex items-center justify-between mb-1">
-          <span className="font-semibold text-sm">{tt(shootDayColumnT.tagN).replace('{n}', String(day.day_number))}</span>
+          {/* Tage einer anderen Unit tragen ihr Kürzel (AP C2) */}
+          <span className="font-semibold text-sm inline-flex items-center gap-1.5">
+            <UnitMarke kuerzel={unitKuerzel(day)} farbe={day.unit_color} />
+            {tt(shootDayColumnT.tagN).replace('{n}', String(day.day_number))}
+          </span>
           {darfAendern && (
             <Button
               variant="ghost"
               size="icon"
               className="h-5 w-5 opacity-50 hover:opacity-100 hover:text-destructive"
               // Löschen nimmt Dispo, Tagesbericht und Check-ins mit - nicht auf einen Klick
-              onClick={() => { if (confirm(tt(shootDayColumnT.loeschenFrage).replace('{n}', String(day.day_number)))) onDeleteDay(day.id) }}
-              aria-label={tt(shootDayColumnT.loeschen).replace('{n}', String(day.day_number))}
+              onClick={() => { if (confirm(tt(shootDayColumnT.loeschenFrage).replace('{n}', tagNummer(day)))) onDeleteDay(day.id) }}
+              aria-label={tt(shootDayColumnT.loeschen).replace('{n}', tagNummer(day))}
             >
               <Trash2 className="w-3 h-3" aria-hidden="true" />
             </Button>
@@ -74,7 +80,7 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
           disabled={!darfAendern}
           onChange={(e) => onStatusChange(day.id, e.target.value)}
           data-einfuehrung="status"
-          aria-label={tt(shootDayColumnT.statusFuer).replace('{n}', String(day.day_number))}
+          aria-label={tt(shootDayColumnT.statusFuer).replace('{n}', tagNummer(day))}
           className={cn(
             'w-full text-xs rounded px-1 py-0.5 border border-input bg-input',
             isSperrtag && 'text-yellow-400'
@@ -100,7 +106,7 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
             onClick={() => download(api.morningBrief.pdf(day.id), `morning-brief-drehtag-${day.day_number}.pdf`)}
             className="ml-auto flex items-center gap-0.5 text-muted-foreground/60 hover:text-primary transition-colors"
             title={tt(shootDayColumnT.morningBriefPdf)}
-            aria-label={tt(shootDayColumnT.morningBriefDl).replace('{n}', String(day.day_number))}
+            aria-label={tt(shootDayColumnT.morningBriefDl).replace('{n}', tagNummer(day))}
           >
             <FileText className="w-2.5 h-2.5" aria-hidden="true" />
           </button>
@@ -114,7 +120,7 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
           isOver && 'bg-primary/10',
           leerGesperrt && 'opacity-50 pointer-events-none'
         )}
-        aria-label={isSperrtag ? tt(shootDayColumnT.sperrtagN).replace('{n}', String(day.day_number)) : tt(shootDayColumnT.szenenFuer).replace('{n}', String(day.day_number))}
+        aria-label={isSperrtag ? tt(shootDayColumnT.sperrtagN).replace('{n}', tagNummer(day)) : tt(shootDayColumnT.szenenFuer).replace('{n}', tagNummer(day))}
       >
         {leerGesperrt ? (
           <div className="flex items-center justify-center h-full text-xs text-yellow-400 italic">{tt(drehtagStatusT.Sperrtag)}</div>
@@ -131,7 +137,7 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
                 {tt(shootDayColumnT.hierhinZiehen)}
               </div>
             ) : (
-              <div role="list" aria-label={tt(shootDayColumnT.szenenAn).replace('{n}', String(day.day_number))}>
+              <div role="list" aria-label={tt(shootDayColumnT.szenenAn).replace('{n}', tagNummer(day))}>
                 {(day.scenes || []).map((scene: any) => (
                   <SceneStrip
                     key={scene.scene_id}

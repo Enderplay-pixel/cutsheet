@@ -26,9 +26,18 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useT, useGebietsschema } from '@/lib/useT'
 import { drehplanT as T } from '@/lib/texte/Drehplan'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
+import { useUnits, tageNachUnit, tagNummer, type Unit } from '@/lib/units'
+import { unitsT as U } from '@/lib/texte/Units'
+import { UnitWaehler, UnitsDialog } from '@/components/drehplan/Units'
 
-function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: () => void; projectId: number }) {
+function AddDayDialog({ open, onClose, projectId, units, vorgabeUnit }: {
+  open: boolean; onClose: () => void; projectId: number; units: Unit[] | undefined; vorgabeUnit: number | 'alle'
+}) {
   const [mode, setMode] = useState<'single' | 'range'>('single')
+  // Die Unit des neuen Tages (AP C2): die gerade gezeigte, sonst die Haupteinheit
+  const haupt = units?.find((u) => u.is_main)?.id
+  const [unitWahl, setUnitWahl] = useState<number | 'alle'>('alle')
+  const unitId = unitWahl !== 'alle' ? unitWahl : vorgabeUnit !== 'alle' ? vorgabeUnit : haupt
   const [date, setDate] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -39,7 +48,7 @@ function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
   const tt = useT()
 
   const mutation = useMutation({
-    mutationFn: (d: string) => api.drehplan.createDay(projectId, { date: d }),
+    mutationFn: (d: string) => api.drehplan.createDay(projectId, { date: d, ...(unitId ? { unit_id: unitId } : {}) }),
   })
 
   // Welche Tage der Zeitraum ergibt, rechnet der Server: Arbeitstage des
@@ -64,11 +73,12 @@ function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
         if (dates.length === 0) return
         if (dates.length > 60) { toast({ title: tt(T.max60), variant: 'destructive' }); return }
         // Ein Aufruf statt einer Schleife: Der Server legt alle Tage an und nummeriert einmal
-        await api.drehplan.createDaysBatch(projectId, dates)
+        await api.drehplan.createDaysBatch(projectId, dates, unitId)
         toast({ title: tt(T.tageHinzugefuegt).replace('{n}', String(dates.length)) })
       }
       queryClient.invalidateQueries({ queryKey: ['shoot-days', projectId] })
-      onClose(); setDate(''); setStartDate(''); setEndDate('')
+      queryClient.invalidateQueries({ queryKey: ['units', projectId] })
+      onClose(); setDate(''); setStartDate(''); setEndDate(''); setUnitWahl('alle')
     } catch (e: any) {
       toast({ title: tt(T.fehler), description: e.message, variant: 'destructive' })
     } finally {
@@ -83,6 +93,7 @@ function AddDayDialog({ open, onClose, projectId }: { open: boolean; onClose: ()
       <DialogContent className="max-w-sm">
         <DialogHeader><DialogTitle>{tt(T.dialogTitel)}</DialogTitle></DialogHeader>
         <div className="space-y-3">
+          <UnitWaehler units={units} wert={unitId ?? 'alle'} onChange={setUnitWahl} mitAlle={false} />
           <div className="flex gap-1 p-0.5 bg-muted rounded-md">
             <button onClick={() => setMode('single')} className={`flex-1 text-xs py-1 rounded transition-colors ${mode === 'single' ? 'bg-card shadow-sm font-medium' : 'text-muted-foreground'}`}>{tt(T.einzelnerTag)}</button>
             <button onClick={() => setMode('range')} className={`flex-1 text-xs py-1 rounded transition-colors ${mode === 'range' ? 'bg-card shadow-sm font-medium' : 'text-muted-foreground'}`}>{tt(T.zeitraum)}</button>
@@ -146,6 +157,10 @@ export function Component() {
   const [showVersions, setShowVersions] = useState(false)
   const [showAiOptimize, setShowAiOptimize] = useState(false)
   const [aiOptimizing, setAiOptimizing] = useState(false)
+  // Unit-Wähler (AP C2): alle Units, jede als eigene Folge, oder eine
+  const [unitFilter, setUnitFilter] = useState<number | 'alle'>('alle')
+  const [unitsOffen, setUnitsOffen] = useState(false)
+  const { data: units } = useUnits(pid)
 
   const { data: shootDays, isLoading: daysLoading } = useQuery({
     queryKey: ['shoot-days', pid],
@@ -244,6 +259,8 @@ export function Component() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['drehplan-versions', pid] }),
   })
 
+  const gezeigteTage = tageNachUnit(shootDays || [], units, unitFilter)
+
   const scheduledSceneIds = new Set<number>()
   shootDays?.forEach((day: any) => day.scenes?.forEach((s: any) => scheduledSceneIds.add(s.scene_id)))
   // Entfallene Szenen (AP A3) stehen nicht in der Ablage
@@ -306,7 +323,7 @@ export function Component() {
     // sich Drehtage, DOOD und Kalkulation ohne Ansage (Plan AP A1).
     const zielTag = toDayId ? (shootDays || []).find((d: any) => d.id === toDayId) : null
     if (zielTag?.status === 'Reserve') {
-      if (!confirm(tt(T.reserveZiel).replace('{n}', String(zielTag.day_number)))) return
+      if (!confirm(tt(T.reserveZiel).replace('{n}', tagNummer(zielTag)))) return
       await statusMutation.mutateAsync({ dayId: zielTag.id, status: 'Geplant' })
     }
 
@@ -336,7 +353,9 @@ export function Component() {
           title={tt(T.titel)}
           subtitle={tt(T.untertitel).replace('{tage}', String(shootDays?.length || 0)).replace('{geplant}', String(scheduledSceneIds.size)).replace('{gesamt}', String(allScenes?.length || 0))}
           actions={
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
+              <UnitWaehler units={units} wert={unitFilter} onChange={setUnitFilter} />
+              <Button data-einfuehrung="units" variant="outline" size="sm" onClick={() => setUnitsOffen(true)}>{tt(U.verwalten)}</Button>
               <Button variant="outline" size="sm" onClick={() => download(api.pdf.drehplan(pid), 'drehplan.pdf')}>
                   <Download className="w-4 h-4 mr-2" />PDF
                 </Button>
@@ -374,7 +393,7 @@ export function Component() {
               <ScenePool scenes={unscheduledScenes} />
 
               {/* Shoot day columns */}
-              {(shootDays || []).map((day: any) => (
+              {gezeigteTage.map((day: any) => (
                 <ShootDayColumn
                   key={day.id}
                   day={day}
@@ -447,7 +466,8 @@ export function Component() {
         </div>
       )}
 
-      <AddDayDialog open={addDayOpen} onClose={() => setAddDayOpen(false)} projectId={pid} />
+      <AddDayDialog open={addDayOpen} onClose={() => setAddDayOpen(false)} projectId={pid} units={units} vorgabeUnit={unitFilter} />
+      <UnitsDialog offen={unitsOffen} onSchliessen={() => setUnitsOffen(false)} pid={pid} units={units} darf={canEdit} />
 
       {/* AI Optimize confirm dialog */}
       <Dialog open={showAiOptimize} onOpenChange={v => !v && setShowAiOptimize(false)}>

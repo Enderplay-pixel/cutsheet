@@ -46,9 +46,9 @@ export const dreh: Record<string, Schritt[]> = {
       ziel: 'personen',
       titel: { de: 'Besetzung, Stab, Komparsen', en: 'Cast, crew, extras', fr: 'Acteurs, équipe, figurants' },
       text: {
-        de: "Je Person die eigene Call Time, Abholort und Hinweis. Die Darsteller kommen über die Rollen der Szenen, der Stab ganz, die Komparsen über ihre Drehtage. \"Person hinzufügen\" nimmt jemanden von Hand dazu; geänderte Zeiten speicherst du mit \"Speichern\".",
-        en: "For each person their own call time, pick-up point and note. Actors come through the roles of the scenes, the crew in full, extras through their shoot days. \"Add person\" adds someone by hand; save changed times with \"Save\".",
-        fr: "Pour chaque personne : son heure de convocation, son lieu de prise en charge et une remarque. Les acteurs viennent par les rôles des scènes, l'équipe au complet, les figurants par leurs jours. « Ajouter une personne » ajoute quelqu'un à la main ; enregistre les horaires modifiés avec « Enregistrer ».",
+        de: "Je Person die eigene Call Time, Abholort und Hinweis. Die Darsteller kommen über die Rollen der Szenen, der Stab seiner Unit, die Komparsen über ihre Drehtage. \"Person hinzufügen\" nimmt jemanden von Hand dazu; geänderte Zeiten speicherst du mit \"Speichern\".",
+        en: "For each person their own call time, pick-up point and note. Actors come through the roles of the scenes, the crew of its unit, extras through their shoot days. \"Add person\" adds someone by hand; save changed times with \"Save\".",
+        fr: "Pour chaque personne : son heure de convocation, son lieu de prise en charge et une remarque. Les acteurs viennent par les rôles des scènes, l'équipe de son unité, les figurants par leurs jours. « Ajouter une personne » ajoute quelqu'un à la main ; enregistre les horaires modifiés avec « Enregistrer ».",
       },
       wirktAuf: ['besetzung', 'stabliste', 'komparsen'],
     },

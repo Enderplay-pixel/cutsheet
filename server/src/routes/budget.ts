@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import * as kosten from '../lib/kostenquellen'
+import { effektiveUnit } from '../lib/units'
 import { drehtageBesetzung, drehtageStab, anzahl, KEIN_DREHTAG_SQL } from '../lib/drehtage'
 import { ladeDood } from '../lib/dood'
 import { db, TxClient } from '../db'
@@ -672,10 +673,11 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
   // niemand Stabgagen für einen Tag kalkuliert, an dem nichts gedreht wird
   // (Testbericht SALZWIND, Plan AP A1).
   const leereTage = await db.all(
-    `SELECT sd.day_number FROM shoot_days sd
+    `SELECT sd.day_number, COALESCE(u.is_main, true) AS unit_is_main, COALESCE(NULLIF(u.short, ''), u.name) AS unit_kurz
+       FROM shoot_days sd LEFT JOIN units u ON u.id = ${effektiveUnit('sd')}
       WHERE sd.project_id = ? AND sd.status NOT IN ${KEIN_DREHTAG_SQL}
         AND NOT EXISTS (SELECT 1 FROM shoot_day_scenes sds WHERE sds.shoot_day_id = sd.id)
-      ORDER BY sd.day_number ASC`, [pid]) as any[]
+      ORDER BY COALESCE(u.is_main, true) DESC, u.sort_order ASC, sd.day_number ASC`, [pid]) as any[]
 
   // Komparserie (AP C1): Köpfe je abgerufenem Drehtag, ohne Sperr-, Ausfall- und Reservetage
   const komparsen = await db.all('SELECT id, name, is_group, fee_per_day FROM extras WHERE project_id = ?', [pid]) as any[]
@@ -758,7 +760,8 @@ router.post('/budget-versions/:id/kosten-uebernehmen', async (req, res) => {
       unveraendert: plan.unveraendert,
       summe_cent: soll.reduce((s, p) => s + p.gesamt_cent, 0),
       ohne_drehtag: ohneDrehtag,
-      leere_drehtage: leereTage.map(t => Number(t.day_number)),
+      // Tage der Haupteinheit als Zahl, andere Units mit Kürzel ("2U 1", AP C2)
+      leere_drehtage: leereTage.map(t => (t.unit_is_main ? Number(t.day_number) : `${t.unit_kurz} ${t.day_number}`)),
       posten: plan.neu.concat(plan.geaendert.map(g => g.posten)),
     },
     error: null,

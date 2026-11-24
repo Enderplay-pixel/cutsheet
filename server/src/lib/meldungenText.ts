@@ -409,4 +409,13 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Für eine Gruppe gibt es keinen Vertrag - Verträge schließt jede Person einzeln': { en: 'A group has no contract - each person signs their own', fr: 'Un groupe n’a pas de contrat - chaque personne signe le sien' },
   'Eine Gruppe hat 1 bis 10.000 Köpfe': { en: 'A group has 1 to 10,000 heads', fr: 'Un groupe compte de 1 à 10 000 personnes' },
   'Der Tagessatz ist ein Betrag ab 0': { en: 'The daily rate is an amount from 0', fr: 'Le tarif journalier est un montant à partir de 0' },
+  // Units und parallele Drehtage (AP C2, 23.11.2026)
+  'Die Unit gehört nicht zu diesem Projekt': { en: 'The unit does not belong to this project', fr: 'L’unité n’appartient pas à ce projet' },
+  'Eine Unit braucht einen Namen': { en: 'A unit needs a name', fr: 'Une unité a besoin d’un nom' },
+  'Der Name einer Unit hat höchstens 60 Zeichen': { en: 'A unit name has at most 60 characters', fr: 'Le nom d’une unité compte au plus 60 caractères' },
+  'Das Kürzel einer Unit hat höchstens 6 Zeichen': { en: 'A unit abbreviation has at most 6 characters', fr: 'L’abréviation d’une unité compte au plus 6 caractères' },
+  'Die Farbe hat die Form #RRGGBB': { en: 'The colour has the form #RRGGBB', fr: 'La couleur a la forme #RRGGBB' },
+  'Unit nicht gefunden': { en: 'Unit not found', fr: 'Unité introuvable' },
+  'Die Reihenfolge ist eine Zahl von 0 bis 1.000': { en: 'The order is a number from 0 to 1,000', fr: 'L’ordre est un nombre de 0 à 1 000' },
+  'Die Haupteinheit lässt sich nicht löschen': { en: 'The main unit cannot be deleted', fr: 'L’unité principale ne peut pas être supprimée' },
 }

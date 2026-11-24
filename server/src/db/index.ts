@@ -1755,6 +1755,70 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS checked_in_count INTEGER`)
   await db.exec(`CREATE INDEX IF NOT EXISTS location_sets_motiv_idx ON location_sets (location_id)`)
 
+  // Units und parallele Drehtage (Plan Kino-Ausbau, AP C2, 23.11.2026): Jeder
+  // Drehtag und jedes Stabmitglied gehört einer Unit, leer heißt Haupteinheit
+  // (lib/units.ts). Die Textspalte shoot_days.unit wird weiter mitgeschrieben.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS units (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      name TEXT NOT NULL DEFAULT 'Haupteinheit',
+      short TEXT NOT NULL DEFAULT '',
+      color TEXT NOT NULL DEFAULT '',
+      is_main BOOLEAN NOT NULL DEFAULT false,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `)
+  await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS units_haupt_idx ON units (project_id) WHERE is_main`)
+  await db.exec(`ALTER TABLE shoot_days ADD COLUMN IF NOT EXISTS unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL`)
+  await db.exec(`ALTER TABLE crew ADD COLUMN IF NOT EXISTS unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL`)
+  await db.exec(`ALTER TABLE crew ADD COLUMN IF NOT EXISTS all_units BOOLEAN NOT NULL DEFAULT false`)
+  // Wiederholbar beim Start: Jedes Projekt ohne Unit bekommt seine
+  // Haupteinheit - benannt wie seine Tage, falls die nicht "Haupteinheit"
+  // heißen (das Testprojekt "Nordlicht" führt "Hauptteam"); maßgeblich ist der
+  // zuerst angelegte Tag.
+  await db.exec(`
+    INSERT INTO units (project_id, name, is_main, sort_order)
+    SELECT p.id, COALESCE((
+             SELECT sd.unit FROM shoot_days sd WHERE sd.project_id = p.id AND sd.unit <> ''
+              GROUP BY sd.unit ORDER BY (sd.unit = 'Haupteinheit') DESC, MIN(sd.id) ASC LIMIT 1
+           ), 'Haupteinheit'), true, 0
+      FROM projects p
+     WHERE NOT EXISTS (SELECT 1 FROM units u WHERE u.project_id = p.id)
+  `)
+  // Andere Namen, die Tage ohne Unit tragen ("2nd Unit"), werden eigene
+  // Units, statt in der Haupteinheit aufzugehen.
+  await db.exec(`
+    INSERT INTO units (project_id, name, is_main, sort_order)
+    SELECT n.project_id, n.unit, false,
+           (SELECT COALESCE(MAX(u2.sort_order), 0) FROM units u2 WHERE u2.project_id = n.project_id)
+             + ROW_NUMBER() OVER (PARTITION BY n.project_id ORDER BY n.erster)
+      FROM (SELECT project_id, unit, MIN(id) AS erster FROM shoot_days
+             WHERE unit_id IS NULL AND unit NOT IN ('', 'Haupteinheit') GROUP BY project_id, unit) n
+     WHERE NOT EXISTS (SELECT 1 FROM units u WHERE u.project_id = n.project_id AND u.name = n.unit)
+  `)
+  const zugeordnet = await db.all(`
+    UPDATE shoot_days sd SET unit_id = COALESCE(
+        (SELECT u.id FROM units u WHERE u.project_id = sd.project_id AND u.name = sd.unit ORDER BY u.is_main DESC, u.id ASC LIMIT 1),
+        (SELECT u.id FROM units u WHERE u.project_id = sd.project_id AND u.is_main LIMIT 1))
+     WHERE sd.unit_id IS NULL
+    RETURNING sd.project_id
+  `) as any[]
+  // Tagesnummern zählen je Unit: Projekte, deren Tage eben mehreren Units
+  // zugeordnet wurden, einmal neu durchzählen
+  const mehrereUnits = (await db.all(
+    `SELECT project_id FROM units WHERE project_id = ANY(?::int[]) GROUP BY project_id HAVING COUNT(*) > 1`,
+    [[...new Set(zugeordnet.map((z) => Number(z.project_id)))]]
+  )) as any[]
+  if (mehrereUnits.length > 0) {
+    await db.run(`
+      UPDATE shoot_days sd SET day_number = n.nr
+        FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY project_id, unit_id ORDER BY (date = '') ASC, date ASC, id ASC) AS nr
+                FROM shoot_days WHERE project_id = ANY(?::int[])) n
+       WHERE n.id = sd.id AND sd.day_number IS DISTINCT FROM n.nr
+    `, [mehrereUnits.map((z) => Number(z.project_id))])
+  }
+
   // ── Rechnungen und Honorare ───────────────────────────────────────────────
   // Steuerart der Firma. Ein Einzelunternehmen nach Paragraf 19 UStG weist
   // keine Umsatzsteuer aus und muss das auf der Rechnung begruenden.

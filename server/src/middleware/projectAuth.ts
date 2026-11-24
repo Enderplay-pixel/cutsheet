@@ -206,6 +206,8 @@ export const entityPatterns: Array<[RegExp, string]> = [
      'SELECT l.project_id FROM location_sets st JOIN locations l ON l.id = st.location_id WHERE st.id = ?'],
     [/^\/genehmigungen\/(\d+)/,
      'SELECT project_id FROM permits WHERE id = ?'],
+    [/^\/units\/(\d+)/,
+     'SELECT project_id FROM units WHERE id = ?'],
     // Regionen des Regionaleffekts (AP E3)
     [/^\/regionen\/(\d+)/,
      'SELECT project_id FROM regions WHERE id = ?'],

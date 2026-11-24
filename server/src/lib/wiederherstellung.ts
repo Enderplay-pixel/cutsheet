@@ -54,6 +54,8 @@ const FREMDSCHLUESSEL: Record<string, string> = {
   // Motiv und Sets (AP C3): Szene zeigt auf ihr Set, Genehmigung auf ihre Datei
   set_id: 'location_sets',
   file_id: 'project_files',
+  // Units (AP C2): Drehtag und Stabmitglied zeigen auf ihre Unit
+  unit_id: 'units',
 }
 
 /**

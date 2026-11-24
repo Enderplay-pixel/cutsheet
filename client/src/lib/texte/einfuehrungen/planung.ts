@@ -120,6 +120,16 @@ export const planung: Record<string, Schritt[]> = {
         fr: "« Jour de tournage » ajoute un jour ou toute une période - seulement aux jours ouvrés du projet, week-ends si tu veux. « Enregistrer la version » sauvegarde le plan avant de le bouleverser ; sous « Versions », tu restaures un ancien état. L'optimisation IA propose un ordre selon le décor, la disponibilité des acteurs et le moment de la journée - l'ancien plan est d'abord sauvegardé comme version. Le PDF part à l'équipe.",
       },
     },
+    {
+      ziel: 'units|aktionen',
+      titel: { de: 'Mehrere Units', en: 'Several units', fr: 'Plusieurs unités' },
+      text: {
+        de: "Unter \"Units\" legst du eine 2. Unit an, mit Kürzel und Farbe. Jede Unit zählt ihre Tage selbst (\"2U Tag 3\"), und Tage verschiedener Units dürfen auf demselben Datum liegen. Die Auswahl \"Unit\" zeigt alle oder eine. Steht dieselbe Figur oder dieselbe Person des Stabs an einem Datum in zwei Units, meldet es der Konfliktradar. In der Stabliste wählst du, zu welcher Unit jemand gehört - die Dispo eines Tages ruft den Stab seiner Unit.",
+        en: "Under \"Units\" you add a 2nd unit, with abbreviation and colour. Each unit numbers its own days (\"2U Day 3\"), and days of different units may share a date. The \"Unit\" selector shows all or one. If the same character or crew member is in two units on one date, the conflict radar reports it. In the crew list you choose which unit someone belongs to - a day's call sheet calls the crew of its unit.",
+        fr: "Sous « Unités », tu ajoutes une 2e unité, avec abréviation et couleur. Chaque unité numérote ses propres jours (« 2U Jour 3 »), et des jours d'unités différentes peuvent tomber à la même date. Le sélecteur « Unité » montre toutes les unités ou une seule. Si un même personnage ou membre de l'équipe est dans deux unités le même jour, le radar des conflits le signale. Dans la liste de l'équipe, tu choisis l'unité de chacun - la feuille de service d'un jour convoque l'équipe de son unité.",
+      },
+      wirktAuf: ['stabliste', 'tagesdispo', 'konfliktradar'],
+    },
   ],
 
   staebchenplan: [

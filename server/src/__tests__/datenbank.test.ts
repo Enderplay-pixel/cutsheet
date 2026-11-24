@@ -189,6 +189,10 @@ beforeAll(async () => {
   const { default: checkinRouter } = await import('../routes/checkin')
   const { default: cateringRouter } = await import('../routes/catering')
   app.use('/api', optionalAuth, checkinRouter, cateringRouter)
+  // Units und Stab je Unit (AP C2)
+  const { default: unitsRouter } = await import('../routes/units')
+  const { default: stabRouter } = await import('../routes/crew')
+  app.use('/api', optionalAuth, unitsRouter, stabRouter)
   // Motive, Sets und Genehmigungen (AP C3)
   const { default: motivRouter } = await import('../routes/locations')
   const { default: genehmigungRouter } = await import('../routes/permits')
@@ -4704,6 +4708,142 @@ describe('Dispo-Kopf vollständig, Breakdown in die Dispo (AP C4)', () => {
     const leser = (await hole(`/api/shoot-days/${tag}/call-sheet`, tokenFremd)).daten
     expect(leser.entries).toHaveLength(1)
     expect('public_token' in leser.entries[0]).toBe(false)
+  })
+})
+
+describe('Units und parallele Drehtage (AP C2)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+  const neuesProjekt = async (titel: string) => {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', [titel, nutzerId])).id
+    const units = (await hole(`/api/projects/${p}/units`, tokenInhaber)).daten
+    const zweite = (await sende(`/api/projects/${p}/units`, { name: '2. Unit', short: '2U', color: '#0ea5e9' })).daten
+    const tag = async (date: string, unit_id?: number) => (await sende(`/api/projects/${p}/shoot-days`, { date, ...(unit_id ? { unit_id } : {}) })).daten
+    return { p, haupt: units[0], zweite, tag }
+  }
+  const radar = async (p: number) => (await hole(`/api/projects/${p}/conflicts`, tokenInhaber)).daten as any[]
+
+  it('zwei Units am selben Datum: keine Warnung, dieselbe Figur ist ein Fehler, Nummern je Unit, DOOD ein Arbeitstag', async () => {
+    const { p, haupt, zweite, tag } = await neuesProjekt('Units C2')
+    expect(haupt).toMatchObject({ name: 'Haupteinheit', is_main: true })
+    expect(zweite).toMatchObject({ name: '2. Unit', short: '2U', is_main: false })
+    expect((await sende(`/api/projects/${p}/units`, { name: '2. unit' })).status).toBe(400)
+    expect((await sende(`/api/projects/${p}/units`, { name: 'Dritte', color: 'blau' })).status).toBe(400)
+
+    // Vier Tage der Haupteinheit, ein Tag der 2. Unit am Datum von Tag 4
+    const h = [await tag('2027-03-01'), await tag('2027-03-02'), await tag('2027-03-03'), await tag('2027-03-04')]
+    const z = await tag('2027-03-04', zweite.id)
+    expect(z).toMatchObject({ day_number: 1, unit: '2. Unit', unit_name: '2. Unit', unit_short: '2U', unit_is_main: false })
+    const liste = (await hole(`/api/projects/${p}/shoot-days`, tokenInhaber)).daten as any[]
+    expect(liste.map((d) => [d.day_number, d.unit_is_main])).toEqual([[1, true], [2, true], [3, true], [4, true], [1, false]])
+    expect((await sende(`/api/projects/${p}/shoot-days`, { date: '2027-03-05', unit_id: 999_999 })).status).toBe(400)
+
+    // Eine Szene mit der Hauptfigur in Tag 4, eine in den Tag der 2. Unit
+    const figur = (await db.run("INSERT INTO characters (project_id, name) VALUES (?, 'Hauke')", [p])).id
+    await db.run('INSERT INTO "cast" (project_id, character_id, actor_name) VALUES (?, ?, ?)', [p, figur, 'Jan Brandt'])
+    const motiv = (await db.run("INSERT INTO locations (project_id, name) VALUES (?, 'Deich')", [p])).id
+    const szene = async (nr: string, mitFigur: boolean) => {
+      const id = (await db.run('INSERT INTO scenes (project_id, scene_number, location_id) VALUES (?, ?, ?)', [p, nr, motiv])).id
+      if (mitFigur) await db.run('INSERT INTO scene_characters (scene_id, character_id) VALUES (?, ?)', [id, figur])
+      return id
+    }
+    const [s1, s2, s3] = [await szene('1', true), await szene('2', true), await szene('3', false)]
+    await sende(`/api/projects/${p}/drehplan/verschieben`, { szenen: [s1], zielTag: h[3].id })
+    await sende(`/api/projects/${p}/drehplan/verschieben`, { szenen: [s2], zielTag: z.id })
+
+    let k = await radar(p)
+    expect(k.filter((x) => x.message.startsWith('Mehrere Drehtage'))).toEqual([])
+    const figurDoppelt = k.find((x) => x.message === 'Hauke dreht am 04.03.2027 in zwei Units')
+    expect(figurDoppelt).toMatchObject({ severity: 'error' })
+    expect(figurDoppelt.detail).toContain('Drehtag 4')
+    expect(figurDoppelt.detail).toContain('2U Tag 1')
+    expect(k.find((x) => x.message === 'Motiv „Deich" am 04.03.2027 in zwei Units')).toMatchObject({ severity: 'info' })
+
+    // DOOD: Am 04.03. arbeitet Hauke in beiden Units - ein Arbeitstag
+    const dood = (await hole(`/api/projects/${p}/dood-report`, tokenInhaber)).daten
+    const spalte = dood.spalten.findIndex((x: any) => x.datum === '2027-03-04')
+    expect(dood.spalten[spalte].bezeichnung).toBe('4 · 2U 1')
+    expect(dood.cast[0]).toMatchObject({ total_work_days: 1 })
+    expect(dood.cast[0].days[spalte].code).toBe('SWF')
+
+    // Die Szene der 2. Unit durch eine ohne Hauke ersetzen: Meldung weg
+    await sende(`/api/projects/${p}/drehplan/verschieben`, { szenen: [s3], zielTag: z.id })
+    await sende(`/api/projects/${p}/drehplan/verschieben`, { szenen: [s2], zielTag: null })
+    k = await radar(p)
+    expect(k.some((x) => x.message.startsWith('Hauke dreht'))).toBe(false)
+
+    // Zwei Tage derselben Unit am selben Datum bleiben eine Warnung
+    const z2 = await tag('2027-03-04', zweite.id)
+    expect(z2.day_number).toBe(2)
+    k = await radar(p)
+    expect(k.find((x) => x.message === 'Mehrere Drehtage am 04.03.2027 (2. Unit)')).toMatchObject({ severity: 'warning' })
+
+    // Einen Tag in die andere Unit legen: Nummern zählen neu
+    await sende(`/api/shoot-days/${z2.id}`, { unit_id: haupt.id }, 'PUT')
+    const neu = (await hole(`/api/projects/${p}/shoot-days`, tokenInhaber)).daten as any[]
+    expect(neu.filter((d) => d.unit_is_main).map((d) => d.day_number)).toEqual([1, 2, 3, 4, 5])
+  })
+
+  it('Stab je Unit: die Dispo der 2. Unit ruft ihren Stab, die Kalkulation zählt einen Tag, zwei Dispos am selben Datum sind ein Fehler', async () => {
+    const { p, zweite, tag } = await neuesProjekt('Stab C2')
+    const h = [await tag('2027-04-01'), await tag('2027-04-02'), await tag('2027-04-03')]
+    const z = await tag('2027-04-01', zweite.id)
+    const stab = async (name: string, mehr: any = {}) => (await sende(`/api/projects/${p}/crew`, { name, role: name, fee_per_day: 30_000, ...mehr })).daten
+    const kameraHaupt = await stab('Kamera A')
+    const kamera2 = await stab('Kamera B', { unit_id: zweite.id })
+    const produktion = await stab('Produktion', { all_units: true })
+    expect(kamera2).toMatchObject({ unit_id: zweite.id, all_units: false })
+    expect(produktion).toMatchObject({ unit_id: null, all_units: true })
+    expect((await sende(`/api/projects/${p}/crew`, { name: 'Fremd', unit_id: 999_999 })).status).toBe(400)
+
+    const { drehtageStab } = await import('../lib/drehtage')
+    const tage = await drehtageStab(db, p)
+    expect([...tage.get(kameraHaupt.id)!].sort()).toEqual(h.map((t) => t.id).sort())
+    expect([...tage.get(kamera2.id)!]).toEqual([z.id])
+    expect(tage.get(produktion.id)!.size).toBe(4)
+
+    // Die Dispo der 2. Unit ruft nur ihren Stab und wer zu allen gehört
+    const dispo = (await sende(`/api/shoot-days/${z.id}/call-sheet`, {})).daten
+    expect(dispo.entries.filter((e: any) => e.person_type === 'crew').map((e: any) => e.person_name).sort()).toEqual(['Kamera B', 'Produktion'])
+
+    // Kalkulation: Kamera B mit einem Tag
+    const v = (await sende(`/api/projects/${p}/budget-versions`, { name: 'K' })).daten
+    await sende(`/api/budget-versions/${v.id}/kosten-uebernehmen`, {})
+    const zeilen = (await hole(`/api/budget-versions/${v.id}/lines`, tokenInhaber)).daten as any[]
+    expect(zeilen.find((x) => x.source_key === `crew:${kamera2.id}`)).toMatchObject({ quantity: 1, total_cents: 30_000 })
+    expect(zeilen.find((x) => x.source_key === `crew:${kameraHaupt.id}`)).toMatchObject({ quantity: 3 })
+
+    // Produktion steht auf der Dispo von Drehtag 1 und der von 2U Tag 1 - am selben Datum
+    await sende(`/api/shoot-days/${h[0].id}/call-sheet`, {})
+    const k = await radar(p)
+    const doppelt = k.find((x) => x.message === 'Produktion steht am 01.04.2027 auf zwei Dispos')
+    expect(doppelt).toMatchObject({ severity: 'error' })
+    expect(k.some((x) => x.message.startsWith('Kamera'))).toBe(false)
+
+    // Kopf der Dispo nennt die Unit
+    const { buildTagesdispoHtml } = await import('../routes/pdf')
+    const html = (await buildTagesdispoHtml(z.id))!.html
+    expect(html).toContain('2. Unit')
+    expect(html).toContain('2U Tag 1 von 1')
+    // Die Crew auf dem Blatt ist die der Unit, nicht die der Haupteinheit
+    expect(html).toContain('Kamera B')
+    expect(html).not.toContain('Kamera A')
+  })
+
+  it('Unit löschen: die Haupteinheit nie, mit Tagen erst nach Rückfrage - die Tage wandern zur Haupteinheit', async () => {
+    const { p, haupt, zweite, tag } = await neuesProjekt('Löschen C2')
+    await tag('2027-05-01')
+    await tag('2027-05-01', zweite.id)
+    expect((await hole(`/api/units/${haupt.id}`, tokenInhaber, { method: 'DELETE' })).status).toBe(400)
+    const rueckfrage = await hole(`/api/units/${zweite.id}`, tokenInhaber, { method: 'DELETE' })
+    expect(rueckfrage.status).toBe(409)
+    expect(rueckfrage.daten).toEqual({ tage: 1 })
+    // Umbenennen zieht den Text der Tage mit
+    expect((await sende(`/api/units/${zweite.id}`, { name: 'Second Unit' }, 'PUT')).daten).toMatchObject({ name: 'Second Unit', tage_anzahl: 1 })
+    expect((await db.get('SELECT unit FROM shoot_days WHERE unit_id = ?', [zweite.id])).unit).toBe('Second Unit')
+    expect((await hole(`/api/units/${zweite.id}?bestaetigt=1`, tokenInhaber, { method: 'DELETE' })).status).toBe(200)
+    const tage = (await hole(`/api/projects/${p}/shoot-days`, tokenInhaber)).daten as any[]
+    expect(tage.map((d) => [d.day_number, d.unit_id, d.unit])).toEqual([[1, haupt.id, 'Haupteinheit'], [2, haupt.id, 'Haupteinheit']])
   })
 })
 
