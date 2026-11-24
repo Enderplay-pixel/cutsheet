@@ -389,6 +389,8 @@ export const api = {
   pdf: {
     drehplan:       (projectId: number) => `/api/projects/${projectId}/pdf/drehplan`,
     tagesdispo:     (dayId: number)     => `/api/shoot-days/${dayId}/pdf/tagesdispo`,
+    // Requisiten-, Kostüm-, Maskenliste nach Erzähltag (AP E5)
+    breakdown:      (projectId: number, liste: 'requisite' | 'kostuem' | 'maske') => `/api/projects/${projectId}/pdf/breakdown/${liste}`,
     tagesbericht:   (dayId: number)     => `/api/shoot-days/${dayId}/pdf/tagesbericht`,
     stabliste:      (projectId: number) => `/api/projects/${projectId}/pdf/stabliste`,
     besetzung:      (projectId: number) => `/api/projects/${projectId}/pdf/besetzungsliste`,

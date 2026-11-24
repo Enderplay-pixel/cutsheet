@@ -1,5 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { vorstoppT } from '@/lib/texte/Vorstopp'
 import { coverT } from '@/lib/texte/CoverSets'
 import { cn, getStripClass, eighthsToString } from '@/lib/utils'
 import { GripVertical, X, Umbrella } from 'lucide-react'
@@ -61,7 +62,7 @@ export function SceneStrip({ scene, shootDayId, onRemove, draggable = true }: Sc
         <div className="flex items-center gap-1.5 mt-0.5 opacity-60 flex-wrap">
           <span className="font-mono text-[10px]">{scene.int_ext}</span>
           {/* Tag für Nacht behält die Nachtfarbe und trägt T/N (AP C5) */}
-          <span className="text-[10px]">{scene.day_for_night ? tt(coverT.tn) : scene.day_night}</span>
+          <span className="text-[10px]">{scene.day_for_night ? tt(coverT.tn) : scene.day_night}{scene.story_day ? ` · ${tt(vorstoppT.erzaehltag)} ${scene.story_day}` : ''}</span>
           {scene.cover_set && <Umbrella className="w-3 h-3" aria-label={tt(coverT.coverSet)} />}
           {scene.location_name && <span className="text-[10px] truncate">{scene.location_name}</span>}
           <span className="font-mono text-[10px] ml-auto">{eighthsToString(scene.eighths)}</span>

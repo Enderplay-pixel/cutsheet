@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
+import { zeitText } from '@/lib/vorstopp'
+import { vorstoppT } from '@/lib/texte/Vorstopp'
 import { coverT } from '@/lib/texte/CoverSets'
 import { useUnits, tageNachUnit, tagNummer, unitKuerzel, type Unit } from '@/lib/units'
 import { UnitWaehler, UnitMarke } from '@/components/drehplan/Units'
@@ -56,6 +58,8 @@ interface DayScene {
   sort_order: number
   cover_set?: boolean
   day_for_night?: boolean
+  story_day?: string
+  pretimed_seconds?: number | null
 }
 
 interface Banner {
@@ -73,6 +77,8 @@ interface ShootDay {
   status: string
   scenes: DayScene[]
   banner: Banner[]
+  // Vorstopp des Tages mit geschätztem Anteil (AP E5)
+  vorstopp?: { sekunden: number; geschaetzt_sekunden: number }
   // Unit des Tages (AP C2)
   unit_id?: number | null
   unit_name?: string | null
@@ -121,7 +127,7 @@ function StripInhalt({ szene, figuren }: { szene: DayScene; figuren: string }) {
       </span>
       <span className="hidden md:block font-mono">{szene.int_ext}</span>
       {/* Tag für Nacht: Nachtfarbe, Kürzel T/N (AP C5) */}
-      <span className="hidden md:block truncate">{szene.day_for_night ? tt(coverT.tn) : szene.day_night}</span>
+      <span className="hidden md:block truncate">{szene.day_for_night ? tt(coverT.tn) : szene.day_night}{szene.story_day ? ` · ${szene.story_day}` : ''}</span>
       <span className="truncate font-medium" title={szene.title}>{szene.title}</span>
       <span className="hidden md:block truncate text-muted-foreground" title={szene.description || undefined}>{szene.description}</span>
       <span className="hidden md:block truncate" title={szene.location_name || undefined}>{szene.location_name}</span>
@@ -244,6 +250,14 @@ function GrenzeZeile({ zeile, tag, achtel, minuten, tageslaenge, sonne, darf, zi
       </span>
       <span>{tag.date ? `${wochentag} ${formatDate(tag.date)}` : tt(T.ohneDatum)}</span>
       <span className="font-mono">{tt(T.seiten).replace('{s}', eighthsToString(achtel))}</span>
+      {/* Vorstopp des Tages, der geschätzte Anteil ausgewiesen (AP E5) */}
+      {tag.vorstopp && tag.vorstopp.sekunden > 0 && (
+        <span className="font-mono" title={tt(vorstoppT.vorstoppHilfe)}>
+          {tag.vorstopp.geschaetzt_sekunden > 0
+            ? tt(vorstoppT.summeGeschaetzt).replace('{zeit}', zeitText(tag.vorstopp.sekunden)).replace('{geschaetzt}', zeitText(tag.vorstopp.geschaetzt_sekunden))
+            : tt(vorstoppT.summe).replace('{zeit}', zeitText(tag.vorstopp.sekunden))}
+        </span>
+      )}
       <span className={cn('font-mono', zuLang && 'text-amber-700 dark:text-amber-400 font-semibold')}>
         {tt(T.stunden).replace('{d}', dauerText(minuten))}
       </span>
@@ -601,7 +615,7 @@ export function Component() {
       eighths: s.eighths ?? 0, estimated_minutes: s.estimated_minutes ?? 0, description: s.description ?? '',
       location_id: s.location_id ?? null, location_name: s.location_name ?? null, sort_order: 0,
       // Cover-Set und Tag für Nacht auch in der Ablage (AP C5)
-      cover_set: !!s.cover_set, day_for_night: !!s.day_for_night,
+      cover_set: !!s.cover_set, day_for_night: !!s.day_for_night, story_day: s.story_day ?? '', pretimed_seconds: s.pretimed_seconds ?? null,
     }
   }
 

@@ -39,7 +39,7 @@ router.get('/projects/:pid/continuity', async (req: Request, res: Response) => {
 
   const rows = await db.all(
     `SELECT cn.*,
-            s.scene_number, s.title as scene_title,
+            s.scene_number, s.title as scene_title, s.story_day,
             c.actor_name as cast_name,
             sd.date as shoot_day_date, sd.day_number as shoot_day_number
      FROM continuity_notes cn
@@ -93,7 +93,7 @@ router.post('/projects/:pid/continuity', async (req: Request, res: Response) => 
 
   const row = await db.get(
     `SELECT cn.*,
-            s.scene_number, s.title as scene_title,
+            s.scene_number, s.title as scene_title, s.story_day,
             c.actor_name as cast_name,
             sd.date as shoot_day_date, sd.day_number as shoot_day_number
      FROM continuity_notes cn
@@ -149,7 +149,7 @@ router.put('/continuity/:id', async (req: Request, res: Response) => {
 
   const row = await db.get(
     `SELECT cn.*,
-            s.scene_number, s.title as scene_title,
+            s.scene_number, s.title as scene_title, s.story_day,
             c.actor_name as cast_name,
             sd.date as shoot_day_date, sd.day_number as shoot_day_number
      FROM continuity_notes cn

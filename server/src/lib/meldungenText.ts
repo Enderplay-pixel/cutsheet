@@ -418,4 +418,9 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Unit nicht gefunden': { en: 'Unit not found', fr: 'Unité introuvable' },
   'Die Reihenfolge ist eine Zahl von 0 bis 1.000': { en: 'The order is a number from 0 to 1,000', fr: 'L’ordre est un nombre de 0 à 1 000' },
   'Die Haupteinheit lässt sich nicht löschen': { en: 'The main unit cannot be deleted', fr: 'L’unité principale ne peut pas être supprimée' },
+  // Erzähltag und Vorstopp (AP E5, 24.11.2026)
+  'Ein Erzähltag hat höchstens 12 Zeichen': { en: 'A story day has at most 12 characters', fr: 'Un jour de récit compte au plus 12 caractères' },
+  'Der Vorstopp liegt zwischen 0:00 und 10:00:00': { en: 'The pre-timing is between 0:00 and 10:00:00', fr: 'Le pré-minutage est compris entre 0:00 et 10:00:00' },
+  'Die gedrehte Filmzeit liegt zwischen 0:00 und 10:00:00': { en: 'The screen time shot is between 0:00 and 10:00:00', fr: 'La durée tournée est comprise entre 0:00 et 10:00:00' },
+  'Liste nicht gefunden': { en: 'List not found', fr: 'Liste introuvable' },
 }

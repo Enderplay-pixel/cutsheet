@@ -213,6 +213,18 @@ describe('renderCallSheetHtml', () => {
 
   const html = renderCallSheetHtml(data as any)
 
+  it('druckt den Erzähltag hinter T/N, wo es einen gibt, und den Vorstopp des Tages (AP E5)', () => {
+    const mit = renderCallSheetHtml({ ...data, scenes: [
+      { ...data.scenes[0], story_day: '1', pretimed_seconds: 130 },
+      { ...data.scenes[1], story_day: '' },
+    ] } as any)
+    expect(mit).toContain('<td class="c">T1</td>')
+    // Ohne Erzähltag weiter ohne erfundene Zahl
+    expect(mit).toContain('<td class="c">N</td>')
+    // 130 s gestoppt, 2 Achtel geschätzt (15 s)
+    expect(mit).toContain('Vorstopp 2:25 (davon geschätzt 0:15)')
+  })
+
   it('enthält die Pflichtangaben einer Dispo', () => {
     // Drehort mit realer Adresse, Zeitplan bis Drehschluss, Anschrift und
     // Kontakt der Produktion, Produktionsvertretung am Set

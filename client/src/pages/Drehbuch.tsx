@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { drehortT as DT } from '@/lib/texte/MotivDrehort'
+import { useDownload } from '@/lib/useDownload'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { vorstopp, zeitText, zeitLesen } from '@/lib/vorstopp'
+import { vorstoppT } from '@/lib/texte/Vorstopp'
 import { coverT } from '@/lib/texte/CoverSets'
 import { Switch } from '@/components/ui/switch'
 import { useParams } from 'react-router-dom'
@@ -52,6 +56,8 @@ function SceneRow({ scene, locations, characters, projectId, gesperrt }: { scene
   const tt = useT()
   const [expanded, setExpanded] = useState(false)
   const [form, setForm] = useState(scene)
+  // Vorstopp als m:ss im Feld, gespeichert in Sekunden (AP E5)
+  const [vorstoppText, setVorstoppText] = useState(scene.pretimed_seconds == null ? '' : zeitText(scene.pretimed_seconds))
   const [newItem, setNewItem] = useState('')
   const [newItemCat, setNewItemCat] = useState('Requisite')
   const queryClient = useQueryClient()
@@ -94,6 +100,7 @@ function SceneRow({ scene, locations, characters, projectId, gesperrt }: { scene
     if (scene.updated_at === stand.current) return
     stand.current = scene.updated_at
     setForm(scene)
+    setVorstoppText(scene.pretimed_seconds == null ? '' : zeitText(scene.pretimed_seconds))
   }, [scene])
 
   const updateMutation = useMutation({
@@ -347,6 +354,29 @@ function SceneRow({ scene, locations, characters, projectId, gesperrt }: { scene
             </div>
           </div>
 
+          {/* Erzähltag und Vorstopp (AP E5) */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground" title={tt(vorstoppT.erzaehltagHilfe)}>{tt(vorstoppT.erzaehltag)}</Label>
+              <Input value={form.story_day || ''} maxLength={12} disabled={!canEdit} onChange={e => updateField('story_day', e.target.value)}
+                aria-label={tt(vorstoppT.erzaehltag)} placeholder="1" className="mt-1 h-8 text-sm" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground" title={tt(vorstoppT.vorstoppHilfe)}>{tt(vorstoppT.vorstopp)}</Label>
+              <Input value={vorstoppText} disabled={!canEdit} inputMode="numeric"
+                onChange={e => setVorstoppText(e.target.value)}
+                onBlur={() => {
+                  const sek = zeitLesen(vorstoppText)
+                  if (sek === undefined) { toast({ title: tt(vorstoppT.unlesbar), variant: 'destructive' }); return }
+                  if (sek !== (form.pretimed_seconds ?? null)) updateField('pretimed_seconds', sek)
+                  setVorstoppText(sek === null ? '' : zeitText(sek))
+                }}
+                aria-label={tt(vorstoppT.vorstopp)}
+                placeholder={tt(vorstoppT.geschaetzt).replace('{zeit}', zeitText(vorstopp({ eighths: form.eighths }).sekunden))}
+                className="mt-1 h-8 text-sm" />
+            </div>
+          </div>
+
           {/* Cover-Set und Tag für Nacht (AP C5) */}
           <div className="flex flex-wrap gap-x-6 gap-y-2">
             <label className="flex items-center gap-2 text-xs" title={tt(coverT.coverSetHilfe)}>
@@ -485,6 +515,7 @@ export function Component() {
   const { toast } = useToast()
   const { canEdit } = useProjectPerms()
   const tt = useT()
+  const herunterladen = useDownload()
   const [importOpen, setImportOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState<string>('all')
@@ -584,6 +615,17 @@ export function Component() {
             >
               <Download className="w-3.5 h-3.5 mr-1.5" />{tt(scenesT.export)}
             </Button>
+            {/* Requisiten-, Kostüm- und Maskenliste nach Erzähltag (AP E5) */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm"><FileText className="w-3.5 h-3.5 mr-1.5" />{tt(vorstoppT.listen)}</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {([['requisite', vorstoppT.requisitenliste], ['kostuem', vorstoppT.kostuemliste], ['maske', vorstoppT.maskenliste]] as const).map(([liste, text]) => (
+                  <DropdownMenuItem key={liste} onSelect={() => herunterladen(api.pdf.breakdown(pid, liste), `${liste}.pdf`)}>{tt(text)}</DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button size="sm" onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !darfSchreiben}>
               <Plus className="w-3.5 h-3.5 mr-1.5" />{tt(scenesT.newScene)}
             </Button>

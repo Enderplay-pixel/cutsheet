@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
+import { vorstoppT } from '@/lib/texte/Vorstopp'
+import { zeitText, zeitLesen } from '@/lib/vorstopp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -118,6 +120,12 @@ export function Component() {
   }
   // Beim Blättern und beim Verlassen nichts liegen lassen
   useEffect(() => () => jetztSpeichern(), [selectedDay?.id])
+
+  // Gedrehte Filmzeit als m:ss im Feld, gespeichert in Sekunden (AP E5)
+  const [filmzeitText, setFilmzeitText] = useState('')
+  useEffect(() => {
+    setFilmzeitText(form?.screen_seconds_shot == null ? '' : zeitText(form.screen_seconds_shot))
+  }, [selectedDay?.id, form === null])
 
   const update = (key: string, value: any) => {
     if (!form) return
@@ -285,6 +293,35 @@ export function Component() {
                 <Input value={form.sound_rolls || ''} onChange={e => update('sound_rolls', e.target.value)}
                   className="mt-1.5 h-9 text-sm" placeholder="T001-T003" />
               </div>
+            </div>
+            {/* Gedrehte Filmzeit gegen den Vorstopp, aufgelaufen über alle Drehtage (AP E5) */}
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-4 items-start">
+              <div>
+                <Label className="text-xs text-muted-foreground" title={tt(vorstoppT.filmzeitHilfe)}>{tt(vorstoppT.filmzeit)}</Label>
+                <Input value={filmzeitText} inputMode="numeric" placeholder="0:00"
+                  onChange={e => setFilmzeitText(e.target.value)}
+                  onBlur={() => {
+                    const sek = zeitLesen(filmzeitText)
+                    if (sek === undefined) { toast({ title: tt(vorstoppT.unlesbar), variant: 'destructive' }); return }
+                    if (sek !== (form.screen_seconds_shot ?? null)) update('screen_seconds_shot', sek)
+                    setFilmzeitText(sek === null ? '' : zeitText(sek))
+                  }}
+                  aria-label={tt(vorstoppT.filmzeit)} className="mt-1.5 h-9 font-mono" />
+                {report?.vorstopp && (
+                  <p className="text-[11px] text-muted-foreground mt-1">{tt(vorstoppT.heuteVorstopp).replace('{zeit}', zeitText(report.vorstopp.tag.sekunden))}</p>
+                )}
+              </div>
+              {report?.vorstopp && (
+                <div role="group" aria-label={tt(vorstoppT.aufgelaufen)} className="text-xs">
+                  <p className="font-semibold mb-1">{tt(vorstoppT.aufgelaufen)}</p>
+                  <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-0.5 w-max tabular-nums">
+                    <dt className="text-muted-foreground">{tt(vorstoppT.gesamt)}</dt><dd className="font-mono">{zeitText(report.vorstopp.gesamt.sekunden)}</dd>
+                    <dt className="text-muted-foreground">{tt(vorstoppT.davonAbgedreht)}</dt><dd className="font-mono">{zeitText(report.vorstopp.abgedreht.sekunden)}</dd>
+                    <dt className="text-muted-foreground">{tt(vorstoppT.rest)}</dt><dd className="font-mono">{zeitText(report.vorstopp.rest_sekunden)}</dd>
+                    <dt className="text-muted-foreground">{tt(vorstoppT.gedrehtGesamt)}</dt><dd className="font-mono">{zeitText(report.vorstopp.gedreht_gesamt_sekunden)}</dd>
+                  </dl>
+                </div>
+              )}
             </div>
             {shootRatioWarning && (
               <div className="mt-4 flex items-start gap-2 p-3 bg-warning/[0.08] border border-warning/20 rounded-lg">

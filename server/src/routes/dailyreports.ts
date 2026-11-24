@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { vorstoppSumme, sekundenAus } from '../lib/vorstopp'
 import { abgedrehtAbgleichen } from '../lib/szenenstand'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { nettoDrehzeit } from '../lib/drehzeit'
@@ -31,12 +32,41 @@ async function getReport(id: number) {
     LEFT JOIN characters ch ON c.character_id = ch.id
     WHERE drc.daily_report_id = ?
   `, [id])
+  // Vorstopp (AP E5): der abgedrehten Szenen dieses Berichts gegen die
+  // gedrehte Filmzeit, dazu aufgelaufen über alle Drehtage des Projekts
+  const abgedreht = idListe(report.scenes_completed)
+  const tag = await db.get('SELECT project_id FROM shoot_days WHERE id = ?', [report.shoot_day_id]) as any
+  const szenen = tag
+    ? await db.all('SELECT id, eighths, pretimed_seconds, shot_status FROM scenes WHERE project_id = ? AND NOT omitted', [tag.project_id]) as any[]
+    : []
+  const gedrehtGesamt = tag
+    ? Number(((await db.get(
+        `SELECT COALESCE(SUM(dr.screen_seconds_shot), 0) AS s FROM daily_reports dr JOIN shoot_days sd ON sd.id = dr.shoot_day_id
+          WHERE sd.project_id = ?`, [tag.project_id])) as any).s) || 0
+    : 0
+  const gesamt = vorstoppSumme(szenen)
+  const fertig = vorstoppSumme(szenen.filter((s) => s.shot_status === 'abgedreht'))
   return {
     ...report,
-    scenes_completed: idListe(report.scenes_completed),
+    scenes_completed: abgedreht,
     scenes_partial: idListe(report.scenes_partial),
     cast,
+    vorstopp: {
+      tag: vorstoppSumme(szenen.filter((s) => abgedreht.includes(Number(s.id)))),
+      gesamt,
+      abgedreht: fertig,
+      rest_sekunden: Math.max(0, gesamt.sekunden - fertig.sekunden),
+      gedreht_gesamt_sekunden: gedrehtGesamt,
+    },
   }
+}
+
+/** Gedrehte Filmzeit aus der Anfrage; `undefined` heißt ungültig. */
+function filmzeitFehler(body: any): string | null {
+  if (body?.screen_seconds_shot !== undefined && sekundenAus(body.screen_seconds_shot) === undefined) {
+    return 'Die gedrehte Filmzeit liegt zwischen 0:00 und 10:00:00'
+  }
+  return null
 }
 
 // GET /api/projects/:projectId/time-analysis
@@ -193,6 +223,9 @@ router.post('/shoot-days/:dayId/daily-report', async (req, res) => {
     production_notes = '',
   } = req.body
 
+  const zeitFehler = filmzeitFehler(req.body)
+  if (zeitFehler) return res.status(400).json({ data: null, error: zeitFehler })
+
   const existing = await db.get('SELECT id, scenes_completed FROM daily_reports WHERE shoot_day_id = ?', [req.params.dayId]) as any
 
   let reportId: number
@@ -202,6 +235,11 @@ router.post('/shoot-days/:dayId/daily-report', async (req, res) => {
   } else {
     const result = await db.run(`INSERT INTO daily_reports (shoot_day_id, date, call_time, first_shot, lunch_in, lunch_out, wrap, scenes_completed, scenes_partial, pages_shot, total_setups, camera_rolls, sound_rolls, notes, production_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [req.params.dayId, date, call_time, first_shot, lunch_in, lunch_out, wrap, JSON.stringify(scenes_completed), JSON.stringify(scenes_partial), pages_shot, total_setups, camera_rolls, sound_rolls, notes, production_notes])
     reportId = result.id
+  }
+
+  // Gedrehte Filmzeit (AP E5): mitgeschickt gesetzt, sonst bleibt sie
+  if (req.body?.screen_seconds_shot !== undefined) {
+    await db.run('UPDATE daily_reports SET screen_seconds_shot = ? WHERE id = ?', [sekundenAus(req.body.screen_seconds_shot) ?? null, reportId])
   }
 
   // Gemessene Minuten je Szene liegen an der Verbindung Drehtag-Szene, nicht
@@ -237,7 +275,12 @@ router.put('/daily-reports/:id', async (req, res) => {
     return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
   }
   const { date, call_time, first_shot, lunch_in, lunch_out, wrap, scenes_completed, scenes_partial, pages_shot, total_setups, camera_rolls, sound_rolls, notes, production_notes } = req.body
+  const zeitFehler = filmzeitFehler(req.body)
+  if (zeitFehler) return res.status(400).json({ data: null, error: zeitFehler })
   await db.run(`UPDATE daily_reports SET date=?, call_time=?, first_shot=?, lunch_in=?, lunch_out=?, wrap=?, scenes_completed=?, scenes_partial=?, pages_shot=?, total_setups=?, camera_rolls=?, sound_rolls=?, notes=?, production_notes=?, updated_at=datetime('now') WHERE id=?`, [date, call_time, first_shot, lunch_in, lunch_out, wrap, JSON.stringify(scenes_completed || []), JSON.stringify(scenes_partial || []), pages_shot, total_setups, camera_rolls, sound_rolls, notes, production_notes, req.params.id])
+  if (req.body?.screen_seconds_shot !== undefined) {
+    await db.run('UPDATE daily_reports SET screen_seconds_shot = ? WHERE id = ?', [sekundenAus(req.body.screen_seconds_shot) ?? null, req.params.id])
+  }
   await abgedrehtAbgleichen(db, Number(bisher.project_id), Number(bisher.id), bisher.scenes_completed, scenes_completed || [])
   res.json({ data: await getReport(parseInt(req.params.id)), error: null })
 })

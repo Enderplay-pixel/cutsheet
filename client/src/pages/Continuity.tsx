@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
+import { useT } from '@/lib/useT'
+import { vorstoppT } from '@/lib/texte/Vorstopp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,6 +20,7 @@ interface Scene {
   id: number
   scene_number: string
   title?: string
+  story_day?: string
 }
 
 interface CastMember {
@@ -41,6 +44,7 @@ interface ContinuityEntry {
   id: number
   scene_id: number | null
   scene_number?: string
+  story_day?: string
   cast_id: number | null
   cast_name?: string
   category: string
@@ -98,6 +102,7 @@ function ContinuityCard({
   onDelete: () => void
   onPhotoClick: (src: string) => void
 }) {
+  const tt = useT()
   return (
     <div className="rounded-xl border border-border/60 bg-card p-4 hover:border-border transition-colors group flex flex-col gap-3">
       {/* Category + scene/cast */}
@@ -108,6 +113,10 @@ function ContinuityCard({
           </Badge>
           {entry.scene_number && (
             <span className="text-xs text-muted-foreground/70">Szene {entry.scene_number}</span>
+          )}
+          {/* Erzähltag der Szene (AP E5): Kostüm und Maske arbeiten danach */}
+          {entry.story_day && (
+            <span className="text-xs text-muted-foreground/70">· {tt(vorstoppT.erzaehltag)} {entry.story_day}</span>
           )}
           {entry.cast_name && (
             <span className="text-xs text-muted-foreground/50">· {entry.cast_name}</span>
@@ -183,6 +192,7 @@ function EntryDialog({
   cast: CastMember[]
 }) {
   const { toast } = useToast()
+  const tt = useT()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -262,7 +272,7 @@ function EntryDialog({
                   <SelectItem value={KEINE}>Keine</SelectItem>
                   {scenes.map(s => (
                     <SelectItem key={s.id} value={String(s.id)}>
-                      {s.scene_number}{s.title ? ` - ${s.title}` : ''}
+                      {s.scene_number}{s.title ? ` - ${s.title}` : ''}{s.story_day ? ` (${tt(vorstoppT.erzaehltag)} ${s.story_day})` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -575,7 +575,7 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
   const loadScenes = async (id: number | string) => {
     const zeilen = await db.all(`
       SELECT sds.*, s.scene_number, s.title, s.description, s.int_ext, s.day_night, s.eighths, s.day_for_night,
-             s.location_id, s.notes, l.name as location_name, l.address as location_address, l.zip as location_zip,
+             s.story_day, s.pretimed_seconds, s.location_id, s.notes, l.name as location_name, l.address as location_address, l.zip as location_zip,
              l.city as location_city
       FROM shoot_day_scenes sds
       JOIN scenes s ON sds.scene_id = s.id
@@ -806,6 +806,56 @@ router.get('/projects/:projectId/pdf/motivliste', async (req, res) => {
   })
 
   await sendPdf(res, html, `motivliste-${slug(project.title)}.pdf`)
+})
+
+// GET /api/projects/:projectId/pdf/breakdown/:liste
+// Requisiten-, Kostüm- und Maskenliste aus dem Breakdown der Szenen, nach
+// Erzähltag gruppiert (Plan Kino-Ausbau, AP E5): Kostüm, Maske und
+// Continuity arbeiten nach Erzähltagen.
+const BREAKDOWN_LISTEN: Record<string, { kategorie: string; titel: string }> = {
+  requisite: { kategorie: 'Requisite', titel: 'Requisitenliste' },
+  kostuem: { kategorie: 'Kostüm', titel: 'Kostümliste' },
+  maske: { kategorie: 'Maske', titel: 'Maskenliste' },
+}
+router.get('/projects/:projectId/pdf/breakdown/:liste', async (req, res) => {
+  const liste = BREAKDOWN_LISTEN[req.params.liste]
+  if (!liste) return res.status(404).json({ data: null, error: 'Liste nicht gefunden' })
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', [req.params.projectId]) as any
+  if (!project) return res.status(404).json({ data: null, error: 'Projekt nicht gefunden' })
+  const { accentColor } = await getProjectSettings(req.params.projectId)
+  const zeilen = await db.all(
+    `SELECT si.item, si.quantity, si.notes, s.scene_number, s.title, s.int_ext, s.day_night, s.story_day
+       FROM scene_inventory si JOIN scenes s ON s.id = si.scene_id
+      WHERE s.project_id = ? AND NOT s.omitted AND si.category = ?
+      ORDER BY s.sort_order ASC, s.scene_number ASC, si.id ASC`,
+    [req.params.projectId, liste.kategorie]) as any[]
+  // Gruppen nach Erzähltag, natürlich sortiert ("2" vor "10"); ohne Erzähltag ans Ende
+  const gruppen = new Map<string, any[]>()
+  for (const z of zeilen) {
+    const tag = String(z.story_day ?? '').trim()
+    if (!gruppen.has(tag)) gruppen.set(tag, [])
+    gruppen.get(tag)!.push(z)
+  }
+  const reihe = [...gruppen.keys()].sort((a, b) => (a === '') !== (b === '') ? (a === '' ? 1 : -1) : a.localeCompare(b, 'de', { numeric: true }))
+  const spalten = [
+    { header: 'Szene', value: (r: any) => r.scene_number, width: '10%' },
+    { header: 'Schauplatz', value: (r: any) => `${String(r.int_ext || '').toUpperCase()}. ${r.title || ''}`, width: '34%' },
+    { header: liste.kategorie, value: (r: any) => r.item, width: '30%' },
+    { header: 'Menge', value: (r: any) => r.quantity, align: 'center' as const, width: '8%' },
+    { header: 'Notizen', value: (r: any) => r.notes, width: '18%' },
+  ]
+  const html = renderDocument({
+    kind: liste.titel,
+    title: project.title,
+    project: project.title,
+    accent: accentColor,
+    subtitle: `${zeilen.length} Einträge nach Erzähltag`,
+    meta: [{ label: 'Stand', value: fmtDate(new Date().toISOString()) }],
+    body: zeilen.length === 0
+      ? paragraph(`Noch keine Einträge der Kategorie ${liste.kategorie} im Breakdown der Szenen.`)
+      : reihe.map((tag) => section(tag ? `Erzähltag ${tag}` : 'Ohne Erzähltag', table({ columns: spalten, rows: gruppen.get(tag)! }))).join(''),
+  })
+  await sendPdf(res, html, `${req.params.liste}-${slug(project.title)}.pdf`)
 })
 
 // GET /api/projects/:projectId/pdf/kalkulation/:versionId

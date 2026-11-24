@@ -12,6 +12,7 @@
  * Anschrift und Kontakt der Produktion, Produktionsvertretung am Set.
  */
 import { pdfFontFaces, PDF_SANS, resolveAccent } from './pdfFonts'
+import { mitErzaehltag, vorstoppSumme, zeitText } from './vorstopp'
 import { drehtagName } from './units'
 
 // ─── Formatierung ─────────────────────────────────────────────────────────────
@@ -54,9 +55,10 @@ export function sumEighths(values: Array<number | null | undefined>): string {
  * Tageszeit als Kürzel der Spalte T/N: T Tag, N Nacht, D Dämmerung, M Morgen.
  *
  * Ohne Zahl dahinter. Im Standard steht dort der Erzähltag (N3 = dritte Nacht
- * der Geschichte); den kennt CutSheet nicht. Vorher zählte die Zahl einfach
- * die Szenen des Drehtags hoch - vier Tagesszenen standen als D1 bis D4 da,
- * als spielten sie an vier Tagen (gemessen am 26.10.2026).
+ * der Geschichte); seit AP E5 hängt ihn `mitErzaehltag` an, wo die Szene
+ * einen hat. Vorher zählte die Zahl einfach die Szenen des Drehtags hoch -
+ * vier Tagesszenen standen als D1 bis D4 da, als spielten sie an vier Tagen
+ * (gemessen am 26.10.2026).
  */
 export function dayNightCode(dayNight: string | null | undefined): string {
   const wert = String(dayNight ?? '')
@@ -212,6 +214,9 @@ export function renderCallSheetHtml(data: CallSheetData): string {
   const accent = resolveAccent(data.accent)
   const { project, day, sheet, scenes, cast, background, crew, advance, totalDays, firma, drehschluss, aufnahmeleitung } = data
   const unitZeile = data.unit ? `<div class="n">${esc(data.unit)}</div>` : ''
+  // Vorstopp des Tages neben den Seiten, mit dem geschätzten Anteil (AP E5)
+  const vs = vorstoppSumme(scenes)
+  const vorstoppZeile = scenes.length === 0 ? '' : ` · Vorstopp ${esc(zeitText(vs.sekunden))}${vs.geschaetzt_sekunden > 0 ? ` (davon geschätzt ${esc(zeitText(vs.geschaetzt_sekunden))})` : ''}`
   // Bei Schlechtwetter: die Cover-Sets für diesen Tag (AP C5)
   const schlechtwetterBlock = (data.schlechtwetter ?? []).length === 0 ? '' : `
 <table style="margin-top:4pt">
@@ -233,7 +238,7 @@ export function renderCallSheetHtml(data: CallSheetData): string {
       <b>${esc(String(sc.int_ext || 'INT').toUpperCase())}. ${esc(String(sc.title || '').toUpperCase())}</b>
       ${sc.description ? `<div class="desc">${esc(sc.description)}</div>` : ''}
     </td>
-    <td class="c">${esc(sc.day_for_night ? 'T/N' : dayNightCode(sc.day_night))}</td>
+    <td class="c">${esc(mitErzaehltag(sc.day_for_night ? 'T/N' : dayNightCode(sc.day_night), sc.story_day))}</td>
     <td class="c">${esc(sc.cast_ids || '')}</td>
     <td>${esc(sc.notes || '')}</td>
     <td>${motivZelle(sc)}</td>
@@ -426,7 +431,7 @@ export function renderCallSheetHtml(data: CallSheetData): string {
   </tr></thead>
   <tbody>
     ${sceneRows || '<tr><td colspan="7" class="c">Für diesen Tag sind noch keine Szenen eingeplant.</td></tr>'}
-    <tr class="sum"><td colspan="2" class="r">Seiten gesamt</td><td colspan="5">${esc(sumEighths(scenes.map(x => x.eighths)))}</td></tr>
+    <tr class="sum"><td colspan="2" class="r">Seiten gesamt</td><td colspan="5">${esc(sumEighths(scenes.map(x => x.eighths)))}${vorstoppZeile}</td></tr>
   </tbody>
 </table>
 ${schlechtwetterBlock}

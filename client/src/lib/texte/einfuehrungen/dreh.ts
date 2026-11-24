@@ -347,9 +347,9 @@ export const dreh: Record<string, Schritt[]> = {
       ziel: 'produktion',
       titel: { de: 'Produktionsdaten', en: 'Production data', fr: 'Données de production' },
       text: {
-        de: "Gedrehte Seiten in Achteln gegen die geplanten, die Zahl der Setups, Kamera- und Tonrollen. Wurde mehr gedreht als geplant, weist die Seite darauf hin.",
-        en: "Pages shot in eighths against those planned, the number of set-ups, camera and sound rolls. If more was shot than planned, the page points it out.",
-        fr: "Pages tournées en huitièmes face aux prévues, nombre d'installations, bobines image et son. Si plus a été tourné que prévu, la page le signale.",
+        de: "Gedrehte Seiten in Achteln gegen die geplanten, die Zahl der Setups, Kamera- und Tonrollen. Wurde mehr gedreht als geplant, weist die Seite darauf hin. Die gedrehte Filmzeit steht gegen den Vorstopp der abgedrehten Szenen; daneben aufgelaufen über alle Drehtage: Vorstopp gesamt, davon abgedreht, Rest des Films.",
+        en: "Pages shot in eighths against those planned, the number of set-ups, camera and sound rolls. If more was shot than planned, the page points it out. Screen time shot is set against the pre-timing of completed scenes; next to it the running total over all shoot days: total pre-timing, of which shot, rest of the film.",
+        fr: "Pages tournées en huitièmes face aux prévues, nombre d'installations, bobines image et son. Si plus a été tourné que prévu, la page le signale. La durée tournée est comparée au pré-minutage des scènes tournées ; à côté, le cumul sur tous les jours : pré-minutage total, dont tourné, reste du film.",
       },
     },
     {

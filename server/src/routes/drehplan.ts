@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { db, TxClient } from '../db'
+import { vorstoppSumme } from '../lib/vorstopp'
 import { coverSetsFuer, offeneCoverSets, OFFENE_COVER_SETS_JSON } from '../lib/coverSets'
 import { besetzungNachziehen } from '../lib/dispo'
 import { getUserProjectRole, requireMember, ROLE_RANK } from '../middleware/projectAuth'
@@ -72,6 +73,8 @@ function tagMitSummen(day: any, scenes: any[], banner: any[]) {
     total_eighths: scenes.reduce((sum: number, s: any) => sum + (s.eighths || 0), 0),
     estimated_minutes: scenes.reduce((sum: number, s: any) => sum + (s.estimated_minutes || 0), 0)
       + banner.reduce((sum: number, b: any) => sum + (Number(b.minutes) || 0), 0),
+    // Vorstopp des Tages, mit dem geschätzten Anteil (AP E5)
+    vorstopp: vorstoppSumme(scenes),
   }
 }
 
@@ -86,7 +89,7 @@ async function getShootDayWithScenes(dayId: number | bigint) {
   // mit sort_order 0 ab - ohne zweite Ordnung war die Reihenfolge Zufall.
   const scenes = await db.all(`
     SELECT sds.*, s.scene_number, s.title, s.int_ext, s.day_night, s.eighths, s.estimated_minutes, s.description, s.notes,
-           s.location_id, l.name as location_name, s.cover_set, s.day_for_night
+           s.location_id, l.name as location_name, s.cover_set, s.day_for_night, s.story_day, s.pretimed_seconds
     FROM shoot_day_scenes sds
     JOIN scenes s ON sds.scene_id = s.id
     LEFT JOIN locations l ON s.location_id = l.id
@@ -121,7 +124,8 @@ export async function ladeDrehtageMitSzenen(projectId: number | string) {
 
   const szenen = (await db.all(
     `SELECT sds.*, s.scene_number, s.title, s.int_ext, s.day_night, s.eighths,
-            s.estimated_minutes, s.description, s.notes, s.location_id, l.name as location_name, s.cover_set, s.day_for_night
+            s.estimated_minutes, s.description, s.notes, s.location_id, l.name as location_name, s.cover_set, s.day_for_night,
+            s.story_day, s.pretimed_seconds
        FROM shoot_day_scenes sds
        JOIN scenes s ON sds.scene_id = s.id
        LEFT JOIN locations l ON s.location_id = l.id

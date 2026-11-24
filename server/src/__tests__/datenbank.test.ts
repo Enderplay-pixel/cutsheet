@@ -3962,6 +3962,20 @@ describe('Drehbuch-Fassungen mit gesperrten Nummern (AP A3)', () => {
     expect(v.daten.zeilen.filter((z: any) => z.art !== 'gleich').map((z: any) => `${z.art}:${z.zeile}`))
       .toEqual(['weg:Ole raucht.', 'neu:Ole raucht nicht mehr.'])
   })
+
+  it('Erzähltag und Vorstopp stehen im Stand jeder Fassung und im Vergleich (AP E5)', async () => {
+    const { projekt, id } = await projektMitDrehbuch('Fassung Erzähltag')
+    await db.run("UPDATE scenes SET story_day = '3', pretimed_seconds = 95 WHERE id = ?", [id['2']])
+    await einlesen(projekt, mit((s) => { s[0][2] = 'Mara kocht Tee.'; return s }))
+    await db.run("UPDATE scenes SET story_day = '4' WHERE id = ?", [id['2']])
+    const r = await einlesen(projekt, mit((s) => { s[0][2] = 'Mara kocht Kaffee.'; return s }))
+    expect(await db.get('SELECT story_day, pretimed_seconds FROM script_revision_scenes WHERE revision_id = ? AND scene_id = ?', [r.daten.fassung.id, id['2']]))
+      .toEqual({ story_day: '4', pretimed_seconds: 95 })
+    const v = await hole(`/api/projects/${projekt}/drehbuch/fassungen/${r.daten.fassung.id}/szenen/${id['2']}`, tokenInhaber)
+    expect(v.daten.zeilen.filter((z: any) => z.art !== 'gleich').map((z: any) => `${z.art}:${z.zeile}`))
+      .toEqual(['weg:Erzähltag: 3', 'neu:Erzähltag: 4'])
+    expect(v.daten.neu).toContain('Vorstopp: 1:35')
+  })
 })
 
 describe('Arbeitszeit-Prüfung und Überstunden in Euro (AP B3)', () => {
@@ -4708,6 +4722,55 @@ describe('Dispo-Kopf vollständig, Breakdown in die Dispo (AP C4)', () => {
     const leser = (await hole(`/api/shoot-days/${tag}/call-sheet`, tokenFremd)).daten
     expect(leser.entries).toHaveLength(1)
     expect('public_token' in leser.entries[0]).toBe(false)
+  })
+})
+
+describe('Erzähltag und Vorstopp (AP E5)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+
+  it('drei Szenen mit Erzähltag 1, 1 und 2: Summe je Tag mit geschätztem Anteil, Dispo T1/N1/T2, Tagesbericht gegen den Vorstopp', async () => {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Vorstopp E5', nutzerId])).id
+    const szene = async (nr: string, day_night: string) =>
+      (await db.run('INSERT INTO scenes (project_id, scene_number, title, day_night, eighths) VALUES (?, ?, ?, ?, 8)', [p, nr, `Szene ${nr}`, day_night])).id
+    const [a, b, c] = [await szene('1', 'TAG'), await szene('2', 'NACHT'), await szene('3', 'TAG')]
+    const aendern = async (id: number, mehr: any) => {
+      const vorher = (await hole(`/api/projects/${p}/scenes`, tokenInhaber)).daten.find((x: any) => x.id === id)
+      return sende(`/api/scenes/${id}`, { ...vorher, ...mehr }, 'PUT')
+    }
+    expect((await aendern(a, { story_day: '1', pretimed_seconds: 100 })).daten).toMatchObject({ story_day: '1', pretimed_seconds: 100 })
+    await aendern(b, { story_day: '1', pretimed_seconds: 70 })
+    await aendern(c, { story_day: ' 2 ' })
+    expect((await aendern(c, { pretimed_seconds: -5 })).status).toBe(400)
+    expect((await aendern(c, { story_day: 'Dreizehnter Tag' })).status).toBe(400)
+
+    const tag = (await sende(`/api/projects/${p}/shoot-days`, { date: '2027-07-01' })).daten
+    await sende(`/api/projects/${p}/drehplan/verschieben`, { szenen: [a, b, c], zielTag: tag.id })
+    const tage = (await hole(`/api/projects/${p}/shoot-days`, tokenInhaber)).daten as any[]
+    // 100 + 70 gestoppt, eine Seite geschätzt (60 s)
+    expect(tage[0].vorstopp).toEqual({ sekunden: 230, geschaetzt_sekunden: 60 })
+    expect(tage[0].scenes.map((x: any) => x.story_day)).toEqual(['1', '1', '2'])
+
+    const { buildTagesdispoHtml } = await import('../routes/pdf')
+    const html = (await buildTagesdispoHtml(tag.id))!.html
+    for (const k of ['T1', 'N1', 'T2']) expect(html).toContain(`<td class="c">${k}</td>`)
+    expect(html).toContain('Vorstopp 3:50 (davon geschätzt 1:00)')
+
+    // Tagesbericht: 4:10 gedreht gegen 3:50 Vorstopp der abgedrehten Szenen
+    expect((await sende(`/api/shoot-days/${tag.id}/daily-report`, { screen_seconds_shot: 'viel' })).status).toBe(400)
+    const bericht = (await sende(`/api/shoot-days/${tag.id}/daily-report`, { scenes_completed: [a, b, c], screen_seconds_shot: 250 })).daten
+    expect(bericht.screen_seconds_shot).toBe(250)
+    expect(bericht.vorstopp).toMatchObject({
+      tag: { sekunden: 230, geschaetzt_sekunden: 60 },
+      gesamt: { sekunden: 230 },
+      abgedreht: { sekunden: 230 },
+      rest_sekunden: 0,
+      gedreht_gesamt_sekunden: 250,
+    })
+    // Eine vierte Szene, noch nicht gedreht: der Rest des Films
+    await szene('4', 'TAG')
+    const neu = (await hole(`/api/shoot-days/${tag.id}/daily-report`, tokenInhaber)).daten
+    expect(neu.vorstopp).toMatchObject({ gesamt: { sekunden: 290 }, rest_sekunden: 60 })
   })
 })
 

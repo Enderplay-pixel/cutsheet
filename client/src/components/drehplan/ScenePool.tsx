@@ -1,5 +1,6 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { vorstoppT } from '@/lib/texte/Vorstopp'
 import { cn, getStripClass, eighthsToString } from '@/lib/utils'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -42,7 +43,7 @@ function PoolSceneStrip({ scene }: { scene: any }) {
         <div className="flex gap-1 mt-0.5 opacity-60 text-[10px]">
           <span className="font-mono">{scene.int_ext}</span>
           {/* Cover-Set und Tag für Nacht wie am Streifen im Tag (AP C5) */}
-          <span>{scene.day_for_night ? tt(coverT.tn) : scene.day_night}</span>
+          <span>{scene.day_for_night ? tt(coverT.tn) : scene.day_night}{scene.story_day ? ` · ${tt(vorstoppT.erzaehltag)} ${scene.story_day}` : ''}</span>
           {scene.cover_set && <Umbrella className="w-3 h-3" aria-label={tt(coverT.coverSet)} />}
           <span className="ml-auto font-mono">{eighthsToString(scene.eighths)}</span>
         </div>

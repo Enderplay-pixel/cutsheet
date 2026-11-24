@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { db } from '../db'
+import { zeitText } from '../lib/vorstopp'
 import { requireMember, getUserProjectRole, requireMemberVia, projectIdFromTable } from '../middleware/projectAuth'
 import { leseUeberschrift, mitUeberschrift } from '../lib/szenenUeberschrift'
 import { motivVerknuepfen } from '../lib/motive'
@@ -554,8 +555,9 @@ async function erstfassungSichern(tx: Zugriff, projectId: number, userId: number
     [projectId, userId])).id
   for (const s of await szenenDesProjekts(tx, projectId)) {
     await tx.run(
-      'INSERT INTO script_revision_scenes (project_id, revision_id, scene_id, scene_number, heading, body, change) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [projectId, rev, s.id, s.nummer, s.kopf, s.zeilen.join('\n'), s.omitted ? 'entfaellt' : 'unveraendert'])
+      `INSERT INTO script_revision_scenes (project_id, revision_id, scene_id, scene_number, heading, body, change, story_day, pretimed_seconds)
+       SELECT ?, ?, ?, ?, ?, ?, ?, sc.story_day, sc.pretimed_seconds FROM scenes sc WHERE sc.id = ?`,
+      [projectId, rev, s.id, s.nummer, s.kopf, s.zeilen.join('\n'), s.omitted ? 'entfaellt' : 'unveraendert', s.id])
   }
 }
 
@@ -674,10 +676,12 @@ async function alsFassungEinlesen(req: Request, res: Response, gelesen: Gelesen[
     }
 
     // Der Stand jeder Szene in dieser Fassung - Grundlage des Vergleichs
+    // Erzähltag und Vorstopp kommen mit (AP E5)
     for (const s of await szenenDesProjekts(tx, projectId)) {
       await tx.run(
-        'INSERT INTO script_revision_scenes (project_id, revision_id, scene_id, scene_number, heading, body, change) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [projectId, rev, s.id, s.nummer, s.kopf, s.zeilen.join('\n'), aenderung.get(s.id) ?? (s.omitted ? 'entfaellt' : 'unveraendert')])
+        `INSERT INTO script_revision_scenes (project_id, revision_id, scene_id, scene_number, heading, body, change, story_day, pretimed_seconds)
+         SELECT ?, ?, ?, ?, ?, ?, ?, sc.story_day, sc.pretimed_seconds FROM scenes sc WHERE sc.id = ?`,
+        [projectId, rev, s.id, s.nummer, s.kopf, s.zeilen.join('\n'), aenderung.get(s.id) ?? (s.omitted ? 'entfaellt' : 'unveraendert'), s.id])
     }
     await tx.run('INSERT INTO fdx_imports (project_id, filename, scene_count) VALUES (?, ?, ?)', [projectId, filename, z.neu.length])
     return { id: rev, number: nummer, color }
@@ -754,7 +758,12 @@ router.get('/projects/:projectId/drehbuch/fassungen/:revisionId/szenen/:sceneId'
     `SELECT s.* FROM script_revision_scenes s JOIN script_revisions r ON r.id = s.revision_id
       WHERE r.project_id = ? AND r.number < ? AND s.scene_id = ? ORDER BY r.number DESC LIMIT 1`,
     [req.params.projectId, fassung.number, req.params.sceneId])
-  const zeilen = (x: any) => (x ? [String(x.heading ?? ''), ...String(x.body ?? '').split('\n').filter((z) => z !== '')] : [])
+  // Erzähltag und Vorstopp als eigene Zeilen, damit der Vergleich sie sieht (AP E5)
+  const angaben = (x: any) => [
+    ...(String(x.story_day ?? '').trim() ? [`Erzähltag: ${String(x.story_day).trim()}`] : []),
+    ...(x.pretimed_seconds != null ? [`Vorstopp: ${zeitText(Number(x.pretimed_seconds))}`] : []),
+  ]
+  const zeilen = (x: any) => (x ? [String(x.heading ?? ''), ...angaben(x), ...String(x.body ?? '').split('\n').filter((z) => z !== '')] : [])
   res.json({
     data: { nummer: neu.scene_number, change: neu.change, alt: zeilen(alt), neu: zeilen(neu), zeilen: vergleiche(zeilen(alt), zeilen(neu)) },
     error: null,

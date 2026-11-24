@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { komparsenT as KP } from '@/lib/texte/Komparsen'
+import { vorstopp, zeitText } from '@/lib/vorstopp'
+import { vorstoppT } from '@/lib/texte/Vorstopp'
 import { coverT } from '@/lib/texte/CoverSets'
 import { useUnits, mitUnit } from '@/lib/units'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -735,7 +737,17 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
       <div className="flex items-center gap-2 px-5 py-3 border-b border-border/40 bg-muted/30">
         <Film className="w-4 h-4 text-muted-foreground" />
         <span className="text-sm font-bold uppercase tracking-widest">{tt(dispoT.scenesSection)}</span>
-        <span className="ml-auto text-xs text-muted-foreground/60">{scenes.length} {tt(uiT.scenes)}</span>
+        <span className="ml-auto text-xs text-muted-foreground/60">
+          {scenes.length} {tt(uiT.scenes)}
+          {/* Vorstopp des Tages (AP E5) */}
+          {(() => {
+            const summe = scenes.reduce((n: number, s: any) => n + vorstopp(s).sekunden, 0)
+            const geschaetzt = scenes.reduce((n: number, s: any) => n + (vorstopp(s).geschaetzt ? vorstopp(s).sekunden : 0), 0)
+            return ` · ${geschaetzt > 0
+              ? tt(vorstoppT.summeGeschaetzt).replace('{zeit}', zeitText(summe)).replace('{geschaetzt}', zeitText(geschaetzt))
+              : tt(vorstoppT.summe).replace('{zeit}', zeitText(summe))}`
+          })()}
+        </span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[560px]">
@@ -776,6 +788,8 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
                     <span className="text-xs font-semibold text-muted-foreground uppercase">
                       {/* Tag für Nacht trägt T/N (AP C5) */}
                       {s.day_for_night ? tt(coverT.tn) : scenesT.tageszeit[s.day_night] ? tt(scenesT.tageszeit[s.day_night]) : (s.day_night || '-')}
+                      {/* Erzähltag (AP E5) */}
+                      {s.story_day ? <span className="block text-[10px] normal-case font-medium">{tt(vorstoppT.erzaehltag)} {s.story_day}</span> : null}
                     </span>
                   </td>
                   <td className="py-3 px-2 text-center">

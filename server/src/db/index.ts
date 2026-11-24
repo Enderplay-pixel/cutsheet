@@ -1776,6 +1776,13 @@ export async function initDatabase() {
   // Cover-Sets und Tag-für-Nacht (Plan Kino-Ausbau, AP C5, 24.11.2026)
   await db.exec(`ALTER TABLE scenes ADD COLUMN IF NOT EXISTS cover_set BOOLEAN NOT NULL DEFAULT false`)
   await db.exec(`ALTER TABLE scenes ADD COLUMN IF NOT EXISTS day_for_night BOOLEAN NOT NULL DEFAULT false`)
+  // Erzähltag und Vorstopp (Plan Kino-Ausbau, AP E5, 24.11.2026); die
+  // Fassungen tragen beide mit, damit ein Vergleich sie sieht
+  await db.exec(`ALTER TABLE scenes ADD COLUMN IF NOT EXISTS story_day TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE scenes ADD COLUMN IF NOT EXISTS pretimed_seconds INTEGER`)
+  await db.exec(`ALTER TABLE daily_reports ADD COLUMN IF NOT EXISTS screen_seconds_shot INTEGER`)
+  await db.exec(`ALTER TABLE script_revision_scenes ADD COLUMN IF NOT EXISTS story_day TEXT NOT NULL DEFAULT ''`)
+  await db.exec(`ALTER TABLE script_revision_scenes ADD COLUMN IF NOT EXISTS pretimed_seconds INTEGER`)
   // Wiederholbar beim Start: Jedes Projekt ohne Unit bekommt seine
   // Haupteinheit - benannt wie seine Tage, falls die nicht "Haupteinheit"
   // heißen (das Testprojekt "Nordlicht" führt "Hauptteam"); maßgeblich ist der

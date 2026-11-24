@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { drehbuchGesperrt, naechsteNummer as buchstabenNummer } from '../lib/fassungen'
+import { sekundenAus } from '../lib/vorstopp'
 import { logAudit } from './audit'
 import { db } from '../db'
 import { besetzungNachziehen } from '../lib/dispo'
@@ -8,6 +9,17 @@ import { baueUeberschrift, leseUeberschrift } from '../lib/szenenUeberschrift'
 import { motivVerknuepfen, verwaistesMotivEntfernen, verwaistesSetEntfernen } from '../lib/motive'
 
 const router = Router()
+
+/** Erzähltag höchstens 12 Zeichen, Vorstopp 0 bis zehn Stunden in Sekunden. null heißt: in Ordnung. */
+function erzaehltagVorstoppFehler(body: any): string | null {
+  if (body?.story_day !== undefined && body.story_day !== null && String(body.story_day).trim().length > 12) {
+    return 'Ein Erzähltag hat höchstens 12 Zeichen'
+  }
+  if (body?.pretimed_seconds !== undefined && sekundenAus(body.pretimed_seconds) === undefined) {
+    return 'Der Vorstopp liegt zwischen 0:00 und 10:00:00'
+  }
+  return null
+}
 
 // All /projects/:projectId/* routes require membership
 router.use('/projects/:projectId', requireMember)
@@ -159,6 +171,10 @@ router.put('/scenes/:id', async (req, res) => {
     return res.status(400).json({ data: null, error: 'Das Drehbuch ist gesperrt: Szenennummern bleiben, wie sie sind. Eine neue Szene bekommt eine Buchstabennummer wie 13A.' })
   }
 
+  // Erzähltag und Vorstopp (AP E5) prüfen, bevor etwas geschrieben wird
+  const angabenFehler = erzaehltagVorstoppFehler(req.body)
+  if (angabenFehler) return res.status(400).json({ data: null, error: angabenFehler })
+
   // Nur ein Motiv aus dem Projekt der Szene
   if (location_id) {
     const motiv = await db.get(
@@ -205,6 +221,13 @@ router.put('/scenes/:id', async (req, res) => {
   // Cover-Set und Tag-für-Nacht (AP C5): mitgeschickt gesetzt, sonst bleibt es
   for (const feld of ['cover_set', 'day_for_night'] as const) {
     if (req.body?.[feld] !== undefined) await db.run(`UPDATE scenes SET ${feld} = ? WHERE id = ?`, [req.body[feld] === true, req.params.id])
+  }
+  // Erzähltag und Vorstopp (AP E5): mitgeschickt gesetzt, sonst bleibt es
+  if (req.body?.story_day !== undefined) {
+    await db.run('UPDATE scenes SET story_day = ? WHERE id = ?', [String(req.body.story_day ?? '').trim(), req.params.id])
+  }
+  if (req.body?.pretimed_seconds !== undefined) {
+    await db.run('UPDATE scenes SET pretimed_seconds = ? WHERE id = ?', [sekundenAus(req.body.pretimed_seconds) ?? null, req.params.id])
   }
   await db.run(
     `UPDATE scenes SET set_id = NULL WHERE id = ? AND set_id IS NOT NULL
