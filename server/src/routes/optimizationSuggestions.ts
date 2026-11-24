@@ -117,7 +117,7 @@ async function generateSuggestions(projectId: number): Promise<Suggestion[]> {
     FROM scenes s
     JOIN shoot_day_scenes sds ON sds.scene_id = s.id
     JOIN shoot_days sd ON sd.id = sds.shoot_day_id
-    WHERE s.project_id = ? AND s.day_night = 'NACHT' AND sd.date <> ''
+    WHERE s.project_id = ? AND s.day_night = 'NACHT' AND NOT s.day_for_night AND sd.date <> ''
     ORDER BY sd.date
   `, [projectId]) as any[]
 

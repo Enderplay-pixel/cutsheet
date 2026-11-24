@@ -3,9 +3,10 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { cn, getStripClass, eighthsToString } from '@/lib/utils'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical } from 'lucide-react'
+import { GripVertical, Umbrella } from 'lucide-react'
 import { useT } from '@/lib/useT'
 import { scenePoolT } from '@/lib/texte/komponenten/Drehplan'
+import { coverT } from '@/lib/texte/CoverSets'
 
 function PoolSceneStrip({ scene }: { scene: any }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -15,6 +16,7 @@ function PoolSceneStrip({ scene }: { scene: any }) {
 
   const style = { transform: CSS.Transform.toString(transform), transition }
   const stripClass = getStripClass(scene.int_ext, scene.day_night)
+  const tt = useT()
 
   return (
     // Die ganze Karte ist Greiffläche, nicht nur der Griff (Testbericht
@@ -39,7 +41,9 @@ function PoolSceneStrip({ scene }: { scene: any }) {
         </div>
         <div className="flex gap-1 mt-0.5 opacity-60 text-[10px]">
           <span className="font-mono">{scene.int_ext}</span>
-          <span>{scene.day_night}</span>
+          {/* Cover-Set und Tag für Nacht wie am Streifen im Tag (AP C5) */}
+          <span>{scene.day_for_night ? tt(coverT.tn) : scene.day_night}</span>
+          {scene.cover_set && <Umbrella className="w-3 h-3" aria-label={tt(coverT.coverSet)} />}
           <span className="ml-auto font-mono">{eighthsToString(scene.eighths)}</span>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { dateiname } from '../lib/dateiname'
 import { fassungsName } from '../lib/fassungen'
+import { coverSetsFuer, offeneCoverSets } from '../lib/coverSets'
 import { effektiveUnit, stabDerUnit } from '../lib/units'
 import { Router, Request, Response } from 'express'
 import { resolveAccent } from '../lib/pdfFonts'
@@ -573,8 +574,8 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
 
   const loadScenes = async (id: number | string) => {
     const zeilen = await db.all(`
-      SELECT sds.*, s.scene_number, s.title, s.description, s.int_ext, s.day_night, s.eighths,
-             s.notes, l.name as location_name, l.address as location_address, l.zip as location_zip,
+      SELECT sds.*, s.scene_number, s.title, s.description, s.int_ext, s.day_night, s.eighths, s.day_for_night,
+             s.location_id, s.notes, l.name as location_name, l.address as location_address, l.zip as location_zip,
              l.city as location_city
       FROM shoot_day_scenes sds
       JOIN scenes s ON sds.scene_id = s.id
@@ -642,6 +643,8 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
     crew,
     advance,
     totalDays: Number(totalRow?.c) || 1,
+    // Ausweichszenen bei Schlechtwetter (AP C5)
+    schlechtwetter: coverSetsFuer(scenes, await offeneCoverSets(db, day.project_id)),
     // Die Unit steht im Kopf, sobald das Projekt mehr als eine hat
     unit: Number(day.units_anzahl) > 1 ? day.unit_name : null,
     accent: (await getProjectSettings(day.project_id)).accentColor,

@@ -1773,6 +1773,9 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE shoot_days ADD COLUMN IF NOT EXISTS unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL`)
   await db.exec(`ALTER TABLE crew ADD COLUMN IF NOT EXISTS unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL`)
   await db.exec(`ALTER TABLE crew ADD COLUMN IF NOT EXISTS all_units BOOLEAN NOT NULL DEFAULT false`)
+  // Cover-Sets und Tag-für-Nacht (Plan Kino-Ausbau, AP C5, 24.11.2026)
+  await db.exec(`ALTER TABLE scenes ADD COLUMN IF NOT EXISTS cover_set BOOLEAN NOT NULL DEFAULT false`)
+  await db.exec(`ALTER TABLE scenes ADD COLUMN IF NOT EXISTS day_for_night BOOLEAN NOT NULL DEFAULT false`)
   // Wiederholbar beim Start: Jedes Projekt ohne Unit bekommt seine
   // Haupteinheit - benannt wie seine Tage, falls die nicht "Haupteinheit"
   // heißen (das Testprojekt "Nordlicht" führt "Hauptteam"); maßgeblich ist der

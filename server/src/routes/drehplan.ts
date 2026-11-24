@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { db, TxClient } from '../db'
+import { coverSetsFuer, offeneCoverSets, OFFENE_COVER_SETS_JSON } from '../lib/coverSets'
 import { besetzungNachziehen } from '../lib/dispo'
 import { getUserProjectRole, requireMember, ROLE_RANK } from '../middleware/projectAuth'
 import { istIsoDatum } from '../lib/datum'
@@ -85,7 +86,7 @@ async function getShootDayWithScenes(dayId: number | bigint) {
   // mit sort_order 0 ab - ohne zweite Ordnung war die Reihenfolge Zufall.
   const scenes = await db.all(`
     SELECT sds.*, s.scene_number, s.title, s.int_ext, s.day_night, s.eighths, s.estimated_minutes, s.description, s.notes,
-           s.location_id, l.name as location_name
+           s.location_id, l.name as location_name, s.cover_set, s.day_for_night
     FROM shoot_day_scenes sds
     JOIN scenes s ON sds.scene_id = s.id
     LEFT JOIN locations l ON s.location_id = l.id
@@ -93,7 +94,9 @@ async function getShootDayWithScenes(dayId: number | bigint) {
     ORDER BY sds.sort_order ASC, sds.id ASC
   `, [dayId])
   const banner = await db.all('SELECT * FROM shoot_day_banners WHERE shoot_day_id = ? ORDER BY sort_order ASC, id ASC', [dayId])
-  return tagMitSummen(day, scenes as any[], banner as any[])
+  // Ausweichszenen bei Schlechtwetter (AP C5)
+  const cover_sets = coverSetsFuer(scenes as any[], await offeneCoverSets(db, day.project_id))
+  return { ...tagMitSummen(day, scenes as any[], banner as any[]), cover_sets }
 }
 
 /**
@@ -109,15 +112,16 @@ export async function ladeDrehtageMitSzenen(projectId: number | string) {
   // Die Banner der Tage (AP A2) kommen in derselben Abfrage mit, als Liste je
   // Tag - eine dritte Abfrage hätte die Regel oben gebrochen.
   const tage = (await db.all(
-    `SELECT d.*, ${UNIT_SPALTEN}, COALESCE((SELECT json_agg(b ORDER BY b.sort_order, b.id) FROM shoot_day_banners b WHERE b.shoot_day_id = d.id), '[]'::json) AS banner
+    `SELECT d.*, ${UNIT_SPALTEN}, COALESCE((SELECT json_agg(b ORDER BY b.sort_order, b.id) FROM shoot_day_banners b WHERE b.shoot_day_id = d.id), '[]'::json) AS banner,
+            ${OFFENE_COVER_SETS_JSON} AS offene_cover_sets
        FROM shoot_days d ${UNIT_JOIN('d')} WHERE d.project_id = ? ORDER BY (d.date = '') ASC, d.date ASC, d.id ASC`,
-    [projectId]
+    [projectId, projectId]
   )) as any[]
   if (tage.length === 0) return []
 
   const szenen = (await db.all(
     `SELECT sds.*, s.scene_number, s.title, s.int_ext, s.day_night, s.eighths,
-            s.estimated_minutes, s.description, s.notes, s.location_id, l.name as location_name
+            s.estimated_minutes, s.description, s.notes, s.location_id, l.name as location_name, s.cover_set, s.day_for_night
        FROM shoot_day_scenes sds
        JOIN scenes s ON sds.scene_id = s.id
        LEFT JOIN locations l ON s.location_id = l.id
@@ -133,7 +137,13 @@ export async function ladeDrehtageMitSzenen(projectId: number | string) {
     else jeTag.set(szene.shoot_day_id, [szene])
   }
 
-  return tage.map((tag) => tagMitSummen(tag, jeTag.get(tag.id) ?? [], tag.banner ?? []))
+  // Ausweichszenen bei Schlechtwetter je Tag (AP C5): Die offenen Cover-Sets
+  // kamen mit der ersten Abfrage, einmal ausgewertet
+  const offene = tage[0].offene_cover_sets ?? []
+  return tage.map(({ offene_cover_sets: _, ...tag }) => ({
+    ...tagMitSummen(tag, jeTag.get(tag.id) ?? [], tag.banner ?? []),
+    cover_sets: coverSetsFuer(jeTag.get(tag.id) ?? [], offene),
+  }))
 }
 
 // GET /api/projects/:projectId/shoot-days

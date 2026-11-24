@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { genehmigungsMeldungen } from '../lib/genehmigungen'
+import { offeneCoverSets } from '../lib/coverSets'
 import { arbeitszeitEinstellung } from '../lib/arbeitszeitProjekt'
 import { pruefeTag, pruefeRuhezeit } from '../lib/arbeitszeit'
 import { db } from '../db'
@@ -441,6 +442,29 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
         message: `${d.name} steht am ${datumText(d.date)} auf zwei Dispos`,
         detail: `${d.tage} - aus einer der Dispos nehmen oder die Unit der Person prüfen.`,
         link: 'tagesdispo',
+      })
+    }
+  })
+
+  // 11d. Ein Tag nur mit Außenszenen, und das Projekt kennt kein offenes
+  // Cover-Set (AP C5): bei Regen gibt es nichts zum Ausweichen
+  await pruefung('Cover-Sets', conflicts, async () => {
+    if ((await offeneCoverSets(db, pid)).length > 0) return
+    const nurAussen = await db.all(`
+      SELECT ${drehtagNameSql('sd', 'u')} AS name, sd.date FROM shoot_days sd
+      LEFT JOIN units u ON u.id = ${effektiveUnit('sd')}
+      WHERE sd.project_id = ? AND sd.status NOT IN ${KEIN_DREHTAG_SQL} AND sd.status <> 'Abgedreht'
+        AND EXISTS (SELECT 1 FROM shoot_day_scenes sds WHERE sds.shoot_day_id = sd.id)
+        AND NOT EXISTS (SELECT 1 FROM shoot_day_scenes sds JOIN scenes s ON s.id = sds.scene_id
+                         WHERE sds.shoot_day_id = sd.id AND s.int_ext NOT ILIKE '%EXT%')
+      ORDER BY sd.date, sd.day_number
+    `, [pid]) as any[]
+    for (const d of nurAussen) {
+      conflicts.push({
+        severity: 'info', category: 'Drehplan',
+        message: `${d.name} (${datumText(d.date)}) hat nur Außenszenen und kein Cover-Set`,
+        detail: 'Bei Schlechtwetter gibt es nichts zum Ausweichen. Eine Innenszene im Drehbuch als Cover-Set markieren.',
+        link: 'drehbuch',
       })
     }
   })

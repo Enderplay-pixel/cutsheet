@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { komparsenT as KP } from '@/lib/texte/Komparsen'
+import { coverT } from '@/lib/texte/CoverSets'
 import { useUnits, mitUnit } from '@/lib/units'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -15,7 +16,7 @@ import { formatDate, formatDateLong, debounce, cn, eighthsToString, szenenArt, S
 import {
   ChevronLeft, ChevronRight, MapPin, Clock, Users,
   Plus, Minus, ClipboardList, Save, Download, Trash2, Clapperboard,
-  CloudSun, Sunrise, Sunset, Film, Send, Eye, CheckCircle2, AlertTriangle, FileText, Link2, HeartPulse
+  CloudSun, Sunrise, Sunset, Film, Send, Eye, CheckCircle2, AlertTriangle, FileText, Link2, HeartPulse, Umbrella
 } from 'lucide-react'
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
@@ -773,7 +774,8 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
                   </td>
                   <td className="py-3 px-2 text-center">
                     <span className="text-xs font-semibold text-muted-foreground uppercase">
-                      {scenesT.tageszeit[s.day_night] ? tt(scenesT.tageszeit[s.day_night]) : (s.day_night || '-')}
+                      {/* Tag für Nacht trägt T/N (AP C5) */}
+                      {s.day_for_night ? tt(coverT.tn) : scenesT.tageszeit[s.day_night] ? tt(scenesT.tageszeit[s.day_night]) : (s.day_night || '-')}
                     </span>
                   </td>
                   <td className="py-3 px-2 text-center">
@@ -808,6 +810,33 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
         ))}
       </div>
     </div>
+  )
+}
+
+// ─── Bei Schlechtwetter (AP C5) ───────────────────────────────────────────────
+
+/** Cover-Sets für einen Tag mit Außenszenen - der Server rechnet sie aus. */
+function Schlechtwetter({ szenen }: { szenen: any[] }) {
+  const tt = useT()
+  if (!szenen || szenen.length === 0) return null
+  return (
+    <section aria-label={tt(coverT.schlechtwetter)} className="bg-card border border-border/60 rounded-xl overflow-hidden">
+      <div className="flex items-center gap-2 px-5 py-3 border-b border-border/40 bg-muted/30">
+        <Umbrella className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+        <span className="text-sm font-bold uppercase tracking-widest">{tt(coverT.schlechtwetter)}</span>
+      </div>
+      <p className="px-5 pt-2 text-xs text-muted-foreground">{tt(coverT.schlechtwetterHilfe)}</p>
+      <ul className="px-5 py-2 text-sm">
+        {szenen.map((k: any) => (
+          <li key={k.id} className="flex items-center gap-3 py-1">
+            <span className="font-mono font-bold w-10 tabular-nums">{k.scene_number}</span>
+            <span className="font-medium flex-1 min-w-0 truncate">{k.int_ext}. {k.title}</span>
+            {k.location_name && <span className="text-xs text-muted-foreground">{k.location_name}</span>}
+            <span className="font-mono text-xs text-muted-foreground">{eighthsToString(k.eighths)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -1321,7 +1350,10 @@ export function Component() {
         bloecke={[
           {
             id: 'szenen', titel: bloeckeT.szenen, inhalt: currentDay?.scenes?.length > 0 && (
-              <ScenesTable scenes={currentDay.scenes} />
+              <div className="space-y-5">
+                <ScenesTable scenes={currentDay.scenes} />
+                <Schlechtwetter szenen={currentDay.cover_sets} />
+              </div>
             ),
           },
           {

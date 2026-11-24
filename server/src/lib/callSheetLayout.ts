@@ -190,6 +190,8 @@ export interface CallSheetData {
   totalDays: number
   /** Name der Unit, wenn das Projekt mehr als eine hat (AP C2). */
   unit?: string | null
+  /** Ausweichszenen bei Schlechtwetter (AP C5). */
+  schlechtwetter?: Array<{ scene_number: string; title: string; int_ext: string; location_name?: string | null; eighths: number }>
   /** Kopffarbe des Projekts; ohne Angabe der Standard. */
   accent?: string
   /** Die Produktionsfirma, wenn das Projekt einer zugeordnet ist. */
@@ -210,6 +212,18 @@ export function renderCallSheetHtml(data: CallSheetData): string {
   const accent = resolveAccent(data.accent)
   const { project, day, sheet, scenes, cast, background, crew, advance, totalDays, firma, drehschluss, aufnahmeleitung } = data
   const unitZeile = data.unit ? `<div class="n">${esc(data.unit)}</div>` : ''
+  // Bei Schlechtwetter: die Cover-Sets für diesen Tag (AP C5)
+  const schlechtwetterBlock = (data.schlechtwetter ?? []).length === 0 ? '' : `
+<table style="margin-top:4pt">
+  <thead><tr><th colspan="3">Bei Schlechtwetter - Ausweichszenen</th></tr></thead>
+  <tbody>
+    ${(data.schlechtwetter ?? []).map((k) => `<tr>
+      <td class="c b" style="width:6%">${esc(k.scene_number)}</td>
+      <td><b>${esc(String(k.int_ext || 'INT').toUpperCase())}. ${esc(String(k.title || '').toUpperCase())}</b> · ${esc(fmtEighths(k.eighths))}</td>
+      <td style="width:22%">${esc(k.location_name || '')}</td>
+    </tr>`).join('')}
+  </tbody>
+</table>`
   const s = sheet ?? {}
 
   const sceneRows = scenes.map((sc) => `<tr>
@@ -219,7 +233,7 @@ export function renderCallSheetHtml(data: CallSheetData): string {
       <b>${esc(String(sc.int_ext || 'INT').toUpperCase())}. ${esc(String(sc.title || '').toUpperCase())}</b>
       ${sc.description ? `<div class="desc">${esc(sc.description)}</div>` : ''}
     </td>
-    <td class="c">${esc(dayNightCode(sc.day_night))}</td>
+    <td class="c">${esc(sc.day_for_night ? 'T/N' : dayNightCode(sc.day_night))}</td>
     <td class="c">${esc(sc.cast_ids || '')}</td>
     <td>${esc(sc.notes || '')}</td>
     <td>${motivZelle(sc)}</td>
@@ -415,7 +429,7 @@ export function renderCallSheetHtml(data: CallSheetData): string {
     <tr class="sum"><td colspan="2" class="r">Seiten gesamt</td><td colspan="5">${esc(sumEighths(scenes.map(x => x.eighths)))}</td></tr>
   </tbody>
 </table>
-
+${schlechtwetterBlock}
 <!-- ── Cast ── -->
 <table style="margin-top:4pt">
   <thead><tr>

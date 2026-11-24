@@ -244,6 +244,10 @@ describe('Schreibschutz gegen Leser', () => {
  */
 const OEFFENTLICH_LESBAR = [
   /^\/api\/(guest|invites|abnahme|casting|vertrag)\/abc$/, // Links mit Token
+  // Das Vertrags-PDF hinter demselben Link (AP A5). Es fiel nur durch, weil
+  // das PDF meist länger als die zwei Sekunden unten brauchte - am 24.11.2026
+  // war es schneller und meldete 200
+  /^\/api\/vertrag\/abc\/pdf$/,
   /^\/api\/email\/receipt\/abc$/,        // Empfangsbestätigung aus der Mail, mit Token
   /^\/api\/push\/vapid-public-key$/,     // öffentlicher Schlüssel für Web-Push
   /^\/api\/creator\/youtube\/callback$/, // Rückkehr von Google, über state gesichert

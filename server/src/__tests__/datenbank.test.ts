@@ -4711,6 +4711,62 @@ describe('Dispo-Kopf vollständig, Breakdown in die Dispo (AP C4)', () => {
   })
 })
 
+describe('Cover-Sets und Tag-für-Nacht (AP C5)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+
+  it('Dispo nennt die Ausweichszene, ohne Markierung meldet der Radar den Tag, Tag-für-Nacht trägt T/N', async () => {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Cover C5', nutzerId])).id
+    const deich = (await db.run("INSERT INTO locations (project_id, name) VALUES (?, 'Deich')", [p])).id
+    const szene = async (nr: string, int_ext: string, day_night = 'TAG') =>
+      (await db.run('INSERT INTO scenes (project_id, scene_number, title, int_ext, day_night, location_id) VALUES (?, ?, ?, ?, ?, ?)',
+        [p, nr, `Szene ${nr}`, int_ext, day_night, deich])).id
+    const [aussen, innen, nacht] = [await szene('20', 'EXT'), await szene('21', 'INT'), await szene('22', 'EXT', 'NACHT')]
+    const tag = (await sende(`/api/projects/${p}/shoot-days`, { date: '2027-06-01' })).daten
+    await sende(`/api/projects/${p}/drehplan/verschieben`, { szenen: [aussen, nacht], zielTag: tag.id })
+    const szeneAendern = async (id: number, mehr: any) => {
+      const vorher = (await hole(`/api/projects/${p}/scenes`, tokenInhaber)).daten.find((x: any) => x.id === id)
+      return sende(`/api/scenes/${id}`, { ...vorher, ...mehr, updated_at: undefined }, 'PUT')
+    }
+
+    // Innenszene als Cover-Set: Der Tag mit Außenszenen nennt sie
+    expect((await szeneAendern(innen, { cover_set: true })).daten).toMatchObject({ cover_set: true, day_for_night: false })
+    const tage = (await hole(`/api/projects/${p}/shoot-days`, tokenInhaber)).daten as any[]
+    expect(tage[0].cover_sets.map((k: any) => k.scene_number)).toEqual(['21'])
+    const { buildTagesdispoHtml } = await import('../routes/pdf')
+    let html = (await buildTagesdispoHtml(tag.id))!.html
+    expect(html).toContain('Bei Schlechtwetter')
+    expect(html).toContain('INT. SZENE 21')
+    const radar = async () => (await hole(`/api/projects/${p}/conflicts`, tokenInhaber)).daten as any[]
+    expect((await radar()).some((k) => k.message.includes('kein Cover-Set'))).toBe(false)
+
+    // Markierung weg: Hinweis im Konfliktradar
+    await szeneAendern(innen, { cover_set: false })
+    expect((await radar()).find((k) => k.message === 'Drehtag 1 (01.06.2027) hat nur Außenszenen und kein Cover-Set')).toMatchObject({ severity: 'info' })
+
+    // Tag-für-Nacht: die Nachtszene trägt im PDF T/N
+    // Der Spaltenkopf heißt auch T/N - gezählt wird die Zelle der Szene
+    expect((await buildTagesdispoHtml(tag.id))!.html.includes('<td class="c">T/N</td>')).toBe(false)
+    expect((await szeneAendern(nacht, { day_for_night: true })).daten).toMatchObject({ day_for_night: true, day_night: 'NACHT' })
+    html = (await buildTagesdispoHtml(tag.id))!.html
+    expect(html).toContain('<td class="c">T/N</td>')
+    expect(html).not.toContain('Bei Schlechtwetter')
+  })
+
+  it('das Drehbuch schickt die ganze Szene mit omitted: false - kein Konflikt, der keiner ist', async () => {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Konflikt C5', nutzerId])).id
+    const id = (await db.run("INSERT INTO scenes (project_id, scene_number, title) VALUES (?, '1', 'Stube')", [p])).id
+    const geladen = (await hole(`/api/projects/${p}/scenes`, tokenInhaber)).daten.find((x: any) => x.id === id)
+    expect(geladen.omitted).toBe(false)
+    // Mehr als eine Sekunde nach dem Laden: Vorher setzte omitted: false den
+    // Zeitstempel neu, und die Prüfung meldete 409
+    await new Promise((r) => setTimeout(r, 1200))
+    const antwort = await sende(`/api/scenes/${id}`, { ...geladen, cover_set: true }, 'PUT')
+    expect(antwort.status).toBe(200)
+    expect(antwort.daten.cover_set).toBe(true)
+  })
+})
+
 describe('Units und parallele Drehtage (AP C2)', () => {
   const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
     hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })

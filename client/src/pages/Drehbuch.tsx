@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { drehortT as DT } from '@/lib/texte/MotivDrehort'
+import { coverT } from '@/lib/texte/CoverSets'
+import { Switch } from '@/components/ui/switch'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -13,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useToast } from '@/components/ui/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn, eighthsToString, debounce, szenenArt } from '@/lib/utils'
-import { Plus, Trash2, Upload, Download, FileText, MapPin, Users, ChevronDown, ChevronUp, Tag, Search, Film } from 'lucide-react'
+import { Plus, Trash2, Upload, Download, FileText, MapPin, Users, ChevronDown, ChevronUp, Tag, Search, Film, Umbrella } from 'lucide-react'
 import { useProjectPerms } from '@/contexts/ProjectRoleContext'
 import { useT } from '@/lib/useT'
 import { scenesT, uiT } from '@/lib/i18n'
@@ -343,6 +345,20 @@ function SceneRow({ scene, locations, characters, projectId, gesperrt }: { scene
               <Input type="number" min="0" value={form.estimated_minutes ?? ''}
                 onChange={e => updateField('estimated_minutes', zahl(e.target.value))} aria-label={tt(scenesT.drehzeit)} className="mt-1 h-8 text-sm" />
             </div>
+          </div>
+
+          {/* Cover-Set und Tag für Nacht (AP C5) */}
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <label className="flex items-center gap-2 text-xs" title={tt(coverT.coverSetHilfe)}>
+              <Switch checked={!!form.cover_set} disabled={!canEdit} onCheckedChange={v => updateField('cover_set', v)} aria-label={tt(coverT.coverSet)} />
+              <Umbrella className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />{tt(coverT.coverSet)}
+            </label>
+            {/nacht|night/i.test(String(form.day_night || '')) || form.day_for_night ? (
+              <label className="flex items-center gap-2 text-xs" title={tt(coverT.tagFuerNachtHilfe)}>
+                <Switch checked={!!form.day_for_night} disabled={!canEdit} onCheckedChange={v => updateField('day_for_night', v)} aria-label={tt(coverT.tagFuerNacht)} />
+                {tt(coverT.tagFuerNacht)}
+              </label>
+            ) : null}
           </div>
 
           <div>

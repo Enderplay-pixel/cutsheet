@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
+import { coverT } from '@/lib/texte/CoverSets'
 import { useUnits, tageNachUnit, tagNummer, unitKuerzel, type Unit } from '@/lib/units'
 import { UnitWaehler, UnitMarke } from '@/components/drehplan/Units'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -10,7 +11,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { api, ApiFehler } from '@/lib/api'
 import { cn, formatDate, getStripClass, eighthsToString, dauer, heuteISO, SZENEN_ARTEN, type SzenenArt } from '@/lib/utils'
-import { LayoutGrid, Film, Plus, Trash2, Pencil, Scissors, Wand2, ArrowRightLeft, AlertTriangle, Sun, Merge, X } from 'lucide-react'
+import { LayoutGrid, Film, Plus, Trash2, Pencil, Scissors, Wand2, ArrowRightLeft, AlertTriangle, Sun, Merge, X, Umbrella } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -53,6 +54,8 @@ interface DayScene {
   location_id?: number | null
   location_name?: string | null
   sort_order: number
+  cover_set?: boolean
+  day_for_night?: boolean
 }
 
 interface Banner {
@@ -108,11 +111,17 @@ function ZielLinie({ unten }: { unten: boolean }) {
 }
 
 function StripInhalt({ szene, figuren }: { szene: DayScene; figuren: string }) {
+  const tt = useT()
   return (
     <>
-      <span className="font-mono font-semibold">{szene.scene_number}</span>
+      <span className="font-mono font-semibold inline-flex items-center gap-1">
+        {szene.scene_number}
+        {/* Cover-Set (AP C5) */}
+        {szene.cover_set && <Umbrella className="w-3 h-3 shrink-0" aria-label={tt(coverT.coverSet)} />}
+      </span>
       <span className="hidden md:block font-mono">{szene.int_ext}</span>
-      <span className="hidden md:block truncate">{szene.day_night}</span>
+      {/* Tag für Nacht: Nachtfarbe, Kürzel T/N (AP C5) */}
+      <span className="hidden md:block truncate">{szene.day_for_night ? tt(coverT.tn) : szene.day_night}</span>
       <span className="truncate font-medium" title={szene.title}>{szene.title}</span>
       <span className="hidden md:block truncate text-muted-foreground" title={szene.description || undefined}>{szene.description}</span>
       <span className="hidden md:block truncate" title={szene.location_name || undefined}>{szene.location_name}</span>
@@ -591,6 +600,8 @@ export function Component() {
       scene_id: id, scene_number: s.scene_number ?? '', title: s.title ?? '', int_ext: s.int_ext ?? '', day_night: s.day_night ?? '',
       eighths: s.eighths ?? 0, estimated_minutes: s.estimated_minutes ?? 0, description: s.description ?? '',
       location_id: s.location_id ?? null, location_name: s.location_name ?? null, sort_order: 0,
+      // Cover-Set und Tag für Nacht auch in der Ablage (AP C5)
+      cover_set: !!s.cover_set, day_for_night: !!s.day_for_night,
     }
   }
 

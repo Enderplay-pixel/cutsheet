@@ -140,7 +140,12 @@ router.put('/scenes/:id', async (req, res) => {
   // Eine entfallene Szene zurückholen (AP A3). Entfallen lassen heißt löschen.
   if (req.body?.omitted !== undefined) {
     if (req.body.omitted !== false) return res.status(400).json({ data: null, error: 'Eine Szene entfällt über Löschen; hier geht nur das Zurückholen' })
-    await db.run('UPDATE scenes SET omitted = false, updated_at = NOW() WHERE id = ?', [req.params.id])
+    // Nur eine entfallene Szene zurückholen. Vorher setzte jedes Speichern mit
+    // `omitted: false` im Körper - das Drehbuch schickt die ganze Szene -
+    // den Zeitstempel neu, und die Prüfung unten meldete danach einen
+    // Konflikt, der keiner war (gemessen am 24.11.2026: 409 bei jeder
+    // Änderung, die mehr als eine Sekunde nach dem Laden kam).
+    await db.run('UPDATE scenes SET omitted = false, updated_at = NOW() WHERE id = ? AND omitted', [req.params.id])
     if (Object.keys(req.body).every((k) => k === 'omitted' || k === 'updated_at')) {
       const zurueck = await db.get('SELECT s.*, l.name as location_name FROM scenes s LEFT JOIN locations l ON s.location_id = l.id WHERE s.id = ?', [req.params.id])
       return res.json({ data: zurueck, error: null })
@@ -196,6 +201,10 @@ router.put('/scenes/:id', async (req, res) => {
       return res.status(404).json({ data: null, error: 'Set nicht gefunden' })
     }
     await db.run('UPDATE scenes SET set_id = ? WHERE id = ?', [setId, req.params.id])
+  }
+  // Cover-Set und Tag-für-Nacht (AP C5): mitgeschickt gesetzt, sonst bleibt es
+  for (const feld of ['cover_set', 'day_for_night'] as const) {
+    if (req.body?.[feld] !== undefined) await db.run(`UPDATE scenes SET ${feld} = ? WHERE id = ?`, [req.body[feld] === true, req.params.id])
   }
   await db.run(
     `UPDATE scenes SET set_id = NULL WHERE id = ? AND set_id IS NOT NULL
