@@ -193,6 +193,26 @@ Je Datei:
 
 ## Deploy-Prüfung
 
+**Deploy v1.5 alpha am 26.11.2026.** Auslieferung 1 und 2 des Kino-Ausbaus
+(AP B0, A1, A4, A5, A2, A3, B3, E8, B1, B2, B4, E1, E2, E4, E3; Funde 291 bis
+309). Abgeschnitten am letzten Paket von v1.5 (`04b7eaf`), Versions-Commit
+`e18b3d1` darauf, Push `b5b2c1e..e18b3d1` um 03:59, online ab 04:12. Die
+Pakete von v1.6, die schon fertig sind (C3, C4, C1, C2, C5, E5, E6), sind
+nicht dabei. Vorher auf genau diesem Stand: Typprüfung in Client und Server,
+1382 Servertests grün, `npm run build` fehlerfrei. Geprüft ohne Anmeldung:
+Titel `CutSheet v1.5 alpha - Filmproduktion`; `/api/health` 200; in den live
+ausgelieferten Dateien je Paket ein Text oder eine Seite - DOOD "Haltetag",
+Board "Tagesgrenze", Drehbuch "Fassung", Kalkulation "FFA-Schema",
+"Rückflussrang", "Regionaleffekt", Kostenstand "Endstand", Cashflow als
+eigene Seite, Stundenzettel "Stufe", "Überstunden", Rechnungen
+"Debitorennummer". Die Bundle-Kennung weicht von der lokalen ab
+(`index-Co5zD5Pw.js` gegen `index-sb3mR8W7.js`) - Render baut mit
+`VITE_POSTHOG_KEY`, lokal fehlt die Variable; als Prüfung taugt der
+Vergleich deshalb nicht. Eine Anfrage an `/api/projects/1/...` ohne Anmeldung
+ergibt auch für eine Route, die es nicht gibt, 401 - kein Beleg für neue
+Routen. **Offen:** die Abnahmen je Paket live nachspielen; dafür muss sich
+Florian auf der Live-Seite anmelden.
+
 **Deploy v1.3 alpha am 09.11.2026.** Funde 268-290 aus dem Testbericht
 SALZWIND (siehe dort). Vorher lokal: 1162 Servertests grün, `npm run build`
 wie auf Render fehlerfrei, jeder Fund einzeln nachgemessen (Maus, Tastatur,
