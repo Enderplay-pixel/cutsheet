@@ -1022,13 +1022,14 @@ export async function initDatabase() {
   // wird von der Kostenuebernahme nie angefasst.
   await db.exec(`ALTER TABLE budget_lines ADD COLUMN IF NOT EXISTS source_key TEXT NOT NULL DEFAULT ''`)
 
-  // Eine Szene gehoert zu genau einem Drehtag. Ohne diese Sperre konnte sie
-  // bei gleichzeitigem Verschieben an mehreren liegen. Erst Altlasten
-  // bereinigen, sonst scheitert der Index.
-  await db.exec(`DELETE FROM shoot_day_scenes a USING shoot_day_scenes b
-                 WHERE a.scene_id = b.scene_id AND a.id > b.id`)
-  await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS shoot_day_scenes_scene_eindeutig
-                 ON shoot_day_scenes (scene_id)`)
+  // Bis zum 24.11.2026 gehoerte eine Szene zu genau einem Drehtag: ein
+  // eindeutiger Index auf scene_id, und jeder Start loeschte doppelte Zeilen.
+  // Seit AP E6 (Szene teilen) steht eine Szene in Teilen an mehreren Tagen -
+  // der Index faellt, das Loeschen beim Start entfaellt (es haette jede
+  // geteilte Szene beim naechsten Start wieder zusammengeloescht). Liegt eine
+  // Szene durch gleichzeitiges Verschieben doppelt, meldet der Konfliktradar
+  // "Teile ... ergeben nicht die ganze Szene".
+  await db.exec(`DROP INDEX IF EXISTS shoot_day_scenes_scene_eindeutig`)
 
   // Verwaiste Verweise auf geloeschte Personen.
   //
@@ -1781,6 +1782,9 @@ export async function initDatabase() {
   await db.exec(`ALTER TABLE scenes ADD COLUMN IF NOT EXISTS story_day TEXT NOT NULL DEFAULT ''`)
   await db.exec(`ALTER TABLE scenes ADD COLUMN IF NOT EXISTS pretimed_seconds INTEGER`)
   await db.exec(`ALTER TABLE daily_reports ADD COLUMN IF NOT EXISTS screen_seconds_shot INTEGER`)
+  // Szene teilen (Plan Kino-Ausbau, AP E6, 24.11.2026): der Anteil eines
+  // Teils in Achteln, leer heißt die ganze Szene (lib/board.ts)
+  await db.exec(`ALTER TABLE shoot_day_scenes ADD COLUMN IF NOT EXISTS eighths INTEGER`)
   await db.exec(`ALTER TABLE script_revision_scenes ADD COLUMN IF NOT EXISTS story_day TEXT NOT NULL DEFAULT ''`)
   await db.exec(`ALTER TABLE script_revision_scenes ADD COLUMN IF NOT EXISTS pretimed_seconds INTEGER`)
   // Wiederholbar beim Start: Jedes Projekt ohne Unit bekommt seine

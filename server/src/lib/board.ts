@@ -131,3 +131,55 @@ export function folgetageVerschieben(daten: string[], neuerTag: string, wochenta
   }
   return neu
 }
+
+// ─── Geteilte Szenen und Tagesarten (AP E6) ──────────────────────────────────
+
+/**
+ * SQL: Seiten, Drehzeit und Vorstopp des Teils einer Szene an einem Tag.
+ * `sds` ist die Zeile in shoot_day_scenes, `s` die Szene. Ein leerer
+ * Anteil (`sds.eighths IS NULL`) heißt: die ganze Szene. Drehzeit und
+ * gestoppter Vorstopp gehen im Verhältnis der Seiten mit. Steht nach
+ * `sds.*`, damit die Spalten des Teils gelten.
+ */
+export const TEIL_SPALTEN = `COALESCE(sds.eighths, s.eighths) AS eighths, s.eighths AS szene_achtel, sds.eighths AS teil_achtel,
+  CASE WHEN sds.eighths IS NULL OR COALESCE(s.eighths, 0) = 0 THEN s.estimated_minutes
+       ELSE ROUND(s.estimated_minutes * sds.eighths::numeric / s.eighths)::int END AS estimated_minutes,
+  CASE WHEN sds.eighths IS NULL OR s.pretimed_seconds IS NULL OR COALESCE(s.eighths, 0) = 0 THEN s.pretimed_seconds
+       ELSE ROUND(s.pretimed_seconds * sds.eighths::numeric / s.eighths)::int END AS pretimed_seconds`
+
+/** Seiten eines Teils in Achteln: sein Anteil, sonst die ganze Szene. */
+export function seitenAmTag(teilAchtel: number | null | undefined, szeneAchtel: number): number {
+  return teilAchtel === null || teilAchtel === undefined ? szeneAchtel : teilAchtel
+}
+
+/** Ergeben die Teile einer Szene die ganze Szene? Mit der Summe in Achteln. */
+export function teileGanz(teile: Array<number | null | undefined>, szeneAchtel: number): { summe: number; ganz: boolean } {
+  const summe = teile.reduce((n: number, t) => n + seitenAmTag(t, szeneAchtel), 0)
+  return { summe, ganz: summe === szeneAchtel }
+}
+
+export type Tagesart = { wochenende: boolean; feiertag: boolean; nacht: boolean }
+
+/**
+ * Was ein Drehtag ist, abgeleitet und nur angezeigt (Soll 3): Wochenende
+ * (Samstag oder Sonntag), Feiertag (aus der Liste des Bundeslands) und
+ * Nachtdreh - mehr als die Hälfte der Drehzeit in Nachtszenen, Tag für
+ * Nacht (AP C5) ausgenommen.
+ */
+export function tagesart(
+  datum: string,
+  feiertage: Iterable<string>,
+  szenen: Array<{ day_night?: string | null; day_for_night?: boolean | null; estimated_minutes?: number | null }>,
+): Tagesart {
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(datum)
+  const wochentag = iso ? new Date(`${datum}T12:00:00Z`).getUTCDay() : -1
+  const gesamt = szenen.reduce((n, s) => n + (Number(s.estimated_minutes) || 0), 0)
+  const nachts = szenen
+    .filter((s) => /nacht|night/i.test(String(s.day_night ?? '')) && !s.day_for_night)
+    .reduce((n, s) => n + (Number(s.estimated_minutes) || 0), 0)
+  return {
+    wochenende: wochentag === 0 || wochentag === 6,
+    feiertag: iso && new Set(feiertage).has(datum),
+    nacht: gesamt > 0 && nachts * 2 > gesamt,
+  }
+}

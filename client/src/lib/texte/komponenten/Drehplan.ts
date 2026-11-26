@@ -46,4 +46,7 @@ export const drehtagStatusT: Record<string, Text> = {
   // Ein Tag in Bereitschaft (Wetter, Ausfall). Zählt für niemanden, bis er
   // gebraucht wird (seit 13.11.2026, server/src/lib/drehtage.ts).
   Reserve:     { de: 'Reserve', en: 'Standby day', fr: 'Jour de réserve' },
+  // Wählbar seit AP E6 (24.11.2026): Tage im Zeitraum, an denen nicht gedreht wird
+  Drehfrei:    { de: 'Drehfrei', en: 'Day off', fr: 'Jour off' },
+  Reisetag:    { de: 'Reisetag', en: 'Travel day', fr: 'Jour de voyage' },
 }

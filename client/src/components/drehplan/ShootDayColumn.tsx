@@ -18,9 +18,11 @@ interface ShootDayColumnProps {
   onStatusChange: (dayId: number, status: string) => void
   /** Ohne Schreibrecht: kein Löschen, kein Statuswechsel, keine Szene entfernen */
   darfAendern?: boolean
+  /** Geteilte Szenen (AP E6): je Szene ihre Tage und ob die Teile ganz sind */
+  teile?: Map<number, { tage: number[]; summe: number; ganz: boolean }>
 }
 
-export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange, darfAendern = true }: ShootDayColumnProps) {
+export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange, darfAendern = true, teile }: ShootDayColumnProps) {
   const download = useDownload()
   const tt = useT()
   const { setNodeRef, isOver } = useDroppable({
@@ -28,7 +30,7 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
     data: { type: 'day', dayId: day.id },
   })
 
-  const sceneIds = (day.scenes || []).map((s: any) => `scene-${s.scene_id}`)
+  const sceneIds = (day.scenes || []).map((s: any) => `scene-${s.scene_id}-${day.id}`)
   const totalEighths = day.total_eighths || 0
   const isSperrtag = day.status === 'Sperrtag'
   // Reserve bleibt sichtbar, aber grau: Der Tag zählt für niemanden
@@ -86,7 +88,7 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
             isSperrtag && 'text-yellow-400'
           )}
         >
-          {['Geplant', 'Bestätigt', 'Abgedreht', 'Ausgefallen', 'Reserve', 'Sperrtag'].map(s => (
+          {['Geplant', 'Bestätigt', 'Abgedreht', 'Ausgefallen', 'Reserve', 'Sperrtag', 'Drehfrei', 'Reisetag'].map(s => (
             <option key={s} value={s}>{tt(drehtagStatusT[s])}</option>
           ))}
         </select>
@@ -143,6 +145,10 @@ export function ShootDayColumn({ day, onRemoveScene, onDeleteDay, onStatusChange
                     key={scene.scene_id}
                     scene={scene}
                     shootDayId={day.id}
+                    teil={(() => {
+                      const t = teile?.get(scene.scene_id)
+                      return t ? { nr: t.tage.indexOf(day.id) + 1, von: t.tage.length, ganz: t.ganz } : undefined
+                    })()}
                     onRemove={darfAendern ? (sceneId) => onRemoveScene(day.id, sceneId) : undefined}
                   />
                 ))}

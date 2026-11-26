@@ -14,6 +14,9 @@ export type Eintrag = { art: 'szene' | 'banner'; id: number }
 
 export type Zeile =
   | { art: 'szene'; key: string; id: number; tagId: number | null }
+  // Ein weiterer Teil einer geteilten Szene (AP E6): steht an seinem Tag,
+  // wird aber nicht gezogen - der Schlüssel `s-<id>` gehört dem ersten Teil
+  | { art: 'teil'; key: string; id: number; tagId: number }
   | { art: 'banner'; key: string; id: number; tagId: number }
   | { art: 'grenze'; key: string; tagId: number }
   | { art: 'ablage'; key: string }
@@ -23,7 +26,7 @@ export type Ziel = { zielTag: number | null; vor: Eintrag | null }
 
 export interface BoardTag {
   id: number
-  scenes: Array<{ scene_id: number; sort_order: number }>
+  scenes: Array<{ scene_id: number; sort_order: number; teil_achtel?: number | null; szene_achtel?: number | null }>
   banner: Array<{ id: number; sort_order: number }>
 }
 
@@ -48,8 +51,14 @@ export const schluesselVon = (e: Eintrag) => `${e.art === 'szene' ? 's' : 'b'}-$
 /** Alle Zeilen des Boards: Tage in der übergebenen Reihenfolge, dann die Ablage. */
 export function zeilenAus(tage: BoardTag[], ablage: number[]): Zeile[] {
   const zeilen: Zeile[] = []
+  const gesehen = new Set<number>()
   for (const tag of tage) {
     for (const e of eintraegeDesTags(tag)) {
+      if (e.art === 'szene' && gesehen.has(e.id)) {
+        zeilen.push({ art: 'teil', key: `t-${e.id}-${tag.id}`, id: e.id, tagId: tag.id })
+        continue
+      }
+      if (e.art === 'szene') gesehen.add(e.id)
       zeilen.push(e.art === 'szene'
         ? { art: 'szene', key: schluesselVon(e), id: e.id, tagId: tag.id }
         : { art: 'banner', key: schluesselVon(e), id: e.id, tagId: tag.id })
@@ -72,9 +81,32 @@ export function zielAusStelle(zeilen: Zeile[], index: number): Ziel {
   const z = zeilen[index]
   if (!z) return { zielTag: null, vor: null }
   if (z.art === 'szene' && z.tagId !== null) return { zielTag: z.tagId, vor: { art: 'szene', id: z.id } }
+  if (z.art === 'teil') return { zielTag: z.tagId, vor: { art: 'szene', id: z.id } }
   if (z.art === 'banner') return { zielTag: z.tagId, vor: { art: 'banner', id: z.id } }
   if (z.art === 'grenze') return { zielTag: z.tagId, vor: null }
   return { zielTag: null, vor: null }
+}
+
+/**
+ * Geteilte Szenen (AP E6): je Szene, die an mehr als einem Tag steht, die
+ * Tage in der Reihenfolge des Boards und ob die Teile die ganze Szene
+ * ergeben. Ein leerer Anteil zählt die ganze Szene.
+ */
+export function teileJeSzene(tage: BoardTag[]): Map<number, { tage: number[]; summe: number; ganz: boolean }> {
+  const roh = new Map<number, { tage: number[]; summe: number; szene: number }>()
+  for (const tag of tage) {
+    for (const s of tag.scenes ?? []) {
+      const ganz = Number(s.szene_achtel) || 0
+      const anteil = s.teil_achtel === null || s.teil_achtel === undefined ? ganz : Number(s.teil_achtel)
+      const t = roh.get(s.scene_id) ?? { tage: [], summe: 0, szene: ganz }
+      t.tage.push(tag.id)
+      t.summe += anteil
+      roh.set(s.scene_id, t)
+    }
+  }
+  const aus = new Map<number, { tage: number[]; summe: number; ganz: boolean }>()
+  for (const [id, t] of roh) if (t.tage.length > 1) aus.set(id, { tage: t.tage, summe: t.summe, ganz: t.summe === t.szene })
+  return aus
 }
 
 export function gleichesZiel(a: Ziel, b: Ziel): boolean {

@@ -271,8 +271,16 @@ export const api = {
     restore: (projectId: number, versionId: number) => req<any[]>(`/projects/${projectId}/drehplan/restore/${versionId}`, { method: 'POST' }),
     deleteVersion: (versionId: number) => req<any>(`/drehplan-versions/${versionId}`, { method: 'DELETE' }),
     // Board des Stäbchenplans (AP A2)
-    verschieben: (projectId: number, data: { szenen: number[]; zielTag: number | null; vor: { art: 'szene' | 'banner'; id: number } | null }) =>
+    verschieben: (projectId: number, data: { szenen: number[]; zielTag: number | null; vor: { art: 'szene' | 'banner'; id: number } | null; vonTag?: number }) =>
       req<any>(`/projects/${projectId}/drehplan/verschieben`, { method: 'POST', body: JSON.stringify(data) }),
+    // Szene teilen, Anteil ändern, Tage tauschen, Tagesarten (AP E6)
+    teilen: (projectId: number, data: { szene: number; vonTag: number; zielTag: number; achtel: number }) =>
+      req<any>(`/projects/${projectId}/drehplan/teilen`, { method: 'POST', body: JSON.stringify(data) }),
+    teilAendern: (projectId: number, data: { szene: number; tag: number; achtel: number | null }) =>
+      req<any>(`/projects/${projectId}/drehplan/teil`, { method: 'PUT', body: JSON.stringify(data) }),
+    tauschen: (projectId: number, a: number, b: number, bestaetigt = false) =>
+      req<any>(`/projects/${projectId}/drehplan/tauschen${bestaetigt ? '?bestaetigt=1' : ''}`, { method: 'POST', body: JSON.stringify({ a, b }) }),
+    tagesarten: (projectId: number) => req<any>(`/projects/${projectId}/drehplan/tagesarten`),
     tagesgrenzeEinfuegen: (projectId: number, nachSzene: number, folgetageVerschieben = false) =>
       req<any>(`/projects/${projectId}/drehplan/tagesgrenze`, { method: 'POST', body: JSON.stringify({ nachSzene, folgetageVerschieben }) }),
     tagesgrenzeEntfernen: (projectId: number, dayId: number, bestaetigt = false) =>

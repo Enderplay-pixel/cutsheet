@@ -1,5 +1,6 @@
 import { dateiname } from '../lib/dateiname'
 import { fassungsName } from '../lib/fassungen'
+import { TEIL_SPALTEN } from '../lib/board'
 import { coverSetsFuer, offeneCoverSets } from '../lib/coverSets'
 import { effektiveUnit, stabDerUnit } from '../lib/units'
 import { Router, Request, Response } from 'express'
@@ -394,7 +395,7 @@ router.get('/projects/:projectId/pdf/drehplan', async (req: Request, res: Respon
 
   for (const day of days) {
     const scenes = await db.all(`
-      SELECT sds.*, s.scene_number, s.title, s.int_ext, s.day_night, s.eighths, s.estimated_minutes, l.name as location_name
+      SELECT sds.*, s.scene_number, s.title, s.int_ext, s.day_night, ${TEIL_SPALTEN}, l.name as location_name
       FROM shoot_day_scenes sds
       JOIN scenes s ON sds.scene_id = s.id
       LEFT JOIN locations l ON s.location_id = l.id
@@ -574,8 +575,8 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
 
   const loadScenes = async (id: number | string) => {
     const zeilen = await db.all(`
-      SELECT sds.*, s.scene_number, s.title, s.description, s.int_ext, s.day_night, s.eighths, s.day_for_night,
-             s.story_day, s.pretimed_seconds, s.location_id, s.notes, l.name as location_name, l.address as location_address, l.zip as location_zip,
+      SELECT sds.*, s.scene_number, s.title, s.description, s.int_ext, s.day_night, s.day_for_night,
+             s.story_day, ${TEIL_SPALTEN}, s.location_id, s.notes, l.name as location_name, l.address as location_address, l.zip as location_zip,
              l.city as location_city
       FROM shoot_day_scenes sds
       JOIN scenes s ON sds.scene_id = s.id
@@ -1061,7 +1062,7 @@ router.get('/shoot-days/:dayId/pdf/tagesbericht', async (req: Request, res: Resp
   const [{ accentColor }, report, scenes] = await Promise.all([
     getProjectSettings(day.project_id),
     db.get('SELECT * FROM daily_reports WHERE shoot_day_id = ?', [req.params.dayId]),
-    db.all('SELECT sds.*, s.scene_number, s.title, s.eighths, l.name as location_name FROM shoot_day_scenes sds JOIN scenes s ON sds.scene_id = s.id LEFT JOIN locations l ON s.location_id = l.id WHERE sds.shoot_day_id = ? ORDER BY sds.sort_order', [req.params.dayId]),
+    db.all(`SELECT sds.*, s.scene_number, s.title, ${TEIL_SPALTEN}, l.name as location_name FROM shoot_day_scenes sds JOIN scenes s ON sds.scene_id = s.id LEFT JOIN locations l ON s.location_id = l.id WHERE sds.shoot_day_id = ? ORDER BY sds.sort_order`, [req.params.dayId]),
   ]) as any[]
 
   // dauer() trägt den Tageswechsel: ein Nachtdreh mit Wrap um 02:00 steht als

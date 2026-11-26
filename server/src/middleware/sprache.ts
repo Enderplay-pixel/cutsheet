@@ -55,6 +55,9 @@ const MUSTER: Array<[RegExp, Record<Sprache, string>]> = [
     { en: 'The group has $1 heads - $2 cannot be called', fr: 'Le groupe compte $1 personnes - impossible d’en convoquer $2' }],
   [/^An einem Drehtag sind (\d+) Köpfe abgerufen - die Gruppe braucht mindestens so viele$/,
     { en: '$1 heads are called on a shoot day - the group needs at least as many', fr: '$1 personnes sont convoquées un jour de tournage - le groupe en a besoin d’au moins autant' }],
+  // Szene teilen (AP E6)
+  [/^Der neue Teil hat mehr als 0 und weniger als (\d+) Achtel$/,
+    { en: 'The new part has more than 0 and fewer than $1 eighths', fr: 'La nouvelle partie compte plus de 0 et moins de $1 huitièmes' }],
   // Units und parallele Drehtage (AP C2)
   [/^Eine Unit „(.+)" gibt es schon$/,
     { en: 'A unit "$1" already exists', fr: 'Une unité « $1 » existe déjà' }],

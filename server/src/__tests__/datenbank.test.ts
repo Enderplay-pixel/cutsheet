@@ -4725,6 +4725,93 @@ describe('Dispo-Kopf vollständig, Breakdown in die Dispo (AP C4)', () => {
   })
 })
 
+describe('Szene teilen, Tage tauschen, Tagesarten (AP E6)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+  const radar = async (p: number) => (await hole(`/api/projects/${p}/conflicts`, tokenInhaber)).daten as any[]
+
+  it('eine Szene mit 2 Seiten in 1 1/8 und 7/8: beide Tagessummen stimmen, kein Konflikt; 1 und 7/8: Hinweis; abgedreht erst mit beiden Teilen', async () => {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Teilen E6', nutzerId])).id
+    const szene = (await db.run("INSERT INTO scenes (project_id, scene_number, title, eighths, estimated_minutes) VALUES (?, '12', 'Deich', 16, 120)", [p])).id
+    const t1 = (await sende(`/api/projects/${p}/shoot-days`, { date: '2027-08-02' })).daten
+    const t2 = (await sende(`/api/projects/${p}/shoot-days`, { date: '2027-08-03' })).daten
+    await sende(`/api/projects/${p}/drehplan/verschieben`, { szenen: [szene], zielTag: t1.id })
+    expect((await sende(`/api/projects/${p}/drehplan/teilen`, { szene, vonTag: t1.id, zielTag: t2.id, achtel: 16 })).status).toBe(400)
+    expect((await sende(`/api/projects/${p}/drehplan/teilen`, { szene, vonTag: t1.id, zielTag: t2.id, achtel: 7 })).status).toBe(201)
+
+    const tage = async () => (await hole(`/api/projects/${p}/shoot-days`, tokenInhaber)).daten as any[]
+    let [a, b] = await tage()
+    expect([a.total_eighths, b.total_eighths]).toEqual([9, 7])
+    // Drehzeit im Verhältnis der Seiten: 120 Minuten auf 9/16 und 7/16
+    expect([a.scenes[0].estimated_minutes, b.scenes[0].estimated_minutes]).toEqual([68, 53])
+    expect((await radar(p)).some((k) => k.message.startsWith('Teile von Szene 12'))).toBe(false)
+
+    // Den zweiten Teil auf 1 Seite: zusammen 2 1/8 statt 2
+    await sende(`/api/projects/${p}/drehplan/teil`, { szene, tag: t2.id, achtel: 8 }, 'PUT')
+    const hinweis = (await radar(p)).find((k) => k.message === 'Teile von Szene 12 „Deich" ergeben nicht die ganze Szene')
+    expect(hinweis).toMatchObject({ severity: 'warning', detail: '2 Teile mit zusammen 2 1/8 von 2 Seiten.' })
+    await sende(`/api/projects/${p}/drehplan/teil`, { szene, tag: t2.id, achtel: 7 }, 'PUT')
+
+    // Abgedreht erst, wenn beide Tage sie abgedreht führen
+    await sende(`/api/shoot-days/${t1.id}/daily-report`, { scenes_completed: [szene] })
+    expect((await db.get('SELECT shot_status FROM scenes WHERE id = ?', [szene])).shot_status).toBe('offen')
+    await sende(`/api/shoot-days/${t2.id}/daily-report`, { scenes_completed: [szene] })
+    expect((await db.get('SELECT shot_status FROM scenes WHERE id = ?', [szene])).shot_status).toBe('abgedreht')
+
+    // Einen Teil zum anderen legen: wieder eine ganze Szene an einem Tag
+    await sende(`/api/projects/${p}/drehplan/verschieben`, { szenen: [szene], zielTag: t1.id, vonTag: t2.id })
+    ;[a, b] = await tage()
+    expect([a.scenes.length, a.total_eighths, b.scenes.length]).toEqual([1, 16, 0])
+  })
+
+  it('Tage tauschen: Szenen, Dispo und Bericht bleiben am Tag und wandern mit dem Datum; abgedreht 400, verschickte Dispo erst nach Rückfrage', async () => {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Tauschen E6', nutzerId])).id
+    const neu = async (date: string) => (await sende(`/api/projects/${p}/shoot-days`, { date })).daten
+    const t3 = await neu('2027-09-01'), t5 = await neu('2027-09-03')
+    const szene = (await db.run("INSERT INTO scenes (project_id, scene_number, title) VALUES (?, '3', 'Hof')", [p])).id
+    await sende(`/api/projects/${p}/drehplan/verschieben`, { szenen: [szene], zielTag: t3.id })
+    const dispo = (await sende(`/api/shoot-days/${t3.id}/call-sheet`, {})).daten
+    await sende(`/api/shoot-days/${t3.id}/daily-report`, { notes: 'Wind' })
+
+    expect((await sende(`/api/projects/${p}/drehplan/tauschen`, { a: t3.id, b: t5.id })).status).toBe(200)
+    const nach = await db.get('SELECT date, day_number FROM shoot_days WHERE id = ?', [t3.id])
+    expect(nach).toEqual({ date: '2027-09-03', day_number: 2 })
+    expect((await db.get('SELECT shoot_day_id FROM call_sheets WHERE id = ?', [dispo.id])).shoot_day_id).toBe(t3.id)
+    expect((await db.get('SELECT notes FROM daily_reports WHERE shoot_day_id = ?', [t3.id])).notes).toBe('Wind')
+    expect((await db.get('SELECT shoot_day_id FROM shoot_day_scenes WHERE scene_id = ?', [szene])).shoot_day_id).toBe(t3.id)
+
+    // Verschickte Dispo: Rückfrage
+    await db.run('UPDATE call_sheet_entries SET sent_at = NOW() WHERE call_sheet_id = ?', [dispo.id])
+    await db.run("INSERT INTO call_sheet_entries (call_sheet_id, person_type, person_id, sent_at) VALUES (?, 'crew', 0, NOW())", [dispo.id])
+    const frage = await sende(`/api/projects/${p}/drehplan/tauschen`, { a: t3.id, b: t5.id })
+    expect(frage.status).toBe(409)
+    expect((await sende(`/api/projects/${p}/drehplan/tauschen?bestaetigt=1`, { a: t3.id, b: t5.id })).status).toBe(200)
+    // Abgedreht tauscht nicht
+    await db.run("UPDATE shoot_days SET status = 'Abgedreht' WHERE id = ?", [t5.id])
+    expect((await sende(`/api/projects/${p}/drehplan/tauschen`, { a: t3.id, b: t5.id })).status).toBe(400)
+  })
+
+  it('Tagesarten und Summen: Samstag ist Wochenenddreh, Drehfrei und Reisetag sind kein Drehtag', async () => {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Tagesarten E6', nutzerId])).id
+    const neu = async (date: string, status?: string) => {
+      const t = (await sende(`/api/projects/${p}/shoot-days`, { date })).daten
+      if (status) await sende(`/api/shoot-days/${t.id}`, { status }, 'PUT')
+      return t
+    }
+    const sa = await neu('2027-10-02')
+    await neu('2027-10-04')
+    await neu('2027-10-05', 'Drehfrei')
+    await neu('2027-10-06', 'Reisetag')
+    await neu('2027-10-07', 'Reserve')
+    const arten = (await hole(`/api/projects/${p}/drehplan/tagesarten`, tokenInhaber)).daten
+    expect(arten.summe).toEqual({ drehtage: 2, wochenende: 1, feiertag: 0, nacht: 0, drehfrei: 1, reisetag: 1, reserve: 1 })
+    expect(arten.tage[sa.id]).toEqual({ wochenende: true, feiertag: false, nacht: false })
+    // Ein Reisetag braucht den Stab nicht
+    const { KEIN_DREHTAG } = await import('../lib/drehtage')
+    expect(KEIN_DREHTAG).toEqual(expect.arrayContaining(['Drehfrei', 'Reisetag']))
+  })
+})
+
 describe('Erzähltag und Vorstopp (AP E5)', () => {
   const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
     hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })

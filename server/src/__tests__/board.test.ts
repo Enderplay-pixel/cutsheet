@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { teileEin, arbeitstageAb, wochentageAus, folgetageVerschieben } from '../lib/board'
+import { teileEin, arbeitstageAb, wochentageAus, folgetageVerschieben, seitenAmTag, teileGanz, tagesart } from '../lib/board'
 import { getHolidays } from '../services/holidays'
 
 /**
@@ -87,5 +87,34 @@ describe('folgetageVerschieben: jeder Folgetag rückt um einen Arbeitstag', () =
     // Sa 21. und So 22. hätten beide den Montag als nächsten Arbeitstag
     expect(folgetageVerschieben(['2026-11-21', '2026-11-22'], '2026-11-20', moBisFr, []))
       .toEqual(['2026-11-23', '2026-11-24'])
+  })
+})
+
+describe('Geteilte Szenen und Tagesarten (AP E6)', () => {
+  it('ein Teil trägt seinen Anteil, leer heißt die ganze Szene', () => {
+    expect([seitenAmTag(9, 16), seitenAmTag(null, 16), seitenAmTag(undefined, 16)]).toEqual([9, 16, 16])
+  })
+
+  it('erkennt, ob die Teile die ganze Szene ergeben', () => {
+    expect(teileGanz([9, 7], 16)).toEqual({ summe: 16, ganz: true })
+    expect(teileGanz([8, 7], 16)).toEqual({ summe: 15, ganz: false })
+    // Ein Teil ohne Anteil zählt ganz - zwei solche sind doppelt
+    expect(teileGanz([null, null], 16)).toEqual({ summe: 32, ganz: false })
+  })
+
+  it('Wochenende und Feiertag aus dem Datum, Nacht aus der Drehzeit der Szenen', () => {
+    const feiertage = getHolidays(2026, 'NW').map((f) => f.date)
+    expect(tagesart('2026-11-28', feiertage, [])).toEqual({ wochenende: true, feiertag: false, nacht: false })
+    expect(tagesart('2026-12-25', feiertage, []).feiertag).toBe(true)
+    expect(tagesart('2026-11-24', feiertage, [
+      { day_night: 'NACHT', estimated_minutes: 120 }, { day_night: 'TAG', estimated_minutes: 60 },
+    ]).nacht).toBe(true)
+    // Genau die Hälfte ist kein Nachtdreh; Tag für Nacht zählt als Tag
+    expect(tagesart('2026-11-24', feiertage, [
+      { day_night: 'NACHT', estimated_minutes: 60 }, { day_night: 'TAG', estimated_minutes: 60 },
+    ]).nacht).toBe(false)
+    expect(tagesart('2026-11-24', feiertage, [
+      { day_night: 'NACHT', day_for_night: true, estimated_minutes: 120 }, { day_night: 'TAG', estimated_minutes: 60 },
+    ]).nacht).toBe(false)
   })
 })

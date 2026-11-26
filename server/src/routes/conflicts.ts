@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { genehmigungsMeldungen } from '../lib/genehmigungen'
+import { teileGanz } from '../lib/board'
 import { offeneCoverSets } from '../lib/coverSets'
 import { arbeitszeitEinstellung } from '../lib/arbeitszeitProjekt'
 import { pruefeTag, pruefeRuhezeit } from '../lib/arbeitszeit'
@@ -35,6 +36,12 @@ router.use('/projects/:projectId', requireMember)
  * Gemessen am 25.10.2026 stand ohne Datum "Drehtag 1 () enthält keine
  * Szenen", sonst das ISO-Datum mitten im deutschen Satz.
  */
+/** Seiten in Achteln als "1 7/8". */
+function achtelText(achtel: number): string {
+  const ganze = Math.floor(achtel / 8), rest = achtel % 8
+  return ganze === 0 ? `${rest}/8` : rest === 0 ? String(ganze) : `${ganze} ${rest}/8`
+}
+
 function datumText(datum: unknown): string {
   const d = String(datum ?? '')
   return istIsoDatum(d) ? d.split('-').reverse().join('.') : 'ohne Datum'
@@ -73,26 +80,30 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
   const pid = req.params.projectId
   const conflicts: any[] = []
 
-  // 1. Scenes in multiple shoot days
-  await pruefung('Szene an mehreren Drehtagen', conflicts, async () => {
-    const dupScenes = await db.all(`
-      SELECT s.scene_number, s.title, COUNT(sds.shoot_day_id) as day_count
+  // 1. Eine Szene an mehreren Tagen ist geteilt (AP E6): Ihre Teile müssen
+  // zusammen die ganze Szene ergeben. Vorher war jede zweite Zeile ein Fehler.
+  await pruefung('Teile einer Szene', conflicts, async () => {
+    const geteilt = await db.all(`
+      SELECT s.scene_number, s.title, s.eighths AS ganz, json_agg(sds.eighths) AS teile
       FROM shoot_day_scenes sds
       JOIN scenes s ON sds.scene_id = s.id
       JOIN shoot_days sd ON sds.shoot_day_id = sd.id
       WHERE sd.project_id = ?
-      GROUP BY sds.scene_id, s.scene_number, s.title
+      GROUP BY sds.scene_id, s.scene_number, s.title, s.eighths
       HAVING COUNT(sds.shoot_day_id) > 1
     `, [pid]) as any[]
 
-    dupScenes.forEach(s => {
+    for (const s of geteilt) {
+      const ganz = Number(s.ganz) || 0
+      const { summe, ganz: vollstaendig } = teileGanz(s.teile ?? [], ganz)
+      if (vollstaendig) continue
       conflicts.push({
-        severity: 'error', category: 'Drehplan',
-        message: `Szene ${s.scene_number} „${s.title}" ist ${s.day_count} Drehtagen zugewiesen`,
-        detail: 'Eine Szene darf nur einem Drehtag zugeordnet sein.',
+        severity: 'warning', category: 'Drehplan',
+        message: `Teile von Szene ${s.scene_number} „${s.title}" ergeben nicht die ganze Szene`,
+        detail: `${(s.teile ?? []).length} Teile mit zusammen ${achtelText(summe)} von ${achtelText(ganz)} Seiten.`,
         link: 'drehplan'
       })
-    })
+    }
   })
 
   // 2. Unscheduled scenes

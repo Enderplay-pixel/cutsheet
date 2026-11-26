@@ -25,7 +25,7 @@ router.get('/shoot-days/:dayId/morning-brief', async (req: Request, res: Respons
 
   // Scenes for the day
   const scenes = await db.all(`
-    SELECT s.*, l.name as location_name, l.address, l.city, l.zip, l.lat, l.lng
+    SELECT s.*, COALESCE(sds.eighths, s.eighths) AS eighths, l.name as location_name, l.address, l.city, l.zip, l.lat, l.lng
     FROM shoot_day_scenes sds
     JOIN scenes s ON s.id = sds.scene_id
     LEFT JOIN locations l ON s.location_id = l.id
@@ -124,7 +124,7 @@ router.get('/shoot-days/:dayId/morning-brief/pdf', async (req: Request, res: Res
 
   const project = await db.get('SELECT * FROM projects WHERE id = ?', [shootDay.project_id]) as any
   const scenes = await db.all(`
-    SELECT s.*, l.name as location_name, l.address, l.city, l.zip
+    SELECT s.*, COALESCE(sds.eighths, s.eighths) AS eighths, l.name as location_name, l.address, l.city, l.zip
     FROM shoot_day_scenes sds
     JOIN scenes s ON s.id = sds.scene_id
     LEFT JOIN locations l ON s.location_id = l.id

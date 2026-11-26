@@ -1,9 +1,10 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { teilenT } from '@/lib/texte/Teilen'
 import { vorstoppT } from '@/lib/texte/Vorstopp'
 import { coverT } from '@/lib/texte/CoverSets'
 import { cn, getStripClass, eighthsToString } from '@/lib/utils'
-import { GripVertical, X, Umbrella } from 'lucide-react'
+import { GripVertical, X, Umbrella, AlertTriangle } from 'lucide-react'
 import { useT } from '@/lib/useT'
 import { sceneStripT } from '@/lib/texte/komponenten/Drehplan'
 
@@ -12,11 +13,14 @@ interface SceneStripProps {
   shootDayId: number
   onRemove?: (sceneId: number) => void
   draggable?: boolean
+  /** Teil einer geteilten Szene (AP E6) */
+  teil?: { nr: number; von: number; ganz: boolean }
 }
 
-export function SceneStrip({ scene, shootDayId, onRemove, draggable = true }: SceneStripProps) {
+export function SceneStrip({ scene, shootDayId, onRemove, draggable = true, teil }: SceneStripProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: `scene-${scene.scene_id || scene.id}`,
+    // Mit dem Tag: Eine geteilte Szene steht in zwei Spalten (AP E6)
+    id: `scene-${scene.scene_id || scene.id}-${shootDayId}`,
     data: { type: 'scene', scene, shootDayId },
     disabled: !draggable,
   })
@@ -57,6 +61,8 @@ export function SceneStrip({ scene, shootDayId, onRemove, draggable = true }: Sc
       <div className={cn('flex-1 py-1.5 min-w-0', !draggable && 'pl-2')}>
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="font-mono font-semibold text-xs shrink-0">{scene.scene_number}</span>
+          {teil && <span className="text-[10px] shrink-0">{tt(teilenT.teilNr).replace('{nr}', String(teil.nr)).replace('{von}', String(teil.von))}</span>}
+          {teil && !teil.ganz && <AlertTriangle className="w-3 h-3 shrink-0" aria-label={tt(teilenT.nichtGanzKurz)} />}
           <span className="truncate text-xs opacity-80">{scene.title}</span>
         </div>
         <div className="flex items-center gap-1.5 mt-0.5 opacity-60 flex-wrap">

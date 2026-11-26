@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { db, TxClient } from '../db'
+import { seitenAmTag, tagesart, TEIL_SPALTEN, type Tagesart } from '../lib/board'
 import { vorstoppSumme } from '../lib/vorstopp'
 import { coverSetsFuer, offeneCoverSets, OFFENE_COVER_SETS_JSON } from '../lib/coverSets'
 import { besetzungNachziehen } from '../lib/dispo'
@@ -88,8 +89,8 @@ async function getShootDayWithScenes(dayId: number | bigint) {
   // sds.id als zweite Ordnung: Die Spaltenansicht legt jede gezogene Szene
   // mit sort_order 0 ab - ohne zweite Ordnung war die Reihenfolge Zufall.
   const scenes = await db.all(`
-    SELECT sds.*, s.scene_number, s.title, s.int_ext, s.day_night, s.eighths, s.estimated_minutes, s.description, s.notes,
-           s.location_id, l.name as location_name, s.cover_set, s.day_for_night, s.story_day, s.pretimed_seconds
+    SELECT sds.*, s.scene_number, s.title, s.int_ext, s.day_night, s.description, s.notes,
+           s.location_id, l.name as location_name, s.cover_set, s.day_for_night, s.story_day, ${TEIL_SPALTEN}
     FROM shoot_day_scenes sds
     JOIN scenes s ON sds.scene_id = s.id
     LEFT JOIN locations l ON s.location_id = l.id
@@ -123,9 +124,9 @@ export async function ladeDrehtageMitSzenen(projectId: number | string) {
   if (tage.length === 0) return []
 
   const szenen = (await db.all(
-    `SELECT sds.*, s.scene_number, s.title, s.int_ext, s.day_night, s.eighths,
-            s.estimated_minutes, s.description, s.notes, s.location_id, l.name as location_name, s.cover_set, s.day_for_night,
-            s.story_day, s.pretimed_seconds
+    `SELECT sds.*, s.scene_number, s.title, s.int_ext, s.day_night,
+            s.description, s.notes, s.location_id, l.name as location_name, s.cover_set, s.day_for_night,
+            s.story_day, ${TEIL_SPALTEN}
        FROM shoot_day_scenes sds
        JOIN scenes s ON sds.scene_id = s.id
        LEFT JOIN locations l ON s.location_id = l.id
@@ -319,6 +320,30 @@ router.post('/shoot-days/move-scene', async (req, res) => {
     }
   }
 
+  // Ein Teil einer geteilten Szene (AP E6) wandert allein: nur die Zeile an
+  // fromDayId. Liegt am Ziel schon ein Teil, werden beide einer.
+  const teile = await db.all('SELECT id, shoot_day_id, eighths FROM shoot_day_scenes WHERE scene_id = ?', [sceneId]) as any[]
+  const teil = fromDayId ? teile.find((t) => Number(t.shoot_day_id) === Number(fromDayId)) : null
+  if (teile.length > 1 && teil) {
+    await db.transaction(async (tx) => {
+      if (!toDayId) {
+        await tx.run('DELETE FROM shoot_day_scenes WHERE id = ?', [teil.id])
+        return
+      }
+      const dort = teile.find((t) => Number(t.shoot_day_id) === Number(toDayId))
+      if (dort && dort.id !== teil.id) {
+        const ganz = Number(((await tx.get('SELECT eighths FROM scenes WHERE id = ?', [sceneId])) as any).eighths) || 0
+        const summe = seitenAmTag(dort.eighths, ganz) + seitenAmTag(teil.eighths, ganz)
+        await tx.run('UPDATE shoot_day_scenes SET eighths = ? WHERE id = ?', [summe >= ganz ? null : summe, dort.id])
+        await tx.run('DELETE FROM shoot_day_scenes WHERE id = ?', [teil.id])
+      } else {
+        await tx.run('UPDATE shoot_day_scenes SET shoot_day_id = ?, sort_order = ? WHERE id = ?', [toDayId, sortOrder, teil.id])
+      }
+      await besetzungNachziehen(tx, { tage: [Number(toDayId)] })
+    })
+    return res.json({ data: { ok: true }, error: null })
+  }
+
   await db.transaction(async (tx) => {
     // Aus ALLEN Drehtagen entfernen, nicht nur aus dem, den der Client fuer
     // den aktuellen haelt. Sonst landet die Szene bei einem veralteten Stand
@@ -443,6 +468,9 @@ router.post('/projects/:projectId/drehplan/verschieben', async (req, res) => {
   if (!szenen || szenen.length === 0) return res.status(400).json({ data: null, error: 'Keine Szene zum Verschieben angegeben' })
   const zielTag = req.body?.zielTag == null ? null : Number(req.body.zielTag)
   const vor = req.body?.vor ?? null
+  // Ein Teil einer geteilten Szene (AP E6): nur die Zeile an diesem Tag
+  // wandert. Ohne Angabe wandert die Szene ganz, ihre Teile gehen zusammen.
+  const vonTag = req.body?.vonTag == null ? null : Number(req.body.vonTag)
 
   const eigene = (await db.all('SELECT id, omitted FROM scenes WHERE project_id = ? AND id = ANY(?::int[])', [pid, szenen])) as any[]
   if (eigene.length !== szenen.length) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
@@ -457,10 +485,45 @@ router.post('/projects/:projectId/drehplan/verschieben', async (req, res) => {
     if (stelleVor(bleiben, vor) < 0) return res.status(400).json({ data: null, error: STELLE_FEHLT })
   }
 
+  if (vonTag !== null) {
+    await db.transaction(async (tx) => {
+      for (const id of szenen) {
+        const teil = await tx.get('SELECT id, eighths FROM shoot_day_scenes WHERE shoot_day_id = ? AND scene_id = ?', [vonTag, id]) as any
+        if (!teil || vonTag === zielTag) continue
+        if (zielTag === null) {
+          await tx.run('DELETE FROM shoot_day_scenes WHERE id = ?', [teil.id])
+        } else {
+          const dort = await tx.get('SELECT id, eighths FROM shoot_day_scenes WHERE shoot_day_id = ? AND scene_id = ?', [zielTag, id]) as any
+          if (dort) {
+            // Zwei Teile am selben Tag werden einer: ihre Seiten zusammen
+            const ganz = Number(((await tx.get('SELECT eighths FROM scenes WHERE id = ?', [id])) as any).eighths) || 0
+            const summe = seitenAmTag(dort.eighths, ganz) + seitenAmTag(teil.eighths, ganz)
+            await tx.run('UPDATE shoot_day_scenes SET eighths = ? WHERE id = ?', [summe >= ganz ? null : summe, dort.id])
+            await tx.run('DELETE FROM shoot_day_scenes WHERE id = ?', [teil.id])
+          } else {
+            await tx.run('UPDATE shoot_day_scenes SET shoot_day_id = ? WHERE id = ?', [zielTag, teil.id])
+          }
+        }
+      }
+      if (zielTag !== null) {
+        const bleiben = (await eintraegeDesTags(tx, zielTag)).filter((e) => !(e.art === 'szene' && szenen.includes(e.id)))
+        const stelle = stelleVor(bleiben, vor)
+        await schreibeReihenfolge(tx, zielTag, [...bleiben.slice(0, stelle < 0 ? bleiben.length : stelle), ...szenen.map((id) => ({ art: 'szene' as const, id })), ...bleiben.slice(stelle < 0 ? bleiben.length : stelle)])
+        await besetzungNachziehen(tx, { tage: [zielTag] })
+      }
+      await ordneTag(tx, vonTag)
+    })
+    return res.json({ data: { ok: true }, error: null })
+  }
+
   await db.transaction(async (tx) => {
     const quellen = ((await tx.all('SELECT DISTINCT shoot_day_id FROM shoot_day_scenes WHERE scene_id = ANY(?::int[])', [szenen])) as any[])
       .map((r) => Number(r.shoot_day_id))
       .filter((t) => t !== zielTag)
+    // Wandert die Szene ganz, gilt am Ziel die ganze Szene (AP E6)
+    if (zielTag !== null) {
+      await tx.run('UPDATE shoot_day_scenes SET eighths = NULL WHERE shoot_day_id = ? AND scene_id = ANY(?::int[])', [zielTag, szenen])
+    }
     // Aus allen anderen Tagen lösen, nicht nur aus dem, den die Seite kennt
     // (wie bei move-scene: sonst stünde eine Szene nach zwei Zügen doppelt).
     if (zielTag === null) {
@@ -696,6 +759,115 @@ router.post('/projects/:projectId/drehplan/einteilen', async (req, res) => {
     await besetzungNachziehen(tx, { tage: verteilung.map((v) => Number(v.tag_id)) })
   })
   res.json({ data: ergebnis(), error: null })
+})
+
+// POST /api/projects/:projectId/drehplan/teilen
+// { szene, vonTag, zielTag, achtel }: Ein Teil der Szene mit `achtel` Seiten
+// kommt an einen weiteren Tag, der Teil am bisherigen Tag wird um so viel
+// kleiner (AP E6, Soll 1).
+router.post('/projects/:projectId/drehplan/teilen', async (req, res) => {
+  const pid = Number(req.params.projectId)
+  const szene = Number(req.body?.szene), vonTag = Number(req.body?.vonTag), zielTag = Number(req.body?.zielTag)
+  const achtel = Number(req.body?.achtel)
+  const s = await db.get('SELECT id, eighths FROM scenes WHERE id = ? AND project_id = ?', [szene, pid]) as any
+  if (!s) return res.status(404).json({ data: null, error: 'Szene nicht gefunden' })
+  const teil = await db.get(
+    'SELECT sds.id, sds.eighths FROM shoot_day_scenes sds JOIN shoot_days d ON d.id = sds.shoot_day_id WHERE sds.shoot_day_id = ? AND sds.scene_id = ? AND d.project_id = ?',
+    [vonTag, szene, pid]) as any
+  if (!teil) return res.status(400).json({ data: null, error: 'Die Szene steht nicht an diesem Drehtag' })
+  const ziel = await db.get('SELECT id, status FROM shoot_days WHERE id = ? AND project_id = ?', [zielTag, pid]) as any
+  if (!ziel) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+  if (zielTag === vonTag) return res.status(400).json({ data: null, error: 'Der zweite Teil kommt an einen anderen Drehtag' })
+  if (ziel.status === 'Sperrtag') return res.status(400).json({ data: null, error: 'Auf einen Sperrtag lassen sich keine Szenen legen' })
+  if (await db.get('SELECT 1 FROM shoot_day_scenes WHERE shoot_day_id = ? AND scene_id = ?', [zielTag, szene])) {
+    return res.status(400).json({ data: null, error: 'Die Szene steht an diesem Drehtag schon' })
+  }
+  const hier = seitenAmTag(teil.eighths, Number(s.eighths) || 0)
+  if (!Number.isInteger(achtel) || achtel <= 0 || achtel >= hier) {
+    return res.status(400).json({ data: null, error: `Der neue Teil hat mehr als 0 und weniger als ${hier} Achtel` })
+  }
+  await db.transaction(async (tx) => {
+    await tx.run('UPDATE shoot_day_scenes SET eighths = ? WHERE id = ?', [hier - achtel, teil.id])
+    const bleiben = await eintraegeDesTags(tx, zielTag)
+    await tx.run('INSERT INTO shoot_day_scenes (shoot_day_id, scene_id, sort_order, eighths) VALUES (?, ?, 0, ?)', [zielTag, szene, achtel])
+    await schreibeReihenfolge(tx, zielTag, [...bleiben, { art: 'szene' as const, id: szene }])
+    await besetzungNachziehen(tx, { tage: [zielTag] })
+  })
+  res.status(201).json({ data: { ok: true }, error: null })
+})
+
+// PUT /api/projects/:projectId/drehplan/teil
+// { szene, tag, achtel }: den Anteil eines Teils ändern; null heißt ganz.
+// Ergeben die Teile danach nicht die ganze Szene, meldet das der
+// Konfliktradar - geändert wird nur dieser Teil.
+router.put('/projects/:projectId/drehplan/teil', async (req, res) => {
+  const pid = Number(req.params.projectId)
+  const szene = Number(req.body?.szene), tag = Number(req.body?.tag)
+  const achtel = req.body?.achtel === null || req.body?.achtel === '' ? null : Number(req.body?.achtel)
+  const teil = await db.get(
+    `SELECT sds.id, s.eighths AS ganz FROM shoot_day_scenes sds JOIN shoot_days d ON d.id = sds.shoot_day_id JOIN scenes s ON s.id = sds.scene_id
+      WHERE sds.shoot_day_id = ? AND sds.scene_id = ? AND d.project_id = ?`, [tag, szene, pid]) as any
+  if (!teil) return res.status(404).json({ data: null, error: 'Die Szene steht nicht an diesem Drehtag' })
+  if (achtel !== null && (!Number.isInteger(achtel) || achtel <= 0 || achtel > 800)) {
+    return res.status(400).json({ data: null, error: 'Ein Teil hat 1 bis 800 Achtel' })
+  }
+  await db.run('UPDATE shoot_day_scenes SET eighths = ? WHERE id = ?', [achtel !== null && achtel >= Number(teil.ganz) ? null : achtel, teil.id])
+  res.json({ data: { ok: true }, error: null })
+})
+
+// POST /api/projects/:projectId/drehplan/tauschen?bestaetigt=1
+// { a, b }: Zwei Tage tauschen ihr Datum (AP E6, Soll 2). Szenen, Dispo,
+// Tagesbericht und Check-ins bleiben an ihrem Tag und wandern so mit dem
+// Datum. Abgedrehte Tage tauschen nicht; ist für einen eine Dispo
+// verschickt, erst nach Rückfrage.
+router.post('/projects/:projectId/drehplan/tauschen', async (req, res) => {
+  const pid = Number(req.params.projectId)
+  const ids = [Number(req.body?.a), Number(req.body?.b)]
+  const tage = await db.all('SELECT id, day_number, date, status FROM shoot_days WHERE project_id = ? AND id = ANY(?::int[])', [pid, ids]) as any[]
+  if (tage.length !== 2 || ids[0] === ids[1]) return res.status(404).json({ data: null, error: 'Drehtag nicht gefunden' })
+  if (tage.some((t) => t.status === 'Abgedreht')) return res.status(400).json({ data: null, error: 'Ein abgedrehter Tag tauscht nicht' })
+  const verschickt = await db.all(
+    `SELECT DISTINCT cs.shoot_day_id FROM call_sheets cs JOIN call_sheet_entries e ON e.call_sheet_id = cs.id
+      WHERE cs.shoot_day_id = ANY(?::int[]) AND e.sent_at IS NOT NULL`, [ids]) as any[]
+  if (verschickt.length > 0 && req.query.bestaetigt !== '1') {
+    return res.status(409).json({
+      data: { verschickt: verschickt.map((v) => Number(v.shoot_day_id)) },
+      error: 'Für einen der Tage ist die Dispo verschickt - nach dem Tausch stimmt ihr Datum nicht mehr. Trotzdem tauschen?',
+    })
+  }
+  const [x, y] = ids.map((id) => tage.find((t) => Number(t.id) === id))
+  await db.transaction(async (tx) => {
+    await tx.run('UPDATE shoot_days SET date = ? WHERE id = ?', [y.date, x.id])
+    await tx.run('UPDATE shoot_days SET date = ? WHERE id = ?', [x.date, y.id])
+    await nummeriereDrehtage(pid, tx)
+  })
+  res.json({ data: { ok: true }, error: null })
+})
+
+// GET /api/projects/:projectId/drehplan/tagesarten
+// Je Tag Wochenende, Feiertag, Nacht, dazu die Summen unter Board und
+// Drehplan (AP E6, Soll 3 und 4)
+router.get('/projects/:projectId/drehplan/tagesarten', async (req, res) => {
+  const pid = Number(req.params.projectId)
+  const tage = await ladeDrehtageMitSzenen(pid)
+  const jahre = [...new Set(tage.filter((t: any) => istIsoDatum(t.date)).map((t: any) => Number(String(t.date).slice(0, 4))))]
+  const s = (await db.get('SELECT state FROM project_settings WHERE project_id = ?', [pid])) as any
+  const feiertage = jahre.flatMap((j) => getHolidays(j, s?.state ?? '').map((f) => f.date))
+  const jeTag: Record<number, Tagesart> = {}
+  const summe = { drehtage: 0, wochenende: 0, feiertag: 0, nacht: 0, drehfrei: 0, reisetag: 0, reserve: 0 }
+  for (const t of tage as any[]) {
+    if (t.status === 'Drehfrei') summe.drehfrei++
+    if (t.status === 'Reisetag') summe.reisetag++
+    if (t.status === 'Reserve') summe.reserve++
+    if ((KEIN_DREHTAG as readonly string[]).includes(t.status)) continue
+    const art = tagesart(String(t.date ?? ''), feiertage, t.scenes ?? [])
+    jeTag[t.id] = art
+    summe.drehtage++
+    if (art.wochenende) summe.wochenende++
+    if (art.feiertag) summe.feiertag++
+    if (art.nacht) summe.nacht++
+  }
+  res.json({ data: { tage: jeTag, summe }, error: null })
 })
 
 /** Text und Dauer eines Banners prüfen; was nicht mitkommt, wird nicht geprüft. null heißt: in Ordnung. */

@@ -31,8 +31,12 @@ import { stabDerUnit } from './units'
  * (Plan "CutSheet Kino-Ausbau", AP A1): Ein Reservetag liegt bereit, falls
  * Wetter oder Ausfall ihn brauchen. Bis dahin rechnete die Kalkulation jedem
  * Stabmitglied jeden leeren Tag als Drehtag an.
+ *
+ * Drehfrei und Reisetag seit dem 24.11.2026 (AP E6): wählbar im Drehplan,
+ * ein Tag im Zeitraum, an dem nicht gedreht wird. "Feiertag" ist kein
+ * Status, sondern ergibt sich aus dem Datum (`tagesart` in lib/board.ts).
  */
-export const KEIN_DREHTAG = ['Sperrtag', 'Ausgefallen', 'Reserve'] as const
+export const KEIN_DREHTAG = ['Sperrtag', 'Ausgefallen', 'Reserve', 'Drehfrei', 'Reisetag'] as const
 
 /** Dieselbe Liste für SQL: `sd.status NOT IN ${KEIN_DREHTAG_SQL}`. */
 export const KEIN_DREHTAG_SQL = `(${KEIN_DREHTAG.map(s => `'${s}'`).join(', ')})`

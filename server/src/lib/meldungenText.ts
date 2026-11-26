@@ -422,5 +422,12 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Ein Erzähltag hat höchstens 12 Zeichen': { en: 'A story day has at most 12 characters', fr: 'Un jour de récit compte au plus 12 caractères' },
   'Der Vorstopp liegt zwischen 0:00 und 10:00:00': { en: 'The pre-timing is between 0:00 and 10:00:00', fr: 'Le pré-minutage est compris entre 0:00 et 10:00:00' },
   'Die gedrehte Filmzeit liegt zwischen 0:00 und 10:00:00': { en: 'The screen time shot is between 0:00 and 10:00:00', fr: 'La durée tournée est comprise entre 0:00 et 10:00:00' },
+  // Szene teilen, Tage tauschen (AP E6, 24.11.2026)
+  'Die Szene steht nicht an diesem Drehtag': { en: 'The scene is not on this shoot day', fr: 'La scène n’est pas sur ce jour de tournage' },
+  'Der zweite Teil kommt an einen anderen Drehtag': { en: 'The second part goes on another shoot day', fr: 'La deuxième partie va sur un autre jour de tournage' },
+  'Die Szene steht an diesem Drehtag schon': { en: 'The scene is already on this shoot day', fr: 'La scène est déjà sur ce jour de tournage' },
+  'Ein Teil hat 1 bis 800 Achtel': { en: 'A part has 1 to 800 eighths', fr: 'Une partie compte de 1 à 800 huitièmes' },
+  'Ein abgedrehter Tag tauscht nicht': { en: 'A completed day cannot be swapped', fr: 'Un jour tourné ne s’échange pas' },
+  'Für einen der Tage ist die Dispo verschickt - nach dem Tausch stimmt ihr Datum nicht mehr. Trotzdem tauschen?': { en: 'The call sheet for one of the days has been sent - after the swap its date is wrong. Swap anyway?', fr: 'La feuille de service d’un des jours a été envoyée - après l’échange, sa date n’est plus juste. Échanger quand même ?' },
   'Liste nicht gefunden': { en: 'List not found', fr: 'Liste introuvable' },
 }

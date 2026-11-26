@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
+import { teileJeSzene } from '@/lib/boardZeilen'
+import { teilenT } from '@/lib/texte/Teilen'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors,
@@ -200,6 +202,7 @@ export function Component() {
       // Sperr-, Ausfall- und Reservetage zählen für niemanden: DOOD und Drehtage ändern sich
       queryClient.invalidateQueries({ queryKey: ['dood-report', pid] })
       queryClient.invalidateQueries({ queryKey: ['drehtage', pid] })
+      queryClient.invalidateQueries({ queryKey: ['tagesarten', pid] })
     },
     onError: (e: any) => toast({ title: tt(T.fehler), description: e.message, variant: 'destructive' }),
   })
@@ -260,6 +263,9 @@ export function Component() {
   })
 
   const gezeigteTage = tageNachUnit(shootDays || [], units, unitFilter)
+  // Geteilte Szenen und Tagesarten (AP E6)
+  const teile = teileJeSzene(tageNachUnit(shootDays || [], units, 'alle'))
+  const { data: tagesarten } = useQuery<any>({ queryKey: ['tagesarten', pid], queryFn: () => api.drehplan.tagesarten(pid) })
 
   const scheduledSceneIds = new Set<number>()
   shootDays?.forEach((day: any) => day.scenes?.forEach((s: any) => scheduledSceneIds.add(s.scene_id)))
@@ -401,6 +407,7 @@ export function Component() {
                   onDeleteDay={(dayId) => deleteDayMutation.mutate(dayId)}
                   onStatusChange={(dayId, status) => statusMutation.mutate({ dayId, status })}
                   darfAendern={canEdit}
+                  teile={teile}
                 />
               ))}
 
@@ -426,6 +433,13 @@ export function Component() {
           </div>
         </ScrollArea>
       </div>
+
+      {/* Summen unter dem Drehplan (AP E6) */}
+      {tagesarten?.summe && (
+        <p className="shrink-0 px-6 py-2 text-xs text-muted-foreground border-t border-border/60" role="status">
+          {Object.entries(tagesarten.summe).reduce((text: string, [k, v]) => text.replace(`{${k}}`, String(v)), tt(teilenT.summe))}
+        </p>
+      )}
 
       {/* Version history panel */}
       {showVersions && (

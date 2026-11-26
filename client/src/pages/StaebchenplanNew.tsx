@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
+import { achtelLesen } from '@/lib/seiten'
+import { teilenT } from '@/lib/texte/Teilen'
 import { zeitText } from '@/lib/vorstopp'
 import { vorstoppT } from '@/lib/texte/Vorstopp'
 import { coverT } from '@/lib/texte/CoverSets'
@@ -13,7 +15,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { api, ApiFehler } from '@/lib/api'
 import { cn, formatDate, getStripClass, eighthsToString, dauer, heuteISO, SZENEN_ARTEN, type SzenenArt } from '@/lib/utils'
-import { LayoutGrid, Film, Plus, Trash2, Pencil, Scissors, Wand2, ArrowRightLeft, AlertTriangle, Sun, Merge, X, Umbrella } from 'lucide-react'
+import { LayoutGrid, Film, Plus, Trash2, Pencil, Scissors, Wand2, ArrowRightLeft, AlertTriangle, Sun, Merge, X, Umbrella, Split } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -29,8 +31,7 @@ import { shootDayColumnT, drehtagStatusT } from '@/lib/texte/komponenten/Drehpla
 import { zielUnterDemZeiger } from '@/lib/zielUnterDemZeiger'
 import {
   zeilenAus, zielBeimAblegen, zielEinenSchritt, jetzigesZiel, gleichesZiel, verschobeneTage, eintraegeDesTags,
-  type Ziel, type Zeile,
-} from '@/lib/boardZeilen'
+  type Ziel, type Zeile, teileJeSzene } from '@/lib/boardZeilen'
 
 /**
  * Stäbchenplan als Board (Plan Kino-Ausbau, AP A2, 14.11.2026).
@@ -60,6 +61,9 @@ interface DayScene {
   day_for_night?: boolean
   story_day?: string
   pretimed_seconds?: number | null
+  // Teil einer geteilten Szene (AP E6): eigener Anteil, sonst leer
+  teil_achtel?: number | null
+  szene_achtel?: number | null
 }
 
 interface Banner {
@@ -116,12 +120,20 @@ function ZielLinie({ unten }: { unten: boolean }) {
   return <div aria-hidden="true" className={cn('absolute left-0 right-0 h-0.5 bg-primary rounded-full z-10', unten ? '-bottom-[3px]' : '-top-[3px]')} />
 }
 
-function StripInhalt({ szene, figuren }: { szene: DayScene; figuren: string }) {
+type TeilInfo = { nr: number; von: number; ganz: boolean; summe: number; szene: number }
+
+function StripInhalt({ szene, figuren, teil }: { szene: DayScene; figuren: string; teil?: TeilInfo }) {
   const tt = useT()
   return (
     <>
       <span className="font-mono font-semibold inline-flex items-center gap-1">
         {szene.scene_number}
+        {/* Geteilte Szene (AP E6): "12 (1/2)", ein Hinweis, wenn die Teile nicht die ganze Szene ergeben */}
+        {teil && <span className="font-normal">{tt(teilenT.teilNr).replace('{nr}', String(teil.nr)).replace('{von}', String(teil.von))}</span>}
+        {teil && !teil.ganz && (
+          <AlertTriangle className="w-3 h-3 shrink-0 text-amber-700 dark:text-amber-400"
+            aria-label={tt(teilenT.nichtGanz).replace('{summe}', eighthsToString(teil.summe)).replace('{ganz}', eighthsToString(teil.szene))} />
+        )}
         {/* Cover-Set (AP C5) */}
         {szene.cover_set && <Umbrella className="w-3 h-3 shrink-0" aria-label={tt(coverT.coverSet)} />}
       </span>
@@ -138,8 +150,8 @@ function StripInhalt({ szene, figuren }: { szene: DayScene; figuren: string }) {
   )
 }
 
-function StripZeile({ zeile, szene, figuren, markiert, darf, ziel, onKlick, onTaste }: {
-  zeile: Zeile; szene: DayScene; figuren: string; markiert: boolean; darf: boolean
+function StripZeile({ zeile, szene, figuren, markiert, darf, ziel, onKlick, onTaste, teil }: {
+  zeile: Zeile; szene: DayScene; figuren: string; markiert: boolean; darf: boolean; teil?: TeilInfo
   ziel: { key: string; unten: boolean } | null
   onKlick: (e: React.MouseEvent) => void
   onTaste: (e: React.KeyboardEvent) => void
@@ -174,7 +186,22 @@ function StripZeile({ zeile, szene, figuren, markiert, darf, ziel, onKlick, onTa
       )}
     >
       {ziel?.key === zeile.key && <ZielLinie unten={ziel.unten} />}
-      <StripInhalt szene={szene} figuren={figuren} />
+      <StripInhalt szene={szene} figuren={figuren} teil={teil} />
+    </div>
+  )
+}
+
+/** Ein weiterer Teil einer geteilten Szene (AP E6): steht an seinem Tag, wird nicht gezogen. */
+function TeilZeile({ zeile, szene, figuren, teil, ziel }: {
+  zeile: Zeile; szene: DayScene; figuren: string; teil?: TeilInfo; ziel: { key: string; unten: boolean } | null
+}) {
+  const tt = useT()
+  const { setNodeRef } = useSortable({ id: zeile.key, disabled: { draggable: true, droppable: false } })
+  return (
+    <div ref={setNodeRef} role="group" aria-label={tt(teilenT.weitererTeil).replace('{n}', szene.scene_number)}
+      className={cn('relative rounded-sm px-2 py-1.5 text-xs select-none opacity-90 border border-dashed border-border', SPALTEN, getStripClass(szene.int_ext, szene.day_night))}>
+      {ziel?.key === zeile.key && <ZielLinie unten={ziel.unten} />}
+      <StripInhalt szene={szene} figuren={figuren} teil={teil} />
     </div>
   )
 }
@@ -219,11 +246,14 @@ function BannerZeile({ zeile, banner, darf, ziel, onBearbeiten, onLoeschen }: {
   )
 }
 
-function GrenzeZeile({ zeile, tag, achtel, minuten, tageslaenge, sonne, darf, ziel, istLetzter, onBanner, onEntfernen }: {
+function GrenzeZeile({ zeile, tag, achtel, minuten, tageslaenge, sonne, darf, ziel, istLetzter, onBanner, onEntfernen, art, andere, onTauschen, onVerschieben }: {
   zeile: Zeile; tag: ShootDay; achtel: number; minuten: number; tageslaenge: number
   sonne: { auf: string; unter: string } | null
   darf: boolean; ziel: { key: string; unten: boolean } | null; istLetzter: boolean
   onBanner: () => void; onEntfernen: () => void
+  // Tagesarten, Tauschen und Verschieben (AP E6)
+  art?: { wochenende: boolean; feiertag: boolean; nacht: boolean }
+  andere: ShootDay[]; onTauschen: (mit: ShootDay) => void; onVerschieben: () => void
 }) {
   const tt = useT()
   const gebietsschema = useGebietsschema()
@@ -276,8 +306,31 @@ function GrenzeZeile({ zeile, tag, achtel, minuten, tageslaenge, sonne, darf, zi
           {tt(T.ueberTageslaenge).replace('{d}', dauerText(tageslaenge))}
         </span>
       )}
+      {/* Abgeleitete Tagesarten (AP E6) */}
+      {art?.wochenende && <span className="px-1.5 py-0.5 rounded-full bg-background border border-border">{tt(teilenT.wochenende)}</span>}
+      {art?.feiertag && <span className="px-1.5 py-0.5 rounded-full bg-background border border-border">{tt(teilenT.feiertag)}</span>}
+      {art?.nacht && <span className="px-1.5 py-0.5 rounded-full bg-background border border-border">{tt(teilenT.nacht)}</span>}
       {darf && (
         <span className="ml-auto flex items-center gap-1">
+          {tag.status !== 'Abgedreht' && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs"
+                  aria-label={tt(teilenT.tagMenue).replace('{n}', tagNummer(tag))}>
+                  <ArrowRightLeft className="w-3.5 h-3.5" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+                <DropdownMenuItem onSelect={onVerschieben}>{tt(teilenT.verschiebenAuf)}</DropdownMenuItem>
+                <div className="px-2 pt-2 pb-1 text-[11px] text-muted-foreground">{tt(teilenT.tauschenMit)}</div>
+                {andere.filter((t) => t.id !== tag.id && t.status !== 'Abgedreht').map((t) => (
+                  <DropdownMenuItem key={t.id} onSelect={() => onTauschen(t)}>
+                    {tt(T.menuTag).replace('{n}', tagNummer(t)).replace('{datum}', t.date ? formatDate(t.date) : tt(T.ohneDatum))}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onBanner}
             aria-label={tt(T.bannerNeuName).replace('{n}', tagNummer(tag))}>
             <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />{tt(T.bannerNeu)}
@@ -327,6 +380,107 @@ function AblageKopf({ zeile, anzahl, sortFelder, setSortFelder, ziel }: {
 }
 
 // ─── Dialoge ────────────────────────────────────────────────────────────────
+
+/**
+ * Szene teilen (AP E6): ein Teil mit eigenen Seiten an einen weiteren Tag.
+ * Steht die Szene schon in Teilen, lässt sich hier auch der Anteil an diesem
+ * Tag ändern.
+ */
+function TeilenDialog({ offen, pid, szene, tag, tage, onSchliessen, onFertig }: {
+  offen: boolean; pid: number; szene: DayScene | null; tag: ShootDay | null; tage: ShootDay[]
+  onSchliessen: () => void; onFertig: () => void
+}) {
+  const tt = useT()
+  const { toast } = useToast()
+  const [zielTag, setZielTag] = useState('')
+  const [seiten, setSeiten] = useState('')
+  const [anteil, setAnteil] = useState('')
+  const hier = szene ? (szene.teil_achtel ?? szene.szene_achtel ?? szene.eighths) : 0
+  useEffect(() => { if (offen) { setZielTag(''); setSeiten(''); setAnteil(eighthsToString(Number(hier) || 0)) } }, [offen])
+  const moeglich = tage.filter((t) => t.id !== tag?.id && t.status !== 'Sperrtag' && !t.scenes.some((s) => s.scene_id === szene?.scene_id))
+  const fehler = (e: any) => toast({ title: tt(T.fehler), description: e.message, variant: 'destructive' })
+  const teilen = async () => {
+    const achtel = achtelLesen(seiten)
+    if (!achtel) { toast({ title: tt(teilenT.seitenUnlesbar), variant: 'destructive' }); return }
+    try {
+      await api.drehplan.teilen(pid, { szene: szene!.scene_id, vonTag: tag!.id, zielTag: Number(zielTag), achtel })
+      toast({ title: tt(teilenT.geteilt).replace('{n}', szene!.scene_number) })
+      onFertig()
+    } catch (e: any) { fehler(e) }
+  }
+  const anteilSpeichern = async () => {
+    const achtel = achtelLesen(anteil)
+    if (!achtel) { toast({ title: tt(teilenT.seitenUnlesbar), variant: 'destructive' }); return }
+    try {
+      await api.drehplan.teilAendern(pid, { szene: szene!.scene_id, tag: tag!.id, achtel })
+      onFertig()
+    } catch (e: any) { fehler(e) }
+  }
+  return (
+    <Dialog open={offen} onOpenChange={(v) => !v && onSchliessen()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>{tt(teilenT.dialogTitel).replace('{n}', szene?.scene_number ?? '')}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <label className="block space-y-1 text-sm">
+            <span>{tt(teilenT.zielTag)}</span>
+            <select value={zielTag} onChange={(e) => setZielTag(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm">
+              <option value="">-</option>
+              {moeglich.map((t) => (
+                <option key={t.id} value={t.id}>{tt(T.menuTag).replace('{n}', tagNummer(t)).replace('{datum}', t.date ? formatDate(t.date) : tt(T.ohneDatum))}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block space-y-1 text-sm">
+            <span>{tt(teilenT.seitenNeu)}</span>
+            <Input value={seiten} onChange={(e) => setSeiten(e.target.value)} placeholder="7/8" />
+            <span className="block text-[11px] text-muted-foreground">{tt(teilenT.seitenHilfe).replace('{s}', eighthsToString(Number(hier) || 0))}</span>
+          </label>
+          {szene?.teil_achtel != null && (
+            <div className="flex items-end gap-2 pt-2 border-t border-border">
+              <label className="flex-1 space-y-1 text-sm">
+                <span>{tt(teilenT.seitenHier)}</span>
+                <Input value={anteil} onChange={(e) => setAnteil(e.target.value)} />
+              </label>
+              <Button variant="outline" onClick={anteilSpeichern}>{tt(teilenT.anteilKnopf)}</Button>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onSchliessen}>{tt(teilenT.abbrechen)}</Button>
+          <Button onClick={teilen} disabled={!zielTag || !seiten.trim()}>{tt(teilenT.teilenKnopf)}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Einen ganzen Tag auf ein neues Datum (AP E6). */
+function VerschiebenDialog({ tag, onSchliessen, onFertig }: { tag: ShootDay | null; onSchliessen: () => void; onFertig: () => void }) {
+  const tt = useT()
+  const { toast } = useToast()
+  const [datum, setDatum] = useState('')
+  useEffect(() => { setDatum(tag?.date ?? '') }, [tag?.id])
+  const speichern = async () => {
+    try {
+      await api.drehplan.updateDay(tag!.id, { date: datum })
+      onFertig()
+    } catch (e: any) {
+      toast({ title: tt(T.fehler), description: e.message, variant: 'destructive' })
+    }
+  }
+  return (
+    <Dialog open={!!tag} onOpenChange={(v) => !v && onSchliessen()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>{tt(teilenT.neuesDatum).replace('{n}', tag ? tagNummer(tag) : '')}</DialogTitle></DialogHeader>
+        <Input type="date" value={datum} onChange={(e) => setDatum(e.target.value)} aria-label={tt(teilenT.neuesDatum).replace('{n}', tag ? tagNummer(tag) : '')} />
+        <DialogFooter>
+          <Button variant="outline" onClick={onSchliessen}>{tt(teilenT.abbrechen)}</Button>
+          <Button onClick={speichern} disabled={!datum || datum === tag?.date}>{tt(teilenT.verschieben)}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 function BannerDialog({ offen, tagNummer, banner, onSchliessen, onSpeichern }: {
   offen: boolean; tagNummer: number | null; banner: Banner | null
@@ -549,6 +703,17 @@ export function Component() {
   }, [allScenes, geplant, sortFelder])
 
   const zeilen = useMemo(() => zeilenAus(tage, ablage), [tage, ablage])
+  // Geteilte Szenen (AP E6): je Szene ihre Teile in der Reihenfolge des Boards
+  const teile = useMemo(() => teileJeSzene(tage), [tage])
+  const teilVon = (szeneId: number, tagId: number | null): TeilInfo | undefined => {
+    const t = teile.get(szeneId)
+    if (!t || tagId === null) return undefined
+    const szene = Number(tage.find((x) => x.id === tagId)?.scenes.find((s) => s.scene_id === szeneId)?.szene_achtel) || 0
+    return { nr: t.tage.indexOf(tagId) + 1, von: t.tage.length, ganz: t.ganz, summe: t.summe, szene }
+  }
+  const { data: tagesarten } = useQuery<any>({ queryKey: ['tagesarten', pid], queryFn: () => api.drehplan.tagesarten(pid), enabled: !!pid })
+  const [teilenOffen, setTeilenOffen] = useState(false)
+  const [verschiebenTag, setVerschiebenTag] = useState<ShootDay | null>(null)
   const zeilenKeys = useMemo(() => zeilen.map((z) => z.key), [zeilen])
   const markiertSet = useMemo(() => new Set(markiert), [markiert])
   // Die Auswahl in der Reihenfolge des Boards - so zieht sie gemeinsam (Soll 4)
@@ -602,7 +767,7 @@ export function Component() {
   }
 
   const erneuern = () => {
-    for (const k of ['shoot-days', 'scenes', 'stats', 'conflicts', 'dood-report', 'drehtage']) {
+    for (const k of ['shoot-days', 'scenes', 'stats', 'conflicts', 'dood-report', 'drehtage', 'tagesarten']) {
       queryClient.invalidateQueries({ queryKey: [k, pid] })
     }
   }
@@ -632,12 +797,17 @@ export function Component() {
 
   // Optimistisch umsortieren, bei Fehler zurück und die Meldung mit dem Grund
   const verschiebenMutation = useMutation({
-    mutationFn: (v: { szenen: number[]; ziel: Ziel }) =>
-      api.drehplan.verschieben(pid, { szenen: v.szenen, zielTag: v.ziel.zielTag, vor: v.ziel.vor }),
+    mutationFn: (v: { szenen: number[]; ziel: Ziel }) => {
+      // Der erste Teil einer geteilten Szene wandert allein (AP E6)
+      const geteilt = v.szenen.length === 1 && teile.has(v.szenen[0])
+      const vonTag = geteilt ? (zeilen.find((z) => z.art === 'szene' && z.id === v.szenen[0]) as any)?.tagId ?? undefined : undefined
+      return api.drehplan.verschieben(pid, { szenen: v.szenen, zielTag: v.ziel.zielTag, vor: v.ziel.vor, ...(vonTag ? { vonTag } : {}) })
+    },
     onMutate: async (v) => {
       await queryClient.cancelQueries({ queryKey: ['shoot-days', pid] })
       const vorher = queryClient.getQueryData<ShootDay[]>(['shoot-days', pid])
-      const nachher = vorher ? verschobeneTage(vorher, v.szenen, v.ziel, neueSzene) : undefined
+      // Geteilte Szenen ohne Vorschau: Die Rechnung kennt nur ganze Szenen
+      const nachher = vorher && !v.szenen.some((id) => teile.has(id)) ? verschobeneTage(vorher, v.szenen, v.ziel, neueSzene) : undefined
       if (nachher) queryClient.setQueryData(['shoot-days', pid], nachher)
       return { vorher, nachher }
     },
@@ -794,6 +964,24 @@ export function Component() {
     }
   }
 
+  // Zwei Tage tauschen ihr Datum (AP E6); mit verschickter Dispo nach Rückfrage
+  const tauschen = async (a: ShootDay, b: ShootDay) => {
+    try {
+      try {
+        await api.drehplan.tauschen(pid, a.id, b.id)
+      } catch (e) {
+        if (!(e instanceof ApiFehler) || e.status !== 409) throw e
+        if (!confirm(e.message)) return
+        await api.drehplan.tauschen(pid, a.id, b.id, true)
+      }
+      toast({ title: tt(teilenT.getauscht).replace('{a}', tagNummer(a)).replace('{b}', tagNummer(b)) })
+    } catch (e: any) {
+      toast({ title: tt(T.fehler), description: e.message, variant: 'destructive' })
+    } finally {
+      erneuern()
+    }
+  }
+
   const grenzeEntfernen = async (tag: ShootDay) => {
     const folgender = naechsterDerUnit(tag)
     if (!folgender) return
@@ -844,8 +1032,13 @@ export function Component() {
         <StripZeile key={zeile.key} zeile={zeile}
           szene={{ ...szene, description: ausDerListe?.description ?? szene.description, location_name: szene.location_name ?? ausDerListe?.location_name }}
           figuren={figurenVon(zeile.id)} markiert={markiertSet.has(zeile.id)} darf={darf} ziel={ziel}
-          onKlick={(e) => klick(e, zeile.id)} onTaste={(e) => taste(e, zeile.id)} />
+          onKlick={(e) => klick(e, zeile.id)} onTaste={(e) => taste(e, zeile.id)} teil={teilVon(zeile.id, zeile.tagId)} />
       )
+    }
+    if (zeile.art === 'teil') {
+      const szene = tagVon(zeile.tagId)?.scenes.find((s) => s.scene_id === zeile.id)
+      if (!szene) return null
+      return <TeilZeile key={zeile.key} zeile={zeile} szene={szene} figuren={figurenVon(zeile.id)} teil={teilVon(zeile.id, zeile.tagId)} ziel={ziel} />
     }
     if (zeile.art === 'banner') {
       const banner = tagVon(zeile.tagId)?.banner.find((b) => b.id === zeile.id)
@@ -862,7 +1055,8 @@ export function Component() {
       return (
         <GrenzeZeile key={zeile.key} zeile={zeile} tag={tag} achtel={achtel} minuten={minuten} tageslaenge={tageslaenge}
           sonne={sonneFuer(tag.id)} darf={darf} ziel={ziel} istLetzter={!naechsterDerUnit(tag)}
-          onBanner={() => setBannerDialog({ tag, banner: null })} onEntfernen={() => grenzeEntfernen(tag)} />
+          onBanner={() => setBannerDialog({ tag, banner: null })} onEntfernen={() => grenzeEntfernen(tag)}
+          art={tagesarten?.tage?.[tag.id]} andere={tage} onTauschen={(mit) => tauschen(tag, mit)} onVerschieben={() => setVerschiebenTag(tag)} />
       )
     }
     return <AblageKopf key={zeile.key} zeile={zeile} anzahl={ablage.length} sortFelder={sortFelder} setSortFelder={setSortFelder} ziel={ziel} />
@@ -936,6 +1130,9 @@ export function Component() {
                       <DropdownMenuItem onSelect={() => verschiebe(auswahl, { zielTag: null, vor: null })}>{tt(T.ablage)}</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  <Button variant="outline" size="sm" className="h-8" disabled={!einzelnerImTag} onClick={() => setTeilenOffen(true)} title={tt(teilenT.teilenTitel)}>
+                    <Split className="w-3.5 h-3.5 mr-1" aria-hidden="true" />{tt(teilenT.teilen)}
+                  </Button>
                   <Button variant="outline" size="sm" className="h-8" disabled={!einzelnerImTag} onClick={grenzeEinfuegen} title={tt(T.grenzeEinfuegenTitel)}>
                     <Scissors className="w-3.5 h-3.5 mr-1" aria-hidden="true" />{tt(T.grenzeEinfuegen)}
                   </Button>
@@ -992,12 +1189,27 @@ export function Component() {
                 </DragOverlay>
               </DndContext>
             )}
+            {/* Summen unter dem Board (AP E6) */}
+            {tagesarten?.summe && (
+              <p className="mt-4 text-xs text-muted-foreground" role="status">
+                {Object.entries(tagesarten.summe).reduce((text: string, [k, v]) => text.replace(`{${k}}`, String(v)), tt(teilenT.summe))}
+              </p>
+            )}
             {/* Wo ein Streifen gelandet ist - für Vorleseanwendungen (Soll 11) */}
             <div aria-live="polite" className="sr-only">{ansage}</div>
           </div>
         )}
       </div>
 
+      {(() => {
+        const zeile = einzelnerImTag ? (zeilen.find((z) => z.art === 'szene' && z.id === auswahl[0]) as any) : null
+        const tag = zeile ? tagVon(zeile.tagId) ?? null : null
+        return (
+          <TeilenDialog offen={teilenOffen} pid={pid} szene={tag?.scenes.find((s) => s.scene_id === auswahl[0]) ?? null} tag={tag} tage={tage}
+            onSchliessen={() => setTeilenOffen(false)} onFertig={() => { setTeilenOffen(false); erneuern() }} />
+        )
+      })()}
+      <VerschiebenDialog tag={verschiebenTag} onSchliessen={() => setVerschiebenTag(null)} onFertig={() => { setVerschiebenTag(null); erneuern() }} />
       <BannerDialog offen={!!bannerDialog} tagNummer={bannerDialog?.tag?.day_number ?? null} banner={bannerDialog?.banner ?? null}
         onSchliessen={() => setBannerDialog(null)} onSpeichern={bannerSpeichern} />
       <EinteilenDialog offen={einteilenOffen} pid={pid} ablage={ablage} unit={(units?.length ?? 0) > 1 ? einteilenUnit : null} onSchliessen={() => setEinteilenOffen(false)}
