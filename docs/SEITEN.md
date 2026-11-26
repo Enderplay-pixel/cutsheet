@@ -45,7 +45,7 @@ zurückmailen, und dann steht die Antwort in einem Postfach statt im Projekt.
 | **Impressum** | `/impressum` | Pflichtangaben nach § 5 DDG. |
 | **Datenschutz** | `/datenschutz` | Datenschutzerklärung. |
 | **Invite** | `/invite/:token` | Einladung in ein Projekt annehmen. Verlangt anders als die vier folgenden ein Konto - der Token sagt nur, zu welchem Projekt. |
-| **PublicDispo** | `/dispo/:token` | Die eigene Tagesdisposition: Call-Zeit, Motiv, Szenen, Wetter. Bestätigen mit einem Klick. |
+| **PublicDispo** | `/dispo/:token` | Die eigene Tagesdisposition: Call-Zeit, eigene Zeiten (Abholung, Maske, Kostüm, Probe, am Set, Ende) und die eigene Fahrt, Motiv, Szenen, Wetter. Bestätigen mit einem Klick. |
 | **VertragBestaetigen** | `/vertrag/:token` | Vertrag lesen, als PDF öffnen, zustimmen oder ablehnen. Name und Zeitpunkt werden festgehalten. |
 | **CastingAntwort** | `/casting/:token` | Eine Agentur sieht die ausgeschriebenen Rollen und meldet Vorschläge mit Verfügbarkeit, Gage und Link auf Material. |
 | **AbnahmeAnsicht** | `/abnahme/:token` | Der Auftraggeber sieht die Fassung, hinterlässt Anmerkungen mit Zeitstelle und nimmt ab oder verlangt eine Runde mehr. |
@@ -136,7 +136,7 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 |---|---|---|---|
 | **Equipment** | `/projects/:id/equipment` | Equipmentlisten je Drehtag oder Gewerk, mit Mietpreis je Tag, Woche oder pauschal und Status. | In der Vorbereitung, dann beim Packen. |
 | **EquipmentKalender** | `/projects/:id/equipment-kalender` | Wann welches Gerät wo ist - findet Doppelbuchungen. | Wenn mehrere Projekte sich Technik teilen. |
-| **Fahrzeuge** | `/projects/:id/fahrzeuge` | Fahrzeuge mit Kennzeichen, Plätzen und Fahrer. | Bei Fahrgemeinschaften und auswärtigen Drehs. |
+| **Fahrzeuge** | `/projects/:id/fahrzeuge` | Fahrzeuge mit Kennzeichen, Plätzen und Fahrer; in der Fahrdispo der Tagesdispo wählbar. | Bei Fahrgemeinschaften und auswärtigen Drehs. |
 | **CateringListe** | `/projects/:id/catering` | Wer isst was nicht - Unverträglichkeiten und Vorlieben, je Drehtag ausgewertet. Eine Komparsengruppe zählt mit ihrer Kopfzahl des Tages. | Vor der Bestellung beim Caterer. |
 | **Versicherungen** | `/projects/:id/versicherungen` | Policen mit Nummer, Laufzeit und Deckung. | Vor dem ersten Drehtag, und wenn ein Motiv den Nachweis verlangt. |
 
@@ -146,7 +146,8 @@ Firma, ausdrücklich **nicht** auf Inhalte fremder Projekte.
 
 | Seite | Route | Was sie tut | Wann man sie aufmacht |
 |---|---|---|---|
-| **Tagesdispo** | `/projects/:id/tagesdispo`, `/tagesdispo/:dayId` | Die Disposition: Unit im Kopf, Stab der Unit, "Bei Schlechtwetter" mit den Cover-Sets eines Tages mit Außenszenen, General Call, geplanter Drehschluss mit Arbeitszeit-Befund, persönliche Zeiten, Szenen, Motiv, Wetter; Krankenhaus, Basecamp und Parken vom Motiv, Frühstück, Mittag, Temperaturen, Funkkanäle; Abteilungszeilen aus dem Breakdown. Versand per Mail mit persönlichem Bestätigungslink, Links auch ohne Mail kopierbar; Zeiten geschlossen verschieben. | Am Vortag, meist abends. |
+| **Tagesdispo** | `/projects/:id/tagesdispo`, `/tagesdispo/:dayId` | Die Disposition: Unit im Kopf, Stab der Unit, "Bei Schlechtwetter" mit den Cover-Sets eines Tages mit Außenszenen, General Call, geplanter Drehschluss mit Arbeitszeit-Befund, persönliche Zeiten, Szenen, Motiv, Wetter; Krankenhaus, Basecamp und Parken vom Motiv, Frühstück, Mittag, Temperaturen, Funkkanäle; Abteilungszeilen aus dem Breakdown; je Darsteller Abholung, Maske, Kostüm, Probe, am Set, Ende; Fahrdispo mit Fahrzeug, Fahrer und Mitfahrenden; Zeitplan der Szenen. Versand per Mail mit persönlichem Bestätigungslink, Links auch ohne Mail kopierbar; alle Zeiten verschieben mit Vorschau und Rückgängig. | Am Vortag, meist abends. |
+| **DisposUebersicht** | `/projects/:id/dispos` | Alle Dispos: je Drehtag Call, geplanter Drehschluss, Szenen, Vorstopp, Stand von Versand und Bestätigungen. | Vor der Woche und am Vorabend. |
 | **CheckinBoard** | `/projects/:id/checkin` | Wer ist da: alle von der Dispo des Tages, am Set abzuhaken; eine Komparsengruppe checkt mit Zahl ein ("38 von 40 da"). (Selbst einchecken über einen Link gibt es nicht, siehe Fund 79.) | Morgens am Set. |
 | **Tagesbericht** | `/projects/:id/tagesbericht` | Was wirklich gedreht wurde: Szenen, Seiten, Zeiten, Pausen, Vorkommnisse, gedrehte Filmzeit gegen den Vorstopp, aufgelaufen mit Rest des Films. Als PDF. | Abends nach Drehschluss. |
 | **Kameraberichte** | `/projects/:id/kameraberichte` | Takes je Einstellung mit Bewertung, Karten und Speicherplatz. | Am Set durch die Kamera-Assistenz. |

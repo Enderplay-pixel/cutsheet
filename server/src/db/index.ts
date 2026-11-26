@@ -1785,6 +1785,37 @@ export async function initDatabase() {
   // Szene teilen (Plan Kino-Ausbau, AP E6, 24.11.2026): der Anteil eines
   // Teils in Achteln, leer heißt die ganze Szene (lib/board.ts)
   await db.exec(`ALTER TABLE shoot_day_scenes ADD COLUMN IF NOT EXISTS eighths INTEGER`)
+  // Dispo: Zeiten je Person, Fahrdispo, Zeitplan der Szenen (Plan
+  // Kino-Ausbau, AP E7, 26.11.2026). Zeiten in Minuten seit Mitternacht.
+  for (const spalte of ['pickup_time', 'makeup_time', 'wardrobe_time']) {
+    await db.exec(`ALTER TABLE call_sheet_entries ADD COLUMN IF NOT EXISTS ${spalte} INTEGER`)
+  }
+  // Geplanter Beginn einer Szene, von Hand gesetzt; leer heißt gerechnet
+  await db.exec(`ALTER TABLE shoot_day_scenes ADD COLUMN IF NOT EXISTS planned_start INTEGER`)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS call_sheet_rides (
+      id SERIAL PRIMARY KEY,
+      call_sheet_id INTEGER NOT NULL REFERENCES call_sheets(id) ON DELETE CASCADE,
+      vehicle_id INTEGER REFERENCES vehicles(id) ON DELETE SET NULL,
+      driver_crew_id INTEGER REFERENCES crew(id) ON DELETE SET NULL,
+      driver_name TEXT NOT NULL DEFAULT '',
+      depart_time INTEGER,
+      from_place TEXT NOT NULL DEFAULT '',
+      to_place TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS call_sheet_ride_people (
+      -- Mit eigener id wie budget_line_regions: db.run und die Wiederherstellung
+      -- hängen an jedes INSERT "RETURNING id" an
+      id SERIAL PRIMARY KEY,
+      ride_id INTEGER NOT NULL REFERENCES call_sheet_rides(id) ON DELETE CASCADE,
+      entry_id INTEGER NOT NULL REFERENCES call_sheet_entries(id) ON DELETE CASCADE,
+      UNIQUE (ride_id, entry_id)
+    )
+  `)
+  await db.exec(`CREATE INDEX IF NOT EXISTS call_sheet_rides_dispo_idx ON call_sheet_rides (call_sheet_id)`)
   await db.exec(`ALTER TABLE script_revision_scenes ADD COLUMN IF NOT EXISTS story_day TEXT NOT NULL DEFAULT ''`)
   await db.exec(`ALTER TABLE script_revision_scenes ADD COLUMN IF NOT EXISTS pretimed_seconds INTEGER`)
   // Wiederholbar beim Start: Jedes Projekt ohne Unit bekommt seine

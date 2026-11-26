@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
+import { fahrT } from '@/lib/texte/Fahrdispo'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/lib/api'
@@ -124,6 +125,40 @@ export function Component() {
             )}
           </div>
         </div>
+
+        {/* Eigene Zeiten und Fahrt (AP E7) */}
+        {(() => {
+          const z = me.zeiten ?? {}
+          const zeilen = ([['pickup_time', fahrT.abholung], ['makeup_time', fahrT.maske], ['wardrobe_time', fahrT.kostuem],
+            ['blk_reh', fahrT.probe], ['on_set', fahrT.amSet], ['lose_at', fahrT.ende]] as const).filter(([k]) => z[k] != null)
+          if (zeilen.length === 0 && !me.fahrt) return null
+          return (
+            <div className="rounded-xl border border-border/60 bg-card p-4 space-y-3 text-sm">
+              {zeilen.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-muted-foreground mb-1.5">{tt(fahrT.deineZeiten)}</p>
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+                    {zeilen.map(([k, name]) => (
+                      <Fragment key={k}>
+                        <dt className="text-muted-foreground">{tt(name)}</dt>
+                        <dd className="font-mono font-semibold">{fmtTime(z[k])}{k === 'pickup_time' && z.pickup_location ? ` · ${z.pickup_location}` : ''}</dd>
+                      </Fragment>
+                    ))}
+                  </dl>
+                </div>
+              )}
+              {me.fahrt && (
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-muted-foreground mb-1.5">{tt(fahrT.deineFahrt)}</p>
+                  <p><span className="font-mono font-semibold">{me.fahrt.abfahrt || '--:--'}</span> {[me.fahrt.from_place, me.fahrt.to_place].filter(Boolean).join(' → ')}</p>
+                  {(me.fahrt.fahrzeug || me.fahrt.fahrer) && (
+                    <p className="text-muted-foreground">{[me.fahrt.fahrzeug, me.fahrt.fahrer].filter(Boolean).join(' · ')}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Ort + Rahmendaten */}
         <div className="rounded-xl border border-border/60 bg-card p-4 space-y-2.5 text-sm">

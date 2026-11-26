@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { genehmigungsMeldungen } from '../lib/genehmigungen'
+import { fahrtenDerDispo } from './fahrdispo'
 import { teileGanz } from '../lib/board'
 import { offeneCoverSets } from '../lib/coverSets'
 import { arbeitszeitEinstellung } from '../lib/arbeitszeitProjekt'
@@ -477,6 +478,23 @@ router.get('/projects/:projectId/conflicts', async (req, res) => {
         detail: 'Bei Schlechtwetter gibt es nichts zum Ausweichen. Eine Innenszene im Drehbuch als Cover-Set markieren.',
         link: 'drehbuch',
       })
+    }
+  })
+
+  // 11e. Fahrdispo (AP E7): dasselbe Fahrzeug zweimal zur selben Abfahrt,
+  // mehr Mitfahrende als Plätze
+  await pruefung('Fahrdispo', conflicts, async () => {
+    const dispos = await db.all(
+      `SELECT cs.id, ${drehtagNameSql('sd', 'u')} AS name, sd.date FROM call_sheets cs JOIN shoot_days sd ON sd.id = cs.shoot_day_id
+        LEFT JOIN units u ON u.id = ${effektiveUnit('sd')}
+       WHERE sd.project_id = ? AND EXISTS (SELECT 1 FROM call_sheet_rides r WHERE r.call_sheet_id = cs.id)
+       ORDER BY sd.date, sd.day_number`, [pid]) as any[]
+    for (const d of dispos) {
+      for (const f of await fahrtenDerDispo(db, Number(d.id))) {
+        for (const h of f.hinweise) {
+          conflicts.push({ severity: 'warning', category: 'Fahrdispo', message: `${d.name} (${datumText(d.date)}): ${h}`, detail: [f.vehicle_name, f.from_place].filter(Boolean).join(' · '), link: 'tagesdispo' })
+        }
+      }
     }
   })
 

@@ -1,5 +1,6 @@
 import { dateiname } from '../lib/dateiname'
 import { fassungsName } from '../lib/fassungen'
+import { fahrtenDerDispo, mitfahrendeNamen } from './fahrdispo'
 import { TEIL_SPALTEN } from '../lib/board'
 import { coverSetsFuer, offeneCoverSets } from '../lib/coverSets'
 import { effektiveUnit, stabDerUnit } from '../lib/units'
@@ -646,6 +647,12 @@ export async function buildTagesdispoHtml(dayId: number | string): Promise<{ htm
     totalDays: Number(totalRow?.c) || 1,
     // Ausweichszenen bei Schlechtwetter (AP C5)
     schlechtwetter: coverSetsFuer(scenes, await offeneCoverSets(db, day.project_id)),
+    // Fahrdispo (AP E7)
+    fahrten: sheet ? await Promise.all((await fahrtenDerDispo(db, Number(sheet.id))).map(async (f) => ({
+      depart_time: f.depart_time, from_place: f.from_place, to_place: f.to_place,
+      fahrzeug: [f.vehicle_name, f.license_plate].filter(Boolean).join(' · '), fahrer: f.driver,
+      mitfahrende: await mitfahrendeNamen(f.entry_ids),
+    }))) : [],
     // Die Unit steht im Kopf, sobald das Projekt mehr als eine hat
     unit: Number(day.units_anzahl) > 1 ? day.unit_name : null,
     accent: (await getProjectSettings(day.project_id)).accentColor,

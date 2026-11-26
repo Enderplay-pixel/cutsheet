@@ -430,4 +430,13 @@ export const MELDUNGEN: Record<string, { en: string; fr: string }> = {
   'Ein abgedrehter Tag tauscht nicht': { en: 'A completed day cannot be swapped', fr: 'Un jour tourné ne s’échange pas' },
   'Für einen der Tage ist die Dispo verschickt - nach dem Tausch stimmt ihr Datum nicht mehr. Trotzdem tauschen?': { en: 'The call sheet for one of the days has been sent - after the swap its date is wrong. Swap anyway?', fr: 'La feuille de service d’un des jours a été envoyée - après l’échange, sa date n’est plus juste. Échanger quand même ?' },
   'Liste nicht gefunden': { en: 'List not found', fr: 'Liste introuvable' },
+  // Fahrdispo und Zeiten der Dispo (AP E7, 26.11.2026)
+  'Die Abfahrt ist eine Uhrzeit zwischen 00:00 und 24:00': { en: 'The departure is a time between 00:00 and 24:00', fr: 'Le départ est une heure entre 00:00 et 24:00' },
+  'Person des Stabs nicht gefunden': { en: 'Crew member not found', fr: 'Membre de l’équipe introuvable' },
+  'Mitfahrende sind eine Liste': { en: 'Passengers are a list', fr: 'Les passagers sont une liste' },
+  'Mitfahrende stehen auf dieser Dispo': { en: 'Passengers are on this call sheet', fr: 'Les passagers figurent sur cette feuille de service' },
+  'Verschoben wird um 1 bis 720 Minuten früher oder später': { en: 'Times move 1 to 720 minutes earlier or later', fr: 'Les horaires se décalent de 1 à 720 minutes plus tôt ou plus tard' },
+  'Der Beginn ist eine Uhrzeit zwischen 00:00 und 24:00': { en: 'The start is a time between 00:00 and 24:00', fr: 'Le début est une heure entre 00:00 et 24:00' },
+  'Eine Zeit liegt zwischen 00:00 und 24:00': { en: 'A time lies between 00:00 and 24:00', fr: 'Une heure se situe entre 00:00 et 24:00' },
+  'Fahrt nicht gefunden': { en: 'Ride not found', fr: 'Trajet introuvable' },
 }

@@ -56,6 +56,11 @@ const FREMDSCHLUESSEL: Record<string, string> = {
   file_id: 'project_files',
   // Units (AP C2): Drehtag und Stabmitglied zeigen auf ihre Unit
   unit_id: 'units',
+  // Fahrdispo (AP E7): Fahrt mit Fahrzeug und Fahrer, Mitfahrende als Dispo-Einträge
+  ride_id: 'call_sheet_rides',
+  entry_id: 'call_sheet_entries',
+  vehicle_id: 'vehicles',
+  driver_crew_id: 'crew',
 }
 
 /**

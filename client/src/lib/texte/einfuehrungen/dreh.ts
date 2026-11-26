@@ -84,11 +84,21 @@ export const dreh: Record<string, Schritt[]> = {
       ziel: 'zeiten',
       titel: { de: 'Zeiten, Hinweise, Catering', en: 'Times, notes, catering', fr: 'Horaires, consignes, restauration' },
       text: {
-        de: "Verschiebt sich der Tag, rücken \"Zeiten verschieben\" alle Call Times um die gewählten Minuten auf einmal. Darunter allgemeine Hinweise für alle und die Zahl der Essen für den Caterer.",
-        en: "If the day shifts, \"Shift times\" moves all call times by the chosen minutes at once. Below, general notes for everyone and the number of meals for the caterer.",
-        fr: "Si la journée se décale, « Décaler les horaires » déplace toutes les convocations du nombre de minutes choisi d'un coup. En dessous, les consignes générales et le nombre de repas pour le traiteur.",
+        de: "Verschiebt sich der Tag, rückt \"Zeiten verschieben\" alles um die gewählten Minuten: General Call, Shooting Call, Frühstück, Mittag, Drehschluss, die Zeiten jeder Person und die Fahrten. Erst kommt eine Vorschau, danach lässt es sich rückgängig machen. Darunter allgemeine Hinweise für alle und die Zahl der Essen für den Caterer.",
+        en: "If the day shifts, \"Shift times\" moves everything by the chosen minutes: general call, shooting call, breakfast, lunch, wrap, everyone's times and the rides. A preview comes first, and it can be undone afterwards. Below, general notes for everyone and the number of meals for the caterer.",
+        fr: "Si la journée se décale, « Décaler les horaires » déplace tout du nombre de minutes choisi : convocation générale, début de tournage, petit-déjeuner, déjeuner, fin, les horaires de chacun et les trajets. Un aperçu vient d'abord, et l'on peut annuler ensuite. En dessous, les consignes générales et le nombre de repas pour le traiteur.",
       },
       wirktAuf: ['catering'],
+    },
+    {
+      ziel: 'fahrdispo|personen',
+      titel: { de: 'Zeiten je Darsteller und Fahrdispo', en: 'Times per actor and transport', fr: 'Horaires par acteur et transports' },
+      text: {
+        de: "Die Uhr in der Zeile eines Darstellers öffnet Abholung, Maske, Kostüm, Probe, am Set und Ende. Die Fahrdispo legt Fahrten mit Fahrzeug, Fahrer und Mitfahrenden an; \"Aus den Abholungen vorschlagen\" macht aus gleicher Zeit und gleichem Ort eine Fahrt. Hat ein Fahrzeug zu wenig Plätze oder fährt es zweimal zur selben Zeit, steht ein Hinweis an der Fahrt und im Konfliktradar. Jede Person sieht ihre Fahrt auf ihrer persönlichen Dispo-Seite; alles steht im PDF.",
+        en: "The clock in an actor's row opens pick-up, make-up, costume, rehearsal, on set and wrap. Transport creates rides with vehicle, driver and passengers; \"Suggest from pick-ups\" turns the same time and place into one ride. If a vehicle has too few seats or runs twice at the same time, a note appears at the ride and in the conflict radar. Everyone sees their ride on their personal call sheet page; everything is in the PDF.",
+        fr: "L'horloge sur la ligne d'un acteur ouvre prise en charge, maquillage, costume, répétition, plateau et fin. Les transports créent des trajets avec véhicule, chauffeur et passagers ; « Proposer d'après les prises en charge » regroupe même heure et même lieu en un trajet. Si un véhicule manque de places ou roule deux fois à la même heure, une note apparaît au trajet et dans le radar des conflits. Chacun voit son trajet sur sa page personnelle ; tout figure dans le PDF.",
+      },
+      wirktAuf: ['fahrzeuge', 'konfliktradar'],
     },
     {
       ziel: 'anordnen',

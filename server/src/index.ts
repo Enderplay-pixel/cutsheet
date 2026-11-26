@@ -31,6 +31,7 @@ import locationsRouter from './routes/locations'
 import permitsRouter from './routes/permits'
 import drehplanRouter from './routes/drehplan'
 import unitsRouter from './routes/units'
+import fahrdispoRouter from './routes/fahrdispo'
 import callsheetsRouter from './routes/callsheets'
 import dailyreportsRouter from './routes/dailyreports'
 import shotsRouter from './routes/shots'
@@ -298,6 +299,8 @@ app.use('/api', permitsRouter)
 app.use('/api', drehplanRouter)
 // Units und parallele Drehtage (AP C2)
 app.use('/api', unitsRouter)
+// Fahrdispo, Zeiten verschieben, Übersicht der Dispos (AP E7)
+app.use('/api', fahrdispoRouter)
 app.use('/api', callsheetsRouter)
 app.use('/api', dailyreportsRouter)
 app.use('/api', shotsRouter)

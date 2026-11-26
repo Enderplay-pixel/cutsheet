@@ -25,6 +25,8 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
     { table: 'shoot_days', column: 'project_id' },
     { table: 'call_sheets', column: null as unknown as string },
     { table: 'call_sheet_entries', column: null as unknown as string },
+    { table: 'call_sheet_rides', column: null as unknown as string },
+    { table: 'call_sheet_ride_people', column: null as unknown as string },
     { table: 'daily_reports', column: null as unknown as string },
     { table: 'daily_report_cast', column: null as unknown as string },
     { table: 'shots', column: 'project_id' },
@@ -123,6 +125,14 @@ router.get('/projects/:projectId/backup', requireAuth, requireMember, async (req
   const callSheetIds = callSheetRows.map(r => r.id)
   backup['call_sheet_entries'] = callSheetIds.length
     ? await db.all(`SELECT * FROM call_sheet_entries WHERE call_sheet_id IN ${inList(callSheetIds)}`)
+    : []
+  // Fahrdispo (AP E7)
+  const fahrtRows = callSheetIds.length
+    ? await db.all(`SELECT * FROM call_sheet_rides WHERE call_sheet_id IN ${inList(callSheetIds)}`) as Array<{ id: number }>
+    : []
+  backup['call_sheet_rides'] = fahrtRows
+  backup['call_sheet_ride_people'] = fahrtRows.length
+    ? await db.all(`SELECT * FROM call_sheet_ride_people WHERE ride_id IN ${inList(fahrtRows.map(r => r.id))}`)
     : []
 
   const dailyReportRows = shootDayIds.length

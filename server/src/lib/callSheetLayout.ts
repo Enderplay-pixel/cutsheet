@@ -192,6 +192,8 @@ export interface CallSheetData {
   totalDays: number
   /** Name der Unit, wenn das Projekt mehr als eine hat (AP C2). */
   unit?: string | null
+  /** Fahrdispo (AP E7): Abfahrt, von, nach, Fahrzeug, Fahrer, Mitfahrende. */
+  fahrten?: Array<{ depart_time: number | null; from_place: string; to_place: string; fahrzeug: string; fahrer: string; mitfahrende: string[] }>
   /** Ausweichszenen bei Schlechtwetter (AP C5). */
   schlechtwetter?: Array<{ scene_number: string; title: string; int_ext: string; location_name?: string | null; eighths: number }>
   /** Kopffarbe des Projekts; ohne Angabe der Standard. */
@@ -214,6 +216,16 @@ export function renderCallSheetHtml(data: CallSheetData): string {
   const accent = resolveAccent(data.accent)
   const { project, day, sheet, scenes, cast, background, crew, advance, totalDays, firma, drehschluss, aufnahmeleitung } = data
   const unitZeile = data.unit ? `<div class="n">${esc(data.unit)}</div>` : ''
+  // Fahrdispo als eigener Block (AP E7)
+  const fahrtenBlock = (data.fahrten ?? []).length === 0 ? '' : `
+<table style="margin-top:4pt">
+  <thead><tr><th style="width:8%">Abfahrt</th><th style="width:18%">Von</th><th style="width:18%">Nach</th>
+    <th style="width:16%">Fahrzeug</th><th style="width:12%">Fahrer</th><th>Mitfahrende</th></tr></thead>
+  <tbody>${(data.fahrten ?? []).map((f) => `<tr>
+    <td class="c b">${esc(fmtCallTime(f.depart_time))}</td><td>${esc(f.from_place)}</td><td>${esc(f.to_place)}</td>
+    <td>${esc(f.fahrzeug)}</td><td>${esc(f.fahrer)}</td><td>${esc(f.mitfahrende.join(', '))}</td>
+  </tr>`).join('')}</tbody>
+</table>`
   // Vorstopp des Tages neben den Seiten, mit dem geschätzten Anteil (AP E5)
   const vs = vorstoppSumme(scenes)
   const vorstoppZeile = scenes.length === 0 ? '' : ` · Vorstopp ${esc(zeitText(vs.sekunden))}${vs.geschaetzt_sekunden > 0 ? ` (davon geschätzt ${esc(zeitText(vs.geschaetzt_sekunden))})` : ''}`
@@ -249,8 +261,10 @@ export function renderCallSheetHtml(data: CallSheetData): string {
     <td>${esc(c.role || '')}</td>
     <td>${esc(c.name || '')}</td>
     <td class="c b">${esc(c.cast_status || '')}</td>
-    <td class="c">${esc(c.pickup_location || '')}</td>
+    <td class="c">${esc([fmtCallTime(c.pickup_time), c.pickup_location || ''].filter(Boolean).join(' '))}</td>
     <td class="c b">${esc(fmtCallTime(c.call_time))}</td>
+    <td class="c">${esc(fmtCallTime(c.makeup_time))}</td>
+    <td class="c">${esc(fmtCallTime(c.wardrobe_time))}</td>
     <td class="c">${esc(fmtCallTime(c.blk_reh))}</td>
     <td class="c">${esc(fmtCallTime(c.on_set))}</td>
     <td class="c">${esc(fmtCallTime(c.lose_at))}</td>
@@ -439,12 +453,13 @@ ${schlechtwetterBlock}
 <table style="margin-top:4pt">
   <thead><tr>
     <th style="width:4%">ID</th><th style="width:16%">Rolle</th><th style="width:16%">Darsteller</th>
-    <th style="width:6%">Status</th><th style="width:9%">Abholung</th><th style="width:8%">Call</th>
-    <th style="width:8%">Probe</th><th style="width:8%">Set</th><th style="width:8%">Ende</th><th>Hinweise</th>
+    <th style="width:6%">Status</th><th style="width:11%">Abholung</th><th style="width:6%">Call</th>
+    <th style="width:6%">Maske</th><th style="width:6%">Kostüm</th>
+    <th style="width:6%">Probe</th><th style="width:6%">Set</th><th style="width:6%">Ende</th><th>Hinweise</th>
   </tr></thead>
-  <tbody>${castRows || '<tr><td colspan="10" class="c">Keine Darsteller disponiert.</td></tr>'}</tbody>
+  <tbody>${castRows || '<tr><td colspan="12" class="c">Keine Darsteller disponiert.</td></tr>'}</tbody>
 </table>
-
+${fahrtenBlock}
 ${bgRows ? `<table style="margin-top:4pt">
   <thead><tr><th style="width:6%">Anz.</th><th>Komparserie / Stand-Ins</th><th style="width:10%">Call</th></tr></thead>
   <tbody>${bgRows}</tbody>

@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { komparsenT as KP } from '@/lib/texte/Komparsen'
+import { FahrdispoBlock } from '@/components/dispo/FahrdispoBlock'
+import { fahrT } from '@/lib/texte/Fahrdispo'
 import { vorstopp, zeitText } from '@/lib/vorstopp'
 import { vorstoppT } from '@/lib/texte/Vorstopp'
 import { coverT } from '@/lib/texte/CoverSets'
@@ -424,6 +426,10 @@ function AbteilungenBlock({ callSheet, notizen, setzen, darf }: { callSheet: any
 
 // ─── Cast / Crew section table ────────────────────────────────────────────────
 
+/** Leere Zeit (null) als 0 für das Feld, 0 zurück als null (AP E7). */
+const zeitFeld = (v: number | null | undefined) => v ?? 0
+const zeitWert = (v: number) => (v === 0 ? null : v)
+
 function PersonSection({
   title, entries, onUpdate, onDelete, isCast, onLink
 }: {
@@ -438,6 +444,8 @@ function PersonSection({
   const { darfSchreiben } = useSchreibrecht()
   const tt = useT()
   const gs = useGebietsschema()
+  // Welche Darsteller ihre Zeilen mit Abholung, Maske, Kostüm ... offen haben (AP E7)
+  const [offeneZeiten, setOffeneZeiten] = useState<Record<number, boolean>>({})
   if (entries.length === 0) return null
   // Der Name steht in person_name - vorher lasen die Feldnamen `name` und
   // hießen für alle "von dieser Person" (gemessen am 02.11.2026)
@@ -483,7 +491,8 @@ function PersonSection({
           </thead>
           <tbody>
             {entries.map((entry: any) => (
-              <tr key={entry.id} className="border-b border-border/20 last:border-0 hover:bg-muted/10 transition-colors group">
+              <Fragment key={entry.id}>
+              <tr className="border-b border-border/20 last:border-0 hover:bg-muted/10 transition-colors group">
                 <td className="py-2.5 pl-4 pr-2">
                   {/* Eine Gruppe steht mit ihrer Kopfzahl des Tages (AP C1) */}
                   <span className="font-semibold text-sm">{entry.gruppe ? tt(KP.gruppeZeile).replace('{n}', String(entry.headcount)).replace('{name}', entry.person_name || '-') : (entry.person_name || '-')}</span>
@@ -538,6 +547,13 @@ function PersonSection({
                   })()}
                 </td>
                 <td className="py-2.5 pr-4 whitespace-nowrap">
+                  {isCast && (
+                    <button onClick={() => setOffeneZeiten((z) => ({ ...z, [entry.id]: !z[entry.id] }))}
+                      aria-expanded={!!offeneZeiten[entry.id]} aria-label={tt(fahrT.zeitenVon).replace('{name}', wer(entry))} title={tt(fahrT.zeitenVon).replace('{name}', wer(entry))}
+                      className="w-6 h-6 inline-flex items-center justify-center rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors">
+                      <Clock className="w-3 h-3" />
+                    </button>
+                  )}
                   {darfSchreiben && onLink && (
                     <button onClick={() => onLink(entry)} aria-label={tt(KT.linkVon).replace('{name}', wer(entry))} title={tt(KT.linkKopieren)}
                       className="w-6 h-6 inline-flex items-center justify-center rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors">
@@ -554,6 +570,24 @@ function PersonSection({
                   </button>
                 </td>
               </tr>
+              {/* Zeiten je Darsteller (AP E7): Abholung, Maske, Kostüm, Probe, am Set, Ende */}
+              {isCast && offeneZeiten[entry.id] && (
+                <tr className="border-b border-border/20 bg-muted/10">
+                  <td colSpan={7} className="px-4 py-2">
+                    <div className="flex flex-wrap items-end gap-3">
+                      {([['pickup_time', fahrT.abholung], ['makeup_time', fahrT.maske], ['wardrobe_time', fahrT.kostuem],
+                        ['blk_reh', fahrT.probe], ['on_set', fahrT.amSet], ['lose_at', fahrT.ende]] as const).map(([feld, name]) => (
+                        <label key={feld} className="space-y-1 text-[11px] text-muted-foreground">
+                          <span className="block">{tt(name)}</span>
+                          <OptionaleZeit value={zeitFeld(entry[feld])} onChange={v => onUpdate(entry._idx, feld, zeitWert(v))}
+                            label={tt(fahrT.feldVon).replace('{feld}', tt(name)).replace('{name}', wer(entry))} disabled={!darfSchreiben} />
+                        </label>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
             ))}
           </tbody>
         </table>
@@ -727,9 +761,18 @@ function CallSheetBlock({ callSheet, projectId, onSaveEntries, onRefresh }: {
 
 // ─── Scenes table ─────────────────────────────────────────────────────────────
 
-function ScenesTable({ scenes }: { scenes: any[] }) {
+function ScenesTable({ scenes, zeitplan, dayId, darf, onGeaendert, mittag }: {
+  scenes: any[]; zeitplan?: any[]; dayId?: number; darf?: boolean; onGeaendert?: () => void; mittag?: number | null
+}) {
   const tt = useT()
+  const { toast } = useToast()
   if (!scenes || scenes.length === 0) return null
+  // Geplanter Beginn je Szene (AP E7): aus Shooting Call und Drehzeit davor, von Hand überschreibbar
+  const planVon = (id: number) => zeitplan?.find((z: any) => z.art === 'szene' && z.id === id)
+  const setzen = async (id: number, beginn: number | null) => {
+    try { await api.callSheets.zeitplanSetzen(dayId!, id, beginn); onGeaendert?.() }
+    catch (e: any) { toast({ variant: 'destructive', title: e.message }) }
+  }
 
   return (
     <div data-einfuehrung="szenen" className="bg-card border border-border/60 rounded-xl overflow-hidden">
@@ -754,6 +797,7 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
           <thead>
             <tr className="border-b border-border/30 bg-muted/20">
               <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 pl-4 pr-2 w-14">#</th>
+              {zeitplan && <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-28">{tt(fahrT.zeit)}</th>}
               <th className="text-left text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-3">{tt(D.setBeschreibung)}</th>
               <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-20">INT/EXT</th>
               <th className="text-center text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider py-2 px-2 w-16">{tt(D.tagNacht)}</th>
@@ -768,7 +812,13 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
               const rowBg = farbe.row
               const badgeColor = farbe.badge
               return (
-                <tr key={s.scene_id} className={cn('border-b border-border/20 last:border-0 group', rowBg)}>
+                <Fragment key={s.scene_id}>
+                {planVon(s.scene_id)?.mittag_davor && !!mittag && (
+                  <tr className="border-b border-border/20 bg-amber-500/5">
+                    <td colSpan={7} className="px-4 py-1 text-[11px] text-amber-700 dark:text-amber-400">{tt(fahrT.mittag).replace('{zeit}', formatTime(mittag ?? 0))}</td>
+                  </tr>
+                )}
+                <tr className={cn('border-b border-border/20 last:border-0 group', rowBg)}>
                   {/* Colored left strip + scene number */}
                   <td className="py-3 pl-0 pr-2 text-center">
                     <div className="flex items-center">
@@ -776,6 +826,18 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
                       <span className="font-mono font-bold text-base tabular-nums">{s.scene_number}</span>
                     </div>
                   </td>
+                  {zeitplan && (
+                    <td className="py-3 px-2">
+                      <div className="flex items-center gap-1">
+                        <OptionaleZeit value={planVon(s.scene_id)?.beginn ?? 0} disabled={!darf}
+                          onChange={v => setzen(s.scene_id, v === 0 ? null : v)} label={tt(fahrT.zeitVon).replace('{n}', s.scene_number)} />
+                        {planVon(s.scene_id)?.von_hand && (
+                          <button type="button" disabled={!darf} onClick={() => setzen(s.scene_id, null)} title={tt(fahrT.vonHand)}
+                            className="text-[10px] text-muted-foreground underline">{tt(fahrT.vonHand)}</button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                   <td className="py-3 px-3">
                     <span className="font-medium">{s.title || '-'}</span>
                   </td>
@@ -808,6 +870,7 @@ function ScenesTable({ scenes }: { scenes: any[] }) {
                     )}
                   </td>
                 </tr>
+                </Fragment>
               )
             })}
           </tbody>
@@ -989,10 +1052,20 @@ export function Component() {
     onSuccess: (_data, mins) => {
       queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })
       toast({ title: tt(dispoT.shiftedToast).replace('{n}', mins > 0 ? `+${mins}` : String(mins)) })
+      setVerschiebeVorschau(null)
+      setLetzteVerschiebung(letzteVerschiebung !== null && letzteVerschiebung === -mins ? null : mins)
     },
+    onError: (e: any) => toast({ variant: 'destructive', title: e.message }),
   })
 
   const [shiftAmount, setShiftAmount] = useState(15)
+  // Vorschau vor dem Verschieben, danach Rückgängig (AP E7)
+  const [verschiebeVorschau, setVerschiebeVorschau] = useState<{ anzahl: number; general_call: { alt: number; neu: number } | null; minuten: number } | null>(null)
+  const [letzteVerschiebung, setLetzteVerschiebung] = useState<number | null>(null)
+  const vorschauHolen = async (minuten: number) => {
+    try { setVerschiebeVorschau(await api.callSheets.zeitenVorschau(callSheet!.id, minuten)) }
+    catch (e: any) { toast({ variant: 'destructive', title: e.message }) }
+  }
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [sonneLaedt, setSonneLaedt] = useState(false)
 
@@ -1109,6 +1182,9 @@ export function Component() {
 
         {/* Spacer */}
         <div className="flex-1" />
+
+        {/* Übersicht aller Dispos (AP E7) */}
+        <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${pid}/dispos`)}>{tt(fahrT.uebersichtKurz)}</Button>
 
         {/* PDF download */}
         {selectedDayId && (
@@ -1365,7 +1441,8 @@ export function Component() {
           {
             id: 'szenen', titel: bloeckeT.szenen, inhalt: currentDay?.scenes?.length > 0 && (
               <div className="space-y-5">
-                <ScenesTable scenes={currentDay.scenes} />
+                <ScenesTable scenes={currentDay.scenes} zeitplan={callSheet?.zeitplan} dayId={selectedDayId} darf={darfSchreiben} mittag={callSheet?.lunch_call || null}
+                  onGeaendert={() => queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })} />
                 <Schlechtwetter szenen={currentDay.cover_sets} />
               </div>
             ),
@@ -1395,6 +1472,13 @@ export function Component() {
               )}
             </>
       
+            ),
+          },
+          {
+            // Fahrdispo (AP E7)
+            id: 'fahrdispo', titel: bloeckeT.fahrdispo, inhalt: !isLoading && callSheet?.id && (
+              <FahrdispoBlock callSheet={callSheet} pid={pid} darf={darfSchreiben}
+                onGeaendert={() => queryClient.invalidateQueries({ queryKey: ['call-sheet', selectedDayId] })} />
             ),
           },
           {
@@ -1430,14 +1514,35 @@ export function Component() {
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="flex-1 h-8 text-xs font-bold"
-                    onClick={() => shiftMutation.mutate(-shiftAmount)} disabled={!callSheet?.id}>
+                    onClick={() => vorschauHolen(-shiftAmount)} disabled={!callSheet?.id || !darfSchreiben}>
                     −{shiftAmount} {tt(D.min)}
                   </Button>
                   <Button variant="outline" size="sm" className="flex-1 h-8 text-xs font-bold"
-                    onClick={() => shiftMutation.mutate(shiftAmount)} disabled={!callSheet?.id}>
+                    onClick={() => vorschauHolen(shiftAmount)} disabled={!callSheet?.id || !darfSchreiben}>
                     +{shiftAmount} {tt(D.min)}
                   </Button>
                 </div>
+                {verschiebeVorschau && (
+                  <div role="status" className="mt-3 space-y-2 text-xs">
+                    <p>
+                      {verschiebeVorschau.general_call
+                        ? tt(fahrT.vorschauText).replace('{alt}', formatTime(verschiebeVorschau.general_call.alt)).replace('{neu}', formatTime(verschiebeVorschau.general_call.neu)).replace('{n}', String(verschiebeVorschau.anzahl))
+                        : tt(fahrT.vorschauOhneCall).replace('{n}', String(verschiebeVorschau.anzahl))}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="h-7 text-xs" onClick={() => shiftMutation.mutate(verschiebeVorschau.minuten)} disabled={shiftMutation.isPending}>
+                        {tt(fahrT.verschieben)} ({verschiebeVorschau.minuten > 0 ? '+' : ''}{verschiebeVorschau.minuten} {tt(D.min)})
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setVerschiebeVorschau(null)}>{tt(uiT.cancel)}</Button>
+                    </div>
+                  </div>
+                )}
+                {letzteVerschiebung !== null && !verschiebeVorschau && (
+                  <Button size="sm" variant="outline" className="mt-3 h-7 text-xs w-full" disabled={shiftMutation.isPending}
+                    onClick={() => shiftMutation.mutate(-letzteVerschiebung)}>
+                    {tt(fahrT.rueckgaengig).replace('{n}', `${-letzteVerschiebung > 0 ? '+' : ''}${-letzteVerschiebung}`)}
+                  </Button>
+                )}
               </div>
 
               {/* Notes + Catering card */}

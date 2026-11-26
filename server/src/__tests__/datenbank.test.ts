@@ -189,6 +189,10 @@ beforeAll(async () => {
   const { default: checkinRouter } = await import('../routes/checkin')
   const { default: cateringRouter } = await import('../routes/catering')
   app.use('/api', optionalAuth, checkinRouter, cateringRouter)
+  // Fahrdispo und Zeiten der Dispo (AP E7)
+  const { default: fahrdispoRouter } = await import('../routes/fahrdispo')
+  const { default: fahrzeugRouter } = await import('../routes/vehicles')
+  app.use('/api', optionalAuth, fahrdispoRouter, fahrzeugRouter)
   // Units und Stab je Unit (AP C2)
   const { default: unitsRouter } = await import('../routes/units')
   const { default: stabRouter } = await import('../routes/crew')
@@ -4722,6 +4726,99 @@ describe('Dispo-Kopf vollständig, Breakdown in die Dispo (AP C4)', () => {
     const leser = (await hole(`/api/shoot-days/${tag}/call-sheet`, tokenFremd)).daten
     expect(leser.entries).toHaveLength(1)
     expect('public_token' in leser.entries[0]).toBe(false)
+  })
+})
+
+describe('Dispo: Zeiten je Darsteller, Fahrdispo, alle Zeiten verschieben (AP E7)', () => {
+  const sende = (pfad: string, koerper: any = {}, methode = 'POST') =>
+    hole(pfad, tokenInhaber, { method: methode, body: JSON.stringify(koerper) })
+
+  it('zwei Abholungen 05:45 am selben Ort und eine um 06:15 ergeben zwei Fahrten; drei in zwei Plätzen ein Hinweis; eine Person löschen nimmt ihre Mitfahrt mit', async () => {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Fahrdispo E7', nutzerId])).id
+    const tag = (await sende(`/api/projects/${p}/shoot-days`, { date: '2027-11-02' })).daten
+    const rolle = async (name: string, darstellerin: string) => {
+      const ch = (await db.run('INSERT INTO characters (project_id, name) VALUES (?, ?)', [p, name])).id
+      return (await db.run('INSERT INTO "cast" (project_id, character_id, actor_name) VALUES (?, ?, ?)', [p, ch, darstellerin])).id
+    }
+    const [a, b, c] = [await rolle('Elke', 'Anna Berg'), await rolle('Wienke', 'Ben Claus'), await rolle('Trin', 'Cem Dogan')]
+    const dispo = (await sende(`/api/shoot-days/${tag.id}/call-sheet`, {})).daten
+    for (const id of [a, b, c]) await sende(`/api/call-sheets/${dispo.id}/entries/add`, { person_type: 'cast', person_id: id })
+    let stand = (await hole(`/api/shoot-days/${tag.id}/call-sheet`, tokenInhaber)).daten
+    const eintrag = (id: number) => stand.entries.find((e: any) => e.person_type === 'cast' && e.person_id === id)
+    // Zeiten je Darsteller: Abholung, Maske, Kostüm, Probe, am Set, Ende
+    expect((await sende(`/api/call-sheets/${dispo.id}/entries`, { entries: [{ ...eintrag(a), pickup_time: 2000 }] }, 'PUT')).status).toBe(400)
+    await sende(`/api/call-sheets/${dispo.id}/entries`, { entries: [
+      { ...eintrag(a), pickup_time: 345, pickup_location: 'Hotel Friesenhof', makeup_time: 390, wardrobe_time: 420, blk_reh: 450, on_set: 480, lose_at: 1080 },
+      { ...eintrag(b), pickup_time: 345, pickup_location: 'Hotel Friesenhof' },
+      { ...eintrag(c), pickup_time: 375, pickup_location: 'Hotel Friesenhof' },
+    ] }, 'PUT')
+    stand = (await hole(`/api/shoot-days/${tag.id}/call-sheet`, tokenInhaber)).daten
+    expect(eintrag(a)).toMatchObject({ pickup_time: 345, makeup_time: 390, wardrobe_time: 420, blk_reh: 450, on_set: 480, lose_at: 1080 })
+
+    const vorschlag = (await sende(`/api/call-sheets/${dispo.id}/rides/vorschlag`, {})).daten
+    expect(vorschlag.neu).toBe(2)
+    expect(vorschlag.fahrten.map((f: any) => [f.depart_time, f.entry_ids.length])).toEqual([[345, 2], [375, 1]])
+
+    // Fahrzeug mit zwei Plätzen, drei Mitfahrende: Hinweis an der Fahrt und im Radar
+    const bus = (await sende(`/api/projects/${p}/vehicles`, { name: 'Bulli', license_plate: 'NF-AB 12', capacity: 2 })).daten
+    const erste = vorschlag.fahrten[0]
+    const voll = (await sende(`/api/call-sheet-rides/${erste.id}`, { vehicle_id: bus.id, entry_ids: [eintrag(a).id, eintrag(b).id, eintrag(c).id] }, 'PUT')).daten
+    expect(voll.hinweise).toEqual(['3 Mitfahrende, das Fahrzeug hat 2 Plätze'])
+    const radar = (await hole(`/api/projects/${p}/conflicts`, tokenInhaber)).daten as any[]
+    expect(radar.some((k) => k.category === 'Fahrdispo' && k.message.endsWith('3 Mitfahrende, das Fahrzeug hat 2 Plätze'))).toBe(true)
+
+    // Die persönliche Dispo-Seite zeigt der Person ihre Fahrt
+    const { daten: link } = await sende(`/api/call-sheet-entries/${eintrag(b).id}/link`, {})
+    const oeffentlich = (await hole(`/api/cse/t/${link.token}`, tokenInhaber)).daten
+    expect(oeffentlich.me.fahrt).toMatchObject({ abfahrt: '05:45', from_place: 'Hotel Friesenhof', fahrzeug: 'Bulli · NF-AB 12' })
+    expect(oeffentlich.me.zeiten.pickup_time).toBe(345)
+
+    // PDF: Abholung, Maske, Kostüm und der Block der Fahrten
+    const { buildTagesdispoHtml } = await import('../routes/pdf')
+    const html = (await buildTagesdispoHtml(tag.id))!.html
+    expect(html).toContain('05:45 Hotel Friesenhof')
+    expect(html).toContain('<th style="width:6%">Maske</th>')
+    expect(html).toContain('Anna Berg, Ben Claus, Cem Dogan')
+
+    // Person löschen: ihre Mitfahrt geht mit
+    await hole(`/api/cast/${c}`, tokenInhaber, { method: 'DELETE' })
+    const nachher = (await hole(`/api/shoot-days/${tag.id}/call-sheet`, tokenInhaber)).daten
+    expect(nachher.fahrten.find((f: any) => f.id === erste.id).entry_ids).toHaveLength(2)
+  })
+
+  it('alle Zeiten 30 Minuten später: Vorschau, Ausführen, Rückgängig; vor 00:00 abgelehnt; Zeitplan der Szenen; Übersicht', async () => {
+    const p = (await db.run('INSERT INTO projects (title, owner_id) VALUES (?, ?)', ['Verschieben E7', nutzerId])).id
+    const tag = (await sende(`/api/projects/${p}/shoot-days`, { date: '2027-11-03' })).daten
+    const dispo = (await sende(`/api/shoot-days/${tag.id}/call-sheet`, { general_call: 390, shooting_call: 420, lunch_call: 780 })).daten
+    const crew = (await db.run("INSERT INTO crew (project_id, name, role) VALUES (?, 'Kai Jensen', 'Kamera')", [p])).id
+    await sende(`/api/call-sheets/${dispo.id}/entries/add`, { person_type: 'crew', person_id: crew, call_time: 390 })
+    await sende(`/api/call-sheets/${dispo.id}/rides`, { depart_time: 360, from_place: 'Basecamp', to_place: 'Deich' })
+
+    const vorschau = (await sende(`/api/call-sheets/${dispo.id}/zeiten-verschieben`, { minuten: 30, nurZeigen: true })).daten
+    expect(vorschau).toMatchObject({ general_call: { alt: 390, neu: 420 }, minuten: 30 })
+    const n = vorschau.anzahl
+    expect((await hole(`/api/shoot-days/${tag.id}/call-sheet`, tokenInhaber)).daten.general_call).toBe(390)
+    expect((await sende(`/api/call-sheets/${dispo.id}/zeiten-verschieben`, { minuten: 30 })).daten.anzahl).toBe(n)
+    let stand = (await hole(`/api/shoot-days/${tag.id}/call-sheet`, tokenInhaber)).daten
+    expect([stand.general_call, stand.shooting_call, stand.lunch_call, stand.fahrten[0].depart_time]).toEqual([420, 450, 810, 390])
+    await sende(`/api/call-sheets/${dispo.id}/zeiten-verschieben`, { minuten: -30 })
+    stand = (await hole(`/api/shoot-days/${tag.id}/call-sheet`, tokenInhaber)).daten
+    expect([stand.general_call, stand.shooting_call, stand.lunch_call, stand.fahrten[0].depart_time]).toEqual([390, 420, 780, 360])
+    expect((await sende(`/api/call-sheets/${dispo.id}/zeiten-verschieben`, { minuten: -400 })).status).toBe(400)
+
+    // Zeitplan: ab Shooting Call, eine Zeit von Hand
+    const szene = async (nr: string, minuten: number) => (await db.run('INSERT INTO scenes (project_id, scene_number, estimated_minutes) VALUES (?, ?, ?)', [p, nr, minuten])).id
+    const [s1, s2] = [await szene('1', 90), await szene('2', 60)]
+    await sende(`/api/projects/${p}/drehplan/verschieben`, { szenen: [s1, s2], zielTag: tag.id })
+    stand = (await hole(`/api/shoot-days/${tag.id}/call-sheet`, tokenInhaber)).daten
+    expect(stand.zeitplan.map((z: any) => [z.id, z.beginn])).toEqual([[s1, 420], [s2, 510]])
+    await sende(`/api/shoot-days/${tag.id}/zeitplan`, { scene_id: s2, beginn: 600 }, 'PUT')
+    stand = (await hole(`/api/shoot-days/${tag.id}/call-sheet`, tokenInhaber)).daten
+    expect(stand.zeitplan.find((z: any) => z.id === s2)).toMatchObject({ beginn: 600, von_hand: true })
+
+    // Übersicht aller Dispos
+    const uebersicht = (await hole(`/api/projects/${p}/dispos`, tokenInhaber)).daten
+    expect(uebersicht[0]).toMatchObject({ dispo_id: dispo.id, general_call: 390, personen: 1, verschickt: 0, bestaetigt: 0, szenen: ['1', '2'] })
   })
 })
 

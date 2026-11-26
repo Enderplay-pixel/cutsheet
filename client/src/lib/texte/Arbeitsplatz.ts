@@ -43,4 +43,5 @@ export const bloeckeT = {
   dispo:             { de: 'Besetzung und Stab', en: 'Cast and crew', fr: 'Acteurs et équipe' },
   zeitenHinweise:    { de: 'Zeiten verschieben, Hinweise und Catering', en: 'Shift times, notes and catering', fr: 'Décaler les horaires, consignes et restauration' },
   abteilungen:       { de: 'Abteilungen aus dem Breakdown', en: 'Departments from the breakdown', fr: 'Départements du dépouillement' },
+  fahrdispo:         { de: 'Fahrdispo', en: 'Transport', fr: 'Transports' },
 } satisfies Record<string, Text>

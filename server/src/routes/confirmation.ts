@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { hashPasswort, pruefePasswort } from '../lib/passwort'
+import { meineFahrt } from './fahrdispo'
 import { db } from '../db'
 import { drehortDesTages } from '../lib/dispo'
 import { personAngaben } from '../lib/person'
@@ -83,6 +84,10 @@ router.get('/cse/t/:token', async (req: Request, res: Response) => {
         name: person?.name || '',
         role: person?.role || '',
         call_time: entry.call_time,
+        // Zeiten und Fahrt der Person (AP E7)
+        zeiten: { pickup_time: (entry as any).pickup_time ?? null, pickup_location: (entry as any).pickup_location || '', makeup_time: (entry as any).makeup_time ?? null,
+          wardrobe_time: (entry as any).wardrobe_time ?? null, blk_reh: (entry as any).blk_reh ?? null, on_set: (entry as any).on_set ?? null, lose_at: (entry as any).lose_at ?? null },
+        fahrt: await meineFahrt(Number(entry.id), Number(entry.call_sheet_id)),
         notes: entry.notes || '',
         confirmed_at: entry.confirmed_at,
         email: person?.email || '',

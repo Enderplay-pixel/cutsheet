@@ -67,7 +67,7 @@ const ENTITAET: Record<string, string> = {
   'camera-reports': 'Kamerabericht', takes: 'Take', floorplans: 'Set-Plan', 'floorplan-items': 'Set-Plan-Element',
   moodboard: 'Moodboard', events: 'Termin', 'blackout-dates': 'Sperrtag', invites: 'Einladung', members: 'Mitglied',
   settings: 'Einstellungen', blocks: 'Drehbuchblock', screenplay: 'Drehbuch', drehplan: 'Drehplan',
-  regionen: 'Region', units: 'Unit', genehmigungen: 'Genehmigung', sets: 'Set', 'location-sets': 'Set', 'drehplan-versions': 'Drehplan-Version', drehbuch: 'Drehbuch', fassungen: 'Drehbuch-Fassung', 'shoot-day-banners': 'Banner im Drehplan', banner: 'Banner im Drehplan', projects: 'Projekt', catering: 'Catering', releases: 'Motivvertrag',
+  regionen: 'Region', units: 'Unit', 'call-sheet-rides': 'Fahrt', rides: 'Fahrt', 'zeiten-verschieben': 'Zeiten der Dispo', genehmigungen: 'Genehmigung', sets: 'Set', 'location-sets': 'Set', 'drehplan-versions': 'Drehplan-Version', drehbuch: 'Drehbuch', fassungen: 'Drehbuch-Fassung', 'shoot-day-banners': 'Banner im Drehplan', banner: 'Banner im Drehplan', projects: 'Projekt', catering: 'Catering', releases: 'Motivvertrag',
 }
 
 const AKTION: Record<string, string> = { POST: 'angelegt', PUT: 'geändert', PATCH: 'geändert', DELETE: 'gelöscht' }

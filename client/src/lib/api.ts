@@ -306,6 +306,16 @@ export const api = {
     shiftTimes: (id: number, minutes: number) => req<any>(`/call-sheets/${id}/shift-times`, { method: 'POST', body: JSON.stringify({ minutes }) }),
     /** Persönlicher Bestätigungslink einer Person, ohne Versand (AP C4). */
     link: (entryId: number) => req<{ token: string; pfad: string }>(`/call-sheet-entries/${entryId}/link`, { method: 'POST' }),
+    // Fahrdispo, Vorschau beim Verschieben, Zeitplan, Übersicht (AP E7)
+    fahrtNeu: (id: number, data: any) => req<any>(`/call-sheets/${id}/rides`, { method: 'POST', body: JSON.stringify(data) }),
+    fahrtAendern: (rideId: number, data: any) => req<any>(`/call-sheet-rides/${rideId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    fahrtLoeschen: (rideId: number) => req<any>(`/call-sheet-rides/${rideId}`, { method: 'DELETE' }),
+    fahrtenVorschlagen: (id: number) => req<any>(`/call-sheets/${id}/rides/vorschlag`, { method: 'POST' }),
+    zeitenVorschau: (id: number, minuten: number) =>
+      req<{ anzahl: number; general_call: { alt: number; neu: number } | null; minuten: number }>(`/call-sheets/${id}/zeiten-verschieben`, { method: 'POST', body: JSON.stringify({ minuten, nurZeigen: true }) }),
+    zeitplanSetzen: (dayId: number, sceneId: number, beginn: number | null) =>
+      req<any>(`/shoot-days/${dayId}/zeitplan`, { method: 'PUT', body: JSON.stringify({ scene_id: sceneId, beginn }) }),
+    uebersicht: (projectId: number) => req<any[]>(`/projects/${projectId}/dispos`),
   },
 
   // ─── Daily Reports ─────────────────────────────────────────────────────────

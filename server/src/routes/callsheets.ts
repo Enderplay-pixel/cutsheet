@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { arbeitszeitEinstellung, feiertageFuer } from '../lib/arbeitszeitProjekt'
+import { fahrtenDerDispo, zeitplanDesTages } from './fahrdispo'
+import { verschiebeZeiten } from '../lib/fahrdispo'
 import { pruefeTag, sonnFeiertag } from '../lib/arbeitszeit'
 import crypto from 'crypto'
 import { db } from '../db'
@@ -83,6 +85,9 @@ async function getCallSheet(id: number, mitLinks = true) {
     ...sheet, entries: eintraege, arbeitszeit: { wrap, regel: einstellung?.regel ?? 'gesetz', befunde },
     vom_motiv: ort ? { motiv: ort.name, ...vomMotiv(ort) } : null,
     dept_vorschlag: abteilungszeilen(szenen, inventar),
+    // Fahrdispo und Zeitplan der Szenen (AP E7)
+    fahrten: await fahrtenDerDispo(db, id),
+    zeitplan: await zeitplanDesTages(db, Number(sheet.shoot_day_id), Number(sheet.shooting_call), sheet.lunch_call || null),
   }
 }
 
@@ -235,9 +240,24 @@ router.put('/call-sheets/:id/entries', async (req, res) => {
       return res.status(404).json({ data: null, error: 'Eintrag nicht gefunden' })
     }
   }
+  // Zeiten je Person (AP E7): Abholung, Maske, Kostüm, Probe, am Set, Ende -
+  // mitgeschickt gesetzt (leer heißt keine), sonst bleibt es
+  const ZEITEN = ['pickup_time', 'makeup_time', 'wardrobe_time', 'blk_reh', 'on_set', 'lose_at'] as const
+  for (const e of entries as any[]) {
+    for (const f of ZEITEN) {
+      const w = e[f]
+      if (w === undefined || w === null || w === '') continue
+      const n = Number(w)
+      if (!Number.isInteger(n) || n < 0 || n > 1440) return res.status(400).json({ data: null, error: 'Eine Zeit liegt zwischen 00:00 und 24:00' })
+    }
+  }
   await db.transaction(async (tx) => {
     for (const e of entries as any[]) {
       await tx.run('UPDATE call_sheet_entries SET call_time=?, pickup_location=?, notes=? WHERE id=?', [e.call_time, e.pickup_location || '', e.notes || '', e.id])
+      for (const f of ZEITEN) {
+        if (e[f] === undefined) continue
+        await tx.run(`UPDATE call_sheet_entries SET ${f} = ? WHERE id = ?`, [e[f] === null || e[f] === '' ? null : Number(e[f]), e.id])
+      }
     }
   })
   res.json({ data: await getCallSheet(parseInt(req.params.id)), error: null })
@@ -284,8 +304,21 @@ router.delete('/call-sheets/:id/entries/:entryId', async (req, res) => {
 // POST /api/call-sheets/:id/shift-times
 router.post('/call-sheets/:id/shift-times', async (req, res) => {
   const { minutes = 0 } = req.body
-  await db.run('UPDATE call_sheet_entries SET call_time = call_time + ? WHERE call_sheet_id = ?', [minutes, req.params.id])
-  await db.run('UPDATE call_sheets SET general_call = general_call + ?, shooting_call = shooting_call + ?, updated_at = NOW() WHERE id = ?', [minutes, minutes, req.params.id])
+  // Alle Zeiten der Dispo nach einer Regel (AP E7): Kopf, Einzelzeiten, Fahrten;
+  // nichts rutscht vor 00:00 oder nach 24:00
+  const sheet = await db.get('SELECT * FROM call_sheets WHERE id = ?', [req.params.id]) as any
+  if (!sheet) return res.status(404).json({ data: null, error: 'Dispo nicht gefunden' })
+  const entries = await db.all('SELECT id, call_time, pickup_time, makeup_time, wardrobe_time, blk_reh, on_set, lose_at FROM call_sheet_entries WHERE call_sheet_id = ?', [sheet.id]) as any[]
+  const rides = await db.all('SELECT id, depart_time FROM call_sheet_rides WHERE call_sheet_id = ?', [sheet.id]) as any[]
+  const { aenderungen, fehler } = verschiebeZeiten({ ...sheet, entries, rides }, Number(minutes) || 0)
+  if (fehler) return res.status(400).json({ data: null, error: fehler })
+  await db.transaction(async (tx) => {
+    for (const a of aenderungen) {
+      if (a.wo === 'kopf') await tx.run(`UPDATE call_sheets SET ${a.feld} = ?, updated_at = NOW() WHERE id = ?`, [a.neu, sheet.id])
+      else if (a.wo === 'eintrag') await tx.run(`UPDATE call_sheet_entries SET ${a.feld} = ? WHERE id = ?`, [a.neu, a.id])
+      else await tx.run('UPDATE call_sheet_rides SET depart_time = ? WHERE id = ?', [a.neu, a.id])
+    }
+  })
 
   // Crew sofort informieren - verschobene Drehbeginne sind die wichtigste Set-Info
   const ctx = await db.get(

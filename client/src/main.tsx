@@ -170,6 +170,8 @@ const router = createBrowserRouter([
           { path: 'setplan', lazy: lazyPage(() => import('./pages/Setplan')) },
           { path: 'tagesdispo', lazy: lazyPage(() => import('./pages/Tagesdispo')) },
           { path: 'tagesdispo/:dayId', lazy: lazyPage(() => import('./pages/Tagesdispo')) },
+          // Übersicht aller Dispos (AP E7)
+          { path: 'dispos', lazy: lazyPage(() => import('./pages/DisposUebersicht')) },
           { path: 'tagesbericht', lazy: lazyPage(() => import('./pages/Tagesbericht')) },
           { path: 'budget', lazy: lazyPage(() => import('./pages/Budget')) },
           { path: 'email', lazy: lazyPage(() => import('./pages/EmailCenter')) },
